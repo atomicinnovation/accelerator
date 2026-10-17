@@ -533,7 +533,9 @@ pub fn work::rekey::fingerprint::Staleness::fmt(&self, f: &mut core::fmt::Format
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::Staleness
 pub struct work::rekey::fingerprint::IdentityFingerprint
 impl work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::fingerprint::IdentityFingerprint::items(&self) -> impl core::iter::traits::iterator::Iterator<Item = &work::identity::ItemIdentity>
 pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &corpus::work_item_id::WorkItemIdScheme, items: &[work::identity::ItemIdentity]) -> Self
+pub fn work::rekey::fingerprint::IdentityFingerprint::scheme(&self) -> corpus::work_item_id::WorkItemIdScheme
 pub fn work::rekey::fingerprint::IdentityFingerprint::staleness_since(&self, earlier: &Self) -> core::option::Option<work::rekey::fingerprint::Staleness>
 impl core::clone::Clone for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::clone(&self) -> work::rekey::fingerprint::IdentityFingerprint
@@ -603,6 +605,7 @@ pub fn work::rekey::outcome::NotRekeyed::clone(&self) -> work::rekey::outcome::N
 impl core::cmp::Eq for work::rekey::outcome::NotRekeyed
 impl core::cmp::PartialEq for work::rekey::outcome::NotRekeyed
 pub fn work::rekey::outcome::NotRekeyed::eq(&self, other: &work::rekey::outcome::NotRekeyed) -> bool
+impl core::error::Error for work::rekey::outcome::NotRekeyed
 impl core::fmt::Debug for work::rekey::outcome::NotRekeyed
 pub fn work::rekey::outcome::NotRekeyed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for work::rekey::outcome::NotRekeyed
@@ -634,6 +637,7 @@ pub fn work::rekey::outcome::Holder::eq(&self, other: &work::rekey::outcome::Hol
 impl core::fmt::Debug for work::rekey::outcome::Holder
 pub fn work::rekey::outcome::Holder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::outcome::Holder
+pub fn work::rekey::outcome::unreverted_listing(unreverted: &work::rekey::write_set::Unreverted) -> alloc::vec::Vec<alloc::string::String>
 pub mod work::rekey::partly_applied
 pub fn work::rekey::partly_applied::partly_applied(items: &[work::identity::ItemIdentity]) -> alloc::vec::Vec<std::path::PathBuf>
 pub mod work::rekey::run_plan
@@ -663,7 +667,9 @@ pub struct work::rekey::run_plan::InProgressPlan
 impl work::rekey::run_plan::InProgressPlan
 pub fn work::rekey::run_plan::InProgressPlan::entries(&self) -> &[work::rekey::entry::RekeyEntry]
 pub fn work::rekey::run_plan::InProgressPlan::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
+pub const fn work::rekey::run_plan::InProgressPlan::fingerprint(&self) -> &work::rekey::fingerprint::IdentityFingerprint
 pub const fn work::rekey::run_plan::InProgressPlan::new(fingerprint: work::rekey::fingerprint::IdentityFingerprint, entries: alloc::vec::Vec<work::rekey::entry::RekeyEntry>, write_set: work::rekey::write_set::WriteSet) -> Self
+pub fn work::rekey::run_plan::InProgressPlan::preview_lines(&self) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::InProgressPlan::write_set(&self) -> &work::rekey::write_set::WriteSet
 impl core::clone::Clone for work::rekey::run_plan::InProgressPlan
 pub fn work::rekey::run_plan::InProgressPlan::clone(&self) -> work::rekey::run_plan::InProgressPlan
@@ -675,6 +681,8 @@ pub fn work::rekey::run_plan::InProgressPlan::fmt(&self, f: &mut core::fmt::Form
 impl core::marker::StructuralPartialEq for work::rekey::run_plan::InProgressPlan
 pub struct work::rekey::run_plan::ProposedPlan
 impl work::rekey::run_plan::ProposedPlan
+pub fn work::rekey::run_plan::ProposedPlan::entries(&self) -> &[work::rekey::entry::RekeyEntry]
+pub const fn work::rekey::run_plan::ProposedPlan::fingerprint(&self) -> &work::rekey::fingerprint::IdentityFingerprint
 pub const fn work::rekey::run_plan::ProposedPlan::new(fingerprint: work::rekey::fingerprint::IdentityFingerprint, entries: alloc::vec::Vec<work::rekey::entry::RekeyEntry>) -> Self
 pub fn work::rekey::run_plan::ProposedPlan::preview_lines(&self) -> alloc::vec::Vec<alloc::string::String>
 pub fn work::rekey::run_plan::ProposedPlan::started(self, write_set: work::rekey::write_set::WriteSet) -> work::rekey::run_plan::InProgressPlan
@@ -771,6 +779,7 @@ impl core::marker::StructuralPartialEq for work::rekey::write_set::Unreverted
 pub struct work::rekey::write_set::WriteSet(_)
 impl work::rekey::write_set::WriteSet
 pub fn work::rekey::write_set::WriteSet::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
+pub fn work::rekey::write_set::WriteSet::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&alloc::string::String, &work::rekey::write_set::Recorded)>
 pub fn work::rekey::write_set::WriteSet::recorded(&self, path: &str) -> core::option::Option<&work::rekey::write_set::Recorded>
 pub fn work::rekey::write_set::WriteSet::unreverted(&self, now: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::rekey::write_set::StartState>) -> work::rekey::write_set::Unreverted
 impl core::clone::Clone for work::rekey::write_set::WriteSet
