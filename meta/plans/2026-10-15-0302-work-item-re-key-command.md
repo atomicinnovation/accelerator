@@ -2161,7 +2161,7 @@ items keep their IDs forever.
 
 #### Manual Verification
 
-- [ ] Run `/rekey-work-items` in a scratch repository after a pattern switch:
+- [x] Run `/rekey-work-items` in a scratch repository after a pattern switch:
       confirm the preview, decline, confirm nothing changed and no run plan
       remains; run again, confirm, and check the IDs match the preview.
 
