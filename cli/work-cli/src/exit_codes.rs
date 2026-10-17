@@ -136,8 +136,11 @@
 //!   `E_REKEY_ENTRY_ROLLED_BACK`, `E_REKEY_RESTORE_INCOMPLETE`. The three
 //!   `ENTRY`/`RESTORE` codes stop a run mid-way: earlier entries stay
 //!   re-keyed and the run plan stays in progress. Every other code wrote
-//!   nothing. Under `work.id_pattern: "{tracker}"`, which this release
-//!   cannot yet re-key, `E_REKEY_TRACKER_PATTERN_PENDING` refuses too.
+//!   nothing. `--preview` refuses as an apply would, except that it warns
+//!   of uncommitted changes rather than refusing over them, and refuses
+//!   with `E_REKEY_IN_PROGRESS` while a run is in progress. Under
+//!   `work.id_pattern: "{tracker}"`, which this release cannot yet re-key,
+//!   `E_REKEY_TRACKER_PATTERN_PENDING` refuses too.
 //! - `1` — `E_REKEY_STATE_UNWRITABLE` (the run plan cannot be saved or
 //!   removed) and `E_IDENTITY_RUN_BUSY`.
 //! - `70` — `E_REKEY_TRACKER_UNREACHABLE`.
