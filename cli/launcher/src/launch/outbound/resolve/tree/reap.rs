@@ -305,13 +305,13 @@ mod tests {
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::Path;
-    use std::sync::{Arc, Mutex};
 
     use crate::launch::core::tree::Clock;
 
     use super::super::layout::{generation_name, TreePaths, LAYOUT_VERSION};
     use super::super::lease::FlockProbe;
     use super::super::lease::Liveness;
+    use super::super::testing::logged;
     use super::{
         generation_is_aged, orphan_is_reclaimable, reap_orphans,
         restart_backstop, sidecars_of, superseded_disposition,
@@ -601,39 +601,6 @@ mod tests {
             &name,
             &AtClock(later + AGE_BACKSTOP.as_secs())
         ));
-    }
-
-    #[derive(Clone, Default)]
-    struct Buffer(Arc<Mutex<Vec<u8>>>);
-
-    impl std::io::Write for Buffer {
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            self.0.lock().expect("log buffer").extend_from_slice(bytes);
-            Ok(bytes.len())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    impl tracing_subscriber::fmt::MakeWriter<'_> for Buffer {
-        type Writer = Self;
-
-        fn make_writer(&self) -> Self::Writer {
-            self.clone()
-        }
-    }
-
-    fn logged(act: impl FnOnce()) -> String {
-        let buffer = Buffer::default();
-        let subscriber = tracing_subscriber::fmt()
-            .with_writer(buffer.clone())
-            .with_ansi(false)
-            .finish();
-        tracing::subscriber::with_default(subscriber, act);
-        let bytes = buffer.0.lock().expect("log buffer").clone();
-        String::from_utf8_lossy(&bytes).into_owned()
     }
 
     #[test]
