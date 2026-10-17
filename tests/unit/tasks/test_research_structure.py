@@ -355,14 +355,19 @@ def test_clearing_waits_for_the_report() -> None:
     assert "only once any step 2 report is printed" in clear
 
 
-def test_the_summary_opens_with_the_report() -> None:
-    summary = _section(_conduct(), "**Summarise**", "| Reason |")
+def _summary() -> str:
+    return _section(_conduct(), "**Summarise**", "| Reason |")
+
+
+def test_the_summary_opens_with_the_halt_then_the_report() -> None:
+    summary = _summary()
     assert (
         "**Run that did not end.** The step 2 report, unchanged, when the "
         "first plan carried `replaced_run`."
     ) in summary
+    halt = summary.index("**Halt.**")
     opening = summary.index("**Run that did not end.**")
-    assert opening < summary.index("**Failures.**")
+    assert halt < opening < summary.index("**Failures.**")
 
 
 UNFINISHED_RUN_ROW = (
@@ -893,7 +898,7 @@ def test_the_spawn_step_re_issues_capacity_refused_spawns_in_rounds() -> None:
         'This retry deliberately overrides the harness\'s "Do not retry".',
         "before step 5 and before any re-plan",
         "When the batch message capacity-refuses any spawn:",
-        "The first round always runs.",
+        "The first round runs whenever it has a spawn to re-issue.",
         "A later round runs only when the latest round had at least one "
         "spawn accepted.",
         "Once a round has every spawn capacity-refused, stop retrying.",
@@ -995,12 +1000,22 @@ def test_the_check_step_counts_an_exhausted_quota_as_no_file() -> None:
     assert "an exhausted web search quota" in _check_step()
 
 
-def _quota_exhausted_row() -> str:
-    rows = [
+def _rows_naming(table: str, reason: str) -> list[str]:
+    return [
         line
-        for line in _read(RESEARCH_TOPIC).splitlines()
-        if line.lstrip().startswith(f'| "{QUOTA_EXHAUSTED}"')
+        for line in table.splitlines()
+        if line.lstrip().startswith(f'| "{reason}"')
     ]
+
+
+def _failure_reasons() -> str:
+    return _section(
+        _read(RESEARCH_TOPIC), "| Reason | Next step |", HALTING_FAILURES
+    )
+
+
+def _quota_exhausted_row() -> str:
+    rows = _rows_naming(_failure_reasons(), QUOTA_EXHAUSTED)
     assert len(rows) == 1, "research-topic must carry one quota row"
     return rows[0]
 
@@ -1096,3 +1111,150 @@ def test_the_researcher_follows_outcomes_that_repeat_a_call() -> None:
         "Follow your profile's outcomes exactly, including any that tell you "
         "to repeat a call before ending." in _prose(RESEARCHER)
     )
+
+
+HALTING_FAILURES = "#### Halting failures"
+WITHHOLD_FLAGS = "{withhold flags}"
+
+
+def _halting_failures() -> str:
+    return _section(_read(RESEARCH_TOPIC), HALTING_FAILURES, "### synthesise")
+
+
+def _plan_step() -> str:
+    return _section(
+        _conduct(), "2. **Plan.**", "**Report a run that did not end.**"
+    )
+
+
+def _halt_section() -> str:
+    return _section(_summary(), "**Halt.**", "**Run that did not end.**")
+
+
+def _table_rows(table: str) -> list[str]:
+    return [
+        line
+        for line in table.splitlines()
+        if line.startswith("| ") and not line.startswith("| Reason |")
+    ]
+
+
+def test_halting_failures_are_defined_once_with_one_member() -> None:
+    assert _research_topic_prose().count(HALTING_FAILURES) == 1
+    rows = _table_rows(_halting_failures())
+    assert len(rows) == 1, rows
+    assert rows[0].startswith(f'| "{QUOTA_EXHAUSTED}" |')
+    assert "| `--withhold-profile web` |" in rows[0]
+
+
+def test_a_halt_withholds_web_researchers_from_the_next_plan_on() -> None:
+    plan = _plan_step()
+    assert f"--run {{run}} --spawned {{batch}} {WITHHOLD_FLAGS}" in plan
+    for sentence in (
+        "`--withhold-profile web`",
+        "until a run plan's `withheld` names it",
+        "A plan that should name a profile in `withheld` but does not is "
+        "reported and stops the loop, like a non-zero exit.",
+        "The tick plan in step 7 never carries the flag.",
+    ):
+        assert sentence in plan, f"step 2 must state {sentence!r}"
+    loop = _section(_conduct(), "6. **Loop.**", "7. **Tick")
+    assert WITHHOLD_FLAGS in loop, "every re-plan must carry the withholding"
+    tick = _section(_conduct(), "**Tick from disk.**", "**Edit `manifest.md`**")
+    assert WITHHOLD_FLAGS not in tick
+
+
+def test_the_halt_section_follows_the_cli_reported_withheld() -> None:
+    assert (
+        "Printed only when the last run plan's `withheld` was non-empty"
+        in _halt_section()
+    )
+
+
+def test_halted_capacity_refusals_are_not_retried() -> None:
+    spawn = _spawn_step()
+    for sentence in (
+        "The run halts as soon as any spawn, from the batch message or a "
+        "round, ends with a halting reason.",
+        "a capacity-refused spawn that reason halts is not re-issued",
+        "recorded as failed with the concurrent-subagent-limit reason",
+        "Every other refused spawn follows the round rules unchanged",
+        "a round runs only when it has a spawn to re-issue",
+        "Before a halt it always does.",
+    ):
+        assert sentence in spawn, f"the spawn step must state {sentence!r}"
+
+
+def test_a_halting_failure_is_recorded_and_its_batch_checked_as_normal() -> (
+    None
+):
+    check = _check_step()
+    for sentence in (
+        "A spawn whose summary gives a **halting reason**",
+        "is recorded as failed with that reason, and the run halts.",
+        "Other spawns in the batch are checked as normal.",
+    ):
+        assert sentence in check, f"the check step must state {sentence!r}"
+
+
+def test_a_halted_spawns_stray_file_is_quarantined() -> None:
+    halting = _section(
+        _check_step(), "**halting reason**", "Other spawns in the batch"
+    )
+    for name in ("`.<name>.invalid`", "`.<lineage>.md.invalid`"):
+        assert name in halting, (
+            f"a halted spawn's file is quarantined as {name}"
+        )
+    assert "stays outstanding" in halting
+
+
+def test_the_halt_notice_names_what_it_halted() -> None:
+    halt = _halt_section()
+    for line in (
+        "conduct halted: {reason}",
+        "ended with it:",
+        "web pairs left unfinished:",
+        "{recovery}",
+    ):
+        assert line in halt, f"the halt notice must carry {line!r}"
+    for sentence in (
+        '"ended with it" lists each spawn whose own summary gave the reason, '
+        "not the capacity-refused ones.",
+        "with `profile` `web` and a `stage` other than `compose`",
+        "the tick plan's `unanswered`",
+        "Those spawns are also listed under Failures.",
+    ):
+        assert sentence in halt, f"the halt section must state {sentence!r}"
+
+
+def test_the_halt_recovery_offers_clear_and_a_raised_cap_not_the_refill() -> (
+    None
+):
+    halting = _halting_failures()
+    (row,) = _table_rows(halting)
+    assert "run `/clear`, then re-run `conduct <slug>`" in row
+    assert f"raise `{SEARCH_CAP_VARIABLE}`" in row
+    assert "wait" not in row.lower()
+    assert (
+        "Waiting for the refill is not a recovery: a re-run in the same "
+        "session sizes its budgets against the full cap, not the refilled "
+        "remainder, so it would halt again."
+    ) in " ".join(halting.split())
+
+
+def test_step_7_runs_in_full_after_a_halt() -> None:
+    step_7 = _section(_conduct(), "7. **Tick", "**Summarise**")
+    assert "A halted run runs this step in full." in step_7
+    for sentence in re.split(r"(?<=[.;:])\s+", step_7):
+        if "halt" in sentence.lower():
+            assert "stop" not in sentence.lower(), sentence
+
+
+def test_conduct_reads_the_halting_fields() -> None:
+    fields = _fields_read()
+    for field in (
+        "`withheld`, on run plans, the profiles the run withholds",
+        "`unanswered`, every outstanding pair before the window narrows it "
+        "into `pairs`, each as `stem`, `question`, `profile` and `stage`",
+    ):
+        assert field in fields, f"conduct must read {field!r}"
