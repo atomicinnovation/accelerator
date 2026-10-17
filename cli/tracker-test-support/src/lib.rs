@@ -891,6 +891,10 @@ impl contract::ContractSubject for RecordingTracker {
             .map(|(id, _)| id.clone())
             .expect("configure this subject with `failing_show` first")
     }
+
+    fn moved_issue(&self) -> Option<(ExternalId, ExternalId)> {
+        self.moves.first().cloned()
+    }
 }
 
 #[cfg(test)]

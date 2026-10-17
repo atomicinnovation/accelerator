@@ -20,6 +20,7 @@ use tracker::SearchScope;
 use tracker::ValidationOutcome;
 use tracker_test_support::contract::{
     a_failing_read_is_retryable_property,
+    a_moved_issue_is_found_only_under_its_current_key_property,
     create_then_show_round_trips_property,
     fetch_all_partitions_totally_property, partitions_totally,
     preview_create_makes_no_mutation_property,
@@ -35,6 +36,8 @@ const CREATED: &str = "ENG-1";
 /// its absence is never provable.
 const UNACCOUNTABLE: &str = "OPS-999";
 const UNREADABLE: &str = "ENG-404";
+const MOVED_FROM: &str = "PP-760";
+const MOVED_TO: &str = "ENG-42";
 
 struct MockBackedClient {
     client: LinearClient,
@@ -51,6 +54,13 @@ impl ContractSubject for MockBackedClient {
 
     fn unreadable_id(&self) -> ExternalId {
         ExternalId::new(UNREADABLE.to_owned())
+    }
+
+    fn moved_issue(&self) -> Option<(ExternalId, ExternalId)> {
+        Some((
+            ExternalId::new(MOVED_FROM.to_owned()),
+            ExternalId::new(MOVED_TO.to_owned()),
+        ))
     }
 
     /// The truncation property calls `search` directly, so its scope must
@@ -81,19 +91,27 @@ fn created() -> Route {
 }
 
 fn shown(title: &str, description: &str) -> Route {
+    shown_under(CREATED, title, description)
+}
+
+fn shown_under(identifier: &str, title: &str, description: &str) -> Route {
     json(&format!(
-        "{{\"data\":{{\"issue\":{{\"id\":\"u\",\"identifier\":\"ENG-1\",\
+        "{{\"data\":{{\"issue\":{{\"id\":\"u\",\"identifier\":\"{identifier}\",\
          \"title\":\"{title}\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\",\
          \"description\":\"{description}\"}}}}}}"
     ))
 }
 
 fn searched() -> Route {
-    json(
-        "{\"data\":{\"issues\":{\"nodes\":[{\"identifier\":\"ENG-1\",\
-         \"updatedAt\":\"2026-01-01T00:00:00.000Z\"}],\
-         \"pageInfo\":{\"hasNextPage\":false}}}}",
-    )
+    searched_holding(CREATED)
+}
+
+fn searched_holding(identifier: &str) -> Route {
+    json(&format!(
+        "{{\"data\":{{\"issues\":{{\"nodes\":[{{\"identifier\":\"{identifier}\",\
+         \"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}],\
+         \"pageInfo\":{{\"hasNextPage\":false}}}}}}}}"
+    ))
 }
 
 fn scripted(responses: Vec<Route>) -> (MockHTTPServer, MockBackedClient) {
@@ -299,4 +317,14 @@ fn validating_without_a_body_composes_no_description() {
         subject.tracker().validate_update(&id, Some("Title"), None),
         ValidationOutcome::Valid
     );
+}
+
+#[test]
+fn a_moved_issue_is_found_only_under_its_current_key() {
+    let (_server, subject) = scripted(vec![
+        searched_holding(MOVED_TO),
+        shown_under(MOVED_TO, "Moved", "Moved body"),
+    ]);
+
+    a_moved_issue_is_found_only_under_its_current_key_property(&subject);
 }
