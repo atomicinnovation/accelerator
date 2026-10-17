@@ -1694,7 +1694,7 @@ review.
       confirm `work sync` runs again.
 - [x] Kill a run mid-way, commit the half-applied state, and confirm
       `work rekey --discard` refuses naming the changed paths.
-- [ ] Start `work sync` against a slow tracker, run `work create` in another
+- [x] Start `work sync` against a slow tracker, run `work create` in another
       terminal, and confirm it prints the waiting line and proceeds once
       the sync finishes.
 
@@ -1706,8 +1706,10 @@ reclaimed. The resume re-keyed the other 890 with 2,000 distinct IDs and no
 plan left. A committed half-run's `--discard` refused under one base
 revision; after `jj restore`, `--discard` removed the plan and `work sync`
 reached its tracker selection. The 2,000-item run took about 15 minutes in
-all, since every entry re-walks the corpus. The sync-waiting check is
-unrun.
+all, since every entry re-walks the corpus. For the last check, `work sync`
+ran against Jira through a local proxy holding each connection for 10 s;
+`work create` printed `waiting for accelerator work sync (pid <n>) to
+finish` at 0.1 s and wrote `0002` at 30.2 s, as the sync exited.
 
 As built, Phase 5 differs from the sketch above in these ways:
 
