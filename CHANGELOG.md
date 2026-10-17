@@ -359,6 +359,15 @@
 - **Drafts in the visualiser.** Drafts in `meta/work/drafts/` appear as work
   items, with a "Draft" badge on the kanban card and in the library list.
   `work list` shows them as `draft`.
+- **Re-key work items onto a changed ID pattern.** `accelerator work rekey
+  [--preview | --discard] [--per-item-reads]` gives every work item an `id`
+  in the shape `work.id_pattern` describes, renaming its file, adding the old
+  `id` to `aliases` and rewriting references across every corpus root.
+  `--preview` records the mapping, which the next apply re-keys exactly; an
+  interrupted run finishes when run again, and `--discard` drops a previewed
+  run or one a revert has undone. It refuses over uncommitted corpus changes
+  unless `ACCELERATOR_FORCE=1` is set. `/accelerator:rekey-work-items`
+  previews, asks, then applies or discards.
 
 ### Changed
 
@@ -381,6 +390,14 @@
   on stderr. `migrate` still honours `ACCELERATOR_MIGRATE_FORCE` under its
   old non-empty rule, printing a deprecation notice to stderr whenever it is
   set.
+- **Commands that allocate or retire IDs serialise on one lock.**
+  `work sync`, `work promote`, `work create`, `work create-batch`,
+  `work next-number` and `work update --push` wait for one another, saying on
+  stderr which command they are waiting for, and give up after 60 s with
+  `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
+  re-key is unfinished. `work next-number` now writes its lock under
+  `.accelerator/state/locks/`. Upgrade every session before re-keying: an
+  older binary's `work sync` does not take the lock.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already

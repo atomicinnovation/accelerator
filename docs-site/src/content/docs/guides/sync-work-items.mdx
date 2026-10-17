@@ -183,8 +183,11 @@ for the setting and its rules.
 - **Moved issues.** Under every pattern, sync follows an issue moved to
   another project or team. Under `{tracker}` the item is renamed to the
   new key, with the old one kept in `aliases`.
-- **Legacy items keep their IDs.** Items created before the switch keep
-  their numeric or project-coded IDs and sync by `external_id` as before.
+- **Legacy items keep their IDs until re-keyed.** Items created before the
+  switch keep their numeric or project-coded IDs and sync by `external_id`
+  as before, until
+  [`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
+  converges them onto their tracker keys.
 
 ### Batches
 

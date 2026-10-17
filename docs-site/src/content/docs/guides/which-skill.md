@@ -4,7 +4,7 @@ description: A decision index mapping common intents to the Accelerator
   skill that handles them, with links to each skill's reference page.
 ---
 
-Accelerator ships 69 skills, but day to day you reach for a handful.
+Accelerator ships 75 skills, but day to day you reach for a handful.
 This page maps common intents to the skill to invoke. Every skill links
 to its generated reference page, which documents its arguments and
 behaviour in full.
@@ -42,6 +42,7 @@ unambiguous).
 | Review a work item before planning             | [`review-work-item`](../reference/skills/work/review-work-item.md)               |
 | Stress-test a work item's scope and assumptions | [`stress-test-work-item`](../reference/skills/work/stress-test-work-item.md)    |
 | Sync work items with Jira or Linear            | [`sync-work-items`](../reference/skills/work/sync-work-items.md)                 |
+| Re-key work items after changing the ID pattern | [`rekey-work-items`](../reference/skills/work/rekey-work-items.md)            |
 
 See [Sync work items with Jira or Linear](sync-work-items.md) for the
 end-to-end setup.
