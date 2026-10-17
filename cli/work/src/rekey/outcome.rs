@@ -374,7 +374,10 @@ fn blocker_line(blocker: &SyncBlocker) -> String {
     }
 }
 
-fn unreverted_listing(unreverted: &Unreverted) -> Vec<String> {
+/// The paths to restore, under the revision each was recorded against, and
+/// the paths to remove, one indented line each.
+#[must_use]
+pub fn unreverted_listing(unreverted: &Unreverted) -> Vec<String> {
     let mut lines = Vec::new();
     for (base, paths) in &unreverted.restore {
         lines.push(format!("  {}:", restore_heading(base.as_ref())));

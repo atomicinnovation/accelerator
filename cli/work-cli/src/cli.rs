@@ -9,8 +9,8 @@ use clap::Subcommand;
 
 /// The `accelerator-work` command-line surface: work-item lifecycle
 /// primitives (`create`, `create-batch`, `show`, `resolve`, `diff`,
-/// `update`, `sync`, `promote`) plus small utility subcommands used by the
-/// skills that orchestrate them.
+/// `update`, `sync`, `promote`, `rekey`) plus small utility subcommands used
+/// by the skills that orchestrate them.
 #[derive(Parser)]
 #[command(name = "accelerator-work", disable_version_flag = true)]
 pub struct Cli {
@@ -148,6 +148,23 @@ pub enum Command {
     /// each reason a draft is not promoted (see `exit_codes`). A draft
     /// promoted already prints `already-promoted` and exits 0.
     Promote(Box<PromoteArgs>),
+    /// Re-key every work item onto the configured `work.id_pattern`.
+    ///
+    /// Each item whose `id` is off the pattern, whatever its shape, is
+    /// retired onto its new `id` across every configured corpus root, its
+    /// old `id` kept as an alias.
+    ///
+    /// Records the run plan under `.accelerator/state/rekey/` before the
+    /// first write, so an interrupted run is finished by the next `work
+    /// rekey`, and refuses over uncommitted changes, so a VCS revert can
+    /// undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed.
+    ///
+    /// Exit codes: 0 re-keyed, nothing to re-key, or discarded; 4 the run
+    /// stopped pending a human, each refusal printing an `E_REKEY_*` code
+    /// and its remedy (see `exit_codes`); 1 the run plan cannot be saved
+    /// (`E_REKEY_STATE_UNWRITABLE`) or another identity command still holds
+    /// the identity-run lock (`E_IDENTITY_RUN_BUSY`).
+    Rekey(Box<RekeyArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -408,6 +425,16 @@ pub struct PromoteArgs {
     /// reached the tracker, accepting the risk of a duplicate.
     #[arg(long)]
     pub create: bool,
+}
+
+/// `work rekey`'s arguments.
+#[derive(Args)]
+pub struct RekeyArgs {
+    /// Remove an in-progress run plan once every path it wrote is back as
+    /// it was; with `ACCELERATOR_FORCE=1`, set aside one that cannot be
+    /// read or whose paths have changed.
+    #[arg(long)]
+    pub discard: bool,
 }
 
 #[cfg(test)]

@@ -57,11 +57,12 @@ fn work_items(dir: &Path) -> Result<Vec<String>, TestError> {
 
 #[test]
 fn every_writer_refuses_and_writes_nothing() -> Result<(), TestError> {
-    let cases: [&[&str]; 4] = [
+    let cases: [&[&str]; 5] = [
         &["create", "Test item", "task", "medium"],
         &["update", "meta/work/0001-test.md", "--set", "status=ready"],
         &["sync", "--push-only"],
         &["sync", "--pull-only"],
+        &["rekey"],
     ];
     for args in cases {
         let repo = insecure_repo()?;
