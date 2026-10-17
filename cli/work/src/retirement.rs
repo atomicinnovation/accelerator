@@ -17,7 +17,9 @@ use crate::identity::holder_of;
 use crate::identity::linker_of;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
+use crate::show::read_field_raw;
 use crate::tracker_key::TrackerKey;
+use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::DRAFTS_DIRECTORY;
 
 const WORK_ITEM: &str = "work-item";
@@ -455,10 +457,9 @@ pub fn plan_retirement(
         })
         .collect();
     let retired_item = match (interrupted, from_file) {
-        (None, Some(file)) => Some(retired_item_content(
-            &rewrite_references(&file.content, &renaming),
-            retirement,
-        )),
+        (None, Some(file)) => {
+            Some(retired_from(&file.content, &renaming, retirement))
+        }
         _ => None,
     };
     let recovery = corpus
@@ -505,7 +506,29 @@ pub fn retired_content(
         shape: shape_of(retirement.old_id),
         path_spellings: &spellings,
     };
-    retired_item_content(&rewrite_references(content, &renaming), retirement)
+    retired_from(content, &renaming, retirement)
+}
+
+/// The retired item's content: its references rewritten and its identity
+/// moved, keeping the tracker link a renumbering has no new key for.
+fn retired_from(
+    original: &str,
+    renaming: &Renaming<'_>,
+    retirement: &Retirement<'_>,
+) -> String {
+    let linked_to =
+        retirement.new_external_id.map(str::to_owned).or_else(|| {
+            frontmatter_of(original)
+                .and_then(|frontmatter| {
+                    read_field_raw(frontmatter, "external_id")
+                })
+                .filter(|key| !key.is_empty())
+        });
+    retired_item_content(
+        &rewrite_references(original, renaming),
+        retirement,
+        linked_to.as_deref(),
+    )
 }
 
 fn refuse_collisions(
@@ -708,7 +731,11 @@ fn retitle(line: &str, retirement: &Retirement<'_>) -> Option<String> {
         .then(|| format!("# {}: {title}", retirement.new_id))
 }
 
-fn retired_item_content(content: &str, retirement: &Retirement<'_>) -> String {
+fn retired_item_content(
+    content: &str,
+    retirement: &Retirement<'_>,
+    linked_to: Option<&str>,
+) -> String {
     let mut lines: Vec<String> = content.lines().map(str::to_owned).collect();
     let Some(mut range) = frontmatter_range(&lines) else {
         return content.to_owned();
@@ -721,7 +748,7 @@ fn retired_item_content(content: &str, retirement: &Retirement<'_>) -> String {
         "id"
     };
     set_scalar(&mut lines, &mut range, id_key, retirement.new_id, &[]);
-    if let Some(key) = retirement.new_external_id {
+    if let Some(key) = linked_to {
         set_scalar(&mut lines, &mut range, "external_id", key, &[id_key]);
     }
     rewrite_aliases(&mut lines, &mut range, retired_aliases(retirement));
@@ -834,6 +861,24 @@ mod tests {
                 new_id: "ACC-0042",
                 new_external_id: None,
             }
+        );
+    }
+
+    #[test]
+    fn renumbering_a_synced_item_keeps_its_external_id() {
+        let corpus = [work_item(
+            "/repo/meta/work/PP-760-sync.md",
+            "id: \"PP-760\"\nexternal_id: \"PP-760\"\n",
+            "Sync",
+        )];
+
+        let planned =
+            planned(&Retirement::renumbering("PP-760", "ACC-0042"), &corpus);
+
+        assert_eq!(
+            retired(&planned),
+            "---\nid: \"ACC-0042\"\nexternal_id: \"PP-760\"\naliases: \
+             [\"PP-760\"]\n---\n\n# ACC-0042: Sync\n"
         );
     }
 
