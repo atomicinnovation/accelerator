@@ -155,6 +155,7 @@ pub struct RecordingTracker {
     create_failures_left: RefCell<Option<usize>>,
     park: Option<ParkHandle>,
     preview_failure: Option<TrackerError>,
+    fetch_all_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
     rewrites_scope_filters: bool,
     search_failure: Option<TrackerError>,
@@ -195,6 +196,7 @@ impl RecordingTracker {
             create_failures_left: RefCell::new(None),
             park: None,
             preview_failure: None,
+            fetch_all_failure: None,
             scope_refusal: None,
             rewrites_scope_filters: false,
             search_failure: None,
@@ -350,6 +352,14 @@ impl RecordingTracker {
     #[must_use]
     pub fn failing_preview(mut self, error: TrackerError) -> Self {
         self.preview_failure = Some(error);
+        self
+    }
+
+    /// A tracker whose `fetch_all` fails pre-flight, before any request is
+    /// sent.
+    #[must_use]
+    pub fn failing_fetch_all(mut self, error: TrackerError) -> Self {
+        self.fetch_all_failure = Some(error);
         self
     }
 
@@ -750,6 +760,9 @@ impl RemoteTracker for RecordingTracker {
         self.calls
             .borrow_mut()
             .push(Call::FetchAll { ids: ids.to_vec() });
+        if let Some(error) = &self.fetch_all_failure {
+            return Err(error.clone());
+        }
 
         let mut outcome = FetchOutcome {
             found: Vec::new(),
