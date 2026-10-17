@@ -544,6 +544,87 @@ impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFin
 pub mod work::rekey::sequence
 pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
 pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
+pub mod work::rekey::write_set
+pub enum work::rekey::write_set::StartState
+pub work::rekey::write_set::StartState::Absent
+pub work::rekey::write_set::StartState::Content(work::rekey::write_set::Digest)
+impl core::clone::Clone for work::rekey::write_set::StartState
+pub fn work::rekey::write_set::StartState::clone(&self) -> work::rekey::write_set::StartState
+impl core::cmp::Eq for work::rekey::write_set::StartState
+impl core::cmp::PartialEq for work::rekey::write_set::StartState
+pub fn work::rekey::write_set::StartState::eq(&self, other: &work::rekey::write_set::StartState) -> bool
+impl core::fmt::Debug for work::rekey::write_set::StartState
+pub fn work::rekey::write_set::StartState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::StartState
+pub struct work::rekey::write_set::Base(_)
+impl work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::commits(&self) -> &[alloc::string::String]
+pub const fn work::rekey::write_set::Base::new(commits: alloc::vec::Vec<alloc::string::String>) -> Self
+impl core::clone::Clone for work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::clone(&self) -> work::rekey::write_set::Base
+impl core::cmp::Eq for work::rekey::write_set::Base
+impl core::cmp::Ord for work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::cmp(&self, other: &work::rekey::write_set::Base) -> core::cmp::Ordering
+impl core::cmp::PartialEq for work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::eq(&self, other: &work::rekey::write_set::Base) -> bool
+impl core::cmp::PartialOrd for work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::partial_cmp(&self, other: &work::rekey::write_set::Base) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for work::rekey::write_set::Base
+pub fn work::rekey::write_set::Base::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::Base
+pub struct work::rekey::write_set::Digest(_)
+impl work::rekey::write_set::Digest
+pub fn work::rekey::write_set::Digest::as_str(&self) -> &str
+pub fn work::rekey::write_set::Digest::new(digest: impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for work::rekey::write_set::Digest
+pub fn work::rekey::write_set::Digest::clone(&self) -> work::rekey::write_set::Digest
+impl core::cmp::Eq for work::rekey::write_set::Digest
+impl core::cmp::PartialEq for work::rekey::write_set::Digest
+pub fn work::rekey::write_set::Digest::eq(&self, other: &work::rekey::write_set::Digest) -> bool
+impl core::fmt::Debug for work::rekey::write_set::Digest
+pub fn work::rekey::write_set::Digest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::Digest
+pub struct work::rekey::write_set::Recorded
+pub work::rekey::write_set::Recorded::base: core::option::Option<work::rekey::write_set::Base>
+pub work::rekey::write_set::Recorded::state: work::rekey::write_set::StartState
+impl core::clone::Clone for work::rekey::write_set::Recorded
+pub fn work::rekey::write_set::Recorded::clone(&self) -> work::rekey::write_set::Recorded
+impl core::cmp::Eq for work::rekey::write_set::Recorded
+impl core::cmp::PartialEq for work::rekey::write_set::Recorded
+pub fn work::rekey::write_set::Recorded::eq(&self, other: &work::rekey::write_set::Recorded) -> bool
+impl core::fmt::Debug for work::rekey::write_set::Recorded
+pub fn work::rekey::write_set::Recorded::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::Recorded
+pub struct work::rekey::write_set::Unreverted
+pub work::rekey::write_set::Unreverted::remove: alloc::vec::Vec<alloc::string::String>
+pub work::rekey::write_set::Unreverted::restore: alloc::collections::btree::map::BTreeMap<core::option::Option<work::rekey::write_set::Base>, alloc::vec::Vec<alloc::string::String>>
+impl work::rekey::write_set::Unreverted
+pub fn work::rekey::write_set::Unreverted::is_empty(&self) -> bool
+impl core::clone::Clone for work::rekey::write_set::Unreverted
+pub fn work::rekey::write_set::Unreverted::clone(&self) -> work::rekey::write_set::Unreverted
+impl core::cmp::Eq for work::rekey::write_set::Unreverted
+impl core::cmp::PartialEq for work::rekey::write_set::Unreverted
+pub fn work::rekey::write_set::Unreverted::eq(&self, other: &work::rekey::write_set::Unreverted) -> bool
+impl core::default::Default for work::rekey::write_set::Unreverted
+pub fn work::rekey::write_set::Unreverted::default() -> work::rekey::write_set::Unreverted
+impl core::fmt::Debug for work::rekey::write_set::Unreverted
+pub fn work::rekey::write_set::Unreverted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::Unreverted
+pub struct work::rekey::write_set::WriteSet(_)
+impl work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
+pub fn work::rekey::write_set::WriteSet::recorded(&self, path: &str) -> core::option::Option<&work::rekey::write_set::Recorded>
+pub fn work::rekey::write_set::WriteSet::unreverted(&self, now: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::rekey::write_set::StartState>) -> work::rekey::write_set::Unreverted
+impl core::clone::Clone for work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::clone(&self) -> work::rekey::write_set::WriteSet
+impl core::cmp::Eq for work::rekey::write_set::WriteSet
+impl core::cmp::PartialEq for work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::eq(&self, other: &work::rekey::write_set::WriteSet) -> bool
+impl core::default::Default for work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::default() -> work::rekey::write_set::WriteSet
+impl core::fmt::Debug for work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::write_set::WriteSet
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
