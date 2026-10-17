@@ -5,14 +5,14 @@ title: "Budget Web Searches and Halt on Exhaustion"
 date: "2026-10-09T17:58:47+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
 blocked_by: ["work-item:0303", "work-item:0310"]
 relates_to: ["work-item:0282", "work-item:0283", "work-item:0307", "work-item:0308", "work-item:0309"]
 tags: ["research", "deep-research", "conduct", "web-profile"]
-last_updated: "2026-10-15T19:06:05+00:00"
+last_updated: "2026-10-17T16:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0304: Budget Web Searches and Halt on Exhaustion
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -208,60 +208,60 @@ orchestrator survives.
 
 ## Acceptance Criteria
 
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` unset and 10 web pairs
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` unset and 10 web pairs
       at depth 3, when `conduct` starts, then the plan reports budgets of
       3/2/1 and a worst-case demand of 190.
-- [ ] Given the cap unset and 3 web pairs at depth 3, when `conduct` starts,
+- [x] Given the cap unset and 3 web pairs at depth 3, when `conduct` starts,
       then the plan reports budgets of 15/6/3 and a worst-case demand of
       189.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=500` and 10 web pairs at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=500` and 10 web pairs at
       depth 3, when `conduct` starts, then the plan reports budgets of
       11/5/2, a worst-case demand of 470, and a cap of 500 from
       `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=500` and 10 web pairs at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=500` and 10 web pairs at
       depth 5, when `conduct` starts, then the plan reports budgets of
       7/4/1/1/1 and a worst-case demand of 470.
-- [ ] Given the cap unset and 10 web pairs at depth 2, when `conduct`
+- [x] Given the cap unset and 10 web pairs at depth 2, when `conduct`
       starts, then the plan reports budgets of 7/3 and a worst-case demand
       of 190.
-- [ ] Given the cap unset and 2 web pairs at depth 5, when `conduct` starts,
+- [x] Given the cap unset and 2 web pairs at depth 5, when `conduct` starts,
       then the plan reports budgets of 11/5/3/3/2 and a worst-case demand of
       190.
-- [ ] Given any run with web pairs whose budgets of 1 fit within
+- [x] Given any run with web pairs whose budgets of 1 fit within
       `cap − reserve`, when `conduct` starts, then the reported demand is
       at most `cap − reserve`, every budget is at least 1, no level's
       budget exceeds a shallower level's, and no level can rise by 1
       without breaking one of those.
-- [ ] Given the cap unset and 20 web pairs at depth 3, when `conduct` starts,
+- [x] Given the cap unset and 20 web pairs at depth 3, when `conduct` starts,
       then every budget is 1, the warning names a worst-case demand of 260
       against a cap of 200 from the default and the remedies — raise
       `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, lower `--depth`, or expect
       a halt and re-run — and the first batch is still spawned; later
       plans in the same run emit no floor warning.
-- [ ] Given the cap unset and 15 web pairs at depth 3, when `conduct` starts,
+- [x] Given the cap unset and 15 web pairs at depth 3, when `conduct` starts,
       then every budget is 1 and the floor warning fires, because the
       worst-case demand of 195 exceeds `cap − reserve` of 190 though not
       the cap of 200.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=192` and 14 web pairs
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=192` and 14 web pairs
       at depth 3, when `conduct` starts, then the reserve is 10, the plan
       reports budgets of 1/1/1 and a worst-case demand of 182, and no floor
       warning is printed.
-- [ ] Given the cap unset, 8 web pairs and 2 openalex pairs at depth 3, when
+- [x] Given the cap unset, 8 web pairs and 2 openalex pairs at depth 3, when
       `conduct` starts, then the plan reports budgets of 7/2/1 and a
       worst-case demand of 184, counting web nodes only.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc` and 1 web pair at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc` and 1 web pair at
       depth 3, when `conduct` starts, then the plan reports budgets of
       42/19/9 and a worst-case demand of 190, a notice names `abc` as
       unhonoured and 200 from the default, and later plans in the same run
       print no such notice.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=0` and 20 web pairs at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=0` and 20 web pairs at
       depth 3, when `conduct` starts, then a notice names `0` as unhonoured
       and the floor warning names a cap of 200 from the default.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc` and a run with
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc` and a run with
       only openalex and arxiv pairs, when `conduct` starts, then the plan
       reports no budgets and no demand, and no search-cap warning or notice
       is printed.
-- [ ] Given the cap unset and one web pair at depth 3 re-run after a halt,
+- [x] Given the cap unset and one web pair at depth 3 re-run after a halt,
       with its level-1 note and 2 of its 4 level-2 notes written, the two
       written level-2 notes declaring 1 and 2 follow-ups respectively, when
       `conduct` starts, then the remaining
@@ -269,85 +269,88 @@ orchestrator survives.
       budgets of 35 at level 2 and 17 at level 3 and a worst-case demand of
       189, and level 1, having no remaining web nodes, takes no budget and
       is not raised.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=201` and 1 web pair at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=201` and 1 web pair at
       depth 3, when `conduct` starts, then the reserve is 11 and the plan
       reports budgets of 42/19/9 and a worst-case demand of 190.
-- [ ] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=60` and 1 web pair at
+- [x] Given `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=60` and 1 web pair at
       depth 3, when `conduct` starts, then the reserve is 3 and the plan
       reports budgets of 13/5/3 and a worst-case demand of 57.
-- [ ] Given the cap unset and 10 web pairs at depth 1, when `conduct`
+- [x] Given the cap unset and 10 web pairs at depth 1, when `conduct`
       starts, then the plan reports a budget of 19 and a worst-case demand
       of 190, and the findings written carry no `search_budget`.
-- [ ] Given a run ledger with no budgets, when `outstanding` reads it for
+- [x] Given a run ledger with no budgets, when `outstanding` reads it for
       the replaced-ledger report or a later plan, then it decodes without
       error, and a later plan sizes the budgets, stores them and reports
       them, emitting the floor warning when budgets of 1 do not fit.
-- [ ] Given a web level note, when it is written, then its frontmatter
+- [x] Given a web level note, when it is written, then its frontmatter
       carries `search_budget` equal to its node's budget; openalex and arxiv
       level notes carry no `search_budget`; and
       `accelerator corpus frontmatter validate` accepts both.
-- [ ] Given the cap unset and 10 web pairs at depth 3 whose first plan
+- [x] Given the cap unset and 10 web pairs at depth 3 whose first plan
       sized budgets of 3/2/1, when every level-1 note declares 1 follow-up
       and a later plan in the same run is made, then the ledger still holds
       3/2/1 and every level-2 spawn carries a budget of 2, although resizing
       the remaining tree would grant 9/5.
-- [ ] Given any web spawn, when its prompt is built, then it carries that
+- [x] Given any web spawn, when its prompt is built, then it carries that
       node's search budget and the web profile limits `WebSearch` calls to
       it.
-- [ ] The web profile's outcomes define Quota exhausted: on the
+- [x] The web profile's outcomes define Quota exhausted: on the
       session-limit notice the researcher writes no file, even with pages
       already gathered, never completes the note from WebFetch or memory,
       and replies "web search quota exhausted".
-- [ ] Given a batch in which one or more spawns report quota exhaustion, when
+- [x] Given a batch in which one or more spawns report quota exhaustion, when
       `conduct` checks the batch, then those nodes are recorded as failed
       with reason "web search quota exhausted" and no further web
       researcher is spawned in the run.
-- [ ] Given a run with web and openalex pairs in which a web spawn reports
+- [x] Given a run with web and openalex pairs in which a web spawn reports
       quota exhaustion, when `conduct` continues, then later batches still
       spawn the outstanding openalex nodes and the composers of pairs whose
       level notes are all written.
-- [ ] Given a batch where other spawns succeeded alongside a halting failure,
+- [x] Given a batch where other spawns succeeded alongside a halting failure,
       when `conduct` checks the batch, then the successful spawns are
       retained and validated as normal.
-- [ ] Given a run halted by a halting failure, when `conduct` ends, then
+- [x] Given a run halted by a halting failure, when `conduct` ends, then
       `end-run` has removed the run's ledger, the outline checkboxes and
       manifest counts reflect disk, and the run summary opens with the halt
       notice naming the reason, the spawns that ended with it, the web
       pairs left unfinished and the recovery, and those spawns are also
       listed under Failures.
-- [ ] Given 3 web pairs at depth 3 where pair A's level-1 note is written,
+- [x] Given 3 web pairs at depth 3 where pair A's level-1 note is written,
       pair B's level-1 spawn ends with quota exhaustion, and pair C is
       never spawned, when the halted run ends, then the halt notice names
       B's level-1 spawn as ending with the reason and A, B and C as left
       unfinished.
-- [ ] Given a run halted by quota exhaustion, when `conduct` ends, then the
+- [x] Given a run halted by quota exhaustion, when `conduct` ends, then the
       halt notice offers `/clear` and a re-run, and raising
       `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` for later sessions, and
       does not offer waiting for the refill as a recovery.
-- [ ] Given a batch message with capacity-refused web and openalex spawns
+- [x] Given a batch message with capacity-refused web and openalex spawns
       and a spawn that ended with quota exhaustion, when `conduct` handles
       refusals, then the refused web spawns are not retried and are
       recorded with the concurrent-subagent-limit reason, and the refused
       openalex spawns are retried.
-- [ ] Given a capacity-refusal round in which a re-issued web spawn ends
+- [x] Given a capacity-refusal round in which a re-issued web spawn ends
       with quota exhaustion, when `conduct` handles the spawns still
       refused, then the refused web spawns are not retried and the refused
       non-web spawns are.
-- [ ] Given a run halted by quota exhaustion that has ended, when the next
+- [x] Given a run halted by quota exhaustion that has ended, when the next
       `outstanding --start` runs, then it reports no replaced ledger and
       lists the quota-failed nodes as outstanding.
-- [ ] If 0307 has landed when this item lands, 0307's node query prints a
+- [x] If 0307 has landed when this item lands, 0307's node query prints a
       web node's `search_budget` from the ledger snapshot, and a
-      `single_pass` web spawn carries its budget inline.
-- [ ] If 0309 has landed when this item lands, the web profile states the
+      `single_pass` web spawn carries its budget inline. Not applicable:
+      0307 was still `draft` when this item landed, so 0307 now carries
+      this requirement.
+- [x] If 0309 has landed when this item lands, the web profile states the
       rule against writing from memory once, covering both the Denied and
-      Quota exhausted outcomes.
-- [ ] The skill defines halting failures in one place, with "web search
+      Quota exhausted outcomes. Not applicable: 0309 was still `draft` when
+      this item landed, so 0309 now carries this requirement.
+- [x] The skill defines halting failures in one place, with "web search
       quota exhausted" as its only member, and the failure-reason table has
       a row for it with its recovery.
-- [ ] The "unfinished run" row and the step 2 "run … did not end" report are
+- [x] The "unfinished run" row and the step 2 "run … did not end" report are
       unchanged.
-- [ ] The configure skill documents the search cap,
+- [x] The configure skill documents the search cap,
       `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, the reserve and the floor
       warning beside "Concurrency and the subagent cap"; the docs-site
       `research topic outstanding` reference documents the budgets, demand
@@ -374,8 +377,8 @@ None — settled during drafting and review; see Drafting Notes.
   for halted spawns and whose subagent-cap resolution the search cap
   mirrors.
 - Related: 0307, which narrows research-node spawns to a fixed set of
-  references and adds snapshot fields to the run ledger. Whichever lands
-  second makes 0307's node query print a web node's `search_budget`, and
+  references and adds snapshot fields to the run ledger. This item landed
+  first, so 0307 makes its node query print a web node's `search_budget`, and
   `single_pass` web spawns (depth-1 pairs researched in one pass, with no
   level notes) carry it inline. The ledger's budget field
   defaults when absent, so a ledger written before this item still decodes
@@ -383,8 +386,8 @@ None — settled during drafting and review; see Drafting Notes.
 - Related: 0308, which also reads the run ledger; the budget field
   defaults when absent, so neither item depends on the other's encoding.
 - Related: 0309, which generalises the web profile's rule against writing
-  from memory, in the outcomes section this item extends. Whichever lands
-  second states the rule once.
+  from memory, in the outcomes section this item extends. This item landed
+  first, so 0309 states the rule once.
 - Related: 0310, landed, which recovers on the next run from interruptions
   the orchestrator does not survive, agent usage limits included. This item
   adds no agent-usage-limit recovery, so 0310's "unfinished run" row keeps
