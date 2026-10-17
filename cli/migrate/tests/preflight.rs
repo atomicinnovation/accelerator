@@ -547,6 +547,42 @@ fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
     Ok(())
 }
 
+fn forced_over(dirty_paths: &[&str]) -> Result<PreflightOutcome, TestError> {
+    let lock = AlwaysLock;
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-1"),
+        dirty_paths.iter().map(|path| (*path).to_owned()).collect(),
+    );
+    let manifest = InMemoryManifestStore::default();
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        working_copy: &working_copy,
+        manifest: &manifest,
+        runner: runner(),
+        force: true,
+        session_log_decision_count: &no_op,
+    };
+    let (_guard, outcome) = preflight.run()?;
+    Ok(outcome)
+}
+
+#[test]
+fn force_over_a_clean_tree_skips_nothing() -> Result<(), TestError> {
+    assert!(matches!(forced_over(&[])?, PreflightOutcome::Clean));
+    Ok(())
+}
+
+#[test]
+fn force_never_reports_the_runners_own_paths_as_skipped(
+) -> Result<(), TestError> {
+    assert!(matches!(
+        forced_over(&[".accelerator/state/migrations-applied"])?,
+        PreflightOutcome::Clean
+    ));
+    Ok(())
+}
+
 #[test]
 fn two_distinct_non_none_revisions_are_a_stale_base_and_refuse(
 ) -> Result<(), TestError> {
@@ -586,7 +622,10 @@ fn force_bypasses_the_dirty_check_and_mints_a_fresh_manifest(
 
     let (_guard, outcome) = preflight.run()?;
 
-    assert!(matches!(outcome, PreflightOutcome::Clean));
+    let PreflightOutcome::Forced { skipped } = outcome else {
+        return Err("expected a forced outcome".into());
+    };
+    assert_eq!(skipped, vec!["meta/unrelated.md".to_owned()]);
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
     assert_eq!(manifest.recorded_run_base()?, RunBase::recorded("rev-2"));
     Ok(())

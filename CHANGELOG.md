@@ -374,6 +374,13 @@
   when tabs, line breaks or leading control characters disguise the scheme. A
   `work sync` over a description linking to one of those three refuses it as
   unrenderable rather than deleting the link on the next push.
+- **`ACCELERATOR_FORCE` replaces `ACCELERATOR_MIGRATE_FORCE`.** Set
+  `ACCELERATOR_FORCE=1` (or `true`) on the one `accelerator migrate`
+  invocation to bypass its dirty-tree pre-flight; `0`, `false` and an empty
+  value do not force. A forced run now lists the uncommitted paths it skipped
+  on stderr. `migrate` still honours `ACCELERATOR_MIGRATE_FORCE` under its
+  old non-empty rule, printing a deprecation notice to stderr whenever it is
+  set.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already

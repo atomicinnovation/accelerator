@@ -111,7 +111,8 @@ Options:
 
 Environment:
   ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>  Same as --decisions-file.
-  ACCELERATOR_MIGRATE_FORCE=1                Bypass the dirty-tree pre-flight.
+  ACCELERATOR_FORCE=1                        Bypass the dirty-tree pre-flight.
+  ACCELERATOR_MIGRATE_FORCE=1                Deprecated; same as ACCELERATOR_FORCE=1.
 ";
 
 #[test]

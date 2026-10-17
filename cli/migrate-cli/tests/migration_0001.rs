@@ -65,7 +65,7 @@ fn matches_the_golden_byte_for_byte() -> Result<(), TestError> {
          Migrations rewrite files and may make repo-wide changes; commit\n\
          your working tree before running so VCS revert is available as\n\
          rollback. The pre-flight will refuse to run on a dirty tree\n\
-         unless ACCELERATOR_MIGRATE_FORCE=1 is set.\n\
+         unless ACCELERATOR_FORCE=1 is set.\n\
          \n\
          \n\
          Migration complete. applied: 1.\n"

@@ -40,6 +40,8 @@ use migrate_adapters::session_log_factory::FileSessionLogFactory;
 use migrate_adapters::tty_decision_source::TtyDecisionSource;
 use migrate_adapters::working_copy::VcsWorkingCopy;
 use time::UtcOffset;
+use vcs::guarded_working_copy::forces;
+use vcs::guarded_working_copy::FORCE_VARIABLE;
 use vcs::VcsKind;
 use vcs_adapters::library::InProcessProbe;
 
@@ -97,9 +99,16 @@ const fn session_log_clock() -> SystemClock {
     SystemClock::with_offset(UtcOffset::UTC)
 }
 
+const DEPRECATED_FORCE_VARIABLE: &str = "ACCELERATOR_MIGRATE_FORCE";
+
 fn force_requested() -> bool {
-    std::env::var("ACCELERATOR_MIGRATE_FORCE")
-        .is_ok_and(|value| !value.is_empty())
+    let forced = forces(std::env::var(FORCE_VARIABLE).ok().as_deref());
+    let deprecated_forced = std::env::var(DEPRECATED_FORCE_VARIABLE)
+        .is_ok_and(|value| !value.is_empty());
+    if deprecated_forced {
+        eprintln!("{}", render::DEPRECATED_FORCE_NOTICE);
+    }
+    forced || deprecated_forced
 }
 
 fn session_log_decision_count(root: &Path) -> impl Fn(&str) -> usize + '_ {
@@ -250,6 +259,7 @@ fn run_default(
     ledger_store: &FileLedgerStore,
     decisions_file: Option<&Path>,
 ) -> Result<(), kernel::Error> {
+    let force = force_requested();
     let decisions_file_content = decisions_file
         .map(std::fs::read_to_string)
         .transpose()
@@ -277,12 +287,16 @@ fn run_default(
             recorded_run_base: RUNNER_RUN_BASE,
             lock_dir: migrate_adapters::run_lock::LOCK_DIR,
         },
-        force: force_requested(),
+        force,
         session_log_decision_count: &session_log_decisions,
     };
 
     let _guard = match preflight.run() {
         Ok((guard, PreflightOutcome::Clean)) => guard,
+        Ok((guard, PreflightOutcome::Forced { skipped })) => {
+            eprintln!("{}", render::forced_past(&skipped));
+            guard
+        }
         Ok((guard, PreflightOutcome::Resumed { affordance })) => {
             render::resume_affordance(root, &affordance);
             guard

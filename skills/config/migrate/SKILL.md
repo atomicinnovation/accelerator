@@ -28,7 +28,7 @@ You can also run it proactively — if no migrations are pending, it prints `No 
 
 `accelerator migrate` (the `accelerator-migrate` sub-binary) runs the migration lifecycle in-process — there is no forked child per migration and no wire protocol to a subprocess.
 
-1. **Clean-tree pre-flight.** Scans `meta/`, `.claude/accelerator*.md`, and `.accelerator/` for uncommitted changes. A clean tree proceeds with a fresh run. A dirty tree where every dirty path belongs to this run's own prior partial output (a resumable interactive session log, in-flight manifest-tracked writes) proceeds too, printing a one-line resume affordance. A dirty tree carrying anything else aborts. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass entirely (advanced users only) — skipped migrations stay skipped even under FORCE. A run-level advisory lock (`.accelerator/state/`) refuses a second concurrent invocation fast rather than racing it.
+1. **Clean-tree pre-flight.** Scans `meta/`, `.claude/accelerator*.md`, and `.accelerator/` for uncommitted changes. A clean tree proceeds with a fresh run. A dirty tree where every dirty path belongs to this run's own prior partial output (a resumable interactive session log, in-flight manifest-tracked writes) proceeds too, printing a one-line resume affordance. A dirty tree carrying anything else aborts. Set `ACCELERATOR_FORCE=1` on the one command to bypass entirely (advanced users only) — skipped migrations stay skipped even under FORCE, and a forced run lists the uncommitted paths it skipped on stderr. The deprecated `ACCELERATOR_MIGRATE_FORCE=1` still bypasses, with a stderr deprecation notice. A run-level advisory lock (`.accelerator/state/`) refuses a second concurrent invocation fast rather than racing it.
 2. **Read state.** Loads `.accelerator/state/migrations-applied` and `.accelerator/state/migrations-skipped` — newline-delimited lists of migration IDs. If either file is absent, its set is empty. Unknown IDs (from a newer plugin version) are preserved verbatim and warned about. An ID appearing in both files triggers a warning; applied takes precedence.
 3. **The registry.** Migrations are not discovered by scanning a directory of scripts — they are a fixed, compile-time-ordered list (`migrate::registry::registry()`) baked into the binary. `ACCELERATOR_MIGRATIONS_DIR` is not recognised; there is no directory to override.
 4. **Compute pending.** A migration is pending if its ID is in neither the applied nor the skipped set.
@@ -98,7 +98,7 @@ Unskip a previously skipped migration so it becomes pending again:
 accelerator migrate --unskip <migration-id>
 ```
 
-Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_MIGRATE_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
+Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
 
 ## Optional interactive contract
 
@@ -260,7 +260,7 @@ In practice the agent first runs the migration and hits the **structured stall**
    `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`; a
    supplied flag always wins over a pre-existing env var). The
    stall's copy-pasteable command is exactly this bare form — **no
-   `ACCELERATOR_MIGRATE_FORCE=1` is needed** in the normal case. A partial
+   `ACCELERATOR_FORCE=1` is needed** in the normal case. A partial
    interactive run dirties the tree only with files this run owns (the
    interactive session log, plus any frontmatter already written), and the
    **guarded resume** lets the re-run proceed over that own output without
@@ -274,7 +274,7 @@ In practice the agent first runs the migration and hits the **structured stall**
    that the listed paths are only that run's output, commit them, and re-run
    **without** `FORCE` to resume. Otherwise the listed paths are changes made
    outside the run: commit or discard them. Reach for
-   `ACCELERATOR_MIGRATE_FORCE=1` only after confirming the listed paths are safe
+   `ACCELERATOR_FORCE=1` only after confirming the listed paths are safe
    to migrate over.
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
