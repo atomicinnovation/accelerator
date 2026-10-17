@@ -732,12 +732,12 @@ impl HeldTreeLock {
 
 #### Automated Verification:
 
-- [ ] New tests fail before their code and pass after: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib tree::`
-- [ ] `a_run_that_outlasts_its_bound_fails_instead_of_hanging` passes within ~1s
-- [ ] Integration suite still passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
-- [ ] `rg -n 'format!\(".tmp-' cli/launcher/src` returns nothing
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run check` exits 0
+- [x] New tests fail before their code and pass after: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib tree::`
+- [x] `a_run_that_outlasts_its_bound_fails_instead_of_hanging` passes within ~1s
+- [x] Integration suite still passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
+- [x] `rg -n 'format!\(".tmp-' cli/launcher/src` returns nothing
+- [x] `mise run cli:check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
