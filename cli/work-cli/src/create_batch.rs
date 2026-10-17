@@ -25,6 +25,7 @@ use work::work_item_files::WorkItemFile;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::identity_run::IdentityRunGuard;
 use work_adapters::promotion::Detail;
 use work_adapters::sync::pending_push;
 
@@ -95,6 +96,11 @@ pub enum BatchOutcome {
         report: BatchReport,
         message: String,
     },
+    /// The identity run could not begin; nothing was read or written.
+    Refused {
+        message: String,
+        code: u8,
+    },
 }
 
 #[must_use]
@@ -149,6 +155,7 @@ pub fn run(
             registry,
             store_at: &store_at,
             draws: &mut RandomSuffixDraws,
+            identity_run: &crate::identity_run::begin,
         },
         now_epoch(),
     )
@@ -170,6 +177,14 @@ pub fn run_with(
     seams: &mut Seams<'_>,
     now: u64,
 ) -> BatchOutcome {
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let identity_run = match (seams.identity_run)(&root, "create-batch") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) = crate::identity_run::refused(refusal);
+            return BatchOutcome::Refused { message, code };
+        }
+    };
     let entries = match crate::batch_manifest::read(&args.manifest) {
         Ok(entries) => entries,
         Err(problems) => return BatchOutcome::Invalid(problems),
@@ -178,7 +193,6 @@ pub fn run_with(
         Ok(order) => order,
         Err(problem) => return BatchOutcome::Invalid(vec![problem]),
     };
-    let root = config_adapters::FileConfigStore::discover_root(start);
     let workspace = match BatchWorkspace::open(
         config,
         &root,
@@ -207,6 +221,7 @@ pub fn run_with(
         fingerprint: crate::batch_manifest::fingerprint(&entries),
         now,
         created: Vec::new(),
+        identity_run: &identity_run,
     };
     for entry in order {
         if let Err(message) = batch.create(entry, seams) {
@@ -297,6 +312,7 @@ struct Batch<'a> {
     fingerprint: String,
     now: u64,
     created: Vec<BatchItem>,
+    identity_run: &'a IdentityRunGuard,
 }
 
 impl Batch<'_> {
@@ -337,6 +353,7 @@ impl Batch<'_> {
                     })
                 })
             },
+            self.identity_run,
         );
         let mut item = match result {
             Ok(outcome) => created(&entry.reference, outcome),
@@ -614,6 +631,38 @@ mod tests {
                     registry: &StubRegistry(Rc::clone(tracker)),
                     store_at: &store_at,
                     draws: &mut RandomSuffixDraws,
+                    identity_run: &crate::identity_run::begin,
+                },
+                NOW,
+            )
+        }
+
+        fn run_beginning_with(
+            &self,
+            manifest: &str,
+            identity_run: &crate::identity_run::IdentityRunStart<'_>,
+        ) -> BatchOutcome {
+            self.write("manifest.json", manifest);
+            let store_at = |root: &Path| -> Box<dyn CreationStore> {
+                Box::new(FileCorpusStore::new(root))
+            };
+            run_with(
+                self.root.path(),
+                &self.config,
+                &PluginWorkItemTemplate,
+                &CreateBatchArgs {
+                    manifest: self.path("manifest.json"),
+                    push: false,
+                    author: Some("A Tester".to_owned()),
+                    producer: "extract-work-items".to_owned(),
+                },
+                &mut Seams {
+                    registry: &StubRegistry(Rc::new(
+                        RecordingTracker::holding(Vec::new()),
+                    )),
+                    store_at: &store_at,
+                    draws: &mut RandomSuffixDraws,
+                    identity_run,
                 },
                 NOW,
             )
@@ -650,13 +699,95 @@ mod tests {
          "priority": "low", "parent": {"ref": "epic"}}
     ]"#;
 
+    /// An identity-run lock that may be taken once and only once.
+    #[derive(Default)]
+    struct TakenOnce {
+        taken: std::cell::Cell<usize>,
+    }
+
+    impl work_adapters::identity_run::IdentityRunPort for TakenOnce {
+        fn try_acquire(
+            &self,
+            _command: &str,
+        ) -> Result<
+            work_adapters::identity_run::IdentityRunAttempt,
+            corpus::StoreError,
+        > {
+            self.taken.set(self.taken.get() + 1);
+            assert_eq!(self.taken.get(), 1, "the identity run was taken twice");
+            Ok(work_adapters::identity_run::IdentityRunAttempt::Acquired(
+                work_adapters::identity_run::HeldIdentityRun::new(()),
+            ))
+        }
+
+        fn acquire_within(
+            &self,
+            _command: &str,
+            _ceiling: std::time::Duration,
+        ) -> Result<
+            work_adapters::identity_run::HeldIdentityRun,
+            work_adapters::identity_run::IdentityRunLockError,
+        > {
+            unreachable!("the lock is never contended")
+        }
+    }
+
+    struct Clear;
+
+    impl work_adapters::identity_run::RunPlanStatus for Clear {
+        fn gate(&self) -> work_adapters::identity_run::RunPlanGate {
+            work_adapters::identity_run::RunPlanGate::Clear
+        }
+    }
+
+    #[test]
+    fn create_batch_refuses_while_a_rekey_is_in_progress() {
+        let repo = BatchRepo::numeric();
+        crate::test_support::rekey_in_progress(repo.root.path());
+        let before = crate::test_support::meta_tree(repo.root.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let outcome = repo.run(EPIC_AND_TWO_STORIES, true, &tracker);
+
+        let BatchOutcome::Refused { message, code } = outcome else {
+            panic!("not refused: {outcome:?}");
+        };
+        assert_eq!(code, exit_codes::UNRESOLVED);
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+        assert!(tracker.calls().is_empty());
+        assert_eq!(crate::test_support::meta_tree(repo.root.path()), before);
+    }
+
+    #[test]
+    fn create_batch_takes_the_identity_run_lock_exactly_once() {
+        let repo = BatchRepo::numeric();
+        let lock = TakenOnce::default();
+        let begin = |_: &Path, command: &str| {
+            work_adapters::identity_run::begin_identity_run(
+                &lock,
+                &Clear,
+                command,
+                &|_| {},
+            )
+        };
+
+        let outcome = repo.run_beginning_with(EPIC_AND_TWO_STORIES, &begin);
+
+        assert_eq!(reported(outcome).lines.len(), 3);
+        assert_eq!(lock.taken.get(), 1);
+    }
+
     fn reported(outcome: BatchOutcome) -> BatchReport {
         match outcome {
             BatchOutcome::Reported(report) => report,
             BatchOutcome::Invalid(problems) => {
                 panic!("the manifest was refused: {problems:?}")
             }
-            BatchOutcome::Failed { message, .. } => {
+            BatchOutcome::Failed { message, .. }
+            | BatchOutcome::Refused { message, .. } => {
                 panic!("the batch failed: {message}")
             }
         }

@@ -2,6 +2,8 @@
 //! key changes and interrupted retirements before the engine plans.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
 use corpus_adapters::CommonMarkBody;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -575,6 +577,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         probes.set(probes.get() + 1);
         Box::new(EveryPath(Dirtiness::Clean))
     };
+    let identity_run = support::identity_run().unwrap();
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
@@ -586,6 +589,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
             tracker,
             parser: &CommonMarkBody,
         },
+        identity_run: &identity_run,
     };
     let author = FileAuthor::default();
     let ports = SyncPorts {

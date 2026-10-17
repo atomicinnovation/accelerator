@@ -17,12 +17,12 @@ const REKEY: &str = "rekey";
 
 /// The identity-run lock as taken; released when dropped.
 pub struct HeldIdentityRun {
-    _held: Box<dyn Send>,
+    _held: Box<dyn Send + Sync>,
 }
 
 impl HeldIdentityRun {
     #[must_use]
-    pub fn new(guard: impl Send + 'static) -> Self {
+    pub fn new(guard: impl Send + Sync + 'static) -> Self {
         Self {
             _held: Box::new(guard),
         }

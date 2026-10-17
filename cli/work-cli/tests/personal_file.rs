@@ -86,6 +86,19 @@ fn every_writer_refuses_and_writes_nothing() -> Result<(), TestError> {
 }
 
 #[test]
+fn next_number_still_runs_with_an_insecure_personal_file(
+) -> Result<(), TestError> {
+    let repo = insecure_repo()?;
+
+    let output = run(repo.path(), &["next-number"])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(output.status.code(), Some(0), "{stderr}");
+    assert_eq!(String::from_utf8(output.stdout)?, "0002\n");
+    Ok(())
+}
+
+#[test]
 fn a_reader_runs_on_team_values_with_one_warning() -> Result<(), TestError> {
     let repo = insecure_repo()?;
 

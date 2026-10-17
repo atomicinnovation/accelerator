@@ -47,6 +47,7 @@ use work::work_item_files::WorkItemFiles;
 use crate::create_request_fields;
 use crate::filesystem::drafts_dir;
 use crate::filesystem::FilesystemWorkItemFiles;
+use crate::identity_run::IdentityRunGuard;
 use crate::promotion::Detail;
 use crate::promotion::PromotionOutcome;
 use crate::promotion::PromotionRow;
@@ -596,6 +597,7 @@ pub fn create_local_item(
     creation: &Creation<'_>,
     allocate: &dyn Fn() -> Result<String, String>,
     pushing: Option<&LegacyPushing<'_>>,
+    _identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, String> {
     let _held = creation.hold_create_lock()?;
     let id = allocate()?;

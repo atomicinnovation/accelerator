@@ -42,6 +42,11 @@ use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
 use work::sync::LegacyHashes;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::identity_run::begin_rekey_run;
+use work_adapters::identity_run::HeldIdentityRun;
+use work_adapters::identity_run::IdentityRunAttempt;
+use work_adapters::identity_run::IdentityRunGuard;
+use work_adapters::identity_run::IdentityRunLockError;
 use work_adapters::identity_run::IdentityRunPort;
 use work_adapters::identity_run_lock::IdentityRunLock;
 use work_adapters::rekey::execute::RekeyCorpus;
@@ -695,4 +700,29 @@ pub fn restore(
         repo.write(path, content)?;
     }
     Ok(())
+}
+
+/// An identity-run lock nobody else holds.
+pub struct Unheld;
+
+impl IdentityRunPort for Unheld {
+    fn try_acquire(
+        &self,
+        _command: &str,
+    ) -> Result<IdentityRunAttempt, StoreError> {
+        Ok(IdentityRunAttempt::Acquired(HeldIdentityRun::new(())))
+    }
+
+    fn acquire_within(
+        &self,
+        _command: &str,
+        _ceiling: std::time::Duration,
+    ) -> Result<HeldIdentityRun, IdentityRunLockError> {
+        Ok(HeldIdentityRun::new(()))
+    }
+}
+
+/// A held identity run, for use cases that need proof of one.
+pub fn identity_run() -> Result<IdentityRunGuard, NotRekeyed> {
+    begin_rekey_run(&Unheld, &|_| {})
 }

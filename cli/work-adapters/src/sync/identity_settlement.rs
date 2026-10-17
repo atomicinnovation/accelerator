@@ -30,6 +30,7 @@ use work::promotion::PromotionMode;
 use work::promotion::PromotionStage;
 use work::sync::SyncDirection;
 
+use crate::identity_run::IdentityRunGuard;
 use crate::promotion::finish_promotion;
 use crate::promotion::promote;
 use crate::promotion::PromotionOutcome;
@@ -71,6 +72,7 @@ pub struct SettlementPorts<'a> {
     pub probe_status: &'a dyn Fn() -> Box<dyn WorkingCopyStatus>,
     /// Reads a promoted issue, to predict its next sync.
     pub remote: RemoteReading<'a>,
+    pub identity_run: &'a IdentityRunGuard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -466,8 +468,12 @@ fn promote_draft(
         retirement: &retirement,
         records: settlement.promotions,
     };
-    let result =
-        promote(&planned.draft, &PromotionMode::Standard, &promotion_ports);
+    let result = promote(
+        &planned.draft,
+        &PromotionMode::Standard,
+        &promotion_ports,
+        settlement.identity_run,
+    );
     if let Err(NotPromoted::RetirementFailed(
         failure @ RetirementFailure::RestoreIncomplete { .. },
     )) = &result

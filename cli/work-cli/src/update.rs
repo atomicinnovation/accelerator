@@ -46,6 +46,12 @@ pub enum RunOutcome {
     PushRetryable(String),
     PushTerminal(String),
     PushRejected(String),
+    /// The identity run an `update --push` needs could not begin; nothing
+    /// was read or written.
+    Refused {
+        message: String,
+        code: u8,
+    },
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -140,6 +146,7 @@ enum TryRunError {
     Retryable(String),
     Terminal(String),
     Rejected(String),
+    Refused { message: String, code: u8 },
 }
 
 impl From<String> for TryRunError {
@@ -307,6 +314,17 @@ fn try_run(
         validate_list_key(key)?;
     }
 
+    let _identity_run = if args.push {
+        let root = config_adapters::FileConfigStore::discover_root(start);
+        let guard =
+            crate::identity_run::begin(&root, "update").map_err(|refusal| {
+                let (message, code) = crate::identity_run::refused(refusal);
+                TryRunError::Refused { message, code }
+            })?;
+        Some(guard)
+    } else {
+        None
+    };
     let work_dir = args.path.parent().unwrap_or_else(|| Path::new("."));
     let _guard = LockdirLock::new(work_dir)
         .acquire(&LockName::ForFile(args.path.clone()))
@@ -406,6 +424,9 @@ pub fn run(
         Err(TryRunError::Rejected(message)) => {
             RunOutcome::PushRejected(message)
         }
+        Err(TryRunError::Refused { message, code }) => {
+            RunOutcome::Refused { message, code }
+        }
     }
 }
 
@@ -465,6 +486,108 @@ mod tests {
         ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
             Ok(self.0.borrow_mut().take().expect("resolved more than once"))
         }
+    }
+
+    fn guarded_repo() -> (tempfile::TempDir, std::path::PathBuf, &'static str) {
+        const ITEM: &str = "---\nid: \"0001\"\ntitle: \"Title\"\n\
+                            external_id: \"ENG-1\"\n---\n\nBody\n";
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        let item = root.path().join("0001.md");
+        std::fs::write(&item, ITEM).expect("seed the item");
+        crate::test_support::rekey_in_progress(root.path());
+        (root, item, ITEM)
+    }
+
+    fn update_args(path: std::path::PathBuf, push: bool) -> UpdateArgs {
+        UpdateArgs {
+            path,
+            sets: vec![("status".to_owned(), "ready".to_owned())],
+            add_tags: Vec::new(),
+            remove_tags: Vec::new(),
+            appends: Vec::new(),
+            removes: Vec::new(),
+            push,
+        }
+    }
+
+    fn linear() -> FakeConfig {
+        FakeConfig(HashMap::from([(
+            "work.integration".to_owned(),
+            "linear".to_owned(),
+        )]))
+    }
+
+    fn untouched_registry() -> FixedRegistry {
+        FixedRegistry(RefCell::new(None))
+    }
+
+    #[test]
+    fn update_push_refuses_while_a_rekey_is_in_progress() {
+        let (root, item, original) = guarded_repo();
+
+        let outcome = run(
+            root.path(),
+            &linear(),
+            &update_args(item.clone(), true),
+            &untouched_registry(),
+        );
+
+        let RunOutcome::Refused { message, code } = outcome else {
+            panic!("an update --push ran during a re-key");
+        };
+        assert_eq!(code, crate::exit_codes::UNRESOLVED);
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+        assert_eq!(std::fs::read_to_string(&item).expect("item"), original);
+        assert!(!root.path().join("0001.md.lockdir").exists());
+    }
+
+    #[test]
+    fn update_push_takes_the_identity_run_lock_before_the_file_lock() {
+        use corpus::lock::ExclusiveLock as _;
+
+        let (root, item, _) = guarded_repo();
+        let _file_lock = LockdirLock::new(root.path())
+            .acquire(&LockName::ForFile(item.clone()))
+            .expect("the file lock is free");
+        let (done, finished) = std::sync::mpsc::channel();
+        let start = root.path().to_path_buf();
+
+        std::thread::spawn(move || {
+            let outcome = run(
+                &start,
+                &linear(),
+                &update_args(item, true),
+                &untouched_registry(),
+            );
+            let _ = done.send(matches!(outcome, RunOutcome::Refused { .. }));
+        });
+
+        assert_eq!(
+            finished.recv_timeout(std::time::Duration::from_secs(10)),
+            Ok(true),
+            "the update waited on the file lock before the identity run"
+        );
+    }
+
+    #[test]
+    fn update_without_push_is_not_guarded() {
+        let (root, item, _) = guarded_repo();
+
+        let outcome = run(
+            root.path(),
+            &linear(),
+            &update_args(item.clone(), false),
+            &untouched_registry(),
+        );
+
+        assert!(matches!(outcome, RunOutcome::Updated));
+        assert!(std::fs::read_to_string(&item)
+            .expect("item")
+            .contains("status: \"ready\""));
     }
 
     #[test]

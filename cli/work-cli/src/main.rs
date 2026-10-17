@@ -11,6 +11,7 @@ mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod identity_run;
 mod identity_workspace;
 mod list;
 mod next_number;
@@ -287,6 +288,10 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
+        create::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
     }
 }
 
@@ -338,6 +343,10 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
+        create_batch::BatchOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
     }
 }
 
@@ -382,6 +391,10 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         update::RunOutcome::PushRejected(message) => {
             eprintln!("{message}");
             ExitCode::from(exit_codes::REJECTED)
+        }
+        update::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
         }
     }
 }
@@ -438,6 +451,10 @@ fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
         next_number::RunOutcome::Failed(message) => {
             eprintln!("{message}");
             ExitCode::FAILURE
+        }
+        next_number::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
         }
     }
 }

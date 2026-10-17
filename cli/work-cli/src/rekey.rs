@@ -1058,6 +1058,62 @@ mod tests {
         assert!(repo.read(RUN_PLAN).is_some());
     }
 
+    fn preview_sync(repo: &Repo) -> std::process::ExitCode {
+        let composed = config_adapters::compose(
+            repo.root(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .unwrap();
+        crate::sync::run_sync(
+            repo.root(),
+            &composed.service,
+            &crate::cli::SyncArgs {
+                push_only: false,
+                pull_only: false,
+                preview: true,
+                resolutions: Vec::new(),
+                per_item_reads: false,
+                max_pulls: None,
+                max_pushes: None,
+                allow_unbounded: false,
+                no_promote: false,
+                targets: Vec::new(),
+            },
+            &crate::test_support::StubRegistry(Rc::new(
+                tracker_test_support::RecordingTracker::holding(Vec::new()),
+            )),
+            &crate::finaliser::NoFinaliser,
+        )
+    }
+
+    #[test]
+    fn discard_after_a_vcs_revert_lets_sync_run_again() {
+        let repo = Repo::with(
+            KEYED_LINEAR,
+            &[
+                ("meta/work/0041-first.md", &item("0041", "First", "")),
+                ("meta/work/0042-second.md", &item("0042", "Second", "")),
+            ],
+        );
+        repo.halt_at(4);
+        assert_eq!(
+            preview_sync(&repo),
+            std::process::ExitCode::from(crate::exit_codes::UNRESOLVED)
+        );
+        repo.env
+            .git(&["checkout", "--quiet", "--", "."], repo.root())
+            .unwrap();
+        repo.env
+            .git(&["clean", "--quiet", "-fd", "meta"], repo.root())
+            .unwrap();
+
+        let ran = repo.discard();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(repo.read(RUN_PLAN), None);
+        assert_eq!(preview_sync(&repo), std::process::ExitCode::SUCCESS);
+    }
+
     #[test]
     fn discard_with_no_plan_exits_0_through_the_cli() {
         let repo = legacy_pair();

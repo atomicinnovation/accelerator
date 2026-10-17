@@ -44,6 +44,7 @@ use work::sync::SyncedTrackerFields;
 use work::tracker_key::TrackerKey;
 
 use crate::create_request_fields;
+use crate::identity_run::IdentityRunGuard;
 use crate::promotion_records::PromotionRecords;
 use crate::promotion_records::StoredRecord;
 use crate::remote_create::send_create;
@@ -394,6 +395,7 @@ pub fn promote(
     draft: &DraftId,
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
+    _identity_run: &IdentityRunGuard,
 ) -> Result<Promotion, NotPromoted> {
     let lock =
         acquire_retirement_lock(ports.retirement.lock).map_err(|error| {
