@@ -21,6 +21,7 @@ use research::conduct::concurrency::RequestedConcurrency;
 use research::conduct::concurrency::ResolvedConcurrency;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
+use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
@@ -96,7 +97,11 @@ pub fn resolve_set(
 pub enum RunMode {
     Query,
     Start(RunId),
-    Continue { run: RunId, spawned: Option<u32> },
+    Continue {
+        run: RunId,
+        spawned: Option<u32>,
+        withheld: Withheld,
+    },
 }
 
 /// The run flags as given, before a started run is minted its id.
@@ -104,7 +109,11 @@ pub enum RunMode {
 pub enum RunFlag {
     Query,
     Start,
-    Continue { run: RunId, spawned: Option<u32> },
+    Continue {
+        run: RunId,
+        spawned: Option<u32>,
+        withheld: Withheld,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,6 +134,7 @@ impl OutstandingFlags {
         start: bool,
         run: Option<&str>,
         spawned: Option<&str>,
+        withhold_profile: &[String],
     ) -> Result<Self, String> {
         let depth = non_negative(depth).and_then(Depth::requested).ok_or_else(
             || {
@@ -143,7 +153,7 @@ impl OutstandingFlags {
                     provenance: Provenance::Flag,
                 }
             }),
-            run: run_flag(start, run, spawned)?,
+            run: run_flag(start, run, spawned, withhold_profile)?,
         })
     }
 }
@@ -188,6 +198,7 @@ fn run_flag(
     start: bool,
     run: Option<&str>,
     spawned: Option<&str>,
+    withhold_profile: &[String],
 ) -> Result<RunFlag, String> {
     if start && run.is_some() {
         return Err(failed(
@@ -198,6 +209,12 @@ fn run_flag(
         if spawned.is_some() {
             return Err(failed(
                 "E_TOPIC_RESEARCH_SPAWNED: --spawned needs --run",
+            ));
+        }
+        if !withhold_profile.is_empty() {
+            return Err(failed(
+                "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile needs \
+                 --run",
             ));
         }
         return Ok(if start {
@@ -219,7 +236,18 @@ fn run_flag(
     Ok(RunFlag::Continue {
         run: parse_run(run)?,
         spawned,
+        withheld: withheld(withhold_profile)?,
     })
+}
+
+fn withheld(withhold_profile: &[String]) -> Result<Withheld, String> {
+    if withhold_profile.iter().any(String::is_empty) {
+        return Err(failed(
+            "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile is empty; \
+             pass a profile name",
+        ));
+    }
+    Ok(Withheld::of(withhold_profile.iter().cloned()))
 }
 
 /// # Errors
@@ -284,8 +312,15 @@ where
     S: AtomicWrite,
 {
     let (continued, replaced) = match &request.mode {
-        RunMode::Continue { run, spawned } => (
-            Some(continued_ledger(set_root, run, *spawned, fs)?),
+        RunMode::Continue {
+            run,
+            spawned,
+            withheld,
+        } => (
+            Some(
+                continued_ledger(set_root, run, *spawned, fs)?
+                    .withholding(withheld),
+            ),
             ReplacedLedger::Absent,
         ),
         RunMode::Start(_) => {
@@ -570,6 +605,23 @@ fn trim(trim: &Trim) -> Value {
     })
 }
 
+fn unanswered(outstanding: &OutstandingPair) -> Value {
+    json!({
+        "stem": outstanding.stem.to_string(),
+        "question": outstanding.pair.question,
+        "profile": outstanding.pair.profile,
+        "stage": stage_name(&outstanding.stage),
+    })
+}
+
+const fn stage_name(stage: &Stage) -> &'static str {
+    match stage {
+        Stage::SinglePass => "single_pass",
+        Stage::Compose(_) => "compose",
+        Stage::ResearchNodes(_) => "research_nodes",
+    }
+}
+
 fn search_budgets(budgets: &SearchBudgets) -> Value {
     budgets
         .levels()
@@ -659,10 +711,13 @@ impl PlanOutput<'_> {
             "unfinished": unfinished,
             "trims": trims,
             "shallow": shallow,
+            "unanswered": plan.pairs.iter().map(unanswered).collect::<Vec<_>>(),
         });
         if let Some(ledger) = self.ledger {
             rendered["run"] = json!(ledger.run().to_string());
             rendered["batch"] = json!(ledger.memory().pending.number());
+            rendered["withheld"] =
+                ledger.memory().withheld.profiles().collect();
             rendered["unexpected"] = self
                 .window
                 .unexpected
@@ -720,6 +775,7 @@ impl PlanOutput<'_> {
             "question": outstanding.pair.question,
             "profile": outstanding.pair.profile,
             "path": self.absolute(&outstanding.stem.finding_path()),
+            "stage": stage_name(&outstanding.stage),
         });
         let spawn = SpawnRef::Pair(outstanding.stem.clone()).to_string();
         let note = |lineage: &Lineage| NoteRef {
@@ -729,14 +785,12 @@ impl PlanOutput<'_> {
         let search_budget = |level| self.search_budget(outstanding, level);
         match &outstanding.stage {
             Stage::SinglePass => {
-                rendered["stage"] = json!("single_pass");
                 rendered["spawn"] = json!(spawn);
                 if let Some(budget) = search_budget(1) {
                     rendered["search_budget"] = json!(budget);
                 }
             }
             Stage::Compose(lineages) => {
-                rendered["stage"] = json!("compose");
                 rendered["notes"] = lineages
                     .iter()
                     .map(|lineage| json!(self.absolute(&note(lineage).path())))
@@ -744,7 +798,6 @@ impl PlanOutput<'_> {
                 rendered["spawn"] = json!(spawn);
             }
             Stage::ResearchNodes(nodes) => {
-                rendered["stage"] = json!("research_nodes");
                 rendered["nodes"] = nodes
                     .iter()
                     .map(|node| {
