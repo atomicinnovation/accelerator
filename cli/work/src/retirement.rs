@@ -352,10 +352,24 @@ fn destination_of(
     work_dir: &Path,
 ) -> PathBuf {
     file_for(
-        work_dir,
+        &home_of(retirement.new_id, work_dir),
         retirement.new_id,
         &slug_after(retirement.old_id, from),
     )
+}
+
+fn is_draft_file(path: &Path, work_dir: &Path) -> bool {
+    path.parent() == Some(work_dir.join(DRAFTS_DIRECTORY).as_path())
+}
+
+/// `path` as a link from the work directory spells it.
+fn spelled_from_work_dir(path: &Path, work_dir: &Path) -> String {
+    let name = file_name(path);
+    if is_draft_file(path, work_dir) {
+        format!("{DRAFTS_DIRECTORY}/{name}")
+    } else {
+        name
+    }
 }
 
 fn path_spellings(
@@ -364,13 +378,15 @@ fn path_spellings(
     work_dir: &Path,
 ) -> Vec<(String, String)> {
     let old_name = file_name(from);
-    let new_name = file_name(to);
+    let new_spelling = spelled_from_work_dir(to, work_dir);
     let mut spellings = Vec::new();
-    if from.parent() == Some(work_dir.join(DRAFTS_DIRECTORY).as_path()) {
-        spellings
-            .push((format!("{DRAFTS_DIRECTORY}/{old_name}"), new_name.clone()));
+    if is_draft_file(from, work_dir) {
+        spellings.push((
+            spelled_from_work_dir(from, work_dir),
+            new_spelling.clone(),
+        ));
     }
-    spellings.push((old_name, new_name));
+    spellings.push((old_name, new_spelling));
     spellings
 }
 
@@ -827,6 +843,115 @@ mod tests {
                 new_id: "draft-k3x9mq",
                 new_external_id: None,
             }
+        );
+    }
+
+    fn numbered_item() -> CorpusFile {
+        work_item(
+            "/repo/meta/work/0042-add-search.md",
+            "id: \"0042\"\ntitle: \"Add search\"\n",
+            "Add search",
+        )
+    }
+
+    fn a_draft_id() -> crate::draft_id::DraftId {
+        crate::draft_id::DraftId::parse("draft-k3x9mq")
+            .unwrap_or_else(|| unreachable!("a draft id"))
+    }
+
+    const RETIRED_DRAFT: &str =
+        "/repo/meta/work/drafts/draft-k3x9mq-add-search.md";
+
+    #[test]
+    fn retiring_onto_a_draft_id_lands_in_the_drafts_directory() {
+        let draft = a_draft_id();
+
+        let planned = planned(
+            &Retirement::into_draft("0042", &draft),
+            &[numbered_item()],
+        );
+
+        assert_eq!(planned.to, Path::new(RETIRED_DRAFT));
+        assert_eq!(
+            retired(&planned),
+            "---\nid: \"draft-k3x9mq\"\naliases: [\"0042\"]\n\
+             title: \"Add search\"\n---\n\n# draft-k3x9mq: Add search\n"
+        );
+    }
+
+    #[test]
+    fn a_link_to_a_file_retired_into_drafts_gains_the_drafts_segment() {
+        let draft = a_draft_id();
+        let corpus = [
+            numbered_item(),
+            file(
+                "/repo/meta/plans/p.md",
+                "[a](meta/work/0042-add-search.md) \
+                 [b](../work/0042-add-search.md)\n",
+            ),
+        ];
+
+        let planned = planned(&Retirement::into_draft("0042", &draft), &corpus);
+
+        assert_eq!(
+            rewrite_of(&planned, "/repo/meta/plans/p.md"),
+            Some(
+                "[a](meta/work/drafts/draft-k3x9mq-add-search.md) \
+                 [b](../work/drafts/draft-k3x9mq-add-search.md)\n"
+            )
+        );
+    }
+
+    #[test]
+    fn retired_content_matches_the_plan_for_a_draft_destination() {
+        let draft = a_draft_id();
+        let retirement = Retirement::into_draft("0042", &draft);
+        let corpus = [work_item(
+            "/repo/meta/work/0042-add-search.md",
+            "id: \"0042\"\n",
+            "Add search, see [self](0042-add-search.md)",
+        )];
+
+        let planned = planned(&retirement, &corpus);
+
+        assert_eq!(
+            planned.retired_item.as_deref(),
+            Some(
+                super::retired_content(
+                    &corpus[0].content,
+                    &retirement,
+                    &corpus[0].path,
+                    work_dir()
+                )
+                .as_str()
+            )
+        );
+    }
+
+    #[test]
+    fn an_interrupted_retirement_into_drafts_resumes() {
+        let draft = a_draft_id();
+        let corpus = [
+            numbered_item(),
+            work_item(
+                RETIRED_DRAFT,
+                "id: \"draft-k3x9mq\"\naliases: [\"0042\"]\n",
+                "Add search",
+            ),
+            referencing("parent: \"work-item:0042\"\n"),
+        ];
+
+        let planned = planned(&Retirement::into_draft("0042", &draft), &corpus);
+
+        assert!(planned.resumes);
+        assert_eq!(
+            planned.from,
+            Path::new("/repo/meta/work/0042-add-search.md")
+        );
+        assert_eq!(planned.to, Path::new(RETIRED_DRAFT));
+        assert_eq!(
+            rewrite_of(&planned, "/repo/meta/plans/p.md"),
+            Some("parent: \"work-item:draft-k3x9mq\"\n")
         );
     }
 

@@ -23,6 +23,7 @@ use corpus_adapters::RealFs;
 use store::lock::LockOptions;
 use tracker::RemoteTimestamp;
 use work::dirtiness::Dirtiness;
+use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::retirement::plan_retirement;
@@ -363,6 +364,13 @@ impl<'a> Harness<'a> {
     }
 
     fn finish(&self) -> Result<(), FinishFailure> {
+        self.finish_retirement(&promotion())
+    }
+
+    fn finish_retirement(
+        &self,
+        retirement: &Retirement<'_>,
+    ) -> Result<(), FinishFailure> {
         let baseline = self.baseline();
         let ports = RetirementPorts {
             files: self.files(),
@@ -378,7 +386,7 @@ impl<'a> Harness<'a> {
         let Ok(lock) = acquire_retirement_lock(&self.locks) else {
             unreachable!("the retirement lock is free");
         };
-        finish_retirement(&promotion(), &ports, &lock)
+        finish_retirement(retirement, &ports, &lock)
     }
 }
 
@@ -665,6 +673,33 @@ fn a_rollback_of_a_resumed_retirement_keeps_the_recovery_directory(
 
     assert!(matches!(result, Err(RetirementFailure::RolledBack { .. })));
     assert!(repo.path(RECOVERY).is_dir());
+    Ok(())
+}
+
+#[test]
+fn retiring_into_a_drafts_directory_that_does_not_exist_creates_it(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    fs::remove_dir_all(repo.path("meta/work/drafts"))?;
+    repo.write(
+        "meta/work/0042-add-search.md",
+        "---\nid: \"0042\"\n---\n\n# 0042: Add search\n",
+    )?;
+    let draft = DraftId::parse("draft-k3x9mq").ok_or("a draft id")?;
+
+    Harness::new(&repo)
+        .finish_retirement(&Retirement::into_draft("0042", &draft))
+        .map_err(|f| format!("{f:?}"))?;
+
+    assert_eq!(repo.read("meta/work/0042-add-search.md"), None);
+    assert_eq!(
+        repo.read("meta/work/drafts/draft-k3x9mq-add-search.md")
+            .as_deref(),
+        Some(
+            "---\nid: \"draft-k3x9mq\"\naliases: [\"0042\"]\n---\n\n\
+             # draft-k3x9mq: Add search\n"
+        )
+    );
     Ok(())
 }
 
