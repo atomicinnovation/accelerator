@@ -517,9 +517,12 @@ def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
 
 
 def test_the_floor_warning_reads_alike_in_prose_and_in_the_cli() -> None:
-    fragment = "restart Claude Code, or lower the depth"
-    assert fragment in _configure_research_section()
-    assert fragment in _rust_text(SEARCH_WORDING)
+    for fragment in (
+        "expect a halt, then run",
+        "restart Claude Code, or lower the depth",
+    ):
+        assert fragment in _configure_research_section()
+        assert fragment in _rust_text(SEARCH_WORDING)
 
 
 def test_configure_documents_the_search_cap() -> None:
@@ -530,8 +533,9 @@ def test_configure_documents_the_search_cap() -> None:
         "It keeps back a twentieth of the cap, rounded up, for the main "
         "conversation, `outline` and searches made earlier in the session.",
         "When even one search per node exceeds what is left, every budget is "
-        "1 and `conduct` warns. Raise the variable, then restart Claude Code, "
-        "or lower the depth (`--depth` or `research.topic.depth`).",
+        "1 and `conduct` warns: expect a halt, then run `/clear` and re-run "
+        "`conduct`. For later runs, raise the variable, then restart Claude "
+        "Code, or lower the depth (`--depth` or `research.topic.depth`).",
         "Set the variable where both Claude Code and its Bash tool see it. A "
         "value Claude Code would not accept is ignored with a warning.",
     ):

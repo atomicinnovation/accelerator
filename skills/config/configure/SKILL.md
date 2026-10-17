@@ -473,8 +473,9 @@ would accept, otherwise 200, Claude Code's session limit.
 - It keeps back a twentieth of the cap, rounded up, for the main
   conversation, `outline` and searches made earlier in the session.
 - When even one search per node exceeds what is left, every budget is 1 and
-  `conduct` warns. Raise the variable, then restart Claude Code, or lower the
-  depth (`--depth` or `research.topic.depth`).
+  `conduct` warns: expect a halt, then run `/clear` and re-run `conduct`. For
+  later runs, raise the variable, then restart Claude Code, or lower the depth
+  (`--depth` or `research.topic.depth`).
 - Set the variable where both Claude Code and its Bash tool see it. A value
   Claude Code would not accept is ignored with a warning.
 
