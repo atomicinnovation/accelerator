@@ -741,8 +741,8 @@ impl TreeResolver<'_> {
 
     /// Reclaim residue for one artifact under its single-flight lock.
     ///
-    /// Runs under the lock the reaper requires, so it and a concurrent
-    /// materialisation of a different artifact cannot disagree about `trees/`.
+    /// Another artifact's temp residue is removed only under that artifact's
+    /// tree lock, so a concurrent materialisation of it is never disturbed.
     /// Every artifact's pinned partial archive is spared, so a resumable
     /// download survives.
     ///
