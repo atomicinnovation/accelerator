@@ -200,14 +200,20 @@ fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
         .as_object()?
         .iter()
         .map(|(level, budget)| {
-            let level = level.parse().ok().filter(|level| *level > 0)?;
-            Some((level, NonZeroU32::new(number(budget)?)?))
+            Some((level_from(level)?, NonZeroU32::new(number(budget)?)?))
         })
         .collect::<Option<BTreeMap<u32, NonZeroU32>>>()?;
     Some(SearchBudgets::from_parts(
         levels,
         value.get("demand")?.as_u64()?,
     ))
+}
+
+/// Only the form the writer prints, so that no two keys name one level.
+fn level_from(key: &str) -> Option<u32> {
+    key.parse::<u32>()
+        .ok()
+        .filter(|level| *level > 0 && level.to_string() == key)
 }
 
 fn withheld_from(value: &Value) -> Option<Withheld> {
@@ -587,6 +593,8 @@ mod tests {
             json!({"levels": {}}),
             json!({"levels": {"0": 1}, "demand": 1}),
             json!({"levels": {"a": 1}, "demand": 1}),
+            json!({"levels": {"01": 1}, "demand": 1}),
+            json!({"levels": {"+1": 1}, "demand": 1}),
             json!({"levels": {"1": 0}, "demand": 1}),
             json!({"levels": {"1": -1}, "demand": 1}),
             json!({"levels": {}, "demand": -1}),
