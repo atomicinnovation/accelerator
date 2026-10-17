@@ -26,7 +26,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 INVOCATION = "accelerator corpus frontmatter validate"
 
-# The closed in-scope producer set (23). Each must run the validate step.
 IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/work/create-work-item/SKILL.md",
     "skills/work/extract-work-items/SKILL.md",

@@ -433,7 +433,6 @@ pub struct PromoteArgs {
     pub create: bool,
 }
 
-/// `work rekey`'s arguments.
 #[derive(Args)]
 pub struct RekeyArgs {
     /// Record the mapping as a proposed run plan and print one
@@ -442,9 +441,9 @@ pub struct RekeyArgs {
     /// refuses if any item's identity has moved since.
     #[arg(long, conflicts_with = "discard")]
     pub preview: bool,
-    /// Remove a proposed run plan; remove an in-progress run plan once every path it wrote is back as
-    /// it was; with `ACCELERATOR_FORCE=1`, set aside one that cannot be
-    /// read or whose paths have changed.
+    /// Remove a proposed run plan; remove an in-progress run plan once every
+    /// path it wrote is back as it was; with `ACCELERATOR_FORCE=1`, set aside
+    /// one that cannot be read or whose paths have changed.
     #[arg(long)]
     pub discard: bool,
     /// Read each synced item's issue with its own request instead of one

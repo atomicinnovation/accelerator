@@ -244,7 +244,6 @@ fn guarded_scopes(root: &Path, corpus: &CorpusWorkspace) -> Vec<String> {
         .collect()
 }
 
-/// Runs `work rekey` and returns its exit code.
 #[must_use]
 pub fn run(
     start: &Path,
