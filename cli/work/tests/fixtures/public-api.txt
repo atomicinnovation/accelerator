@@ -1371,6 +1371,7 @@ impl core::fmt::Debug for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::key_change::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
 pub work::sync::label::RenderableState::Conflict
@@ -2091,6 +2092,7 @@ pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baselin
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
