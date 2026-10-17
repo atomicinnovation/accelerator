@@ -18,8 +18,8 @@ pub fn search_floor(
     format!(
         "the worst-case demand of {} web searches exceeds the {} left by the \
          search cap of {} from {source} after a reserve of {} — every search \
-         budget is 1; for later runs, raise {} and restart Claude Code, or \
-         lower the depth",
+         budget is 1, so expect a halt, then run /clear and re-run conduct; \
+         for later runs, raise {} and restart Claude Code, or lower the depth",
         budgets.demand(),
         cap.available(),
         cap.searches(),
@@ -107,7 +107,8 @@ mod tests {
             assert_eq!(
                 search_floor(&budgets, &cap),
                 format!(
-                    "{shortfall} — every search budget is 1; for later runs, \
+                    "{shortfall} — every search budget is 1, so expect a halt, \
+                     then run /clear and re-run conduct; for later runs, \
                      raise {variable} and restart Claude Code, or lower the \
                      depth"
                 )
