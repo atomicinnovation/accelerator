@@ -1090,7 +1090,7 @@ fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
                 "depth",
                 "follow_ups",
             ],
-            "optional_extras": [],
+            "optional_extras": ["search_budget"],
             "empty_list_extras": ["follow_ups"],
             "status_vocab": ["complete"],
             "forbidden_own_id_keys": [],

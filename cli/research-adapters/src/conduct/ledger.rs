@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Write as _;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -15,7 +16,9 @@ use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::memory::PendingBatch;
 use research::conduct::memory::RunMemory;
+use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
+use research::conduct::search_budget::SearchBudgets;
 use research::conduct::spawn::SpawnRef;
 use research::topic::claims::ClaimedIndexes;
 use research::topic::evidence::Digest;
@@ -116,7 +119,7 @@ fn ledger_to(ledger: &RunLedger) -> Value {
         .iter()
         .map(|(at, digest)| (at.to_string(), json!(hex(digest))))
         .collect();
-    json!({
+    let mut stored = json!({
         "run": ledger.run().to_string(),
         "pending": {
             "number": memory.pending.number(),
@@ -139,7 +142,22 @@ fn ledger_to(ledger: &RunLedger) -> Value {
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>(),
-    })
+    });
+    if let Some(budgets) = ledger.search_budgets() {
+        stored["search_budgets"] = search_budgets_to(budgets);
+    }
+    if !memory.withheld.is_empty() {
+        stored["withheld"] = memory.withheld.profiles().collect();
+    }
+    stored
+}
+
+fn search_budgets_to(budgets: &SearchBudgets) -> Value {
+    let levels: Map<String, Value> = budgets
+        .levels()
+        .map(|(level, budget)| (level.to_string(), json!(budget.get())))
+        .collect();
+    json!({"levels": levels, "demand": budgets.demand()})
 }
 
 fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
@@ -166,8 +184,50 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
             owed_quarantine: value
                 .get("owed_quarantine")
                 .map_or_else(|| Some(BTreeSet::new()), stem_set)?,
+            withheld: value
+                .get("withheld")
+                .map_or_else(|| Some(Withheld::default()), withheld_from)?,
         },
+        value.get("search_budgets").map_or(Some(None), |budgets| {
+            search_budgets_from(budgets).map(Some)
+        })?,
     ))
+}
+
+fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
+    let levels = value
+        .get("levels")?
+        .as_object()?
+        .iter()
+        .map(|(level, budget)| {
+            Some((level_from(level)?, NonZeroU32::new(number(budget)?)?))
+        })
+        .collect::<Option<BTreeMap<u32, NonZeroU32>>>()?;
+    Some(SearchBudgets::from_parts(
+        levels,
+        value.get("demand")?.as_u64()?,
+    ))
+}
+
+/// Only the form the writer prints, so that no two keys name one level.
+fn level_from(key: &str) -> Option<u32> {
+    key.parse::<u32>()
+        .ok()
+        .filter(|level| *level > 0 && level.to_string() == key)
+}
+
+fn withheld_from(value: &Value) -> Option<Withheld> {
+    value
+        .as_array()?
+        .iter()
+        .map(|profile| {
+            profile
+                .as_str()
+                .filter(|profile| !profile.is_empty())
+                .map(str::to_owned)
+        })
+        .collect::<Option<Vec<String>>>()
+        .map(Withheld::of)
 }
 
 fn stem_set(value: &Value) -> Option<BTreeSet<Stem>> {
@@ -244,6 +304,7 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
+    use std::num::NonZeroU32;
     use std::path::Path;
     use std::path::PathBuf;
 
@@ -255,7 +316,9 @@ mod tests {
     use research::conduct::ledger::RunLedger;
     use research::conduct::memory::PendingBatch;
     use research::conduct::memory::RunMemory;
+    use research::conduct::memory::Withheld;
     use research::conduct::observed::Observed;
+    use research::conduct::search_budget::SearchBudgets;
     use research::conduct::spawn::SpawnRef;
     use research::topic::claims::ClaimedIndexes;
     use research::topic::evidence::Digest;
@@ -355,7 +418,16 @@ mod tests {
                 owed_quarantine: BTreeSet::from([
                     Stem::parse("02-b-web").expect("stem")
                 ]),
+                withheld: Withheld::of(["web".to_owned()]),
             },
+            Some(SearchBudgets::from_parts(
+                BTreeMap::from([
+                    (1, NonZeroU32::new(3).expect("budget")),
+                    (2, NonZeroU32::new(2).expect("budget")),
+                    (3, NonZeroU32::MIN),
+                ]),
+                190,
+            )),
         )
     }
 
@@ -434,11 +506,18 @@ mod tests {
                 "owed_quarantine",
                 "pending",
                 "run",
-                "seen"
+                "search_budgets",
+                "seen",
+                "withheld"
             ]
         );
         assert_eq!(keys(&written["seen"]), ["answered", "notes"]);
         assert_eq!(written["claims"], json!({"A ?": 3}));
+        assert_eq!(
+            written["search_budgets"],
+            json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190})
+        );
+        assert_eq!(written["withheld"], json!(["web"]));
         Ok(())
     }
 
@@ -479,6 +558,69 @@ mod tests {
         for value in [json!("03-a-web"), json!(["03-a-web:1"])] {
             let mut ledger = well_formed();
             ledger["owed_quarantine"] = value.clone();
+            assert!(
+                matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ledger_without_search_budgets_has_none_stored() -> Result<(), TestError>
+    {
+        let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
+        assert_eq!(ledger.search_budgets(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_run_without_web_pairs_stores_empty_budgets() -> Result<(), TestError> {
+        let mut ledger = well_formed();
+        ledger["search_budgets"] = json!({"levels": {}, "demand": 0});
+
+        let read = read(&stored(&ledger))?.ok_or("no ledger")?;
+
+        let budgets = read.search_budgets().ok_or("no search budgets")?;
+        assert_eq!(budgets.levels().count(), 0);
+        assert_eq!(budgets.demand(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn search_budgets_outside_their_shape_are_corrupt() {
+        for value in [
+            json!("x"),
+            json!({"levels": {}}),
+            json!({"levels": {"0": 1}, "demand": 1}),
+            json!({"levels": {"a": 1}, "demand": 1}),
+            json!({"levels": {"01": 1}, "demand": 1}),
+            json!({"levels": {"+1": 1}, "demand": 1}),
+            json!({"levels": {"1": 0}, "demand": 1}),
+            json!({"levels": {"1": -1}, "demand": 1}),
+            json!({"levels": {}, "demand": -1}),
+        ] {
+            let mut ledger = well_formed();
+            ledger["search_budgets"] = value.clone();
+            assert!(
+                matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ledger_without_withheld_profiles_withholds_none(
+    ) -> Result<(), TestError> {
+        let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
+        assert!(ledger.memory().withheld.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn withheld_profiles_outside_their_shape_are_corrupt() {
+        for value in [json!("web"), json!([1]), json!([""])] {
+            let mut ledger = well_formed();
+            ledger["withheld"] = value.clone();
             assert!(
                 matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
                 "{value}"

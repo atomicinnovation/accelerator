@@ -18,6 +18,7 @@ const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const TOPICS: &str = "meta/research/topics";
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
+const SEARCH_CAP: &str = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION";
 
 struct Project {
     _dir: tempfile::TempDir,
@@ -154,7 +155,10 @@ impl Project {
 
 fn command_without_an_inherited_cap() -> Command {
     let mut command = Command::new(BIN);
-    command.env_remove(ACCELERATOR_CAP).env_remove(HARNESS_CAP);
+    command
+        .env_remove(ACCELERATOR_CAP)
+        .env_remove(HARNESS_CAP)
+        .env_remove(SEARCH_CAP);
     command
 }
 
@@ -211,6 +215,15 @@ fn pair(question: &str, profile: &str, path: &str) -> Value {
     })
 }
 
+fn unanswered(stem: &str, question: &str, profile: &str, stage: &str) -> Value {
+    json!({
+        "stem": stem,
+        "question": question,
+        "profile": profile,
+        "stage": stage,
+    })
+}
+
 const HEADS: &str = "How do attention heads specialise?";
 const LONG_CONTEXT: &str = "What limits long-context attention?";
 
@@ -243,10 +256,17 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "depth": 1,
             "concurrency": 20,
             "subagent_cap": {"slots": 20, "source": "default"},
+            "search_cap": {"searches": 200, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
             "shallow": [],
+            "unanswered": [unanswered(
+                "01-how-do-attention-heads-specialise-openalex",
+                HEADS,
+                "openalex",
+                "single_pass",
+            )],
         })
     );
     Ok(())
@@ -279,10 +299,17 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "depth": 1,
             "concurrency": 20,
             "subagent_cap": {"slots": 20, "source": "default"},
+            "search_cap": {"searches": 200, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
             "shallow": [],
+            "unanswered": [unanswered(
+                "03-what-is-the-third-focus-area-web",
+                "What is the third focus area?",
+                "web",
+                "single_pass",
+            )],
         })
     );
     Ok(())
@@ -787,10 +814,12 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
                 "depth": depth.parse::<u32>()?,
                 "concurrency": 20,
                 "subagent_cap": {"slots": 20, "source": "default"},
+                "search_cap": {"searches": 200, "source": "default"},
                 "remaining": 0,
                 "unfinished": [],
                 "trims": [],
                 "shallow": shallow,
+                "unanswered": [],
             }),
             "--depth {depth}"
         );
@@ -812,12 +841,12 @@ fn assert_exits_1(output: &Output, stderr: &str) {
 #[test]
 fn an_invalid_depth_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
-    for depth in ["0", "-1", "many", "99999999999"] {
+    for depth in ["0", "-1", "11", "many", "99999999999"] {
         assert_exits_1(
             &project.outstanding_with(&["--depth", depth])?,
             &format!(
-                "E_TOPIC_RESEARCH_DEPTH: --depth must be a positive integer, \
-                 got '{depth}'"
+                "E_TOPIC_RESEARCH_DEPTH: --depth must be 1 to 10, got \
+                 '{depth}'"
             ),
         );
     }
@@ -1250,10 +1279,23 @@ fn the_first_plan_after_a_replaced_batch_matches_the_plan_once_quarantined(
 
         for quarantined in [continued, unclaimed] {
             assert_eq!(quarantined["items"], plan["items"]);
-            assert_eq!(quarantined["pairs"], plan["pairs"]);
+            assert_eq!(
+                unbudgeted_pairs(&quarantined)?,
+                unbudgeted_pairs(&plan)?
+            );
         }
     }
     Ok(())
+}
+
+fn unbudgeted_pairs(plan: &Value) -> Result<Vec<Value>, TestError> {
+    let mut pairs = plan["pairs"].as_array().ok_or("no pairs")?.clone();
+    for pair in &mut pairs {
+        pair.as_object_mut()
+            .ok_or("not a pair")?
+            .remove("search_budget");
+    }
+    Ok(pairs)
 }
 
 #[test]
@@ -1564,7 +1606,7 @@ fn a_stale_ledger_with_fields_it_does_not_know_still_reports_its_last_batch(
 }
 
 #[test]
-fn a_stale_ledger_in_todays_shape_reports_its_last_batch(
+fn a_ledger_without_budgets_still_yields_a_replaced_run_report(
 ) -> Result<(), TestError> {
     let project = small_set("replaced-literal", "- [ ] A?\n- [ ] B?")?;
     write_finding(
@@ -2511,5 +2553,878 @@ fn subagent_cap_is_not_an_outstanding_flag() -> Result<(), TestError> {
         stderr.contains("unexpected argument '--subagent-cap'"),
         "{stderr}"
     );
+    Ok(())
+}
+
+fn unhonoured_search_cap(value: &str) -> String {
+    format!(
+        "{SEARCH_CAP} is '{value}', not a positive integer — ignoring it; \
+         sizing search budgets against the search cap of 200 from the default"
+    )
+}
+
+fn assert_no_search_cap_notice(plan: &Value, stderr: &str) {
+    assert!(!plan["warnings"].to_string().contains(SEARCH_CAP), "{plan}");
+    assert!(!stderr.contains(SEARCH_CAP), "{stderr}");
+}
+
+fn openalex_and_arxiv_set(tag: &str) -> Result<Project, TestError> {
+    let project = small_set(
+        tag,
+        "- [ ] A? — profiles: openalex\n- [ ] B? — profiles: arxiv",
+    )?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"openalex\", \"arxiv\"]\n---\n",
+    )?;
+    Ok(project)
+}
+
+#[test]
+fn every_plan_reports_the_search_cap_and_its_source() -> Result<(), TestError> {
+    let rows: [(&[(&str, &str)], Value); 2] = [
+        (&[], json!({"searches": 200, "source": "default"})),
+        (
+            &[(SEARCH_CAP, "500")],
+            json!({"searches": 500, "source": SEARCH_CAP}),
+        ),
+    ];
+    for (variables, reported) in rows {
+        let project = a_set()?;
+
+        let (plan, _) = project.plan_in(&[], variables)?;
+
+        assert_eq!(plan["search_cap"], reported, "{variables:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_search_cap_is_reported_when_a_run_starts_with_web_pairs(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_eq!(
+        plan["search_cap"],
+        json!({"searches": 200, "source": "default"})
+    );
+    assert_warned(&plan, &stderr, &[unhonoured_search_cap("abc")]);
+    Ok(())
+}
+
+#[test]
+fn a_zero_search_cap_is_unhonoured() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) = project.plan_in(&["--start"], &[(SEARCH_CAP, "0")])?;
+
+    assert_warned(&plan, &stderr, &[unhonoured_search_cap("0")]);
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_search_cap_is_not_reported_after_the_start(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (first, _) = project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+    let run = first["run"].as_str().ok_or("no run")?;
+
+    let (plan, stderr) = project
+        .plan_in(&["--run", run, "--spawned", "0"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_no_search_cap_notice(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_run_without_web_pairs_reports_no_search_cap_notice(
+) -> Result<(), TestError> {
+    let project = openalex_and_arxiv_set("no-web-pairs")?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_eq!(plan["pairs"].as_array().map(Vec::len), Some(2), "{plan}");
+    assert_no_search_cap_notice(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn start_notices_keep_their_order() -> Result<(), TestError> {
+    let project = web_set("notice-order", 20, 0, 0)?;
+    fs::write(project.ledger(), "{")?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--concurrency", "24", "--start", "--depth", "3"],
+        &[(ACCELERATOR_CAP, "8"), (SEARCH_CAP, "abc")],
+    )?;
+
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            clamped_by(FLAG, "24", 8, ACCELERATOR_CAP),
+            CORRUPT_LEDGER.to_owned(),
+            unhonoured_search_cap("abc"),
+            floor_warning(260, 190, 200, "the default"),
+        ],
+    );
+    Ok(())
+}
+
+#[test]
+fn a_start_that_cannot_plan_still_reports_its_concurrency_notices(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let missing = project.root.join("no-profiles");
+
+    let output = project.run_in(
+        &[
+            "outstanding",
+            "s",
+            "--profiles-dir",
+            missing.to_str().ok_or("non-utf8")?,
+            "--concurrency",
+            "24",
+            "--start",
+        ],
+        &[(ACCELERATOR_CAP, "8")],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!(
+            "warning: {}",
+            clamped_by(FLAG, "24", 8, ACCELERATOR_CAP)
+        )),
+        "{stderr}"
+    );
+    assert!(stderr.contains("no profiles directory at"), "{stderr}");
+    assert!(output.stdout.is_empty());
+    Ok(())
+}
+
+fn web_set(
+    tag: &str,
+    web_pairs: usize,
+    openalex_pairs: usize,
+    arxiv_pairs: usize,
+) -> Result<Project, TestError> {
+    let groups = [
+        ("web", web_pairs),
+        ("openalex", openalex_pairs),
+        ("arxiv", arxiv_pairs),
+    ];
+    let items: Vec<String> = groups
+        .iter()
+        .flat_map(|(profile, pairs)| {
+            (1..=*pairs).map(move |n| {
+                format!("- [ ] {profile} question {n}? — profiles: {profile}")
+            })
+        })
+        .collect();
+    let profiles: Vec<&str> = groups
+        .iter()
+        .filter(|(_, pairs)| *pairs > 0)
+        .map(|(profile, _)| *profile)
+        .collect();
+    let project = small_set(tag, &items.join("\n"))?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        &format!(
+            "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+             source_profiles: {}\n---\n",
+            json!(profiles)
+        ),
+    )?;
+    Ok(project)
+}
+
+fn floor_warning(
+    demand: u64,
+    available: u32,
+    cap: u32,
+    source: &str,
+) -> String {
+    format!(
+        "the worst-case demand of {demand} web searches exceeds the \
+         {available} left by the search cap of {cap} from {source} after a \
+         reserve of {} — every search budget is 1, so expect a halt, then \
+         run /clear and re-run conduct; for later runs, raise {SEARCH_CAP} \
+         and restart Claude Code, or lower the depth",
+        cap - available
+    )
+}
+
+type Budgets = &'static [(u32, u32)];
+type Variables = &'static [(&'static str, &'static str)];
+
+fn budgets(levels: &[(u32, u32)]) -> Value {
+    levels
+        .iter()
+        .map(|(level, budget)| json!({"level": level, "budget": budget}))
+        .collect()
+}
+
+fn assert_budgeted(plan: &Value, levels: &[(u32, u32)], demand: u64) {
+    assert_eq!(plan["search_budgets"], budgets(levels), "{plan}");
+    assert_eq!(plan["search_demand"], json!(demand), "{plan}");
+}
+
+fn assert_unbudgeted(plan: &Value) {
+    assert_eq!(plan.get("search_budgets"), None, "{plan}");
+    assert_eq!(plan.get("search_demand"), None, "{plan}");
+    assert!(!plan.to_string().contains("search_budget"), "{plan}");
+}
+
+fn budgeted_start(
+    project: &Project,
+    depth: &str,
+    variables: &[(&str, &str)],
+) -> Result<(Value, String), TestError> {
+    project.plan_in(&["--start", "--depth", depth], variables)
+}
+
+fn stored_ledger(project: &Project) -> Result<Value, TestError> {
+    Ok(serde_json::from_str(&fs::read_to_string(
+        project.ledger(),
+    )?)?)
+}
+
+#[test]
+fn a_started_run_sizes_search_budgets_over_every_web_pair(
+) -> Result<(), TestError> {
+    let project = web_set("budget-ten", 10, 0, 0)?;
+
+    let (plan, stderr) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(1, 3), (2, 2), (3, 1)], 190);
+    assert_warned(&plan, &stderr, &[]);
+    Ok(())
+}
+
+#[test]
+fn budgets_grow_for_few_pairs() -> Result<(), TestError> {
+    let project = web_set("budget-three", 3, 0, 0)?;
+
+    let (plan, _) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(1, 15), (2, 6), (3, 3)], 189);
+    Ok(())
+}
+
+#[test]
+fn a_raised_cap_raises_budgets() -> Result<(), TestError> {
+    let project = web_set("budget-raised", 10, 0, 0)?;
+
+    let (plan, _) = budgeted_start(&project, "3", &[(SEARCH_CAP, "500")])?;
+
+    assert_budgeted(&plan, &[(1, 11), (2, 5), (3, 2)], 470);
+    assert_eq!(
+        plan["search_cap"],
+        json!({"searches": 500, "source": SEARCH_CAP})
+    );
+    Ok(())
+}
+
+#[test]
+fn deep_runs_keep_deeper_levels_at_or_below_shallower_ones(
+) -> Result<(), TestError> {
+    let rows: [(usize, &str, Variables, Budgets, u64); 3] = [
+        (
+            10,
+            "5",
+            &[(SEARCH_CAP, "500")],
+            &[(1, 7), (2, 4), (3, 1), (4, 1), (5, 1)],
+            470,
+        ),
+        (10, "2", &[], &[(1, 7), (2, 3)], 190),
+        (2, "5", &[], &[(1, 11), (2, 5), (3, 3), (4, 3), (5, 2)], 190),
+    ];
+    for (pairs, depth, variables, levels, demand) in rows {
+        let project = web_set("budget-deep", pairs, 0, 0)?;
+
+        let (plan, _) = budgeted_start(&project, depth, variables)?;
+
+        assert_budgeted(&plan, levels, demand);
+    }
+    Ok(())
+}
+
+#[test]
+fn budgets_of_one_that_overrun_warn_once() -> Result<(), TestError> {
+    let project = web_set("budget-floor", 20, 0, 0)?;
+
+    let (plan, stderr) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 260);
+    assert_warned(
+        &plan,
+        &stderr,
+        &[floor_warning(260, 190, 200, "the default")],
+    );
+    assert_eq!(spawns_of(&plan)?.len(), 20);
+    let run = plan["run"].as_str().ok_or("no run")?;
+
+    let (next, stderr) =
+        project.plan_with(&["--run", run, "--spawned", "0", "--depth", "3"])?;
+
+    assert_warned(&next, &stderr, &[]);
+    Ok(())
+}
+
+#[test]
+fn the_reserve_alone_can_force_the_floor() -> Result<(), TestError> {
+    let project = web_set("budget-reserve-floor", 15, 0, 0)?;
+
+    let (plan, stderr) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 195);
+    assert_warned(
+        &plan,
+        &stderr,
+        &[floor_warning(195, 190, 200, "the default")],
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cap_whose_reserve_still_fits_ones_does_not_warn() -> Result<(), TestError>
+{
+    let project = web_set("budget-reserve-fits", 14, 0, 0)?;
+
+    let (plan, stderr) = budgeted_start(&project, "3", &[(SEARCH_CAP, "192")])?;
+
+    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 182);
+    assert_warned(&plan, &stderr, &[]);
+    Ok(())
+}
+
+#[test]
+fn non_web_pairs_add_no_demand() -> Result<(), TestError> {
+    let project = web_set("budget-mixed", 8, 2, 0)?;
+
+    let (plan, _) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(1, 7), (2, 2), (3, 1)], 184);
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        if pair["profile"] == json!("openalex") {
+            for node in nodes_of(pair)? {
+                assert_eq!(node.get("search_budget"), None, "{node}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_cap_sizes_against_the_default() -> Result<(), TestError> {
+    let project = web_set("budget-unhonoured", 1, 0, 0)?;
+    let unhonoured = [(SEARCH_CAP, "abc")];
+
+    let (plan, stderr) = budgeted_start(&project, "3", &unhonoured)?;
+
+    assert_budgeted(&plan, &[(1, 42), (2, 19), (3, 9)], 190);
+    assert_warned(&plan, &stderr, &[unhonoured_search_cap("abc")]);
+    let run = plan["run"].as_str().ok_or("no run")?;
+
+    let (next, stderr) = project.plan_in(
+        &["--run", run, "--spawned", "0", "--depth", "3"],
+        &unhonoured,
+    )?;
+
+    assert_warned(&next, &stderr, &[]);
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_zero_cap_warns_against_the_default() -> Result<(), TestError> {
+    let project = web_set("budget-zero", 20, 0, 0)?;
+
+    let (plan, stderr) = budgeted_start(&project, "3", &[(SEARCH_CAP, "0")])?;
+
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            unhonoured_search_cap("0"),
+            floor_warning(260, 190, 200, "the default"),
+        ],
+    );
+    Ok(())
+}
+
+#[test]
+fn a_run_without_web_pairs_sizes_nothing() -> Result<(), TestError> {
+    let project = openalex_and_arxiv_set("budget-no-web")?;
+    let unhonoured = [(SEARCH_CAP, "abc")];
+
+    let (plan, stderr) = budgeted_start(&project, "3", &unhonoured)?;
+    let run = plan["run"].as_str().ok_or("no run")?;
+    let (next, next_stderr) = project.plan_in(
+        &["--run", run, "--spawned", "0", "--depth", "3"],
+        &unhonoured,
+    )?;
+
+    for (plan, stderr) in [(&plan, &stderr), (&next, &next_stderr)] {
+        assert_unbudgeted(plan);
+        assert_warned(plan, stderr, &[]);
+    }
+    assert_eq!(
+        stored_ledger(&project)?["search_budgets"],
+        json!({"levels": {}, "demand": 0})
+    );
+    Ok(())
+}
+
+#[test]
+fn a_re_run_sizes_only_the_remaining_tree() -> Result<(), TestError> {
+    let project = web_set("budget-re-run", 1, 0, 0)?;
+    let stem = "01-web-question-1-web";
+    project.write_note(
+        stem,
+        "1",
+        "web question 1?",
+        &["B?", "C?", "D?", "E?"],
+    )?;
+    project.write_note(stem, "2-1", "B?", &["X?"])?;
+    project.write_note(stem, "2-2", "C?", &["Y?", "Z?"])?;
+
+    let (plan, _) = budgeted_start(&project, "3", &[])?;
+
+    assert_budgeted(&plan, &[(2, 35), (3, 17)], 189);
+    Ok(())
+}
+
+#[test]
+fn the_reserve_rounds_up() -> Result<(), TestError> {
+    let rows: [(&str, Budgets, u64); 2] = [
+        ("201", &[(1, 42), (2, 19), (3, 9)], 190),
+        ("60", &[(1, 13), (2, 5), (3, 3)], 57),
+    ];
+    for (cap, levels, demand) in rows {
+        let project = web_set("budget-rounding", 1, 0, 0)?;
+
+        let (plan, _) = budgeted_start(&project, "3", &[(SEARCH_CAP, cap)])?;
+
+        assert_budgeted(&plan, levels, demand);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_single_pass_run_budgets_its_one_level() -> Result<(), TestError> {
+    let project = web_set("budget-single-pass", 10, 0, 0)?;
+
+    let (plan, _) = budgeted_start(&project, "1", &[])?;
+
+    assert_budgeted(&plan, &[(1, 19)], 190);
+    let pairs = plan["pairs"].as_array().ok_or("no pairs")?;
+    assert_eq!(pairs.len(), 10);
+    for pair in pairs {
+        assert_eq!(pair["stage"], json!("single_pass"), "{pair}");
+        assert_eq!(pair["search_budget"], json!(19), "{pair}");
+    }
+    Ok(())
+}
+
+const LEDGER_BEFORE_BUDGETS: &str = r#"{
+  "run": "earlier-run",
+  "pending": {"number": 0, "spawns": []},
+  "claims": {},
+  "attempted": [],
+  "just_acknowledged": [],
+  "seen": {"notes": {}, "answered": []}
+}
+"#;
+
+#[test]
+fn a_ledger_without_budgets_is_sized_by_the_next_plan() -> Result<(), TestError>
+{
+    let project = web_set("budget-pre-ledger", 20, 0, 0)?;
+    fs::write(project.ledger(), LEDGER_BEFORE_BUDGETS)?;
+
+    let (plan, stderr) =
+        project.plan_with(&["--run", "earlier-run", "--depth", "3"])?;
+
+    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 260);
+    assert_warned(
+        &plan,
+        &stderr,
+        &[floor_warning(260, 190, 200, "the default")],
+    );
+    assert_eq!(
+        stored_ledger(&project)?["search_budgets"],
+        json!({"levels": {"1": 1, "2": 1, "3": 1}, "demand": 260})
+    );
+
+    let (next, stderr) = project.plan_with(&[
+        "--run",
+        "earlier-run",
+        "--spawned",
+        "0",
+        "--depth",
+        "3",
+    ])?;
+
+    assert_warned(&next, &stderr, &[]);
+    assert_budgeted(&next, &[(1, 1), (2, 1), (3, 1)], 260);
+    Ok(())
+}
+
+#[test]
+fn later_plans_keep_the_stored_budgets() -> Result<(), TestError> {
+    let project = web_set("budget-kept", 10, 0, 0)?;
+    let (plan, _) = budgeted_start(&project, "3", &[])?;
+    let run = plan["run"].as_str().ok_or("no run")?;
+    for n in 1..=10 {
+        project.write_note(
+            &format!("{n:02}-web-question-{n}-web"),
+            "1",
+            &format!("web question {n}?"),
+            &[&format!("Follow-up {n}?")],
+        )?;
+    }
+
+    let next = continued(&project, run, &["--spawned", "0", "--depth", "3"])?;
+
+    assert_budgeted(&next, &[(1, 3), (2, 2), (3, 1)], 190);
+    assert_eq!(
+        stored_ledger(&project)?["search_budgets"],
+        json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190})
+    );
+    let nodes = every_node(&next)?;
+    assert_eq!(nodes.len(), 10);
+    for node in nodes {
+        assert_eq!(node["level"], json!(2), "{node}");
+        assert_eq!(node["search_budget"], json!(2), "{node}");
+    }
+    Ok(())
+}
+
+#[test]
+fn every_web_spawn_carries_its_budget() -> Result<(), TestError> {
+    let project = web_set("budget-per-spawn", 2, 1, 0)?;
+    project.write_note(
+        "01-web-question-1-web",
+        "1",
+        "web question 1?",
+        &["B?", "C?"],
+    )?;
+
+    let (plan, _) = budgeted_start(&project, "2", &[])?;
+
+    let budget_at = |level: &Value| {
+        plan["search_budgets"]
+            .as_array()
+            .and_then(|levels| {
+                levels.iter().find(|entry| &entry["level"] == level)
+            })
+            .map(|entry| entry["budget"].clone())
+    };
+    let mut web_levels = Vec::new();
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        for node in nodes_of(pair)? {
+            if pair["profile"] == json!("web") {
+                web_levels.push(node["level"].clone());
+                assert_eq!(
+                    Some(node["search_budget"].clone()),
+                    budget_at(&node["level"]),
+                    "{node}"
+                );
+            } else {
+                assert_eq!(node.get("search_budget"), None, "{node}");
+            }
+        }
+    }
+    assert_eq!(web_levels, [json!(2), json!(2), json!(1)]);
+    Ok(())
+}
+
+#[test]
+fn a_level_note_with_a_search_budget_is_read_like_any_other(
+) -> Result<(), TestError> {
+    let project = web_set("budget-stamped", 1, 0, 0)?;
+    let stem = "01-web-question-1-web";
+    project.write(
+        &note_path(stem, "1"),
+        &level_note_with(
+            stem,
+            "1",
+            "question: \"web question 1?\"\nlevel: 1\nsearch_budget: 3\n\
+             follow_ups: [\"B?\", \"C?\"]\n",
+        ),
+    )?;
+
+    let (plan, _) = budgeted_start(&project, "2", &[])?;
+
+    assert_eq!(lineages_of(&plan)?, ["2-1", "2-2"]);
+    Ok(())
+}
+
+#[test]
+fn query_plans_carry_no_budgets() -> Result<(), TestError> {
+    let project = web_set("budget-query", 1, 0, 0)?;
+
+    let (plan, _) = project.plan_with(&["--depth", "3"])?;
+
+    assert_eq!(spawns_of(&plan)?.len(), 1);
+    assert_unbudgeted(&plan);
+    Ok(())
+}
+
+const WITHHOLD: &str = "--withhold-profile";
+
+fn halting_set(tag: &str, items: &str) -> Result<Project, TestError> {
+    let project = small_set(tag, items)?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"web\", \"openalex\", \"arxiv\"]\n---\n",
+    )?;
+    Ok(project)
+}
+
+const OPENALEX_THEN_TWO_WEB: &str = "- [ ] A? — profiles: openalex\n\
+                                     - [ ] B? — profiles: web\n\
+                                     - [ ] C? — profiles: web";
+
+fn attempted(project: &Project) -> Result<Vec<String>, TestError> {
+    Ok(stored_ledger(project)?["attempted"]
+        .as_array()
+        .ok_or("no attempted")?
+        .iter()
+        .filter_map(|spawn| spawn.as_str().map(str::to_owned))
+        .collect())
+}
+
+fn assert_withholds(
+    project: &Project,
+    plan: &Value,
+    profiles: &[&str],
+) -> Result<(), TestError> {
+    for profile in profiles {
+        let suffix = format!("-{profile}");
+        assert!(
+            !spawns_of(plan)?.iter().any(|spawn| spawn.contains(&suffix)),
+            "{plan}"
+        );
+        assert!(
+            !attempted(project)?
+                .iter()
+                .any(|spawn| spawn.contains(&suffix)),
+            "{:?}",
+            attempted(project)?
+        );
+    }
+    assert_eq!(plan["remaining"], json!(0), "{plan}");
+    assert_eq!(plan["withheld"], json!(profiles), "{plan}");
+    assert_eq!(stored_ledger(project)?["withheld"], json!(profiles));
+    Ok(())
+}
+
+#[test]
+fn a_withheld_profile_is_not_offered_and_its_spawns_stay_unattempted(
+) -> Result<(), TestError> {
+    let project = halting_set("withheld", OPENALEX_THEN_TWO_WEB)?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (first, run) = started(&project, &depth)?;
+    assert_eq!(spawns_of(&first)?, ["01-a-openalex:1"]);
+
+    let plan = continued(
+        &project,
+        &run,
+        &[&depth[..], &["--spawned", "0", WITHHOLD, "web"]].concat(),
+    )?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
+fn a_withheld_profile_stays_withheld_without_the_flag() -> Result<(), TestError>
+{
+    let project = halting_set("still-withheld", OPENALEX_THEN_TWO_WEB)?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (_, run) = started(&project, &depth)?;
+    continued(
+        &project,
+        &run,
+        &[&depth[..], &["--spawned", "0", WITHHOLD, "web"]].concat(),
+    )?;
+
+    let plan =
+        continued(&project, &run, &[&depth[..], &["--spawned", "1"]].concat())?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
+fn every_repeated_withheld_profile_is_kept() -> Result<(), TestError> {
+    let project = halting_set(
+        "withheld-twice",
+        &format!("{OPENALEX_THEN_TWO_WEB}\n- [ ] D? — profiles: arxiv"),
+    )?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (_, run) = started(&project, &depth)?;
+
+    let plan = continued(
+        &project,
+        &run,
+        &[
+            &depth[..],
+            &["--spawned", "0", WITHHOLD, "web", WITHHOLD, "arxiv"],
+        ]
+        .concat(),
+    )?;
+
+    assert_withholds(&project, &plan, &["arxiv", "web"])
+}
+
+#[test]
+fn a_halted_run_still_offers_non_web_researchers_and_composers(
+) -> Result<(), TestError> {
+    let project = halting_set(
+        "halted-still-offers",
+        "- [ ] A? — profiles: web\n- [ ] B? — profiles: openalex",
+    )?;
+    project.write_note("01-a-web", "1", "A?", &["X?"])?;
+    project.write_note("01-a-web", "2-1", "X?", &[])?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+
+    let plan = continued(&project, &run, &["--depth", "2", WITHHOLD, "web"])?;
+
+    assert_eq!(spawns_of(&plan)?, ["01-a-web", "02-b-openalex:1"]);
+    assert_eq!(plan["withheld"], json!(["web"]));
+    Ok(())
+}
+
+#[test]
+fn withholding_a_re_offered_batch_leaves_its_spawns_unattempted(
+) -> Result<(), TestError> {
+    let project = halting_set(
+        "withheld-re-offer",
+        "- [ ] A? — profiles: web\n- [ ] B? — profiles: openalex",
+    )?;
+    let depth = ["--depth", "2"];
+    let (first, run) = started(&project, &depth)?;
+    assert_eq!(spawns_of(&first)?, ["01-a-web:1", "02-b-openalex:1"]);
+
+    let plan =
+        continued(&project, &run, &[&depth[..], &[WITHHOLD, "web"]].concat())?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
+fn withholding_needs_a_run_and_a_profile() -> Result<(), TestError> {
+    let project = a_set()?;
+    let needs_run =
+        "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile needs --run";
+    let cases: [(&[&str], &str); 3] = [
+        (&[WITHHOLD, "web"], needs_run),
+        (&["--start", WITHHOLD, "web"], needs_run),
+        (
+            &["--run", "x", WITHHOLD, ""],
+            "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile is empty; \
+             pass a profile name",
+        ),
+    ];
+    for (args, stderr) in cases {
+        assert_exits_1(&project.outstanding_with(args)?, stderr);
+    }
+    assert!(!project.ledger().exists());
+    Ok(())
+}
+
+#[test]
+fn a_run_plan_withholds_nothing_until_told_to() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, run) = started(&project, &[])?;
+    let (query, _) = project.plan_with(&[])?;
+    let continued = continued(&project, &run, &[])?;
+
+    assert_eq!(plan["withheld"], json!([]));
+    assert_eq!(continued["withheld"], json!([]));
+    assert_eq!(query.get("withheld"), None);
+    assert_eq!(stored_ledger(&project)?.get("withheld"), None);
+    Ok(())
+}
+
+#[test]
+fn every_plan_lists_every_unanswered_pair_beyond_the_window(
+) -> Result<(), TestError> {
+    let project = web_set("unanswered", 3, 0, 0)?;
+    let limited = ["--concurrency", "1"];
+
+    let (query, _) = project.plan_with(&limited)?;
+    let (run, _) = started(&project, &limited)?;
+
+    for plan in [query, run] {
+        assert_eq!(plan["pairs"].as_array().map(Vec::len), Some(1), "{plan}");
+        assert_eq!(
+            plan["unanswered"].as_array().map(Vec::len),
+            Some(3),
+            "{plan}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn the_tick_plan_lists_every_web_pair_left_unfinished() -> Result<(), TestError>
+{
+    let project =
+        small_set("tick-unanswered", "- [ ] A?\n- [ ] B?\n- [ ] C?\n- [ ] D?")?;
+    project.write_note("01-a-web", "1", "A?", &["X?"])?;
+    project.write_note("02-b-web", "1", "B?", &[])?;
+    let deep = ["--depth", "3", "--concurrency", "1"];
+    let (first, run) = started(&project, &deep)?;
+    assert_eq!(spawns_of(&first)?, ["03-c-web:1"]);
+    continued(&project, &run, &[&deep[..], &["--spawned", "0"]].concat())?;
+    assert!(project
+        .run(&["end-run", "s", "--run", &run])?
+        .status
+        .success());
+
+    let (tick, _) = project.plan_with(&["--depth", "3"])?;
+
+    assert_eq!(
+        tick["unanswered"],
+        json!([
+            unanswered("01-a-web", "A?", "web", "research_nodes"),
+            unanswered("02-b-web", "B?", "web", "compose"),
+            unanswered("03-c-web", "C?", "web", "research_nodes"),
+            unanswered("04-d-web", "D?", "web", "research_nodes"),
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    continued(
+        &project,
+        &run,
+        &["--depth", "2", "--spawned", "0", WITHHOLD, "web"],
+    )?;
+    assert!(project
+        .run(&["end-run", "s", "--run", &run])?
+        .status
+        .success());
+
+    let (plan, _) = started(&project, &["--depth", "2"])?;
+
+    assert_eq!(plan.get("replaced_run"), None, "{plan}");
+    assert_eq!(plan["withheld"], json!([]));
+    assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
     Ok(())
 }

@@ -132,15 +132,19 @@ pub fn research::conduct::ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter
 impl core::marker::StructuralPartialEq for research::conduct::ledger::RunId
 pub struct research::conduct::ledger::RunLedger
 impl research::conduct::ledger::RunLedger
+pub const fn research::conduct::ledger::RunLedger::awaits_search_budgets(&self) -> bool
+pub fn research::conduct::ledger::RunLedger::budgeting_searches(self, budgets: research::conduct::search_budget::SearchBudgets) -> Self
 pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::topic::claims::ClaimedIndexes
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
-pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory) -> Self
+pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory, search_budgets: core::option::Option<research::conduct::search_budget::SearchBudgets>) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub const fn research::conduct::ledger::RunLedger::search_budgets(&self) -> core::option::Option<&research::conduct::search_budget::SearchBudgets>
 pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
+pub fn research::conduct::ledger::RunLedger::withholding(self, profiles: &research::conduct::memory::Withheld) -> Self
 impl core::clone::Clone for research::conduct::ledger::RunLedger
 pub fn research::conduct::ledger::RunLedger::clone(&self) -> research::conduct::ledger::RunLedger
 impl core::cmp::Eq for research::conduct::ledger::RunLedger
@@ -183,6 +187,7 @@ pub research::conduct::memory::RunMemory::just_acknowledged: alloc::collections:
 pub research::conduct::memory::RunMemory::owed_quarantine: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
 pub research::conduct::memory::RunMemory::pending: research::conduct::memory::PendingBatch
 pub research::conduct::memory::RunMemory::seen: research::conduct::observed::Observed
+pub research::conduct::memory::RunMemory::withheld: research::conduct::memory::Withheld
 impl research::conduct::memory::RunMemory
 pub fn research::conduct::memory::RunMemory::excuses(&self, spawn: &research::conduct::spawn::SpawnRef) -> bool
 impl core::clone::Clone for research::conduct::memory::RunMemory
@@ -195,6 +200,23 @@ pub fn research::conduct::memory::RunMemory::default() -> research::conduct::mem
 impl core::fmt::Debug for research::conduct::memory::RunMemory
 pub fn research::conduct::memory::RunMemory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::memory::RunMemory
+pub struct research::conduct::memory::Withheld(_)
+impl research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::contains(&self, profile: &str) -> bool
+pub fn research::conduct::memory::Withheld::is_empty(&self) -> bool
+pub fn research::conduct::memory::Withheld::joined(self, other: &Self) -> Self
+pub fn research::conduct::memory::Withheld::of(profiles: impl core::iter::traits::collect::IntoIterator<Item = alloc::string::String>) -> Self
+pub fn research::conduct::memory::Withheld::profiles(&self) -> impl core::iter::traits::iterator::Iterator<Item = &str> + '_
+impl core::clone::Clone for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::clone(&self) -> research::conduct::memory::Withheld
+impl core::cmp::Eq for research::conduct::memory::Withheld
+impl core::cmp::PartialEq for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::eq(&self, other: &research::conduct::memory::Withheld) -> bool
+impl core::default::Default for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::default() -> research::conduct::memory::Withheld
+impl core::fmt::Debug for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::Withheld
 pub mod research::conduct::observed
 pub struct research::conduct::observed::Observed
 pub research::conduct::observed::Observed::answered: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
@@ -253,6 +275,40 @@ pub fn research::conduct::replaced_run::ReplacedRun::eq(&self, other: &research:
 impl core::fmt::Debug for research::conduct::replaced_run::ReplacedRun
 pub fn research::conduct::replaced_run::ReplacedRun::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::replaced_run::ReplacedRun
+pub mod research::conduct::search_budget
+pub struct research::conduct::search_budget::SearchBudgets
+impl research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::at(&self, level: u32) -> core::num::nonzero::NonZeroU32
+pub const fn research::conduct::search_budget::SearchBudgets::demand(&self) -> u64
+pub const fn research::conduct::search_budget::SearchBudgets::from_parts(budgets: alloc::collections::btree::map::BTreeMap<u32, core::num::nonzero::NonZeroU32>, demand: u64) -> Self
+pub fn research::conduct::search_budget::SearchBudgets::levels(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u32, core::num::nonzero::NonZeroU32)> + '_
+pub fn research::conduct::search_budget::SearchBudgets::overruns(&self, cap: research::conduct::search_budget::SearchCap) -> bool
+pub fn research::conduct::search_budget::SearchBudgets::sized(tree: &research::topic::tree::WorstCaseTree, cap: research::conduct::search_budget::SearchCap) -> Self
+impl core::clone::Clone for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::clone(&self) -> research::conduct::search_budget::SearchBudgets
+impl core::cmp::Eq for research::conduct::search_budget::SearchBudgets
+impl core::cmp::PartialEq for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::eq(&self, other: &research::conduct::search_budget::SearchBudgets) -> bool
+impl core::fmt::Debug for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchBudgets
+pub struct research::conduct::search_budget::SearchCap(_)
+impl research::conduct::search_budget::SearchCap
+pub const fn research::conduct::search_budget::SearchCap::available(self) -> u32
+pub const fn research::conduct::search_budget::SearchCap::new(searches: core::num::nonzero::NonZeroU32) -> Self
+pub const fn research::conduct::search_budget::SearchCap::reserve(self) -> u32
+pub const fn research::conduct::search_budget::SearchCap::searches(self) -> core::num::nonzero::NonZeroU32
+impl core::clone::Clone for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::clone(&self) -> research::conduct::search_budget::SearchCap
+impl core::cmp::Eq for research::conduct::search_budget::SearchCap
+impl core::cmp::PartialEq for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::eq(&self, other: &research::conduct::search_budget::SearchCap) -> bool
+impl core::fmt::Debug for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::search_budget::SearchCap
+impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchCap
+pub const research::conduct::search_budget::SEARCHING_PROFILE: &str
+pub fn research::conduct::search_budget::unsearched_tree(pairs: &[research::topic::plan::OutstandingPair]) -> research::topic::tree::WorstCaseTree
 pub mod research::conduct::spawn
 pub enum research::conduct::spawn::SpawnRef
 pub research::conduct::spawn::SpawnRef::Node(research::topic::layout::note_ref::NoteRef)
@@ -288,6 +344,7 @@ impl core::fmt::Debug for research::conduct::window::UnfinishedSpawn
 pub fn research::conduct::window::UnfinishedSpawn::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::window::UnfinishedSpawn
 pub struct research::conduct::window::Window
+pub research::conduct::window::Window::held_back: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::offered: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::pairs: alloc::vec::Vec<research::topic::plan::OutstandingPair>
 pub research::conduct::window::Window::remaining: usize
@@ -1681,6 +1738,7 @@ pub struct research::topic::plan::OutstandingPair
 pub research::topic::plan::OutstandingPair::pair: research::topic::outline::Pair
 pub research::topic::plan::OutstandingPair::stage: research::topic::tree::Stage
 pub research::topic::plan::OutstandingPair::stem: research::topic::layout::stem::Stem
+pub research::topic::plan::OutstandingPair::worst_case: research::topic::tree::WorstCaseTree
 impl core::clone::Clone for research::topic::plan::OutstandingPair
 pub fn research::topic::plan::OutstandingPair::clone(&self) -> research::topic::plan::OutstandingPair
 impl core::cmp::Eq for research::topic::plan::OutstandingPair
@@ -1796,8 +1854,10 @@ pub fn research::topic::tree::Stage::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::StructuralPartialEq for research::topic::tree::Stage
 pub struct research::topic::tree::Depth(_)
 impl research::topic::tree::Depth
+pub const research::topic::tree::Depth::DEEPEST: u32
 pub const fn research::topic::tree::Depth::levels(self) -> u32
 pub const fn research::topic::tree::Depth::new(levels: u32) -> core::option::Option<Self>
+pub const fn research::topic::tree::Depth::requested(levels: u32) -> core::option::Option<Self>
 impl core::clone::Clone for research::topic::tree::Depth
 pub fn research::topic::tree::Depth::clone(&self) -> research::topic::tree::Depth
 impl core::cmp::Eq for research::topic::tree::Depth
@@ -1813,6 +1873,18 @@ impl core::fmt::Debug for research::topic::tree::Depth
 pub fn research::topic::tree::Depth::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::topic::tree::Depth
 impl core::marker::StructuralPartialEq for research::topic::tree::Depth
+pub struct research::topic::tree::Derivation
+pub research::topic::tree::Derivation::stage: research::topic::tree::Stage
+pub research::topic::tree::Derivation::trims: alloc::vec::Vec<research::topic::tree::Trim>
+pub research::topic::tree::Derivation::worst_case: research::topic::tree::WorstCaseTree
+impl core::clone::Clone for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::clone(&self) -> research::topic::tree::Derivation
+impl core::cmp::Eq for research::topic::tree::Derivation
+impl core::cmp::PartialEq for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::eq(&self, other: &research::topic::tree::Derivation) -> bool
+impl core::fmt::Debug for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::Derivation
 pub struct research::topic::tree::MissingNode
 pub research::topic::tree::MissingNode::known_questions: alloc::vec::Vec<alloc::string::String>
 pub research::topic::tree::MissingNode::lineage: research::topic::layout::lineage::Lineage
@@ -1842,6 +1914,24 @@ pub fn research::topic::tree::Trim::eq(&self, other: &research::topic::tree::Tri
 impl core::fmt::Debug for research::topic::tree::Trim
 pub fn research::topic::tree::Trim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::tree::Trim
+pub struct research::topic::tree::WorstCaseTree
+impl research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::from_levels(levels: &[(u32, u64)]) -> Self
+pub fn research::topic::tree::WorstCaseTree::is_empty(&self) -> bool
+pub fn research::topic::tree::WorstCaseTree::joined(self, other: &Self) -> Self
+pub fn research::topic::tree::WorstCaseTree::nodes_at(&self, level: u32) -> u64
+pub fn research::topic::tree::WorstCaseTree::populated_levels(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u32, u64)> + '_
+pub fn research::topic::tree::WorstCaseTree::root() -> Self
+impl core::clone::Clone for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::clone(&self) -> research::topic::tree::WorstCaseTree
+impl core::cmp::Eq for research::topic::tree::WorstCaseTree
+impl core::cmp::PartialEq for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::eq(&self, other: &research::topic::tree::WorstCaseTree) -> bool
+impl core::default::Default for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::default() -> research::topic::tree::WorstCaseTree
+impl core::fmt::Debug for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::WorstCaseTree
 pub const research::topic::tree::STARTING_FOLLOW_UP_CAP: u32
-pub fn research::topic::tree::derive(stem: &research::topic::layout::stem::Stem, pair_question: &str, directory: core::option::Option<&research::topic::evidence::LevelsDirectory>, depth: research::topic::tree::Depth, unicode: &dyn research::topic::question::UnicodeText) -> (research::topic::tree::Stage, alloc::vec::Vec<research::topic::tree::Trim>)
+pub fn research::topic::tree::derive(stem: &research::topic::layout::stem::Stem, pair_question: &str, directory: core::option::Option<&research::topic::evidence::LevelsDirectory>, depth: research::topic::tree::Depth, unicode: &dyn research::topic::question::UnicodeText) -> research::topic::tree::Derivation
 pub fn research::topic::tree::follow_up_cap(level: u32) -> u32

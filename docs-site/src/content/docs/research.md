@@ -461,19 +461,22 @@ findings go, rather than allocating paths itself:
 accelerator research topic outstanding SLUG --profiles-dir DIR
 ```
 
-It prints JSON with four arrays, two counts and the cap: `items` (each outline
-item's `line`, `question`, and `complete`), `pairs` (each outstanding pair's
+It prints JSON whose fields are listed below: `items` (each outline item's
+`line`, `question`, and `complete`), `pairs` (each outstanding pair's
 `question`, `profile`, and absolute `path`), `skipped` (with a `reason`),
 `warnings`, `concurrency` (the most spawns this plan offers, after the clamp),
-`remaining` (the spawns held back by the concurrency) and `subagent_cap` (its
-`slots`, and the `source` they came from: the variable's name, or `default`).
+`remaining` (the spawns held back by the concurrency), `subagent_cap` (its
+`slots`, and the `source` they came from: the variable's name, or `default`)
+and `search_cap` (its `searches`, and the `source` they came from, in the same
+form).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
-`findings/<stem>.levels/`. It defaults to `1` and is never read from
-`research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
+`findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
+and is never read from `research.topic.depth`, so a hand run must pass the
+depth `conduct` resolved.
 Every plan also carries these fields, whether or not `--depth` is given:
 
 - `depth`, the depth planned for, `1` unless `--depth` says otherwise;
@@ -482,13 +485,18 @@ Every plan also carries these fields, whether or not `--depth` is given:
   `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
   `rejected` reason when the note on disk was refused) or `compose` (the
   `notes` the composer reads, as absolute paths in lineage order);
+- on a run plan, a `search_budget` on every `web` `single_pass` pair and
+  every node of a `web` pair: the most `WebSearch` calls its researcher may
+  make;
 - a `spawn` ref on every `single_pass` or `compose` pair and every node;
 - `trims`, one `{stem, lineage, recorded, cap}` per note that recorded more
   follow-ups than its cap, each also printed to stderr as a `warning:` line;
 - `shallow`, each retained finding researched below `--depth`, which is
   not deepened again;
 - `unfinished`, each `{spawn, rejected}` a run attempted that is still
-  outstanding.
+  outstanding;
+- `unanswered`, each outstanding pair as `{stem, question, profile, stage}`:
+  the full outstanding set, which `pairs` narrows to the spawns offered now.
 
 `--concurrency N` falls back to `research.topic.concurrency` and is reported
 as `concurrency`. A value that is not a positive integer clamps to 1, and one
@@ -504,11 +512,36 @@ Every plan is bounded, a plain query included. The
 reported `concurrency` is the clamped value, so it can differ from the
 configured knob; the reason appears in `warnings` on `--start` only.
 
+The search cap is Claude Code's limit on `WebSearch` calls per session. It is
+read from `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it,
+else 200. A set value Claude Code would not honour is ignored, with a warning
+on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
+counterpart.
+
+A run sizes per-level search budgets once, on its first plan, and stores them
+in its ledger, so later plans keep them rather than resize to what remains.
+Sizing keeps back a twentieth of the cap, rounded up, then shares the rest
+over the worst-case tree of every outstanding web pair: each unresearched
+node is assumed to record its level's full follow-up cap. Budgets shrink, or
+stay level, with depth. When even budgets of 1 do not fit, every budget is 1
+and the sizing plan warns, naming the worst-case demand and the cap. Expect a
+halt, then run `/clear` and re-run `conduct`; for later runs, raise
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower
+the depth.
+
 The run flags exist for `conduct`. `--start` begins a run and returns its
 `run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
-as spawned. During a run the JSON also carries `run`, `batch` (the number the
-next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
-findings nobody was asked to write, or whose content changed).
+as spawned. `--withhold-profile P`, which needs `--run` and may be repeated,
+holds back researcher spawns of profile `P` for the rest of the run; the run
+ledger keeps each withheld profile until `end-run`, so a later `--run` need
+not repeat the flag. Compositions are still offered. During a run the JSON
+also carries `run`, `batch` (the number the next `--spawned` must pass),
+`withheld` (the profiles the run withholds, sorted) and `unexpected` (the
+spawn refs of notes or findings nobody was asked to write, or whose content
+changed). When the run
+has web pairs, it also carries `search_budgets` (each `level` with its
+`budget`) and `search_demand` (the searches the worst-case tree would make
+spending every budget).
 `--start` over another run's readable ledger also carries `replaced_run`: that
 run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
 and `unasked`, each entry a `spawn` ref with the outline `question` and
@@ -538,14 +571,24 @@ anyway, and a write after the rename to a path the plan does not offer again
 stops the next `--run` with `E_TOPIC_RESEARCH_QUARANTINE_OWED`. No finding is
 deleted either way. Consider ignoring `**/.conduct-run.json`.
 
+A web researcher whose search returns Claude Code's search-limit notice
+writes nothing and reports "web search quota exhausted". `conduct` then
+halts: it passes `--withhold-profile web` so no later plan offers a web
+researcher, still runs the run's other researchers and composers, ends the
+run, and opens its summary with the halt and the web pairs left unfinished.
+To recover, run `/clear`, then re-run `conduct`. Waiting for the quota to
+refill is not enough: a re-run in the same session sizes its budgets against
+the full cap, so it would halt again.
+
 Each exit code below exits `1`:
 
 | Code | Cause | Recovery |
 |---|---|---|
-| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not 1 to 10 | pass 1 to 10 |
 | `E_TOPIC_RESEARCH_CONCURRENCY` | `--concurrency` or `research.topic.concurrency` is empty | pass a positive integer, or, in the config file the error names, set the value to one or remove it |
 | `E_TOPIC_RESEARCH_RUN` | a malformed `--run`, or `--start` with `--run` | pass the id `--start` returned |
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
+| `E_TOPIC_RESEARCH_WITHHOLD_PROFILE` | an empty `--withhold-profile`, or one without `--run` | pass a profile name, with `--run` |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |

@@ -501,6 +501,7 @@ mod tests {
                 pending: PendingBatch::new(3, spawns),
                 ..RunMemory::default()
             },
+            None,
         )
     }
 

@@ -3,6 +3,7 @@
 //! keeps between plans.
 
 use std::fmt::Write as _;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -15,27 +16,33 @@ use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::YamlFrontmatter;
-use research::conduct::concurrency::Concurrency;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
 use research::conduct::concurrency::ResolvedConcurrency;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
+use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
+use research::conduct::search_budget::unsearched_tree;
+use research::conduct::search_budget::SearchBudgets;
+use research::conduct::search_budget::SEARCHING_PROFILE;
 use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
+use research::conduct::window::UnfinishedSpawn;
 use research::conduct::window::Window;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::note_ref::NoteRef;
 use research::topic::plan::OutstandingPair;
 use research::topic::plan::RoundInputs;
 use research::topic::plan::RoundPlan;
+use research::topic::plan::ShallowFinding;
 use research::topic::tree::Depth;
 use research::topic::tree::MissingNode;
 use research::topic::tree::Stage;
+use research::topic::tree::Trim;
 use research_adapters::conduct::ledger::delete_run_ledger;
 use research_adapters::conduct::ledger::read_run_ledger;
 use research_adapters::conduct::ledger::run_ledger_path;
@@ -50,6 +57,8 @@ use crate::concurrency_wording;
 use crate::context::ProjectContext;
 use crate::ledger_wording;
 use crate::plan_wording;
+use crate::search_cap::EnvironmentSearchCap;
+use crate::search_wording;
 use crate::subagent_cap::EnvironmentCap;
 
 const DOC_TYPE: &str = "topic-research";
@@ -88,7 +97,11 @@ pub fn resolve_set(
 pub enum RunMode {
     Query,
     Start(RunId),
-    Continue { run: RunId, spawned: Option<u32> },
+    Continue {
+        run: RunId,
+        spawned: Option<u32>,
+        withheld: Withheld,
+    },
 }
 
 /// The run flags as given, before a started run is minted its id.
@@ -96,7 +109,11 @@ pub enum RunMode {
 pub enum RunFlag {
     Query,
     Start,
-    Continue { run: RunId, spawned: Option<u32> },
+    Continue {
+        run: RunId,
+        spawned: Option<u32>,
+        withheld: Withheld,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,13 +134,17 @@ impl OutstandingFlags {
         start: bool,
         run: Option<&str>,
         spawned: Option<&str>,
+        withhold_profile: &[String],
     ) -> Result<Self, String> {
-        let depth = positive(depth).and_then(Depth::new).ok_or_else(|| {
-            failed(format!(
-                "E_TOPIC_RESEARCH_DEPTH: --depth must be a positive integer, \
-                 got '{depth}'"
-            ))
-        })?;
+        let depth = non_negative(depth).and_then(Depth::requested).ok_or_else(
+            || {
+                failed(format!(
+                    "E_TOPIC_RESEARCH_DEPTH: --depth must be 1 to {}, got \
+                     '{depth}'",
+                    Depth::DEEPEST
+                ))
+            },
+        )?;
         Ok(Self {
             depth,
             requested_concurrency: concurrency.map(|value| {
@@ -132,9 +153,16 @@ impl OutstandingFlags {
                     provenance: Provenance::Flag,
                 }
             }),
-            run: run_flag(start, run, spawned)?,
+            run: run_flag(start, run, spawned, withhold_profile)?,
         })
     }
+}
+
+pub struct PlanRequest {
+    pub depth: Depth,
+    pub concurrency: CappedConcurrency,
+    pub search_cap: EnvironmentSearchCap,
+    pub mode: RunMode,
 }
 
 pub struct CappedConcurrency {
@@ -170,6 +198,7 @@ fn run_flag(
     start: bool,
     run: Option<&str>,
     spawned: Option<&str>,
+    withhold_profile: &[String],
 ) -> Result<RunFlag, String> {
     if start && run.is_some() {
         return Err(failed(
@@ -180,6 +209,12 @@ fn run_flag(
         if spawned.is_some() {
             return Err(failed(
                 "E_TOPIC_RESEARCH_SPAWNED: --spawned needs --run",
+            ));
+        }
+        if !withhold_profile.is_empty() {
+            return Err(failed(
+                "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile needs \
+                 --run",
             ));
         }
         return Ok(if start {
@@ -201,7 +236,18 @@ fn run_flag(
     Ok(RunFlag::Continue {
         run: parse_run(run)?,
         spawned,
+        withheld: withheld(withhold_profile)?,
     })
+}
+
+fn withheld(withhold_profile: &[String]) -> Result<Withheld, String> {
+    if withhold_profile.iter().any(String::is_empty) {
+        return Err(failed(
+            "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile is empty; \
+             pass a profile name",
+        ));
+    }
+    Ok(Withheld::of(withhold_profile.iter().cloned()))
 }
 
 /// # Errors
@@ -219,10 +265,6 @@ pub fn parse_run(text: &str) -> Result<RunId, String> {
 fn non_negative(text: &str) -> Option<u32> {
     let digits = !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit());
     digits.then(|| text.parse().ok()).flatten()
-}
-
-fn positive(text: &str) -> Option<u32> {
-    non_negative(text).filter(|value| *value > 0)
 }
 
 fn failed(message: impl Into<String>) -> String {
@@ -243,9 +285,7 @@ fn failed(message: impl Into<String>) -> String {
 pub fn run_outstanding<F, S>(
     set_root: &Path,
     profiles_dir: &Path,
-    depth: Depth,
-    concurrency: &CappedConcurrency,
-    mode: RunMode,
+    request: &PlanRequest,
     fs: &F,
     store: &S,
 ) -> Result<Printed, String>
@@ -254,13 +294,37 @@ where
     S: AtomicWrite,
 {
     let mut notices = Vec::new();
-    let (continued, replaced) = match &mode {
-        RunMode::Continue { run, spawned } => (
-            Some(continued_ledger(set_root, run, *spawned, fs)?),
+    planned(set_root, profiles_dir, request, fs, store, &mut notices).map_err(
+        |error| format!("{}{error}", warning_lines(notices.iter().cloned())),
+    )
+}
+
+fn planned<F, S>(
+    set_root: &Path,
+    profiles_dir: &Path,
+    request: &PlanRequest,
+    fs: &F,
+    store: &S,
+    notices: &mut Vec<String>,
+) -> Result<Printed, String>
+where
+    F: DirReader + FileReader + DirectoryProbe,
+    S: AtomicWrite,
+{
+    let (continued, replaced) = match &request.mode {
+        RunMode::Continue {
+            run,
+            spawned,
+            withheld,
+        } => (
+            Some(
+                continued_ledger(set_root, run, *spawned, fs)?
+                    .withholding(withheld),
+            ),
             ReplacedLedger::Absent,
         ),
         RunMode::Start(_) => {
-            notices.extend(start_notices(concurrency));
+            notices.extend(start_notices(&request.concurrency));
             let replaced = replaced_ledger(set_root, fs)?;
             if matches!(replaced, ReplacedLedger::Corrupt) {
                 notices.push(ledger_wording::corrupt_notice());
@@ -276,7 +340,7 @@ where
     let reading = read_round_inputs(
         set_root,
         profiles_dir,
-        depth,
+        request.depth,
         claims,
         fs,
         &YamlFrontmatter,
@@ -301,50 +365,44 @@ where
             (reading.inputs, plan, None, Vec::new())
         }
     };
+    if matches!(request.mode, RunMode::Start(_)) {
+        notices
+            .extend(unhonoured_search_cap_notice(&request.search_cap, &plan));
+    }
     let observed = Observed::of(&inputs);
-    let ledger = match mode {
+    let ledger = match &request.mode {
         RunMode::Start(run) => Some(
-            RunLedger::start(run, &observed).owing_quarantine(&owed_quarantine),
+            RunLedger::start(run.clone(), &observed)
+                .owing_quarantine(&owed_quarantine),
         ),
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
+    let ledger = ledger
+        .map(|ledger| budgeted(ledger, &plan, &request.search_cap, notices));
     let window = window(
         &plan,
         &observed,
-        concurrency.resolved.concurrency,
+        request.concurrency.resolved.concurrency,
         ledger.as_ref().map(RunLedger::memory),
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
     if let Some(ledger) = &ledger {
-        write_run_ledger(set_root, ledger, store).map_err(|error| {
-            failed(format!(
-                "E_TOPIC_RESEARCH_RUN_LEDGER: could not write {}: {error}",
-                run_ledger_path(set_root).display()
-            ))
-        })?;
+        stored(set_root, ledger, store)?;
     }
-    let mut stderr = String::new();
-    let replaced_notice =
-        replaced_run.as_ref().map(ledger_wording::replaced_notice);
-    let trims = plan.trims.iter().map(plan_wording::trim);
-    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
-        let _ = writeln!(stderr, "warning: {warning}");
-    }
+    let stderr = printed_warnings(notices, replaced_run.as_ref(), &plan);
     let warnings = plan
         .warnings
         .iter()
         .map(plan_wording::warning)
         .chain(reading.warnings.iter().map(ToString::to_string))
-        .chain(notices)
+        .chain(notices.iter().cloned())
         .collect();
     let rendered = PlanOutput {
         plan: &plan,
         window: &window,
         set_root,
-        depth,
-        concurrency: concurrency.resolved.concurrency,
-        cap: &concurrency.cap,
+        request,
         ledger: ledger.as_ref(),
         replaced_run: replaced_run.as_ref(),
         warnings,
@@ -426,6 +484,64 @@ fn settled(
     })
 }
 
+fn stored<S: AtomicWrite>(
+    set_root: &Path,
+    ledger: &RunLedger,
+    store: &S,
+) -> Result<(), String> {
+    write_run_ledger(set_root, ledger, store).map_err(|error| {
+        failed(format!(
+            "E_TOPIC_RESEARCH_RUN_LEDGER: could not write {}: {error}",
+            run_ledger_path(set_root).display()
+        ))
+    })
+}
+
+fn printed_warnings(
+    notices: &[String],
+    replaced_run: Option<&ReplacedRun>,
+    plan: &RoundPlan,
+) -> String {
+    let replaced_notice = replaced_run.map(ledger_wording::replaced_notice);
+    let trims = plan.trims.iter().map(plan_wording::trim);
+    warning_lines(notices.iter().cloned().chain(replaced_notice).chain(trims))
+}
+
+fn warning_lines(warnings: impl Iterator<Item = String>) -> String {
+    let mut stderr = String::new();
+    for warning in warnings {
+        let _ = writeln!(stderr, "warning: {warning}");
+    }
+    stderr
+}
+
+fn budgeted(
+    ledger: RunLedger,
+    plan: &RoundPlan,
+    search_cap: &EnvironmentSearchCap,
+    notices: &mut Vec<String>,
+) -> RunLedger {
+    if !ledger.awaits_search_budgets() {
+        return ledger;
+    }
+    let budgets =
+        SearchBudgets::sized(&unsearched_tree(&plan.pairs), search_cap.cap);
+    if budgets.overruns(search_cap.cap) {
+        notices.push(search_wording::search_floor(&budgets, search_cap));
+    }
+    ledger.budgeting_searches(budgets)
+}
+
+fn unhonoured_search_cap_notice(
+    search_cap: &EnvironmentSearchCap,
+    plan: &RoundPlan,
+) -> Option<String> {
+    let value = search_cap.unhonoured.as_deref()?;
+    let has_web_nodes = !unsearched_tree(&plan.pairs).is_empty();
+    has_web_nodes
+        .then(|| search_wording::unhonoured_search_cap(value, search_cap.cap))
+}
+
 fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
     let unhonoured = concurrency
         .cap
@@ -443,7 +559,7 @@ fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
 
 enum ReplacedLedger {
     Absent,
-    Readable(RunLedger),
+    Readable(Box<RunLedger>),
     Corrupt,
 }
 
@@ -453,7 +569,7 @@ fn replaced_ledger<F: FileReader>(
 ) -> Result<ReplacedLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
         Ok(None) => Ok(ReplacedLedger::Absent),
-        Ok(Some(stored)) => Ok(ReplacedLedger::Readable(stored)),
+        Ok(Some(stored)) => Ok(ReplacedLedger::Readable(Box::new(stored))),
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
@@ -473,13 +589,58 @@ fn no_usable_ledger(run: &RunId) -> String {
     ))
 }
 
+fn unfinished_spawn(unfinished: &UnfinishedSpawn) -> Value {
+    json!({
+        "spawn": unfinished.spawn.to_string(),
+        "rejected": unfinished.rejected.as_ref().map(plan_wording::rejection),
+    })
+}
+
+fn trim(trim: &Trim) -> Value {
+    json!({
+        "stem": trim.at.stem.to_string(),
+        "lineage": trim.at.lineage.to_string(),
+        "recorded": trim.recorded,
+        "cap": trim.cap,
+    })
+}
+
+fn unanswered(outstanding: &OutstandingPair) -> Value {
+    json!({
+        "stem": outstanding.stem.to_string(),
+        "question": outstanding.pair.question,
+        "profile": outstanding.pair.profile,
+        "stage": stage_name(&outstanding.stage),
+    })
+}
+
+const fn stage_name(stage: &Stage) -> &'static str {
+    match stage {
+        Stage::SinglePass => "single_pass",
+        Stage::Compose(_) => "compose",
+        Stage::ResearchNodes(_) => "research_nodes",
+    }
+}
+
+fn search_budgets(budgets: &SearchBudgets) -> Value {
+    budgets
+        .levels()
+        .map(|(level, budget)| json!({"level": level, "budget": budget}))
+        .collect()
+}
+
+fn shallow_finding(finding: &ShallowFinding) -> Value {
+    json!({
+        "stem": finding.stem.to_string(),
+        "depth": finding.depth.levels(),
+    })
+}
+
 struct PlanOutput<'a> {
     plan: &'a RoundPlan,
     window: &'a Window,
     set_root: &'a Path,
-    depth: Depth,
-    concurrency: Concurrency,
-    cap: &'a EnvironmentCap,
+    request: &'a PlanRequest,
     ledger: Option<&'a RunLedger>,
     replaced_run: Option<&'a ReplacedRun>,
     warnings: Vec<String>,
@@ -520,63 +681,56 @@ impl PlanOutput<'_> {
             .window
             .unfinished
             .iter()
-            .map(|unfinished| {
-                json!({
-                    "spawn": unfinished.spawn.to_string(),
-                    "rejected": unfinished
-                        .rejected
-                        .as_ref()
-                        .map(plan_wording::rejection),
-                })
-            })
+            .map(unfinished_spawn)
             .collect();
-        let trims: Vec<_> = plan
-            .trims
-            .iter()
-            .map(|trim| {
-                json!({
-                    "stem": trim.at.stem.to_string(),
-                    "lineage": trim.at.lineage.to_string(),
-                    "recorded": trim.recorded,
-                    "cap": trim.cap,
-                })
-            })
-            .collect();
-        let shallow: Vec<_> = plan
-            .shallow
-            .iter()
-            .map(|finding| {
-                json!({
-                    "stem": finding.stem.to_string(),
-                    "depth": finding.depth.levels(),
-                })
-            })
-            .collect();
+        let trims: Vec<_> = plan.trims.iter().map(trim).collect();
+        let shallow: Vec<_> =
+            plan.shallow.iter().map(shallow_finding).collect();
+        let PlanRequest {
+            depth,
+            concurrency,
+            search_cap,
+            ..
+        } = self.request;
         let mut rendered = json!({
             "items": items,
             "pairs": pairs,
             "skipped": skipped,
             "warnings": self.warnings,
-            "depth": self.depth.levels(),
-            "concurrency": self.concurrency.agents().get(),
+            "depth": depth.levels(),
+            "concurrency": concurrency.resolved.concurrency.agents().get(),
             "subagent_cap": {
-                "slots": self.cap.cap.slots().get(),
-                "source": self.cap.source.reported_as(),
+                "slots": concurrency.cap.cap.slots().get(),
+                "source": concurrency.cap.source.reported_as(),
+            },
+            "search_cap": {
+                "searches": search_cap.cap.searches().get(),
+                "source": search_cap.source.reported_as(),
             },
             "remaining": self.window.remaining,
             "unfinished": unfinished,
             "trims": trims,
             "shallow": shallow,
+            "unanswered": plan.pairs.iter().map(unanswered).collect::<Vec<_>>(),
         });
         if let Some(ledger) = self.ledger {
             rendered["run"] = json!(ledger.run().to_string());
             rendered["batch"] = json!(ledger.memory().pending.number());
+            rendered["withheld"] =
+                ledger.memory().withheld.profiles().collect();
             rendered["unexpected"] = self
                 .window
                 .unexpected
                 .iter()
                 .map(ToString::to_string)
                 .collect();
+            if let Some(budgets) = ledger
+                .search_budgets()
+                .filter(|budgets| budgets.levels().next().is_some())
+            {
+                rendered["search_budgets"] = search_budgets(budgets);
+                rendered["search_demand"] = json!(budgets.demand());
+            }
         }
         if let Some(replaced) = self.replaced_run {
             rendered["replaced_run"] = self.leftovers(replaced);
@@ -621,19 +775,22 @@ impl PlanOutput<'_> {
             "question": outstanding.pair.question,
             "profile": outstanding.pair.profile,
             "path": self.absolute(&outstanding.stem.finding_path()),
+            "stage": stage_name(&outstanding.stage),
         });
         let spawn = SpawnRef::Pair(outstanding.stem.clone()).to_string();
         let note = |lineage: &Lineage| NoteRef {
             stem: outstanding.stem.clone(),
             lineage: lineage.clone(),
         };
+        let search_budget = |level| self.search_budget(outstanding, level);
         match &outstanding.stage {
             Stage::SinglePass => {
-                rendered["stage"] = json!("single_pass");
                 rendered["spawn"] = json!(spawn);
+                if let Some(budget) = search_budget(1) {
+                    rendered["search_budget"] = json!(budget);
+                }
             }
             Stage::Compose(lineages) => {
-                rendered["stage"] = json!("compose");
                 rendered["notes"] = lineages
                     .iter()
                     .map(|lineage| json!(self.absolute(&note(lineage).path())))
@@ -641,17 +798,37 @@ impl PlanOutput<'_> {
                 rendered["spawn"] = json!(spawn);
             }
             Stage::ResearchNodes(nodes) => {
-                rendered["stage"] = json!("research_nodes");
                 rendered["nodes"] = nodes
                     .iter()
-                    .map(|node| self.node(note(&node.lineage), node))
+                    .map(|node| {
+                        self.node(
+                            note(&node.lineage),
+                            node,
+                            search_budget(node.lineage.level()),
+                        )
+                    })
                     .collect();
             }
         }
         rendered
     }
 
-    fn node(&self, address: NoteRef, node: &MissingNode) -> Value {
+    fn search_budget(
+        &self,
+        outstanding: &OutstandingPair,
+        level: u32,
+    ) -> Option<NonZeroU32> {
+        let budgets = self.ledger?.search_budgets()?;
+        (outstanding.pair.profile == SEARCHING_PROFILE)
+            .then(|| budgets.at(level))
+    }
+
+    fn node(
+        &self,
+        address: NoteRef,
+        node: &MissingNode,
+        search_budget: Option<NonZeroU32>,
+    ) -> Value {
         let mut rendered = json!({
             "lineage": node.lineage.to_string(),
             "level": node.lineage.level(),
@@ -664,6 +841,9 @@ impl PlanOutput<'_> {
         });
         if let Some(rejected) = &node.rejected {
             rendered["rejected"] = json!(plan_wording::rejection(rejected));
+        }
+        if let Some(budget) = search_budget {
+            rendered["search_budget"] = json!(budget);
         }
         rendered
     }

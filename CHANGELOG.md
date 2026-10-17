@@ -132,7 +132,7 @@
   for its index, so a set holding both resumes the tree rather than starting
   afresh at the marker's index.
 - **`research topic outstanding` plans deepened research.** `--depth N`
-  reports each pair's `stage`, the level-note `nodes` it still needs or the
+  (1 to 10) reports each pair's `stage`, the level-note `nodes` it still needs or the
   `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
   and the new `end-run` verb closes one. `--concurrency` falls back to
@@ -156,7 +156,24 @@
   deleting the ledger would skip that. `conduct`'s failure-reason table
   gains a "run that did not end" row: re-run `conduct`, first waiting out any
   agent usage limit the earlier session showed. Consider adding
-  `**/.conduct-run.json` to your `.gitignore`.
+  `**/.conduct-run.json` to your `.gitignore`. Every plan also reports Claude
+  Code's per-session `WebSearch` cap as `search_cap` with its source, read from
+  `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it, else 200;
+  a `--start` with web pairs warns when the variable holds a value Claude Code
+  would not honour. A run's first plan sizes a per-level `WebSearch` budget for
+  its web researchers from that cap, less a reserve of a twentieth, over the
+  worst-case tree of every outstanding web pair, and keeps the budgets in its
+  ledger for the rest of the run. Run plans with web pairs report
+  `search_budgets` and `search_demand`, and give every web `single_pass` pair
+  and node its `search_budget`. When even budgets of 1 do not fit, the sizing
+  plan warns. Web researchers make at most their search budget of `WebSearch`
+  calls, and web level notes record it as `search_budget`, an optional
+  level-note field. A project that overrides `topic-research-level-note.md`
+  should add the `search_budget` line. `--withhold-profile P`, with `--run`,
+  holds back researcher spawns of profile `P` for the rest of the run, which
+  its ledger remembers; run plans report them as `withheld`. Every plan lists
+  its full outstanding set as `unanswered`, which `pairs` narrows to the
+  spawns offered now.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
@@ -176,7 +193,11 @@
   with one.
   `conduct` re-issues spawns Claude Code refuses for capacity (verified on
   Claude Code 2.1.296), and records a spawn still refused once retrying
-  stops, for a later run to retry.
+  stops, for a later run to retry. When a web researcher exhausts Claude
+  Code's web search quota, `conduct` halts: it spawns no further web
+  researchers, re-issues none refused for capacity, still finishes the run's
+  other work, and opens its summary with the halt, the web pairs left
+  unfinished, and the recovery of `/clear` and a re-run.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
@@ -354,7 +375,8 @@
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
-  and a composer per (focus area, profile) after upgrading.
+  and a composer per (focus area, profile) after upgrading. A configured
+  depth above 10 clamps to 10 with a warning.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
@@ -474,7 +496,9 @@
   "fetch denied by permissions", as `openalex` and `arxiv` researchers do.
   Before, it wrote a document from memory that `conduct` accepted as
   research. The profile also no longer lets a focus question license
-  fetching a URL a page asks for.
+  fetching a URL a page asks for. They also write nothing when Claude
+  Code's web search quota runs out, and report "web search quota
+  exhausted" instead of writing notes from `WebFetch` or memory.
 
 - **Credential errors name the command key once.** A refused or failing token
   command reported `jira.token_cmd_cmd`; it now names `jira.token_cmd`.
