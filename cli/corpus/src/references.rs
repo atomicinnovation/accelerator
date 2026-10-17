@@ -85,16 +85,20 @@ fn is_key_line(line: &str, key: &str) -> bool {
 fn rewrite_line(line: &str, renaming: &Renaming<'_>) -> String {
     let mut rewritten = line.to_owned();
     for (from, to) in renaming.path_spellings {
-        rewritten = rewritten.replace(from.as_str(), to);
+        rewritten = replace_whole_tokens(&rewritten, from, to, Case::Exact);
     }
     match renaming.shape {
-        IdShape::Distinctive => {
-            replace_whole_tokens(&rewritten, renaming.old_id, renaming.new_id)
-        }
+        IdShape::Distinctive => replace_whole_tokens(
+            &rewritten,
+            renaming.old_id,
+            renaming.new_id,
+            Case::Ignored,
+        ),
         IdShape::NumericOnly => replace_whole_tokens(
             &rewritten,
             &typed_link(renaming.doc_type, renaming.old_id),
             &typed_link(renaming.doc_type, renaming.new_id),
+            Case::Ignored,
         ),
     }
 }
@@ -107,14 +111,29 @@ const fn joins_a_token(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_'
 }
 
-/// Replaces each ASCII-case-insensitive occurrence of `needle` whose
-/// neighbours cannot extend it into a longer token.
-fn replace_whole_tokens(text: &str, needle: &str, replacement: &str) -> String {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Case {
+    Exact,
+    Ignored,
+}
+
+/// Replaces each occurrence of `needle` whose neighbours cannot extend it
+/// into a longer token, comparing ASCII case as `case` says.
+fn replace_whole_tokens(
+    text: &str,
+    needle: &str,
+    replacement: &str,
+    case: Case,
+) -> String {
     if needle.is_empty() {
         return text.to_owned();
     }
-    let folded_text = text.to_ascii_lowercase();
-    let folded_needle = needle.to_ascii_lowercase();
+    let fold = |raw: &str| match case {
+        Case::Exact => raw.to_owned(),
+        Case::Ignored => raw.to_ascii_lowercase(),
+    };
+    let folded_text = fold(text);
+    let folded_needle = fold(needle);
     let bytes = text.as_bytes();
     let mut rewritten = String::with_capacity(text.len());
     let mut copied_up_to = 0;
@@ -292,6 +311,25 @@ mod tests {
                 &renaming
             ),
             "[a](meta/work/PP-900-slug.md) b PP-900-slug.md\n"
+        );
+    }
+
+    #[test]
+    fn a_path_spelling_inside_a_longer_file_name_is_left() {
+        let spellings =
+            [("0041-first.md".to_owned(), "ACC-0041-first.md".to_owned())];
+        let renaming = Renaming {
+            path_spellings: &spellings,
+            ..numeric("0041", "ACC-0041")
+        };
+
+        assert_eq!(
+            rewrite_references(
+                "[a](../work/ACC-0041-first.md) and [b](../work/0041-first.md)\n",
+                &renaming
+            ),
+            "[a](../work/ACC-0041-first.md) and \
+             [b](../work/ACC-0041-first.md)\n"
         );
     }
 }
