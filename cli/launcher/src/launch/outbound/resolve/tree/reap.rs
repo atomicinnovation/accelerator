@@ -302,20 +302,24 @@ pub fn sidecars_of(paths: &TreePaths, generation: &str) -> Vec<PathBuf> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::BTreeMap;
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
-    use crate::launch::core::tree::Clock;
+    use kernel::TEMP_PREFIX;
 
-    use super::super::layout::{generation_name, TreePaths, LAYOUT_VERSION};
-    use super::super::lease::FlockProbe;
-    use super::super::lease::Liveness;
-    use super::super::testing::logged;
+    use crate::launch::core::tree::{Clock, TreeError};
+
+    use super::super::layout::{
+        generation_name, Artifact, TreePaths, LAYOUT_VERSION,
+    };
+    use super::super::lease::{take_single_flight, FlockProbe, Liveness};
+    use super::super::testing::{logged, within, BLOCKING_BOUND};
     use super::{
         generation_is_aged, orphan_is_reclaimable, reap_orphans,
         restart_backstop, sidecars_of, superseded_disposition,
-        unclaimed_is_reclaimable, SupersededDisposition, AGE_BACKSTOP,
+        unclaimed_is_reclaimable, Reclaimed, SupersededDisposition,
+        AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -355,47 +359,174 @@ mod tests {
         paths
     }
 
+    const PLATFORM: &str = "linux-x64";
+    const SUFFIX: &str = "0123456789abcdef";
+
+    fn y() -> Artifact {
+        Artifact::new("driver", PLATFORM)
+    }
+
     fn gen_name() -> String {
-        generation_name(
-            "browser",
-            "linux-x64",
+        generation_name("browser", PLATFORM, DIGEST, LAYOUT_VERSION, SUFFIX)
+    }
+
+    #[derive(Default)]
+    struct Pins(BTreeMap<Artifact, String>);
+
+    impl Pins {
+        fn pinning(pins: &[(Artifact, &str)]) -> Self {
+            Self(
+                pins.iter()
+                    .map(|(artifact, digest)| {
+                        (artifact.clone(), (*digest).to_owned())
+                    })
+                    .collect(),
+            )
+        }
+    }
+
+    /// Reaps `root` for Y while the test thread holds Y's tree lock, as a
+    /// caller does, failing rather than hanging if the reap blocks and if
+    /// any lock file is created or removed.
+    fn reap_for_y_at(
+        root: &Path,
+        clock: impl Clock + Send + 'static,
+        pins: Pins,
+    ) -> Result<Reclaimed, TreeError> {
+        let paths = TreePaths::under(root);
+        let _caller_holds =
+            take_single_flight(&paths.single_flight_lock_of(&y()))
+                .expect("Y's lock");
+        let locks_before = lock_files(&paths);
+        let root = root.to_owned();
+        let outcome = within(BLOCKING_BOUND, "the reap", move || {
+            let paths = TreePaths::under(&root);
+            let keep = pins.0.get(&y()).cloned().into_iter().collect();
+            reap_orphans(&paths, &clock, &FlockProbe, &keep)
+        });
+        assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
+        outcome
+    }
+
+    fn reap_for_y(root: &Path, pins: Pins) -> Result<Reclaimed, TreeError> {
+        reap_for_y_at(root, present(), pins)
+    }
+
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
+    fn lock_files(paths: &TreePaths) -> Vec<String> {
+        let mut locks: Vec<String> = fs::read_dir(paths.root())
+            .expect("trees dir")
+            .flatten()
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .filter(|name| {
+                name.starts_with(TEMP_PREFIX) && name.ends_with(".lock")
+            })
+            .collect();
+        locks.sort();
+        locks
+    }
+
+    struct Residue {
+        tree: PathBuf,
+        pointer: PathBuf,
+        archive: PathBuf,
+    }
+
+    impl Residue {
+        fn paths(&self) -> [&Path; 3] {
+            [&self.tree, &self.pointer, &self.archive]
+        }
+    }
+
+    fn plant_residue(paths: &TreePaths, owner: &Artifact) -> Residue {
+        let generation = generation_name(
+            owner.name(),
+            owner.platform(),
             DIGEST,
             LAYOUT_VERSION,
-            "0123456789abcdef",
-        )
+            SUFFIX,
+        );
+        let tree = paths.temp_generation(&generation);
+        fs::create_dir(&tree).expect("temp tree");
+        let pointer = paths.temp_pointer(&generation);
+        fs::write(&pointer, &generation).expect("temp pointer");
+        let archive = paths.temp_archive_of(owner, &"f".repeat(64));
+        fs::write(&archive, b"partial").expect("partial archive");
+        Residue {
+            tree,
+            pointer,
+            archive,
+        }
+    }
+
+    fn plant_archive(
+        paths: &TreePaths,
+        owner: &Artifact,
+        digest: &str,
+    ) -> PathBuf {
+        let archive = paths.temp_archive_of(owner, digest);
+        fs::write(&archive, b"resumable").expect("partial archive");
+        archive
     }
 
     #[test]
     fn a_temp_archive_and_a_temp_tree_are_reclaimed() {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
-        let archive =
-            paths.temp_archive("browser", "linux-x64", &"f".repeat(64));
+        let archive = paths.temp_archive("browser", PLATFORM, &"f".repeat(64));
         fs::write(&archive, b"partial").expect("archive");
         let temp_tree = paths.temp_generation(&gen_name());
         fs::create_dir(&temp_tree).expect("temp tree");
 
-        let reclaimed =
-            reap_orphans(&paths, &present(), &FlockProbe, &BTreeSet::new())
-                .expect("reap");
+        let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
         assert_eq!(reclaimed.entries, 2);
         assert!(!archive.exists());
         assert!(!temp_tree.exists());
     }
 
     #[test]
-    fn a_partial_archive_for_the_wanted_digest_is_spared() {
+    fn a_partial_archive_pinned_for_its_own_artifact_is_spared() {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
-        let archive = paths.temp_archive("browser", "linux-x64", DIGEST);
-        fs::write(&archive, b"resumable").expect("archive");
+        let archive = plant_archive(&paths, &y(), DIGEST);
 
-        let mut keep = BTreeSet::new();
-        keep.insert(DIGEST.to_owned());
-        let reclaimed =
-            reap_orphans(&paths, &present(), &FlockProbe, &keep).expect("reap");
+        let reclaimed = reap_for_y(dir.path(), Pins::pinning(&[(y(), DIGEST)]))
+            .expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(archive.exists(), "a resumable partial was reclaimed");
+    }
+
+    #[test]
+    fn the_reaps_own_residue_goes_but_its_resumable_archive_stays() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let residue = plant_residue(&paths, &y());
+        let resumable = plant_archive(&paths, &y(), DIGEST);
+
+        reap_for_y(dir.path(), Pins::pinning(&[(y(), DIGEST)])).expect("reap");
+
+        for entry in residue.paths() {
+            assert!(!entry.exists(), "{} survived", entry.display());
+        }
+        assert!(resumable.exists(), "the resumable archive was reaped");
+    }
+
+    #[test]
+    fn a_temp_pointer_reaped_alongside_still_protects_its_generation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let generation = gen_name();
+        fs::create_dir(paths.generation(&generation)).expect("generation");
+        let pointer = paths.temp_pointer(&generation);
+        fs::write(&pointer, &generation).expect("temp pointer");
+
+        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+
+        assert!(!pointer.exists(), "the temp pointer survived");
+        assert!(
+            paths.generation(&generation).exists(),
+            "the generation the temp pointer named was reaped"
+        );
     }
 
     #[test]
@@ -422,8 +553,7 @@ mod tests {
 
         // The clock reads past the backstop, so both are old — only the
         // reference spares one of them.
-        reap_orphans(&paths, &well_aged(), &FlockProbe, &BTreeSet::new())
-            .expect("reap");
+        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
         assert!(!orphan_dir.exists(), "the orphan survived");
         assert!(
             referenced_dir.exists(),
@@ -444,9 +574,7 @@ mod tests {
 
         // The clock reads the present, so a just-renamed generation — between
         // its rename and its pointer write — is inside the backstop window.
-        let reclaimed =
-            reap_orphans(&paths, &present(), &FlockProbe, &BTreeSet::new())
-                .expect("reap");
+        let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(fresh.exists(), "a freshly renamed generation was reaped");
         for sidecar in &sidecars {
@@ -636,8 +764,7 @@ mod tests {
             fs::write(sidecar, b"").expect("sidecar");
         }
 
-        reap_orphans(&paths, &well_aged(), &FlockProbe, &BTreeSet::new())
-            .expect("reap");
+        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
 
         assert!(!paths.generation(&name).exists());
         for sidecar in &sidecars {
