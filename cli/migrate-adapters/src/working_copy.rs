@@ -5,6 +5,8 @@ use migrate::ports::WorkingCopy;
 use migrate::ports::WorkingCopyObservation;
 use migrate::run_base::RunBase;
 use tracing::warn;
+use vcs::guarded_working_copy::observe_guarded;
+use vcs::guarded_working_copy::GuardedObservation;
 use vcs::VcsKind;
 use vcs::WorkingCopyState;
 use vcs::WorkingCopyStateProbe;
@@ -38,26 +40,21 @@ impl WorkingCopy for VcsWorkingCopy<'_> {
         &self,
         roots: &[&str],
     ) -> Result<WorkingCopyObservation, MigrationError> {
-        let state = self
-            .probe
-            .working_copy_state(&self.root, self.kind)
-            .unwrap_or_else(|error| {
+        let probed = self.probe.working_copy_state(&self.root, self.kind);
+        let state = match observe_guarded(probed, roots) {
+            GuardedObservation::Observed(state) => state,
+            GuardedObservation::Unprobeable { reason } => {
                 warn!(
                     root = %self.root.display(),
-                    %error,
+                    error = %reason,
                     "could not compute the working-copy diff; treating as clean"
                 );
                 WorkingCopyState::default()
-            });
+            }
+        };
         Ok(WorkingCopyObservation {
             run_base: RunBase::from_base_commits(&state.base_commits),
-            dirty_paths: state
-                .dirty_paths
-                .into_iter()
-                .filter(|path| {
-                    roots.iter().any(|scope| path.starts_with(scope))
-                })
-                .collect(),
+            dirty_paths: state.dirty_paths,
         })
     }
 }

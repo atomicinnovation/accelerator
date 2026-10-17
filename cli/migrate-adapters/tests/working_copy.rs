@@ -50,6 +50,11 @@ fn an_untracked_document_in_scope_is_reported() -> Result<(), TestError> {
 }
 
 #[test]
+fn migrate_guards_the_same_scopes_as_vcs() {
+    assert_eq!(SCOPES, vcs::guarded_working_copy::GUARDED_SCOPES);
+}
+
+#[test]
 fn an_untracked_file_outside_every_scope_is_not_reported(
 ) -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
