@@ -244,6 +244,7 @@ impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
 pub fn work::next_number::allocate(scheme: &corpus::work_item_id::WorkItemIdScheme, project: core::option::Option<&str>, count: u32, filenames: &[alloc::string::String], scanner: &dyn corpus::work_item_id::IdScanner) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocate_above(scheme: &corpus::work_item_id::WorkItemIdScheme, floor: u64, count: u32) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
 pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc::string::String
