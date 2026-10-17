@@ -1,6 +1,7 @@
 //! Applying a [`RetirementPlan`] all-or-nothing across the corpus, and the
 //! one path that plans, applies and cleans up a retirement.
 
+use std::convert::Infallible;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -523,14 +524,49 @@ pub fn finish_retirement(
     ports: &RetirementPorts<'_>,
     lock: &RetirementLockGuard,
 ) -> Result<(), FinishFailure> {
+    finish_retirement_with(retirement, ports, lock, &mut |_| {
+        Ok::<(), Infallible>(())
+    })
+    .map_err(|failure| match failure {
+        HookedFinishFailure::Retirement(failure) => failure,
+        HookedFinishFailure::BeforeApply(never) => match never {},
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HookedFinishFailure<E> {
+    Retirement(FinishFailure),
+    BeforeApply(E),
+}
+
+/// [`finish_retirement`], handing `before_apply` each plan just before it
+/// is applied, a re-plan included; an error from it stops the retirement
+/// before that plan writes anything.
+///
+/// # Errors
+///
+/// [`HookedFinishFailure::Retirement`] as [`finish_retirement`] fails, and
+/// [`HookedFinishFailure::BeforeApply`] when `before_apply` stops it.
+pub fn finish_retirement_with<E>(
+    retirement: &Retirement<'_>,
+    ports: &RetirementPorts<'_>,
+    lock: &RetirementLockGuard,
+    before_apply: &mut dyn FnMut(&RetirementPlan) -> Result<(), E>,
+) -> Result<(), HookedFinishFailure<E>> {
     let mut attempts_left = 2;
     loop {
         attempts_left -= 1;
-        let plan = plan_from_corpus(retirement, ports)?;
+        let plan = plan_from_corpus(retirement, ports)
+            .map_err(HookedFinishFailure::Retirement)?;
+        before_apply(&plan).map_err(HookedFinishFailure::BeforeApply)?;
         match apply_retirement(&plan, &ports.files, ports.baseline, lock) {
             Ok(()) => break,
             Err(RetirementFailure::RolledBack { .. }) if attempts_left > 0 => {}
-            Err(failure) => return Err(FinishFailure::Failed(failure)),
+            Err(failure) => {
+                return Err(HookedFinishFailure::Retirement(
+                    FinishFailure::Failed(failure),
+                ));
+            }
         }
     }
     let recovery_dir = retirement.recovery_dir();

@@ -39,9 +39,11 @@ use work_adapters::retirement::acquire_retirement_lock;
 use work_adapters::retirement::apply_retirement;
 use work_adapters::retirement::corpus_files;
 use work_adapters::retirement::finish_retirement;
+use work_adapters::retirement::finish_retirement_with;
 use work_adapters::retirement::retirement_outstanding;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::FinishFailure;
+use work_adapters::retirement::HookedFinishFailure;
 use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
 use work_adapters::sync::baseline::Entry;
@@ -386,6 +388,22 @@ impl<'a> Harness<'a> {
             unreachable!("the retirement lock is free");
         };
         finish_retirement(retirement, &self.ports(&baseline), &lock)
+    }
+
+    fn finish_with<E>(
+        &self,
+        before_apply: &mut dyn FnMut(&RetirementPlan) -> Result<(), E>,
+    ) -> Result<(), HookedFinishFailure<E>> {
+        let baseline = self.baseline();
+        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+            unreachable!("the retirement lock is free");
+        };
+        finish_retirement_with(
+            &promotion(),
+            &self.ports(&baseline),
+            &lock,
+            before_apply,
+        )
     }
 
     fn outstanding(&self) -> Result<bool, FinishFailure> {
@@ -882,6 +900,66 @@ fn finish_retirement_replans_once_on_a_changed_file() -> Result<(), TestError> {
         repo.read(CHILD).as_deref(),
         Some("---\nid: \"0001\"\nparent: \"work-item:PP-900\"\n---\n\n# 0001: Renamed\n")
     );
+    Ok(())
+}
+
+#[test]
+fn before_apply_sees_the_plan_applied_including_after_a_rollback_replan(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::failing_at(&repo, Some(0));
+    let edit_path = repo.path(CHILD);
+    *harness.store.before_failing.borrow_mut() = Some(Box::new(move || {
+        let _ =
+            fs::write(&edit_path, CHILD_CONTENT.replace("Child", "Renamed"));
+    }));
+    let mut seen: Vec<RetirementPlan> = Vec::new();
+
+    harness
+        .finish_with(&mut |plan: &RetirementPlan| -> Result<(), String> {
+            seen.push(plan.clone());
+            Ok(())
+        })
+        .map_err(|f| format!("{f:?}"))?;
+
+    let child_originals: Vec<Option<&str>> = seen
+        .iter()
+        .map(|plan| {
+            plan.rewrites
+                .iter()
+                .find(|rewrite| rewrite.path == repo.path(CHILD))
+                .map(|rewrite| rewrite.original.as_str())
+        })
+        .collect();
+    assert_eq!(
+        child_originals,
+        vec![
+            Some(CHILD_CONTENT),
+            Some(CHILD_CONTENT.replace("Child", "Renamed").as_str())
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_refusing_before_apply_stops_the_retirement_before_any_write(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::new(&repo);
+    let before = repo.snapshot();
+
+    let result = harness.finish_with(&mut |_: &RetirementPlan| {
+        Err("the run plan could not be saved")
+    });
+
+    assert!(matches!(
+        result,
+        Err(HookedFinishFailure::BeforeApply(
+            "the run plan could not be saved"
+        ))
+    ));
+    assert_eq!(repo.snapshot(), before);
+    assert_eq!(harness.store.count.get(), 0);
     Ok(())
 }
 
