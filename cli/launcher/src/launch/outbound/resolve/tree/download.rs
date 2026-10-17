@@ -392,12 +392,17 @@ mod tests {
 
     use crate::launch::core::tree::TreeError;
 
-    use super::super::super::fetcher::SinkMode;
+    use std::path::Path;
+    use std::time::Duration;
+
+    use http_test_support::{MockHTTPServer, RequestKey, Route};
+
+    use super::super::super::fetcher::{Fetcher, SinkMode, StreamLimits};
     use super::super::super::keys::TrustedKeys;
     use super::super::testing::logged;
     use super::{
         discard_partial_archive, open_archive_sink, verify_archive_file,
-        PartialArchive,
+        Download, PartialArchive,
     };
 
     // The same throwaway keypair the keys tests use, over the same body.
@@ -532,32 +537,121 @@ mod tests {
         assert_eq!(std::fs::metadata(&path).expect("metadata").len(), 5);
     }
 
-    #[test]
-    fn a_partial_that_cannot_be_discarded_is_warned() {
-        use std::os::unix::fs::PermissionsExt as _;
+    struct UndiscardablePartial {
+        _dir: tempfile::TempDir,
+        parent: std::path::PathBuf,
+        partial: std::path::PathBuf,
+    }
 
-        let dir = tempfile::tempdir().expect("tempdir");
-        let parent = dir.path().join("read-only");
-        let partial = parent.join("partial.archive");
-        std::fs::create_dir_all(&partial).expect("partial");
-        std::fs::write(partial.join("member"), b"x").expect("member");
-        let set_mode = |mode| {
+    impl UndiscardablePartial {
+        /// A non-empty directory at the partial's path, inside a parent this
+        /// process cannot write to; `None` when the process writes there
+        /// anyway, as one with `CAP_DAC_OVERRIDE` does.
+        fn plant() -> Option<Self> {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let parent = dir.path().join("read-only");
+            let partial = parent.join("partial.archive");
+            std::fs::create_dir_all(&partial).expect("partial");
+            std::fs::write(partial.join("member"), b"x").expect("member");
+            let planted = Self {
+                _dir: dir,
+                parent,
+                partial,
+            };
+            planted.set_parent_mode(0o555);
+            if std::fs::write(planted.parent.join("probe"), b"").is_ok() {
+                planted.set_parent_mode(0o755);
+                eprintln!("skipping: this process writes into read-only dirs");
+                return None;
+            }
+            Some(planted)
+        }
+
+        fn set_parent_mode(&self, mode: u32) {
+            use std::os::unix::fs::PermissionsExt as _;
+
             std::fs::set_permissions(
-                &parent,
+                &self.parent,
                 std::fs::Permissions::from_mode(mode),
             )
             .expect("chmod");
-        };
-        set_mode(0o555);
-        if std::fs::write(parent.join("probe"), b"").is_ok() {
-            set_mode(0o755);
-            eprintln!("skipping: this process writes into read-only dirs");
-            return;
         }
+    }
+
+    impl Drop for UndiscardablePartial {
+        fn drop(&mut self) {
+            self.set_parent_mode(0o755);
+        }
+    }
+
+    const PAYLOAD: &[u8] = b"the whole archive";
+
+    fn serving_the_archive() -> (MockHTTPServer, String) {
+        let server = MockHTTPServer::start();
+        server.route(
+            RequestKey::get("/archive"),
+            Route::Bytes {
+                status: 200,
+                body: PAYLOAD.to_vec(),
+            },
+        );
+        let url = format!("{}/archive", server.base_url());
+        (server, url)
+    }
+
+    fn fetch_whole_into(url: &str, path: &Path) -> Result<[u8; 32], TreeError> {
+        let fetcher =
+            Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+        Download {
+            fetcher: &fetcher,
+            url,
+            path,
+            limits: StreamLimits::for_archive(PAYLOAD.len() as u64),
+        }
+        .fetch_whole()
+    }
+
+    #[test]
+    fn a_whole_fetch_blocked_by_a_directory_discards_it_and_retries() {
+        let (_server, url) = serving_the_archive();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let partial = dir.path().join("partial.archive");
+        std::fs::create_dir_all(&partial).expect("partial");
+        std::fs::write(partial.join("member"), b"x").expect("member");
+
+        let streamed = fetch_whole_into(&url, &partial);
+
+        let expected: [u8; 32] = Sha256::digest(PAYLOAD).into();
+        assert_eq!(streamed.expect("fetched"), expected);
+        assert_eq!(std::fs::read(&partial).expect("archive"), PAYLOAD);
+    }
+
+    #[test]
+    fn a_whole_fetch_that_still_cannot_write_is_cache_root_unwritable() {
+        let Some(planted) = UndiscardablePartial::plant() else {
+            return;
+        };
+        let (_server, url) = serving_the_archive();
+
+        let streamed = fetch_whole_into(&url, &planted.partial);
+
+        let path = planted.partial.display().to_string();
+        assert!(
+            matches!(&streamed, Err(TreeError::CacheRootUnwritable { detail })
+                if detail.contains(&path)),
+            "got {streamed:?}"
+        );
+    }
+
+    #[test]
+    fn a_partial_that_cannot_be_discarded_is_warned() {
+        let Some(planted) = UndiscardablePartial::plant() else {
+            return;
+        };
+        let partial = planted.partial.clone();
 
         let log = logged(|| discard_partial_archive(&partial));
 
-        set_mode(0o755);
         assert!(log.contains("WARN"), "no warning: {log}");
         assert!(
             log.contains(&partial.display().to_string()),
