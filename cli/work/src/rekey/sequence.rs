@@ -23,7 +23,7 @@ pub fn sequence_of(id: &str) -> Option<u64> {
 
 /// The local project key an `id` is prefixed with: a letter, then letters or
 /// digits, before `-<digits>`.
-fn project_key_of(id: &str) -> Option<&str> {
+pub(crate) fn project_key_of(id: &str) -> Option<&str> {
     let (key, digits) = id.split_once('-')?;
     let well_formed = key.starts_with(|c: char| c.is_ascii_alphabetic())
         && key.chars().all(|c| c.is_ascii_alphanumeric())
@@ -50,7 +50,7 @@ pub fn is_in_target_shape(id: &str, scheme: &WorkItemIdScheme) -> bool {
 }
 
 /// `number` as the pattern renders it under `key`.
-fn rendered(
+pub(crate) fn rendered(
     scheme: &WorkItemIdScheme,
     key: Option<&str>,
     number: u64,

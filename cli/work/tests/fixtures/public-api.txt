@@ -472,6 +472,8 @@ pub fn work::rekey::classify::Classification::fmt(&self, f: &mut core::fmt::Form
 impl core::marker::Copy for work::rekey::classify::Classification
 impl core::marker::StructuralPartialEq for work::rekey::classify::Classification
 pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity) -> work::rekey::classify::Classification
+pub mod work::rekey::collision
+pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity]) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::creation_date
 pub struct work::rekey::creation_date::CreationDate(_)
 impl work::rekey::creation_date::CreationDate
@@ -541,6 +543,19 @@ pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::re
 impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub mod work::rekey::mapping
+pub struct work::rekey::mapping::RekeyCandidate
+pub work::rekey::mapping::RekeyCandidate::created: work::rekey::creation_date::CreationDate
+pub work::rekey::mapping::RekeyCandidate::identity: work::identity::ItemIdentity
+impl core::clone::Clone for work::rekey::mapping::RekeyCandidate
+pub fn work::rekey::mapping::RekeyCandidate::clone(&self) -> work::rekey::mapping::RekeyCandidate
+impl core::cmp::Eq for work::rekey::mapping::RekeyCandidate
+impl core::cmp::PartialEq for work::rekey::mapping::RekeyCandidate
+pub fn work::rekey::mapping::RekeyCandidate::eq(&self, other: &work::rekey::mapping::RekeyCandidate) -> bool
+impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
+pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
+pub fn work::rekey::mapping::numeric_mapping(scheme: &corpus::work_item_id::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed
 pub work::rekey::outcome::NotRekeyed::Collision
