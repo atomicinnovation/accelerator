@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-16T16:38:06+00:00"
+last_updated: "2026-10-17T09:41:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -332,7 +332,14 @@ every adapter passes.
 
 `cli/tracker-test-support/src/contract.rs` (unit):
 - `gated_calls` lists the new gated entry point.
-- `a_subject_with_no_moved_issue_is_reported_skipped`
+- `a_subject_with_no_moved_issue_is_reported_skipped` — opens the gate and
+  runs `run_all` and `timed_conformance` over a `RecordingTracker`
+  configured for every induced condition, with and without a move.
+
+Every adapter already kept a moved key out of `found`, so the three
+adapter tests are pins: they failed only to compile, then passed. The
+offline tests parametrise their response helpers by key
+(`issue_body_under`, `searched_holding`, `shown_under`).
 
 #### 2. Contract property
 
@@ -356,13 +363,18 @@ pub fn a_moved_issue_is_found_only_under_its_current_key_property(
 
 The property asserts `old` is absent from `fetch_all(&[old]).found`, and
 `locate(&old)` is `Found` with `issue.key == new`. A subject answering
-`None` (live subjects, which cannot move issues on demand) is reported as
-skipped by `run_all` and `timed_conformance`, never as passed, so committed
-live evidence does not claim it. Add the gated form to `run_all` and update
-its count.
+`None` (live subjects, which cannot move issues on demand) is skipped by
+`run_all` and `timed_conformance`, never reported as passed, so committed
+live evidence does not claim it. Skipping is by omission, as for the
+truncation and indeterminate properties: the evidence grammar has only
+`PASS` and `FAIL`. `run_all` counts 6, or 7 when the subject supplies a
+moved issue, and its doc says so in a second paragraph. The ungated
+property panics on a `None` subject, as the other accessors do.
 
-`RecordingTracker`, the offline Jira subject and the offline Linear subject
-implement `moved_issue`.
+`RecordingTracker` answers its first configured `moving` pair. The offline
+Jira and Linear subjects answer a constant pair (`PP-76 → OPS-5`,
+`PP-760 → ENG-42`), true only against the server their moved-issue test
+builds, as their `unaccountable_id` is.
 
 #### 3. Port documentation
 
@@ -376,6 +388,10 @@ reports its old key as `absent` or
 `indeterminate`, so the caller reaches `locate`. Point to it from the
 `FetchOutcome` struct doc beside the totality obligation.
 
+Landed as a paragraph in the `fetch_all` doc before `# Errors`, a
+paragraph on `found`, and a sentence extending the struct doc's
+obligation line.
+
 ### Success Criteria
 
 #### Automated Verification
@@ -385,6 +401,12 @@ reports its old key as `absent` or
 - [x] `cd cli && cargo test -p linear-client --test contract_offline`
 - [ ] `mise run test:integration:tracker-contract`
 - [x] `mise run` exits 0
+
+The contract lane needs live Jira and Linear credentials, which the
+implementing session lacked. Its `tracker-test-support` binary ran under
+`ACCELERATOR_TRACKER_CONTRACT=1 cargo nextest run --profile contract -p
+tracker-test-support`: 4 of 4 passed, the new property included. The live
+subjects answer `None`, so the full lane skips the property for them.
 
 #### Manual Verification
 
