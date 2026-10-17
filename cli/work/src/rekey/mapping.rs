@@ -1,7 +1,13 @@
-//! What each item becomes under a numeric pattern.
+//! What each item becomes: under a numeric pattern, a number; under
+//! `{tracker}`, its issue's current key or a draft.
+
+use std::collections::BTreeMap;
 
 use corpus::WorkItemIdScheme;
 
+use crate::draft_id::mint_draft_ids;
+use crate::draft_id::DraftId;
+use crate::draft_id::SuffixDraws;
 use crate::identity::ItemIdentity;
 use crate::next_number::allocate_above;
 use crate::next_number::pattern_cap;
@@ -17,6 +23,7 @@ use crate::rekey::sequence::is_in_target_shape;
 use crate::rekey::sequence::project_key_of;
 use crate::rekey::sequence::rendered;
 use crate::rekey::sequence::sequence_of;
+use crate::tracker_key::TrackerKey;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RekeyCandidate {
@@ -154,6 +161,82 @@ fn fresh_entries(
         .zip(numbers)
         .map(|(candidate, number)| renumbered(&candidate.identity.id, number))
         .collect())
+}
+
+/// The key each issue answers to now, by the key an item stores for it,
+/// for every issue a refresh found moved.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RefreshedKeys(BTreeMap<String, TrackerKey>);
+
+impl RefreshedKeys {
+    /// `stored`'s current key; a key the refresh found unmoved or not at
+    /// all answers as itself.
+    #[must_use]
+    pub fn current_key_for(&self, stored: &TrackerKey) -> TrackerKey {
+        self.0
+            .get(stored.as_str())
+            .cloned()
+            .unwrap_or_else(|| stored.clone())
+    }
+}
+
+impl FromIterator<(String, TrackerKey)> for RefreshedKeys {
+    fn from_iter<I: IntoIterator<Item = (String, TrackerKey)>>(
+        moves: I,
+    ) -> Self {
+        Self(moves.into_iter().collect())
+    }
+}
+
+/// Every item off `{tracker}`, by old `id`, with what it becomes.
+///
+/// A synced item takes its issue's current key; an unsynced item becomes a
+/// draft under a freshly minted ID; a draft is left as it is.
+///
+/// # Errors
+///
+/// [`NotRekeyed`] when an `external_id` is not shaped like a tracker key,
+/// no free draft ID can be drawn, or a target collides.
+pub fn tracker_mapping(
+    candidates: &[RekeyCandidate],
+    refreshed: &RefreshedKeys,
+    draws: &mut dyn SuffixDraws,
+) -> Result<Vec<RekeyEntry>, NotRekeyed> {
+    let items: Vec<ItemIdentity> = candidates
+        .iter()
+        .map(|candidate| candidate.identity.clone())
+        .collect();
+    let mut entries = Vec::new();
+    let mut unsynced = Vec::new();
+    for identity in items
+        .iter()
+        .filter(|identity| DraftId::parse(&identity.id).is_none())
+    {
+        let Some(stored) = identity.external_id.as_deref() else {
+            unsynced.push(identity.id.clone());
+            continue;
+        };
+        let stored = TrackerKey::parse(stored)
+            .ok_or_else(|| NotRekeyed::Unclassifiable(identity.path.clone()))?;
+        let current = refreshed.current_key_for(&stored);
+        if !current.as_str().eq_ignore_ascii_case(&identity.id) {
+            entries.push(RekeyEntry {
+                old: identity.id.clone(),
+                target: RekeyTarget::TrackerKey(current),
+            });
+        }
+    }
+    let drafts = mint_draft_ids(draws, &items, unsynced.len())
+        .map_err(NotRekeyed::DraftIdExhausted)?;
+    entries.extend(unsynced.into_iter().zip(drafts).map(|(old, draft)| {
+        RekeyEntry {
+            old,
+            target: RekeyTarget::Draft(draft),
+        }
+    }));
+    entries.sort_by(|left, right| left.old.cmp(&right.old));
+    refuse_collisions(&entries, &items)?;
+    Ok(entries)
 }
 
 #[cfg(test)]
@@ -479,5 +562,227 @@ mod tests {
             numeric_mapping(&acc(), &[local("0042"), local("ACC-0042")]),
             Err(NotRekeyed::Collision { .. })
         ));
+    }
+
+    mod tracker {
+        use std::collections::VecDeque;
+
+        use super::candidate;
+        use super::path_of;
+        use super::RekeyCandidate;
+        use crate::draft_id::DraftId;
+        use crate::draft_id::SuffixDraws;
+        use crate::draft_id::ALPHABET;
+        use crate::rekey::entry::RekeyEntry;
+        use crate::rekey::entry::RekeyTarget;
+        use crate::rekey::mapping::tracker_mapping;
+        use crate::rekey::mapping::RefreshedKeys;
+        use crate::rekey::outcome::NotRekeyed;
+        use crate::tracker_key::TrackerKey;
+
+        struct Scripted(VecDeque<String>);
+
+        impl SuffixDraws for Scripted {
+            fn draw(&mut self) -> [u8; 6] {
+                let suffix = self.0.pop_front().unwrap_or_default();
+                let mut indices = [0; 6];
+                for (index, byte) in indices.iter_mut().zip(suffix.bytes()) {
+                    *index = u8::try_from(
+                        ALPHABET
+                            .iter()
+                            .position(|letter| *letter == byte)
+                            .unwrap_or_default(),
+                    )
+                    .unwrap_or_default();
+                }
+                indices
+            }
+        }
+
+        fn drawing(suffixes: &[&str]) -> Scripted {
+            Scripted(suffixes.iter().map(|&suffix| suffix.to_owned()).collect())
+        }
+
+        fn key(raw: &str) -> TrackerKey {
+            TrackerKey::parse(raw)
+                .unwrap_or_else(|| unreachable!("a tracker key"))
+        }
+
+        fn linked(id: &str, external_id: &str) -> RekeyCandidate {
+            candidate(&format!("id: \"{id}\"\nexternal_id: \"{external_id}\""))
+        }
+
+        fn unlinked(id: &str) -> RekeyCandidate {
+            candidate(&format!("id: \"{id}\""))
+        }
+
+        fn onto(old: &str, new: &str) -> RekeyEntry {
+            RekeyEntry {
+                old: old.to_owned(),
+                target: RekeyTarget::TrackerKey(key(new)),
+            }
+        }
+
+        fn moved(stored: &str, current: &str) -> RefreshedKeys {
+            std::iter::once((stored.to_owned(), key(current))).collect()
+        }
+
+        fn mapped(
+            candidates: &[RekeyCandidate],
+            refreshed: &RefreshedKeys,
+        ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
+            tracker_mapping(candidates, refreshed, &mut drawing(&["k3x9mq"]))
+        }
+
+        fn collision(first: &str, second: &str, target: &str) -> NotRekeyed {
+            NotRekeyed::Collision {
+                first: path_of(first),
+                second: path_of(second),
+                target: target.to_owned(),
+            }
+        }
+
+        #[test]
+        fn a_synced_legacy_item_targets_its_external_id() {
+            assert_eq!(
+                mapped(&[linked("0042", "PP-760")], &RefreshedKeys::default()),
+                Ok(vec![onto("0042", "PP-760")])
+            );
+        }
+
+        #[test]
+        fn a_synced_item_whose_issue_moved_targets_the_new_key_and_carries_it()
+        {
+            let entries = mapped(
+                &[linked("PP-760", "PP-760")],
+                &moved("PP-760", "ENG-42"),
+            );
+
+            assert_eq!(entries, Ok(vec![onto("PP-760", "ENG-42")]));
+            let entries = entries.unwrap_or_default();
+            assert_eq!(entries[0].retirement().new_external_id, Some("ENG-42"));
+        }
+
+        #[test]
+        fn an_unmoved_synced_item_is_not_an_entry() {
+            assert_eq!(
+                mapped(
+                    &[linked("PP-760", "PP-760")],
+                    &RefreshedKeys::default()
+                ),
+                Ok(Vec::new())
+            );
+        }
+
+        #[test]
+        fn an_unsynced_item_becomes_a_draft_with_a_minted_id() {
+            let draft = DraftId::parse("draft-k3x9mq")
+                .unwrap_or_else(|| unreachable!("a draft ID"));
+            assert_eq!(
+                mapped(&[unlinked("0042")], &RefreshedKeys::default()),
+                Ok(vec![RekeyEntry {
+                    old: "0042".to_owned(),
+                    target: RekeyTarget::Draft(draft),
+                }])
+            );
+        }
+
+        #[test]
+        fn an_existing_draft_is_not_an_entry() {
+            assert_eq!(
+                mapped(&[unlinked("draft-a1b2cd")], &RefreshedKeys::default()),
+                Ok(Vec::new())
+            );
+        }
+
+        #[test]
+        fn an_id_equal_to_its_key_ignoring_case_is_not_an_entry() {
+            assert_eq!(
+                mapped(
+                    &[linked("pp-760", "PP-760")],
+                    &RefreshedKeys::default()
+                ),
+                Ok(Vec::new())
+            );
+        }
+
+        #[test]
+        fn a_tracker_target_held_as_another_items_id_is_refused_naming_both() {
+            let corpus = [linked("0042", "PP-760"), linked("PP-760", "ENG-1")];
+            assert_eq!(
+                mapped(&corpus, &RefreshedKeys::default()),
+                Err(collision("0042", "PP-760", "PP-760"))
+            );
+        }
+
+        #[test]
+        fn a_tracker_target_held_as_another_items_alias_is_refused_naming_both()
+        {
+            let corpus = [
+                linked("0042", "PP-760"),
+                candidate(
+                    "id: \"ENG-1\"\nexternal_id: \"ENG-1\"\naliases: [\"PP-760\"]",
+                ),
+            ];
+            assert_eq!(
+                mapped(&corpus, &RefreshedKeys::default()),
+                Err(collision("0042", "ENG-1", "PP-760"))
+            );
+        }
+
+        #[test]
+        fn two_items_sharing_an_external_id_are_refused_naming_both() {
+            let corpus = [linked("0041", "PP-760"), linked("0042", "PP-760")];
+            assert_eq!(
+                mapped(&corpus, &RefreshedKeys::default()),
+                Err(collision("0041", "0042", "PP-760"))
+            );
+        }
+
+        #[test]
+        fn a_moved_key_equal_to_another_items_id_is_refused_naming_both() {
+            let corpus =
+                [linked("PP-760", "PP-760"), linked("ENG-42", "ENG-42")];
+            assert_eq!(
+                mapped(&corpus, &moved("PP-760", "ENG-42")),
+                Err(collision("PP-760", "ENG-42", "ENG-42"))
+            );
+        }
+
+        #[test]
+        fn a_not_found_key_keeps_its_stored_value() {
+            assert_eq!(
+                RefreshedKeys::default().current_key_for(&key("PP-760")),
+                key("PP-760")
+            );
+            assert_eq!(
+                mapped(&[linked("0042", "PP-760")], &RefreshedKeys::default()),
+                Ok(vec![onto("0042", "PP-760")])
+            );
+        }
+
+        #[test]
+        fn an_external_id_of_no_tracker_shape_is_unclassifiable() {
+            assert_eq!(
+                mapped(
+                    &[linked("0042", "not a key")],
+                    &RefreshedKeys::default()
+                ),
+                Err(NotRekeyed::Unclassifiable(path_of("0042")))
+            );
+        }
+
+        #[test]
+        fn draft_draws_that_all_collide_are_refused() {
+            let corpus = [unlinked("draft-k3x9mq"), unlinked("0042")];
+            assert!(matches!(
+                tracker_mapping(
+                    &corpus,
+                    &RefreshedKeys::default(),
+                    &mut drawing(&["k3x9mq"; 16]),
+                ),
+                Err(NotRekeyed::DraftIdExhausted(_))
+            ));
+        }
     }
 }

@@ -546,6 +546,21 @@ impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
 pub mod work::rekey::mapping
+pub struct work::rekey::mapping::RefreshedKeys(_)
+impl work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::current_key_for(&self, stored: &work::tracker_key::TrackerKey) -> work::tracker_key::TrackerKey
+impl core::clone::Clone for work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::clone(&self) -> work::rekey::mapping::RefreshedKeys
+impl core::cmp::Eq for work::rekey::mapping::RefreshedKeys
+impl core::cmp::PartialEq for work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::eq(&self, other: &work::rekey::mapping::RefreshedKeys) -> bool
+impl core::default::Default for work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::default() -> work::rekey::mapping::RefreshedKeys
+impl core::fmt::Debug for work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, work::tracker_key::TrackerKey)> for work::rekey::mapping::RefreshedKeys
+pub fn work::rekey::mapping::RefreshedKeys::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::tracker_key::TrackerKey)>>(moves: I) -> Self
+impl core::marker::StructuralPartialEq for work::rekey::mapping::RefreshedKeys
 pub struct work::rekey::mapping::RekeyCandidate
 pub work::rekey::mapping::RekeyCandidate::created: work::rekey::creation_date::CreationDate
 pub work::rekey::mapping::RekeyCandidate::identity: work::identity::ItemIdentity
@@ -558,6 +573,7 @@ impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::numeric_mapping(scheme: &corpus::work_item_id::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::tracker_mapping(candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed
 pub work::rekey::outcome::NotRekeyed::Collision
