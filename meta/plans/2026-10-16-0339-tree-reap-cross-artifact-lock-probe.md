@@ -741,7 +741,7 @@ impl HeldTreeLock {
 
 #### Manual Verification:
 
-- [ ] The only production behaviour changes are `publish_pointer` using
+- [x] The only production behaviour changes are `publish_pointer` using
       `temp_pointer`, and the single-flight locks confirming their inode
 
 ---
