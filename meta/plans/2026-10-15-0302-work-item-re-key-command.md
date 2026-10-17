@@ -1671,15 +1671,15 @@ review.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p work-adapters --test rekey_run_plan_store --test identity_run --test rekey_guards --test rekey_working_copy --test rekey_execute --test rekey_run`
-- [ ] `cd cli && cargo test -p work-adapters --test identity_run_lock --test ignored_dir --test retirement_records`
-- [ ] `mise run test:unit:tasks` (the three re-run benchmarks)
-- [ ] `mise run test:integration:skill-invocation` (four skills gain the re-key branch)
-- [ ] `cd cli && cargo test -p accelerator-work rekey`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_rekey --test cli_surface --test personal_file --test keyword_exit_codes --test exit_codes_parity`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work-adapters --test rekey_run_plan_store --test identity_run --test rekey_guards --test rekey_working_copy --test rekey_execute --test rekey_run`
+- [x] `cd cli && cargo test -p work-adapters --test identity_run_lock --test ignored_dir --test retirement_records`
+- [x] `mise run test:unit:tasks` (the three re-run benchmarks)
+- [x] `mise run test:integration:skill-invocation` (four skills gain the re-key branch)
+- [x] `cd cli && cargo test -p accelerator-work rekey`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_rekey --test cli_surface --test personal_file --test keyword_exit_codes --test exit_codes_parity`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -1697,6 +1697,48 @@ review.
 - [ ] Start `work sync` against a slow tracker, run `work create` in another
       terminal, and confirm it prints the waiting line and proceeds once
       the sync finishes.
+
+As built, Phase 5 differs from the sketch above in these ways:
+
+- **Retirement fixes.** Two defects in the retirement planner surfaced and
+  were fixed test-first: a path spelling such as `0041-first.md` matched
+  inside `ACC-0041-first.md`, so re-planning a finished renumbering
+  rewrote its own links (`corpus::references` now bounds spellings as
+  whole tokens); and renumbering a synced item rewrote its own
+  `external_id` to the new local ID (it now keeps the tracker link).
+- **Request.** `RekeyRequest` carries `action`, `forcing` and `scheme`.
+  `Forcing { Unforced, Forced }` replaces `WorkingCopyCheck`, since one
+  `ACCELERATOR_FORCE` skips the working-copy check on an apply and the
+  revert check on a discard. `RekeyAction` has `Apply` and `Discard`;
+  Phase 6 adds `Preview`. No `KeyRefresh` port yet; Phase 7 adds it.
+- **Ports.** `IdentityRunLock::new(state_dir, writer)` and
+  `FileRunPlanStore::new(state_dir, repo_root, writer, remover)` take the
+  store they write through, so the halting harness counts every
+  mutation; plan paths persist repo-relative and are re-rooted on load.
+  `set_aside` writes the copy then removes the plan, since a rename is
+  the store's job alone. `RekeyCorpus { repo_root, state_dir, ports }`
+  carries what `write_set`, `current_states` and `execute` share, and a
+  `RekeyProgress` port reports waiting, each applied entry, and the
+  partly-applied evidence a discard of an unreadable plan prints.
+- **Guards.** `unfinished_sync_work(sync)`, `pending_pushes(sync, entries,
+  items)` and `unsettled_recoveries(sync)` split the guard reads, since
+  the sync guards run before the mapping exists. A malformed retirement
+  record blocks naming the records directory.
+- **Composition.** `IdentityWorkspace`'s corpus half is split out as
+  `CorpusWorkspace`, which rekey opens alone without an integration,
+  instead of an `open_local` that left the integration fields empty.
+  `work-cli`'s `identity_run::begin` starts a guarded command; `create`
+  and `create-batch` take it through `Seams`, so a test can count
+  acquisitions. `SettlementPorts` and `ConfiguredLocalAuthor` carry the
+  guard, so `promote`, `create_local_item` and `allocate_id` take one.
+- **Tests.** The halting test drives `run` in `rekey_run.rs`; the real git
+  and jj tests are gated on `bash-parity`. Under a numeric pattern no
+  registry is passed to `work rekey`, so
+  `no_tracker_is_resolved_under_a_numeric_pattern` is held by
+  `cli_rekey`'s `a_numeric_rekey_reaches_no_network`.
+  `sync_holds_the_identity_run_lock_across_its_pulls` checks the lockdir
+  from a delegating tracker's `fetch_all`. The retirement-records unit
+  tests moved to `tests/retirement_records.rs`.
 
 ---
 
