@@ -2003,7 +2003,7 @@ stderr note that it was ignored.
 
 #### Manual Verification
 
-- [ ] In a scratch repository on `{tracker}` with Linear, move an issue to
+- [x] In a scratch repository on `{tracker}` with Linear, move an issue to
       another team, run `work rekey --preview`, and confirm the line names
       the new key.
 - [x] Repeat with networking disabled and confirm exit 70 and no run plan.
