@@ -2,3 +2,4 @@
 //! `work.id_pattern`.
 
 pub mod creation_date;
+pub mod sequence;

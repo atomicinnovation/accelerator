@@ -473,6 +473,9 @@ impl core::fmt::Debug for work::rekey::creation_date::CreationDate
 pub fn work::rekey::creation_date::CreationDate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::rekey::creation_date::CreationDate
 impl core::marker::StructuralPartialEq for work::rekey::creation_date::CreationDate
+pub mod work::rekey::sequence
+pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
+pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
