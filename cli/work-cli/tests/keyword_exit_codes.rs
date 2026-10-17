@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use corpus::StoreError;
 use tracker::ExternalId;
 use work::create_batch::BatchKeyword;
+use work::draft_id::DraftIdExhausted;
 use work::identity::IdentityField;
 use work::promotion::NotPromoted;
 use work::rekey::entry::RekeyEntry;
@@ -222,6 +223,7 @@ const FROZEN_NOT_REKEYED: &[(&str, u8)] = &[
     ("E_REKEY_STATE_UNWRITABLE", 1),
     ("E_IDENTITY_RUN_BUSY", 1),
     ("E_REKEY_TRACKER_UNREACHABLE", 70),
+    ("E_DRAFT_ID_EXHAUSTED", 1),
 ];
 
 fn rekey_entry() -> RekeyEntry {
@@ -281,6 +283,7 @@ fn every_not_rekeyed() -> Vec<NotRekeyed> {
         NotRekeyed::StateUnwritable(String::new()),
         NotRekeyed::IdentityRunBusy(None),
         NotRekeyed::TrackerUnreachable(String::new()),
+        NotRekeyed::DraftIdExhausted(DraftIdExhausted { attempts: 16 }),
     ]
 }
 

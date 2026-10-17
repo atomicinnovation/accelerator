@@ -142,7 +142,7 @@
 //!   `work.id_pattern: "{tracker}"`, which this release cannot yet re-key,
 //!   `E_REKEY_TRACKER_PATTERN_PENDING` refuses too.
 //! - `1` — `E_REKEY_STATE_UNWRITABLE` (the run plan cannot be saved or
-//!   removed) and `E_IDENTITY_RUN_BUSY`.
+//!   removed), `E_IDENTITY_RUN_BUSY` and `E_DRAFT_ID_EXHAUSTED`.
 //! - `70` — `E_REKEY_TRACKER_UNREACHABLE`.
 //!
 //! `work sync`, `work promote`, `work create`, `work create-batch`,

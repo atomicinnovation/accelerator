@@ -4,6 +4,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use crate::draft_id::DraftIdExhausted;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::fingerprint::Staleness;
 use crate::rekey::run_plan::Unreadability;
@@ -75,6 +76,7 @@ pub enum NotRekeyed {
     StateUnwritable(String),
     IdentityRunBusy(Option<Holder>),
     TrackerUnreachable(String),
+    DraftIdExhausted(DraftIdExhausted),
 }
 
 const INTERNAL_ERROR: u8 = 1;
@@ -113,15 +115,16 @@ impl NotRekeyed {
             Self::StateUnwritable(_) => "E_REKEY_STATE_UNWRITABLE",
             Self::IdentityRunBusy(_) => "E_IDENTITY_RUN_BUSY",
             Self::TrackerUnreachable(_) => "E_REKEY_TRACKER_UNREACHABLE",
+            Self::DraftIdExhausted(_) => "E_DRAFT_ID_EXHAUSTED",
         }
     }
 
     #[must_use]
     pub const fn exit_code(&self) -> u8 {
         match self {
-            Self::StateUnwritable(_) | Self::IdentityRunBusy(_) => {
-                INTERNAL_ERROR
-            }
+            Self::StateUnwritable(_)
+            | Self::IdentityRunBusy(_)
+            | Self::DraftIdExhausted(_) => INTERNAL_ERROR,
             Self::TrackerUnreachable(_) => RETRYABLE,
             _ => AWAITING_HUMAN,
         }
@@ -218,6 +221,9 @@ impl NotRekeyed {
             Self::TrackerUnreachable(detail) => {
                 format!("the tracker could not be read ({detail})")
             }
+            Self::DraftIdExhausted(exhausted) => {
+                format!("no free draft ID after {} draws", exhausted.attempts)
+            }
         }
     }
 
@@ -311,6 +317,7 @@ impl NotRekeyed {
             Self::TrackerUnreachable(_) => {
                 "Retry when the tracker is reachable".to_owned()
             }
+            Self::DraftIdExhausted(_) => "Re-run the command".to_owned(),
         }
     }
 
@@ -436,6 +443,7 @@ mod tests {
     use super::Holder;
     use super::NotRekeyed;
     use super::SyncBlocker;
+    use crate::draft_id::DraftIdExhausted;
     use crate::identity::IdentityField;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
@@ -502,7 +510,8 @@ mod tests {
             | NotRekeyed::RestoreIncomplete { .. }
             | NotRekeyed::StateUnwritable(_)
             | NotRekeyed::IdentityRunBusy(_)
-            | NotRekeyed::TrackerUnreachable(_) => {}
+            | NotRekeyed::TrackerUnreachable(_)
+            | NotRekeyed::DraftIdExhausted(_) => {}
         }
     }
 
@@ -706,6 +715,10 @@ mod tests {
                 NotRekeyed::TrackerUnreachable("connection refused".into()),
                 "Retry when the tracker is reachable",
             ),
+            (
+                NotRekeyed::DraftIdExhausted(DraftIdExhausted { attempts: 16 }),
+                "no free draft ID after 16 draws. Re-run the command",
+            ),
         ]
     }
 
@@ -733,7 +746,7 @@ mod tests {
             assert_eq!(variants.len(), expected, "{code}");
             assert!(code.starts_with("E_"), "{code}");
         }
-        assert_eq!(by_code.len(), 19);
+        assert_eq!(by_code.len(), 20);
     }
 
     #[test]
