@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T18:20:00+00:00"
+last_updated: "2026-10-17T21:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1993,12 +1993,12 @@ stderr note that it was ignored.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p work-adapters --test rekey_refresh`
-- [ ] `cd cli && cargo test -p work rekey`
-- [ ] `cd cli && cargo test -p accelerator-work rekey`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_surface`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work-adapters --test rekey_refresh`
+- [x] `cd cli && cargo test -p work rekey`
+- [x] `cd cli && cargo test -p accelerator-work rekey`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_surface`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -2006,6 +2006,28 @@ stderr note that it was ignored.
       another team, run `work rekey --preview`, and confirm the line names
       the new key.
 - [ ] Repeat with networking disabled and confirm exit 70 and no run plan.
+
+As built, Phase 7 differs from the sketch above in these ways:
+
+- **Draft exhaustion.** Minting a draft can exhaust its bounded draws, so
+  `NotRekeyed` gains `DraftIdExhausted`, `E_DRAFT_ID_EXHAUSTED` with exit
+  1, as `work next-number` prints; the frozen table holds it.
+- **Mapping edges.** An `external_id` not shaped like a tracker key is
+  `E_REKEY_UNCLASSIFIABLE_ID`; a located answer not shaped like one keeps
+  the stored key, as sync's `decide_key_change` follows rather than
+  retires. `RefreshedKeys` is built `FromIterator<(String, TrackerKey)>`.
+- **Ports.** `RekeyPorts` gains `refresh: &dyn KeyRefresh` and
+  `draws: &RefCell<dyn SuffixDraws>`; `run` asks the port whenever it
+  computes a `{tracker}` mapping, and the production port answers an empty
+  key set without resolving a tracker.
+- **Selection and the note.** `RekeyReport` is unchanged. The production
+  `KeyRefresh` keeps any `SelectionError` it met, which `work-cli` renders
+  through `dispatch_code_for_selection_error` before any refusal, and
+  records whether it was asked, which decides the `--per-item-reads`
+  note. `RekeyEnvironment` carries the `TrackerRegistry`.
+- **Test seam.** `RecordingTracker::failing_fetch_all` drives the
+  pre-flight `fetch_all` failure. `per_item_reads_under_the_tracker_pattern_locates_each_key`
+  was added in `work-cli`.
 
 ---
 
