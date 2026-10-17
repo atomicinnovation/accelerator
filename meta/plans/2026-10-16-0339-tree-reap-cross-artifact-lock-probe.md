@@ -5,7 +5,7 @@ title: "Tree Reap Cross-Artifact Lock Probe Implementation Plan"
 date: "2026-10-16T15:56:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0339"
 parent: "work-item:0339"
 derived_from: ["codebase-research:2026-10-16-0339-tree-reap-cross-artifact-lock-probe"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
 revision: "51ab2d9e870fb271111cc49fcd7b4ff5491c91b6"
 repository: "accelerator"
-last_updated: "2026-10-17T12:26:43+00:00"
+last_updated: "2026-10-17T16:32:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -259,7 +259,8 @@ replaced.
 #### 1. Test support
 
 **File**: `cli/launcher/src/launch/outbound/resolve/tree/testing.rs`
-(`#[cfg(test)] mod testing;` in `tree/mod.rs`)
+(`#[cfg(test)] #[allow(clippy::expect_used, clippy::panic)] mod testing;`
+in `tree/mod.rs`)
 
 Move `Buffer` and `logged()` from `reap.rs` tests into this module, so
 `reap.rs` and `download.rs` share them. The existing
@@ -347,7 +348,7 @@ pub fn temp_pointer(&self, generation: &str) -> PathBuf {
 - `an_artifact_name_extending_another_owns_its_own_entries`:
   `browser-extra`.
 - `an_artifact_name_containing_a_platform_owns_its_own_entries`:
-  `driver-linux-x64-shim`.
+  `driver-linux-x64-shim`, on both `linux-x64` and `darwin-arm64`.
 - `an_artifact_name_ending_in_its_platform_owns_its_own_entries`:
   `foo-linux-x64` on `linux-x64`.
 - `a_hyphenated_platform_is_split_whole`: `darwin-arm64`.
@@ -365,7 +366,8 @@ pub fn temp_pointer(&self, generation: &str) -> PathBuf {
 - `temp_entry_names_are_fixed_across_launcher_versions`: the exact
   literal file names of `single_flight_lock_of`, `temp_archive_of`,
   `temp_generation` and `temp_pointer` for one fixed artifact, platform,
-  digest and suffix.
+  digest and suffix. The expected names are built with `[..].concat()`,
+  not `format!`, so the phase's `rg` check holds over tests too.
 
 ```rust
 /// The `(name, platform)` pair a tree lock is keyed on.
@@ -441,9 +443,10 @@ On `TreePaths`, add `single_flight_lock_of(&Artifact)` and
 `single_flight_lock` and `temp_archive` delegate to them. Derive `Clone`
 on `TreePaths`.
 
-Extend the `layout.rs` module doc with one sentence: the `.tmp-` names
-are a contract across launcher versions sharing a root, and a
-`LAYOUT_VERSION` bump does not cover them.
+Extend the `layout.rs` module doc with one paragraph: the `.tmp-` names
+are a contract between launcher versions sharing a root, since each reaps
+the others' residue by parsing them, and a `LAYOUT_VERSION` bump does not
+cover them.
 
 #### 5. Locks checked against their inode
 
@@ -484,7 +487,8 @@ together, when the lock is released.
     `WARN` that names the lock path.
   - `a_confirmed_lock_keeps_its_confirming_descriptor`: a structural check
     that the `Taken` guard holds two descriptors with matching
-    `(dev, ino)`. Local filesystems cannot reproduce NFS's lock emulation,
+    `(dev, ino)`. It reads `_file` and `_confirming` directly, so it
+    carries `#[allow(clippy::used_underscore_binding)]`. Local filesystems cannot reproduce NFS's lock emulation,
     so this test cannot see a close between `flock` and the guard being
     built. `SingleFlight::confirmed` being the only constructor is what
     rules that out.
@@ -508,8 +512,14 @@ together, when the lock is released.
   the retry, and this test pins the wiring of the public function.
 - **The per-caller mappings** are pure functions, `take_outcome`,
   `try_outcome` and `probe_outcome`, each from `Locked`. Each has one test
-  per cell of the table below. Probe mapping `KeptBeingReplaced` to `Held`
-  is the cell the reap's safety relies on.
+  per cell of the table below, named for the cell (for example
+  `try_treats_a_lock_that_keeps_being_replaced_as_contention`). Probe
+  mapping `KeptBeingReplaced` to `Held` is the cell the reap's safety
+  relies on.
+- **Test fixtures** rename a fresh file over the lock path to replace it.
+  `lease.rs` therefore joins `ALLOWLIST` in
+  `tasks/lint/store_duplication.py`, with the reason that the renames are
+  test-only and the module writes no data.
 
 ```rust
 const MAX_LOCK_ATTEMPTS: usize = 8;
@@ -594,7 +604,10 @@ fn lock_confirmed(
 
 **Test first**: `is_displacement` has one pure test per cell. `NotFound`
 and `ESTALE` (built with `std::io::Error::from_raw_os_error`) displace;
-`EACCES` and `ENOTDIR` do not. On a root shared by several NFS clients,
+`EACCES` and `ENOTDIR` do not. The tests are
+`a_missing_file_is_a_displacement`, `a_stale_handle_is_a_displacement`,
+`a_denied_access_is_not_a_displacement` and
+`a_path_through_a_file_is_not_a_displacement`. On a root shared by several NFS clients,
 another client's unlink shows up as `ESTALE` on a descriptor that is
 still open, so it is a displacement, not a fault.
 
@@ -633,6 +646,10 @@ Contention there is not a fault, so it should not become a sticky
 
 `open_creating` and `open_existing` are free functions of the path. The
 opener therefore always opens exactly the path that `placement` checks.
+`open_creating` keeps the old `open_lock_file`'s options (read, write,
+create, no truncate, `0o600`) and replaces it. The `Absent` and
+`KeptBeingReplaced` faults share two error constructors, `no_lock_file()`
+and `kept_being_replaced()`.
 
 #### 6. Lock probe that neither blocks nor creates the file
 
@@ -698,7 +715,8 @@ Export it with `pub use unix::{probe_single_flight, ...}`. Add an
 
 **File**: `cli/launcher/src/launch/outbound/resolve/tree/tree_lock.rs`
 (new, composing `lease`'s primitives, which stay free of tree-domain
-types)
+types). The module is not `cfg`-gated, since `lease` has non-Unix stubs;
+its tests are `#[cfg(all(test, unix))]`.
 
 **Tests first** (every case where the lock is held elsewhere runs
 through `testing::within`):
@@ -727,6 +745,9 @@ impl HeldTreeLock {
     pub const fn paths(&self) -> &TreePaths;
 }
 ```
+
+`take` and `try_take` both build the value through one private
+constructor, `holding(paths, artifact, guard)`, which clones `paths`.
 
 ### Success Criteria:
 
