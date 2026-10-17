@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
 revision: "51ab2d9e870fb271111cc49fcd7b4ff5491c91b6"
 repository: "accelerator"
-last_updated: "2026-10-17T17:40:38+00:00"
+last_updated: "2026-10-17T19:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1699,17 +1699,17 @@ Make the matching correction to `prune`'s docstring.
 
 #### Automated Verification:
 
-- [ ] AC1, AC2, AC6, AC6′, AC8, AC10 and AC12 are observed failing for a behavioural reason before item 4, with `CI=1` and `minisign` on `PATH`
-- [ ] AC5 and AC9 pass before and after item 4
-- [ ] Reap tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib tree::`
-- [ ] AC12 tests pass: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution survives_this_ones`
-- [ ] Full launcher suite passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator`
-- [ ] `mise run check` exits 0
-- [ ] `mise run` (bare default task) exits 0 end-to-end
+- [x] AC1, AC2, AC6, AC6′, AC8, AC10 and AC12 are observed failing for a behavioural reason before item 4, with `CI=1` and `minisign` on `PATH`
+- [x] AC5 and AC9 pass before and after item 4
+- [x] Reap tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib tree::`
+- [x] AC12 tests pass: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution survives_this_ones`
+- [x] Full launcher suite passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator`
+- [x] `mise run check` exits 0
+- [x] `mise run` (bare default task) exits 0 end-to-end
 
 #### Manual Verification:
 
-- [ ] Each over-correction mutation in item 4 fails the guard named for
+- [x] Each over-correction mutation in item 4 fails the guard named for
       it, then is reverted
 - [ ] `cache prune` on a populated real cache root still reports reclaimed
       entries, and leaves the `browser` and `driver` lock files in place
