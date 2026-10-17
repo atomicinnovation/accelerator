@@ -8,6 +8,7 @@
 //! whole streaming path exists to avoid.
 
 use std::fs::File;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest as _, Sha256};
@@ -15,7 +16,7 @@ use sha2::{Digest as _, Sha256};
 use crate::launch::core::tree::TreeError;
 
 use super::super::fetcher::{
-    FetchError, Fetcher, Resumed, SinkMode, StreamLimits, StreamSink,
+    FetchError, Fetcher, Resumed, SinkMode, StreamLimits, StreamSink, Whole,
 };
 use super::super::keys::TrustedKeys;
 
@@ -102,10 +103,17 @@ impl AssessedPartial {
 /// digest is recomputed over the whole file, so a resumed transfer is verified
 /// exactly as a fresh one is.
 ///
+/// A partial that cannot be read or written is discarded and replaced. One
+/// that fails its digest is the caller's to discard, since only the caller
+/// checks the digest.
+///
 /// # Errors
 ///
 /// [`TreeError::Unreachable`] wrapping the transport cause — a bare fetch
 /// failure is an availability failure, not tampering, so a crawl degrades.
+/// [`TreeError::CacheRootUnwritable`] if the archive cannot be written even
+/// after the partial is discarded, and [`TreeError::Extraction`] if the
+/// partial cannot be re-read.
 pub fn stream_archive(
     fetcher: &Fetcher,
     url: &str,
@@ -135,41 +143,81 @@ struct Download<'a> {
 
 impl Download<'_> {
     fn fetch_whole(&self) -> Result<[u8; 32], TreeError> {
-        self.fetcher
-            .get_whole(self.url, &self.limits, &mut || {
-                open_archive_sink(self.path, SinkMode::Truncate)
-            })
+        let whole = match self.get_whole() {
+            Err(FetchError::Sink(_)) => {
+                discard_partial_archive(self.path);
+                self.get_whole()
+            }
+            fetched => fetched,
+        };
+        whole
             .map(|whole| whole.sha256)
-            .map_err(|error| self.unreachable(&error))
+            .map_err(|error| self.fetch_failure(&error))
+    }
+
+    fn get_whole(&self) -> Result<Whole, FetchError> {
+        self.fetcher.get_whole(self.url, &self.limits, &mut || {
+            open_archive_sink(self.path, SinkMode::Truncate)
+        })
     }
 
     fn resume_from(&self, held: u64) -> Result<[u8; 32], TreeError> {
-        let resumed = self
-            .fetcher
-            .resume(self.url, &self.limits, held, &mut |mode| {
-                open_archive_sink(self.path, mode)
-            })
-            .map_err(|error| self.unreachable(&error))?;
+        let resumed =
+            self.fetcher
+                .resume(self.url, &self.limits, held, &mut |mode| {
+                    open_archive_sink(self.path, mode)
+                });
         match resumed {
-            Resumed::Whole(whole) => Ok(whole.sha256),
-            Resumed::Appended | Resumed::AlreadyComplete => {
+            Ok(Resumed::Whole(whole)) => Ok(whole.sha256),
+            Ok(Resumed::Appended | Resumed::AlreadyComplete) => {
                 self.digest_partial()
             }
-            Resumed::RangeRejected => self.fetch_whole(),
+            Ok(Resumed::RangeRejected) => self.fetch_whole(),
+            Err(FetchError::Sink(_)) => {
+                discard_partial_archive(self.path);
+                self.fetch_whole()
+            }
+            Err(error) => Err(self.fetch_failure(&error)),
         }
     }
 
-    /// A local re-read of at most ~120MB, not a second network pass.
+    /// A local re-read of at most ~120MB, not a second network pass. Only a
+    /// fault of the file itself discards it; a transient one keeps a download
+    /// that may well be valid.
     fn digest_partial(&self) -> Result<[u8; 32], TreeError> {
-        digest_file(self.path)
+        match digest_file(self.path) {
+            Ok(digest) => Ok(digest),
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                self.fetch_whole()
+            }
+            Err(error) => {
+                if error.kind() == ErrorKind::PermissionDenied {
+                    discard_partial_archive(self.path);
+                }
+                Err(TreeError::Extraction {
+                    detail: format!(
+                        "cannot re-read the partial archive {}: {error}",
+                        self.path.display()
+                    ),
+                })
+            }
+        }
     }
 
-    fn unreachable(&self, error: &FetchError) -> TreeError {
-        TreeError::Unreachable {
-            detail: format!(
-                "could not fetch the archive from {}: {error:?}",
-                self.url
-            ),
+    fn fetch_failure(&self, error: &FetchError) -> TreeError {
+        match error {
+            FetchError::Sink(detail) => TreeError::CacheRootUnwritable {
+                detail: format!(
+                    "cannot write the archive to {}: {detail}",
+                    self.path.display()
+                ),
+            },
+            _ => TreeError::Unreachable {
+                detail: format!(
+                    "could not fetch the archive from {}: {error:?}",
+                    self.url
+                ),
+            },
         }
     }
 }
@@ -207,27 +255,43 @@ fn open_archive_sink(
     Ok(Box::new(FileSink { file }))
 }
 
-fn digest_file(path: &Path) -> Result<[u8; 32], TreeError> {
-    use std::io::Read as _;
-    let mut file = File::open(path).map_err(|error| TreeError::Extraction {
-        detail: format!("cannot re-read the resumed archive: {error}"),
-    })?;
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0_u8; 64 * 1024];
-    loop {
-        let read =
-            file.read(&mut buffer)
-                .map_err(|error| TreeError::Extraction {
-                    detail: format!(
-                        "cannot re-read the resumed archive: {error}"
-                    ),
-                })?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
+/// Remove the partial archive, or whatever directory sits in its place.
+///
+/// A failed removal is warned rather than returned, so it can never replace
+/// the error that made the caller discard the partial.
+pub fn discard_partial_archive(path: &Path) {
+    let removed = match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() => std::fs::remove_dir_all(path),
+        Ok(_) => std::fs::remove_file(path),
+        Err(error) if error.kind() == ErrorKind::NotFound => return,
+        Err(error) => Err(error),
+    };
+    if let Err(error) = removed {
+        tracing::warn!(
+            partial = %path.display(),
+            %error,
+            "cannot discard the partial archive"
+        );
     }
-    Ok(hasher.finalize().into())
+}
+
+fn digest_file(path: &Path) -> std::io::Result<[u8; 32]> {
+    let mut hashing = Hashing(Sha256::new());
+    std::io::copy(&mut File::open(path)?, &mut hashing)?;
+    Ok(hashing.0.finalize().into())
+}
+
+struct Hashing(Sha256);
+
+impl std::io::Write for Hashing {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.update(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 struct FileSink {
@@ -331,7 +395,11 @@ mod tests {
 
     use super::super::super::fetcher::SinkMode;
     use super::super::super::keys::TrustedKeys;
-    use super::{open_archive_sink, verify_archive_file, PartialArchive};
+    use super::super::testing::logged;
+    use super::{
+        discard_partial_archive, open_archive_sink, verify_archive_file,
+        PartialArchive,
+    };
 
     // The same throwaway keypair the keys tests use, over the same body.
     const TEST_PUB: &str = "untrusted comment: test key\n\
@@ -463,5 +531,38 @@ mod tests {
 
         assert!(opened.is_err(), "a short partial was opened for appending");
         assert_eq!(std::fs::metadata(&path).expect("metadata").len(), 5);
+    }
+
+    #[test]
+    fn a_partial_that_cannot_be_discarded_is_warned() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parent = dir.path().join("read-only");
+        let partial = parent.join("partial.archive");
+        std::fs::create_dir_all(&partial).expect("partial");
+        std::fs::write(partial.join("member"), b"x").expect("member");
+        let set_mode = |mode| {
+            std::fs::set_permissions(
+                &parent,
+                std::fs::Permissions::from_mode(mode),
+            )
+            .expect("chmod");
+        };
+        set_mode(0o555);
+        if std::fs::write(parent.join("probe"), b"").is_ok() {
+            set_mode(0o755);
+            eprintln!("skipping: this process writes into read-only dirs");
+            return;
+        }
+
+        let log = logged(|| discard_partial_archive(&partial));
+
+        set_mode(0o755);
+        assert!(log.contains("WARN"), "no warning: {log}");
+        assert!(
+            log.contains(&partial.display().to_string()),
+            "the warning names no path: {log}"
+        );
     }
 }
