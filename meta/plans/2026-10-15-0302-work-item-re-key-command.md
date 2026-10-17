@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T12:17:24+00:00"
+last_updated: "2026-10-17T12:25:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -711,7 +711,8 @@ handed out, what collides, and the run plan with its fingerprint and preview.
 - `a_prefixed_id_yields_its_sequence_number` — `ACC-0042` → 42.
 - `an_id_of_no_numeric_shape_yields_none`
 - `an_id_is_in_target_shape_only_when_it_renders_back_to_itself_ignoring_case`
-  — `acc-0042` is on target under `ACC-{number:04d}`.
+  — `acc-0042` is on target under `{key}-{number:04d}` with
+  `work.key: "ACC"`.
 - `an_id_under_another_project_key_is_in_target_shape` — `XYZ-0001` under
   `{key}-{number:04d}` with `work.key: "ACC"`.
 - `an_id_under_another_key_at_the_wrong_width_is_not_in_target_shape` —
@@ -723,16 +724,17 @@ handed out, what collides, and the run plan with its fingerprint and preview.
   `ACC-0042` with `external_id: "PP-760"`.
 - `a_tracker_shaped_id_without_an_external_id_keeps_its_number` —
   `PP-760` → `Sequenced(760)`.
-- `an_unsynced_tracker_shaped_id_keeps_its_own_key_under_a_key_pattern` —
-  `PP-760` with no `external_id` under `{key}-{number:04d}` → `PP-0760`.
+- `a_draft_id_is_a_draft`
+- `an_id_of_no_known_shape_is_unclassifiable`
+
+`cli/work/src/rekey/entry.rs`:
+- `a_renumbered_target_retires_as_a_renumbering`
+- `a_tracker_key_target_retires_onto_the_key`
+- `a_draft_target_retires_into_the_draft`
 
 Throughout Phases 4 and 5, a `PP-760` or `PP-761` fixture that takes a fresh
 number is synced: it carries `external_id` equal to its `id`, as the work
 item's ACs say.
-- `a_draft_id_takes_a_fresh_number`
-- `an_unclassifiable_id_is_refused_naming_the_item`
-- `a_tracker_key_in_target_shape_still_takes_a_fresh_number` — `PP-7600`
-  with `external_id: "PP-7600"` under `{key}-{number:04d}`.
 
 `cli/work/src/rekey/mapping.rs` (numeric patterns):
 - `a_legacy_numeric_id_is_rerendered_under_a_key` — `0042` → `ACC-0042`.
@@ -741,7 +743,7 @@ item's ACs say.
   synced `PP-760` → `ACC-0042`, `ACC-0043`.
 - `fresh_numbers_start_above_every_id_and_alias_in_target_shape`
 - `fresh_numbers_start_above_a_bare_alias_that_canonicalises_into_target_shape`
-  — alias `0045` under `ACC-{number:04d}`.
+  — alias `0045` under `{key}-{number:04d}` with `work.key: "ACC"`.
 - `fresh_numbers_follow_date_order` — synced `PP-760` (2026-02-01),
   `draft-k3x9mq` (2026-01-01).
 - `equal_dates_fall_back_to_old_id_byte_order` — `PP-761` before
@@ -762,6 +764,13 @@ item's ACs say.
 - `a_bare_kept_number_moves_to_the_default_key` — `0042` → `ACC-0042`.
 - `fresh_numbers_go_to_the_default_key_above_its_own_floor` — `ACC-0003`,
   `XYZ-0009`, a draft → `ACC-0004`.
+- `an_unsynced_tracker_shaped_id_keeps_its_own_key_under_a_key_pattern` —
+  `PP-760` with no `external_id` under `{key}-{number:04d}` → `PP-0760`.
+- `a_draft_id_takes_a_fresh_number`
+- `a_tracker_key_in_target_shape_still_takes_a_fresh_number` — `PP-7600`
+  with `external_id: "PP-7600"` under `{key}-{number:04d}`.
+- `an_unclassifiable_id_is_refused_naming_the_item`
+- `a_colliding_target_is_refused`
 
 `cli/work/src/rekey/collision.rs`:
 - `a_target_held_as_another_items_id_is_refused_naming_both` — `0042` and
@@ -775,20 +784,25 @@ item's ACs say.
 - `a_target_held_ignoring_case_is_refused` — `acc-0042` against target
   `ACC-0042`.
 
-`cli/work/src/rekey/run_plan.rs`:
-- `preview_lines_are_ordered_by_old_id_byte_wise` — `0041 → ACC-0041`,
-  `draft-k3x9mq → ACC-0042`.
+`cli/work/src/rekey/fingerprint.rs`:
 - `the_fingerprint_names_each_item_whose_path_id_aliases_or_external_id_changed`
   (one case per field).
 - `the_fingerprint_names_an_added_item_and_a_removed_item`
 - `a_changed_scheme_is_stale_as_a_scheme_change`
 - `a_body_only_edit_leaves_the_fingerprint_unchanged`
-- `starting_a_proposed_plan_records_its_write_set_with_start_states`
+
+`cli/work/src/rekey/write_set.rs`:
 - `a_write_set_restored_to_its_start_states_has_no_changes`
 - `a_write_set_path_differing_from_its_start_digest_is_changed`
 - `a_new_file_where_the_start_state_was_absent_is_changed`
 - `extending_never_replaces_a_recorded_start_state`
 - `restore_paths_are_grouped_by_the_base_they_were_recorded_against`
+
+`cli/work/src/rekey/run_plan.rs`:
+- `preview_lines_are_ordered_by_old_id_byte_wise` — `0041 → ACC-0041`,
+  `draft-k3x9mq → ACC-0042`.
+- `starting_a_proposed_plan_records_its_write_set_with_start_states`
+- `an_in_progress_plan_extends_its_write_set_and_keeps_its_entries`
 - `a_plan_of_this_or_an_older_schema_is_readable`
 - `a_newer_schema_plan_is_unreadable_naming_the_version` — through
   `readable_schema`; the JSON round trip and the committed schema-1 fixture
@@ -801,6 +815,7 @@ item's ACs say.
   starts `<code>: ` and contains the table's remedy, joined to its cause by
   `. ` rather than `; `.
 - `a_malformed_plan_remedy_never_suggests_finishing_or_deleting_files`
+- `the_unreverted_paths_are_listed_under_their_base_revision`
 
 `cli/work/src/rekey/partly_applied.rs`:
 - `an_item_whose_alias_is_another_items_id_is_partly_applied_naming_both`
@@ -841,6 +856,8 @@ pub enum Classification {
 
 pub fn sequence_of(id: &str) -> Option<u64>;
 
+pub fn is_in_target_shape(id: &str, scheme: &WorkItemIdScheme) -> bool;
+
 pub fn classify(identity: &ItemIdentity) -> Classification;
 
 pub enum RekeyTarget {
@@ -854,8 +871,27 @@ pub struct RekeyEntry {
     pub target: RekeyTarget,
 }
 
+impl RekeyTarget {
+    pub fn id(&self) -> &str;
+}
+
 impl RekeyEntry {
     pub fn retirement(&self) -> Retirement<'_>;
+}
+
+pub const RUN_PLAN_SCHEMA: u32 = 1;
+
+pub const fn readable_schema(schema: u32) -> Result<(), Unreadability>;
+
+pub struct Holder {
+    pub pid: u32,
+    pub command: Option<String>,
+}
+
+pub enum SyncBlocker {
+    Retirement { old: String, new: String },
+    Promotion { draft: String },
+    UnreadableRecord(PathBuf),
 }
 
 pub struct UnreadablePlan {
@@ -901,6 +937,11 @@ pub fn numeric_mapping(
     candidates: &[RekeyCandidate],
 ) -> Result<Vec<RekeyEntry>, NotRekeyed>;
 
+pub fn refuse_collisions(
+    entries: &[RekeyEntry],
+    items: &[ItemIdentity],
+) -> Result<(), NotRekeyed>;
+
 pub fn partly_applied(items: &[ItemIdentity]) -> Vec<PathBuf>;
 
 pub struct IdentityFingerprint { /* scheme, items keyed by path */ }
@@ -920,7 +961,19 @@ pub enum StartState {
     Content(Digest),
 }
 
+pub struct Digest(String);
+
+impl Digest {
+    pub fn new(digest: impl Into<String>) -> Self;
+    pub fn as_str(&self) -> &str;
+}
+
 pub struct Base(Vec<String>);
+
+impl Base {
+    pub const fn new(commits: Vec<String>) -> Self;
+    pub fn commits(&self) -> &[String];
+}
 
 pub struct Recorded {
     pub state: StartState,
@@ -934,7 +987,12 @@ pub struct Unreverted {
     pub remove: Vec<String>,
 }
 
+impl Unreverted {
+    pub fn is_empty(&self) -> bool;
+}
+
 impl WriteSet {
+    pub fn recorded(&self, path: &str) -> Option<&Recorded>;
     pub fn unreverted(&self, now: &BTreeMap<String, StartState>) -> Unreverted;
     pub fn extended_with(
         self,
@@ -1014,15 +1072,14 @@ file) is a domain value here so `NotRekeyed` can carry it.
 As built, the module splits into `creation_date`, `sequence`, `classify`,
 `entry`, `fingerprint`, `write_set`, `run_plan`, `partly_applied`,
 `outcome`, `collision` and `mapping`, each importing its siblings through
-`crate::rekey`, since the `work` pup rule rejects `super::` paths. The
-classification tests that need a mapping (`PP-0760`, `PP-7600`, the
-unclassifiable refusal, a draft's fresh number) live in `mapping.rs`.
+`crate::rekey`, since the `work` pup rule rejects `super::` paths.
 "In target shape" renders through `canonicalise_id`, as `allocate` does, so
 a literal-prefix pattern such as `v{number:03d}` renders without its
 literal; the case-insensitive target-shape test therefore uses
 `{key}-{number:04d}` with `work.key: ACC`.
 
-`run_plan.rs` holds `RUN_PLAN_SCHEMA = 1` and `readable_schema`. Its entries are the extension
+`run_plan.rs` holds `RUN_PLAN_SCHEMA = 1` and `readable_schema`. Its
+entries are the extension
 point 0343's normalisation pass joins; the schema number moves when it does,
 and older schemas stay readable as a subset.
 
@@ -1359,11 +1416,6 @@ pub struct IdentityRunGuard { /* HeldIdentityRun; constructed only by begin_* */
 
 pub struct HeldIdentityRun { /* released on drop */ }
 
-pub struct Holder {
-    pub pid: u32,
-    pub command: Option<String>,
-}
-
 pub enum IdentityRunAttempt {
     Acquired(HeldIdentityRun),
     HeldBy(Option<Holder>),
@@ -1413,9 +1465,10 @@ pub fn begin_rekey_run(
 ) -> Result<IdentityRunGuard, NotRekeyed>;
 ```
 
-`identity_run` owns `RunPlanGate` and depends only on the `RunPlanStatus`
-port; `FileRunPlanStore` implements it by projecting its status, so
-`identity_run` does not depend on `rekey`. Retiring and allocating use
+`Holder` is `work::rekey::outcome::Holder`, which `NotRekeyed` already
+carries. `identity_run` owns `RunPlanGate` and depends only on the
+`RunPlanStatus` port; `FileRunPlanStore` implements it by projecting its
+status, so `identity_run` does not depend on `rekey`. Retiring and allocating use
 cases (`allocate_id`, `create_local_item`, the sync run, `promote`) gain an
 `&IdentityRunGuard` parameter, as `execute` takes `&RetirementLockGuard`.
 The port returns only a raw `HeldIdentityRun`; `IdentityRunGuard` has a
