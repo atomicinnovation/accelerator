@@ -174,17 +174,36 @@ impl Download<'_> {
     }
 }
 
+/// An appending sink first cuts the file back to the agreed offset, so a
+/// failed attempt's bytes never stay in it. It never creates or pads the file:
+/// a partial that vanished or shrank cannot be resumed.
 fn open_archive_sink(
     path: &Path,
     mode: SinkMode,
 ) -> std::io::Result<Box<dyn StreamSink>> {
-    let appending = matches!(mode, SinkMode::Append { .. });
-    let file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(appending)
-        .truncate(!appending)
-        .open(path)?;
+    let file = match mode {
+        SinkMode::Truncate => std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)?,
+        SinkMode::Append { from } => {
+            let mut file =
+                std::fs::OpenOptions::new().write(true).open(path)?;
+            if file.metadata()?.len() < from {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "the partial archive is shorter than the {from} bytes \
+                         it resumes from"
+                    ),
+                ));
+            }
+            file.set_len(from)?;
+            std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?;
+            file
+        }
+    };
     Ok(Box::new(FileSink { file }))
 }
 
@@ -310,8 +329,9 @@ mod tests {
 
     use crate::launch::core::tree::TreeError;
 
+    use super::super::super::fetcher::SinkMode;
     use super::super::super::keys::TrustedKeys;
-    use super::{verify_archive_file, PartialArchive};
+    use super::{open_archive_sink, verify_archive_file, PartialArchive};
 
     // The same throwaway keypair the keys tests use, over the same body.
     const TEST_PUB: &str = "untrusted comment: test key\n\
@@ -431,5 +451,17 @@ mod tests {
     #[test]
     fn an_over_long_partial_needs_nothing_more_since_truncation_frees_it() {
         assert_eq!(PartialArchive::OverLong.additional_bytes(ARCHIVE_SIZE), 0);
+    }
+
+    #[test]
+    fn a_partial_shorter_than_its_offset_is_replaced_not_padded() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("partial.archive");
+        std::fs::write(&path, b"12345").expect("write");
+
+        let opened = open_archive_sink(&path, SinkMode::Append { from: 10 });
+
+        assert!(opened.is_err(), "a short partial was opened for appending");
+        assert_eq!(std::fs::metadata(&path).expect("metadata").len(), 5);
     }
 }

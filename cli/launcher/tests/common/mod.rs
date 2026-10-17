@@ -30,6 +30,10 @@ pub enum Route {
     /// Send headers promising a body, then go idle for this long without
     /// sending it — so the client's body read stalls (exercises read timeout).
     Stall(Duration),
+    /// As `Ok`, except that the first ranged request is answered with a 206
+    /// promising the whole suffix, half of which is sent before the
+    /// connection closes.
+    FailFirstRange(Vec<u8>),
 }
 
 struct Shared {
@@ -175,39 +179,25 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     };
     let index = hit.map_or(0, |count| count.fetch_add(1, Ordering::SeqCst));
 
-    if range_from.is_some() {
+    let earlier_ranges = if range_from.is_some() {
         let ranges = shared.ranges.lock().expect("ranges");
-        if let Some(count) = ranges.get(&path) {
-            count.fetch_add(1, Ordering::SeqCst);
-        }
-    }
+        ranges
+            .get(&path)
+            .map(|count| count.fetch_add(1, Ordering::SeqCst))
+    } else {
+        None
+    };
 
     let route = shared.routes.lock().expect("routes").get(&path).cloned();
-    let response = match route {
-        Some(Route::Ok(body)) => {
-            match range_from.and_then(|offset| usize::try_from(offset).ok()) {
-                Some(offset) if offset < body.len() => {
-                    let total = body.len();
-                    let suffix = body[offset..].to_vec();
-                    http_response(
-                        206,
-                        "Partial Content",
-                        &[(
-                            "Content-Range",
-                            &format!("bytes {offset}-{}/{total}", total - 1),
-                        )],
-                        &suffix,
-                    )
-                }
-                Some(_) => http_response(
-                    416,
-                    "Range Not Satisfiable",
-                    &[("Content-Range", &format!("bytes */{}", body.len()))],
-                    &[],
-                ),
-                None => http_response(200, "OK", &[], &body),
-            }
+    let route = match (route, range_from, earlier_ranges) {
+        (Some(Route::FailFirstRange(body)), Some(offset), Some(0)) => {
+            return send_half_of_the_suffix(&mut stream, &body, offset);
         }
+        (Some(Route::FailFirstRange(body)), _, _) => Some(Route::Ok(body)),
+        (route, _, _) => route,
+    };
+    let response = match route {
+        Some(Route::Ok(body)) => ranged_response(&body, range_from),
         Some(Route::Status(code)) => http_response(code, "STATUS", &[], &[]),
         Some(Route::Redirect(location)) => {
             http_response(302, "Found", &[("Location", location.as_str())], &[])
@@ -229,6 +219,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             thread::sleep(delay);
             return Ok(());
         }
+        Some(Route::FailFirstRange(_)) => {
+            unreachable!("a first-range failure resolves before dispatch")
+        }
         None => http_response(404, "Not Found", &[], &[]),
     };
     stream.write_all(&response)?;
@@ -237,6 +230,51 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
     Ok(())
+}
+
+fn ranged_response(body: &[u8], range_from: Option<u64>) -> Vec<u8> {
+    match range_from.and_then(|offset| usize::try_from(offset).ok()) {
+        Some(offset) if offset < body.len() => {
+            let total = body.len();
+            let suffix = body[offset..].to_vec();
+            http_response(
+                206,
+                "Partial Content",
+                &[(
+                    "Content-Range",
+                    &format!("bytes {offset}-{}/{total}", total - 1),
+                )],
+                &suffix,
+            )
+        }
+        Some(_) => http_response(
+            416,
+            "Range Not Satisfiable",
+            &[("Content-Range", &format!("bytes */{}", body.len()))],
+            &[],
+        ),
+        None => http_response(200, "OK", &[], body),
+    }
+}
+
+fn send_half_of_the_suffix(
+    stream: &mut TcpStream,
+    body: &[u8],
+    offset: u64,
+) -> std::io::Result<()> {
+    let offset = usize::try_from(offset).unwrap();
+    let suffix = &body[offset..];
+    let head = format!(
+        "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+         Content-Range: bytes {offset}-{}/{}\r\n\
+         Connection: close\r\n\r\n",
+        suffix.len(),
+        body.len() - 1,
+        body.len()
+    );
+    stream.write_all(head.as_bytes())?;
+    stream.write_all(&suffix[..suffix.len() / 2])?;
+    stream.flush()
 }
 
 fn http_response(
