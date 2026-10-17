@@ -456,6 +456,22 @@ pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Opti
 pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
 pub fn work::promotion::without_ids(text: &str, ids: &[&str]) -> alloc::string::String
 pub mod work::rekey
+pub mod work::rekey::classify
+pub enum work::rekey::classify::Classification
+pub work::rekey::classify::Classification::Draft
+pub work::rekey::classify::Classification::Sequenced(u64)
+pub work::rekey::classify::Classification::TrackerKey
+pub work::rekey::classify::Classification::Unclassifiable
+impl core::clone::Clone for work::rekey::classify::Classification
+pub fn work::rekey::classify::Classification::clone(&self) -> work::rekey::classify::Classification
+impl core::cmp::Eq for work::rekey::classify::Classification
+impl core::cmp::PartialEq for work::rekey::classify::Classification
+pub fn work::rekey::classify::Classification::eq(&self, other: &work::rekey::classify::Classification) -> bool
+impl core::fmt::Debug for work::rekey::classify::Classification
+pub fn work::rekey::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::rekey::classify::Classification
+impl core::marker::StructuralPartialEq for work::rekey::classify::Classification
+pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity) -> work::rekey::classify::Classification
 pub mod work::rekey::creation_date
 pub struct work::rekey::creation_date::CreationDate(_)
 impl work::rekey::creation_date::CreationDate
