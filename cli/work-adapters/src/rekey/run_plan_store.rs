@@ -57,7 +57,7 @@ pub trait RunPlanStore {
     fn remove(&self) -> Result<(), NotRekeyed>;
 
     /// Moves the plan aside, under a timestamped name beside it, and
-    /// returns where it went.
+    /// returns where it went. A run stopped part way leaves both copies.
     ///
     /// # Errors
     ///
@@ -404,8 +404,12 @@ impl RunPlanStore for FileRunPlanStore<'_> {
 
     fn set_aside(&self) -> Result<PathBuf, NotRekeyed> {
         let aside = self.dir.join(discarded_name());
-        std::fs::rename(self.path(), &aside)
+        let bytes = std::fs::read(self.path())
             .map_err(|error| self.unwritable(&error))?;
+        self.writer
+            .write(&aside, &bytes)
+            .map_err(|error| self.unwritable(&error))?;
+        self.remove()?;
         Ok(aside)
     }
 }
