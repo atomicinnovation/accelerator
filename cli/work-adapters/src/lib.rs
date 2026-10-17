@@ -8,6 +8,7 @@ pub mod diff;
 pub mod draft_id;
 pub mod filesystem;
 pub mod frontmatter_strings;
+pub mod identity_run;
 pub mod ignored_dir;
 pub mod promotion;
 pub mod promotion_records;
