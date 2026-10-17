@@ -28,6 +28,11 @@ pub const HOST_PLATFORM: &str = "linux-arm64";
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 pub const HOST_PLATFORM: &str = "linux-x64";
 
+/// Every platform alias a launcher build publishes trees for, so a cache
+/// entry's name can be split at its platform.
+pub const KNOWN_PLATFORMS: [&str; 4] =
+    ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"];
+
 /// Injectable resolver configuration.
 pub struct ResolverConfig {
     pub expected_version: String,
