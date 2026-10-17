@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T10:42:35+00:00"
+last_updated: "2026-10-17T11:51:12+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -162,7 +162,7 @@ Verify with `mise run` exiting 0.
 | `locate` answers `NotFound` under `{tracker}` | Target the stored `external_id` | Deletion is `work sync`'s concern, as the story's stale-key assumption says |
 | No VCS for `work rekey` | Unprobeable, so refused unless `ACCELERATOR_FORCE` | An apply must be undoable through VCS |
 | Serialisation | A dedicated identity-run lock, taken first and held for the whole command by `work sync`, `work promote`, `work create` (with or without `--push`, not `--dry-run`), `work create-batch`, `work next-number`, `work update --push` and `work rekey`; global order identity run → `BatchJournal` → `Retirement` → `Create` → `ForFile`, written into the `corpus::lock` module doc. Rekey also holds `Create` for its whole run | One lock closes the allocator race, the sync pull race, the baseline race and rekey-vs-rekey races together; holding `Create` makes an older binary's `work create`, which predates the identity-run lock, wait instead of racing |
-| Identity-run lock adapter | `IdentityRunLock::new(state_dir)` in `work-adapters`, modelled on `migrate-adapters`' `FileRunLock`: lockdir `.accelerator/state/locks/identity-run.lockdir`, parent created on demand through one shared `prepare_ignored_dir` helper (also used by the run-plan store and retirement records). `LockdirLock`, `LockName` and their ~15 construction sites are untouched | Outside every corpus root, so it never shows as dirty and exists before the work directory does; only guarded roots and `rekey::run` need the state directory |
+| Identity-run lock adapter | `IdentityRunLock::new(state_dir)` in `work-adapters`, modelled on `migrate-adapters`' `FileRunLock`: lockdir `.accelerator/state/locks/identity-run.lockdir`, parent created on demand through one shared `prepare_ignored_dir` helper (also used by the run-plan store and retirement records). `LockName` and the ~15 `LockdirLock` construction sites are untouched; Phase 3's parent creation in `LockdirLock::acquire` is the only change to it | Outside every corpus root, so it never shows as dirty and exists before the work directory does; only guarded roots and `rekey::run` need the state directory |
 | Held locks in dirty checks | Rekey's working-copy and revert checks drop any path under a `*.lockdir/` directory and any `TEMP_PREFIX` atomic-write temporary, as `migrate` exempts its held lockdir (`migrate/src/manifest.rs:63`) | The retirement lockdir stays in the work directory, and a killed run can leave `ForFile` lockdirs and temporaries beside corpus files; none holds user content |
 | Run-plan guard | Every non-rekey holder reads the run-plan status once, immediately after taking the identity-run lock and before any read or write, and refuses on in progress or unreadable. Retiring and allocating use cases (`allocate_id`, `create_local_item`, the sync run, `promote`) take `&IdentityRunGuard`, as `execute` takes `&RetirementLockGuard` | Refusal happens at the command root with nothing read or written; the type stops a future writer skipping the lock |
 | Cost of serialisation | A command that finds the identity-run lock held prints `waiting for accelerator work <command> (pid <n>) to finish` to stderr (from a `command` file inside the lockdir, written after acquiring and removed with it; `waiting for another accelerator command to finish` when absent), then waits up to a 60 s ceiling. On timeout it re-reads the run-plan status: in progress behind a running `work rekey` → `E_REKEY_IN_PROGRESS` saying the re-key is running (pid), in progress otherwise → `E_REKEY_IN_PROGRESS`, unreadable → `E_REKEY_PLAN_UNREADABLE`, otherwise `E_IDENTITY_RUN_BUSY` (exit 1) naming the holder | 60 s stays under the Bash tool's 120 s default, so skills see the code rather than a tool timeout, as `FileRunLock` keeps a 2 s ceiling for the same reason; a wait is never silent |
@@ -609,15 +609,25 @@ the retirement kinds rekey builds.
 - `the_new_id_is_removed_from_block_aliases`
 - `the_new_id_is_removed_from_aliases_ignoring_case` — `aliases: ["acc-0042"]`
   retired onto `ACC-0042`.
-- `retiring_into_a_drafts_directory_that_does_not_exist_creates_it`
 - `renumbering_sets_no_external_id`
 - `retiring_into_a_draft_sets_no_external_id`
 - `prose_naming_a_prefixed_local_id_is_rewritten` — `ACC-0042 → 0042`.
 - `prose_naming_a_bare_numeric_id_is_left_and_typed_links_rewritten`
 
 `cli/work-adapters/tests/retirement.rs`:
+- `retiring_into_a_drafts_directory_that_does_not_exist_creates_it` — here
+  rather than in the unit tests, since it needs a filesystem.
 - `a_retirement_without_a_baseline_skips_the_baseline_rename`
 - `a_completed_retirement_without_a_baseline_is_not_outstanding`
+
+`cli/corpus-adapters/src/lock.rs` (unit):
+- `a_for_file_lock_in_a_directory_that_does_not_exist_creates_it`
+
+`an_interrupted_retirement_into_drafts_resumes`,
+`retired_content_matches_the_plan_for_a_draft_destination` and the two
+prose tests are pins: they passed on first run. A resume already took its
+target's real path, and `shape_of` already classified `ACC-0042` as
+distinctive.
 
 #### 2. Changes
 
@@ -631,16 +641,20 @@ impl<'a> Retirement<'a> {
 ```
 
 - Refactor first, under the existing tests: extract one
-  `destination_of(retirement, from, work_dir)` returning the destination and
-  its path spellings, called by both `plan_retirement` and
-  `retired_content`; generalise `append_alias` into
-  `rewrite_aliases(lines, range, transform)`, which parses either the inline
-  or the block form, applies a pure transform, and writes it back in the
-  original form.
-- `destination_of` uses `file_for(&home_of(new_id, work_dir), ..)` and adds
-  `(old_name, "drafts/<new_name>")` when the destination is in `drafts/`.
-- `retired_item_content` transforms aliases by removing every alias equal to
-  `new_id` (ignoring case) and appending `old_id`.
+  `destination_of(retirement, from, work_dir)` returning the destination,
+  called by both `plan_retirement` and `retired_content`; generalise
+  `append_alias` into `rewrite_aliases(lines, range, transform)`, which
+  parses either the inline or the block form, applies a pure transform, and
+  writes it back in the original form. A kept block entry keeps its own
+  line, so its quoting and indentation survive.
+- `destination_of` uses `file_for(&home_of(new_id, work_dir), ..)`.
+  `path_spellings(from, to, work_dir)` stays separate, deriving spellings
+  from the real `from` and `to`, so a resumed retirement spells the target
+  it found: each old spelling becomes `to` as spelled from the work
+  directory, `drafts/<new_name>` when `to` is in `drafts/`.
+- `retired_item_content` transforms aliases through `retired_aliases`,
+  which removes every alias equal to `new_id` (ignoring case) and appends
+  `old_id`.
 
 **File**: `cli/work-adapters/src/retirement.rs`
 **Changes**: `RetirementPorts.baseline` and `apply_retirement`'s `baseline`
@@ -648,20 +662,31 @@ parameter become `Option<&BaselineStore>`. `Step::RenameBaseline` is skipped
 when it is `None`, and `retirement_outstanding` treats `None` as no baseline
 entry left to rename. Existing callers pass `Some`, so local-only rekey
 states its lack of a baseline in the types rather than through a store
-pointed at an empty path.
+pointed at an empty path. Promotion and sync settlement, which read the
+baseline beyond retirement, treat `None` as a baseline with no entries:
+promotion skips recording the created baseline, and settlement gathers
+over an empty one. Every production caller still passes `Some`.
+
+**File**: `cli/corpus-adapters/src/lock.rs`
+**Changes**: `LockdirLock::acquire` creates the lockdir's parent first,
+through the store's `io` error helper (now `pub(crate)`). Without it the
+per-file lock on a target in a `drafts/` directory that does not yet exist
+fails before `create_new`, which already creates parents, is reached. A
+retirement into a missing `drafts/` that then rolls back leaves the empty
+directory behind; rollback restores files, not directories.
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p work retirement`
-- [ ] `cd cli && cargo test -p work-adapters --test retirement`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work retirement`
+- [x] `cd cli && cargo test -p work-adapters --test retirement`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] None beyond automated; promotion behaviour is pinned by existing tests.
+- [x] None beyond automated; promotion behaviour is pinned by existing tests.
 
 ---
 
@@ -1412,7 +1437,7 @@ together never see a truncated rule.
 **File**: `cli/corpus/src/lock.rs`
 **Changes**: the module doc's global order becomes identity run (taken
 before any corpus lock) → batch journal → retirement → create → per-file.
-`LockName` and `LockdirLock` are unchanged.
+`LockName` and `LockdirLock` are unchanged from Phase 3.
 
 - `FileRunPlanStore::save` uses `prepare_ignored_dir` for the ignore rule
   and writes the plan through `AtomicWrite`; an I/O failure in `save` or
