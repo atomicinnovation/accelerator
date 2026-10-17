@@ -2153,11 +2153,11 @@ items keep their IDs forever.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:tasks` (including `test_evals_structure`)
-- [ ] `mise run test:integration:conformance`
-- [ ] `mise run test:integration:skill-invocation`
-- [ ] `mise run docs:check`
-- [ ] `mise run` exits 0
+- [x] `mise run test:unit:tasks` (including `test_evals_structure`)
+- [x] `mise run test:integration:conformance`
+- [x] `mise run test:integration:skill-invocation`
+- [x] `mise run docs:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
