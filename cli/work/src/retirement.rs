@@ -46,6 +46,28 @@ impl<'a> Retirement<'a> {
         }
     }
 
+    /// Retires `old_id` in favour of `new_id`, another local number, leaving
+    /// the item's `external_id` as it is.
+    #[must_use]
+    pub const fn renumbering(old_id: &'a str, new_id: &'a str) -> Self {
+        Self {
+            old_id,
+            new_id,
+            new_external_id: None,
+        }
+    }
+
+    /// Retires `old_id` in favour of `draft`, moving the item into the
+    /// drafts directory.
+    #[must_use]
+    pub fn into_draft(old_id: &'a str, draft: &'a DraftId) -> Self {
+        Self {
+            old_id,
+            new_id: draft.as_str(),
+            new_external_id: None,
+        }
+    }
+
     /// Where the pre-retirement bytes of uncommitted files are kept, relative
     /// to the state directory; one per retirement, so a resumed retirement
     /// finds the copies its first attempt made.
@@ -756,6 +778,33 @@ mod tests {
                 old_id: "draft-k7mq3x",
                 new_id: "PP-900",
                 new_external_id: Some("PP-900"),
+            }
+        );
+    }
+
+    #[test]
+    fn renumbering_sets_no_external_id() {
+        assert_eq!(
+            Retirement::renumbering("0042", "ACC-0042"),
+            Retirement {
+                old_id: "0042",
+                new_id: "ACC-0042",
+                new_external_id: None,
+            }
+        );
+    }
+
+    #[test]
+    fn retiring_into_a_draft_sets_no_external_id() {
+        let draft = crate::draft_id::DraftId::parse("draft-k3x9mq")
+            .unwrap_or_else(|| unreachable!("a draft id"));
+
+        assert_eq!(
+            Retirement::into_draft("0042", &draft),
+            Retirement {
+                old_id: "0042",
+                new_id: "draft-k3x9mq",
+                new_external_id: None,
             }
         );
     }

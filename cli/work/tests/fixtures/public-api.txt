@@ -597,8 +597,10 @@ pub work::retirement::Retirement::new_external_id: core::option::Option<&'a str>
 pub work::retirement::Retirement::new_id: &'a str
 pub work::retirement::Retirement::old_id: &'a str
 impl<'a> work::retirement::Retirement<'a>
+pub fn work::retirement::Retirement<'a>::into_draft(old_id: &'a str, draft: &'a work::draft_id::DraftId) -> Self
 pub fn work::retirement::Retirement<'a>::onto(old_id: &'a str, key: &'a work::tracker_key::TrackerKey) -> Self
 pub fn work::retirement::Retirement<'a>::recovery_dir(&self) -> std::path::PathBuf
+pub const fn work::retirement::Retirement<'a>::renumbering(old_id: &'a str, new_id: &'a str) -> Self
 impl<'a> core::clone::Clone for work::retirement::Retirement<'a>
 pub fn work::retirement::Retirement<'a>::clone(&self) -> work::retirement::Retirement<'a>
 impl<'a> core::cmp::Eq for work::retirement::Retirement<'a>
