@@ -2006,7 +2006,7 @@ stderr note that it was ignored.
 - [ ] In a scratch repository on `{tracker}` with Linear, move an issue to
       another team, run `work rekey --preview`, and confirm the line names
       the new key.
-- [ ] Repeat with networking disabled and confirm exit 70 and no run plan.
+- [x] Repeat with networking disabled and confirm exit 70 and no run plan.
 
 As built, Phase 7 differs from the sketch above in these ways:
 
