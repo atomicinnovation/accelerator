@@ -267,8 +267,18 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch}
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch} {withhold flags}
    ```
+
+   `{withhold flags}` is nothing until the run halts (see **Halting
+   failures** below). Once it halts, every continue plan carries
+   `--withhold-profile {profile}` for each profile the halting reason
+   withholds — `--withhold-profile web` for an exhausted web search quota —
+   until a run plan's `withheld` names it. After that the ledger remembers
+   it for the rest of the run, so later plans may drop it, and repeating it
+   is harmless. A plan that should name a profile in `withheld` but does not
+   is reported and stops the loop, like a non-zero exit. The tick plan in
+   step 7 never carries the flag.
 
    The CLI records the run in its ledger, so carry no list of attempted
    spawns yourself. Keep `run` for the whole of `conduct`, and report the
@@ -352,6 +362,9 @@ allocate a finding or note path yourself.
      or whose content changed;
    - `trims`, `shallow` and `warnings`;
    - `run` and `batch`;
+   - `withheld`, on run plans, the profiles the run withholds;
+   - `unanswered`, every outstanding pair before the window narrows it into
+     `pairs`, each as `stem`, `question`, `profile` and `stage`;
    - `search_cap`, the session's `WebSearch` cap as `searches` and the
      `source` it came from;
    - `search_budgets`, each `level` with its `budget`, and `search_demand`,
@@ -452,7 +465,8 @@ allocate a finding or note path yourself.
 
    When the batch message capacity-refuses any spawn:
 
-   - The first round always runs. It carries every spawn the batch message
+   - The first round runs whenever it has a spawn to re-issue. Before a halt
+     it always does. It carries every spawn the batch message
      capacity-refused, with no added delay.
    - Each later round re-issues the spawns the latest round
      capacity-refused. A later round runs only when the latest round had at
@@ -464,6 +478,13 @@ allocate a finding or note path yourself.
      The step 6 re-plan lists it as `unfinished`; it is already recorded,
      so it is not recorded again. The final summary states the
      `concurrency` the plans reported beside any such failure.
+
+   The run halts as soon as any spawn, from the batch message or a round,
+   ends with a halting reason. From then on, a capacity-refused spawn that
+   reason halts is not re-issued: it is recorded as failed with the
+   concurrent-subagent-limit reason. Every other refused spawn follows the
+   round rules unchanged, and a round runs only when it has a spawn to
+   re-issue.
 
 5. **Check each spawn** once the whole batch returns:
 
@@ -478,8 +499,16 @@ allocate a finding or note path yourself.
      inside the indexer's dot-skipping convention.
    - A finding that **validates** is retained.
    - A note is not validated here: the step 6 re-plan judges it.
+   - A spawn whose summary gives a **halting reason** (see **Halting
+     failures** below), whether or not it wrote a file, is recorded as failed
+     with that reason, and the run halts. Any file at its output path is
+     quarantined first, a finding to `.<name>.invalid` and a note to
+     `.<lineage>.md.invalid`, refusing to overwrite an existing marker, so
+     its pair or node stays outstanding. Other spawns in the batch are
+     checked as normal.
 
-6. **Loop.** Re-run the step 2 plan with `--run {run} --spawned {batch}`.
+6. **Loop.** Re-run the step 2 plan with `--run {run} --spawned {batch}
+   {withhold flags}`.
 
    - Record each `unfinished` entry whose spawn was not already recorded as
      failed. For a node, the reason is its `rejected` text when there is
@@ -493,7 +522,8 @@ allocate a finding or note path yourself.
    - Repeat steps 3–6 until the plan offers no spawn. The run ledger never
      lets `outstanding` offer a spawn twice, so the loop always ends.
 
-7. **Tick, update the manifest and summarise.**
+7. **Tick, update the manifest and summarise.** A halted run runs this step
+   in full.
 
    1. **End the run.** Run:
 
@@ -512,7 +542,8 @@ allocate a finding or note path yourself.
 
       Set every outline item's checkbox, at its `line`, to its `complete`
       value — ticking and unticking alike — so a checkbox never claims a
-      focus area whose pairs are not all answered.
+      focus area whose pairs are not all answered. Keep the plan's
+      `unanswered` for the summary.
    3. **Edit `manifest.md`** as the final write, to base `status:
       researching`; `round_count` and `finding_count` derived from disk by
       the count rule in **Validate every write**, never from the raw pair or
@@ -524,26 +555,46 @@ allocate a finding or note path yourself.
       `question`, and its pair's profile as `source_profile`. No run ledger
       outlives a completed run.
    4. **Summarise**, in this order, omitting any empty section:
-      1. **Run that did not end.** The step 2 report, unchanged, when the first
+      1. **Halt.** Printed only when the last run plan's `withheld` was
+         non-empty, so it rests on what the CLI reported, not on what
+         `conduct` remembers. Each withheld profile maps to its reason
+         through the **Halting failures** table:
+
+         ```text
+         conduct halted: {reason}
+         ended with it:
+         - {stem} {lineage}: {question}
+         - {stem}: {question}
+         web pairs left unfinished:
+         - {stem}: {question}
+         {recovery}
+         ```
+
+         "ended with it" lists each spawn whose own summary gave the reason,
+         not the capacity-refused ones. "web pairs left unfinished" lists
+         each entry of the tick plan's `unanswered` with `profile` `web` and
+         a `stage` other than `compose`. Those spawns are also listed under
+         Failures.
+      2. **Run that did not end.** The step 2 report, unchanged, when the first
          plan carried `replaced_run`.
-      2. **Failures.** Each failed node as `<stem> <lineage>`, each failed
+      3. **Failures.** Each failed node as `<stem> <lineage>`, each failed
          composition as `<stem> (composer)`, and each failed `single_pass` pair
          as `<stem>`, with the node or pair question, the reason recorded
          for it, and its next step from the table below. For a node, the
          next step also offers re-running with a smaller `--depth` to
          compose from the notes already on disk.
-      3. **Unexpected notes.** Each distinct `unexpected` ref seen across the
+      4. **Unexpected notes.** Each distinct `unexpected` ref seen across the
          run: "an agent wrote {stem} {lineage} without being asked, or
          changed it; inspect it before relying on the composed finding",
          naming the finding of {stem} for a pair ref.
-      4. **Refused and re-researched.** Each note found refused in step 3
+      5. **Refused and re-researched.** Each note found refused in step 3
          that did not then fail; one that failed again appears only under
          Failures.
-      5. **Shallow findings.** Each `shallow` finding, when its `depth` is
+      6. **Shallow findings.** Each `shallow` finding, when its `depth` is
          below the resolved depth: "{stem} was composed at depth {depth} and
          not re-deepened; rename `findings/{stem}.md` to
          `findings/.{stem}.md.invalid` to research it at depth {resolved}".
-      6. **Trims.** One line per distinct trim: "level note
+      7. **Trims.** One line per distinct trim: "level note
          {stem}.levels/{lineage} records {recorded} follow-ups, over its cap
          of {cap}; trimmed {recorded − cap}".
 
@@ -567,6 +618,20 @@ allocate a finding or note path yourself.
    | a run that did not end | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
+
+#### Halting failures
+
+A halting failure is a reason the orchestrator survives, after which some
+spawns in this session would fail or produce degraded work until the user
+takes a recovery step. Each reason withholds a set of profiles:
+
+| Reason | Halts | Next plan carries | Recovery |
+|---|---|---|---|
+| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` |
+
+Waiting for the refill is not a recovery: a re-run in the same session sizes
+its budgets against the full cap, not the refilled remainder, so it would
+halt again.
 
 ### synthesise — a standalone dossier from the findings
 
