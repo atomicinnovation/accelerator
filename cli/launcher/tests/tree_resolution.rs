@@ -1666,6 +1666,58 @@ fn a_resumed_download_that_fails_mid_body_retries_from_the_agreed_offset() {
         .expect("the retried resume materialises");
 }
 
+fn set_mode(path: &Path, mode: u32) {
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+        .unwrap();
+}
+
+#[test]
+fn an_unreadable_partial_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    set_mode(&partial, 0o000);
+    if std::fs::File::open(&partial).is_ok() {
+        eprintln!("skipping: this process reads files it has no access to");
+        return;
+    }
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(&outcome, Err(TreeError::Extraction { detail })
+            if detail.contains("cannot re-read")),
+        "got {outcome:?}"
+    );
+    assert!(!partial.exists(), "the unreadable partial survived");
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run recovers");
+}
+
+#[test]
+fn an_unwritable_short_partial_is_replaced_in_the_same_run() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+    let partial = plant_partial(&harness, &archive[..archive.len() / 2]);
+    set_mode(&partial, 0o444);
+    if std::fs::OpenOptions::new()
+        .write(true)
+        .open(&partial)
+        .is_ok()
+    {
+        eprintln!("skipping: this process writes files it has no access to");
+        return;
+    }
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the unwritable partial is replaced");
+}
+
 #[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
