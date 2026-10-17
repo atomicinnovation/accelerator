@@ -1791,6 +1791,28 @@ fn a_partial_whose_signature_fails_is_kept_for_the_next_run() {
 }
 
 #[test]
+fn the_free_space_check_counts_the_partial_already_on_disk() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let uncompressed_size = 1_u64 << 50;
+    harness.serve_manifest(&ManifestEntry {
+        uncompressed_size,
+        ..harness.default_entry()
+    });
+    let archive = harness.archive_bytes.clone();
+    plant_partial(&harness, &archive[..archive.len() / 2]);
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    let length = archive.len() as u64;
+    assert!(
+        matches!(outcome, Err(TreeError::DiskShortfall { needed, .. })
+            if needed == uncompressed_size + length - length / 2),
+        "got {outcome:?}"
+    );
+}
+
+#[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
