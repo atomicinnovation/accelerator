@@ -186,6 +186,7 @@ pub research::conduct::memory::RunMemory::just_acknowledged: alloc::collections:
 pub research::conduct::memory::RunMemory::owed_quarantine: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
 pub research::conduct::memory::RunMemory::pending: research::conduct::memory::PendingBatch
 pub research::conduct::memory::RunMemory::seen: research::conduct::observed::Observed
+pub research::conduct::memory::RunMemory::withheld: research::conduct::memory::Withheld
 impl research::conduct::memory::RunMemory
 pub fn research::conduct::memory::RunMemory::excuses(&self, spawn: &research::conduct::spawn::SpawnRef) -> bool
 impl core::clone::Clone for research::conduct::memory::RunMemory
@@ -198,6 +199,23 @@ pub fn research::conduct::memory::RunMemory::default() -> research::conduct::mem
 impl core::fmt::Debug for research::conduct::memory::RunMemory
 pub fn research::conduct::memory::RunMemory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::memory::RunMemory
+pub struct research::conduct::memory::Withheld(_)
+impl research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::contains(&self, profile: &str) -> bool
+pub fn research::conduct::memory::Withheld::is_empty(&self) -> bool
+pub fn research::conduct::memory::Withheld::joined(self, other: &Self) -> Self
+pub fn research::conduct::memory::Withheld::of(profiles: impl core::iter::traits::collect::IntoIterator<Item = alloc::string::String>) -> Self
+pub fn research::conduct::memory::Withheld::profiles(&self) -> impl core::iter::traits::iterator::Iterator<Item = &str> + '_
+impl core::clone::Clone for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::clone(&self) -> research::conduct::memory::Withheld
+impl core::cmp::Eq for research::conduct::memory::Withheld
+impl core::cmp::PartialEq for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::eq(&self, other: &research::conduct::memory::Withheld) -> bool
+impl core::default::Default for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::default() -> research::conduct::memory::Withheld
+impl core::fmt::Debug for research::conduct::memory::Withheld
+pub fn research::conduct::memory::Withheld::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::Withheld
 pub mod research::conduct::observed
 pub struct research::conduct::observed::Observed
 pub research::conduct::observed::Observed::answered: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
