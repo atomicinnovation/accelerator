@@ -66,6 +66,16 @@ impl ProposedPlan {
         }
     }
 
+    #[must_use]
+    pub const fn fingerprint(&self) -> &IdentityFingerprint {
+        &self.fingerprint
+    }
+
+    #[must_use]
+    pub fn entries(&self) -> &[RekeyEntry] {
+        &self.entries
+    }
+
     /// One `<old> → <new>` line per entry, by old `id` byte-wise.
     #[must_use]
     pub fn preview_lines(&self) -> Vec<String> {
@@ -95,6 +105,11 @@ impl InProgressPlan {
             entries,
             write_set,
         }
+    }
+
+    #[must_use]
+    pub const fn fingerprint(&self) -> &IdentityFingerprint {
+        &self.fingerprint
     }
 
     #[must_use]

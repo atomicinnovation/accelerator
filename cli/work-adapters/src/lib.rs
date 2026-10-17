@@ -13,6 +13,7 @@ pub mod identity_run_lock;
 pub mod ignored_dir;
 pub mod promotion;
 pub mod promotion_records;
+pub mod rekey;
 pub mod remote_create;
 pub mod retirement;
 pub mod retirement_records;

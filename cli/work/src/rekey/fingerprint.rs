@@ -35,6 +35,18 @@ impl IdentityFingerprint {
         }
     }
 
+    #[must_use]
+    pub fn scheme(&self) -> WorkItemIdScheme {
+        WorkItemIdScheme {
+            id_pattern: self.id_pattern.clone(),
+            key: self.key.clone(),
+        }
+    }
+
+    pub fn items(&self) -> impl Iterator<Item = &ItemIdentity> {
+        self.items.values()
+    }
+
     /// How the inputs differ from `earlier`'s: a changed scheme outranks any
     /// changed item, and a changed item is named by every path it was or is
     /// found at.

@@ -414,6 +414,8 @@ impl fmt::Display for NotRekeyed {
     }
 }
 
+impl std::error::Error for NotRekeyed {}
+
 #[cfg(test)]
 mod tests {
     // DSL pattern strings such as "{number:04d}" are literal token markers,

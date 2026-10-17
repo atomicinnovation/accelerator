@@ -73,6 +73,10 @@ impl WriteSet {
         self.0.get(path)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Recorded)> {
+        self.0.iter()
+    }
+
     /// Every path whose state `now` differs from the one recorded for it: to
     /// restore, under the base it was recorded against, when it held content,
     /// or to remove when it was absent. A path missing from `now` is absent.
