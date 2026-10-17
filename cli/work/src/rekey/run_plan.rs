@@ -135,7 +135,9 @@ impl InProgressPlan {
     }
 }
 
-fn preview_lines(entries: &[RekeyEntry]) -> Vec<String> {
+/// One `<old> → <new>` line per entry, by old `id` byte-wise.
+#[must_use]
+pub fn preview_lines(entries: &[RekeyEntry]) -> Vec<String> {
     let mut by_old: Vec<&RekeyEntry> = entries.iter().collect();
     by_old.sort_by(|left, right| left.old.cmp(&right.old));
     by_old

@@ -218,6 +218,26 @@ pub fn current_states(
         .collect()
 }
 
+/// Every entry of `plan` not yet retired, in order.
+///
+/// # Errors
+///
+/// [`NotRekeyed`] when an entry's state cannot be read.
+pub fn outstanding_entries(
+    plan: &InProgressPlan,
+    corpus: &RekeyCorpus<'_>,
+) -> Result<Vec<RekeyEntry>, NotRekeyed> {
+    let mut outstanding = Vec::new();
+    for entry in plan.entries() {
+        if retirement_outstanding(&entry.retirement(), &corpus.ports)
+            .map_err(|failure| corpus.stopped(entry, failure))?
+        {
+            outstanding.push(entry.clone());
+        }
+    }
+    Ok(outstanding)
+}
+
 /// Retires every entry not yet retired, in order, reporting each through
 /// `applied` with its new path.
 ///

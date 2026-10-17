@@ -158,12 +158,14 @@ pub enum Command {
     /// first write, so an interrupted run is finished by the next `work
     /// rekey`, and refuses over uncommitted changes, so a VCS revert can
     /// undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed.
+    /// `--preview` records the mapping without applying it, and a later
+    /// `work rekey` applies exactly what it showed.
     ///
-    /// Exit codes: 0 re-keyed, nothing to re-key, or discarded; 4 the run
-    /// stopped pending a human, each refusal printing an `E_REKEY_*` code
-    /// and its remedy (see `exit_codes`); 1 the run plan cannot be saved
-    /// (`E_REKEY_STATE_UNWRITABLE`) or another identity command still holds
-    /// the identity-run lock (`E_IDENTITY_RUN_BUSY`).
+    /// Exit codes: 0 re-keyed, previewed, nothing to re-key, or discarded;
+    /// 4 the run stopped pending a human, each refusal printing an
+    /// `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan
+    /// cannot be saved (`E_REKEY_STATE_UNWRITABLE`) or another identity
+    /// command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`).
     Rekey(Box<RekeyArgs>),
 }
 
@@ -430,7 +432,13 @@ pub struct PromoteArgs {
 /// `work rekey`'s arguments.
 #[derive(Args)]
 pub struct RekeyArgs {
-    /// Remove an in-progress run plan once every path it wrote is back as
+    /// Record the mapping as a proposed run plan and print one
+    /// `<old> → <new>` line per item it re-keys, changing nothing under the
+    /// corpus; the next `work rekey` applies exactly that mapping, or
+    /// refuses if any item's identity has moved since.
+    #[arg(long, conflicts_with = "discard")]
+    pub preview: bool,
+    /// Remove a proposed run plan; remove an in-progress run plan once every path it wrote is back as
     /// it was; with `ACCELERATOR_FORCE=1`, set aside one that cannot be
     /// read or whose paths have changed.
     #[arg(long)]
@@ -460,6 +468,18 @@ mod tests {
             "--adopt",
             "PP-900",
             "--create",
+        ]);
+
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn preview_and_discard_are_mutually_exclusive() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "rekey",
+            "--preview",
+            "--discard",
         ]);
 
         assert!(parsed.is_err());

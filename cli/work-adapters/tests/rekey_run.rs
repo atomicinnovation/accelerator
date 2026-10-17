@@ -527,6 +527,187 @@ fn a_resumed_path_is_listed_under_the_base_of_its_resume(
     Ok(())
 }
 
+fn preview(
+    ports: &Ports<'_>,
+    repository: &dyn vcs::RepositoryProbe,
+    identity_run: Option<&dyn IdentityRunPort>,
+) -> Result<RekeyReport, NotRekeyed> {
+    ports.rekey(
+        &request(RekeyAction::Preview, Forcing::Unforced),
+        repository,
+        &Recorder::default(),
+        identity_run,
+    )
+}
+
+/// A plan started with every path recorded as it is now, after which one
+/// path the run would write is changed.
+fn a_started_plan_whose_write_set_changed(
+    repo: &Repo,
+    ports: &Ports<'_>,
+) -> Result<RunPlan, TestError> {
+    let baseline = ports.baseline();
+    let recorded =
+        write_set(&support::entries(), &ports.corpus(&baseline), None)?;
+    repo.write(PLAN, "Edited after the run started.\n")?;
+    Ok(RunPlan::InProgress(InProgressPlan::new(
+        IdentityFingerprint::of(&scheme(), &[]),
+        support::entries(),
+        recorded,
+    )))
+}
+
+#[test]
+fn discard_does_not_remove_a_plan_started_while_its_lock_was_acquired(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    preview(&ports, &clean(&repo), None)?;
+    let racing = WritesAPlanWhileAcquiring {
+        ports: &ports,
+        plan: a_started_plan_whose_write_set_changed(&repo, &ports)?,
+    };
+
+    let outcome = ports.rekey(
+        &request(RekeyAction::Discard, Forcing::Unforced),
+        &clean(&repo),
+        &Recorder::default(),
+        Some(&racing),
+    );
+
+    assert!(
+        matches!(outcome, Err(NotRekeyed::NotReverted(_))),
+        "{outcome:?}"
+    );
+    assert_eq!(ports.plan_store().load(), Ok(Some(racing.plan)));
+    Ok(())
+}
+
+#[test]
+fn preview_does_not_replace_a_plan_started_while_its_lock_was_acquired(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    let racing = WritesAPlanWhileAcquiring {
+        ports: &ports,
+        plan: a_started_plan_whose_write_set_changed(&repo, &ports)?,
+    };
+
+    let outcome = preview(&ports, &clean(&repo), Some(&racing));
+
+    assert_eq!(outcome, Err(NotRekeyed::InProgress(None)));
+    assert_eq!(ports.plan_store().load(), Ok(Some(racing.plan)));
+    Ok(())
+}
+
+#[test]
+fn a_preview_records_a_proposed_plan_and_prints_its_lines(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let before = repo.tree();
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+
+    let report = preview(&ports, &clean(&repo), None)?;
+
+    assert_eq!(
+        report,
+        RekeyReport::Previewed {
+            lines: vec![
+                "0041 → ACC-0041".to_owned(),
+                "PP-760 → ACC-0042".to_owned(),
+            ],
+            dirty: Vec::new(),
+        }
+    );
+    assert!(matches!(
+        ports.plan_store().load(),
+        Ok(Some(RunPlan::Proposed(_)))
+    ));
+    assert_eq!(repo.tree(), before);
+    Ok(())
+}
+
+/// Something that would stop a re-key, set up in an otherwise clean
+/// repository.
+#[derive(Debug, Clone, Copy)]
+enum Obstacle {
+    UnfinishedSyncRetirement,
+    RestorePendingRecovery,
+    DirtyWorkingCopy,
+}
+
+impl Obstacle {
+    fn set_up(
+        self,
+        repo: &Repo,
+        ports: &Ports<'_>,
+        repository: &ScriptedRepository,
+    ) -> Result<(), TestError> {
+        match self {
+            Self::UnfinishedSyncRetirement => {
+                let writer = FileCorpusStore::new(repo.root());
+                FileRetirementRecords::new(&repo.state_dir(), &writer).save(
+                    &RetirementRecord::of(&Retirement {
+                        old_id: "draft-k7mq3x",
+                        new_id: "ENG-42",
+                        new_external_id: Some("ENG-42"),
+                    }),
+                )?;
+            }
+            Self::RestorePendingRecovery => {
+                let dir = PathBuf::from("retirement-recovery/0041--ACC-0041");
+                ports.recovery.prepare(&dir)?;
+                ports
+                    .recovery
+                    .mark_restore_pending(&dir, &[repo.path(PLAN)])?;
+            }
+            Self::DirtyWorkingCopy => {
+                repository.dirty.borrow_mut().push(PLAN.to_owned());
+            }
+        }
+        Ok(())
+    }
+}
+
+fn applied_over(
+    obstacle: Obstacle,
+    previewed_first: bool,
+) -> Result<Result<RekeyReport, NotRekeyed>, TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    let repository = clean(&repo);
+    if previewed_first {
+        preview(&ports, &repository, None)?;
+    }
+    obstacle.set_up(&repo, &ports, &repository)?;
+    Ok(ports.apply(&repository))
+}
+
+#[test]
+fn a_proposed_apply_runs_the_same_preflight_as_a_fresh_apply(
+) -> Result<(), TestError> {
+    for obstacle in [
+        Obstacle::UnfinishedSyncRetirement,
+        Obstacle::RestorePendingRecovery,
+        Obstacle::DirtyWorkingCopy,
+    ] {
+        let fresh = applied_over(obstacle, false)?;
+        let proposed = applied_over(obstacle, true)?;
+
+        assert!(fresh.is_err(), "{obstacle:?}: {fresh:?}");
+        assert_eq!(
+            proposed.as_ref().map_err(NotRekeyed::code),
+            fresh.as_ref().map_err(NotRekeyed::code),
+            "{obstacle:?}"
+        );
+    }
+    Ok(())
+}
+
 mod in_a_real_repository {
     use vcs_adapters::library::InProcessProbe;
     use vcs_test_support::hermetic::assert_git_is_recent_enough;

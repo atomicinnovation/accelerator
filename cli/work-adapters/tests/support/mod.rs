@@ -609,6 +609,12 @@ impl RekeyProgress for Recorder {
         ));
     }
 
+    fn remaining(&self, lines: &[String]) {
+        self.lines
+            .borrow_mut()
+            .extend(lines.iter().map(|line| format!("remaining {line}")));
+    }
+
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]) {
         let lines = items
             .iter()

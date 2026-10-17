@@ -268,15 +268,18 @@ Re-key every work item onto the configured `work.id_pattern`.
 
 Each item whose `id` is off the pattern, whatever its shape, is retired onto its new `id` across every configured corpus root, its old `id` kept as an alias.
 
-Records the run plan under `.accelerator/state/rekey/` before the first write, so an interrupted run is finished by the next `work rekey`, and refuses over uncommitted changes, so a VCS revert can undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed.
+Records the run plan under `.accelerator/state/rekey/` before the first write, so an interrupted run is finished by the next `work rekey`, and refuses over uncommitted changes, so a VCS revert can undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed. `--preview` records the mapping without applying it, and a later `work rekey` applies exactly what it showed.
 
-Exit codes: 0 re-keyed, nothing to re-key, or discarded; 4 the run stopped pending a human, each refusal printing an `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan cannot be saved (`E_REKEY_STATE_UNWRITABLE`) or another identity command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`).
+Exit codes: 0 re-keyed, previewed, nothing to re-key, or discarded; 4 the run stopped pending a human, each refusal printing an `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan cannot be saved (`E_REKEY_STATE_UNWRITABLE`) or another identity command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`).
 
 Usage: accelerator-work rekey [OPTIONS]
 
 Options:
+      --preview
+          Record the mapping as a proposed run plan and print one `<old> → <new>` line per item it re-keys, changing nothing under the corpus; the next `work rekey` applies exactly that mapping, or refuses if any item's identity has moved since
+
       --discard
-          Remove an in-progress run plan once every path it wrote is back as it was; with `ACCELERATOR_FORCE=1`, set aside one that cannot be read or whose paths have changed
+          Remove a proposed run plan; remove an in-progress run plan once every path it wrote is back as it was; with `ACCELERATOR_FORCE=1`, set aside one that cannot be read or whose paths have changed
 
   -h, --help
           Print help (see a summary with '-h')

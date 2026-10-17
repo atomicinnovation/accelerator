@@ -1,6 +1,7 @@
 //! `accelerator work rekey`: converges every work item onto the configured
-//! `work.id_pattern`, finishing an interrupted run first, or discards a run
-//! a revert has undone.
+//! `work.id_pattern`, finishing an interrupted run first; previews the
+//! mapping for a later apply; or discards a proposed run, or one a revert
+//! has undone.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -76,6 +77,13 @@ impl RekeyProgress for Shown<'_> {
             .out(&format!("{} → {}\t{path}", entry.old, entry.target.id()));
     }
 
+    fn remaining(&self, lines: &[String]) {
+        self.0.err("the run in progress has still to re-key:");
+        for line in lines {
+            self.0.out(line);
+        }
+    }
+
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]) {
         if items.is_empty() && recoveries.is_empty() {
             self.0.err(
@@ -98,6 +106,11 @@ const fn skipped_by_force(action: RekeyAction) -> &'static str {
         RekeyAction::Apply => {
             "warning: ACCELERATOR_FORCE is set: skipping the working-copy \
              check, so version control may not be able to undo this run"
+        }
+        RekeyAction::Preview => {
+            "warning: ACCELERATOR_FORCE is set: an apply will skip the \
+             working-copy check, so version control may not be able to undo \
+             it"
         }
         RekeyAction::Discard => {
             "warning: ACCELERATOR_FORCE is set: a run plan that cannot be \
@@ -204,7 +217,9 @@ pub fn run(
         console.err(&format!("Error: {message}"));
         exit_codes::ERROR
     };
-    let action = if args.discard {
+    let action = if args.preview {
+        RekeyAction::Preview
+    } else if args.discard {
         RekeyAction::Discard
     } else {
         RekeyAction::Apply
@@ -313,6 +328,21 @@ fn render(report: &RekeyReport, console: &dyn Console) {
     match report {
         RekeyReport::AlreadyConverged => {
             console.err("every work item already matches `work.id_pattern`");
+        }
+        RekeyReport::Previewed { lines, dirty } => {
+            for line in lines {
+                console.out(line);
+            }
+            if !dirty.is_empty() {
+                console.err(
+                    "warning: the working copy has uncommitted changes; \
+                     `accelerator work rekey` will refuse until they are \
+                     committed or reverted:",
+                );
+                for path in dirty {
+                    console.err(&format!("  {path}"));
+                }
+            }
         }
         RekeyReport::Rekeyed { .. } => {}
         RekeyReport::NothingToDiscard => {
@@ -494,6 +524,13 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Action {
+        Apply,
+        Preview,
+        Discard,
+    }
+
     pub struct Repo {
         dir: tempfile::TempDir,
         _env_dir: tempfile::TempDir,
@@ -561,7 +598,7 @@ mod tests {
 
         fn ran_with(
             &self,
-            discard: bool,
+            action: Action,
             forcing: Forcing,
             repository: &dyn RepositoryProbe,
             store_at: &dyn Fn(&Path) -> Box<dyn CreationStore>,
@@ -575,7 +612,10 @@ mod tests {
             let code = super::run(
                 self.root(),
                 &composed.service,
-                &RekeyArgs { discard },
+                &RekeyArgs {
+                    preview: action == Action::Preview,
+                    discard: action == Action::Discard,
+                },
                 &RekeyEnvironment {
                     forcing,
                     repository,
@@ -591,15 +631,34 @@ mod tests {
         }
 
         pub fn rekey(&self) -> Ran {
-            self.ran_with(false, Forcing::Unforced, &InProcessProbe, &plain)
+            self.ran_with(
+                Action::Apply,
+                Forcing::Unforced,
+                &InProcessProbe,
+                &plain,
+            )
+        }
+
+        fn preview(&self) -> Ran {
+            self.ran_with(
+                Action::Preview,
+                Forcing::Unforced,
+                &InProcessProbe,
+                &plain,
+            )
         }
 
         fn rekey_forced(&self, repository: &dyn RepositoryProbe) -> Ran {
-            self.ran_with(false, Forcing::Forced, repository, &plain)
+            self.ran_with(Action::Apply, Forcing::Forced, repository, &plain)
         }
 
         fn discard(&self) -> Ran {
-            self.ran_with(true, Forcing::Unforced, &InProcessProbe, &plain)
+            self.ran_with(
+                Action::Discard,
+                Forcing::Unforced,
+                &InProcessProbe,
+                &plain,
+            )
         }
 
         /// Kills a `work rekey` at its `at`th write.
@@ -615,7 +674,7 @@ mod tests {
             let halted =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     self.ran_with(
-                        false,
+                        Action::Apply,
                         Forcing::Unforced,
                         &InProcessProbe,
                         &store_at,
@@ -947,8 +1006,12 @@ mod tests {
     fn a_failed_probe_refuses_and_forcing_applies() {
         let repo = legacy_pair();
 
-        let refused =
-            repo.ran_with(false, Forcing::Unforced, &Unprobeable, &plain);
+        let refused = repo.ran_with(
+            Action::Apply,
+            Forcing::Unforced,
+            &Unprobeable,
+            &plain,
+        );
         assert_eq!(refused.code, 4, "{refused:?}");
         assert!(
             refused
@@ -1186,5 +1249,392 @@ mod tests {
             "{ran:?}"
         );
         assert_eq!(repo.tree(), before);
+    }
+
+    fn previewed_lines(ran: &Ran) -> Vec<String> {
+        ran.out
+            .iter()
+            .map(|line| line.split('\t').next().unwrap_or_default().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn preview_prints_one_line_per_changing_item_and_changes_nothing_under_meta(
+    ) {
+        let repo = Repo::with(
+            KEYED,
+            &[
+                ("meta/work/ACC-0040-zero.md", &item("ACC-0040", "Zero", "")),
+                ("meta/work/0041-first.md", &item("0041", "First", "")),
+                (
+                    "meta/work/drafts/draft-k3x9mq-idea.md",
+                    &item("draft-k3x9mq", "Idea", ""),
+                ),
+            ],
+        );
+        let before = repo.tree();
+
+        let ran = repo.preview();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(ran.out, vec!["0041 → ACC-0041", "draft-k3x9mq → ACC-0042"]);
+        assert_eq!(repo.tree(), before);
+        assert!(repo.read(RUN_PLAN).unwrap().contains("\"proposed\""));
+    }
+
+    #[test]
+    fn preview_on_a_dirty_working_copy_still_records_a_proposed_plan_and_warns()
+    {
+        let repo = legacy_pair();
+        repo.write("meta/notes/links.md", "Edited.\n");
+
+        let ran = repo.preview();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(ran.out, vec!["0041 → ACC-0041", "0042 → ACC-0042"]);
+        assert!(ran.err.contains("  meta/notes/links.md"), "{ran:?}");
+        assert!(ran.err.contains("will refuse"), "{ran:?}");
+        assert!(repo.read(RUN_PLAN).unwrap().contains("\"proposed\""));
+    }
+
+    #[test]
+    fn preview_replaces_a_proposed_plan_with_the_new_mapping() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        repo.write("meta/work/0043-third.md", &item("0043", "Third", ""));
+        repo.commit();
+
+        let ran = repo.preview();
+        let applied = repo.rekey();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.out.contains(&"0043 → ACC-0043".to_owned()), "{ran:?}");
+        assert_eq!(applied.code, 0, "{applied:?}");
+        assert!(repo.read("meta/work/ACC-0043-third.md").is_some());
+    }
+
+    #[test]
+    fn preview_of_nothing_records_no_plan() {
+        let repo = Repo::with(
+            KEYED,
+            &[("meta/work/ACC-0001-a.md", &item("ACC-0001", "A", ""))],
+        );
+
+        let ran = repo.preview();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.out.is_empty(), "{ran:?}");
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn preview_applies_every_refusal_except_the_dirty_tree() {
+        let colliding = Repo::with(
+            KEYED,
+            &[
+                ("meta/work/0042-a.md", &item("0042", "A", "")),
+                ("meta/work/ACC-0042-b.md", &item("ACC-0042", "B", "")),
+            ],
+        );
+        let unfinished = legacy_pair();
+        let store = FileCorpusStore::new(unfinished.root());
+        FileRetirementRecords::new(
+            &unfinished.path(".accelerator/state"),
+            &store,
+        )
+        .save(&RetirementRecord::of(&Retirement {
+            old_id: "draft-k7mq3x",
+            new_id: "ENG-42",
+            new_external_id: Some("ENG-42"),
+        }))
+        .unwrap();
+
+        for (repo, code) in [
+            (&colliding, "E_REKEY_ID_COLLISION"),
+            (&unfinished, "E_REKEY_SYNC_UNFINISHED"),
+        ] {
+            let ran = repo.preview();
+
+            assert_eq!(ran.code, 4, "{ran:?}");
+            assert!(ran.err.starts_with(&format!("Error: {code}")), "{ran:?}");
+            assert!(ran.out.is_empty(), "{ran:?}");
+            assert_eq!(repo.read(RUN_PLAN), None);
+        }
+    }
+
+    #[test]
+    fn apply_executes_a_proposed_plan_as_previewed() {
+        let repo = legacy_pair();
+        let previewed = repo.preview();
+
+        let applied = repo.rekey();
+
+        assert_eq!(applied.code, 0, "{applied:?}");
+        assert_eq!(previewed_lines(&applied), previewed.out);
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn apply_executes_the_stored_mapping_after_a_committed_date_change() {
+        let draft = |date: &str| {
+            item("draft-k3x9mq", "Idea", &format!("date: \"{date}\"\n"))
+        };
+        let repo = Repo::with(
+            KEYED,
+            &[
+                (
+                    "meta/work/ACC-0041-first.md",
+                    &item("ACC-0041", "First", ""),
+                ),
+                (
+                    "meta/work/drafts/draft-k3x9mq-idea.md",
+                    &draft("2026-01-01"),
+                ),
+                (
+                    "meta/work/PP-760-synced.md",
+                    &item(
+                        "PP-760",
+                        "Synced",
+                        "external_id: \"PP-760\"\ndate: \"2026-02-01\"\n",
+                    ),
+                ),
+            ],
+        );
+        let previewed = repo.preview();
+        assert_eq!(
+            previewed.out,
+            vec!["PP-760 → ACC-0043", "draft-k3x9mq → ACC-0042"]
+        );
+        repo.write(
+            "meta/work/drafts/draft-k3x9mq-idea.md",
+            &draft("2026-03-01"),
+        );
+        repo.commit();
+
+        let applied = repo.rekey();
+
+        assert_eq!(applied.code, 0, "{applied:?}");
+        let mut lines = previewed_lines(&applied);
+        lines.sort();
+        assert_eq!(lines, previewed.out);
+    }
+
+    fn assert_stale(ran: &Ran, named: &str) {
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(
+            ran.err.starts_with("Error: E_REKEY_PREVIEW_STALE"),
+            "{ran:?}"
+        );
+        assert!(ran.err.contains(named), "{ran:?}");
+        assert!(
+            ran.err
+                .contains("Re-run `accelerator work rekey --preview`"),
+            "{ran:?}"
+        );
+    }
+
+    #[test]
+    fn apply_refuses_a_stale_preview_naming_the_changed_items_and_says_re_preview(
+    ) {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        repo.write(
+            "meta/work/0042-second.md",
+            &item("0042", "Second", "aliases: [\"0007\"]\n"),
+        );
+        repo.commit();
+        let before = repo.tree();
+
+        let ran = repo.rekey();
+
+        assert_stale(&ran, "0042-second.md");
+        assert_eq!(repo.tree(), before);
+    }
+
+    #[test]
+    fn apply_refuses_when_an_item_holding_a_previewed_target_was_added() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        repo.write(
+            "meta/work/ACC-0041-other.md",
+            &item("ACC-0041", "Other", ""),
+        );
+        repo.commit();
+        let before = repo.tree();
+
+        let ran = repo.rekey();
+
+        assert_stale(&ran, "ACC-0041-other.md");
+        assert_eq!(repo.tree(), before);
+    }
+
+    #[test]
+    fn apply_refuses_when_the_scheme_changed_since_preview() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        repo.write(
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  key: XYZ\n---\n",
+        );
+        repo.commit();
+
+        let ran = repo.rekey();
+
+        assert_stale(&ran, "`work.id_pattern` or `work.key` changed");
+    }
+
+    #[test]
+    fn apply_refuses_a_non_item_file_at_a_previewed_target_before_any_write() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        repo.write("meta/work/ACC-0041-first.md", "Not a work item.\n");
+        repo.commit();
+        let before = repo.tree();
+
+        let ran = repo.rekey();
+
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(
+            ran.err.starts_with("Error: E_REKEY_TARGET_EXISTS"),
+            "{ran:?}"
+        );
+        assert_eq!(repo.tree(), before);
+    }
+
+    #[test]
+    fn apply_on_a_dirty_working_copy_leaves_the_proposed_plan_unchanged() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        let proposed = repo.read(RUN_PLAN);
+        repo.write("meta/notes/links.md", "Edited.\n");
+
+        let ran = repo.rekey();
+
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(ran.err.starts_with("Error: E_REKEY_DIRTY_WORKING_COPY"));
+        assert_eq!(repo.read(RUN_PLAN), proposed);
+    }
+
+    #[test]
+    fn an_interrupted_apply_of_a_proposed_plan_resumes_without_a_fingerprint_check(
+    ) {
+        let repo = legacy_pair();
+        let expected = {
+            let uninterrupted = legacy_pair();
+            assert_eq!(uninterrupted.rekey().code, 0);
+            uninterrupted.tree()
+        };
+        assert_eq!(repo.preview().code, 0);
+        repo.halt_at(5);
+        assert!(repo.read(RUN_PLAN).unwrap().contains("\"in_progress\""));
+
+        let ran = repo.rekey();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(repo.tree(), expected);
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn discard_removes_a_proposed_plan_and_changes_nothing_under_meta() {
+        let repo = legacy_pair();
+        assert_eq!(repo.preview().code, 0);
+        let before = repo.tree();
+
+        let ran = repo.discard();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(repo.read(RUN_PLAN), None);
+        assert_eq!(repo.tree(), before);
+    }
+
+    #[test]
+    fn preview_refuses_while_a_plan_is_in_progress_printing_its_remaining_entries_and_says_run_work_rekey(
+    ) {
+        let repo = legacy_pair();
+        repo.halt_at(5);
+        let in_progress = repo.read(RUN_PLAN);
+
+        let ran = repo.preview();
+
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(ran.err.contains("Error: E_REKEY_IN_PROGRESS"), "{ran:?}");
+        assert!(
+            ran.err
+                .contains("Run `accelerator work rekey` to finish it"),
+            "{ran:?}"
+        );
+        assert!(ran.out.contains(&"0042 → ACC-0042".to_owned()), "{ran:?}");
+        assert_eq!(repo.read(RUN_PLAN), in_progress);
+    }
+
+    #[test]
+    fn a_previewed_plan_does_not_make_apply_see_a_dirty_working_copy() {
+        let repo = legacy_pair();
+        assert!(!repo.path(".accelerator/state/rekey").exists());
+        assert_eq!(repo.preview().code, 0);
+        assert!(!repo.status().contains(".accelerator"), "{}", repo.status());
+
+        let ran = repo.rekey();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+    }
+
+    #[test]
+    fn a_forced_preview_notes_that_apply_will_skip_the_working_copy_check() {
+        let repo = legacy_pair();
+
+        let ran = repo.ran_with(
+            Action::Preview,
+            Forcing::Forced,
+            &InProcessProbe,
+            &plain,
+        );
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.err.contains("ACCELERATOR_FORCE is set"), "{ran:?}");
+        assert!(
+            ran.err
+                .contains("an apply will skip the working-copy check"),
+            "{ran:?}"
+        );
+    }
+
+    #[test]
+    fn a_refused_run_leaves_the_plan_as_it_found_it() {
+        type Change = (&'static str, fn(&Repo));
+        let changes: [Change; 4] = [
+            ("stale preview", |repo| {
+                repo.write(
+                    "meta/work/0042-second.md",
+                    &item("0042", "Second", "aliases: [\"0007\"]\n"),
+                );
+                repo.commit();
+            }),
+            ("dirty working copy", |repo| {
+                repo.write("meta/notes/links.md", "Edited.\n");
+            }),
+            ("target exists", |repo| {
+                repo.write("meta/work/ACC-0041-first.md", "Not an item.\n");
+                repo.commit();
+            }),
+            ("unreadable sync record", |repo| {
+                repo.write(
+                    ".accelerator/state/retirement-records/0041.json",
+                    "{",
+                );
+            }),
+        ];
+        for (name, change) in changes {
+            let repo = legacy_pair();
+            assert_eq!(repo.preview().code, 0, "{name}");
+            let proposed = repo.read(RUN_PLAN);
+            change(&repo);
+
+            let ran = repo.rekey();
+
+            assert_eq!(ran.code, 4, "{name}: {ran:?}");
+            assert_eq!(repo.read(RUN_PLAN), proposed, "{name}");
+        }
     }
 }

@@ -7,6 +7,7 @@ use corpus::lock::LockName;
 use corpus::WorkItemIdScheme;
 use vcs::RepositoryProbe;
 use work::identity::ItemIdentity;
+use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::IdentityFingerprint;
@@ -15,7 +16,9 @@ use work::rekey::mapping::RekeyCandidate;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
 use work::rekey::partly_applied::partly_applied;
+use work::rekey::run_plan::preview_lines;
 use work::rekey::run_plan::InProgressPlan;
+use work::rekey::run_plan::ProposedPlan;
 use work::rekey::run_plan::RunPlan;
 use work::rekey::run_plan::UnreadablePlan;
 use work::rekey::write_set::Base;
@@ -28,6 +31,7 @@ use crate::identity_run::begin_rekey_run;
 use crate::identity_run::IdentityRunPort;
 use crate::rekey::execute::current_states;
 use crate::rekey::execute::execute;
+use crate::rekey::execute::outstanding_entries;
 use crate::rekey::execute::write_set;
 use crate::rekey::execute::RekeyCorpus;
 use crate::rekey::guards::pending_pushes;
@@ -42,6 +46,7 @@ use crate::retirement::RetirementLockGuard;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RekeyAction {
     Apply,
+    Preview,
     Discard,
 }
 
@@ -66,6 +71,10 @@ pub trait RekeyProgress {
 
     fn applied(&self, entry: &RekeyEntry, path: &str);
 
+    /// The entries an in-progress run has still to retire, shown before a
+    /// preview refuses.
+    fn remaining(&self, lines: &[String]);
+
     /// The evidence of a half-applied entry an unreadable plan's discard
     /// shows before it refuses or sets the plan aside.
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]);
@@ -87,6 +96,11 @@ pub struct RekeyPorts<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RekeyReport {
     AlreadyConverged,
+    /// `dirty` names the uncommitted paths an apply would refuse over.
+    Previewed {
+        lines: Vec<String>,
+        dirty: Vec<String>,
+    },
     Rekeyed {
         resumed: bool,
     },
@@ -130,6 +144,7 @@ pub fn run(
     let loaded = ports.store.load();
     match request.action {
         RekeyAction::Apply => apply(loaded, request, ports, &retirement),
+        RekeyAction::Preview => preview(loaded, request, ports),
         RekeyAction::Discard => discard(loaded, request.forcing, ports),
     }
 }
@@ -140,21 +155,82 @@ fn apply(
     ports: &RekeyPorts<'_>,
     lock: &RetirementLockGuard,
 ) -> Result<RekeyReport, NotRekeyed> {
-    match loaded.map_err(NotRekeyed::PlanUnreadable)? {
+    let mapping = match loaded.map_err(NotRekeyed::PlanUnreadable)? {
         Some(RunPlan::InProgress(plan)) => {
             let base = working_copy(request.forcing, ports, plan.write_set())?;
             finish(plan, base.as_ref(), ports, lock)?;
-            Ok(RekeyReport::Rekeyed { resumed: true })
+            return Ok(RekeyReport::Rekeyed { resumed: true });
         }
-        Some(RunPlan::Proposed(_)) | None => fresh(request, ports, lock),
-    }
+        Some(RunPlan::Proposed(plan)) => Mapping::Previewed(plan),
+        None => Mapping::Computed,
+    };
+    let Some(checked) = preflight(mapping, DirtyPaths::Refuse, request, ports)?
+    else {
+        return Ok(RekeyReport::AlreadyConverged);
+    };
+    let base = checked.base.as_ref();
+    let recorded = write_set(checked.plan.entries(), &ports.corpus, base)?;
+    let plan = checked.plan.started(recorded);
+    ports.store.save(&RunPlan::InProgress(plan.clone()))?;
+    finish(plan, base, ports, lock)?;
+    Ok(RekeyReport::Rekeyed { resumed: false })
 }
 
-fn fresh(
+fn preview(
+    loaded: Result<Option<RunPlan>, UnreadablePlan>,
     request: &RekeyRequest,
     ports: &RekeyPorts<'_>,
-    lock: &RetirementLockGuard,
 ) -> Result<RekeyReport, NotRekeyed> {
+    if let Some(RunPlan::InProgress(plan)) =
+        loaded.map_err(NotRekeyed::PlanUnreadable)?
+    {
+        let remaining = outstanding_entries(&plan, &ports.corpus)?;
+        ports.progress.remaining(&preview_lines(&remaining));
+        return Err(NotRekeyed::InProgress(None));
+    }
+    let Some(checked) =
+        preflight(Mapping::Computed, DirtyPaths::Warn, request, ports)?
+    else {
+        ports.store.remove()?;
+        return Ok(RekeyReport::AlreadyConverged);
+    };
+    let lines = checked.plan.preview_lines();
+    ports.store.save(&RunPlan::Proposed(checked.plan))?;
+    Ok(RekeyReport::Previewed {
+        lines,
+        dirty: checked.dirty,
+    })
+}
+
+/// Where a run's entries come from: computed from the corpus now, or
+/// stored by the preview that showed them.
+enum Mapping {
+    Computed,
+    Previewed(ProposedPlan),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DirtyPaths {
+    Refuse,
+    Warn,
+}
+
+/// A mapping every guard has passed, with the working copy it was checked
+/// against.
+struct Checked {
+    plan: ProposedPlan,
+    base: Option<Base>,
+    dirty: Vec<String>,
+}
+
+/// Every check a mapping must pass before a run records it; `None` when
+/// every item is already on the pattern.
+fn preflight(
+    mapping: Mapping,
+    dirty_paths: DirtyPaths,
+    request: &RekeyRequest,
+    ports: &RekeyPorts<'_>,
+) -> Result<Option<Checked>, NotRekeyed> {
     let blockers = unfinished_sync_work(&ports.sync);
     if !blockers.is_empty() {
         return Err(NotRekeyed::SyncUnfinished(blockers));
@@ -165,24 +241,48 @@ fn fresh(
         .map(|candidate| candidate.identity.clone())
         .collect();
     refuse_partly_applied(&items, ports)?;
-    let entries = numeric_mapping(&request.scheme, &candidates)?;
-    if entries.is_empty() {
-        return Ok(RekeyReport::AlreadyConverged);
+    let plan = match mapping {
+        Mapping::Computed => ProposedPlan::new(
+            IdentityFingerprint::of(&request.scheme, &items),
+            numeric_mapping(&request.scheme, &candidates)?,
+        ),
+        Mapping::Previewed(plan) => {
+            still_current(plan, &request.scheme, &items)?
+        }
+    };
+    if plan.entries().is_empty() {
+        return Ok(None);
     }
-    let pushes = pending_pushes(&ports.sync, &entries, &items);
+    let pushes = pending_pushes(&ports.sync, plan.entries(), &items);
     if !pushes.is_empty() {
         return Err(NotRekeyed::PendingPush(pushes));
     }
-    let base = working_copy(request.forcing, ports, &WriteSet::default())?;
-    let recorded = write_set(&entries, &ports.corpus, base.as_ref())?;
-    let plan = InProgressPlan::new(
-        IdentityFingerprint::of(&request.scheme, &items),
-        entries,
-        recorded,
-    );
-    ports.store.save(&RunPlan::InProgress(plan.clone()))?;
-    finish(plan, base.as_ref(), ports, lock)?;
-    Ok(RekeyReport::Rekeyed { resumed: false })
+    let (base, dirty) =
+        match working_copy(request.forcing, ports, &WriteSet::default()) {
+            Err(NotRekeyed::DirtyWorkingCopy(dirty))
+                if dirty_paths == DirtyPaths::Warn =>
+            {
+                (None, dirty)
+            }
+            observed => (observed?, Vec::new()),
+        };
+    Ok(Some(Checked { plan, base, dirty }))
+}
+
+/// `plan` when the identities and scheme it was previewed from still hold
+/// and none of its targets has since been claimed.
+fn still_current(
+    plan: ProposedPlan,
+    scheme: &WorkItemIdScheme,
+    items: &[ItemIdentity],
+) -> Result<ProposedPlan, NotRekeyed> {
+    if let Some(staleness) = IdentityFingerprint::of(scheme, items)
+        .staleness_since(plan.fingerprint())
+    {
+        return Err(NotRekeyed::PreviewStale(staleness));
+    }
+    refuse_collisions(plan.entries(), items)?;
+    Ok(plan)
 }
 
 fn finish(

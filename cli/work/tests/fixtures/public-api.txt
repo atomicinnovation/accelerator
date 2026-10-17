@@ -706,6 +706,7 @@ impl core::fmt::Debug for work::rekey::run_plan::UnreadablePlan
 pub fn work::rekey::run_plan::UnreadablePlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::run_plan::UnreadablePlan
 pub const work::rekey::run_plan::RUN_PLAN_SCHEMA: u32
+pub fn work::rekey::run_plan::preview_lines(entries: &[work::rekey::entry::RekeyEntry]) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result::Result<(), work::rekey::run_plan::Unreadability>
 pub mod work::rekey::sequence
 pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
