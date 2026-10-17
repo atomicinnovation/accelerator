@@ -380,11 +380,11 @@ reports its old key as `absent` or
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p tracker-test-support`
-- [ ] `cd cli && cargo test -p jira-client --test contract_offline`
-- [ ] `cd cli && cargo test -p linear-client --test contract_offline`
+- [x] `cd cli && cargo test -p tracker-test-support`
+- [x] `cd cli && cargo test -p jira-client --test contract_offline`
+- [x] `cd cli && cargo test -p linear-client --test contract_offline`
 - [ ] `mise run test:integration:tracker-contract`
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
