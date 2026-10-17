@@ -92,6 +92,23 @@ impl core::fmt::Debug for vcs::guard::GuardDecision
 pub fn vcs::guard::GuardDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::guard::GuardDecision
 pub fn vcs::guard::decide(command: &str) -> vcs::guard::GuardDecision
+pub mod vcs::guarded_working_copy
+pub enum vcs::guarded_working_copy::GuardedObservation
+pub vcs::guarded_working_copy::GuardedObservation::Observed(vcs::WorkingCopyState)
+pub vcs::guarded_working_copy::GuardedObservation::Unprobeable
+pub vcs::guarded_working_copy::GuardedObservation::Unprobeable::reason: alloc::string::String
+impl core::clone::Clone for vcs::guarded_working_copy::GuardedObservation
+pub fn vcs::guarded_working_copy::GuardedObservation::clone(&self) -> vcs::guarded_working_copy::GuardedObservation
+impl core::cmp::Eq for vcs::guarded_working_copy::GuardedObservation
+impl core::cmp::PartialEq for vcs::guarded_working_copy::GuardedObservation
+pub fn vcs::guarded_working_copy::GuardedObservation::eq(&self, other: &vcs::guarded_working_copy::GuardedObservation) -> bool
+impl core::fmt::Debug for vcs::guarded_working_copy::GuardedObservation
+pub fn vcs::guarded_working_copy::GuardedObservation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::guarded_working_copy::GuardedObservation
+pub const vcs::guarded_working_copy::FORCE_VARIABLE: &str
+pub const vcs::guarded_working_copy::GUARDED_SCOPES: [&str; 3]
+pub fn vcs::guarded_working_copy::forces(value: core::option::Option<&str>) -> bool
+pub fn vcs::guarded_working_copy::observe_guarded(probed: core::result::Result<vcs::WorkingCopyState, kernel::Error>, scopes: &[&str]) -> vcs::guarded_working_copy::GuardedObservation
 pub mod vcs::log
 pub struct vcs::log::LogEntry
 pub vcs::log::LogEntry::short_id: alloc::string::String

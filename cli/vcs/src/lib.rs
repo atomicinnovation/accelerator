@@ -5,6 +5,7 @@
 pub mod checkout;
 pub mod classify;
 pub mod guard;
+pub mod guarded_working_copy;
 pub mod log;
 pub mod mode;
 pub mod origin_remote;
