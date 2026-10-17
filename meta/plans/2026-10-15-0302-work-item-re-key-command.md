@@ -5,7 +5,7 @@ title: "Work Item Re-Key Command Implementation Plan"
 date: "2026-10-15T22:41:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0302"
 parent: "work-item:0302"
 derived_from: ["codebase-research:2026-10-15-0302-work-item-re-key-command"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T18:05:00+00:00"
+last_updated: "2026-10-17T18:20:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1800,6 +1800,7 @@ entries read-only and refuses.
   fake lock port writes an in-progress plan during `acquire`.
 - `preview_does_not_replace_a_plan_started_while_its_lock_was_acquired`
 - `a_proposed_apply_runs_the_same_preflight_as_a_fresh_apply`
+- `a_preview_records_a_proposed_plan_and_prints_its_lines`
 
 `cli/work-cli/src/sync.rs`:
 - `a_proposed_rekey_plan_does_not_block_sync`
