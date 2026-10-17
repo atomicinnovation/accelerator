@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0280", "work-item:0283", "work-item:0304"]
 tags: ["research", "deep-research", "profiles", "openalex"]
-last_updated: "2026-10-15T18:23:58+00:00"
+last_updated: "2026-10-17T16:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -70,6 +70,20 @@ stay single-profile: a pair is researched in one profile throughout.
   contains only what a cited source supports; a claim the researcher cannot
   cite is left out, or posed as a follow-up if the profile could answer it.
   This holds for every outcome, not only Denied.
+- **One memory rule in the web profile**: the web profile states the rule
+  against writing from memory twice today, in its Denied and Quota
+  exhausted outcomes. The generalised rule replaces both statements, and
+  each outcome refers to it.
+- **Quota exhausted keeps its own constraints**: pages fetched before the
+  search-limit notice are cited sources, so the cited-claims rule alone
+  would let a quota-exhausted researcher write a note from them. It must
+  not. The Quota exhausted outcome keeps what is specific to it:
+  - it writes no file, even with pages already fetched;
+  - it ignores the notice's advice to continue with what it already has;
+  - it never fetches URLs it already knows in place of searching;
+  - it recognises the notice in both its session and its turn wording;
+  - its summary says exactly "web search quota exhausted", the reason
+    `conduct`'s **Halting failures** table matches to halt the run.
 
 ## Acceptance Criteria
 
@@ -84,7 +98,12 @@ stay single-profile: a pair is researched in one profile throughout.
       claims are left out rather than flagged as inference.
 - [ ] The web profile's existing "Never write the document from memory" rule
       is generalised rather than duplicated, so no profile states the rule
-      twice.
+      twice: the Denied and Quota exhausted outcomes each refer to the shared
+      rule rather than restating it.
+- [ ] The web profile's Quota exhausted outcome still writes no file even
+      with pages already fetched, still forbids `WebFetch` of URLs already
+      known, still names the session and turn wordings of the notice, and
+      its summary still says "web search quota exhausted".
 
 ## Open Questions
 
@@ -95,10 +114,19 @@ stay single-profile: a pair is researched in one profile throughout.
 
 - Blocked by: none known
 - Blocks: none known
-- Related: 0304, which takes the same no-fallback stance for web nodes and
-  adds a Quota exhausted outcome to the web profile that forbids completing
-  a note from WebFetch or memory. If 0304 has landed, the generalised rule
-  absorbs that clause so no profile states it twice.
+- Related: 0304, landed, which takes the same no-fallback stance for web
+  nodes and added the web profile's Quota exhausted outcome, which forbids
+  completing a note from `WebFetch` or memory. It landed first, so this item
+  owns absorbing that clause into the generalised rule; see **One memory
+  rule in the web profile** and **Quota exhausted keeps its own
+  constraints**. 0304's `test_the_web_profile_defines_quota_exhausted` in
+  `tests/unit/tasks/test_research_structure.py` pins the outcome's current
+  sentences, including "Never complete the document from `WebFetch` of URLs
+  you already know or from memory". Rewrite its assertions to the new
+  wording without dropping any constraint above.
+  `test_every_profile_writes_no_file_when_its_fetch_is_denied` pins only
+  every profile's Denied name, "Write no file" and "fetch denied by
+  permissions", so it holds as long as Denied keeps those.
 
 ## Assumptions
 
@@ -107,9 +135,10 @@ stay single-profile: a pair is researched in one profile throughout.
 
 ## Technical Notes
 
-- Follow-up Shape rules:
-  `skills/research/outputters/level-note-outputter/SKILL.md:38-50`.
-- Existing memory rule: `skills/research/profiles/web-profile/SKILL.md:62-65`.
+- Follow-up Shape rules: the Shape section of
+  `skills/research/outputters/level-note-outputter/SKILL.md`.
+- Existing memory rules: the Denied and Quota exhausted bullets of the
+  Outcome section in `skills/research/profiles/web-profile/SKILL.md`.
 - Profiles: `skills/research/profiles/{web,openalex,arxiv}-profile/SKILL.md`.
 
 ## Drafting Notes
