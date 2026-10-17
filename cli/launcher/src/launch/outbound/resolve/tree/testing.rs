@@ -2,6 +2,8 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub const BLOCKING_BOUND: Duration = Duration::from_secs(10);
+
 #[derive(Clone, Default)]
 pub struct Buffer(Arc<Mutex<Vec<u8>>>);
 

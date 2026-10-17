@@ -22,6 +22,9 @@ ALLOWLIST: frozenset[str] = frozenset(
         # generation *directory* into place, the other is a 0600 pointer
         # publish paired with it — cache.rs's shape, not a whole-file write.
         "cli/launcher/src/launch/outbound/resolve/tree/resolver.rs",
+        # Test-only renames that replace a single-flight lock file under its
+        # holder, to drive the inode confirmation; the module writes no data.
+        "cli/launcher/src/launch/outbound/resolve/tree/lease.rs",
         # A test-only rename simulating a watcher file-move event; the indexer
         # is a read/index module and performs no atomic writes (those route
         # through the file driver onto store::atomic_write).

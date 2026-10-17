@@ -52,6 +52,18 @@ mod unix {
     /// same directory.
     pub struct SingleFlight {
         _file: File,
+        /// Closed only with `_file`: where `flock` is emulated with POSIX
+        /// locks, closing any descriptor for the file drops the lock.
+        _confirming: File,
+    }
+
+    impl SingleFlight {
+        const fn confirmed(held: File, confirming: File) -> Self {
+            Self {
+                _file: held,
+                _confirming: confirming,
+            }
+        }
     }
 
     /// Take `LOCK_EX` on the per-`(name, platform)` lock file, blocking until it
@@ -61,13 +73,8 @@ mod unix {
     ///
     /// [`TreeError::Lease`] if the lock file cannot be created or locked.
     pub fn take_single_flight(path: &Path) -> Result<SingleFlight, TreeError> {
-        let file = open_lock_file(path)?;
-        flock(file.as_fd(), FlockOperation::LockExclusive).map_err(
-            |error| {
-                lease(&format!("cannot take the single-flight lock: {error}"))
-            },
-        )?;
-        Ok(SingleFlight { _file: file })
+        lock_confirmed(path, open_creating, FlockOperation::LockExclusive)
+            .and_then(take_outcome)
     }
 
     /// Try to take `LOCK_EX` without blocking.
@@ -84,17 +91,140 @@ mod unix {
     pub fn try_single_flight(
         path: &Path,
     ) -> Result<Option<SingleFlight>, TreeError> {
-        let file = open_lock_file(path)?;
-        match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive) {
-            Ok(()) => Ok(Some(SingleFlight { _file: file })),
-            Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
-            Err(error) => Err(lease(&format!(
-                "cannot take the single-flight lock: {error}"
-            ))),
+        lock_confirmed(
+            path,
+            open_creating,
+            FlockOperation::NonBlockingLockExclusive,
+        )
+        .and_then(try_outcome)
+    }
+
+    const MAX_LOCK_ATTEMPTS: usize = 8;
+
+    enum Placement {
+        InPlace(File),
+        Displaced,
+    }
+
+    /// Reopens the path rather than comparing with a path `stat`, which can
+    /// disagree with `fstat` on some overlayfs and FUSE mounts.
+    fn placement(held: &File, path: &Path) -> Result<Placement, TreeError> {
+        let identity_error = |error: std::io::Error| {
+            lease(&format!(
+                "cannot read the identity of {}: {error}",
+                path.display()
+            ))
+        };
+        let confirming = match File::open(path) {
+            Ok(confirming) => confirming,
+            Err(error) if is_displacement(&error) => {
+                return Ok(Placement::Displaced)
+            }
+            Err(error) => return Err(identity_error(error)),
+        };
+        let held_identity = match identity(held) {
+            Ok(held_identity) => held_identity,
+            Err(error) if is_displacement(&error) => {
+                return Ok(Placement::Displaced)
+            }
+            Err(error) => return Err(identity_error(error)),
+        };
+        Ok(
+            if held_identity == identity(&confirming).map_err(identity_error)? {
+                Placement::InPlace(confirming)
+            } else {
+                Placement::Displaced
+            },
+        )
+    }
+
+    /// On a root shared by several NFS clients, another client's unlink shows
+    /// up as `ESTALE` on a descriptor that is still open.
+    fn is_displacement(error: &std::io::Error) -> bool {
+        error.kind() == std::io::ErrorKind::NotFound
+            || rustix::io::Errno::from_io_error(error)
+                == Some(rustix::io::Errno::STALE)
+    }
+
+    fn identity(file: &File) -> std::io::Result<(u64, u64)> {
+        use std::os::unix::fs::MetadataExt as _;
+        file.metadata()
+            .map(|metadata| (metadata.dev(), metadata.ino()))
+    }
+
+    enum Locked {
+        Taken(SingleFlight),
+        Held,
+        Absent,
+        KeptBeingReplaced,
+    }
+
+    fn lock_confirmed(
+        path: &Path,
+        open: impl Fn(&Path) -> std::io::Result<Option<File>>,
+        operation: FlockOperation,
+    ) -> Result<Locked, TreeError> {
+        for _ in 0..MAX_LOCK_ATTEMPTS {
+            let Some(file) = open(path).map_err(|error| {
+                lease(&format!("cannot open the single-flight lock: {error}"))
+            })?
+            else {
+                return Ok(Locked::Absent);
+            };
+            match flock(file.as_fd(), operation) {
+                Ok(()) => match placement(&file, path)? {
+                    Placement::InPlace(confirming) => {
+                        return Ok(Locked::Taken(SingleFlight::confirmed(
+                            file, confirming,
+                        )))
+                    }
+                    Placement::Displaced => {}
+                },
+                Err(rustix::io::Errno::WOULDBLOCK) => return Ok(Locked::Held),
+                Err(error) => {
+                    return Err(lease(&format!(
+                        "cannot take the single-flight lock: {error}"
+                    )))
+                }
+            }
+        }
+        tracing::warn!(
+            lock = %path.display(),
+            "the single-flight lock file keeps being replaced"
+        );
+        Ok(Locked::KeptBeingReplaced)
+    }
+
+    fn take_outcome(locked: Locked) -> Result<SingleFlight, TreeError> {
+        match locked {
+            Locked::Taken(guard) => Ok(guard),
+            Locked::Held => {
+                Err(lease("a blocking single-flight lock reported contention"))
+            }
+            Locked::Absent => Err(no_lock_file()),
+            Locked::KeptBeingReplaced => Err(kept_being_replaced()),
         }
     }
 
-    fn open_lock_file(path: &Path) -> Result<File, TreeError> {
+    /// A lock file that keeps being replaced is contention, not a fault, so
+    /// the bounded waiter stays on its non-sticky path.
+    fn try_outcome(locked: Locked) -> Result<Option<SingleFlight>, TreeError> {
+        match locked {
+            Locked::Taken(guard) => Ok(Some(guard)),
+            Locked::Held | Locked::KeptBeingReplaced => Ok(None),
+            Locked::Absent => Err(no_lock_file()),
+        }
+    }
+
+    fn no_lock_file() -> TreeError {
+        lease("the single-flight lock file could not be created")
+    }
+
+    fn kept_being_replaced() -> TreeError {
+        lease("the single-flight lock file keeps being replaced")
+    }
+
+    fn open_creating(path: &Path) -> std::io::Result<Option<File>> {
         OpenOptions::new()
             .read(true)
             .write(true)
@@ -102,9 +232,7 @@ mod unix {
             .truncate(false)
             .mode(0o600)
             .open(path)
-            .map_err(|error| {
-                lease(&format!("cannot open the single-flight lock: {error}"))
-            })
+            .map(Some)
     }
 
     fn lease(detail: &str) -> TreeError {
@@ -114,11 +242,27 @@ mod unix {
     }
 
     #[cfg(test)]
-    #[allow(clippy::expect_used)]
+    #[allow(clippy::expect_used, clippy::panic)]
     mod tests {
-        use lease::{probe_shared_lease, Liveness};
+        use std::fs::File;
+        use std::os::fd::AsFd;
+        use std::path::{Path, PathBuf};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use std::time::Duration;
 
-        use super::take_single_flight;
+        use lease::{probe_shared_lease, Liveness};
+        use rustix::fs::{flock, FlockOperation};
+        use rustix::io::Errno;
+
+        use crate::launch::core::tree::TreeError;
+
+        use super::super::super::testing::{logged, within, BLOCKING_BOUND};
+        use super::{
+            identity, is_displacement, lock_confirmed, open_creating,
+            placement, take_outcome, take_single_flight, try_outcome, Locked,
+            Placement, SingleFlight, MAX_LOCK_ATTEMPTS,
+        };
 
         #[test]
         fn the_single_flight_lock_is_exclusive() {
@@ -129,6 +273,299 @@ mod unix {
             assert_eq!(probe_shared_lease(&path), Liveness::Held);
             drop(held);
             let _second = take_single_flight(&path).expect("after release");
+        }
+
+        fn created(path: &Path) -> File {
+            open_creating(path).expect("open").expect("created")
+        }
+
+        fn replace(path: &Path) {
+            let fresh = path.with_extension("fresh");
+            drop(created(&fresh));
+            std::fs::rename(&fresh, path).expect("replace");
+        }
+
+        fn is_locked_elsewhere(path: &Path) -> bool {
+            let file = File::options()
+                .read(true)
+                .write(true)
+                .open(path)
+                .expect("open from a new description");
+            match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive)
+            {
+                Ok(()) => false,
+                Err(Errno::WOULDBLOCK) => true,
+                Err(error) => panic!("probe failed: {error}"),
+            }
+        }
+
+        fn guard() -> SingleFlight {
+            let file = tempfile::tempfile().expect("tempfile");
+            let confirming = file.try_clone().expect("clone");
+            SingleFlight::confirmed(file, confirming)
+        }
+
+        fn counted(
+            opens: &Arc<AtomicUsize>,
+            open: impl Fn(&Path, usize) -> std::io::Result<Option<File>>,
+        ) -> impl Fn(&Path) -> std::io::Result<Option<File>> {
+            let opens = Arc::clone(opens);
+            move |path| open(path, opens.fetch_add(1, Ordering::SeqCst) + 1)
+        }
+
+        fn lock_path() -> (tempfile::TempDir, PathBuf) {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("lock");
+            (dir, path)
+        }
+
+        #[test]
+        fn a_locked_file_still_at_its_path_is_in_place() {
+            let (_dir, path) = lock_path();
+            let held = created(&path);
+            assert!(matches!(
+                placement(&held, &path),
+                Ok(Placement::InPlace(_))
+            ));
+        }
+
+        #[test]
+        fn a_locked_file_unlinked_from_its_path_is_displaced() {
+            let (_dir, path) = lock_path();
+            let held = created(&path);
+            std::fs::remove_file(&path).expect("unlink");
+            assert!(matches!(
+                placement(&held, &path),
+                Ok(Placement::Displaced)
+            ));
+        }
+
+        #[test]
+        fn a_locked_file_replaced_at_its_path_is_displaced() {
+            let (_dir, path) = lock_path();
+            let held = created(&path);
+            replace(&path);
+            assert!(matches!(
+                placement(&held, &path),
+                Ok(Placement::Displaced)
+            ));
+        }
+
+        #[test]
+        fn a_lock_whose_file_is_replaced_once_locks_the_replacement() {
+            let (_dir, path) = lock_path();
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |path, nth| {
+                let file = created(path);
+                if nth == 1 {
+                    replace(path);
+                }
+                Ok(Some(file))
+            });
+
+            let locked = lock_confirmed(
+                &path,
+                opener,
+                FlockOperation::NonBlockingLockExclusive,
+            )
+            .expect("locked");
+
+            assert!(matches!(locked, Locked::Taken(_)));
+            assert_eq!(opens.load(Ordering::SeqCst), 2);
+            assert!(is_locked_elsewhere(&path), "the replacement is unlocked");
+        }
+
+        #[test]
+        fn a_lock_whose_path_is_unlinked_reports_it_absent() {
+            let (_dir, path) = lock_path();
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |path, nth| {
+                if nth > 1 {
+                    return Ok(None);
+                }
+                let file = created(path);
+                std::fs::remove_file(path).expect("unlink");
+                Ok(Some(file))
+            });
+
+            let locked = lock_confirmed(
+                &path,
+                opener,
+                FlockOperation::NonBlockingLockExclusive,
+            )
+            .expect("probed");
+
+            assert!(matches!(locked, Locked::Absent));
+            assert_eq!(opens.load(Ordering::SeqCst), 2);
+        }
+
+        #[test]
+        fn a_lock_that_keeps_being_replaced_says_so() {
+            let (_dir, path) = lock_path();
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |path, _| {
+                let file = created(path);
+                replace(path);
+                Ok(Some(file))
+            });
+
+            let mut gave_up = false;
+            let log = logged(|| {
+                let path = path.clone();
+                gave_up = within(BLOCKING_BOUND, "the lock", move || {
+                    matches!(
+                        lock_confirmed(
+                            &path,
+                            opener,
+                            FlockOperation::NonBlockingLockExclusive,
+                        ),
+                        Ok(Locked::KeptBeingReplaced)
+                    )
+                });
+            });
+
+            assert!(gave_up, "the loop did not give up");
+            assert_eq!(opens.load(Ordering::SeqCst), MAX_LOCK_ATTEMPTS);
+            assert!(log.contains("WARN"), "no warning: {log}");
+            assert!(
+                log.contains(&path.display().to_string()),
+                "the warning names no lock: {log}"
+            );
+        }
+
+        #[test]
+        #[allow(clippy::used_underscore_binding)]
+        fn a_confirmed_lock_keeps_its_confirming_descriptor() {
+            let (_dir, path) = lock_path();
+            let Ok(Locked::Taken(guard)) = lock_confirmed(
+                &path,
+                open_creating,
+                FlockOperation::NonBlockingLockExclusive,
+            ) else {
+                panic!("the lock was not taken");
+            };
+
+            assert_eq!(
+                identity(&guard._file).expect("held identity"),
+                identity(&guard._confirming).expect("confirming identity")
+            );
+        }
+
+        #[test]
+        fn an_identity_error_is_a_lease_error() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let not_a_directory = dir.path().join("file");
+            drop(created(&not_a_directory));
+            let path = not_a_directory.join("lock");
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |_, _| tempfile::tempfile().map(Some));
+
+            let outcome = lock_confirmed(
+                &path,
+                opener,
+                FlockOperation::NonBlockingLockExclusive,
+            );
+
+            assert_eq!(opens.load(Ordering::SeqCst), 1);
+            assert!(
+                matches!(
+                    &outcome,
+                    Err(TreeError::Lease { detail })
+                        if detail.contains(&path.display().to_string())
+                ),
+                "not a lease error naming the lock"
+            );
+        }
+
+        #[test]
+        fn taking_a_lock_whose_file_is_replaced_while_waiting_locks_the_replacement(
+        ) {
+            let (_dir, path) = lock_path();
+            let a = take_single_flight(&path).expect("A");
+            let taker = {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    within(BLOCKING_BOUND, "the taker", move || {
+                        take_single_flight(&path)
+                    })
+                })
+            };
+            std::thread::sleep(Duration::from_millis(100));
+            assert!(!taker.is_finished(), "the taker did not wait for A");
+
+            replace(&path);
+            drop(a);
+            let _b = taker.join().expect("taker").expect("taken");
+
+            assert!(is_locked_elsewhere(&path), "B is unlocked");
+        }
+
+        fn is_lease(outcome: &Result<impl Sized, TreeError>) -> bool {
+            matches!(outcome, Err(TreeError::Lease { .. }))
+        }
+
+        #[test]
+        fn take_passes_a_taken_lock_through() {
+            assert!(take_outcome(Locked::Taken(guard())).is_ok());
+        }
+
+        #[test]
+        fn take_treats_contention_on_a_blocking_lock_as_a_fault() {
+            assert!(is_lease(&take_outcome(Locked::Held)));
+        }
+
+        #[test]
+        fn take_treats_an_absent_lock_file_as_a_fault() {
+            assert!(is_lease(&take_outcome(Locked::Absent)));
+        }
+
+        #[test]
+        fn take_treats_a_lock_that_keeps_being_replaced_as_a_fault() {
+            assert!(is_lease(&take_outcome(Locked::KeptBeingReplaced)));
+        }
+
+        #[test]
+        fn try_passes_a_taken_lock_through() {
+            assert!(matches!(try_outcome(Locked::Taken(guard())), Ok(Some(_))));
+        }
+
+        #[test]
+        fn try_reports_contention_as_none() {
+            assert!(matches!(try_outcome(Locked::Held), Ok(None)));
+        }
+
+        #[test]
+        fn try_treats_an_absent_lock_file_as_a_fault() {
+            assert!(is_lease(&try_outcome(Locked::Absent)));
+        }
+
+        #[test]
+        fn try_treats_a_lock_that_keeps_being_replaced_as_contention() {
+            assert!(matches!(try_outcome(Locked::KeptBeingReplaced), Ok(None)));
+        }
+
+        fn os_error(errno: Errno) -> std::io::Error {
+            std::io::Error::from_raw_os_error(errno.raw_os_error())
+        }
+
+        #[test]
+        fn a_missing_file_is_a_displacement() {
+            assert!(is_displacement(&os_error(Errno::NOENT)));
+        }
+
+        #[test]
+        fn a_stale_handle_is_a_displacement() {
+            assert!(is_displacement(&os_error(Errno::STALE)));
+        }
+
+        #[test]
+        fn a_denied_access_is_not_a_displacement() {
+            assert!(!is_displacement(&os_error(Errno::ACCESS)));
+        }
+
+        #[test]
+        fn a_path_through_a_file_is_not_a_displacement() {
+            assert!(!is_displacement(&os_error(Errno::NOTDIR)));
         }
     }
 }
