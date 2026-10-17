@@ -5,12 +5,18 @@
 //! would turn every single-file resolution into a miss. None is named
 //! `*.minisig` either, so a tree's sidecars can never be mistaken for a
 //! single-file signature.
+//!
+//! The `.tmp-` names are a contract between launcher versions sharing a root:
+//! each reaps the others' residue by parsing them, and a `LAYOUT_VERSION` bump
+//! does not cover them.
 
 use std::path::{Path, PathBuf};
 
 use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::TreeError;
+
+use super::super::KNOWN_PLATFORMS;
 
 /// The extraction and sealing policy this launcher applies.
 ///
@@ -39,8 +45,76 @@ const ARCHIVE_SUFFIX: &str = ".archive";
 const SUFFIX_LEN: usize = 16;
 const DIGEST_LEN: usize = 64;
 
+/// The `(name, platform)` pair a tree lock is keyed on.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Artifact {
+    name: String,
+    platform: String,
+}
+
+impl Artifact {
+    #[must_use]
+    pub fn new(name: &str, platform: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            platform: platform.to_owned(),
+        }
+    }
+
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[must_use]
+    pub fn platform(&self) -> &str {
+        &self.platform
+    }
+
+    /// `None` includes a newer launcher's entry on a platform this one does
+    /// not know, which is nobody's residue here.
+    #[must_use]
+    pub fn owning(temp_entry: &str) -> Option<Self> {
+        let rest = temp_entry.strip_prefix(TEMP_PREFIX)?;
+        KNOWN_PLATFORMS.iter().find_map(|platform| {
+            rest.match_indices(&format!("-{platform}"))
+                .find(|(at, matched)| {
+                    *at > 0 && is_digest_led(&rest[at + matched.len()..])
+                })
+                .map(|(at, _)| Self::new(&rest[..at], platform))
+        })
+    }
+
+    #[must_use]
+    pub fn partial_archive_digest<'e>(
+        &self,
+        temp_entry: &'e str,
+    ) -> Option<&'e str> {
+        temp_entry
+            .strip_prefix(TEMP_PREFIX)?
+            .strip_prefix(&self.entry_stem())?
+            .strip_prefix('-')?
+            .strip_suffix(ARCHIVE_SUFFIX)
+    }
+
+    fn entry_stem(&self) -> String {
+        format!("{}-{}", self.name, self.platform)
+    }
+}
+
+fn is_digest_led(after_platform: &str) -> bool {
+    after_platform
+        .strip_prefix('-')
+        .and_then(|rest| rest.split_at_checked(DIGEST_LEN))
+        .is_some_and(|(digest, rest)| {
+            is_wellformed_digest(digest)
+                && (rest.starts_with('-') || rest == ARCHIVE_SUFFIX)
+        })
+}
+
 /// Where a tree's files and sidecars live, derived once so no caller composes a
 /// path from string fragments of its own.
+#[derive(Clone)]
 pub struct TreePaths {
     root: PathBuf,
 }
@@ -117,8 +191,18 @@ impl TreePaths {
         platform: &str,
         digest: &str,
     ) -> PathBuf {
+        self.temp_archive_of(&Artifact::new(name, platform), digest)
+    }
+
+    #[must_use]
+    pub fn temp_archive_of(
+        &self,
+        artifact: &Artifact,
+        digest: &str,
+    ) -> PathBuf {
         self.root.join(format!(
-            "{TEMP_PREFIX}{name}-{platform}-{digest}{ARCHIVE_SUFFIX}"
+            "{TEMP_PREFIX}{}-{digest}{ARCHIVE_SUFFIX}",
+            artifact.entry_stem()
         ))
     }
 
@@ -134,9 +218,14 @@ impl TreePaths {
     }
 
     #[must_use]
-    pub fn single_flight_lock(&self, name: &str, platform: &str) -> PathBuf {
+    pub fn single_flight_lock_of(&self, artifact: &Artifact) -> PathBuf {
         self.root
-            .join(format!("{TEMP_PREFIX}{name}-{platform}.lock"))
+            .join(format!("{TEMP_PREFIX}{}.lock", artifact.entry_stem()))
+    }
+
+    #[must_use]
+    pub fn single_flight_lock(&self, name: &str, platform: &str) -> PathBuf {
+        self.single_flight_lock_of(&Artifact::new(name, platform))
     }
 }
 
@@ -300,13 +389,14 @@ pub fn is_privately_owned(_path: &Path) -> bool {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use crate::launch::core::tree::TreeError;
 
+    use super::super::pins::EXPECTED_TREE_DIGESTS;
     use super::{
         generation_name, generation_prefix, is_wellformed_digest,
-        validated_generation, TreePaths, LAYOUT_VERSION,
+        validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
     };
 
     const DIGEST: &str =
@@ -315,6 +405,195 @@ mod tests {
 
     fn generation() -> String {
         generation_name("browser", "linux-x64", DIGEST, LAYOUT_VERSION, SUFFIX)
+    }
+
+    fn paths() -> TreePaths {
+        TreePaths::under(Path::new("/cache"))
+    }
+
+    fn entry(path: &Path) -> String {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .expect("an ASCII file name")
+            .to_owned()
+    }
+
+    fn temp_tree_of(artifact: &Artifact, digest: &str) -> PathBuf {
+        paths().temp_generation(&generation_name(
+            artifact.name(),
+            artifact.platform(),
+            digest,
+            LAYOUT_VERSION,
+            SUFFIX,
+        ))
+    }
+
+    fn temp_pointer_of(artifact: &Artifact, digest: &str) -> PathBuf {
+        paths().temp_pointer(&generation_name(
+            artifact.name(),
+            artifact.platform(),
+            digest,
+            LAYOUT_VERSION,
+            SUFFIX,
+        ))
+    }
+
+    fn partial_archive_of(artifact: &Artifact) -> PathBuf {
+        paths().temp_archive_of(artifact, DIGEST)
+    }
+
+    fn owner_of(path: &Path) -> Option<Artifact> {
+        Artifact::owning(&entry(path))
+    }
+
+    fn assert_owns_every_kind_of_entry(artifact: &Artifact) {
+        for path in [
+            temp_tree_of(artifact, DIGEST),
+            temp_pointer_of(artifact, DIGEST),
+            partial_archive_of(artifact),
+        ] {
+            assert_eq!(
+                owner_of(&path).as_ref(),
+                Some(artifact),
+                "{} has the wrong owner",
+                path.display()
+            );
+        }
+    }
+
+    #[test]
+    fn a_temp_tree_is_owned_by_its_artifact() {
+        let browser = Artifact::new("browser", "linux-x64");
+        assert_eq!(owner_of(&temp_tree_of(&browser, DIGEST)), Some(browser));
+    }
+
+    #[test]
+    fn a_temp_pointer_is_owned_by_its_artifact() {
+        let browser = Artifact::new("browser", "linux-x64");
+        assert_eq!(owner_of(&temp_pointer_of(&browser, DIGEST)), Some(browser));
+    }
+
+    #[test]
+    fn a_partial_archive_is_owned_by_its_artifact() {
+        let browser = Artifact::new("browser", "linux-x64");
+        assert_eq!(owner_of(&partial_archive_of(&browser)), Some(browser));
+    }
+
+    #[test]
+    fn an_artifact_name_extending_another_owns_its_own_entries() {
+        assert_owns_every_kind_of_entry(&Artifact::new(
+            "browser-extra",
+            "linux-x64",
+        ));
+    }
+
+    #[test]
+    fn an_artifact_name_containing_a_platform_owns_its_own_entries() {
+        assert_owns_every_kind_of_entry(&Artifact::new(
+            "driver-linux-x64-shim",
+            "linux-x64",
+        ));
+        assert_owns_every_kind_of_entry(&Artifact::new(
+            "driver-linux-x64-shim",
+            "darwin-arm64",
+        ));
+    }
+
+    #[test]
+    fn an_artifact_name_ending_in_its_platform_owns_its_own_entries() {
+        assert_owns_every_kind_of_entry(&Artifact::new(
+            "foo-linux-x64",
+            "linux-x64",
+        ));
+    }
+
+    #[test]
+    fn a_hyphenated_platform_is_split_whole() {
+        assert_owns_every_kind_of_entry(&Artifact::new(
+            "browser",
+            "darwin-arm64",
+        ));
+    }
+
+    #[test]
+    fn an_entry_on_a_platform_extending_a_known_one_has_no_owner() {
+        let musl = Artifact::new("browser", "linux-x64-musl");
+        assert_eq!(owner_of(&partial_archive_of(&musl)), None);
+        assert_eq!(owner_of(&temp_tree_of(&musl, DIGEST)), None);
+    }
+
+    #[test]
+    fn an_entry_with_no_known_platform_has_no_owner() {
+        assert_eq!(Artifact::owning(".tmp-orphan-residue"), None);
+    }
+
+    #[test]
+    fn an_entry_with_no_name_before_its_platform_has_no_owner() {
+        let nameless = paths().temp_archive("", "linux-x64", DIGEST);
+        assert_eq!(owner_of(&nameless), None);
+    }
+
+    #[test]
+    fn a_lock_file_has_no_owner() {
+        let browser = Artifact::new("browser", "linux-x64");
+        assert_eq!(owner_of(&paths().single_flight_lock_of(&browser)), None);
+    }
+
+    #[test]
+    fn a_partial_archive_names_its_digest() {
+        let browser = Artifact::new("browser", "linux-x64");
+        let archive = entry(&partial_archive_of(&browser));
+        assert_eq!(browser.partial_archive_digest(&archive), Some(DIGEST));
+    }
+
+    #[test]
+    fn a_temp_tree_names_no_archive_digest() {
+        let browser = Artifact::new("browser", "linux-x64");
+        let tree = entry(&temp_tree_of(&browser, DIGEST));
+        assert_eq!(browser.partial_archive_digest(&tree), None);
+    }
+
+    #[test]
+    fn every_pinned_artifact_owns_what_each_builder_names() {
+        for (name, platform, digest) in EXPECTED_TREE_DIGESTS {
+            let artifact = Artifact::new(name, platform);
+            for path in [
+                temp_tree_of(&artifact, digest),
+                temp_pointer_of(&artifact, digest),
+                paths().temp_archive_of(&artifact, digest),
+            ] {
+                assert_eq!(
+                    owner_of(&path).as_ref(),
+                    Some(&artifact),
+                    "{} has the wrong owner",
+                    path.display()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn temp_entry_names_are_fixed_across_launcher_versions() {
+        let browser = Artifact::new("browser", "linux-x64");
+        let paths = paths();
+        let generation = generation();
+
+        assert_eq!(
+            entry(&paths.single_flight_lock_of(&browser)),
+            ".tmp-browser-linux-x64.lock"
+        );
+        assert_eq!(
+            entry(&paths.temp_archive_of(&browser, DIGEST)),
+            [".tmp-browser-linux-x64-", DIGEST, ".archive"].concat()
+        );
+        assert_eq!(
+            entry(&paths.temp_generation(&generation)),
+            [".tmp-browser-linux-x64-", DIGEST, "-1-", SUFFIX].concat()
+        );
+        assert_eq!(
+            entry(&paths.temp_pointer(&generation)),
+            [".tmp-browser-linux-x64-", DIGEST, "-1-", SUFFIX, ".ref"].concat()
+        );
     }
 
     #[test]
