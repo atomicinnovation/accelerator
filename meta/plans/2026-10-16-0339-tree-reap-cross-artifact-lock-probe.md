@@ -1711,7 +1711,7 @@ Make the matching correction to `prune`'s docstring.
 
 - [x] Each over-correction mutation in item 4 fails the guard named for
       it, then is reverted
-- [ ] `cache prune` on a populated real cache root still reports reclaimed
+- [x] `cache prune` on a populated real cache root still reports reclaimed
       entries, and leaves the `browser` and `driver` lock files in place
 
 ---
