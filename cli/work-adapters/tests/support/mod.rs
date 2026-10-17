@@ -17,6 +17,7 @@ use corpus::store::FileRemove;
 use corpus::store::KeptRecovery;
 use corpus::store::RecoveryCopies;
 use corpus::StoreError;
+use corpus::WorkItemIdScheme;
 use corpus_adapters::CommonMarkBody;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -29,15 +30,35 @@ use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
+use vcs::RepoFacts;
+use vcs::RepositoryProbe;
+use vcs::VcsKind;
+use vcs::WorkingCopyState;
+use vcs::WorkingCopyStateProbe;
 use work::dirtiness::Dirtiness;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
+use work::rekey::outcome::Holder;
+use work::rekey::outcome::NotRekeyed;
 use work::sync::LegacyHashes;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::identity_run::IdentityRunPort;
+use work_adapters::identity_run_lock::IdentityRunLock;
 use work_adapters::rekey::execute::RekeyCorpus;
+use work_adapters::rekey::guards::PendingPushDir;
+use work_adapters::rekey::guards::SyncState;
+use work_adapters::rekey::run::run;
+use work_adapters::rekey::run::Forcing;
+use work_adapters::rekey::run::RekeyAction;
+use work_adapters::rekey::run::RekeyPorts;
+use work_adapters::rekey::run::RekeyProgress;
+use work_adapters::rekey::run::RekeyReport;
+use work_adapters::rekey::run::RekeyRequest;
 use work_adapters::rekey::run_plan_store::FileRunPlanStore;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
+use work_adapters::retirement_records::FileRetirementRecords;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline::SyncStamps;
@@ -504,4 +525,174 @@ pub fn entry_fragment(id: &str, entry: Entry) -> String {
         .and_then(|items| items.strip_suffix("}}"))
         .expect("one rendered entry")
         .to_owned()
+}
+
+// "{key}" and "{number:04d}" are pattern tokens, not format args.
+#[allow(clippy::literal_string_with_formatting_args)]
+pub fn scheme() -> WorkItemIdScheme {
+    WorkItemIdScheme {
+        id_pattern: "{key}-{number:04d}".to_owned(),
+        key: Some("ACC".to_owned()),
+    }
+}
+
+/// A repository whose working copy is whatever the test says it is.
+pub struct ScriptedRepository {
+    root: PathBuf,
+    pub base: RefCell<Vec<String>>,
+    pub dirty: RefCell<Vec<String>>,
+}
+
+impl ScriptedRepository {
+    pub fn clean_at(repo: &Repo, commit: &str) -> Self {
+        Self {
+            root: repo.root().to_path_buf(),
+            base: RefCell::new(vec![commit.to_owned()]),
+            dirty: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl WorkingCopyStateProbe for ScriptedRepository {
+    fn working_copy_state(
+        &self,
+        _root: &Path,
+        _kind: VcsKind,
+    ) -> Result<WorkingCopyState, kernel::Error> {
+        Ok(WorkingCopyState {
+            base_commits: self.base.borrow().clone(),
+            dirty_paths: self.dirty.borrow().clone(),
+        })
+    }
+}
+
+impl RepositoryProbe for ScriptedRepository {
+    fn facts_at(&self, _start: &Path) -> Option<RepoFacts> {
+        Some(RepoFacts {
+            root: self.root.clone(),
+            name: "repo".to_owned(),
+            kind: VcsKind::Git,
+            revision: None,
+        })
+    }
+
+    fn user_name_at(&self, _start: &Path) -> Option<String> {
+        None
+    }
+}
+
+/// Every line a run shows a person while it proceeds.
+#[derive(Default)]
+pub struct Recorder {
+    pub lines: RefCell<Vec<String>>,
+    pub on_applied: RefCell<Option<Box<dyn Fn()>>>,
+}
+
+impl RekeyProgress for Recorder {
+    fn waiting(&self, holder: Option<&Holder>) {
+        self.lines.borrow_mut().push(format!("waiting {holder:?}"));
+    }
+
+    fn applied(&self, entry: &RekeyEntry, path: &str) {
+        if let Some(hook) = self.on_applied.borrow().as_ref() {
+            hook();
+        }
+        self.lines.borrow_mut().push(format!(
+            "{} → {}\t{path}",
+            entry.old,
+            entry.target.id()
+        ));
+    }
+
+    fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]) {
+        let lines = items
+            .iter()
+            .map(|item| format!("item {}", item.display()))
+            .chain(
+                recoveries
+                    .iter()
+                    .map(|dir| format!("recovery {}", dir.display())),
+            );
+        self.lines.borrow_mut().extend(lines);
+    }
+}
+
+pub fn request(action: RekeyAction, forcing: Forcing) -> RekeyRequest {
+    RekeyRequest {
+        action,
+        forcing,
+        scheme: scheme(),
+    }
+}
+
+impl Ports<'_> {
+    /// Runs `request` over this repository, through `identity_run` when
+    /// given and the real identity-run lock otherwise.
+    pub fn rekey(
+        &self,
+        request: &RekeyRequest,
+        repository: &dyn RepositoryProbe,
+        progress: &dyn RekeyProgress,
+        identity_run: Option<&dyn IdentityRunPort>,
+    ) -> Result<RekeyReport, NotRekeyed> {
+        let baseline = self.baseline();
+        let lock = IdentityRunLock::new(&self.state_dir, &self.store);
+        let records = FileRetirementRecords::new(&self.state_dir, &self.store);
+        let items = FilesystemWorkItemFiles::new(&self.work_dir);
+        let integrations = self.state_dir.join("integrations");
+        let store = self.plan_store();
+        let scopes: Vec<String> = vcs::guarded_working_copy::GUARDED_SCOPES
+            .iter()
+            .map(|scope| (*scope).to_owned())
+            .collect();
+        run(
+            request,
+            &RekeyPorts {
+                identity_run: identity_run.unwrap_or(&lock),
+                store: &store,
+                corpus: self.corpus(&baseline),
+                items: &items,
+                sync: SyncState {
+                    state_dir: &self.state_dir,
+                    records: &records,
+                    recovery: &self.recovery,
+                    pending_push: self.integrated.then_some(PendingPushDir {
+                        integrations_root: &integrations,
+                        integration: "linear",
+                    }),
+                },
+                repository,
+                scopes: &scopes,
+                progress,
+            },
+        )
+    }
+
+    pub fn apply(
+        &self,
+        repository: &dyn RepositoryProbe,
+    ) -> Result<RekeyReport, NotRekeyed> {
+        self.rekey(
+            &request(RekeyAction::Apply, Forcing::Unforced),
+            repository,
+            &Recorder::default(),
+            None,
+        )
+    }
+}
+
+/// Puts every file back as `before` had it, deleting any it did not hold.
+pub fn restore(
+    repo: &Repo,
+    before: &BTreeMap<String, String>,
+) -> Result<(), TestError> {
+    for path in repo.tree().keys() {
+        if !before.contains_key(path) {
+            fs::remove_file(repo.path(path))?;
+        }
+    }
+    for (path, content) in before {
+        repo.write(path, content)?;
+    }
+    Ok(())
 }

@@ -3,5 +3,6 @@
 
 pub mod execute;
 pub mod guards;
+pub mod run;
 pub mod run_plan_store;
 pub mod working_copy;

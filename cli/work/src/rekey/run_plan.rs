@@ -79,12 +79,7 @@ impl ProposedPlan {
     /// One `<old> → <new>` line per entry, by old `id` byte-wise.
     #[must_use]
     pub fn preview_lines(&self) -> Vec<String> {
-        let mut entries: Vec<&RekeyEntry> = self.entries.iter().collect();
-        entries.sort_by(|left, right| left.old.cmp(&right.old));
-        entries
-            .into_iter()
-            .map(|entry| format!("{} → {}", entry.old, entry.target.id()))
-            .collect()
+        preview_lines(&self.entries)
     }
 
     #[must_use]
@@ -117,6 +112,12 @@ impl InProgressPlan {
         &self.entries
     }
 
+    /// One `<old> → <new>` line per entry, by old `id` byte-wise.
+    #[must_use]
+    pub fn preview_lines(&self) -> Vec<String> {
+        preview_lines(&self.entries)
+    }
+
     #[must_use]
     pub const fn write_set(&self) -> &WriteSet {
         &self.write_set
@@ -132,6 +133,15 @@ impl InProgressPlan {
             ..self
         }
     }
+}
+
+fn preview_lines(entries: &[RekeyEntry]) -> Vec<String> {
+    let mut by_old: Vec<&RekeyEntry> = entries.iter().collect();
+    by_old.sort_by(|left, right| left.old.cmp(&right.old));
+    by_old
+        .into_iter()
+        .map(|entry| format!("{} → {}", entry.old, entry.target.id()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -182,6 +192,14 @@ mod tests {
         assert_eq!(
             proposed().preview_lines(),
             vec!["0041 → ACC-0041", "draft-k3x9mq → ACC-0042"]
+        );
+    }
+
+    #[test]
+    fn an_in_progress_plan_previews_its_entries_as_its_proposal_did() {
+        assert_eq!(
+            proposed().started(WriteSet::default()).preview_lines(),
+            proposed().preview_lines()
         );
     }
 
