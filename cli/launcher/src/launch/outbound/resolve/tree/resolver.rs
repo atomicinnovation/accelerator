@@ -742,7 +742,8 @@ impl TreeResolver<'_> {
     /// Reclaim residue for one artifact under its single-flight lock.
     ///
     /// Another artifact's temp residue is removed only under that artifact's
-    /// tree lock, so a concurrent materialisation of it is never disturbed.
+    /// tree lock, taken without blocking, or when that artifact has no lock
+    /// file; the reap module records the one window the second case leaves.
     /// Every artifact's pinned partial archive is spared, so a resumable
     /// download survives.
     ///

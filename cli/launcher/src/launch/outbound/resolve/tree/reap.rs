@@ -10,12 +10,12 @@
 //! process that holds it, and every process that takes the lock confirms its
 //! inode afterwards. A launcher that does not confirm can hold an orphaned
 //! inode while another process holds the new file, so neither lock excludes
-//! the other. Even then, nothing excludes a launcher pinning the same artifact
-//! that creates the lock and reopens an existing partial archive between the
-//! reap's scan and its removal: its appends go to an unlinked file and its
-//! materialise fails with `Extraction`. That cause is sticky for the marker
-//! TTL, and as a Refusal it stops a `--fail-safe` crawl rather than degrading
-//! it. The window needs a launcher of another version that still pins a
+//! the other. Even when every launcher confirms, nothing excludes a launcher
+//! pinning the same artifact that creates the lock and reopens an existing
+//! partial archive between the reap's scan and its removal: its appends go to
+//! an unlinked file and its materialise fails with `Extraction`. That cause is
+//! sticky for the marker TTL in the session, and as a Refusal it stops a
+//! `--fail-safe` crawl rather than degrading it. The window needs a launcher of another version that still pins a
 //! retired artifact, and any future removal of lock files inherits it.
 //!
 //! A process must never probe or retake a tree lock it already holds: where
