@@ -1255,7 +1255,8 @@ Denied:
 | Test | Asserts |
 |---|---|
 | `test_the_web_profile_defines_quota_exhausted` | the outcome names the session-limit notice, "Write no file, even if you already fetched pages", "web search quota exhausted", and forbids `WebFetch` of known URLs and memory (AC 23) |
-| `test_the_failure_table_has_a_quota_exhausted_row_apart_from_rate_limited` | a distinct row naming `/clear` and the variable, and not offering waiting for the refill |
+| `test_the_check_step_counts_an_exhausted_quota_as_no_file` | step 5's no-file examples name "an exhausted web search quota" |
+| `test_the_quota_exhausted_row_stands_apart_from_rate_limited` | a distinct row naming `/clear` and the variable, and not offering waiting for the refill |
 
 `test_the_unfinished_run_row_and_step_2_report_are_unchanged`, added in
 phase 3, stays green.
@@ -1267,6 +1268,9 @@ never-from-memory rule once in the outcomes section, covering Denied and
 Quota exhausted (AC 34). Adjust the outcome text above to refer to it.
 Otherwise skip this step. Check 0309's status again before merging. If it
 landed while this phase was in flight, do this step then.
+
+0309 was `draft` when this phase started, so this step was skipped. The
+check before merging still applies.
 
 #### 5. Changelog
 
@@ -1280,8 +1284,8 @@ report "web search quota exhausted" instead of writing notes from
 
 #### Automated Verification
 
-- [ ] Structure tests fail first, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Full local CI mirror: `mise run`
+- [x] Structure tests fail first, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
