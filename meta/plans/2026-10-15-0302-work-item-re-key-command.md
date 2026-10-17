@@ -293,6 +293,7 @@ and the frozen-code test match the code.
 | `E_REKEY_RESTORE_INCOMPLETE` | restore incomplete | 4 | Restore from the named recovery directory, then re-run `work rekey` |
 | `E_REKEY_STATE_UNWRITABLE` | the run plan cannot be saved or removed | 1 | Check permissions on `.accelerator/state/rekey/` and re-run |
 | `E_IDENTITY_RUN_BUSY` | any identity-run holder, after the 60 s ceiling with no plan in progress or unreadable | 1 | `accelerator work <command>` (pid `<n>`) is still running; re-run once it finishes |
+| `E_DRAFT_ID_EXHAUSTED` | `{tracker}` mapping draws no free draft ID | 1 | Re-run the command |
 | `E_REKEY_TRACKER_UNREACHABLE` | `{tracker}` refresh read failed | 70 | Retry when the tracker is reachable |
 | (selection codes) | `{tracker}` tracker cannot be selected or configured | 72-74 | As `work promote` prints |
 
@@ -2094,8 +2095,11 @@ items keep their IDs forever.
      partly-applied evidence; never offer Finish it. No lines: report
      nothing to re-key and stop. Another exit 4: surface the code and its
      printed remedy. Exit 70: the tracker was unreachable; nothing was
-     recorded. Exit 1 with `E_IDENTITY_RUN_BUSY` or
-     `E_REKEY_STATE_UNWRITABLE`: relay the printed remedy and stop.
+     recorded. Exit 72-74: the tracker cannot be selected or configured;
+     relay the printed message, point at `/accelerator:configure`, and
+     stop; nothing was recorded. Exit 1 with `E_IDENTITY_RUN_BUSY`,
+     `E_REKEY_STATE_UNWRITABLE` or `E_DRAFT_ID_EXHAUSTED`: relay the
+     printed remedy and stop.
   2. Print the mapping and any force note. With no dirty-path warning,
      `AskUserQuestion` with **Yes, re-key** and **No, discard**. With a
      dirty-path warning, name the paths, say the apply will refuse until
