@@ -179,13 +179,45 @@ commit after this report was first written:
   - [x] Phases 2, 5, 6 and 8 checks in a jj scratch repository
   - [x] Phase 7's moved-issue check against Linear and its offline check
   - [x] The live tracker-contract lane against scratch Jira and Linear
-2. Worth adding before release:
-  - [ ] Run `work rekey` and `accelerator migrate` from a repository whose
-        `.accelerator/` is in a subdirectory of the VCS root, with one
-        uncommitted corpus edit, and confirm both refuse.
-  - [ ] Repeat a manual pass with git rather than jj, since the session's
-        VCS guard limited every recorded manual check to jj.
+2. Run on 2026-10-18 against binaries built from the fixes, in scratch
+   repositories whose `.accelerator/` sits in `pkg/` below the VCS root:
+  - [x] jj and git: an uncommitted `pkg/meta/notes/links.md` edit makes
+        `work rekey` exit 4 `E_REKEY_DIRTY_WORKING_COPY` and
+        `accelerator migrate` exit 1, both naming `meta/notes/links.md`.
+  - [x] jj and git: on a clean tree `work rekey` renames both items, keeps
+        their old IDs as aliases, rewrites the typed and file links, and a
+        re-run after committing has nothing to re-key.
+  - [x] jj and git: a 402-item run killed with `SIGTERM` part-way finishes
+        on the next run with 402 distinct IDs and no run plan left; in jj
+        a stray `meta/notes/stray.md` made the resume refuse naming only it.
+  - [x] git: a killed run's `--discard` exits 4 `E_REKEY_NOT_REVERTED`
+        listing paths under the base revision; after restoring them and
+        deleting the new files it discards, and `work sync` reaches its
+        tracker selection (exit 73, no integration configured).
+  - [x] git: a committed half-run's `--discard` exits 4
+        `E_REKEY_NOT_REVERTED`.
+  - [x] git: preview, then a committed `aliases` edit, then apply exits 4
+        `E_REKEY_PREVIEW_STALE` naming the item, and the proposed plan stays.
+  - [x] git: a second `work rekey` started while one runs prints
+        `waiting for accelerator work rekey (pid <n>) to finish` and waits.
+
+The git runs went through a script run by hand outside the session's
+tool calls, since its VCS guard blocks `git add` and `git status`. The jj
+runs were made from the session.
+
+Two observations from the manual runs:
+
+- A run killed part-way through an entry leaves that entry's per-file
+  lockdir (`meta/work/ACC-0367-item.md.lockdir/owner.<nonce>`) after a
+  completed resume, because the resume skips the finished entry and never
+  reclaims it. The dirty check ignores it by design, so `git add -A` would
+  commit it.
+- Every refusal naming an item (`E_REKEY_PREVIEW_STALE`,
+  `E_REKEY_ID_COLLISION`, `E_REKEY_PENDING_PUSH`, …) prints the item's
+  absolute path, while the working-copy refusals print repo-relative ones.
 
 ### Recommendations:
 
-- Run the two manual checks above before release.
+- Remove stale per-file lockdirs a killed run left once a resume
+  completes, or keep them out of the corpus directory.
+- Render item paths in refusals relative to the config root.
