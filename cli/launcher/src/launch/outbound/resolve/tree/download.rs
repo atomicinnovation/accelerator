@@ -230,20 +230,24 @@ impl Download<'_> {
 
 /// An appending sink first cuts the file back to the agreed offset, so a
 /// failed attempt's bytes never stay in it. It never creates or pads the file:
-/// a partial that vanished or shrank cannot be resumed.
+/// a partial that vanished or shrank cannot be resumed. Neither sink follows a
+/// symlink at the path.
 fn open_archive_sink(
     path: &Path,
     mode: SinkMode,
 ) -> std::io::Result<Box<dyn StreamSink>> {
     let file = match mode {
-        SinkMode::Truncate => std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path)?,
+        SinkMode::Truncate => not_following_links(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true),
+        )
+        .open(path)?,
         SinkMode::Append { from } => {
             let mut file =
-                std::fs::OpenOptions::new().write(true).open(path)?;
+                not_following_links(std::fs::OpenOptions::new().write(true))
+                    .open(path)?;
             if file.metadata()?.len() < from {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::UnexpectedEof,
@@ -259,6 +263,21 @@ fn open_archive_sink(
         }
     };
     Ok(Box::new(FileSink { file }))
+}
+
+#[cfg(unix)]
+fn not_following_links(
+    options: &mut std::fs::OpenOptions,
+) -> &mut std::fs::OpenOptions {
+    use std::os::unix::fs::OpenOptionsExt as _;
+    options.custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
+}
+
+#[cfg(not(unix))]
+const fn not_following_links(
+    options: &mut std::fs::OpenOptions,
+) -> &mut std::fs::OpenOptions {
+    options
 }
 
 /// Remove the partial archive, or whatever directory sits in its place.
@@ -551,6 +570,42 @@ mod tests {
 
         assert!(opened.is_err(), "a short partial was opened for appending");
         assert_eq!(std::fs::metadata(&path).expect("metadata").len(), 5);
+    }
+
+    fn symlink_to_untouched(dir: &Path) -> (std::path::PathBuf, Vec<u8>) {
+        let target = dir.join("elsewhere");
+        std::fs::write(&target, b"untouched").expect("target");
+        let partial = dir.join("partial.archive");
+        std::os::unix::fs::symlink(&target, &partial).expect("symlink");
+        (partial, std::fs::read(&target).expect("target"))
+    }
+
+    #[test]
+    fn opening_the_sink_through_a_symlink_truncates_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (partial, before) = symlink_to_untouched(dir.path());
+
+        let opened = open_archive_sink(&partial, SinkMode::Truncate);
+
+        assert!(opened.is_err(), "the sink was opened through a symlink");
+        assert_eq!(
+            std::fs::read(dir.path().join("elsewhere")).expect("target"),
+            before
+        );
+    }
+
+    #[test]
+    fn resuming_the_sink_through_a_symlink_appends_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (partial, before) = symlink_to_untouched(dir.path());
+
+        let opened = open_archive_sink(&partial, SinkMode::Append { from: 3 });
+
+        assert!(opened.is_err(), "the sink was opened through a symlink");
+        assert_eq!(
+            std::fs::read(dir.path().join("elsewhere")).expect("target"),
+            before
+        );
     }
 
     struct UndiscardablePartial {
