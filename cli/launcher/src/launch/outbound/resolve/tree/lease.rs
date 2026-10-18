@@ -305,7 +305,6 @@ mod unix {
         use std::path::{Path, PathBuf};
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
-        use std::time::Duration;
 
         use lease::{probe_shared_lease, Liveness};
         use rustix::fs::{flock, FlockOperation};
@@ -571,21 +570,25 @@ mod unix {
         ) {
             let (_dir, path) = lock_path();
             let a = take_single_flight(&path).expect("A");
+            let (waiting, waits) = std::sync::mpsc::channel();
             let taker = {
                 let path = path.clone();
                 std::thread::spawn(move || {
                     within(BLOCKING_BOUND, "the taker", move || {
-                        take_single_flight(&path)
+                        lock_confirmed(&path, open_creating, |fd| {
+                            let _ = waiting.send(());
+                            flock(fd, FlockOperation::LockExclusive)
+                        })
                     })
                 })
             };
-            std::thread::sleep(Duration::from_millis(100));
-            assert!(!taker.is_finished(), "the taker did not wait for A");
+            waits.recv().expect("the taker reached the lock");
 
             replace(&path);
             drop(a);
-            let _b = taker.join().expect("taker").expect("taken");
+            let locked = taker.join().expect("taker").expect("taken");
 
+            assert!(matches!(locked, Locked::Taken(_)));
             assert!(is_locked_elsewhere(&path), "B is unlocked");
         }
 
