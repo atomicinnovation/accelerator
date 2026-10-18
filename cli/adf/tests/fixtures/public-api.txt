@@ -23,6 +23,7 @@ pub adf::Unrepresentable::BacktickInInlineCode
 pub adf::Unrepresentable::FenceLineInCodeBlock
 pub adf::Unrepresentable::HardBreakInTableCell
 pub adf::Unrepresentable::HeadingBeyondLevelSix
+pub adf::Unrepresentable::LinkToCodeRunningAddress
 pub adf::Unrepresentable::Node
 pub adf::Unrepresentable::Node::node: alloc::string::String
 pub adf::Unrepresentable::PipeInTableCellCode

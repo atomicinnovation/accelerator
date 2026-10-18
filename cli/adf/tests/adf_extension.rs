@@ -178,6 +178,12 @@ fn a_rendered_body_is_a_fixed_point_of_the_round_trip() {
                 "render-inline-placeholders".to_owned(),
                 unrepresentable("emoji")
             ),
+            (
+                "render-link-scheme-rejected".to_owned(),
+                AdfError::Unrepresentable(
+                    Unrepresentable::LinkToCodeRunningAddress
+                )
+            ),
         ]
     );
     assert!(compared > 0, "no rendered body was round-tripped");
@@ -451,6 +457,32 @@ fn a_table_cell_of_several_blocks_has_no_markdown_form() {
 }
 
 #[test]
+fn a_link_to_a_foreign_scheme_is_a_fixed_point() {
+    let rendered = strict(&paragraph(&json!([{"type": "text", "text": "chat",
+        "marks": [{"type": "link",
+            "attrs": {"href": "slack://channel?team=T1&id=C1"}}]}])));
+
+    assert_eq!(rendered, "[chat](slack://channel?team=T1&id=C1)");
+    assert_eq!(round_trip(&rendered), rendered);
+}
+
+#[test]
+fn a_link_to_an_address_that_runs_code_has_no_markdown_form() {
+    for href in ["javascript:alert(1)", "data:text/html,x", "vbscript:x"] {
+        let document = paragraph(&json!([{"type": "text", "text": "x",
+            "marks": [{"type": "link", "attrs": {"href": href}}]}]));
+
+        assert_eq!(
+            document_to_markdown_strict(&document),
+            Err(AdfError::Unrepresentable(
+                Unrepresentable::LinkToCodeRunningAddress
+            )),
+            "{href}"
+        );
+    }
+}
+
+#[test]
 fn an_unrepresentable_refusal_names_the_condition_to_change() {
     let message =
         |reason: Unrepresentable| AdfError::Unrepresentable(reason).to_string();
@@ -467,6 +499,7 @@ fn an_unrepresentable_refusal_names_the_condition_to_change() {
             message(Unrepresentable::PipeInTableCellLink),
             message(Unrepresentable::HardBreakInTableCell),
             message(Unrepresentable::TableCellOfSeveralBlocks),
+            message(Unrepresentable::LinkToCodeRunningAddress),
         ],
         [
             "E_ADF_UNREPRESENTABLE: a panel has no Markdown form",
@@ -484,6 +517,8 @@ fn an_unrepresentable_refusal_names_the_condition_to_change() {
              Markdown form",
             "E_ADF_UNREPRESENTABLE: a table cell holding more than one \
              paragraph has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: a link to a javascript:, vbscript: or \
+             data: address has no Markdown form",
         ]
     );
 }

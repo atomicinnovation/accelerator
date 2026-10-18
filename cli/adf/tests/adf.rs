@@ -164,6 +164,42 @@ fn a_rejected_href_drops_the_mark_and_keeps_the_text_bare() {
 }
 
 #[test]
+fn a_link_to_any_scheme_that_runs_no_code_is_emitted() {
+    for href in [
+        "slack://channel?team=T1&id=C1",
+        "ftp://example.com/file.txt",
+        "jira://browse/ENG-1",
+    ] {
+        let rendered = render(&json!({
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{
+                "type": "text",
+                "text": "link",
+                "marks": [{"type": "link", "attrs": {"href": href}}]
+            }]}]
+        }));
+
+        assert_eq!(rendered, format!("[link]({href})"));
+    }
+}
+
+#[test]
+fn a_href_that_runs_code_drops_the_mark_however_it_is_spelled() {
+    for href in [" VBScript:msgbox", "java\nscript:alert(1)", "\u{1}data:x"] {
+        let rendered = render(&json!({
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{
+                "type": "text",
+                "text": "click",
+                "marks": [{"type": "link", "attrs": {"href": href}}]
+            }]}]
+        }));
+
+        assert_eq!(rendered, "click", "{href:?}");
+    }
+}
+
+#[test]
 fn an_accepted_href_is_emitted_untrimmed() {
     let rendered = render(&json!({
         "type": "doc",

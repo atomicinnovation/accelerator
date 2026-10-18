@@ -343,6 +343,11 @@ impl Renderer {
                     let marks = Marks::of(node);
                     let text =
                         node.get("text").and_then(Value::as_str).unwrap_or("");
+                    if marks.link_runs_code {
+                        self.admit_unrepresentable(
+                            Unrepresentable::LinkToCodeRunningAddress,
+                        )?;
+                    }
                     if marks.code && text.contains('`') {
                         self.admit_unrepresentable(
                             Unrepresentable::BacktickInInlineCode,
@@ -403,6 +408,7 @@ struct Marks {
     code: bool,
     emphasis: Vec<&'static str>,
     link: Option<String>,
+    link_runs_code: bool,
 }
 
 impl Marks {
@@ -416,20 +422,20 @@ impl Marks {
                 mark.get("type").and_then(Value::as_str) == Some(kind)
             })
         };
-        let link = has("link")
-            .then(|| {
-                marks
-                    .iter()
-                    .find(|mark| {
-                        mark.get("type").and_then(Value::as_str) == Some("link")
-                    })
-                    .and_then(|mark| mark.get("attrs"))
-                    .and_then(|attrs| attrs.get("href"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_owned()
-            })
-            .filter(|href| href_is_safe(href));
+        let href = has("link").then(|| {
+            marks
+                .iter()
+                .find(|mark| {
+                    mark.get("type").and_then(Value::as_str) == Some("link")
+                })
+                .and_then(|mark| mark.get("attrs"))
+                .and_then(|attrs| attrs.get("href"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned()
+        });
+        let link_runs_code = href.as_deref().is_some_and(runs_code);
+        let link = href.filter(|_| !link_runs_code);
         let emphasis = [
             (has("em"), "*"),
             (has("strong"), "**"),
@@ -442,6 +448,7 @@ impl Marks {
             code: has("code"),
             emphasis,
             link,
+            link_runs_code,
         }
     }
 
@@ -484,36 +491,17 @@ fn unsupported(node: &str) -> Unrepresentable {
     }
 }
 
-/// Allows `http`, `https` and `mailto`, plus anything schemeless — relative,
-/// fragment or protocol-relative. Any other scheme drops the mark and leaves
-/// the text bare, with no placeholder.
-fn href_is_safe(href: &str) -> bool {
-    let trimmed = href.trim_start_matches([' ', '\t', '\n', '\r']);
-    let lower = trimmed.to_ascii_lowercase();
-    if lower.starts_with("http://")
-        || lower.starts_with("https://")
-        || lower.starts_with("mailto:")
-    {
-        return true;
-    }
-    !has_scheme(&lower)
-}
-
-/// `^[a-z][a-z0-9+.\-]*:` over the lowercased href.
-fn has_scheme(lower: &str) -> bool {
-    let mut characters = lower.chars();
-    let Some(first) = characters.next() else {
-        return false;
-    };
-    if !first.is_ascii_lowercase() {
-        return false;
-    }
-    for character in characters {
-        match character {
-            ':' => return true,
-            'a'..='z' | '0'..='9' | '+' | '.' | '-' => {}
-            _ => return false,
-        }
-    }
-    false
+/// Whether following `href` runs code or opens an inline document: a
+/// `javascript:`, `vbscript:` or `data:` address. The scheme is read as a
+/// browser reads it, after dropping leading controls and spaces and every
+/// tab and line break, so `java\nscript:` is caught.
+fn runs_code(href: &str) -> bool {
+    let scheme: String = href
+        .trim_start_matches(|character: char| character <= ' ')
+        .chars()
+        .filter(|character| !matches!(character, '\t' | '\n' | '\r'))
+        .take_while(|&character| character != ':')
+        .collect::<String>()
+        .to_ascii_lowercase();
+    href.contains(':') && ["javascript", "vbscript", "data"].contains(&&*scheme)
 }

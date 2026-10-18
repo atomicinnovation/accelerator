@@ -320,6 +320,13 @@
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
   a `cause:` line naming the content to change, and offers only `local` or
   `skip`.
+- **Jira links to any scheme that runs no code are kept.** `jira show`, `jira
+  search --render-adf` and `work sync` pulls render links such as `slack://`
+  and `ftp://` as Markdown links, where they showed bare text; only
+  `javascript:`, `vbscript:` and `data:` links are still dropped, now also
+  when tabs, line breaks or leading control characters disguise the scheme. A
+  `work sync` over a description linking to one of those three refuses it as
+  unrenderable rather than deleting the link on the next push.
 - **Conflict dossiers and `work diff` list only sections whose meaning
   differs.** A section that differs only in notation, such as bullet
   characters or line wrapping, is omitted, and each listed section shows its

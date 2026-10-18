@@ -77,6 +77,7 @@ pub enum Unrepresentable {
     PipeInTableCellLink,
     HardBreakInTableCell,
     TableCellOfSeveralBlocks,
+    LinkToCodeRunningAddress,
 }
 
 impl fmt::Display for Unrepresentable {
@@ -102,6 +103,9 @@ impl fmt::Display for Unrepresentable {
             }
             Self::TableCellOfSeveralBlocks => formatter
                 .write_str("a table cell holding more than one paragraph"),
+            Self::LinkToCodeRunningAddress => formatter.write_str(
+                "a link to a javascript:, vbscript: or data: address",
+            ),
         }
     }
 }
