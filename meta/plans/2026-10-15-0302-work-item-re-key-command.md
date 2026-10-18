@@ -5,7 +5,7 @@ title: "Work Item Re-Key Command Implementation Plan"
 date: "2026-10-15T22:41:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0302"
 parent: "work-item:0302"
 derived_from: ["codebase-research:2026-10-15-0302-work-item-re-key-command"]
