@@ -49,13 +49,14 @@ pub enum FetchError {
 
 /// The bounds a streamed transfer runs under.
 ///
-/// `total_deadline` exists because `attempt_timeout` alone multiplies by the
-/// attempt cap: a transfer deadline sized for a large archive would otherwise
-/// become a half-hour wait inside a tool call with no progress output and no
-/// cancel.
+/// `deadline` exists because `attempt_timeout` alone multiplies by the attempt
+/// cap: a transfer deadline sized for a large archive would otherwise become a
+/// half-hour wait inside a tool call with no progress output and no cancel. It
+/// is a point in time rather than a span, so every fetch made under the same
+/// limits shares one budget however many fallbacks a download chains.
 pub(super) struct StreamLimits {
     pub attempt_timeout: Duration,
-    pub total_deadline: Duration,
+    pub deadline: Deadline,
     pub idle_timeout: Duration,
     pub max_bytes: u64,
 }
@@ -63,16 +64,41 @@ pub(super) struct StreamLimits {
 impl StreamLimits {
     /// The bounds a tree archive is fetched under: a per-attempt deadline sized
     /// for a ~120MB compressed archive at a 200 KB/s sustained floor, a whole-
-    /// loop bound so three attempts cannot compound into a half-hour wait, and
-    /// the stall bound.
+    /// download bound so attempts and fallbacks cannot compound into a
+    /// half-hour wait, and the stall bound. The whole-download clock starts
+    /// here.
     #[must_use]
-    pub(super) const fn for_archive(max_bytes: u64) -> Self {
+    pub(super) fn for_archive(max_bytes: u64) -> Self {
         Self {
             attempt_timeout: Duration::from_secs(600),
-            total_deadline: Duration::from_secs(900),
+            deadline: Deadline::after(Duration::from_secs(900)),
             idle_timeout: READ_IDLE_TIMEOUT,
             max_bytes,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Deadline {
+    expires_at: Instant,
+    budget: Duration,
+}
+
+impl Deadline {
+    #[must_use]
+    pub(super) fn after(budget: Duration) -> Self {
+        Self {
+            expires_at: Instant::now() + budget,
+            budget,
+        }
+    }
+
+    fn has_passed(&self) -> bool {
+        Instant::now() >= self.expires_at
+    }
+
+    const fn budget(&self) -> Duration {
+        self.budget
     }
 }
 
@@ -304,15 +330,14 @@ impl Fetcher {
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<Whole, FetchError> {
-        self.streaming_attempts(url, limits, |started| {
+        self.streaming_attempts(url, limits, || {
             let response = self.send_streaming(url, limits, None)?;
             if !response.status().is_success() {
                 return Err(unexpected_status(&response));
             }
             let sink = open_sink()
                 .map_err(|error| Terminal::Sink(error.to_string()))?;
-            copy_body(response, sink, limits, started)
-                .map(|sha256| Whole { sha256 })
+            copy_body(response, sink, limits).map(|sha256| Whole { sha256 })
         })
     }
 
@@ -335,7 +360,7 @@ impl Fetcher {
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<Resumed, FetchError> {
-        self.streaming_attempts(url, limits, |started| {
+        self.streaming_attempts(url, limits, || {
             let response = self.send_streaming(url, limits, Some(from))?;
             let status = response.status();
             if status.as_u16() == 416 {
@@ -358,7 +383,7 @@ impl Fetcher {
             };
             let sink = open_sink(mode)
                 .map_err(|error| Terminal::Sink(error.to_string()))?;
-            let sha256 = copy_body(response, sink, limits, started)?;
+            let sha256 = copy_body(response, sink, limits)?;
             Ok(if ranged {
                 Resumed::Appended
             } else {
@@ -371,30 +396,29 @@ impl Fetcher {
         &self,
         url: &str,
         limits: &StreamLimits,
-        mut attempt: impl FnMut(Instant) -> Result<T, Terminal>,
+        mut attempt: impl FnMut() -> Result<T, Terminal>,
     ) -> Result<T, FetchError> {
         if self.require_https && !is_https(url) {
             return Err(FetchError::Unreachable(format!(
                 "refusing non-https URL (scheme not permitted): {url}"
             )));
         }
-        let started = Instant::now();
-        let mut last = String::new();
+        let mut last = String::from("no attempt left within the deadline");
         for attempt_number in 0..self.max_attempts {
             if attempt_number > 0 {
                 std::thread::sleep(self.backoff * attempt_number);
             }
-            if started.elapsed() >= limits.total_deadline {
+            if limits.deadline.has_passed() {
                 break;
             }
-            match attempt(started) {
+            match attempt() {
                 Ok(outcome) => return Ok(outcome),
                 Err(terminal) => last = terminal.retryable_detail()?,
             }
         }
         Err(FetchError::Unreachable(format!(
-            "{last} (gave up after {:?}, the bound on the whole retry loop)",
-            limits.total_deadline
+            "{last} (gave up after {:?}, the bound on the whole download)",
+            limits.deadline.budget()
         )))
     }
 
@@ -458,7 +482,6 @@ fn copy_body(
     mut response: reqwest::blocking::Response,
     mut sink: Box<dyn StreamSink + '_>,
     limits: &StreamLimits,
-    started: Instant,
 ) -> Result<[u8; 32], Terminal> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; STREAM_CHUNK];
@@ -482,7 +505,7 @@ fn copy_body(
         sink.accept(chunk)
             .map_err(|error| Terminal::Retryable(error.to_string()))?;
         if attempt_started.elapsed() >= limits.attempt_timeout
-            || started.elapsed() >= limits.total_deadline
+            || limits.deadline.has_passed()
         {
             return Err(Terminal::Retryable(format!(
                 "transfer deadline exceeded after {bytes} bytes"
@@ -520,8 +543,8 @@ mod tests {
     use http_test_support::{MockHTTPServer, RequestKey, Route};
 
     use super::{
-        is_allowed_redirect_host, is_https, FetchError, Fetcher, Resumed,
-        SinkMode, StreamLimits, StreamSink, Whole,
+        is_allowed_redirect_host, is_https, Deadline, FetchError, Fetcher,
+        Resumed, SinkMode, StreamLimits, StreamSink, Whole,
     };
 
     /// Collects what it is handed, so a test can assert a retry started from an
@@ -541,7 +564,7 @@ mod tests {
     fn limits(max_bytes: u64) -> StreamLimits {
         StreamLimits {
             attempt_timeout: Duration::from_secs(5),
-            total_deadline: Duration::from_secs(20),
+            deadline: Deadline::after(Duration::from_secs(20)),
             idle_timeout: Duration::from_secs(5),
             max_bytes,
         }
@@ -715,11 +738,11 @@ mod tests {
         let limits = StreamLimits::for_archive(4096);
         assert_eq!(limits.max_bytes, 4096);
         assert!(
-            limits.total_deadline > limits.attempt_timeout,
+            limits.deadline.budget() > limits.attempt_timeout,
             "the loop bound must leave room for a retry"
         );
         assert!(
-            limits.total_deadline
+            limits.deadline.budget()
                 < limits.attempt_timeout * super::MAX_ATTEMPTS,
             "an enlarged attempt deadline must not compound across attempts"
         );
@@ -834,7 +857,7 @@ mod tests {
             &format!("{}/asset", server.base_url()),
             &StreamLimits {
                 attempt_timeout: Duration::from_secs(600),
-                total_deadline: Duration::from_secs(900),
+                deadline: Deadline::after(Duration::from_secs(900)),
                 idle_timeout: Duration::from_millis(300),
                 max_bytes: 1 << 20,
             },
@@ -850,6 +873,47 @@ mod tests {
             elapsed < Duration::from_secs(10),
             "a stall waited out the attempt deadline rather than the idle \
              bound: {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn a_deadline_spent_by_one_fetch_bounds_the_next() {
+        let stalling = MockHTTPServer::start();
+        stalling.route(
+            RequestKey::get("/asset"),
+            Route::Stall(Duration::from_secs(5)),
+        );
+        let fallback = answering(206, Some("bytes 0-5/6".to_owned()));
+        let shared = StreamLimits {
+            attempt_timeout: Duration::from_secs(600),
+            deadline: Deadline::after(Duration::from_millis(500)),
+            idle_timeout: Duration::from_millis(200),
+            max_bytes: 1 << 20,
+        };
+        let fetcher = test_fetcher();
+        let spent = stream(
+            &fetcher,
+            &format!("{}/asset", stalling.base_url()),
+            &shared,
+            &Collecting::default(),
+        );
+        assert!(matches!(spent, Err(FetchError::Unreachable(_))));
+
+        let next = fetcher.resume(
+            &format!("{}/asset", fallback.base_url()),
+            &shared,
+            0,
+            &mut |_| Ok(Box::new(CollectingSink(Collecting::default()))),
+        );
+
+        assert!(
+            matches!(&next, Err(FetchError::Unreachable(_))),
+            "a later fetch under spent limits must give up, got {next:?}"
+        );
+        assert_eq!(
+            fallback.hits(&RequestKey::get("/asset")),
+            0,
+            "a later fetch started a fresh budget rather than sharing one"
         );
     }
 
