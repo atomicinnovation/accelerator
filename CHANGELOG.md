@@ -115,9 +115,10 @@
   code or link address, or a code block holding a fence line, none of which
   this Markdown can carry; the dossier's `cause:` line names which. Scripts
   that parse `work sync` exit codes need updating.
-- **A `work sync` item whose local frontmatter does not parse fails** (exit
-  71), where it was read as an empty title and body. Nothing is sent or
-  written for it, and its conflict dossier reads `reason: local-unreadable`.
+- **A `work sync` item whose local frontmatter does not parse fails as
+  `unparseable`** (exit 75), where it was read as an empty title and body.
+  Nothing is sent or written for it, and its conflict dossier reads
+  `reason: local-unreadable` with a `cause:` line giving the parse error.
 - **Pending-push records move to schema 3**, which earlier releases refuse,
   so finish every outstanding promotion before downgrading.
 - **`work sync` reports two new rows.** An item whose baseline entry was

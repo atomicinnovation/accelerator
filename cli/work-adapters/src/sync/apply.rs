@@ -37,6 +37,7 @@ pub enum FailureClass {
     Rejected,
     Unrenderable,
     PullResidue,
+    Unparseable,
 }
 
 #[derive(Debug)]
@@ -60,6 +61,11 @@ pub enum ApplyError {
     },
     LocalPullResidue {
         item_id: String,
+        external_id: ExternalId,
+    },
+    LocalUnparseable {
+        item_id: String,
+        detail: String,
     },
     LocalChangedSinceClassified {
         item_id: String,
@@ -85,6 +91,7 @@ impl ApplyError {
             }
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
+            Self::LocalUnparseable { .. } => FailureClass::Unparseable,
         }
     }
 }
@@ -104,18 +111,28 @@ impl std::fmt::Display for ApplyError {
             } => write!(formatter, "{item_id}: {operation} failed: {detail}"),
             Self::RemoteBodyUnavailable { item_id } => write!(
                 formatter,
-                "{item_id}: pull failed: the remote body was not fetched"
+                "{item_id}: the remote description was not fetched this run, \
+                 so nothing was sent or written; re-run the sync"
             ),
             Self::RemoteUnrenderable { item_id, cause } => {
                 write!(formatter, "{item_id}: {cause}")
             }
-            Self::LocalPullResidue { item_id } => write!(
+            Self::LocalPullResidue {
+                item_id,
+                external_id,
+            } => write!(
                 formatter,
                 "{item_id}: the local file still holds the raw tracker \
                  document an earlier pull wrote, so nothing was sent; replace \
-                 it with Markdown (`jira show <key> --render-adf` prints a \
-                 starting point) and sync, or resolve with --resolve \
+                 it with Markdown (`jira show {external_id} --render-adf` \
+                 prints a starting point) and sync, or resolve with --resolve \
                  {item_id}=remote to discard local changes"
+            ),
+            Self::LocalUnparseable { item_id, detail } => write!(
+                formatter,
+                "{item_id}: the local file's frontmatter does not parse \
+                 ({detail}), so nothing was sent or written; fix the file and \
+                 re-run the sync"
             ),
             Self::LocalChangedSinceClassified { item_id } => write!(
                 formatter,

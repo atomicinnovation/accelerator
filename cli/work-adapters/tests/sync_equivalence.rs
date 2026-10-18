@@ -1155,8 +1155,26 @@ fn resolving_local_on_an_item_without_frontmatter_fails_it_and_sends_nothing() {
 
     let report = repo.resolving(1, Resolution::PushLocal);
 
-    assert!(matches!(row(&report, 1).outcome, ItemOutcome::Failed(_)));
+    assert_eq!(failure_class(&report, 1), FailureClass::Unparseable);
     assert_eq!(repo.mutations(), []);
+}
+
+#[test]
+fn a_conflict_over_an_item_without_frontmatter_names_the_parse_failure() {
+    let repo = Repo::with_item(
+        Tracker::Linear,
+        1,
+        WITHOUT_FRONTMATTER,
+        issue(1, &linear(TITLE, BODY), STAMP),
+        &Recorded::Nothing,
+    );
+
+    let dossier = unrenderable_dossier(&repo.sync_once());
+
+    assert!(dossier.contains("reason: local-unreadable\n"), "{dossier}");
+    assert!(dossier.contains("\ncause: "), "{dossier}");
+    assert!(dossier.contains("frontmatter does not parse"), "{dossier}");
+    assert!(!dossier.contains("could not be read"), "{dossier}");
 }
 
 #[test]

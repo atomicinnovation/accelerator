@@ -45,11 +45,12 @@
 //!   issue) — a remote issue may already exist; a whole-item `update` is
 //!   idempotent, so there the hazard is response *uncertainty*, not
 //!   double-apply. Either way the operator reconciles by hand.
-//! - `75` `REJECTED` — provably unapplied; the request itself must change. The
-//!   client refused it as invalid before sending it (a body that cannot be
-//!   converted, a path that cannot be composed), so no remote issue exists,
-//!   but a retry would fail identically. **Never auto-retried.** Distinct from
-//!   `71`, whose meaning stays "a remote issue may already exist".
+//! - `75` `REJECTED` — provably unapplied; the request itself must change. It
+//!   was refused before sending (a body that cannot be converted, a path that
+//!   cannot be composed, a local file whose frontmatter does not parse), so no
+//!   remote issue exists, but a retry would fail identically. **Never
+//!   auto-retried.** Distinct from `71`, whose meaning stays "a remote issue
+//!   may already exist".
 //!
 //! Where one run yields several outcomes, the exit code takes the highest in
 //! the precedence `71 > 4 > 75 > 74 > 70`.

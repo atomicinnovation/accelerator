@@ -23,6 +23,7 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
@@ -632,4 +633,27 @@ fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseli
         .iter()
         .any(|call| call == &format!("write:{BASELINE_PATH}")));
     Ok(())
+}
+
+#[test]
+fn an_unfetched_remote_is_reported_without_naming_a_direction() {
+    assert_eq!(
+        ApplyError::RemoteBodyUnavailable {
+            item_id: "0001".to_owned()
+        }
+        .to_string(),
+        "0001: the remote description was not fetched this run, so nothing \
+         was sent or written; re-run the sync"
+    );
+}
+
+#[test]
+fn a_pull_residue_refusal_names_the_command_for_its_own_key() {
+    let shown = ApplyError::LocalPullResidue {
+        item_id: "0001".to_owned(),
+        external_id: ExternalId::new("ENG-12".to_owned()),
+    }
+    .to_string();
+
+    assert!(shown.contains("`jira show ENG-12 --render-adf`"), "{shown}");
 }

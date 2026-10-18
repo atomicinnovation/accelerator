@@ -420,9 +420,8 @@ impl LocalWorkItem {
 }
 
 fn unparseable_local(item_id: &str, detail: String) -> ApplyError {
-    ApplyError::Io {
+    ApplyError::LocalUnparseable {
         item_id: item_id.to_owned(),
-        operation: "parse-local",
         detail,
     }
 }
@@ -447,6 +446,9 @@ pub struct ConflictDossier {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnrenderableReason {
     LocalUnreadable,
+    /// Reported under the `local-unreadable` keyword, which the sync skill
+    /// documents as covering a file whose frontmatter does not parse.
+    LocalUnparseable(String),
     RemoteUnrenderable(Unrenderable),
     LocalPullResidue(Unrenderable),
     /// The remote has no Markdown form and the item's legacy entry cannot
@@ -457,24 +459,33 @@ pub enum UnrenderableReason {
 impl UnrenderableReason {
     const fn keyword(&self) -> &'static str {
         match self {
-            Self::LocalUnreadable => "local-unreadable",
+            Self::LocalUnreadable | Self::LocalUnparseable(_) => {
+                "local-unreadable"
+            }
             Self::RemoteUnrenderable(_) => "remote-unrenderable",
             Self::LocalPullResidue(_) => "local-pull-residue",
             Self::LegacyUnrenderable(_) => "legacy-unrenderable",
         }
     }
 
-    const fn cause(&self) -> Option<&Unrenderable> {
+    fn cause(&self) -> Option<&str> {
         match self {
             Self::LocalUnreadable => None,
+            Self::LocalUnparseable(detail) => Some(detail),
             Self::RemoteUnrenderable(cause)
             | Self::LocalPullResidue(cause)
-            | Self::LegacyUnrenderable(cause) => Some(cause),
+            | Self::LegacyUnrenderable(cause) => Some(&cause.detail),
         }
     }
 
     fn remedy(&self, id: &str) -> String {
         match self {
+            Self::LocalUnparseable(_) => format!(
+                "This conflict could not be rendered: the local file's \
+                 frontmatter does not parse. Item {id} was left unresolved. \
+                 Fix the frontmatter and re-run the sync, or edit the work \
+                 item by hand."
+            ),
             Self::LocalUnreadable => format!(
                 "This conflict could not be rendered: the local file could \
                  not be read. Item {id} was left unresolved. Fix the file and \
@@ -569,7 +580,7 @@ fn unrenderable_header(
 ) -> String {
     let cause_line = reason
         .cause()
-        .map(|cause| format!("cause: {}\n", cause.detail))
+        .map(|cause| format!("cause: {cause}\n"))
         .unwrap_or_default();
     let status_lines = format!(
         "status: unrenderable\nreason: {}\n{cause_line}",
@@ -776,20 +787,27 @@ fn dossier_for(
     item: &LocalItem,
     knowledge: &RunKnowledge<'_>,
 ) -> ConflictDossier {
-    let local = knowledge.local_content(item).ok().and_then(|content| {
-        Some((content, LocalWorkItem::parse(content).ok()?))
-    });
-    match local {
-        Some((content, local)) => {
-            readable_dossier(id, item, knowledge, content, &local)
-        }
-        None => unreadable_dossier(id, knowledge.remote_updated(id)),
+    let Ok(content) = knowledge.local_content(item) else {
+        return unreadable_dossier(
+            id,
+            knowledge.remote_updated(id),
+            UnrenderableReason::LocalUnreadable,
+        );
+    };
+    match LocalWorkItem::parse(content) {
+        Ok(local) => readable_dossier(id, item, knowledge, content, &local),
+        Err(detail) => unreadable_dossier(
+            id,
+            knowledge.remote_updated(id),
+            UnrenderableReason::LocalUnparseable(detail),
+        ),
     }
 }
 
 fn unreadable_dossier(
     id: &str,
     remote_updated: RemoteTimestamp,
+    reason: UnrenderableReason,
 ) -> ConflictDossier {
     ConflictDossier {
         id: id.to_owned(),
@@ -798,7 +816,7 @@ fn unreadable_dossier(
         local_modified: None,
         remote_updated,
         sections: Vec::new(),
-        unrenderable: Some(UnrenderableReason::LocalUnreadable),
+        unrenderable: Some(reason),
     }
 }
 
@@ -952,6 +970,7 @@ impl PreparedSend<'_> {
 fn prepare_send<'k>(
     planned: &PlannedAction,
     item: &LocalItem,
+    external_id: &ExternalId,
     knowledge: &'k RunKnowledge<'_>,
 ) -> Result<PreparedSend<'k>, ApplyError> {
     let content = knowledge.local_content(item)?;
@@ -964,7 +983,7 @@ fn prepare_send<'k>(
         &local.body,
         knowledge.projection(&item.id),
     ) {
-        return Err(refused_send(&item.id, refusal));
+        return Err(refused_send(&item.id, external_id, refusal));
     }
     Ok(PreparedSend {
         action: planned.action,
@@ -982,7 +1001,7 @@ fn check_send(
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
     let item = knowledge.item(&planned.id)?;
     let external_id = item.external_id.as_ref()?;
-    let prepared = match prepare_send(planned, item, knowledge) {
+    let prepared = match prepare_send(planned, item, external_id, knowledge) {
         Ok(prepared) => prepared,
         Err(refused) => return Some(Err(refused)),
     };
@@ -994,10 +1013,17 @@ fn check_send(
     )))
 }
 
-fn refused_send(item_id: &str, refusal: SendRefusal) -> ApplyError {
+fn refused_send(
+    item_id: &str,
+    external_id: &ExternalId,
+    refusal: SendRefusal,
+) -> ApplyError {
     let item_id = item_id.to_owned();
     match refusal {
-        SendRefusal::PullResidue => ApplyError::LocalPullResidue { item_id },
+        SendRefusal::PullResidue => ApplyError::LocalPullResidue {
+            item_id,
+            external_id: external_id.clone(),
+        },
         SendRefusal::RemoteUnrenderable(cause) => {
             ApplyError::RemoteUnrenderable { item_id, cause }
         }
@@ -1118,7 +1144,7 @@ fn send_outcome(
     external_id: &ExternalId,
     knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let prepared = match prepare_send(planned, item, knowledge) {
+    let prepared = match prepare_send(planned, item, external_id, knowledge) {
         Ok(prepared) => prepared,
         Err(refused) => return ItemOutcome::Failed(refused),
     };
@@ -1945,7 +1971,12 @@ mod tests {
             &digester,
         );
 
-        let prepared = super::prepare_send(&planned, &item, &knowledge);
+        let prepared = super::prepare_send(
+            &planned,
+            &item,
+            &tracker::ExternalId::new("ENG-9".to_owned()),
+            &knowledge,
+        );
 
         assert!(
             matches!(
