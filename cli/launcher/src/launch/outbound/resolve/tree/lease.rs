@@ -36,7 +36,7 @@ impl LivenessProbe for FlockProbe {
 #[cfg(unix)]
 mod unix {
     use std::fs::{File, OpenOptions};
-    use std::os::fd::AsFd;
+    use std::os::fd::{AsFd, BorrowedFd};
     use std::os::unix::fs::OpenOptionsExt as _;
     use std::path::Path;
 
@@ -83,8 +83,10 @@ mod unix {
     ///
     /// [`TreeError::Lease`] if the lock file cannot be created or locked.
     pub fn take_single_flight(path: &Path) -> Result<SingleFlight, TreeError> {
-        lock_confirmed(path, open_creating, FlockOperation::LockExclusive)
-            .and_then(take_outcome)
+        lock_confirmed(path, open_creating, |fd| {
+            flock(fd, FlockOperation::LockExclusive)
+        })
+        .and_then(take_outcome)
     }
 
     /// Try to take `LOCK_EX` without blocking.
@@ -101,11 +103,9 @@ mod unix {
     pub fn try_single_flight(
         path: &Path,
     ) -> Result<Option<SingleFlight>, TreeError> {
-        lock_confirmed(
-            path,
-            open_creating,
-            FlockOperation::NonBlockingLockExclusive,
-        )
+        lock_confirmed(path, open_creating, |fd| {
+            flock(fd, FlockOperation::NonBlockingLockExclusive)
+        })
         .and_then(try_outcome)
     }
 
@@ -120,11 +120,9 @@ mod unix {
     pub fn probe_single_flight(
         path: &Path,
     ) -> Result<SingleFlightProbe, TreeError> {
-        lock_confirmed(
-            path,
-            open_existing,
-            FlockOperation::NonBlockingLockExclusive,
-        )
+        lock_confirmed(path, open_existing, |fd| {
+            flock(fd, FlockOperation::NonBlockingLockExclusive)
+        })
         .map(probe_outcome)
     }
 
@@ -167,12 +165,16 @@ mod unix {
         )
     }
 
-    /// On a root shared by several NFS clients, another client's unlink shows
-    /// up as `ESTALE` on a descriptor that is still open.
     fn is_displacement(error: &std::io::Error) -> bool {
-        error.kind() == std::io::ErrorKind::NotFound
-            || rustix::io::Errno::from_io_error(error)
-                == Some(rustix::io::Errno::STALE)
+        error.kind() == std::io::ErrorKind::NotFound || is_stale_handle(error)
+    }
+
+    /// On a root shared by several NFS clients, another client's unlink shows
+    /// up as `ESTALE`, on a descriptor that is still open or on a path whose
+    /// lookup was cached.
+    fn is_stale_handle(error: &std::io::Error) -> bool {
+        rustix::io::Errno::from_io_error(error)
+            == Some(rustix::io::Errno::STALE)
     }
 
     fn identity(file: &File) -> std::io::Result<(u64, u64)> {
@@ -191,16 +193,20 @@ mod unix {
     fn lock_confirmed(
         path: &Path,
         open: impl Fn(&Path) -> std::io::Result<Option<File>>,
-        operation: FlockOperation,
+        lock: impl Fn(BorrowedFd<'_>) -> rustix::io::Result<()>,
     ) -> Result<Locked, TreeError> {
         for _ in 0..MAX_LOCK_ATTEMPTS {
-            let Some(file) = open(path).map_err(|error| {
-                lease(&format!("cannot open the single-flight lock: {error}"))
-            })?
-            else {
-                return Ok(Locked::Absent);
+            let file = match open(path) {
+                Ok(Some(file)) => file,
+                Ok(None) => return Ok(Locked::Absent),
+                Err(error) if is_stale_handle(&error) => continue,
+                Err(error) => {
+                    return Err(lease(&format!(
+                        "cannot open the single-flight lock: {error}"
+                    )))
+                }
             };
-            match flock(file.as_fd(), operation) {
+            match lock(file.as_fd()) {
                 Ok(()) => match placement(&file, path)? {
                     Placement::InPlace(confirming) => {
                         return Ok(Locked::Taken(SingleFlight::confirmed(
@@ -210,6 +216,7 @@ mod unix {
                     Placement::Displaced => {}
                 },
                 Err(rustix::io::Errno::WOULDBLOCK) => return Ok(Locked::Held),
+                Err(rustix::io::Errno::STALE) => {}
                 Err(error) => {
                     return Err(lease(&format!(
                         "cannot take the single-flight lock: {error}"
@@ -413,16 +420,53 @@ mod unix {
                 Ok(Some(file))
             });
 
-            let locked = lock_confirmed(
-                &path,
-                opener,
-                FlockOperation::NonBlockingLockExclusive,
-            )
+            let locked = lock_confirmed(&path, opener, |fd| {
+                flock(fd, FlockOperation::NonBlockingLockExclusive)
+            })
             .expect("locked");
 
             assert!(matches!(locked, Locked::Taken(_)));
             assert_eq!(opens.load(Ordering::SeqCst), 2);
             assert!(is_locked_elsewhere(&path), "the replacement is unlocked");
+        }
+
+        #[test]
+        fn a_stale_handle_on_open_is_retried_as_a_displacement() {
+            let (_dir, path) = lock_path();
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |path, nth| {
+                if nth == 1 {
+                    return Err(os_error(Errno::STALE));
+                }
+                Ok(Some(created(path)))
+            });
+
+            let locked = lock_confirmed(&path, opener, |fd| {
+                flock(fd, FlockOperation::NonBlockingLockExclusive)
+            })
+            .expect("locked");
+
+            assert!(matches!(locked, Locked::Taken(_)));
+            assert_eq!(opens.load(Ordering::SeqCst), 2);
+        }
+
+        #[test]
+        fn a_stale_handle_on_lock_is_retried_as_a_displacement() {
+            let (_dir, path) = lock_path();
+            let opens = Arc::new(AtomicUsize::new(0));
+            let opener = counted(&opens, |path, _| Ok(Some(created(path))));
+            let locks = AtomicUsize::new(0);
+
+            let locked = lock_confirmed(&path, opener, |fd| {
+                if locks.fetch_add(1, Ordering::SeqCst) == 0 {
+                    return Err(Errno::STALE);
+                }
+                flock(fd, FlockOperation::NonBlockingLockExclusive)
+            })
+            .expect("locked");
+
+            assert!(matches!(locked, Locked::Taken(_)));
+            assert_eq!(opens.load(Ordering::SeqCst), 2);
         }
 
         #[test]
@@ -438,11 +482,9 @@ mod unix {
                 Ok(Some(file))
             });
 
-            let locked = lock_confirmed(
-                &path,
-                opener,
-                FlockOperation::NonBlockingLockExclusive,
-            )
+            let locked = lock_confirmed(&path, opener, |fd| {
+                flock(fd, FlockOperation::NonBlockingLockExclusive)
+            })
             .expect("probed");
 
             assert!(matches!(locked, Locked::Absent));
@@ -464,11 +506,10 @@ mod unix {
                 let path = path.clone();
                 gave_up = within(BLOCKING_BOUND, "the lock", move || {
                     matches!(
-                        lock_confirmed(
-                            &path,
-                            opener,
-                            FlockOperation::NonBlockingLockExclusive,
-                        ),
+                        lock_confirmed(&path, opener, |fd| flock(
+                            fd,
+                            FlockOperation::NonBlockingLockExclusive
+                        ),),
                         Ok(Locked::KeptBeingReplaced)
                     )
                 });
@@ -487,11 +528,11 @@ mod unix {
         #[allow(clippy::used_underscore_binding)]
         fn a_confirmed_lock_keeps_its_confirming_descriptor() {
             let (_dir, path) = lock_path();
-            let Ok(Locked::Taken(guard)) = lock_confirmed(
-                &path,
-                open_creating,
-                FlockOperation::NonBlockingLockExclusive,
-            ) else {
+            let Ok(Locked::Taken(guard)) =
+                lock_confirmed(&path, open_creating, |fd| {
+                    flock(fd, FlockOperation::NonBlockingLockExclusive)
+                })
+            else {
                 panic!("the lock was not taken");
             };
 
@@ -510,11 +551,9 @@ mod unix {
             let opens = Arc::new(AtomicUsize::new(0));
             let opener = counted(&opens, |_, _| tempfile::tempfile().map(Some));
 
-            let outcome = lock_confirmed(
-                &path,
-                opener,
-                FlockOperation::NonBlockingLockExclusive,
-            );
+            let outcome = lock_confirmed(&path, opener, |fd| {
+                flock(fd, FlockOperation::NonBlockingLockExclusive)
+            });
 
             assert_eq!(opens.load(Ordering::SeqCst), 1);
             assert!(
