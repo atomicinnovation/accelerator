@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
 use reqwest::redirect::{Attempt, Policy};
+use reqwest::StatusCode;
 use sha2::{Digest as _, Sha256};
 
 const MAX_ATTEMPTS: u32 = 3;
@@ -366,10 +367,11 @@ impl Fetcher {
         self.streaming_attempts(url, limits, || {
             let response = self.send_streaming(url, limits, Some(from))?;
             let status = response.status();
-            if status.as_u16() == 416 {
+            if status == StatusCode::RANGE_NOT_SATISFIABLE {
                 return Ok(unsatisfiable(&response, from));
             }
-            if status.as_u16() == 206
+            let ranged = status == StatusCode::PARTIAL_CONTENT;
+            if ranged
                 && content_range(&response).and_then(satisfied_start)
                     != Some(from)
             {
@@ -378,7 +380,6 @@ impl Fetcher {
             if !status.is_success() {
                 return Err(unexpected_status(&response));
             }
-            let ranged = status.as_u16() == 206;
             let (mode, max_bytes) = if ranged {
                 (
                     SinkMode::Append { from },
