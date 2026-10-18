@@ -1920,6 +1920,30 @@ fn an_unreadable_partial_is_discarded_so_the_next_run_recovers() {
 }
 
 #[test]
+fn a_forced_repair_starts_from_no_partial_archive() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    set_mode(&partial, 0o000);
+    if std::fs::File::open(&partial).is_ok() {
+        eprintln!("skipping: this process reads files it has no access to");
+        return;
+    }
+
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: true,
+        },
+    )
+    .expect("a forced repair recovers in the same run");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 0);
+    assert_eq!(harness.server.hits(&archive_path()), 1);
+}
+
+#[test]
 fn an_unwritable_short_partial_is_replaced_in_the_same_run() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);

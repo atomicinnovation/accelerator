@@ -655,7 +655,9 @@ impl TreeResolver<'_> {
     /// Without `force`, a tree that verifies clean is left untouched. With it, a
     /// tree is re-materialised unconditionally — the only recovery for one that
     /// is internally consistent but wrong, which `verify` cannot detect since
-    /// such a tree matches its own table perfectly.
+    /// such a tree matches its own table perfectly. With `force`, any partial
+    /// archive is discarded first, so a forced repair never resumes a download
+    /// it cannot trust.
     ///
     /// The replacement is built beside the tree in use and the pointer swapped
     /// only once it exists, so a refetch that fails leaves the working tree
@@ -701,6 +703,13 @@ impl TreeResolver<'_> {
         ensure_trees_dir(&paths)?;
         let _held =
             HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
+        if force {
+            download::discard_partial_archive(&paths.temp_archive(
+                artifact,
+                &self.platform,
+                digest,
+            ));
+        }
 
         let superseded = self
             .locate(artifact, digest)
