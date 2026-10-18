@@ -1,6 +1,9 @@
 pub mod adf
 pub enum adf::AdfError
 pub adf::AdfError::BadInput
+pub adf::AdfError::DisallowedNesting
+pub adf::AdfError::DisallowedNesting::child: alloc::string::String
+pub adf::AdfError::DisallowedNesting::container: alloc::string::String
 pub adf::AdfError::HeadingWithoutLevel
 pub adf::AdfError::ListWithoutContent
 pub adf::AdfError::ListWithoutContent::node: alloc::string::String

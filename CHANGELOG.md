@@ -12,7 +12,10 @@
   Markdown given to `jira create`, `update` and `comment` reads `~~x~~` as
   strike, honours those escapes, keeps an ordered list's start number, and
   accepts blockquotes, pipe tables, rules and nested lists that it used to
-  refuse with exit code 41.
+  refuse with exit code 41. It still refuses, with exit code 41 and
+  `E_ADF_UNSUPPORTED`, a block Jira does not allow where it stands: a heading,
+  table, rule, task list or nested quote inside a blockquote, or a heading,
+  table, rule, task list or quote inside a list item.
 - **Credential commands run under a hardened runner.** `jira.token_cmd`,
   `linear.token_cmd`, `openalex.api_key_cmd` and their `ACCELERATOR_*_CMD`
   overrides now run in a fresh temporary directory outside the repository

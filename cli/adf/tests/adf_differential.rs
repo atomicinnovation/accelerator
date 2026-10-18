@@ -138,6 +138,7 @@ const fn class_of(error: &AdfError) -> &'static str {
         AdfError::HeadingWithoutLevel => "heading-without-level",
         AdfError::ListWithoutContent { .. } => "list-without-content",
         AdfError::Unrepresentable(_) => "unrepresentable",
+        AdfError::DisallowedNesting { .. } => "disallowed-nesting",
         AdfError::BadInput => "bad-input",
     }
 }
@@ -148,6 +149,7 @@ const fn expected_adf_exit(error: &AdfError) -> u16 {
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. }
         | AdfError::Unrepresentable(_) => 40,
+        AdfError::DisallowedNesting { .. } => 41,
         AdfError::BadInput => 42,
     }
 }

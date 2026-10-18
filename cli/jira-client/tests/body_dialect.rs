@@ -117,3 +117,8 @@ fn the_client_answers_wire_documents_through_its_dialect() {
         Ok("text\n".to_owned())
     );
 }
+
+#[test]
+fn a_heading_inside_a_quote_is_a_body_jira_rejects() {
+    assert!(JiraBodyDialect.rejects("> ## Note\n> body\n"));
+}

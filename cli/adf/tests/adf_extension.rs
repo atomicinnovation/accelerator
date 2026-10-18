@@ -483,6 +483,58 @@ fn a_link_to_an_address_that_runs_code_has_no_markdown_form() {
 }
 
 #[test]
+fn a_block_jira_forbids_inside_its_container_is_refused_at_assembly() {
+    let nested = |child: &str, container: &str| AdfError::DisallowedNesting {
+        child: child.to_owned(),
+        container: container.to_owned(),
+    };
+    for (markdown, refusal) in [
+        ("> ## Note\n> body", nested("heading", "blockquote")),
+        (
+            "> | a | b |\n> | --- | --- |\n> | 1 | 2 |",
+            nested("table", "blockquote"),
+        ),
+        ("> > nested", nested("blockquote", "blockquote")),
+        ("> ---", nested("rule", "blockquote")),
+        ("> - [ ] task", nested("taskList", "blockquote")),
+        ("- item\n\n  ## Heading", nested("heading", "listItem")),
+        ("- item\n\n  > quote", nested("blockquote", "listItem")),
+        (
+            "- item\n\n  | a |\n  | --- |\n  | 1 |",
+            nested("table", "listItem"),
+        ),
+    ] {
+        assert_eq!(
+            markdown_to_document(markdown, SEED),
+            Err(refusal),
+            "{markdown:?}"
+        );
+    }
+}
+
+#[test]
+fn blocks_jira_allows_inside_a_quote_or_a_list_item_still_assemble() {
+    for markdown in [
+        "> a quote\n>\n> - with a list\n>\n> ```\n> code\n> ```",
+        "- item\n\n  more\n\n  - nested\n\n  ```\n  code\n  ```",
+    ] {
+        assert!(markdown_to_document(markdown, SEED).is_ok(), "{markdown:?}");
+    }
+}
+
+#[test]
+fn a_disallowed_nesting_names_the_block_and_its_container() {
+    assert_eq!(
+        AdfError::DisallowedNesting {
+            child: "heading".to_owned(),
+            container: "blockquote".to_owned(),
+        }
+        .to_string(),
+        "E_ADF_UNSUPPORTED: Jira does not allow a heading inside a blockquote"
+    );
+}
+
+#[test]
 fn an_unrepresentable_refusal_names_the_condition_to_change() {
     let message =
         |reason: Unrepresentable| AdfError::Unrepresentable(reason).to_string();

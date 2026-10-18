@@ -14,6 +14,7 @@
 //! every behaviour that is knowingly wrong but faithful.
 
 mod assemble;
+mod content_model;
 mod render;
 mod syntax;
 mod tokenise;
@@ -32,6 +33,7 @@ pub enum AdfError {
     HeadingWithoutLevel,
     ListWithoutContent { node: String },
     Unrepresentable(Unrepresentable),
+    DisallowedNesting { child: String, container: String },
     BadInput,
 }
 
@@ -54,6 +56,11 @@ impl fmt::Display for AdfError {
             Self::Unrepresentable(reason) => write!(
                 formatter,
                 "E_ADF_UNREPRESENTABLE: {reason} has no Markdown form"
+            ),
+            Self::DisallowedNesting { child, container } => write!(
+                formatter,
+                "E_ADF_UNSUPPORTED: Jira does not allow a {child} inside a \
+                 {container}"
             ),
             Self::BadInput => write!(
                 formatter,
@@ -119,13 +126,17 @@ impl fmt::Display for Unrepresentable {
 ///
 /// # Errors
 ///
-/// [`AdfError::BadInput`] for a control byte.
+/// [`AdfError::BadInput`] for a control byte;
+/// [`AdfError::DisallowedNesting`] for a block Jira does not allow inside
+/// its blockquote or list item.
 pub fn markdown_to_document(
     markdown: &str,
     seed: Option<&str>,
 ) -> Result<Value, AdfError> {
     let tokenised = tokenise::tokenise(markdown)?;
-    Ok(assemble::to_document(&tokenised.tokens, seed))
+    let document = assemble::to_document(&tokenised.tokens, seed);
+    content_model::admit(&document)?;
+    Ok(document)
 }
 
 /// The whole ADF-to-markdown direction.

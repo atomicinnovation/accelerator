@@ -62,8 +62,7 @@ pub const JQL_EMPTY_VALUE: u8 = 33;
 pub const REQ_BAD_REQUEST: u8 = 34;
 
 pub const BAD_JSON: u8 = 40;
-/// Reserved and never reissued: nothing is refused as unsupported any more,
-/// but the frozen captured exit-code table still names it.
+/// Markdown that would place a block where Jira's ADF does not allow it.
 pub const ADF_UNSUPPORTED: u8 = 41;
 pub const ADF_BAD_INPUT: u8 = 42;
 
@@ -247,6 +246,7 @@ const fn for_adf(error: &AdfError) -> u8 {
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. } => BAD_JSON,
         AdfError::Unrepresentable(_) => ERROR,
+        AdfError::DisallowedNesting { .. } => ADF_UNSUPPORTED,
         AdfError::BadInput => ADF_BAD_INPUT,
     }
 }
@@ -459,6 +459,13 @@ mod tests {
                 node: String::new()
             })),
             ERROR
+        );
+        assert_eq!(
+            for_adf(&AdfError::DisallowedNesting {
+                child: String::new(),
+                container: String::new()
+            }),
+            ADF_UNSUPPORTED
         );
         assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);
     }
