@@ -9,9 +9,10 @@ use crate::rekey::outcome::NotRekeyed;
 
 /// # Errors
 ///
-/// [`NotRekeyed::Collision`] for the first entry, by old `id`, whose target
-/// another item holds as its `id`, an alias or its `external_id`, or another
-/// entry also targets, ignoring case.
+/// [`NotRekeyed::Collision`] for the first entry, by old `id`, whose old
+/// `id` another item also holds, or whose target another item holds as its
+/// `id`, an alias or its `external_id`, or another entry also targets,
+/// ignoring case.
 pub fn refuse_collisions(
     entries: &[RekeyEntry],
     items: &[ItemIdentity],
@@ -23,6 +24,15 @@ pub fn refuse_collisions(
         let Some(mover) = item_holding(&entry.old, items) else {
             continue;
         };
+        if let Some(namesake) = items.iter().find(|item| {
+            *item != mover && item.id.eq_ignore_ascii_case(&entry.old)
+        }) {
+            return Err(NotRekeyed::Collision {
+                first: mover.path.clone(),
+                second: namesake.path.clone(),
+                target: mover.id.clone(),
+            });
+        }
         let others: Vec<ItemIdentity> = items
             .iter()
             .filter(|item| *item != mover)
@@ -96,6 +106,51 @@ mod tests {
             second: PathBuf::from(format!("meta/work/{second}-item.md")),
             target: target.to_owned(),
         }
+    }
+
+    fn item_at(path: &str, id: &str) -> ItemIdentity {
+        ItemIdentity {
+            path: PathBuf::from(path),
+            ..item(id, &[], None)
+        }
+    }
+
+    #[test]
+    fn two_items_sharing_an_id_are_refused_naming_both() {
+        let items = [
+            item_at("meta/work/0042-a.md", "0042"),
+            item_at("meta/work/0042-b.md", "0042"),
+        ];
+        assert_eq!(
+            refuse_collisions(
+                &[entry("0042", "ACC-0042"), entry("0042", "ACC-0042")],
+                &items
+            ),
+            Err(NotRekeyed::Collision {
+                first: PathBuf::from("meta/work/0042-a.md"),
+                second: PathBuf::from("meta/work/0042-b.md"),
+                target: "0042".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn two_items_sharing_an_id_ignoring_case_are_refused_naming_both() {
+        let items = [
+            item_at("meta/work/ACC-0042-a.md", "ACC-0042"),
+            item_at("meta/work/acc-0042-b.md", "acc-0042"),
+        ];
+        assert_eq!(
+            refuse_collisions(
+                &[entry("ACC-0042", "0042"), entry("acc-0042", "0042")],
+                &items
+            ),
+            Err(NotRekeyed::Collision {
+                first: PathBuf::from("meta/work/ACC-0042-a.md"),
+                second: PathBuf::from("meta/work/acc-0042-b.md"),
+                target: "ACC-0042".to_owned(),
+            })
+        );
     }
 
     #[test]
