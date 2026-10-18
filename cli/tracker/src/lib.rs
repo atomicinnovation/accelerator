@@ -624,8 +624,8 @@ pub trait BodyDialect {
         Cow::Borrowed(body)
     }
 
-    /// Whether the tracker would refuse to store `body`, which then means
-    /// nothing any description does.
+    /// Whether the tracker would refuse to store `body`. A refused body is
+    /// never equivalent to any description.
     fn rejects(&self, _body: &str) -> bool {
         false
     }

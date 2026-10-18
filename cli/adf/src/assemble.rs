@@ -22,7 +22,8 @@ pub fn to_document(tokens: &[Token], seed: Option<&str>) -> Value {
         issued: 0,
         seeded: seed.is_some(),
     };
-    json!({"version": 1, "type": "doc", "content": blocks(tokens, &mut local_ids)})
+    let content = blocks(tokens, &mut local_ids);
+    json!({"version": 1, "type": "doc", "content": content})
 }
 
 struct LocalIds {
@@ -243,14 +244,18 @@ fn table(rows: &[Vec<String>]) -> Value {
         .iter()
         .enumerate()
         .map(|(index, cells)| {
-            let kind = if index == 0 { "tableHeader" } else { "tableCell" };
+            let kind = if index == 0 {
+                "tableHeader"
+            } else {
+                "tableCell"
+            };
             let cells: Vec<Value> = cells
                 .iter()
                 .map(|cell| {
-                    json!({
-                        "type": kind,
-                        "content": [{"type": "paragraph", "content": parse_inlines(cell)}]
-                    })
+                    let inlines = parse_inlines(cell);
+                    let paragraph =
+                        json!({"type": "paragraph", "content": inlines});
+                    json!({"type": kind, "content": [paragraph]})
                 })
                 .collect();
             json!({"type": "tableRow", "content": cells})

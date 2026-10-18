@@ -136,6 +136,17 @@
   change.** A local change that touches no field the tracker holds, or whose
   bodies already agree, now reports `<id>\trecord-baseline\tlocally-modified\t-`
   and sends nothing; scripts that parse `work sync` output need updating.
+- **Conflict dossiers and `work diff` list only sections whose meaning
+  differs.** A section that differs only in notation, such as bullet
+  characters or line wrapping, is omitted, and each listed section shows its
+  own heading on both sides. A dossier header reads
+  `title: <local> → <remote>` when the titles differ. Scripts that parse
+  `work diff` output need updating.
+- **A file an earlier release's pull left raw ADF JSON in is never sent.** Such
+  a push or `--resolve <id>=local` fails as `pull-residue` (exit 75); replace
+  the JSON with Markdown (`jira show <key> --render-adf` prints a starting
+  point) and sync, or resolve with `=remote` to discard local changes.
+  Scripts that parse `work sync` exit codes need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -337,15 +348,6 @@
   when tabs, line breaks or leading control characters disguise the scheme. A
   `work sync` over a description linking to one of those three refuses it as
   unrenderable rather than deleting the link on the next push.
-- **Conflict dossiers and `work diff` list only sections whose meaning
-  differs.** A section that differs only in notation, such as bullet
-  characters or line wrapping, is omitted, and each listed section shows its
-  own heading on both sides. A dossier header reads
-  `title: <local> → <remote>` when the titles differ.
-- **A file an earlier release's pull left raw ADF JSON in is never sent.** Such
-  a push or `--resolve <id>=local` fails as `pull-residue` (exit 75); replace
-  the JSON with Markdown (`jira show <key> --render-adf` prints a starting
-  point) and sync, or resolve with `=remote` to discard local changes.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already
@@ -664,7 +666,10 @@
   that is exactly what an earlier pull wrote for the current remote migrates
   as it is, while one holding raw Jira ADF that has since changed is reported
   as a conflict. A title line an earlier pull left above a description stays
-  as ordinary text.
+  as ordinary text. An earlier release still reads the rewritten file, but its
+  writes strip the recipe-1 keys and the next sync under this release adds
+  them back, so a team should upgrade together to avoid churn in
+  `last-sync.json`.
 - **No manual step for the Linear catalogue.** An existing `catalogue.json`
   reads as incomplete entries, and filtered pulls fetch what they lack. The
   first apply-mode sync whose pull runs completes every synced team's entry

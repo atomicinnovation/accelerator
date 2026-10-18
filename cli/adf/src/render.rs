@@ -59,8 +59,8 @@ fn attribute<'a>(node: &'a Value, name: &str) -> Option<&'a Value> {
 }
 
 /// The children of a node that must have them: `bulletList`, `orderedList`
-/// and `taskList` read `.content` with no `// []` fallback, so an absent one
-/// aborts the whole document rather than rendering as empty.
+/// and `taskList`. An absent `content` aborts the whole document rather than
+/// rendering as empty.
 fn required_children<'a>(
     node: &'a Value,
     kind: &str,
