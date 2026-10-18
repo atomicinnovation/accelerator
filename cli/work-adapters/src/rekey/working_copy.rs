@@ -10,13 +10,16 @@ use work::rekey::outcome::NotRekeyed;
 use work::rekey::write_set::Base;
 use work::rekey::write_set::WriteSet;
 
-/// Lockdirs and atomic-write temporaries a killed run can leave beside
+/// A lock sentinel or atomic-write temporary a killed run can leave beside
 /// corpus files; neither holds user content.
 fn is_machinery(path: &str) -> bool {
-    path.split('/').any(|component| {
-        component.ends_with(".lockdir")
-            || component.starts_with(kernel::TEMP_PREFIX)
-    })
+    let mut segments = path.rsplit('/');
+    let name = segments.next().unwrap_or_default();
+    let in_a_lockdir = segments
+        .next()
+        .is_some_and(|parent| parent.ends_with(".lockdir"));
+    store::is_atomic_temporary(name)
+        || (in_a_lockdir && store::lock::is_lock_sentinel(name))
 }
 
 /// A version-control tool reports a directory nothing in it is tracked in

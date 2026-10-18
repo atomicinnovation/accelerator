@@ -491,7 +491,11 @@ mod in_a_real_repository {
                 "1",
             )?;
             repo.write(
-                &format!("meta/work/{}0042-a.md.x1y2", kernel::TEMP_PREFIX),
+                "meta/work/0042-a.md.lockdir/reclaiming.4242.0123456789abcdef",
+                "1",
+            )?;
+            repo.write(
+                &format!("meta/work/{}a1B2c3", kernel::TEMP_PREFIX),
                 "half-written",
             )?;
 
@@ -539,5 +543,26 @@ mod in_a_real_repository {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn a_user_file_named_like_rekeys_machinery_is_dirt() -> Result<(), TestError>
+    {
+        each_vcs(|repo| {
+            repo.write(
+                &format!("meta/notes/{}scratch.md", kernel::TEMP_PREFIX),
+                "mine\n",
+            )?;
+            repo.write("meta/notes/design.lockdir/notes.md", "mine\n")?;
+
+            assert_eq!(
+                repo.check(&[], &WriteSet::default()),
+                Err(NotRekeyed::DirtyWorkingCopy(vec![
+                    "meta/notes/.tmp-scratch.md".to_owned(),
+                    "meta/notes/design.lockdir/notes.md".to_owned(),
+                ]))
+            );
+            Ok(())
+        })
     }
 }
