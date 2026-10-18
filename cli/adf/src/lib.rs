@@ -31,7 +31,7 @@ pub enum AdfError {
     RootNotDoc { found: String },
     HeadingWithoutLevel,
     ListWithoutContent { node: String },
-    Unrepresentable { node: String },
+    Unrepresentable(Unrepresentable),
     BadInput,
 }
 
@@ -51,9 +51,9 @@ impl fmt::Display for AdfError {
                 formatter,
                 "E_BAD_JSON: a {node} carries no content array"
             ),
-            Self::Unrepresentable { node } => write!(
+            Self::Unrepresentable(reason) => write!(
                 formatter,
-                "E_ADF_UNREPRESENTABLE: a {node} has no Markdown form"
+                "E_ADF_UNREPRESENTABLE: {reason} has no Markdown form"
             ),
             Self::BadInput => write!(
                 formatter,
@@ -64,6 +64,47 @@ impl fmt::Display for AdfError {
 }
 
 impl Error for AdfError {}
+
+/// Content a strict render refuses because no Markdown it could emit reads
+/// back as the same document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unrepresentable {
+    Node { node: String },
+    HeadingBeyondLevelSix,
+    FenceLineInCodeBlock,
+    BacktickInInlineCode,
+    PipeInTableCellCode,
+    PipeInTableCellLink,
+    HardBreakInTableCell,
+    TableCellOfSeveralBlocks,
+}
+
+impl fmt::Display for Unrepresentable {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Node { node } => write!(formatter, "a {node}"),
+            Self::HeadingBeyondLevelSix => {
+                formatter.write_str("a heading beyond level six")
+            }
+            Self::FenceLineInCodeBlock => formatter.write_str(
+                "a code block holding a line that starts with three backticks",
+            ),
+            Self::BacktickInInlineCode => {
+                formatter.write_str("inline code holding a backtick")
+            }
+            Self::PipeInTableCellCode => formatter
+                .write_str("inline code holding a pipe inside a table cell"),
+            Self::PipeInTableCellLink => formatter.write_str(
+                "a link whose address holds a pipe inside a table cell",
+            ),
+            Self::HardBreakInTableCell => {
+                formatter.write_str("a line break inside a table cell")
+            }
+            Self::TableCellOfSeveralBlocks => formatter
+                .write_str("a table cell holding more than one paragraph"),
+        }
+    }
+}
 
 /// The whole markdown-to-ADF pipeline: tokenise, then assemble.
 ///
@@ -99,8 +140,8 @@ pub fn document_to_markdown(document: &Value) -> Result<String, AdfError> {
 ///
 /// # Errors
 ///
-/// [`AdfError::Unrepresentable`] at the first node with no Markdown form,
-/// including a heading above level six, and every error
+/// [`AdfError::Unrepresentable`] at the first content with no Markdown form,
+/// naming it as an [`Unrepresentable`], and every error
 /// [`document_to_markdown`] raises.
 pub fn document_to_markdown_strict(
     document: &Value,

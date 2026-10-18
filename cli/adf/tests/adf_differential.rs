@@ -137,7 +137,7 @@ const fn class_of(error: &AdfError) -> &'static str {
         AdfError::RootNotDoc { .. } => "root-not-doc",
         AdfError::HeadingWithoutLevel => "heading-without-level",
         AdfError::ListWithoutContent { .. } => "list-without-content",
-        AdfError::Unrepresentable { .. } => "unrepresentable",
+        AdfError::Unrepresentable(_) => "unrepresentable",
         AdfError::BadInput => "bad-input",
     }
 }
@@ -147,7 +147,7 @@ const fn expected_adf_exit(error: &AdfError) -> u16 {
         AdfError::RootNotDoc { .. }
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. }
-        | AdfError::Unrepresentable { .. } => 40,
+        | AdfError::Unrepresentable(_) => 40,
         AdfError::BadInput => 42,
     }
 }

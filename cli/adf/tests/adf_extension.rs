@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use adf::{
     document_to_markdown, document_to_markdown_strict, markdown_to_document,
-    AdfError,
+    AdfError, Unrepresentable,
 };
 use serde_json::json;
 use serde_json::Value;
@@ -131,8 +131,10 @@ fn a_rendered_body_is_a_fixed_point_of_the_round_trip() {
         }
     }
 
-    let unrepresentable = |node: &str| AdfError::Unrepresentable {
-        node: node.to_owned(),
+    let unrepresentable = |node: &str| {
+        AdfError::Unrepresentable(Unrepresentable::Node {
+            node: node.to_owned(),
+        })
     };
     let list = |node: &str| AdfError::ListWithoutContent {
         node: node.to_owned(),
@@ -166,7 +168,12 @@ fn a_rendered_body_is_a_fixed_point_of_the_round_trip() {
                 "render-block-placeholders".to_owned(),
                 unrepresentable("panel")
             ),
-            ("render-headings".to_owned(), unrepresentable("heading")),
+            (
+                "render-headings".to_owned(),
+                AdfError::Unrepresentable(
+                    Unrepresentable::HeadingBeyondLevelSix
+                )
+            ),
             (
                 "render-inline-placeholders".to_owned(),
                 unrepresentable("emoji")
@@ -353,9 +360,9 @@ fn a_hard_break_in_a_table_cell_has_no_markdown_form() {
 
     assert_eq!(
         document_to_markdown_strict(&document),
-        Err(AdfError::Unrepresentable {
-            node: "hardBreak".to_owned()
-        })
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::HardBreakInTableCell
+        ))
     );
     let lenient =
         document_to_markdown(&document).expect("the document renders");
@@ -370,9 +377,9 @@ fn code_text_holding_a_backtick_has_no_markdown_form() {
 
     assert_eq!(
         document_to_markdown_strict(&document),
-        Err(AdfError::Unrepresentable {
-            node: "code".to_owned()
-        })
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::BacktickInInlineCode
+        ))
     );
 }
 
@@ -393,9 +400,9 @@ fn code_text_holding_a_pipe_in_a_table_cell_has_no_markdown_form() {
 
     assert_eq!(
         document_to_markdown_strict(&document),
-        Err(AdfError::Unrepresentable {
-            node: "code".to_owned()
-        })
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::PipeInTableCellCode
+        ))
     );
 }
 
@@ -406,9 +413,9 @@ fn a_link_whose_href_holds_a_pipe_in_a_table_cell_has_no_markdown_form() {
 
     assert_eq!(
         document_to_markdown_strict(&document),
-        Err(AdfError::Unrepresentable {
-            node: "link".to_owned()
-        })
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::PipeInTableCellLink
+        ))
     );
 }
 
@@ -423,6 +430,65 @@ fn code_text_holding_a_pipe_outside_a_table_is_a_fixed_point() {
 }
 
 #[test]
+fn a_table_cell_of_several_blocks_has_no_markdown_form() {
+    let document = doc(&json!([{"type": "table", "content": [
+        {"type": "tableRow", "content": [
+            {"type": "tableCell", "content": [
+                {"type": "paragraph",
+                    "content": [{"type": "text", "text": "a"}]},
+                {"type": "paragraph",
+                    "content": [{"type": "text", "text": "b"}]}
+            ]}
+        ]}
+    ]}]));
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::TableCellOfSeveralBlocks
+        ))
+    );
+}
+
+#[test]
+fn an_unrepresentable_refusal_names_the_condition_to_change() {
+    let message =
+        |reason: Unrepresentable| AdfError::Unrepresentable(reason).to_string();
+
+    assert_eq!(
+        [
+            message(Unrepresentable::Node {
+                node: "panel".to_owned()
+            }),
+            message(Unrepresentable::HeadingBeyondLevelSix),
+            message(Unrepresentable::FenceLineInCodeBlock),
+            message(Unrepresentable::BacktickInInlineCode),
+            message(Unrepresentable::PipeInTableCellCode),
+            message(Unrepresentable::PipeInTableCellLink),
+            message(Unrepresentable::HardBreakInTableCell),
+            message(Unrepresentable::TableCellOfSeveralBlocks),
+        ],
+        [
+            "E_ADF_UNREPRESENTABLE: a panel has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: a heading beyond level six has no \
+             Markdown form",
+            "E_ADF_UNREPRESENTABLE: a code block holding a line that starts \
+             with three backticks has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: inline code holding a backtick has no \
+             Markdown form",
+            "E_ADF_UNREPRESENTABLE: inline code holding a pipe inside a table \
+             cell has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: a link whose address holds a pipe inside \
+             a table cell has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: a line break inside a table cell has no \
+             Markdown form",
+            "E_ADF_UNREPRESENTABLE: a table cell holding more than one \
+             paragraph has no Markdown form",
+        ]
+    );
+}
+
+#[test]
 fn a_code_block_holding_a_fence_line_has_no_markdown_form() {
     let document = doc(&json!([{"type": "codeBlock", "content": [
         {"type": "text", "text": "before\n```\nafter"}
@@ -430,8 +496,8 @@ fn a_code_block_holding_a_fence_line_has_no_markdown_form() {
 
     assert_eq!(
         document_to_markdown_strict(&document),
-        Err(AdfError::Unrepresentable {
-            node: "codeBlock".to_owned()
-        })
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::FenceLineInCodeBlock
+        ))
     );
 }

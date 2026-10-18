@@ -246,7 +246,7 @@ const fn for_adf(error: &AdfError) -> u8 {
         AdfError::RootNotDoc { .. }
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. } => BAD_JSON,
-        AdfError::Unrepresentable { .. } => ERROR,
+        AdfError::Unrepresentable(_) => ERROR,
         AdfError::BadInput => ADF_BAD_INPUT,
     }
 }
@@ -274,6 +274,7 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
+    use adf::Unrepresentable;
     use config::consent::{
         CommandPolicy, Distrust, FailureCause, Rejection, StartFailure,
     };
@@ -454,9 +455,9 @@ mod tests {
             BAD_JSON
         );
         assert_eq!(
-            for_adf(&AdfError::Unrepresentable {
+            for_adf(&AdfError::Unrepresentable(Unrepresentable::Node {
                 node: String::new()
-            }),
+            })),
             ERROR
         );
         assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);

@@ -8,7 +8,7 @@ use std::path::Path;
 
 use adf::{
     document_to_markdown, document_to_markdown_strict, markdown_to_document,
-    AdfError,
+    AdfError, Unrepresentable,
 };
 use serde_json::json;
 use serde_json::Value;
@@ -490,9 +490,9 @@ fn a_strict_render_refuses_a_panel() {
 
     assert_eq!(
         error,
-        AdfError::Unrepresentable {
+        AdfError::Unrepresentable(Unrepresentable::Node {
             node: "panel".to_owned()
-        }
+        })
     );
 }
 
@@ -506,9 +506,9 @@ fn a_strict_render_refuses_a_mention() {
 
     assert_eq!(
         error,
-        AdfError::Unrepresentable {
+        AdfError::Unrepresentable(Unrepresentable::Node {
             node: "mention".to_owned()
-        }
+        })
     );
 }
 

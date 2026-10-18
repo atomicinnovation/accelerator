@@ -14,6 +14,7 @@ use serde_json::Value;
 
 use crate::syntax;
 use crate::AdfError;
+use crate::Unrepresentable;
 
 /// What a node with no Markdown form becomes.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -109,22 +110,39 @@ struct Renderer {
 }
 
 impl Renderer {
-    fn admit_unrepresentable(&self, node: &str) -> Result<(), AdfError> {
+    fn admit_unrepresentable(
+        &self,
+        reason: Unrepresentable,
+    ) -> Result<(), AdfError> {
         match self.no_markdown_form {
             NoMarkdownForm::Placeholder => Ok(()),
-            NoMarkdownForm::Refusal => Err(AdfError::Unrepresentable {
-                node: node.to_owned(),
-            }),
+            NoMarkdownForm::Refusal => Err(AdfError::Unrepresentable(reason)),
         }
     }
 
     fn block_placeholder(&self, node: &str) -> Result<String, AdfError> {
-        self.admit_unrepresentable(node)?;
+        self.block_placeholder_because(node, unsupported(node))
+    }
+
+    fn block_placeholder_because(
+        &self,
+        node: &str,
+        reason: Unrepresentable,
+    ) -> Result<String, AdfError> {
+        self.admit_unrepresentable(reason)?;
         Ok(format!("[unsupported ADF node: {node}]"))
     }
 
     fn inline_placeholder(&self, node: &str) -> Result<String, AdfError> {
-        self.admit_unrepresentable(node)?;
+        self.inline_placeholder_because(node, unsupported(node))
+    }
+
+    fn inline_placeholder_because(
+        &self,
+        node: &str,
+        reason: Unrepresentable,
+    ) -> Result<String, AdfError> {
+        self.admit_unrepresentable(reason)?;
         Ok(format!("[unsupported ADF inline: {node}]"))
     }
 
@@ -148,7 +166,9 @@ impl Renderer {
                     .and_then(Value::as_u64)
                     .ok_or(AdfError::HeadingWithoutLevel)?;
                 if !(1..=6).contains(&level) {
-                    self.admit_unrepresentable("heading")?;
+                    self.admit_unrepresentable(
+                        Unrepresentable::HeadingBeyondLevelSix,
+                    )?;
                 }
                 let hashes = "#".repeat(usize::try_from(level).unwrap_or(0));
                 let text =
@@ -197,7 +217,9 @@ impl Renderer {
                     .and_then(Value::as_str)
                     .unwrap_or_default();
                 if body.lines().any(|line| line.starts_with(syntax::FENCE)) {
-                    self.admit_unrepresentable("codeBlock")?;
+                    self.admit_unrepresentable(
+                        Unrepresentable::FenceLineInCodeBlock,
+                    )?;
                 }
                 Ok(format!("```{language}\n{body}\n```"))
             }
@@ -293,7 +315,10 @@ impl Renderer {
             [paragraph] if node_type(paragraph) == "paragraph" => {
                 self.inlines(&children(paragraph), Surroundings::TableCell)
             }
-            _ => self.block_placeholder(node_type(cell)),
+            _ => self.block_placeholder_because(
+                node_type(cell),
+                Unrepresentable::TableCellOfSeveralBlocks,
+            ),
         }
     }
 
@@ -319,18 +344,24 @@ impl Renderer {
                     let text =
                         node.get("text").and_then(Value::as_str).unwrap_or("");
                     if marks.code && text.contains('`') {
-                        self.admit_unrepresentable("code")?;
+                        self.admit_unrepresentable(
+                            Unrepresentable::BacktickInInlineCode,
+                        )?;
                     }
                     if surroundings == Surroundings::TableCell {
                         if marks.code && text.contains('|') {
-                            self.admit_unrepresentable("code")?;
+                            self.admit_unrepresentable(
+                                Unrepresentable::PipeInTableCellCode,
+                            )?;
                         }
                         if marks
                             .link
                             .as_ref()
                             .is_some_and(|href| href.contains('|'))
                         {
-                            self.admit_unrepresentable("link")?;
+                            self.admit_unrepresentable(
+                                Unrepresentable::PipeInTableCellLink,
+                            )?;
                         }
                     }
                     match run.as_mut() {
@@ -345,7 +376,10 @@ impl Renderer {
                 }
                 "hardBreak" if surroundings == Surroundings::TableCell => {
                     flush(&mut run, &mut rendered);
-                    rendered.push_str(&self.inline_placeholder("hardBreak")?);
+                    rendered.push_str(&self.inline_placeholder_because(
+                        "hardBreak",
+                        Unrepresentable::HardBreakInTableCell,
+                    )?);
                 }
                 "hardBreak" => {
                     flush(&mut run, &mut rendered);
@@ -441,6 +475,12 @@ impl Marks {
             Some(href) => format!("[{rendered}]({href})"),
             None => rendered,
         }
+    }
+}
+
+fn unsupported(node: &str) -> Unrepresentable {
+    Unrepresentable::Node {
+        node: node.to_owned(),
     }
 }
 
