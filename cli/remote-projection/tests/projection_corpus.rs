@@ -15,6 +15,8 @@ use remote_projection::Op;
 
 type TestError = Box<dyn std::error::Error>;
 
+const EXPECTED_CASE_COUNT: usize = 3;
+
 fn case_dir(name: &str) -> Result<PathBuf, TestError> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
         .join(format!("tests/fixtures/work-item-project-remote/{name}"))
@@ -71,19 +73,31 @@ fn run_case(name: &str) -> Result<(), TestError> {
     Ok(())
 }
 
-#[test]
-fn case_jira_matches_expected() -> Result<(), TestError> {
-    run_case("case-jira")
+fn case_names() -> Result<Vec<String>, TestError> {
+    let corpus = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-project-remote");
+    let mut names: Vec<String> = std::fs::read_dir(corpus)?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.starts_with("case-"))
+        .collect();
+    names.sort();
+    Ok(names)
 }
 
 #[test]
-fn case_jira_reordered_matches_expected() -> Result<(), TestError> {
-    run_case("case-jira-reordered")
-}
-
-#[test]
-fn case_linear_matches_expected() -> Result<(), TestError> {
-    run_case("case-linear")
+fn every_case_matches_its_expectation() -> Result<(), TestError> {
+    let names = case_names()?;
+    assert_eq!(
+        names.len(),
+        EXPECTED_CASE_COUNT,
+        "a fixture case was added or removed without updating this floor"
+    );
+    for name in names {
+        run_case(&name)?;
+    }
+    Ok(())
 }
 
 #[test]
