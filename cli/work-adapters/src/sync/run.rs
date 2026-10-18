@@ -15,6 +15,7 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use work::draft_id::DraftId;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
@@ -441,35 +442,45 @@ pub struct ConflictDossier {
     pub unrenderable: Option<UnrenderableReason>,
 }
 
-/// Why a dossier's sections cannot be shown.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Why a dossier's sections cannot be shown. A remote-side reason carries
+/// the content the remote holds that has no Markdown form.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnrenderableReason {
     LocalUnreadable,
-    RemoteUnrenderable,
-    LocalPullResidue,
+    RemoteUnrenderable(Unrenderable),
+    LocalPullResidue(Unrenderable),
     /// The remote has no Markdown form and the item's legacy entry cannot
     /// show which local change is unsent, so no local overwrite is safe.
-    LegacyUnrenderable,
+    LegacyUnrenderable(Unrenderable),
 }
 
 impl UnrenderableReason {
-    const fn keyword(self) -> &'static str {
+    const fn keyword(&self) -> &'static str {
         match self {
             Self::LocalUnreadable => "local-unreadable",
-            Self::RemoteUnrenderable => "remote-unrenderable",
-            Self::LocalPullResidue => "local-pull-residue",
-            Self::LegacyUnrenderable => "legacy-unrenderable",
+            Self::RemoteUnrenderable(_) => "remote-unrenderable",
+            Self::LocalPullResidue(_) => "local-pull-residue",
+            Self::LegacyUnrenderable(_) => "legacy-unrenderable",
         }
     }
 
-    fn remedy(self, id: &str) -> String {
+    const fn cause(&self) -> Option<&Unrenderable> {
+        match self {
+            Self::LocalUnreadable => None,
+            Self::RemoteUnrenderable(cause)
+            | Self::LocalPullResidue(cause)
+            | Self::LegacyUnrenderable(cause) => Some(cause),
+        }
+    }
+
+    fn remedy(&self, id: &str) -> String {
         match self {
             Self::LocalUnreadable => format!(
                 "This conflict could not be rendered: the local file could \
                  not be read. Item {id} was left unresolved. Fix the file and \
                  re-run the sync, or edit the work item by hand."
             ),
-            Self::RemoteUnrenderable => format!(
+            Self::RemoteUnrenderable(_) => format!(
                 "This conflict could not be rendered: the remote description \
                  holds content with no Markdown form. Item {id} was left \
                  unresolved. Either edit the description in Jira until it \
@@ -477,7 +488,7 @@ impl UnrenderableReason {
                  {id}=local, which replaces the remote description with the \
                  local body."
             ),
-            Self::LocalPullResidue => format!(
+            Self::LocalPullResidue(_) => format!(
                 "This conflict could not be rendered: the local file still \
                  holds the raw tracker document an earlier pull wrote, and \
                  the remote description holds content with no Markdown form. \
@@ -488,7 +499,7 @@ impl UnrenderableReason {
                  in Jira until it renders, then resolve with --resolve \
                  {id}=remote."
             ),
-            Self::LegacyUnrenderable => format!(
+            Self::LegacyUnrenderable(_) => format!(
                 "This conflict could not be rendered: the remote description \
                  holds content with no Markdown form, and the item's baseline \
                  predates the current digest recipe, so it cannot show which \
@@ -554,10 +565,16 @@ fn renderable_header(dossier: &ConflictDossier) -> String {
 
 fn unrenderable_header(
     dossier: &ConflictDossier,
-    reason: UnrenderableReason,
+    reason: &UnrenderableReason,
 ) -> String {
-    let status_lines =
-        format!("status: unrenderable\nreason: {}\n", reason.keyword());
+    let cause_line = reason
+        .cause()
+        .map(|cause| format!("cause: {}\n", cause.detail))
+        .unwrap_or_default();
+    let status_lines = format!(
+        "status: unrenderable\nreason: {}\n{cause_line}",
+        reason.keyword()
+    );
     format!(
         "{}{}\n\n",
         dossier_header(dossier, &status_lines),
@@ -574,7 +591,7 @@ pub fn render_dossier(
     dossier: &ConflictDossier,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> DossierRender {
-    if let Some(reason) = dossier.unrenderable {
+    if let Some(reason) = &dossier.unrenderable {
         return DossierRender::Unrenderable(unrenderable_header(
             dossier, reason,
         ));
@@ -741,26 +758,26 @@ fn readable_dossier(
 ) -> ConflictDossier {
     let remote_projection =
         remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let unrenderable_reason = || {
+    let unrenderable_reason = |cause| {
         if comparison
             .pull_residue(&local.body, remote_projection)
             .is_some()
         {
-            UnrenderableReason::LocalPullResidue
+            UnrenderableReason::LocalPullResidue(cause)
         } else if legacy_unrenderable(
             comparison,
             shape,
             &local.body,
             remote_projection,
         ) {
-            UnrenderableReason::LegacyUnrenderable
+            UnrenderableReason::LegacyUnrenderable(cause)
         } else {
-            UnrenderableReason::RemoteUnrenderable
+            UnrenderableReason::RemoteUnrenderable(cause)
         }
     };
     let (sections, unrenderable) =
         comparison.local_body(remote_projection).map_or_else(
-            |_| (Vec::new(), Some(unrenderable_reason())),
+            |cause| (Vec::new(), Some(unrenderable_reason(cause))),
             |remote_body| {
                 let reconstructed = local.with_body(&remote_body);
                 (
@@ -1916,5 +1933,30 @@ mod tests {
         assert!(text.contains("status: unrenderable"), "{text}");
         assert!(text.contains("reason: local-unreadable"), "{text}");
         assert!(text.contains("left unresolved"), "{text}");
+    }
+
+    #[test]
+    fn an_unrenderable_remote_dossier_names_its_cause_in_the_header() {
+        let mut unrenderable =
+            dossier(None, RemoteTimestamp::NotRead, Vec::new());
+        unrenderable.unrenderable =
+            Some(super::UnrenderableReason::RemoteUnrenderable(
+                tracker::Unrenderable {
+                    detail: "a panel has no Markdown form".to_owned(),
+                },
+            ));
+
+        let DossierRender::Unrenderable(text) =
+            render_dossier(&unrenderable, &ok_renderer)
+        else {
+            panic!("an unrenderable remote downgrades to unrenderable");
+        };
+        assert!(
+            text.contains(
+                "reason: remote-unrenderable\n\
+                 cause: a panel has no Markdown form\n"
+            ),
+            "{text}"
+        );
     }
 }

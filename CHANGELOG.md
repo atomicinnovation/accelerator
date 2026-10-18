@@ -317,7 +317,8 @@
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
-  offers only `local` or `skip`.
+  a `cause:` line naming the content to change, and offers only `local` or
+  `skip`.
 - **Conflict dossiers and `work diff` list only sections whose meaning
   differs.** A section that differs only in notation, such as bullet
   characters or line wrapping, is omitted, and each listed section shows its

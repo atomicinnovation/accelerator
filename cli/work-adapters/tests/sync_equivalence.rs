@@ -108,7 +108,10 @@ fn a_legacy_conflict_over_an_unrenderable_remote_writes_a_legacy_unrenderable_do
     let dossier = unrenderable_dossier(&report);
     assert!(dossier.contains("status: unrenderable\n"), "{dossier}");
     assert!(
-        dossier.contains("reason: legacy-unrenderable\n"),
+        dossier.contains(
+            "reason: legacy-unrenderable\ncause: E_ADF_UNREPRESENTABLE: a \
+             panel has no Markdown form\n"
+        ),
         "{dossier}"
     );
     assert!(dossier.contains("revert"), "{dossier}");

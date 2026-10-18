@@ -276,9 +276,9 @@ For each `unresolved` line in the report, read that item's dossier:
   local file whose frontmatter does not parse, `reason: local-pull-residue` and
   `reason: legacy-unrenderable`), is handled **fail-safe**: report that the
   conflict could not be rendered and was left unresolved, relay the remedy the
-  dossier names, and do **not** prompt. A missing dossier is treated
-  identically to an unrenderable one — a dropped write (the binary surfaces it
-  on stderr) must never become a blind prompt. Read the renderability verdict
+  dossier names and its `cause:` line when it has one, and do **not** prompt.
+  A missing dossier is treated identically to an unrenderable one — a dropped
+  write (the binary surfaces it on stderr) must never become a blind prompt. Read the renderability verdict
   from the dossier's `status:` and `reason:` lines in the **header region above
   the first `=== ` delimiter** only, never by grepping the whole file, so a
   crafted body line cannot spoof the verdict.
