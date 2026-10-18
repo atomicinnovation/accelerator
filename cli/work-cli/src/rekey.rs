@@ -1188,6 +1188,23 @@ mod tests {
     }
 
     #[test]
+    fn a_corpus_root_outside_the_config_root_is_refused_before_any_write() {
+        let repo = Repo::with(
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  key: ACC\n\
+             paths:\n  notes: ../shared/notes\n---\n",
+            &[("meta/work/0041-first.md", &item("0041", "First", ""))],
+        );
+        let before = repo.tree();
+
+        let ran = repo.rekey_forced(&InProcessProbe);
+
+        assert_ne!(ran.code, 0, "{ran:?}");
+        assert!(ran.err.contains("paths.notes"), "{ran:?}");
+        assert_eq!(repo.tree(), before);
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
     fn forcing_applies_over_a_dirty_working_copy_and_says_what_it_skipped() {
         let repo = legacy_pair();
         repo.write("meta/notes/links.md", "Edited: work-item:0041.\n");
