@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-10-15-0302-work-item-re-key-command"
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
-last_updated: "2026-10-17T23:01:23+00:00"
+last_updated: "2026-10-18T00:11:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -128,48 +128,50 @@ except for the last two.
   (pid)". This is not recorded in the plan; it is an improvement.
 - A forced discard of a proposed plan, or of an in-progress plan that is
   fully reverted, removes the plan (`run.rs:409-411`, `:442-445`) instead
-  of setting it aside. This matches the Phase 5 state sketch, which applies
-  force only where it bypasses a refusal. It does not match a literal
-  reading of the Decisions row "a forced discard never deletes". Neither
-  case loses information: there is no evidence left to keep.
+  of setting it aside. This matched the Phase 5 state sketch but not the
+  Decisions row "a forced discard never deletes". Resolved: the row now
+  says a discard that force lets past a refusal never deletes, and a
+  proposed or fully reverted plan is removed whether or not force is set.
 
 #### Potential Issues:
 
-- **The dirty-tree check can miss dirty files when `.accelerator/` is
-  below the VCS root.** This was confirmed by reading the code, not by a
-  test. `guarded_working_copy` probes `facts.root`, the VCS root, and gix
-  and jj report dirty paths relative to that root. The scopes are built
-  relative to `discover_root`, which stops at the nearest `.accelerator/`
-  (`cli/config-adapters/src/store.rs:114-126`, `cli/work-cli/src/rekey.rs:234-245`).
-  - Example: in `/mono` with config at `/mono/pkg/.accelerator`, a dirty
-    `pkg/meta/x.md` matches no scope, so the apply proceeds over
-    uncommitted edits.
-  - The write-set exemption on resume has the same mismatch, but there
-    it errs the safe way and refuses.
-  - `VcsWorkingCopyStatus` already makes paths relative to `facts.root`
-    (`cli/work-adapters/src/sync/working_copy_status.rs`).
-  - `migrate` likely shares the same gap.
-- An `external_id` that is not shaped like a tracker key exits 70 under
-  `{tracker}`, telling the user to retry later. It should exit 4 with
-  `E_REKEY_UNCLASSIFIABLE_ID`. The cause: `run.rs:299-306` sends raw
-  `external_id`s to the refresh before `TrackerKey::parse`, so a client's
-  pre-flight `Retryable` for an id it cannot embed becomes
-  `TrackerUnreachable`. Nothing is written.
-- An unsynced ID with an underscore prefix, such as `MY_APP-760`,
-  classifies as `Sequenced(760)` via `corpus::is_tracker_key`, but
-  `project_key_of` (`cli/work/src/rekey/sequence.rs:26-32`) rejects `_`.
-  It therefore moves to `work.key`, against the "kept number keeps its own
-  project key" decision, and counts towards the floor as a bare number.
-- Duplicate `id`s across two files produce a `Collision` that names the
-  first file twice, because `item_holding` returns the first match
-  (`cli/work/src/rekey/collision.rs:23`, `:42`). The run still refuses,
-  but the message never names the second file.
-- An ID or alias of `u64::MAX` makes `allocate_above` compute
-  `floor + i` unchecked (`cli/work/src/next_number.rs:153-154`). Debug
-  builds panic; release builds wrap and still refuse.
-- `is_machinery` hides any dirty path with a component starting `.tmp-`
-  or ending `.lockdir`, even a tracked user file. This is narrow, but
-  wider than "only rekey's own leftovers".
+Every issue found in review has been resolved test-first, each in its own
+commit after this report was first written:
+
+- **Resolved — the dirty-tree check missed dirty files when `.accelerator/`
+  was below the VCS root.** `guarded_working_copy` probed `facts.root` but
+  built its scopes relative to the config root, so with config at
+  `/mono/pkg/.accelerator` a dirty `pkg/meta/x.md` matched no scope.
+  `migrate` had the same gap, and a second cause: its `vcs_kind` looked for
+  `.git` or `.jj` only in the config root, picked `VcsKind::None`, and
+  probed nothing. Both adapters now locate the repository through
+  `RepositoryProbe::facts_at` and see its working copy through the new
+  `WorkingCopyState::seen_from`. A config root outside the reported
+  repository refuses as unprobeable in rekey, and is warned about and
+  treated as clean in `migrate`, as its existing policy is. Covered by
+  scripted and real git and jj tests in `rekey_working_copy.rs` and
+  `dirty_tree_preflight.rs`. A corpus root outside the config root cannot
+  occur, since `paths.*` refuses `..` and absolute values; a test pins
+  that a re-key stops on one.
+- **Resolved — an `external_id` not shaped like a tracker key exited 70
+  under `{tracker}`.** A client's pre-flight `Retryable` became
+  `TrackerUnreachable`. `keys_to_refresh` now refuses it as
+  `E_REKEY_UNCLASSIFIABLE_ID` before any tracker call, and only synced,
+  non-draft items' keys are refreshed.
+- **Not a defect — an unsynced `MY_APP-760` moves onto `work.key`.** A
+  local project key is letters and digits only, so `MY_APP-0760` could
+  never be on target and keeping the key would re-key it on every run.
+  `ACC-0760` is the fixed point, as the "keeps its own project key … when
+  it has one" decision says. A test pins it.
+- **Resolved — duplicate `id`s named the first file twice.**
+  `refuse_collisions` now refuses an entry whose old `id` another item
+  also holds, naming both files, ignoring case.
+- **Resolved — `allocate_above` overflowed past `u64::MAX`.** It now adds
+  with `checked_add` and reports the overflow with nothing allocated.
+- **Resolved — `is_machinery` hid any path named `.tmp-*` or `*.lockdir`.**
+  `store` now names the exact shapes it writes (`is_atomic_temporary`,
+  `store::lock::is_lock_sentinel`), and the check exempts only a temporary
+  of that shape or a sentinel inside a lockdir.
 
 ### Manual Testing Required:
 
@@ -178,23 +180,12 @@ except for the last two.
   - [x] Phase 7's moved-issue check against Linear and its offline check
   - [x] The live tracker-contract lane against scratch Jira and Linear
 2. Worth adding before release:
-  - [ ] Run `work rekey` from a repository whose `.accelerator/` is in a
-        subdirectory of the VCS root, with one uncommitted corpus edit,
-        and confirm it refuses.
+  - [ ] Run `work rekey` and `accelerator migrate` from a repository whose
+        `.accelerator/` is in a subdirectory of the VCS root, with one
+        uncommitted corpus edit, and confirm both refuse.
   - [ ] Repeat a manual pass with git rather than jj, since the session's
         VCS guard limited every recorded manual check to jj.
 
 ### Recommendations:
 
-- Fix the dirty-tree root mismatch before release. Make `dirty_paths`
-  relative to the config root, or build the scopes against `facts.root`.
-  Start with a failing test that nests `.accelerator/` below the VCS root.
-  Check whether `migrate` needs the same fix.
-- Parse each `external_id` as a `TrackerKey` before the `{tracker}`
-  refresh, so a malformed key refuses with exit 4 instead of 70.
-- Make `project_key_of` and `sequence_of` agree on `_` in a prefix.
-- Refuse duplicate `id`s explicitly, naming both files.
-- Use `checked_add` in `allocate_above`'s overflow branch.
-- Decide whether "a forced discard never deletes" should hold for a
-  proposed or fully reverted plan, and align either the Decisions row or
-  `run.rs`.
+- Run the two manual checks above before release.
