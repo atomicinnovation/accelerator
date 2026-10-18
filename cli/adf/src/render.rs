@@ -321,6 +321,18 @@ impl Renderer {
                     if marks.code && text.contains('`') {
                         self.admit_unrepresentable("code")?;
                     }
+                    if surroundings == Surroundings::TableCell {
+                        if marks.code && text.contains('|') {
+                            self.admit_unrepresentable("code")?;
+                        }
+                        if marks
+                            .link
+                            .as_ref()
+                            .is_some_and(|href| href.contains('|'))
+                        {
+                            self.admit_unrepresentable("link")?;
+                        }
+                    }
                     match run.as_mut() {
                         Some((open, joined)) if *open == marks => {
                             joined.push_str(text);

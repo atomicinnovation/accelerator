@@ -376,6 +376,52 @@ fn code_text_holding_a_backtick_has_no_markdown_form() {
     );
 }
 
+fn table_cell_holding(inline: &Value) -> Value {
+    doc(&json!([{"type": "table", "content": [
+        {"type": "tableRow", "content": [
+            {"type": "tableCell", "content": [{"type": "paragraph",
+                "content": [inline]}]}
+        ]}
+    ]}]))
+}
+
+#[test]
+fn code_text_holding_a_pipe_in_a_table_cell_has_no_markdown_form() {
+    let document = table_cell_holding(
+        &json!({"type": "text", "text": "a|b", "marks": [{"type": "code"}]}),
+    );
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable {
+            node: "code".to_owned()
+        })
+    );
+}
+
+#[test]
+fn a_link_whose_href_holds_a_pipe_in_a_table_cell_has_no_markdown_form() {
+    let document = table_cell_holding(&json!({"type": "text", "text": "x",
+        "marks": [{"type": "link", "attrs": {"href": "https://e.com/a|b"}}]}));
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable {
+            node: "link".to_owned()
+        })
+    );
+}
+
+#[test]
+fn code_text_holding_a_pipe_outside_a_table_is_a_fixed_point() {
+    let rendered = strict(&paragraph(&json!([
+        {"type": "text", "text": "a|b", "marks": [{"type": "code"}]}
+    ])));
+
+    assert_eq!(rendered, "`a|b`");
+    assert_eq!(round_trip(&rendered), rendered);
+}
+
 #[test]
 fn a_code_block_holding_a_fence_line_has_no_markdown_form() {
     let document = doc(&json!([{"type": "codeBlock", "content": [
