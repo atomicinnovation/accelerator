@@ -12,9 +12,9 @@ relates_to: ["work-item:0300", "work-item:0320", "work-item:0337", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/159"
 pr_number: 159
 tags: ["sync", "jira", "linear", "adf", "tracker", "equivalence", "baseline"]
-revision: "92b755d4a5d01e648003bdc6fd2a03ea51bfd1b6"
+revision: "de9d3bb6294eb3a96353d36f0023a473cd84cdde"
 repository: "accelerator"
-last_updated: "2026-10-15T11:07:53+00:00"
+last_updated: "2026-10-18T16:21:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -31,34 +31,43 @@ of this repository planned 7 pulls and 25 conflicts. This PR delivers the
 whole 0296 plan (Phases 0–11). It adds a tracker body dialect, an extended ADF
 converter, CommonMark body equivalence, and digest recipe `1`, which
 classifies by meaning. The 2026-10-15 preview of the same corpus planned one
-pull and three conflicts, each a real difference.
+pull and three conflicts, each a real difference. Two rounds of fixes from
+the PR #159 review follow; see "Review fixes" below.
 
 ## Breaking changes
 
 The `CHANGELOG` carries each of these.
 
 - **`work sync` exit codes.**
-  - A local file read or write failure exits `71`, where it exited `0`.
+  - A local file read failure, or a write that fails in flight, exits `71`,
+    where it exited `0`.
   - A pull whose remote body was not fetched exits `70` instead of writing an
     empty body.
   - A failed `show` after the remote stamp moved leaves the item
     `indeterminate` (exit `4`).
-  - An item whose local frontmatter does not parse fails (exit `71`) and
-    sends or writes nothing.
-- **New `75` details.** `unrenderable` covers a pull over a Jira description
-  with no Markdown form. `pull-residue` covers a send from a file an earlier
-  pull left raw ADF in.
+- **New `75` details.**
+  - `unrenderable`: a pull over a Jira description with no Markdown form.
+  - `pull-residue`: a send from a file an earlier pull left raw ADF in.
+  - `unparseable`: an item whose local frontmatter does not parse; nothing is
+    sent or written.
+  - `local-write-refused`: a local write the store refused before writing.
+    Until 0300 lands, every reconcile pull fails this way.
 - **New report rows.**
   - `record-baseline` for a metadata-only local change.
   - `noop\tindeterminate\tunsupported-recipe` for a baseline entry a newer
-    release wrote.
-  - `failed\tsynced\tretryable` for a local file that changed mid-run.
+    release wrote, with a stderr warning naming those items.
+  - `failed\tsynced\tretryable` and `failed\tremotely-modified\tretryable`
+    for a baseline record or a pull whose local file changed mid-run.
+- **`work diff` and dossiers** list only sections whose meaning differs.
 - **Pending-push records move to schema 3**, which earlier releases refuse.
 - **Jira Markdown in both directions.**
   - `jira show` and `--render-adf` render strike, blockquotes, pipe tables,
     rules and nested lists, and escape text that reads as syntax.
+  - Links to any scheme except `javascript:`, `vbscript:` and `data:` are
+    kept, where only `http`, `https` and `mailto` were.
   - `jira create`, `update` and `comment` accept those constructs, which used
-    to exit `41`.
+    to exit `41`. A block Jira does not allow where it stands, such as a
+    heading inside a blockquote, still exits `41` (`E_ADF_UNSUPPORTED`).
 
 ## Migration
 
@@ -69,7 +78,9 @@ sends nothing to the tracker.
 - **Legacy keys kept.** Recipe-1 entries keep `local_hash` and `remote_hash`
   with their legacy meaning until 0335, so an older binary still reads them.
   An older binary that writes the file drops the recipe-1 keys, and the next
-  newer run re-migrates them.
+  newer run re-migrates them, so a team should upgrade together.
+- **Unknown trackers left alone.** Migration 0008 realigns only `jira` and
+  `linear` baselines; any other integration directory is untouched.
 - **This repository.** 6 of 337 entries carry the marker today.
 
 ## Changes
@@ -104,10 +115,15 @@ sends nothing to the tracker.
   rules, nested lists, multi-paragraph list items and strike. Text that would
   read as syntax is escaped on output.
 - **Strict render.** `document_to_markdown_strict` refuses any node with no
-  Markdown form. It also refuses three bodies the dialect cannot read back:
-  - a hard break in a table cell;
-  - code text holding a backtick;
-  - a code block holding a fence line.
+  Markdown form, naming the condition as an `Unrepresentable`. It also
+  refuses bodies the dialect cannot read back:
+  - a hard break in a table cell, heading or task item;
+  - code text holding a backtick, or a `|` in a table cell's code or link;
+  - a code block holding a fence line;
+  - a link to a `javascript:`, `vbscript:` or `data:` address.
+- **Content model.** `markdown_to_document` refuses a heading, table, rule,
+  task list or nested quote inside a blockquote, and a heading, table, rule,
+  task list or quote inside a list item, which Jira rejects with 400.
 
 ### Body model and equivalence (Phases 5–6)
 
@@ -157,6 +173,30 @@ sends nothing to the tracker.
 - **Tests.** Adds the tests Phase 8 left unwritten, and brings 0296 in line
   with the plan's amendments.
 
+### Review fixes
+
+From the PR #159 review (`meta/reviews/prs/159-review-1.md`), in two rounds.
+
+- **Mid-run edits.** `ItemSnapshot` reads each file once, eagerly, before
+  classification, and that read feeds classification, the send, the baseline
+  and the dossier. A push or retitle records what it sent; a pull refuses
+  with `LocalChangedSinceClassified` over a file changed since the read.
+- **One run model.** `RunKnowledge` holds the run's facts, comparison, entry
+  shapes and per-item snapshots by id, replacing a positional item index and
+  a parameter clump.
+- **One send gate.** `prepare_send` serves both preview and apply, so an
+  unreadable file fails both the same way.
+- **Diagnostics.** Unrenderable dossiers print a `cause:` line. Messages no
+  longer say "pull failed" for a send, and name the item's own key in the
+  pull-residue remedy.
+- **Strict render and content model.** The additional refusals listed under
+  "`adf` crate" above.
+- **Docs.** `SKILL.md`'s exit codes are a table, and the CHANGELOG files every
+  output change under Breaking.
+- **Tests.** `sync_mid_run_edits.rs` edits files from a tracker hook mid-run
+  for each apply path. The remote-projection corpus test runs every fixture
+  case with a pinned count.
+
 ### Outside the plan
 
 - **Escape-cancel e2e test.** `kanban-drag-overlay.spec.ts` now edits and
@@ -183,13 +223,21 @@ sends nothing to the tracker.
 
 ## Testing
 
-Run on 2026-10-15 at the branch tip:
+Run on 2026-10-18 at the branch tip, after the review fixes:
 
-- [x] `test:unit:cli`: 5,675 passed, 2 skipped
-- [x] `test:unit:frontend`: 2,615 passed
-- [x] Every lint, type-check and `public-api:check` task in `mise run`
+- [x] `test:unit:cli`: 5,827 passed, 2 skipped
+- [x] `mise run check` exits 0
+- [x] `public-api:update` regenerated the `adf` snapshot; `cli:check` exits 0
+- [x] The `tracker-test-support` contract suite with
+      `ACCELERATOR_TRACKER_CONTRACT=1`
+
+Run on 2026-10-15, before the review fixes, and not re-run since:
+
+- [x] `test:unit:frontend`: 2,615 passed (no frontend file changed since)
 - [x] `mise run test:e2e:visualiser` on its own: 355 passed
-- [x] `mise run` exits 0 (355 e2e tests passed)
+- [ ] `mise run` exits 0: passed on 2026-10-15; re-run before merging
+- [ ] The `jira-client` live-tenant contract tests need sandbox credentials;
+      re-run against `KAN` before merging
 
 Recorded in the plan as passing, not re-run for this description:
 
@@ -267,24 +315,29 @@ meaning-changing rewrites now sit inside the baseline.
 ## Notes for Reviewers
 
 - **Diff size.**
-  - 629 files change: 292 are renames (mostly ADF fixtures moving from
-    `jira-client` to `adf`) and 151 are additions, many of them fixtures.
+  - 627 files change: 299 are renames (mostly ADF fixtures moving from
+    `jira-client` to `adf`) and 147 are additions, many of them fixtures.
   - The code that matters is in:
-    - `cli/adf/src`
+    - `cli/adf/src`, including `content_model.rs`
     - `cli/tracker/src/lib.rs`
     - `cli/corpus/src/body`
     - `cli/document/src/markdown.rs`
     - `cli/work/src/sync/classify.rs`
-    - `cli/work-adapters/src/sync/{body_comparison,baseline,run,send_refusal}.rs`
+    - `cli/work-adapters/src/sync/{body_comparison,baseline,item_snapshot,run,send_refusal,apply}.rs`
 - **Reconcile pulls fail until 0300.** Production roots the work-item writer
   at the baseline directory, so every reconcile pull is refused as an unsafe
-  path, and that refusal now exits `71`. The end-to-end pull-then-sync test
-  waits on 0300. A `work-adapters` test covers the criterion for both
-  trackers meanwhile.
+  path before writing. That refusal now exits `75` (`local-write-refused`),
+  since nothing was written. The end-to-end pull-then-sync test waits on
+  0300. A `work-adapters` test covers the criterion for both trackers
+  meanwhile.
 - **Known gaps kept on purpose.**
   - A remote-only retitle is absorbed into the baseline without being
     reported, until 0290.
   - One item whose digest fails still aborts the run, as on `main`.
+  - Unsupported Jira marks (`underline`, `textColor`, `subsup`,
+    `backgroundColor`) are dropped on pull, an accepted 0296 loss.
+- **Review findings still open.** The summary comment on this PR lists the
+  policy decisions and the layering work left for follow-up items.
 - **Flaky e2e test fixed.** The Escape-cancel test in
   `kanban-drag-overlay.spec.ts` wrote the fixture file and waited for the OS
   file watcher, which a loaded machine delivered late or not at all. It now
