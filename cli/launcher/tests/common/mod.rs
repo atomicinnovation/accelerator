@@ -304,9 +304,10 @@ pub fn within<T: Send + 'static>(
     what: &str,
     run: impl FnOnce() -> T + Send + 'static,
 ) -> T {
+    let dispatch = tracing::dispatcher::get_default(Clone::clone);
     let (sender, receiver) = mpsc::channel();
     let worker = thread::spawn(move || {
-        let _ = sender.send(run());
+        let _ = sender.send(tracing::dispatcher::with_default(&dispatch, run));
     });
     match receiver.recv_timeout(bound) {
         Ok(outcome) => outcome,
@@ -322,6 +323,8 @@ pub fn within<T: Send + 'static>(
 mod tests {
     use std::time::Duration;
 
+    use std::sync::{Arc, Mutex};
+
     use super::within;
 
     #[test]
@@ -336,5 +339,39 @@ mod tests {
     #[should_panic(expected = "boom")]
     fn a_panic_within_a_bounded_run_is_reraised_not_reported_as_blocked() {
         within::<()>(Duration::from_secs(10), "the run", || panic!("boom"));
+    }
+
+    #[derive(Clone, Default)]
+    struct Captured(Arc<Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Captured {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().expect("captured").extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_warning_raised_within_a_bounded_run_reaches_the_callers_subscriber() {
+        let captured = Captured::default();
+        let writer = captured.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            within(Duration::from_secs(10), "the warning", || {
+                tracing::warn!("raised in the worker");
+            });
+        });
+
+        let log = String::from_utf8_lossy(&captured.0.lock().expect("log"))
+            .into_owned();
+        assert!(log.contains("raised in the worker"), "log: {log:?}");
     }
 }

@@ -37,7 +37,6 @@ pub fn logged(act: impl FnOnce()) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
-#[allow(clippy::panic)]
 pub fn within<T: Send + 'static>(
     bound: Duration,
     what: &str,
@@ -58,7 +57,6 @@ pub fn within<T: Send + 'static>(
     }
 }
 
-#[cfg(test)]
 mod tests {
     use std::time::Duration;
 
