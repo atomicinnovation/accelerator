@@ -375,6 +375,54 @@ fn a_hard_break_in_a_table_cell_has_no_markdown_form() {
     assert_eq!(lenient.lines().count(), 2, "{lenient}");
 }
 
+fn broken_line() -> Value {
+    json!([
+        {"type": "text", "text": "a"},
+        {"type": "hardBreak"},
+        {"type": "text", "text": "b"}
+    ])
+}
+
+fn heading_with_a_broken_line() -> Value {
+    doc(&json!([{"type": "heading", "attrs": {"level": 2},
+        "content": broken_line()}]))
+}
+
+fn task_item_with_a_broken_line() -> Value {
+    doc(
+        &json!([{"type": "taskList", "attrs": {"localId": "1"}, "content": [
+            {"type": "taskItem", "attrs": {"localId": "2", "state": "TODO"},
+                "content": broken_line()}
+        ]}]),
+    )
+}
+
+#[test]
+fn a_hard_break_in_a_heading_or_task_item_has_no_markdown_form() {
+    assert_eq!(
+        document_to_markdown_strict(&heading_with_a_broken_line()),
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::HardBreakInHeading
+        ))
+    );
+    assert_eq!(
+        document_to_markdown_strict(&task_item_with_a_broken_line()),
+        Err(AdfError::Unrepresentable(
+            Unrepresentable::HardBreakInTaskItem
+        ))
+    );
+}
+
+#[test]
+fn a_hard_break_in_a_heading_or_task_item_still_renders_leniently() {
+    let lenient = |document: &Value| {
+        document_to_markdown(document).expect("the document renders")
+    };
+
+    assert_eq!(lenient(&heading_with_a_broken_line()), "## a  \nb");
+    assert_eq!(lenient(&task_item_with_a_broken_line()), "- [ ] a  \nb");
+}
+
 #[test]
 fn code_text_holding_a_backtick_has_no_markdown_form() {
     let document = paragraph(&json!([
@@ -552,6 +600,8 @@ fn an_unrepresentable_refusal_names_the_condition_to_change() {
             message(Unrepresentable::HardBreakInTableCell),
             message(Unrepresentable::TableCellOfSeveralBlocks),
             message(Unrepresentable::LinkToCodeRunningAddress),
+            message(Unrepresentable::HardBreakInHeading),
+            message(Unrepresentable::HardBreakInTaskItem),
         ],
         [
             "E_ADF_UNREPRESENTABLE: a panel has no Markdown form",
@@ -571,6 +621,10 @@ fn an_unrepresentable_refusal_names_the_condition_to_change() {
              paragraph has no Markdown form",
             "E_ADF_UNREPRESENTABLE: a link to a javascript:, vbscript: or \
              data: address has no Markdown form",
+            "E_ADF_UNREPRESENTABLE: a line break inside a heading has no \
+             Markdown form",
+            "E_ADF_UNREPRESENTABLE: a line break inside a task item has no \
+             Markdown form",
         ]
     );
 }

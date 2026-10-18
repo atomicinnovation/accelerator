@@ -110,10 +110,11 @@
   need updating.
 - **A `work sync` pull over a Jira description with no Markdown form fails as
   `unrenderable`** (exit 75), where it exited 0, and writes nothing. That
-  now includes a description holding a line break inside a table cell, code
-  text holding a backtick, or a code block holding a fence line, none of which
-  this Markdown can carry. Scripts that parse `work sync` exit codes need
-  updating.
+  now includes a description holding a line break inside a table cell,
+  heading or task item, code text holding a backtick, a pipe in a table cell's
+  code or link address, or a code block holding a fence line, none of which
+  this Markdown can carry; the dossier's `cause:` line names which. Scripts
+  that parse `work sync` exit codes need updating.
 - **A `work sync` item whose local frontmatter does not parse fails** (exit
   71), where it was read as an empty title and body. Nothing is sent or
   written for it, and its conflict dossier reads `reason: local-unreadable`.

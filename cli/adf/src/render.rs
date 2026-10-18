@@ -102,7 +102,21 @@ fn lines_prefixed(body: &str, first: &str, rest: &str) -> String {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Surroundings {
     Prose,
+    Heading,
+    TaskItem,
     TableCell,
+}
+
+impl Surroundings {
+    /// Why a hard break here has no Markdown form: the tokeniser reads one
+    /// only inside a paragraph, so elsewhere it ends the block.
+    const fn hard_break_refusal(self) -> Option<Unrepresentable> {
+        match self {
+            Self::Heading => Some(Unrepresentable::HardBreakInHeading),
+            Self::TaskItem => Some(Unrepresentable::HardBreakInTaskItem),
+            Self::Prose | Self::TableCell => None,
+        }
+    }
 }
 
 struct Renderer {
@@ -172,7 +186,7 @@ impl Renderer {
                 }
                 let hashes = "#".repeat(usize::try_from(level).unwrap_or(0));
                 let text =
-                    self.inlines(&children(block), Surroundings::Prose)?;
+                    self.inlines(&children(block), Surroundings::Heading)?;
                 Ok(format!("{hashes} {text}"))
             }
             "bulletList" => {
@@ -201,7 +215,7 @@ impl Renderer {
                         "- [ ] "
                     };
                     let text =
-                        self.inlines(&children(item), Surroundings::Prose)?;
+                        self.inlines(&children(item), Surroundings::TaskItem)?;
                     rendered.push(format!("{marker}{text}"));
                 }
                 Ok(rendered.join("\n"))
@@ -387,6 +401,9 @@ impl Renderer {
                     )?);
                 }
                 "hardBreak" => {
+                    if let Some(reason) = surroundings.hard_break_refusal() {
+                        self.admit_unrepresentable(reason)?;
+                    }
                     flush(&mut run, &mut rendered);
                     rendered.push_str("  \n");
                 }

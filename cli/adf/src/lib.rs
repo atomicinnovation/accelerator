@@ -85,6 +85,8 @@ pub enum Unrepresentable {
     HardBreakInTableCell,
     TableCellOfSeveralBlocks,
     LinkToCodeRunningAddress,
+    HardBreakInHeading,
+    HardBreakInTaskItem,
 }
 
 impl fmt::Display for Unrepresentable {
@@ -113,6 +115,12 @@ impl fmt::Display for Unrepresentable {
             Self::LinkToCodeRunningAddress => formatter.write_str(
                 "a link to a javascript:, vbscript: or data: address",
             ),
+            Self::HardBreakInHeading => {
+                formatter.write_str("a line break inside a heading")
+            }
+            Self::HardBreakInTaskItem => {
+                formatter.write_str("a line break inside a task item")
+            }
         }
     }
 }

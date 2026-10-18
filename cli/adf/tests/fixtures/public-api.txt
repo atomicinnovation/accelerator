@@ -24,7 +24,9 @@ impl core::marker::StructuralPartialEq for adf::AdfError
 pub enum adf::Unrepresentable
 pub adf::Unrepresentable::BacktickInInlineCode
 pub adf::Unrepresentable::FenceLineInCodeBlock
+pub adf::Unrepresentable::HardBreakInHeading
 pub adf::Unrepresentable::HardBreakInTableCell
+pub adf::Unrepresentable::HardBreakInTaskItem
 pub adf::Unrepresentable::HeadingBeyondLevelSix
 pub adf::Unrepresentable::LinkToCodeRunningAddress
 pub adf::Unrepresentable::Node
