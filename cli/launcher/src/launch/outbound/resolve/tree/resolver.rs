@@ -20,6 +20,7 @@ use super::super::fetcher::Fetcher;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
 use super::attestation::Attestation;
+use super::download::Resumption;
 use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
@@ -218,7 +219,7 @@ impl TreeResolver<'_> {
             return Ok(self.sealed(&paths, artifact, &existing, digest));
         }
 
-        self.materialise_fresh(artifact, digest)
+        self.materialise_fresh(artifact, digest, Resumption::FromPartial)
     }
 
     /// Fetch, verify, extract, seal and publish a brand-new generation,
@@ -237,6 +238,7 @@ impl TreeResolver<'_> {
         &self,
         artifact: &str,
         digest: &str,
+        resumption: Resumption,
     ) -> Result<SealedTree, TreeError> {
         let paths = self.paths();
 
@@ -264,7 +266,8 @@ impl TreeResolver<'_> {
         //    extracted copy.
         let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
         let partial =
-            download::AssessedPartial::of(&temp_archive, entry.archive_size);
+            download::AssessedPartial::of(&temp_archive, entry.archive_size)
+                .under(resumption);
         self.check_free_space(
             &paths,
             entry.uncompressed_size + partial.additional_bytes(),
@@ -292,7 +295,7 @@ impl TreeResolver<'_> {
         )
         .inspect_err(|error| {
             if matches!(error, TreeError::UnexpectedDigest { .. }) {
-                download::discard_partial_archive(&temp_archive);
+                partial.discard();
             }
         })?;
         self.steps.after(MaterialiseStep::ArchiveVerified)?;
@@ -703,18 +706,16 @@ impl TreeResolver<'_> {
         ensure_trees_dir(&paths)?;
         let _held =
             HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
-        if force {
-            download::discard_partial_archive(&paths.temp_archive(
-                artifact,
-                &self.platform,
-                digest,
-            ));
-        }
 
         let superseded = self
             .locate(artifact, digest)
             .map(|located| located.generation);
-        let sealed = self.materialise_fresh(artifact, digest)?;
+        let resumption = if force {
+            Resumption::Afresh
+        } else {
+            Resumption::FromPartial
+        };
+        let sealed = self.materialise_fresh(artifact, digest, resumption)?;
 
         // Reap the superseded generation now if nobody holds it; the age-gated
         // reaper would otherwise spare it as too young.

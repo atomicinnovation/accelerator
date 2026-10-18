@@ -91,6 +91,33 @@ impl AssessedPartial {
     pub const fn additional_bytes(&self) -> u64 {
         self.state.additional_bytes(self.archive_size)
     }
+
+    /// The assessment a download starts from: this one, or, when resuming is
+    /// not wanted, the path cleared and reassessed as absent.
+    #[must_use]
+    pub fn under(self, resumption: Resumption) -> Self {
+        match resumption {
+            Resumption::FromPartial => self,
+            Resumption::Afresh => {
+                self.discard();
+                Self {
+                    state: PartialArchive::Absent,
+                    ..self
+                }
+            }
+        }
+    }
+
+    pub fn discard(&self) {
+        discard_partial_archive(&self.path);
+    }
+}
+
+/// Whether a download may continue from a partial archive already on disk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Resumption {
+    FromPartial,
+    Afresh,
 }
 
 /// Stream the archive at `url` into the partial's path, resuming from any
@@ -133,10 +160,7 @@ pub fn stream_archive(
         }
         PartialArchive::Resumable(held) => download.resume_from(held),
         PartialArchive::Complete => download.digest_partial(),
-        PartialArchive::Obstructed => {
-            discard_partial_archive(&partial.path);
-            download.fetch_whole()
-        }
+        PartialArchive::Obstructed => download.start_afresh(),
     }
 }
 
@@ -149,14 +173,18 @@ struct Download<'a> {
 
 impl Download<'_> {
     fn fetch_whole(&self) -> Result<[u8; 32], TreeError> {
-        let whole = match self.get_whole() {
-            Err(FetchError::Sink(_)) => {
-                discard_partial_archive(self.path);
-                self.get_whole()
-            }
-            fetched => fetched,
-        };
-        whole
+        match self.get_whole() {
+            Ok(whole) => Ok(whole.sha256),
+            Err(FetchError::Sink(_)) => self.start_afresh(),
+            Err(error) => Err(self.fetch_failure(&error)),
+        }
+    }
+
+    /// Discard whatever is at the partial path and fetch the archive whole,
+    /// once: the last resort of every arm that cannot use the partial.
+    fn start_afresh(&self) -> Result<[u8; 32], TreeError> {
+        discard_partial_archive(self.path);
+        self.get_whole()
             .map(|whole| whole.sha256)
             .map_err(|error| self.fetch_failure(&error))
     }
@@ -179,10 +207,7 @@ impl Download<'_> {
                 self.digest_partial()
             }
             Ok(Resumed::RangeRejected) => self.fetch_whole(),
-            Err(FetchError::Sink(_)) => {
-                discard_partial_archive(self.path);
-                self.fetch_whole()
-            }
+            Err(FetchError::Sink(_)) => self.start_afresh(),
             Err(error) => Err(self.fetch_failure(&error)),
         }
     }
@@ -284,7 +309,7 @@ const fn not_following_links(
 ///
 /// A failed removal is warned rather than returned, so it can never replace
 /// the error that made the caller discard the partial.
-pub fn discard_partial_archive(path: &Path) {
+fn discard_partial_archive(path: &Path) {
     let removed = match std::fs::symlink_metadata(path) {
         Ok(metadata) if metadata.is_dir() => std::fs::remove_dir_all(path),
         Ok(_) => std::fs::remove_file(path),
