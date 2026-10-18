@@ -393,6 +393,7 @@ mod tests {
 
     use crate::launch::core::tree::TreeError;
 
+    use super::super::super::KNOWN_PLATFORMS;
     use super::super::pins::EXPECTED_TREE_DIGESTS;
     use super::{
         generation_name, generation_prefix, is_wellformed_digest,
@@ -520,6 +521,19 @@ mod tests {
         let musl = Artifact::new("browser", "linux-x64-musl");
         assert_eq!(owner_of(&partial_archive_of(&musl)), None);
         assert_eq!(owner_of(&temp_tree_of(&musl, DIGEST)), None);
+    }
+
+    #[test]
+    fn no_platform_ends_in_another_so_a_split_is_unambiguous() {
+        for platform in KNOWN_PLATFORMS {
+            for other in KNOWN_PLATFORMS.iter().filter(|o| **o != platform) {
+                assert!(
+                    !platform.ends_with(&format!("-{other}")),
+                    "{platform} ends in {other}, so its entries would be \
+                     attributed to {other}"
+                );
+            }
+        }
     }
 
     #[test]
