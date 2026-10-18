@@ -689,6 +689,33 @@ mod tests {
     }
 
     #[test]
+    fn a_206_without_a_content_range_rejects_the_range() {
+        assert_range_rejected(&answering(206, None));
+    }
+
+    #[test]
+    fn a_206_from_the_resume_offset_appends() {
+        let server = answering(
+            206,
+            Some(format!(
+                "bytes {RESUME_FROM}-{}/{}",
+                RESUME_FROM + 5,
+                RESUME_FROM + 6
+            )),
+        );
+        let resumption = Resumption::default();
+
+        let outcome = resume(&server, RESUME_FROM, &resumption);
+
+        assert!(matches!(outcome, Ok(Resumed::Appended)), "got {outcome:?}");
+        assert_eq!(
+            *resumption.modes.borrow(),
+            [SinkMode::Append { from: RESUME_FROM }]
+        );
+        assert_eq!(*resumption.received.borrow(), b"suffix");
+    }
+
+    #[test]
     fn a_server_ignoring_the_range_answers_whole() {
         let payload = vec![3_u8; 2048];
         let server = MockHTTPServer::start();
