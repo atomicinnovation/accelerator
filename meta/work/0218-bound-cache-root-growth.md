@@ -13,7 +13,7 @@ derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 blocked_by: ["work-item:0334", "adr:ADR-0072", "work-item:0339"]
 relates_to: ["work-item:0189", "work-item:0164", "work-item:0223", "work-item:0196", "work-item:0214", "work-item:0222", "adr:ADR-0063", "adr:ADR-0064"]
 tags: ["cli", "launcher", "performance", "bootstrap", "cache"]
-last_updated: "2026-10-16T00:06:45+00:00"
+last_updated: "2026-10-21T19:17:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-747"
@@ -123,8 +123,11 @@ leases orphaned by a crash before the generation rename are never reaped.
 - Single-file prune removes a stale version-claim file independently of the
   version's other claims; when it is that version's last claim, only after
   every unclaimed entry it protected has been removed.
-- Single-file prune removes every staged verifier shim copy, and shim staging
-  residue older than `AGE_BACKSTOP`.
+- Single-file prune removes every staged verifier shim copy except the
+  running plugin's own for each platform (a copy whose digest equals that of
+  `${plugin_root}/bin/accelerator-verify-<platform>`), and shim staging
+  residue older than `AGE_BACKSTOP`. When a platform's source cannot be
+  hashed, every copy for that platform is kept.
 - Single-file prune removes the plugin's own top-level `.tmp-` staging
   entries — `.tmp-<name>-<version>-<64hex>-<pid>-<seq>[.minisig]` and
   `.tmp-launcher-<pid>[.minisig]` — older than `AGE_BACKSTOP`, and never
@@ -218,8 +221,10 @@ leases orphaned by a crash before the generation rename are never reaped.
   `docs-site/src/content/docs/design.md` and `internals.md` state that a
   relocated root is pruned automatically on cold paths, that a version idle
   for `CLAIM_WINDOW` (14 days) loses its entries and re-fetches, what
-  `accelerator cache prune` now covers, and that a root shared by several
-  users is not protected.
+  `accelerator cache prune` now covers, and that a root is pruned only when
+  it is writable by its owner alone, or through the owner's private group,
+  and no directory above it is writable by others without the sticky bit,
+  so a shared host gives each user `<shared>/$USER`.
 - A post-change `mise run measure:warm-dispatch` run is recorded under
   `meta/measurements/`, whatever its gating result, as a record rather than
   as evidence of this change's cost.
@@ -293,9 +298,12 @@ leases orphaned by a crash before the generation rename are never reaped.
       single-file prune runs, then they are kept; given ones older than
       `AGE_BACKSTOP`, they are removed.
 - [ ] Given staged shim copies `accelerator-verify-<platform>-<sha>` in an
-      override root, when single-file prune runs, then every copy is removed;
-      given `accelerator-verify-*.staging.<pid>` residue, it is removed only
-      when older than `AGE_BACKSTOP`.
+      override root, when single-file prune runs, then the running plugin's
+      own copy for each platform is kept and every other copy is removed;
+      given an unreadable shim source, every copy for that platform is kept;
+      given
+      `accelerator-verify-*.staging.<pid>` residue, it is removed only when
+      older than `AGE_BACKSTOP`.
 - [ ] Given an override root holding a version claim and a tree-claim file
       each refreshed 2 days ago, when
       `accelerator cache prune --older-than 86400` runs, then that version's
@@ -376,8 +384,9 @@ leases orphaned by a crash before the generation rename are never reaped.
       only: C's single-file entries and launcher entry with their `.minisig`
       sidecars; C's version claim; the trees whose digests C pins, with their
       pointers, tree claims, leases, `.sealed` and `.sealed.sig` sidecars and
-      tree locks; the root lock; `.accelerator-unverified.log`; and the
-      `claims/` and `trees/` directories.
+      tree locks; the running plugin's staged shim copy; the root lock;
+      `.accelerator-unverified.log` if present; and the `claims/` and `trees/`
+      directories.
 - [ ] Given version V with one stale and one fresh version claim, and
       version W whose only claim is stale, with W's entries older than
       `AGE_BACKSTOP`, when single-file prune runs, then V's stale claim is
@@ -434,8 +443,10 @@ leases orphaned by a crash before the generation rename are never reaped.
       `docs-site/src/content/docs/design.md` and `internals.md` each state
       that a relocated root is pruned automatically on cold paths, that a
       version idle for 14 days loses its entries and re-fetches, what
-      `accelerator cache prune` now removes, and that a root shared by
-      several users is not protected.
+      `accelerator cache prune` now removes, and that a root is pruned only
+      when it is writable by its owner alone, or through the owner's private
+      group, and no directory above it is writable by others without the
+      sticky bit, so a shared host gives each user `<shared>/$USER`.
 - [ ] A post-change `mise run measure:warm-dispatch` run's JSON is committed
       under `meta/measurements/`, whatever its gating result.
 - [ ] `mise run` (bare default task) exits 0 end-to-end.
@@ -512,10 +523,12 @@ None remaining.
 - Versions whose launchers predate version claims have no claim, so the first
   prune by a claim-aware launcher evicts their entries. A live pre-upgrade
   session re-fetches; this one-off cost is accepted.
-- A prune that removes a staged shim copy between the bootstrap's staging check
-  (`bin/accelerator:336`) and its use in `verify_launcher` (`:435`) fails that
-  one bootstrap with `fail_integrity`; the next invocation restages and
-  succeeds. Accepted.
+- A prune that removes another version's staged shim copy between that
+  bootstrap's staging check (`bin/accelerator:336`) and its use in
+  `verify_launcher` (`:435`) fails that bootstrap with `fail_integrity`. The
+  failure is appended to `.accelerator-unverified.log`, which the SessionStart
+  hook reports until the user clears it. It arises only across releases that
+  change the vendored shim. Accepted.
 - A prune that removes an unclaimed version's launcher entry older than
   `AGE_BACKSTOP` between the bootstrap's verification and its `exec` fails
   that one dispatch; the next invocation re-fetches. Accepted.
@@ -551,9 +564,17 @@ None remaining.
   Accepted for the rollout window; no compatibility gating is in scope.
 - A final uninstall leaves a relocated root unpruned, since no launcher runs to
   prune it. Accepted.
-- An override root shared by several users is not protected: foreign-owned
-  claims are ignored, so one user's prune can evict another user's live
-  version, which then re-fetches. Accepted.
+- An override root that any other user can create names in, sticky or not,
+  or one under a directory others can write to without the sticky bit, is
+  not pruned, automatically or by the verb. A root writable only through
+  the user's private group counts as safe, and a symlinked root is judged by
+  its canonical target. Another user could otherwise swap a subdirectory,
+  or the root, for a symlink, or plant a name the bootstrap's predictable
+  writes follow, and redirect removals or writes outside the root. Such a
+  root still works as a cache but is no longer pruned at all, where today
+  the verb prunes its pinned trees. A shared host gives each user their own
+  root, such as `/var/cache/accelerator/$USER`. A pruned shared cache is
+  out of scope: 0340 covers it. Accepted.
 
 ## Technical Notes
 
@@ -650,11 +671,36 @@ None remaining.
   and sidecar suffixes (`tree/reap.rs:117-135`); and claims are dropped only
   by `drop_all` with their digest (`tree/claims.rs:86-97`).
 - Staged shim copies carry the shim's sha, not a version, so no claim covers
-  them. Prune removes them all: the bootstrap restages a missing copy locally
-  from `${plugin_root}/bin` (`bin/accelerator:336-352`). An age guard would not
-  help, since an in-use copy's mtime is its first staging time.
+  them. Prune keeps the running plugin's own copy for each platform and
+  removes the rest: the
+  bootstrap restages a missing copy locally from `${plugin_root}/bin`
+  (`bin/accelerator:336-352`). An age guard would not help, since an in-use
+  copy's mtime is its first staging time.
 
 ## Drafting Notes
+
+- Amended on 2026-10-21 during plan review: prune runs only in a root writable
+  by its owner alone, or through the owner's private group, under ancestors
+  no other user can rename entries in. The private-group exception exists
+  because a umask of 002 under user-private groups makes every new root
+  group-writable. Ancestors are checked because another user could
+  otherwise swap the root itself. A sticky shared root is refused too:
+  the sticky bit stops renames but not other users planting names that the
+  bootstrap's predictable writes follow. A shared root still works as a
+  cache; it is just not pruned, and a per-user root beneath it is the
+  supported layout. An ancestor owned by another uid, as in a container's
+  bind mount or a CI workspace, is refused unless the operator lists that
+  uid in `ACCELERATOR_CACHE_TRUSTED_OWNERS`: relaxing ownership for root
+  automatically would let an ordinary user steer root's deletions.
+
+- Amended on 2026-10-20 during plan review: prune now keeps the running
+  plugin's own shim copy. Removing it raced every live bootstrap into
+  `fail_integrity`, whose `.accelerator-unverified.log` entry the SessionStart
+  hook reports indefinitely, so a routine prune became a lasting trust-chain
+  alarm. Removing it also freed no space, because the copy is restaged at
+  once. The rule covers every platform, not only the host's, because a root
+  shared across platforms would otherwise delete the other platform's live
+  copy on every prune. The A/B/C end state gains the kept shim copy.
 
 - Narrowed from "every cache root" to the shared `ACCELERATOR_CACHE_DIR` root
   after 0223 showed the default root is bounded by Claude Code's orphan sweep.
@@ -703,4 +749,5 @@ None remaining.
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
 - `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` —
   where tree claims and the lease were built
-- Related: 0136, 0164, 0189, 0196, 0214, 0222, 0223, 0334
+- Related: 0136, 0164, 0189, 0196, 0214, 0222, 0223, 0334, 0340 (shared cache
+  roots on multi-user systems: sharing trees and pruning a group-shared root)
