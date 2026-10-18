@@ -21,8 +21,7 @@ impl HeldTreeLock {
         paths: &TreePaths,
         artifact: Artifact,
     ) -> Result<Self, TreeError> {
-        let guard =
-            take_single_flight(&paths.single_flight_lock_of(&artifact))?;
+        let guard = take_single_flight(&paths.single_flight_lock(&artifact))?;
         Ok(Self::holding(paths, artifact, guard))
     }
 
@@ -37,7 +36,7 @@ impl HeldTreeLock {
         paths: &TreePaths,
         artifact: Artifact,
     ) -> Result<Option<Self>, TreeError> {
-        let guard = try_single_flight(&paths.single_flight_lock_of(&artifact))?;
+        let guard = try_single_flight(&paths.single_flight_lock(&artifact))?;
         Ok(guard.map(|guard| Self::holding(paths, artifact, guard)))
     }
 
@@ -87,7 +86,7 @@ mod tests {
     }
 
     fn is_held(paths: &TreePaths, artifact: &Artifact) -> bool {
-        let lock = paths.single_flight_lock_of(artifact);
+        let lock = paths.single_flight_lock(artifact);
         within(BLOCKING_BOUND, "the probe", move || {
             matches!(probe_single_flight(&lock), Ok(SingleFlightProbe::Held))
         })
@@ -123,7 +122,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees_under(dir.path());
         let _elsewhere =
-            take_single_flight(&paths.single_flight_lock_of(&browser()))
+            take_single_flight(&paths.single_flight_lock(&browser()))
                 .expect("held elsewhere");
 
         let tried = within(BLOCKING_BOUND, "the try", move || {

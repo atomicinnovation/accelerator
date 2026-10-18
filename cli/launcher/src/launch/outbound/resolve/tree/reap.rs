@@ -173,7 +173,7 @@ impl<'a> Reaper<'a> {
         if owner == self.held.artifact() {
             return OwnerLock::HeldByCaller;
         }
-        match probe_single_flight(&self.paths().single_flight_lock_of(owner)) {
+        match probe_single_flight(&self.paths().single_flight_lock(owner)) {
             Ok(SingleFlightProbe::Taken(guard)) => {
                 OwnerLock::Taken { _guard: guard }
             }
@@ -620,7 +620,7 @@ mod tests {
         );
         let pointer = paths.temp_pointer(&generation);
         fs::write(&pointer, &generation).expect("temp pointer");
-        let archive = paths.temp_archive_of(owner, &"f".repeat(64));
+        let archive = paths.temp_archive(owner, &"f".repeat(64));
         fs::write(&archive, b"partial").expect("partial archive");
         Residue {
             tree,
@@ -634,7 +634,7 @@ mod tests {
         owner: &Artifact,
         digest: &str,
     ) -> PathBuf {
-        let archive = paths.temp_archive_of(owner, digest);
+        let archive = paths.temp_archive(owner, digest);
         fs::write(&archive, b"resumable").expect("partial archive");
         archive
     }
@@ -644,7 +644,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
         create_free_lock(&paths, &x());
-        let archive = paths.temp_archive("browser", PLATFORM, &"f".repeat(64));
+        let archive = paths.temp_archive(&x(), &"f".repeat(64));
         fs::write(&archive, b"partial").expect("archive");
         let temp_tree = paths.temp_generation(&gen_name());
         fs::create_dir(&temp_tree).expect("temp tree");
@@ -691,7 +691,7 @@ mod tests {
 
     fn create_free_lock(paths: &TreePaths, owner: &Artifact) {
         drop(
-            take_single_flight(&paths.single_flight_lock_of(owner))
+            take_single_flight(&paths.single_flight_lock(owner))
                 .expect("lock file"),
         );
     }
@@ -757,7 +757,7 @@ mod tests {
     }
 
     fn hold_lock_of(paths: &TreePaths, owner: &Artifact) -> SingleFlight {
-        take_single_flight(&paths.single_flight_lock_of(owner))
+        take_single_flight(&paths.single_flight_lock(owner))
             .expect("held elsewhere")
     }
 
@@ -825,7 +825,7 @@ mod tests {
         let seen = Arc::new(Mutex::new(Vec::new()));
         let observer = ProbingLockOf {
             watched: residue.paths().map(Path::to_path_buf).into(),
-            lock: paths.single_flight_lock_of(&x()),
+            lock: paths.single_flight_lock(&x()),
             seen: Arc::clone(&seen),
         };
 
@@ -847,7 +847,7 @@ mod tests {
         assert_eq!(seen, expected, "X's residue went without X's lock");
         assert_survives(&[&pinned]);
         assert!(matches!(
-            probe_single_flight(&paths.single_flight_lock_of(&x())),
+            probe_single_flight(&paths.single_flight_lock(&x())),
             Ok(SingleFlightProbe::Taken(_))
         ));
     }
@@ -869,7 +869,7 @@ mod tests {
     }
 
     fn plant_unprobeable_lock_of(paths: &TreePaths, owner: &Artifact) {
-        fs::create_dir(paths.single_flight_lock_of(owner))
+        fs::create_dir(paths.single_flight_lock(owner))
             .expect("a directory at the lock path");
     }
 

@@ -1011,20 +1011,15 @@ fn create_free_tree_locks(harness: &Harness) {
     std::fs::create_dir_all(paths.root()).unwrap();
     for artifact in [ARTIFACT, BYSTANDER] {
         drop(
-            take_single_flight(
-                &paths.single_flight_lock(artifact, HOST_PLATFORM),
-            )
-            .unwrap(),
+            take_single_flight(&paths.single_flight_lock(&on_host(artifact)))
+                .unwrap(),
         );
     }
 }
 
 fn plant_bystanders_pinned_archive(harness: &Harness) -> PathBuf {
-    let archive = tree_paths(harness).temp_archive(
-        BYSTANDER,
-        HOST_PLATFORM,
-        &bystander_digest(),
-    );
+    let archive = tree_paths(harness)
+        .temp_archive(&on_host(BYSTANDER), &bystander_digest());
     std::fs::write(&archive, b"resumable").unwrap();
     archive
 }
@@ -1079,7 +1074,7 @@ fn bystander_in_progress(harness: &Harness) -> BystanderInProgress {
     create_free_tree_locks(harness);
     let paths = tree_paths(harness);
     let held =
-        take_single_flight(&paths.single_flight_lock(BYSTANDER, HOST_PLATFORM))
+        take_single_flight(&paths.single_flight_lock(&on_host(BYSTANDER)))
             .unwrap();
     let generation = generation_name(
         BYSTANDER,
@@ -1092,7 +1087,7 @@ fn bystander_in_progress(harness: &Harness) -> BystanderInProgress {
     std::fs::create_dir(&tree).unwrap();
     let pointer = paths.temp_pointer(&generation);
     std::fs::write(&pointer, &generation).unwrap();
-    let archive = paths.temp_archive(BYSTANDER, HOST_PLATFORM, &"f".repeat(64));
+    let archive = paths.temp_archive(&on_host(BYSTANDER), &"f".repeat(64));
     std::fs::write(&archive, b"partial").unwrap();
     BystanderInProgress {
         _held: held,
@@ -1375,7 +1370,13 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
     let _ = sealed;
 }
 
-use accelerator::launch::outbound::resolve::tree::layout::TreePaths;
+use accelerator::launch::outbound::resolve::tree::layout::{
+    Artifact, TreePaths,
+};
+
+fn on_host(name: &str) -> Artifact {
+    Artifact::new(name, HOST_PLATFORM)
+}
 
 /// Answers every probe the same way, so `Held` and `Unknown` can be exercised
 /// without a live holder or a filesystem that lacks `flock`.
@@ -1785,8 +1786,7 @@ fn an_interrupted_download_resumes_with_a_range_request() {
 fn plant_partial(harness: &Harness, bytes: &[u8]) -> PathBuf {
     let paths = tree_paths(harness);
     std::fs::create_dir_all(paths.root()).unwrap();
-    let partial =
-        paths.temp_archive(ARTIFACT, HOST_PLATFORM, &harness.archive_sha);
+    let partial = paths.temp_archive(&on_host(ARTIFACT), &harness.archive_sha);
     std::fs::write(&partial, bytes).unwrap();
     partial
 }
@@ -2119,7 +2119,7 @@ fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
     );
     assert!(
         !tree_paths(&harness)
-            .temp_archive(ARTIFACT, HOST_PLATFORM, &harness.archive_sha)
+            .temp_archive(&on_host(ARTIFACT), &harness.archive_sha)
             .exists(),
         "the corrupt download was kept"
     );
@@ -2206,7 +2206,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
     let expected = "0".repeat(64);
     let paths = tree_paths(&harness);
     std::fs::create_dir_all(paths.root()).unwrap();
-    let partial = paths.temp_archive(ARTIFACT, HOST_PLATFORM, &expected);
+    let partial = paths.temp_archive(&on_host(ARTIFACT), &expected);
     std::fs::write(&partial, b"resumable").unwrap();
     let mut digests = BTreeMap::new();
     digests.insert((ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()), expected);

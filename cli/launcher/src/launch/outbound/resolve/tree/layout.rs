@@ -185,21 +185,7 @@ impl TreePaths {
     /// never find the partial to resume, and the reaper could not derive which
     /// lock guards the residue.
     #[must_use]
-    pub fn temp_archive(
-        &self,
-        name: &str,
-        platform: &str,
-        digest: &str,
-    ) -> PathBuf {
-        self.temp_archive_of(&Artifact::new(name, platform), digest)
-    }
-
-    #[must_use]
-    pub fn temp_archive_of(
-        &self,
-        artifact: &Artifact,
-        digest: &str,
-    ) -> PathBuf {
+    pub fn temp_archive(&self, artifact: &Artifact, digest: &str) -> PathBuf {
         self.root.join(format!(
             "{TEMP_PREFIX}{}-{digest}{ARCHIVE_SUFFIX}",
             artifact.entry_stem()
@@ -218,14 +204,9 @@ impl TreePaths {
     }
 
     #[must_use]
-    pub fn single_flight_lock_of(&self, artifact: &Artifact) -> PathBuf {
+    pub fn single_flight_lock(&self, artifact: &Artifact) -> PathBuf {
         self.root
             .join(format!("{TEMP_PREFIX}{}.lock", artifact.entry_stem()))
-    }
-
-    #[must_use]
-    pub fn single_flight_lock(&self, name: &str, platform: &str) -> PathBuf {
-        self.single_flight_lock_of(&Artifact::new(name, platform))
     }
 }
 
@@ -440,7 +421,7 @@ mod tests {
     }
 
     fn partial_archive_of(artifact: &Artifact) -> PathBuf {
-        paths().temp_archive_of(artifact, DIGEST)
+        paths().temp_archive(artifact, DIGEST)
     }
 
     fn owner_of(path: &Path) -> Option<Artifact> {
@@ -543,14 +524,15 @@ mod tests {
 
     #[test]
     fn an_entry_with_no_name_before_its_platform_has_no_owner() {
-        let nameless = paths().temp_archive("", "linux-x64", DIGEST);
+        let nameless =
+            paths().temp_archive(&Artifact::new("", "linux-x64"), DIGEST);
         assert_eq!(owner_of(&nameless), None);
     }
 
     #[test]
     fn a_lock_file_has_no_owner() {
         let browser = Artifact::new("browser", "linux-x64");
-        assert_eq!(owner_of(&paths().single_flight_lock_of(&browser)), None);
+        assert_eq!(owner_of(&paths().single_flight_lock(&browser)), None);
     }
 
     #[test]
@@ -574,7 +556,7 @@ mod tests {
             for path in [
                 temp_tree_of(&artifact, digest),
                 temp_pointer_of(&artifact, digest),
-                paths().temp_archive_of(&artifact, digest),
+                paths().temp_archive(&artifact, digest),
             ] {
                 assert_eq!(
                     owner_of(&path).as_ref(),
@@ -593,11 +575,11 @@ mod tests {
         let generation = generation();
 
         assert_eq!(
-            entry(&paths.single_flight_lock_of(&browser)),
+            entry(&paths.single_flight_lock(&browser)),
             ".tmp-browser-linux-x64.lock"
         );
         assert_eq!(
-            entry(&paths.temp_archive_of(&browser, DIGEST)),
+            entry(&paths.temp_archive(&browser, DIGEST)),
             [".tmp-browser-linux-x64-", DIGEST, ".archive"].concat()
         );
         assert_eq!(
@@ -619,9 +601,9 @@ mod tests {
             paths.attestation(&generation),
             paths.attestation_signature(&generation),
             paths.lease(&generation),
-            paths.temp_archive("browser", "linux-x64", DIGEST),
+            paths.temp_archive(&Artifact::new("browser", "linux-x64"), DIGEST),
             paths.temp_pointer(&generation),
-            paths.single_flight_lock("browser", "linux-x64"),
+            paths.single_flight_lock(&Artifact::new("browser", "linux-x64")),
         ];
         for path in names {
             let name = path.to_str().expect("ascii path");

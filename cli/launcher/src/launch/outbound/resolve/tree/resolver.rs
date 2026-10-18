@@ -264,7 +264,8 @@ impl TreeResolver<'_> {
 
         // 3. Free-space precheck against the rest of the archive and the
         //    extracted copy.
-        let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
+        let temp_archive =
+            paths.temp_archive(&self.on_this_platform(artifact), digest);
         let partial =
             download::AssessedPartial::of(&temp_archive, entry.archive_size)
                 .under(resumption);
