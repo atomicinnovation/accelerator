@@ -337,7 +337,8 @@ impl Fetcher {
             }
             let sink = open_sink()
                 .map_err(|error| Terminal::Sink(error.to_string()))?;
-            copy_body(response, sink, limits).map(|sha256| Whole { sha256 })
+            copy_body(response, sink, limits, limits.max_bytes)
+                .map(|sha256| Whole { sha256 })
         })
     }
 
@@ -348,7 +349,9 @@ impl Fetcher {
     /// # Errors
     ///
     /// [`FetchError`] describing the terminal failure, including
-    /// [`FetchError::TooLarge`] when the body exceeds `limits.max_bytes`.
+    /// [`FetchError::TooLarge`] when a ranged body exceeds the shortfall,
+    /// `limits.max_bytes` less `from`, or a whole one exceeds
+    /// `limits.max_bytes`.
     pub(super) fn resume<'sink>(
         &self,
         url: &str,
@@ -376,14 +379,17 @@ impl Fetcher {
                 return Err(unexpected_status(&response));
             }
             let ranged = status.as_u16() == 206;
-            let mode = if ranged {
-                SinkMode::Append { from }
+            let (mode, max_bytes) = if ranged {
+                (
+                    SinkMode::Append { from },
+                    limits.max_bytes.saturating_sub(from),
+                )
             } else {
-                SinkMode::Truncate
+                (SinkMode::Truncate, limits.max_bytes)
             };
             let sink = open_sink(mode)
                 .map_err(|error| Terminal::Sink(error.to_string()))?;
-            let sha256 = copy_body(response, sink, limits)?;
+            let sha256 = copy_body(response, sink, limits, max_bytes)?;
             Ok(if ranged {
                 Resumed::Appended
             } else {
@@ -482,6 +488,7 @@ fn copy_body(
     mut response: reqwest::blocking::Response,
     mut sink: Box<dyn StreamSink + '_>,
     limits: &StreamLimits,
+    max_bytes: u64,
 ) -> Result<[u8; 32], Terminal> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; STREAM_CHUNK];
@@ -495,10 +502,8 @@ fn copy_body(
             break;
         }
         bytes += read as u64;
-        if bytes > limits.max_bytes {
-            return Err(Terminal::TooLarge {
-                limit: limits.max_bytes,
-            });
+        if bytes > max_bytes {
+            return Err(Terminal::TooLarge { limit: max_bytes });
         }
         let chunk = &buffer[..read];
         hasher.update(chunk);
@@ -873,6 +878,23 @@ mod tests {
             elapsed < Duration::from_secs(10),
             "a stall waited out the attempt deadline rather than the idle \
              bound: {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn a_resumed_body_longer_than_the_shortfall_is_too_large() {
+        let server = answering(206, Some("bytes 5-10/11".to_owned()));
+
+        let result = test_fetcher().resume(
+            &format!("{}/asset", server.base_url()),
+            &limits(10),
+            5,
+            &mut |_| Ok(Box::new(CollectingSink(Collecting::default()))),
+        );
+
+        assert!(
+            matches!(result, Err(FetchError::TooLarge { limit: 5 })),
+            "a ranged body may only fill the shortfall, got {result:?}"
         );
     }
 
