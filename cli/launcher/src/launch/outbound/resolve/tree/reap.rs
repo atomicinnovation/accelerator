@@ -4,19 +4,15 @@
 //! Runs only under its own artifact's tree lock, which [`HeldTreeLock`] proves,
 //! and never from the hit path. Another artifact's temp residue goes only
 //! while the reap holds that artifact's lock, taken without blocking, or when
-//! that artifact has no lock file.
+//! that artifact has no lock file, and then never its partial archives.
 //!
 //! "No lock file" is safe only while a lock file is unlinked solely by a
 //! process that holds it, and every process that takes the lock confirms its
 //! inode afterwards. A launcher that does not confirm can hold an orphaned
 //! inode while another process holds the new file, so neither lock excludes
-//! the other. Even when every launcher confirms, nothing excludes a launcher
-//! pinning the same artifact that creates the lock and reopens an existing
-//! partial archive between the reap's scan and its removal: its appends go to
-//! an unlinked file and its materialise fails with `Extraction`. That cause is
-//! sticky for the marker TTL in the session, and as a Refusal it stops a
-//! `--fail-safe` crawl rather than degrading it. The window needs a launcher of another version that still pins a
-//! retired artifact, and any future removal of lock files inherits it.
+//! the other. Even then, nothing excludes a launcher that creates the lock
+//! between the reap's scan and its removal. A partial archive is the only
+//! temp entry such a launcher reopens, so it is kept.
 //!
 //! A process must never probe or retake a tree lock it already holds: where
 //! `flock` is emulated with process-owned POSIX locks, the second lock
@@ -122,10 +118,10 @@ impl<'a> Reaper<'a> {
     /// can continue it. An entry with no known owner is spared too: it is a
     /// newer launcher's, on a platform this one does not know. Another
     /// artifact's temp residue goes only under that artifact's tree lock,
-    /// taken without blocking, or when it has no lock file; otherwise it is
-    /// kept. A fully-materialised generation goes only when no
-    /// pointer names it, no live lease is held on it, and it is older than
-    /// the backstop.
+    /// taken without blocking, or, all but its partial archives, when it has
+    /// no lock file; otherwise it is kept. A fully-materialised generation
+    /// goes only when no pointer names it, no live lease is held on it, and it
+    /// is older than the backstop.
     ///
     /// # Errors
     ///
@@ -160,7 +156,7 @@ impl<'a> Reaper<'a> {
             return;
         }
         for entry in entries {
-            if !is_resumable(entry, owner, self.pins) {
+            if !is_spared(entry, owner, &lock, self.pins) {
                 self.remove(&self.paths().root().join(entry), reclaimed);
             }
         }
@@ -250,6 +246,17 @@ fn temp_entries_by_owner(names: &[String]) -> BTreeMap<Artifact, Vec<&str>> {
         }
     }
     by_owner
+}
+
+fn is_spared(
+    entry: &str,
+    owner: &Artifact,
+    lock: &OwnerLock,
+    pins: &dyn PinnedDigests,
+) -> bool {
+    is_resumable(entry, owner, pins)
+        || (matches!(lock, OwnerLock::Absent)
+            && owner.partial_archive_digest(entry).is_some())
 }
 
 fn is_resumable(
@@ -630,6 +637,7 @@ mod tests {
     fn a_temp_archive_and_a_temp_tree_are_reclaimed() {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
+        create_free_lock(&paths, &x());
         let archive = paths.temp_archive("browser", PLATFORM, &"f".repeat(64));
         fs::write(&archive, b"partial").expect("archive");
         let temp_tree = paths.temp_generation(&gen_name());
@@ -839,7 +847,8 @@ mod tests {
     }
 
     #[test]
-    fn a_retired_artifacts_residue_goes_without_creating_its_lock() {
+    fn a_lockless_artifacts_partial_archives_stay_while_its_other_residue_goes()
+    {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
         let retired = Artifact::new("retired", PLATFORM);
@@ -849,8 +858,8 @@ mod tests {
         reap_for_y(dir.path(), Pins::pinning(&[(retired, X_DIGEST)]))
             .expect("reap");
 
-        assert_gone(&residue.paths());
-        assert_survives(&[&pinned]);
+        assert_gone(&[&residue.tree, &residue.pointer]);
+        assert_survives(&[&residue.archive, &pinned]);
     }
 
     fn plant_unprobeable_lock_of(paths: &TreePaths, owner: &Artifact) {
