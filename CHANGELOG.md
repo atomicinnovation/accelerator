@@ -101,8 +101,12 @@
   promotion record written past its first stage and aborts on it. Run
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
-- **A `work sync` local file read or write failure exits 71** (`terminal`),
-  where it exited 0 with a `-` detail. A pull whose remote body could not be
+- **A `work sync` local file read failure, or a write that fails in flight,
+  exits 71** (`terminal`), where it exited 0 with a `-` detail. A write the
+  store refuses before writing, such as through an unsafe path, fails as
+  `local-write-refused` (exit 75) and leaves the file as it was; until 0300
+  lands, that includes every pull into an existing work item. A pull whose
+  remote body could not be
   fetched fails as `retryable` (exit 70) instead of writing an empty body, and
   a `show` that fails after the remote stamp moved leaves the item
   `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
@@ -123,7 +127,8 @@
   so finish every outstanding promotion before downgrading.
 - **`work sync` reports two new rows.** An item whose baseline entry was
   written by a newer release reports `noop\tindeterminate\tunsupported-recipe`
-  (exit 4) and is left untouched, and a baseline record or a pull whose local
+  (exit 4) and is left untouched, with a stderr warning naming those items and
+  saying to upgrade, and a baseline record or a pull whose local
   file changed after the run read it reports `failed\tsynced\tretryable` or
   `failed\tremotely-modified\tretryable` (exit 70), writing nothing. Scripts
   that parse `work sync` output need updating.

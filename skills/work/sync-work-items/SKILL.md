@@ -214,11 +214,11 @@ also covers a title sent alone, leaving the description as it is.
 | `7` | The keyed reconcile read hit its `<work.integration>.pull.max_pages` cap (or its `keyed_read` override), so the un-read items' remote state is unknown. Nothing was written. The read feeds both directions, so `--push-only` does **not** bypass it. | Raise the cap, or set it to `unlimited`, and re-run. |
 | `8` | Refused an unbounded broadened pull: `<work.integration>.pull.max_items: unlimited` over an `all_*`/`additional_*` scope. Zero writes. | Re-run with `--allow-unbounded` to acknowledge it, or set a finite `max_items` (see the unbounded-scope gate below). |
 | `70` | A read failed, a discovery search failed transiently, a named target's remote lookup was indeterminate, or every per-item failure was retryable. | Re-run; it is safe to retry. |
-| `71` | A per-item failure was terminal, a local file read or write failed (whether the write landed is unknown), or a retirement stopped with `retirement-incomplete` (see Step 5). A whole-item update is idempotent, so the hazard is response uncertainty. | Reconcile by hand; never auto-retry. |
+| `71` | A per-item failure was terminal, a local file read failed, a local write failed in flight (whether it landed is unknown), or a retirement stopped with `retirement-incomplete` (see Step 5). A whole-item update is idempotent, so the hazard is response uncertainty. | Reconcile by hand; never auto-retry. |
 | `72` | The tracker is recognised but no client is built. | Use a supported tracker. |
 | `73` | `work.integration` is unset or unrecognised. | Set it. |
 | `74` | Wired, but the run cannot proceed on its config: missing or refused credentials, or a non-push-only run whose discovery scope names no valid target. Nothing was sent. A per-item `unconfigured` detail also exits `74`: that item sent nothing, but other items may already have applied, so this is not then a pre-flight refusal. | Set the key, or run `--push-only`. |
-| `75` | A per-item request was refused before sending. Its failed row carries the `rejected`, `unrenderable`, `pull-residue` or `unparseable` detail (see the table below). Nothing was sent or written for that item, but the same request would be refused again. | Change something before re-running (see the table below). |
+| `75` | A per-item request was refused before sending. Its failed row carries the `rejected`, `unrenderable`, `pull-residue`, `unparseable` or `local-write-refused` detail (see the table below). Nothing was sent or written for that item, but the same request would be refused again. | Change something before re-running (see the table below). |
 
 Where a run yields several outcomes, the exit code follows the precedence
 `71 > 4 > 75 > 74 > 70`. A *targeted* exit `70` aborts before any write, while
@@ -235,6 +235,7 @@ the run would meet.
 | `unrenderable` | A pull of a remote edit, a targeted pull-create, or a `=remote` resolution over a Jira description with no Markdown form. Nothing was sent or written. | Edit the description in Jira until it renders. A conflict over it can be resolved `local`, unless its dossier says `reason: legacy-unrenderable`. |
 | `pull-residue` | The local file still holds the raw Jira document an earlier pull wrote. | Replace it with Markdown (`accelerator jira show <key> --render-adf` prints a starting point) and sync, or resolve `remote` to discard local changes. |
 | `unparseable` | The local file's frontmatter does not parse, so nothing was sent or written. | Fix the frontmatter, then sync. |
+| `local-write-refused` | The store refused the local write before writing, for example through an unsafe path, so the file is as it was. Until 0300 lands, every pull into an existing work item fails this way. | Report it; a re-run fails the same way until the cause changes. |
 
 A local change over a Jira description with no Markdown form is not refused: a
 body or title change facing a remote body change is a conflict whose dossier

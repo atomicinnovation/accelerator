@@ -41,6 +41,7 @@ struct Fake {
     calls: RefCell<Vec<String>>,
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     fail_write_to: RefCell<Option<PathBuf>>,
+    refuse_write_to: RefCell<Option<PathBuf>>,
     show_result: RefCell<Option<RemoteIssue>>,
     show_fails: RefCell<bool>,
     update_fails: RefCell<Option<TrackerError>>,
@@ -56,6 +57,10 @@ impl Fake {
             .borrow()
             .get(path)
             .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+    }
+
+    fn refuse_next_write_to(&self, path: &Path) {
+        *self.refuse_write_to.borrow_mut() = Some(path.to_path_buf());
     }
 
     fn fail_next_write_to(&self, path: &Path) {
@@ -89,6 +94,12 @@ impl AtomicWrite for Fake {
         self.calls
             .borrow_mut()
             .push(format!("write:{}", path.display()));
+        if self.refuse_write_to.borrow().as_deref() == Some(path) {
+            *self.refuse_write_to.borrow_mut() = None;
+            return Err(StoreError::UnsafePath {
+                path: path.display().to_string(),
+            });
+        }
         if self.fail_write_to.borrow().as_deref() == Some(path) {
             *self.fail_write_to.borrow_mut() = None;
             return Err(StoreError::Io {
@@ -656,4 +667,49 @@ fn a_pull_residue_refusal_names_the_command_for_its_own_key() {
     .to_string();
 
     assert!(shown.contains("`jira show ENG-12 --render-adf`"), "{shown}");
+}
+
+fn pull_through(fake: &Fake, item_path: &Path) -> ApplyError {
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
+    ItemApplier::new(fake, &CommonMarkBody, fake, &mut store, 1_700_000_000)
+        .pull(&PullRequest {
+            id: "0001",
+            file_path: item_path,
+            classified_content: CLASSIFIED,
+            content: item_content(),
+            projected_body: "Title\nProjected body\n",
+            remote_updated: RemoteTimestamp::Reported(
+                "2026-06-01T00:00:00Z".to_owned(),
+            ),
+        })
+        .expect_err("the write fails")
+}
+
+#[test]
+fn a_pull_the_store_refuses_before_writing_is_known_unapplied(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.refuse_next_write_to(&item_path);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::WriteRefused);
+    Ok(())
+}
+
+#[test]
+fn a_pull_whose_write_fails_in_flight_stays_terminal() -> Result<(), TestError>
+{
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.fail_next_write_to(&item_path);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::Terminal);
+    Ok(())
 }

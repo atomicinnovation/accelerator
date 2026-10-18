@@ -5,6 +5,7 @@ use std::path::Path;
 
 use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
+use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
@@ -38,6 +39,7 @@ pub enum FailureClass {
     Unrenderable,
     PullResidue,
     Unparseable,
+    WriteRefused,
 }
 
 #[derive(Debug)]
@@ -67,6 +69,10 @@ pub enum ApplyError {
         item_id: String,
         detail: String,
     },
+    LocalWriteRefused {
+        item_id: String,
+        detail: String,
+    },
     LocalChangedSinceClassified {
         item_id: String,
     },
@@ -92,6 +98,7 @@ impl ApplyError {
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
             Self::LocalUnparseable { .. } => FailureClass::Unparseable,
+            Self::LocalWriteRefused { .. } => FailureClass::WriteRefused,
         }
     }
 }
@@ -133,6 +140,11 @@ impl std::fmt::Display for ApplyError {
                 "{item_id}: the local file's frontmatter does not parse \
                  ({detail}), so nothing was sent or written; fix the file and \
                  re-run the sync"
+            ),
+            Self::LocalWriteRefused { item_id, detail } => write!(
+                formatter,
+                "{item_id}: the local file was not written ({detail}), so it \
+                 is as it was; the same write is refused until that changes"
             ),
             Self::LocalChangedSinceClassified { item_id } => write!(
                 formatter,
@@ -229,6 +241,22 @@ pub struct PullRequest<'a> {
     /// written.
     pub projected_body: &'a str,
     pub remote_updated: RemoteTimestamp,
+}
+
+/// A store that refuses before writing leaves the file as it was; any other
+/// failure, including one this crate does not know, may have landed part-way,
+/// so its outcome is unknown.
+fn local_write_error(id: &str, error: StoreError) -> ApplyError {
+    match error {
+        StoreError::UnsafePath { .. }
+        | StoreError::NotWritable { .. }
+        | StoreError::AlreadyExists { .. }
+        | StoreError::Validation { .. } => ApplyError::LocalWriteRefused {
+            item_id: id.to_owned(),
+            detail: error.to_string(),
+        },
+        _ => io_error(id, "write-local", error),
+    }
 }
 
 fn io_error(
@@ -363,7 +391,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         }
         self.writer
             .write(request.file_path, request.content.as_bytes())
-            .map_err(|error| io_error(request.id, "write-local", error))?;
+            .map_err(|error| local_write_error(request.id, error))?;
 
         let fingerprints = self
             .digester()

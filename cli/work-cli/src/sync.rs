@@ -450,6 +450,9 @@ fn render_report(report: &RunReport) -> String {
                     work_adapters::sync::apply::FailureClass::Unparseable => {
                         "unparseable"
                     }
+                    work_adapters::sync::apply::FailureClass::WriteRefused => {
+                        "local-write-refused"
+                    }
                 },
             ),
             ItemOutcome::UnsupportedRecipe => {
@@ -512,10 +515,31 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
         work_adapters::sync::apply::FailureClass::Rejected
         | work_adapters::sync::apply::FailureClass::Unrenderable
         | work_adapters::sync::apply::FailureClass::PullResidue
-        | work_adapters::sync::apply::FailureClass::Unparseable => {
+        | work_adapters::sync::apply::FailureClass::Unparseable
+        | work_adapters::sync::apply::FailureClass::WriteRefused => {
             exit_codes::REJECTED
         }
     }
+}
+
+/// The stderr line naming the items left untouched for want of a known
+/// digest recipe, since their report row alone does not say how to fix it.
+pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
+    let untouched: Vec<&str> = report
+        .reported
+        .iter()
+        .filter(|item| matches!(item.outcome, ItemOutcome::UnsupportedRecipe))
+        .map(|item| item.planned.id.as_str())
+        .collect();
+    (!untouched.is_empty()).then(|| {
+        format!(
+            "warning: {} item(s) carry a sync baseline written by a newer \
+             plugin release, so they were left untouched ({}); upgrade the \
+             plugin to sync them",
+            untouched.len(),
+            untouched.join(", ")
+        )
+    })
 }
 
 fn exit_code_for_report(report: &RunReport) -> u8 {
@@ -1675,6 +1699,9 @@ pub fn run_sync(
                 ),
             }
             println!("{}", render_report(&report));
+            if let Some(warning) = unsupported_recipe_warning(&report) {
+                eprintln!("{warning}");
+            }
             finaliser.finalise(
                 &FinishedRun {
                     report: &report,
@@ -3423,6 +3450,47 @@ mod tests {
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
         );
+    }
+
+    #[test]
+    fn a_refused_local_write_reports_its_row_and_exits_75() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::LocalWriteRefused {
+                item_id: "0001".to_owned(),
+                detail: "refusing to write through an unsafe path".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tlocal-write-refused"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+    }
+
+    #[test]
+    fn items_under_an_unknown_recipe_are_named_on_stderr() {
+        let untouched = |id: &str| ReportedItem {
+            outcome: ItemOutcome::UnsupportedRecipe,
+            ..reported(id, SyncState::Indeterminate, Action::Noop)
+        };
+
+        assert_eq!(
+            super::unsupported_recipe_warning(&report_of(vec![
+                untouched("0012"),
+                reported("0020", SyncState::Synced, Action::Noop),
+                untouched("0031"),
+            ])),
+            Some(
+                "warning: 2 item(s) carry a sync baseline written by a newer \
+                 plugin release, so they were left untouched (0012, 0031); \
+                 upgrade the plugin to sync them"
+                    .to_owned()
+            )
+        );
+        assert_eq!(super::unsupported_recipe_warning(&report_of(vec![])), None);
     }
 
     #[test]
