@@ -558,6 +558,16 @@ mod tests {
     }
 
     #[test]
+    fn an_unsynced_id_under_a_key_no_local_pattern_can_hold_moves_to_the_default_key(
+    ) {
+        assert_eq!(
+            mapped(&acc(), &[local("MY_APP-760")]),
+            pairs(&[("MY_APP-760", "ACC-0760")])
+        );
+        assert_eq!(mapped(&acc(), &[local("ACC-0760")]), pairs(&[]));
+    }
+
+    #[test]
     fn a_draft_id_takes_a_fresh_number() {
         assert_eq!(
             mapped(&acc(), &[draft("draft-k3x9mq", "2026-01-01")]),
