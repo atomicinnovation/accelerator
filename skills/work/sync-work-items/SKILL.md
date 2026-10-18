@@ -194,67 +194,50 @@ mistaken for a skip.
 
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. A `failed` row
-may carry state `synced`: the run was rewriting that item's baseline under the
+in state `synced` means the run was rewriting that item's baseline under the
 current digest recipe and found its local file changed mid-run, so nothing was
 recorded; re-run the sync. A `retryable` failure on a `remotely-modified` pull
-likewise means the local file changed mid-run, so the pull wrote nothing. A `record-baseline` row (state `locally-modified`)
-means only the item's baseline was recorded and nothing was sent or written:
-the local change touched no field the tracker holds, or both sides already
-agree. A `push` row also covers a title sent alone, leaving the description as
-it is. Exit codes: `0`
-clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
-remote-absent, not-found or indeterminate items, or a key change refused or
-rolled back) — an `indeterminate` row with detail `unsupported-recipe` means
-the item's baseline entry was written by a newer plugin, so nothing was read
-or written for it; upgrade the plugin before syncing that item; `5` refused (would exceed
-`--max-pulls`/`--max-pushes`, zero writes; promotions count as pushes); `7`
-the keyed reconcile read hit its
-`<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
-un-read items' remote state is unknown and nothing was written — raise the cap
-or set it to `unlimited` and re-run; the read feeds both directions, so
-`--push-only` does **not** bypass it; `8` refused an unbounded broadened pull
-(`<work.integration>.pull.max_items: unlimited` over an `all_*`/`additional_*`
-scope, zero writes) — re-run with `--allow-unbounded` to acknowledge it, or set
-a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a discovery
-search failed transiently, a named target's remote lookup was indeterminate, or
-every per-item failure was retryable; `71` a per-item failure was terminal (a
-whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried), a local file read or write failed (whether the write landed
-is unknown), a local file's frontmatter does not parse (nothing was sent or
-written for it), or a retirement stopped with `retirement-incomplete` (see Step
-5); `75` a per-item request was refused before sending — its failed row
-carries the `rejected`, `unrenderable` or `pull-residue` detail (see the table
-below) — `unrenderable` covers a pull of a remote edit, a targeted pull-create
-and a `=remote` resolution over a Jira description with no Markdown form: a
-local body or title change facing a remote body change over such a description
-is a conflict whose dossier offers `=local`, and a metadata-only change is sent
-by retitle or recorded — so nothing was sent or written for that item, but the same request would
-be refused again, so something must change before a re-run; a per-item
-`unconfigured` detail in the report is a write the tracker refused on
-configuration — other items may already have applied, so
-an exit 74 carrying that token is not a pre-flight refusal, and it ranks below
-`4`; where a run yields several, the exit code follows the precedence
-`71 > 4 > 75 > 74 > 70`; `72` tracker recognised but no client built; `73`
-`work.integration` unset or unrecognised; `74` wired but a run cannot proceed on
-its config — missing/refused credentials, or a non-push-only run whose discovery
-scope names no valid target (nothing sent; set the key or run `--push-only`). A
-`--target` that fails to resolve aborts before any side effect with `3` (no
-local file *nor* remote issue), `6` (path outside the work directory), `2`
-(malformed, ambiguous, collision, or a remote-only target under `--push-only`),
-or `70` (a named target's remote lookup was indeterminate) — see the
-target-abort codes under Step 1. A *targeted* exit-70 aborts before any write,
-distinguishing it from an engine-level exit-70 that can follow partial writes,
-so the operator knows whether a re-run is a clean retry or a resume. Under
-`--preview` no baseline mutation occurs, every planned
-push carries a locally-validated payload check, or the `pull-residue` or
-`unrenderable` failure the run would meet, and every planned pull carries the
-`unrenderable` failure the run would meet.
+likewise means the local file changed mid-run, so the pull wrote nothing. A
+`record-baseline` row (state `locally-modified`) means only the item's
+baseline was recorded and nothing was sent or written: the local change
+touched no field the tracker holds, or both sides already agree. A `push` row
+also covers a title sent alone, leaving the description as it is.
+
+| Code | Meaning | What to do |
+|---|---|---|
+| `0` | Clean. | Nothing. |
+| `2` | A `--target` is malformed, ambiguous or collides, or names a remote-only target under `--push-only`. Nothing was written. | Fix the target. |
+| `3` | A `--target` matches no local file and no remote issue. Nothing was written. | Fix the target. |
+| `4` | Items await a human: unresolved conflicts, skipped-dirty pulls, remote-absent, not-found or indeterminate items, or a key change refused or rolled back. | Work through the report. An `indeterminate` row with detail `unsupported-recipe` means a newer plugin wrote that item's baseline entry, so nothing was read or written for it; upgrade the plugin before syncing it. |
+| `5` | Refused: the run would exceed `--max-pulls`/`--max-pushes` (promotions count as pushes). Zero writes. | Raise the bound, or narrow the run. |
+| `6` | A `--target` path lies outside the work directory. Nothing was written. | Fix the target. |
+| `7` | The keyed reconcile read hit its `<work.integration>.pull.max_pages` cap (or its `keyed_read` override), so the un-read items' remote state is unknown. Nothing was written. The read feeds both directions, so `--push-only` does **not** bypass it. | Raise the cap, or set it to `unlimited`, and re-run. |
+| `8` | Refused an unbounded broadened pull: `<work.integration>.pull.max_items: unlimited` over an `all_*`/`additional_*` scope. Zero writes. | Re-run with `--allow-unbounded` to acknowledge it, or set a finite `max_items` (see the unbounded-scope gate below). |
+| `70` | A read failed, a discovery search failed transiently, a named target's remote lookup was indeterminate, or every per-item failure was retryable. | Re-run; it is safe to retry. |
+| `71` | A per-item failure was terminal, a local file read or write failed (whether the write landed is unknown), a local file's frontmatter does not parse (nothing was sent or written for it), or a retirement stopped with `retirement-incomplete` (see Step 5). A whole-item update is idempotent, so the hazard is response uncertainty. | Reconcile by hand; never auto-retry. |
+| `72` | The tracker is recognised but no client is built. | Use a supported tracker. |
+| `73` | `work.integration` is unset or unrecognised. | Set it. |
+| `74` | Wired, but the run cannot proceed on its config: missing or refused credentials, or a non-push-only run whose discovery scope names no valid target. Nothing was sent. A per-item `unconfigured` detail also exits `74`: that item sent nothing, but other items may already have applied, so this is not then a pre-flight refusal. | Set the key, or run `--push-only`. |
+| `75` | A per-item request was refused before sending. Its failed row carries the `rejected`, `unrenderable` or `pull-residue` detail (see the table below). Nothing was sent or written for that item, but the same request would be refused again. | Change something before re-running (see the table below). |
+
+Where a run yields several outcomes, the exit code follows the precedence
+`71 > 4 > 75 > 74 > 70`. A *targeted* exit `70` aborts before any write, while
+an engine-level `70` can follow partial writes, so the operator knows whether a
+re-run is a clean retry or a resume (see the target-abort codes under Step 1).
+Under `--preview` no baseline mutation occurs, every planned push carries a
+locally-validated payload check or the `pull-residue` or `unrenderable` failure
+the run would meet, and every planned pull carries the `unrenderable` failure
+the run would meet.
 
 | Detail | Meaning | Remedy |
 |---|---|---|
 | `rejected` | The tracker client refused the request as invalid. | Change the request (for example, its body), then sync. |
-| `unrenderable` | The Jira description holds content with no Markdown form, so a pull cannot write it and a push would discard it. | Edit the description in Jira until it renders. A conflict over it can be resolved `local`, unless its dossier says `reason: legacy-unrenderable`. |
+| `unrenderable` | A pull of a remote edit, a targeted pull-create, or a `=remote` resolution over a Jira description with no Markdown form. Nothing was sent or written. | Edit the description in Jira until it renders. A conflict over it can be resolved `local`, unless its dossier says `reason: legacy-unrenderable`. |
 | `pull-residue` | The local file still holds the raw Jira document an earlier pull wrote. | Replace it with Markdown (`accelerator jira show <key> --render-adf` prints a starting point) and sync, or resolve `remote` to discard local changes. |
+
+A local change over a Jira description with no Markdown form is not refused: a
+body or title change facing a remote body change is a conflict whose dossier
+offers `=local`, and a metadata-only change is sent by retitle or recorded.
 
 ## Step 3: Conflict resolution (bidirectional only)
 
