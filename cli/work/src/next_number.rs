@@ -151,7 +151,7 @@ pub fn allocate_above(
 
     if floor.saturating_add(u64::from(count)) > cap {
         let partial = (1..=u64::from(count))
-            .map(|i| floor + i)
+            .map_while(|i| floor.checked_add(i))
             .take_while(|&next| next <= cap)
             .map(format)
             .collect();
@@ -298,6 +298,23 @@ mod tests {
         assert_eq!(
             allocate_above(&scheme, 41, 2),
             Ok(vec!["ACC-0042".to_owned(), "ACC-0043".to_owned()])
+        );
+    }
+
+    #[test]
+    fn allocation_above_the_largest_floor_overflows_with_nothing_allocated() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: "{number:04d}".to_owned(),
+            key: None,
+        };
+        assert_eq!(
+            allocate_above(&scheme, u64::MAX, 2),
+            Err(AllocationError::Overflow {
+                partial: Vec::new(),
+                highest: u64::MAX,
+                highest_file: None,
+                cap: 9999,
+            })
         );
     }
 }
