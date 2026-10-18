@@ -1880,6 +1880,13 @@ fn a_resumed_download_that_fails_mid_body_retries_from_the_agreed_offset() {
         .resolver()
         .materialise(ARTIFACT)
         .expect("the retried resume materialises");
+
+    assert_eq!(harness.server.hits(&archive_path()), 2);
+    assert_eq!(
+        harness.server.range_hits(&archive_path()),
+        2,
+        "the retry fell back to a whole fetch rather than resuming"
+    );
 }
 
 fn set_mode(path: &Path, mode: u32) {
