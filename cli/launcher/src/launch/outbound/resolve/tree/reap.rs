@@ -79,6 +79,14 @@ const fn temp_residue_is_reclaimable(lock: &OwnerLock) -> bool {
     )
 }
 
+impl OwnerLock {
+    fn while_reclaimable(self, reclaim: impl FnOnce(&Self)) {
+        if temp_residue_is_reclaimable(&self) {
+            reclaim(&self);
+        }
+    }
+}
+
 /// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
     held: &'a HeldTreeLock,
@@ -152,14 +160,13 @@ impl<'a> Reaper<'a> {
                 "cannot probe the tree lock; keeping its temp residue"
             );
         }
-        if !temp_residue_is_reclaimable(&lock) {
-            return;
-        }
-        for entry in entries {
-            if !is_spared(entry, owner, &lock, self.pins) {
-                self.remove(&self.paths().root().join(entry), reclaimed);
+        lock.while_reclaimable(|lock| {
+            for entry in entries {
+                if !is_spared(entry, owner, lock, self.pins) {
+                    self.remove(&self.paths().root().join(entry), reclaimed);
+                }
             }
-        }
+        });
     }
 
     fn lock_of(&self, owner: &Artifact) -> OwnerLock {
