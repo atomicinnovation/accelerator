@@ -188,6 +188,31 @@ impl FromIterator<(String, TrackerKey)> for RefreshedKeys {
     }
 }
 
+/// The stored key of every synced item [`tracker_mapping`] may move, for a
+/// refresh to read the current key of.
+///
+/// # Errors
+///
+/// [`NotRekeyed::Unclassifiable`] naming the first item whose
+/// `external_id` is not shaped like a tracker key, so it never reaches a
+/// tracker that cannot read it.
+pub fn keys_to_refresh(
+    candidates: &[RekeyCandidate],
+) -> Result<Vec<TrackerKey>, NotRekeyed> {
+    candidates
+        .iter()
+        .map(|candidate| &candidate.identity)
+        .filter(|identity| DraftId::parse(&identity.id).is_none())
+        .filter_map(|identity| {
+            identity.external_id.as_deref().map(|stored| {
+                TrackerKey::parse(stored).ok_or_else(|| {
+                    NotRekeyed::Unclassifiable(identity.path.clone())
+                })
+            })
+        })
+        .collect()
+}
+
 /// Every item off `{tracker}`, by old `id`, with what it becomes.
 ///
 /// A synced item takes its issue's current key; an unsynced item becomes a
@@ -575,6 +600,7 @@ mod tests {
         use crate::draft_id::ALPHABET;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
+        use crate::rekey::mapping::keys_to_refresh;
         use crate::rekey::mapping::tracker_mapping;
         use crate::rekey::mapping::RefreshedKeys;
         use crate::rekey::outcome::NotRekeyed;
@@ -768,6 +794,26 @@ mod tests {
                     &[linked("0042", "not a key")],
                     &RefreshedKeys::default()
                 ),
+                Err(NotRekeyed::Unclassifiable(path_of("0042")))
+            );
+        }
+
+        #[test]
+        fn the_keys_to_refresh_are_every_synced_non_draft_items_stored_key() {
+            assert_eq!(
+                keys_to_refresh(&[
+                    linked("0042", "PP-760"),
+                    unlinked("0043"),
+                    linked("draft-a1b2cd", "PP-761"),
+                ]),
+                Ok(vec![key("PP-760")])
+            );
+        }
+
+        #[test]
+        fn a_key_to_refresh_of_no_tracker_shape_is_unclassifiable() {
+            assert_eq!(
+                keys_to_refresh(&[linked("0042", "not a key")]),
                 Err(NotRekeyed::Unclassifiable(path_of("0042")))
             );
         }

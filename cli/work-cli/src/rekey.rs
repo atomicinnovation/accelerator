@@ -2037,6 +2037,36 @@ mod tests {
     }
 
     #[test]
+    fn an_external_id_not_shaped_like_a_key_is_unclassifiable_before_any_read()
+    {
+        let repo = Repo::with(
+            TRACKER,
+            &[(
+                "meta/work/0042-search.md",
+                &linked("0042", "Search", "not a key"),
+            )],
+        );
+        let before = repo.tree();
+        let (registry, tracker) =
+            resolving(RecordingTracker::holding(Vec::new()).failing_fetch_all(
+                TrackerError::Retryable {
+                    detail: "cannot embed \"not a key\" in a query".to_owned(),
+                },
+            ));
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(
+            ran.err.starts_with("Error: E_REKEY_UNCLASSIFIABLE_ID"),
+            "{ran:?}"
+        );
+        assert!(ran.err.contains("meta/work/0042-search.md"), "{ran:?}");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
     fn a_failed_locate_after_a_bulk_read_exits_70() {
         let repo = tracker_legacy();
         let before = repo.tree();

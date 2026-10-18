@@ -15,6 +15,7 @@ use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::IdentityFingerprint;
+use work::rekey::mapping::keys_to_refresh;
 use work::rekey::mapping::numeric_mapping;
 use work::rekey::mapping::tracker_mapping;
 use work::rekey::mapping::RefreshedKeys;
@@ -296,10 +297,9 @@ fn computed(
     match scheme.ownership() {
         IdOwnership::Local => numeric_mapping(scheme, candidates),
         IdOwnership::Tracker => {
-            let stored: Vec<ExternalId> = candidates
+            let stored: Vec<ExternalId> = keys_to_refresh(candidates)?
                 .iter()
-                .filter_map(|candidate| candidate.identity.external_id.clone())
-                .map(ExternalId::new)
+                .map(|key| ExternalId::new(key.as_str().to_owned()))
                 .collect();
             tracker_mapping(
                 candidates,

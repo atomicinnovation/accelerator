@@ -572,6 +572,7 @@ pub fn work::rekey::mapping::RekeyCandidate::eq(&self, other: &work::rekey::mapp
 impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
+pub fn work::rekey::mapping::keys_to_refresh(candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::tracker_key::TrackerKey>, work::rekey::outcome::NotRekeyed>
 pub fn work::rekey::mapping::numeric_mapping(scheme: &corpus::work_item_id::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub fn work::rekey::mapping::tracker_mapping(candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
