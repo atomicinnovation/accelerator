@@ -106,8 +106,8 @@ impl AssessedPartial {
 /// exactly as a fresh one is.
 ///
 /// A partial that cannot be read or written, or anything at its path that is
-/// not a regular file, is discarded and replaced. One that fails its digest is the caller's to discard, since only the caller
-/// checks the digest.
+/// not a regular file, is discarded and replaced. One that fails its digest
+/// is the caller's to discard, since only the caller checks the digest.
 ///
 /// # Errors
 ///
