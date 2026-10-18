@@ -889,6 +889,45 @@ impl<'a> Payload<'a> {
     }
 }
 
+/// A send that passed every refusal, ready to validate or to send.
+struct PreparedSend {
+    action: Action,
+    local: LocalWorkItem,
+}
+
+impl PreparedSend {
+    fn payload(&self) -> Option<Payload<'_>> {
+        Payload::of(self.action, &self.local.title, &self.local.body)
+    }
+}
+
+/// The one gate both a preview and a run put a send through, so each
+/// reports the same failure.
+fn prepare_send(
+    planned: &PlannedAction,
+    item: &LocalItem,
+    facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
+) -> Result<PreparedSend, ApplyError> {
+    let content = read_local(item)?;
+    let local = LocalWorkItem::parse(&content)
+        .map_err(|detail| unparseable_local(&item.id, detail))?;
+    if let Some(refusal) = send_refusal(
+        comparison,
+        planned.action,
+        shapes.of(&item.id),
+        &local.body,
+        fetched_projection(facts, &item.id),
+    ) {
+        return Err(refused_send(&item.id, refusal));
+    }
+    Ok(PreparedSend {
+        action: planned.action,
+        local,
+    })
+}
+
 /// The refusal a send would meet, or else the tracker's payload check of
 /// exactly what the action sends.
 fn check_send(
@@ -901,21 +940,12 @@ fn check_send(
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
     let item = items.iter().find(|candidate| candidate.id == planned.id)?;
     let external_id = item.external_id.as_ref()?;
-    let content = std::fs::read_to_string(&item.path).ok()?;
-    let local = match LocalWorkItem::parse(&content) {
-        Ok(local) => local,
-        Err(detail) => return Some(Err(unparseable_local(&item.id, detail))),
+    let prepared = match prepare_send(planned, item, facts, comparison, shapes)
+    {
+        Ok(prepared) => prepared,
+        Err(refused) => return Some(Err(refused)),
     };
-    if let Some(refusal) = send_refusal(
-        comparison,
-        planned.action,
-        shapes.of(&item.id),
-        &local.body,
-        fetched_projection(facts, &item.id),
-    ) {
-        return Some(Err(refused_send(&item.id, refusal)));
-    }
-    let payload = Payload::of(planned.action, &local.title, &local.body)?;
+    let payload = prepared.payload()?;
     Some(Ok(tracker.validate_update(
         external_id,
         payload.title,
@@ -1067,26 +1097,12 @@ fn send_outcome(
     comparison: &BodyComparison<'_>,
     shapes: &EntryShapes,
 ) -> ItemOutcome {
-    let content = match read_local(item) {
-        Ok(content) => content,
-        Err(error) => return ItemOutcome::Failed(error),
+    let prepared = match prepare_send(planned, item, facts, comparison, shapes)
+    {
+        Ok(prepared) => prepared,
+        Err(refused) => return ItemOutcome::Failed(refused),
     };
-    let local = match LocalWorkItem::parse(&content) {
-        Ok(local) => local,
-        Err(detail) => {
-            return ItemOutcome::Failed(unparseable_local(&item.id, detail))
-        }
-    };
-    if let Some(refusal) = send_refusal(
-        comparison,
-        planned.action,
-        shapes.of(&item.id),
-        &local.body,
-        fetched_projection(facts, &item.id),
-    ) {
-        return ItemOutcome::Failed(refused_send(&item.id, refusal));
-    }
-    let sent = match Payload::of(planned.action, &local.title, &local.body) {
+    let sent = match prepared.payload() {
         Some(Payload {
             title: Some(title),
             body: None,
@@ -1933,6 +1949,49 @@ mod tests {
         assert!(text.contains("status: unrenderable"), "{text}");
         assert!(text.contains("reason: local-unreadable"), "{text}");
         assert!(text.contains("left unresolved"), "{text}");
+    }
+
+    #[test]
+    fn a_send_from_an_unreadable_file_fails_as_the_read_it_needs() {
+        let missing = tempfile::tempdir().expect("a temporary directory");
+        let item = super::LocalItem {
+            id: "0009".to_owned(),
+            path: missing.path().join("0009-gone.md"),
+            external_id: None,
+        };
+        let planned = work::sync::PlannedAction {
+            id: "0009".to_owned(),
+            state: work::sync::SyncState::LocallyModified,
+            action: work::sync::Action::Push(work::sync::FieldDelivery::Send),
+        };
+        let facts = super::GatheredFacts {
+            per_id: std::collections::BTreeMap::new(),
+            identity: std::collections::BTreeMap::new(),
+            read_failure: None,
+            keyed_read: tracker::Completeness::Complete,
+        };
+
+        let prepared = super::prepare_send(
+            &planned,
+            &item,
+            &facts,
+            &super::BodyComparison::new(
+                &tracker::PlainDialect,
+                &corpus_adapters::CommonMarkBody,
+            ),
+            &super::EntryShapes(std::collections::BTreeMap::new()),
+        );
+
+        assert!(
+            matches!(
+                prepared,
+                Err(super::ApplyError::Io {
+                    operation: "read-local",
+                    ..
+                })
+            ),
+            "the send fails as the run's own read does"
+        );
     }
 
     #[test]
