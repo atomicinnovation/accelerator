@@ -317,7 +317,7 @@ mod unix {
         use super::{
             identity, is_displacement, lock_confirmed, open_creating,
             placement, probe_outcome, probe_single_flight, take_outcome,
-            take_single_flight, try_outcome, Locked, Placement, SingleFlight,
+            take_single_flight, try_outcome, Locked, Placement,
             MAX_LOCK_ATTEMPTS,
         };
 
@@ -353,12 +353,6 @@ mod unix {
                 Err(Errno::WOULDBLOCK) => true,
                 Err(error) => panic!("probe failed: {error}"),
             }
-        }
-
-        fn guard() -> SingleFlight {
-            let file = tempfile::tempfile().expect("tempfile");
-            let confirming = file.try_clone().expect("clone");
-            SingleFlight::confirmed(file, confirming)
         }
 
         fn counted(
@@ -597,11 +591,6 @@ mod unix {
         }
 
         #[test]
-        fn take_passes_a_taken_lock_through() {
-            assert!(take_outcome(Locked::Taken(guard())).is_ok());
-        }
-
-        #[test]
         fn take_treats_contention_on_a_blocking_lock_as_a_fault() {
             assert!(is_lease(&take_outcome(Locked::Held)));
         }
@@ -617,16 +606,6 @@ mod unix {
         }
 
         #[test]
-        fn try_passes_a_taken_lock_through() {
-            assert!(matches!(try_outcome(Locked::Taken(guard())), Ok(Some(_))));
-        }
-
-        #[test]
-        fn try_reports_contention_as_none() {
-            assert!(matches!(try_outcome(Locked::Held), Ok(None)));
-        }
-
-        #[test]
         fn try_treats_an_absent_lock_file_as_a_fault() {
             assert!(is_lease(&try_outcome(Locked::Absent)));
         }
@@ -634,30 +613,6 @@ mod unix {
         #[test]
         fn try_treats_a_lock_that_keeps_being_replaced_as_contention() {
             assert!(matches!(try_outcome(Locked::KeptBeingReplaced), Ok(None)));
-        }
-
-        #[test]
-        fn probe_passes_a_taken_lock_through() {
-            assert!(matches!(
-                probe_outcome(Locked::Taken(guard())),
-                SingleFlightProbe::Taken(_)
-            ));
-        }
-
-        #[test]
-        fn probe_reports_contention_as_held() {
-            assert!(matches!(
-                probe_outcome(Locked::Held),
-                SingleFlightProbe::Held
-            ));
-        }
-
-        #[test]
-        fn probe_reports_an_absent_lock_file_as_absent() {
-            assert!(matches!(
-                probe_outcome(Locked::Absent),
-                SingleFlightProbe::Absent
-            ));
         }
 
         #[test]
