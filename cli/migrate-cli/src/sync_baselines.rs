@@ -20,10 +20,11 @@ fn store_rooted_at(dir: &Path) -> Box<dyn AtomicWrite> {
     Box::new(FileCorpusStore::new(dir))
 }
 
-fn body_rules(integration: &str) -> &'static dyn BodyDialect {
+fn body_rules(integration: &str) -> Option<&'static dyn BodyDialect> {
     match integration {
-        "jira" => &JiraBodyDialect,
-        _ => &PlainDialect,
+        "jira" => Some(&JiraBodyDialect),
+        "linear" => Some(&PlainDialect),
+        _ => None,
     }
 }
 
@@ -53,9 +54,29 @@ mod tests {
     use migrate::ports::SyncBaselines as _;
     use tempfile::TempDir;
 
+    use super::body_rules;
     use super::WorkSyncBaselines;
 
     type TestError = Box<dyn std::error::Error>;
+
+    const ADF: &str = "{\"content\":[],\"type\":\"doc\",\"version\":1}";
+
+    #[test]
+    fn each_known_tracker_realigns_under_its_own_body_rules() {
+        assert_eq!(
+            body_rules("jira").map(|rules| rules.is_wire_document(ADF)),
+            Some(true)
+        );
+        assert_eq!(
+            body_rules("linear").map(|rules| rules.is_wire_document(ADF)),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn a_tracker_with_unknown_body_rules_has_none() {
+        assert!(body_rules("trello").is_none());
+    }
 
     #[test]
     fn an_unreadable_baseline_fails_with_its_store_error_text(

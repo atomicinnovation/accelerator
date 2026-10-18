@@ -47,7 +47,9 @@ impl std::error::Error for RealignError {}
 /// `writer_at` builds a writer rooted at a baseline's own directory, so an
 /// integrations root outside the repository stays writable, and
 /// `body_rules` names the body dialect of the tracker an integration
-/// directory belongs to.
+/// directory belongs to. A directory with no known dialect is left
+/// untouched, since digests taken under guessed rules would misclassify its
+/// items on the next sync.
 ///
 /// # Errors
 ///
@@ -58,7 +60,7 @@ pub fn realign_baselines(
     pre_migration: &[(PathBuf, String)],
     reader: &dyn FileReader,
     writer_at: &dyn Fn(&Path) -> Box<dyn AtomicWrite>,
-    body_rules: &dyn Fn(&str) -> &'static dyn BodyDialect,
+    body_rules: &dyn Fn(&str) -> Option<&'static dyn BodyDialect>,
     parser: &dyn BodyParser,
 ) -> Result<usize, RealignError> {
     let mut by_id: HashMap<String, (&Path, &str)> = HashMap::new();
@@ -77,10 +79,13 @@ pub fn realign_baselines(
             continue;
         }
         let integration = entry.file_name().to_string_lossy().into_owned();
+        let Some(dialect) = body_rules(&integration) else {
+            continue;
+        };
         let baseline_path = baseline::path(integrations_root, &integration);
         let writer = writer_at(&entry.path());
         let store = BaselineStore::new(baseline_path, reader, writer.as_ref());
-        let digester = BaselineDigester::new(body_rules(&integration), parser);
+        let digester = BaselineDigester::new(dialect, parser);
         realigned += realign_one_baseline(&store, &by_id, reader, &digester)
             .map_err(RealignError::Baseline)?;
     }

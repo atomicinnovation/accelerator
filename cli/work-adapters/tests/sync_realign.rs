@@ -102,8 +102,10 @@ fn disk_writer_at(_dir: &Path) -> Box<dyn AtomicWrite> {
     Box::new(DiskWriter)
 }
 
-fn linear_rules(_integration: &str) -> &'static dyn BodyDialect {
-    &PlainDialect
+/// Plain body rules for each tracker this binary knows, whose fixtures hold
+/// no tracker-specific bodies.
+fn plain_rules(integration: &str) -> Option<&'static dyn BodyDialect> {
+    matches!(integration, "jira" | "linear").then_some(&PlainDialect)
 }
 
 fn digester() -> BaselineDigester<'static> {
@@ -176,7 +178,7 @@ fn a_synced_entry_advances_to_the_re_rendered_digest() -> Result<(), TestError>
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -202,7 +204,7 @@ fn a_synced_split_entry_advances_both_recipes_local_digests(
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -232,7 +234,7 @@ fn a_diverged_split_entry_keeps_its_baseline() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -255,7 +257,7 @@ fn a_diverged_entry_keeps_its_baseline() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -280,7 +282,7 @@ fn an_unchanged_digest_is_not_counted() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -301,7 +303,7 @@ fn an_integration_without_a_baseline_realigns_nothing() -> Result<(), TestError>
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -330,7 +332,7 @@ fn each_baseline_is_written_from_its_own_directory() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     )?;
 
@@ -363,7 +365,7 @@ fn an_unlistable_integrations_root_is_a_listing_error() -> Result<(), TestError>
         &[],
         &DiskReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     );
 
@@ -386,7 +388,7 @@ fn an_unreadable_baseline_is_a_baseline_error() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &RefusingReader,
         &disk_writer_at,
-        &linear_rules,
+        &plain_rules,
         &CommonMarkBody,
     );
 
