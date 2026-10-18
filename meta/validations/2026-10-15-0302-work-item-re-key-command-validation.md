@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-10-15-0302-work-item-re-key-command"
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
-last_updated: "2026-10-18T00:11:26+00:00"
+last_updated: "2026-10-18T07:57:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -205,19 +205,24 @@ The git runs went through a script run by hand outside the session's
 tool calls, since its VCS guard blocks `git add` and `git status`. The jj
 runs were made from the session.
 
-Two observations from the manual runs:
+Two observations from the manual runs, both since resolved test-first:
 
-- A run killed part-way through an entry leaves that entry's per-file
-  lockdir (`meta/work/ACC-0367-item.md.lockdir/owner.<nonce>`) after a
-  completed resume, because the resume skips the finished entry and never
-  reclaims it. The dirty check ignores it by design, so `git add -A` would
-  commit it.
-- Every refusal naming an item (`E_REKEY_PREVIEW_STALE`,
-  `E_REKEY_ID_COLLISION`, `E_REKEY_PENDING_PUSH`, …) prints the item's
-  absolute path, while the working-copy refusals print repo-relative ones.
+- **Resolved — a stale per-file lock outlived a resumed run.** A run
+  killed part-way through an entry left that entry's lockdir
+  (`meta/work/ACC-0367-item.md.lockdir/owner.<nonce>`), and a resume that
+  skipped the finished entry never reclaimed it, so `git add -A` would
+  have committed it. `ExclusiveLock::clear_abandoned` now removes a lock
+  whose holder is dead, without waiting, and `execute` calls it for every
+  write-set path once the entries are done. Checked in a jj scratch
+  repository: a planted abandoned lock on a finished entry was gone after
+  the resume, with 402 distinct IDs and no lockdir left.
+- **Resolved — refusals named items by absolute path.** `NotRekeyed`,
+  `RetirementRefusal` and `RetirementCause` render their paths relative to
+  the config root, in `work rekey` and in every guarded command. Checked in
+  a nested jj scratch repository: `E_REKEY_ID_COLLISION` names
+  `meta/work/0042-second.md`, and `work next-number` over a malformed plan
+  names `.accelerator/state/rekey/run-plan.json`.
 
 ### Recommendations:
 
-- Remove stale per-file lockdirs a killed run left once a resume
-  completes, or keep them out of the corpus directory.
-- Render item paths in refusals relative to the config root.
+- None outstanding.
