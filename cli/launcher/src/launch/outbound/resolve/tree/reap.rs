@@ -467,10 +467,9 @@ mod tests {
     use super::super::tree_lock::HeldTreeLock;
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
-        sidecars_of, superseded_disposition, temp_residue_is_reclaimable,
-        unclaimed_is_reclaimable, OwnerLock, PinnedDigests, Reaper, Reclaimed,
-        RemovalObserver, SupersededDisposition, UnobservedRemovals,
-        AGE_BACKSTOP,
+        sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
+        PinnedDigests, Reaper, Reclaimed, RemovalObserver,
+        SupersededDisposition, UnobservedRemovals, AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -1082,45 +1081,6 @@ mod tests {
         for sidecar in &sidecars {
             assert!(sidecar.exists(), "{} was removed", sidecar.display());
         }
-    }
-
-    fn a_taken_lock() -> (tempfile::TempDir, SingleFlight) {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let guard =
-            take_single_flight(&dir.path().join("lock")).expect("taken");
-        (dir, guard)
-    }
-
-    #[test]
-    fn own_residue_is_reclaimable() {
-        assert!(temp_residue_is_reclaimable(&OwnerLock::HeldByCaller));
-    }
-
-    #[test]
-    fn residue_under_a_taken_lock_is_reclaimable() {
-        let (_dir, guard) = a_taken_lock();
-        assert!(temp_residue_is_reclaimable(&OwnerLock::Taken {
-            _guard: guard
-        }));
-    }
-
-    #[test]
-    fn residue_with_no_lock_file_is_reclaimable() {
-        assert!(temp_residue_is_reclaimable(&OwnerLock::Absent));
-    }
-
-    #[test]
-    fn residue_under_a_lock_held_elsewhere_is_kept() {
-        assert!(!temp_residue_is_reclaimable(&OwnerLock::HeldElsewhere));
-    }
-
-    #[test]
-    fn residue_under_an_unprobeable_lock_is_kept() {
-        assert!(!temp_residue_is_reclaimable(&OwnerLock::Unprobeable(
-            TreeError::Lease {
-                detail: "cannot open".to_owned()
-            }
-        )));
     }
 
     #[test]
