@@ -7,6 +7,7 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::LockName;
 use sha2::Digest as _;
 use sha2::Sha256;
 use work::rekey::entry::RekeyEntry;
@@ -293,6 +294,12 @@ pub fn execute(
             HookedFinishFailure::BeforeApply(stopped) => stopped,
         })?;
         applied(&entry, target.as_deref().unwrap_or_default());
+    }
+    for (path, _) in plan.write_set().iter() {
+        corpus
+            .ports
+            .lock
+            .clear_abandoned(&LockName::ForFile(corpus.repo_root.join(path)));
     }
     Ok(plan)
 }

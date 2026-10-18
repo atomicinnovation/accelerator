@@ -285,6 +285,24 @@ fn a_completed_entry_is_skipped_on_resume() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_resume_clears_the_lock_a_killed_run_left_on_a_finished_entry(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    let plan = started(&ports, entries())?;
+    let finished = executed(&ports, plan, &Applied::default())?;
+    let abandoned = repo.path(&format!("{FIRST_TARGET}.lockdir"));
+    std::fs::create_dir(&abandoned)?;
+    std::fs::write(abandoned.join("owner.0123456789abcdef"), "2147483632")?;
+
+    executed(&ports, finished, &Applied::default())?;
+
+    assert!(!abandoned.exists());
+    Ok(())
+}
+
+#[test]
 fn a_referrer_committed_after_a_halt_joins_the_write_set_before_it_is_rewritten(
 ) -> Result<(), TestError> {
     const LATE: &str = "meta/notes/late.md";

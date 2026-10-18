@@ -63,6 +63,10 @@ impl ExclusiveLock for LockdirLock {
             .map(HeldLock::new)
             .map_err(from_lock_error)
     }
+
+    fn clear_abandoned(&self, name: &LockName) {
+        store::lock::clear_abandoned(&self.lockdir(name));
+    }
 }
 
 #[cfg(test)]
@@ -131,6 +135,33 @@ mod tests {
             store.replace_locked(&target, b"blocked"),
             Err(StoreError::LockTimeout { .. })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn an_abandoned_for_file_lock_is_cleared() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("0001-item.md");
+        let lockdir = dir.path().join("0001-item.md.lockdir");
+        fs::create_dir(&lockdir)?;
+        fs::write(lockdir.join("owner.0123456789abcdef"), "2147483632")?;
+
+        LockdirLock::new(dir.path())
+            .clear_abandoned(&LockName::ForFile(target));
+
+        assert!(!lockdir.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_held_lock_is_never_cleared() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lock = LockdirLock::new(dir.path());
+        let _held = lock.acquire(&LockName::Retirement)?;
+
+        lock.clear_abandoned(&LockName::Retirement);
+
+        assert!(dir.path().join(LockdirLock::RETIREMENT_LOCKDIR).is_dir());
         Ok(())
     }
 

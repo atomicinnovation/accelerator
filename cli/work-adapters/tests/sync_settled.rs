@@ -355,6 +355,10 @@ impl ExclusiveLock for LoggingLock {
         }
         self.inner.acquire(name)
     }
+
+    fn clear_abandoned(&self, name: &LockName) {
+        self.inner.clear_abandoned(name);
+    }
 }
 
 struct LoggingRecords<'a> {

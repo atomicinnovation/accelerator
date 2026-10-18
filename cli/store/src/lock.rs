@@ -131,6 +131,12 @@ fn acquire_with(
     }
 }
 
+/// Removes the lockdir at `lockdir` when its holder is confirmed dead, without
+/// waiting; a live or unconfirmed holder keeps it.
+pub fn clear_abandoned(lockdir: &Path) {
+    reclaim_if_stale(lockdir, &process_is_alive);
+}
+
 /// Whether `name` is a sentinel this module writes inside a lockdir, which a
 /// killed holder can leave behind.
 #[must_use]
@@ -342,9 +348,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        acquire, acquire_with, claim, holder_pid, is_lock_sentinel, jitter_ms,
-        process_is_alive, reclaim_if_stale, LockError, LockGuard, LockOptions,
-        OWNER, RECLAIMING,
+        acquire, acquire_with, claim, clear_abandoned, holder_pid,
+        is_lock_sentinel, jitter_ms, process_is_alive, reclaim_if_stale,
+        LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -396,6 +402,31 @@ mod tests {
             .flatten()
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .find(|n| n.starts_with(&format!("{prefix}.")))
+    }
+
+    #[test]
+    fn clearing_an_abandoned_lockdir_removes_it() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, &STALE_PID.to_string())?;
+
+        clear_abandoned(&lockdir);
+
+        assert!(!lockdir.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn clearing_a_lockdir_whose_holder_lives_keeps_it() -> Result<(), TestError>
+    {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, &std::process::id().to_string())?;
+
+        clear_abandoned(&lockdir);
+
+        assert!(sentinel_named(&lockdir, OWNER).is_some());
+        Ok(())
     }
 
     #[test]

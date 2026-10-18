@@ -34,6 +34,7 @@ impl core::fmt::Debug for store::lock::LockOptions
 pub fn store::lock::LockOptions::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for store::lock::LockOptions
 pub fn store::lock::acquire(lockdir: &std::path::Path, opts: store::lock::LockOptions) -> core::result::Result<store::lock::LockGuard, store::lock::LockError>
+pub fn store::lock::clear_abandoned(lockdir: &std::path::Path)
 pub fn store::lock::holder_pid(lockdir: &std::path::Path) -> core::option::Option<u32>
 pub fn store::lock::is_lock_sentinel(name: &str) -> bool
 pub enum store::NewFileMode

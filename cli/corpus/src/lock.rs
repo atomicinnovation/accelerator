@@ -39,4 +39,8 @@ pub trait ExclusiveLock {
     /// [`StoreError::LockTimeout`] when it stays held past the adapter's
     /// ceiling, or another [`StoreError`] when the lock cannot be taken.
     fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError>;
+
+    /// Removes `name` when a holder that has since died left it behind,
+    /// without waiting; a live holder keeps it.
+    fn clear_abandoned(&self, name: &LockName);
 }
