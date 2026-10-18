@@ -683,6 +683,25 @@ mod tests {
     }
 
     #[test]
+    fn a_complete_partial_gone_before_it_is_hashed_is_fetched_whole() {
+        let (server, url) = serving_the_archive();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let partial = dir.path().join("partial.archive");
+        std::fs::write(&partial, PAYLOAD).expect("partial");
+        let assessed = AssessedPartial::of(&partial, PAYLOAD.len() as u64);
+        std::fs::remove_file(&partial).expect("reaped after assessment");
+        let fetcher =
+            Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+
+        let streamed = stream_archive(&fetcher, &url, &assessed);
+
+        let expected: [u8; 32] = Sha256::digest(PAYLOAD).into();
+        assert_eq!(streamed.expect("fetched"), expected);
+        assert_eq!(std::fs::read(&partial).expect("archive"), PAYLOAD);
+        assert_eq!(server.hits(&RequestKey::get("/archive")), 1);
+    }
+
+    #[test]
     fn a_whole_fetch_blocked_by_a_directory_discards_it_and_retries() {
         let (_server, url) = serving_the_archive();
         let dir = tempfile::tempdir().expect("tempdir");
