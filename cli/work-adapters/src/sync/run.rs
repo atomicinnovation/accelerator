@@ -643,8 +643,8 @@ fn keeps_local_hash(item: &LocalItem, knowledge: &RunKnowledge<'_>) -> bool {
     let Some(projected) = knowledge.projection(&item.id) else {
         return false;
     };
-    std::fs::read_to_string(&item.path).is_ok_and(|content| {
-        LocalWorkItem::parse(&content).is_ok_and(|local| {
+    knowledge.local_content(item).is_ok_and(|content| {
+        LocalWorkItem::parse(content).is_ok_and(|local| {
             legacy_unrenderable(
                 knowledge.comparison,
                 knowledge.shape(&item.id),
@@ -735,6 +735,21 @@ impl<'a> RunKnowledge<'a> {
         self.remote(id).and_then(|remote| remote.body.as_deref())
     }
 
+    /// `item`'s file as the run read it, before classifying it.
+    fn local_content(&self, item: &LocalItem) -> Result<&str, ApplyError> {
+        let snapshot =
+            self.snapshot(&item.id).ok_or_else(|| ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "read-local",
+                detail: "the run took no snapshot of the file".to_owned(),
+            })?;
+        snapshot.content().map_err(|error| ApplyError::Io {
+            item_id: item.id.clone(),
+            operation: "read-local",
+            detail: error.to_string(),
+        })
+    }
+
     fn remote_updated(&self, id: &str) -> RemoteTimestamp {
         self.remote(id).map_or(RemoteTimestamp::NotRead, |remote| {
             remote.remote_updated.clone()
@@ -761,8 +776,7 @@ fn dossier_for(
     item: &LocalItem,
     knowledge: &RunKnowledge<'_>,
 ) -> ConflictDossier {
-    let local_content = std::fs::read_to_string(&item.path).ok();
-    let local = local_content.as_deref().and_then(|content| {
+    let local = knowledge.local_content(item).ok().and_then(|content| {
         Some((content, LocalWorkItem::parse(content).ok()?))
     });
     match local {
@@ -919,13 +933,15 @@ impl<'a> Payload<'a> {
     }
 }
 
-/// A send that passed every refusal, ready to validate or to send.
-struct PreparedSend {
+/// A send that passed every refusal, ready to validate or to send, with the
+/// local file it was composed from.
+struct PreparedSend<'k> {
     action: Action,
+    content: &'k str,
     local: LocalWorkItem,
 }
 
-impl PreparedSend {
+impl PreparedSend<'_> {
     fn payload(&self) -> Option<Payload<'_>> {
         Payload::of(self.action, &self.local.title, &self.local.body)
     }
@@ -933,13 +949,13 @@ impl PreparedSend {
 
 /// The one gate both a preview and a run put a send through, so each
 /// reports the same failure.
-fn prepare_send(
+fn prepare_send<'k>(
     planned: &PlannedAction,
     item: &LocalItem,
-    knowledge: &RunKnowledge<'_>,
-) -> Result<PreparedSend, ApplyError> {
-    let content = read_local(item)?;
-    let local = LocalWorkItem::parse(&content)
+    knowledge: &'k RunKnowledge<'_>,
+) -> Result<PreparedSend<'k>, ApplyError> {
+    let content = knowledge.local_content(item)?;
+    let local = LocalWorkItem::parse(content)
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     if let Some(refusal) = send_refusal(
         knowledge.comparison,
@@ -952,6 +968,7 @@ fn prepare_send(
     }
     Ok(PreparedSend {
         action: planned.action,
+        content,
         local,
     })
 }
@@ -1094,14 +1111,6 @@ const fn create_report(
     }
 }
 
-fn read_local(item: &LocalItem) -> Result<String, ApplyError> {
-    std::fs::read_to_string(&item.path).map_err(|error| ApplyError::Io {
-        item_id: item.id.clone(),
-        operation: "read-local",
-        detail: error.to_string(),
-    })
-}
-
 fn send_outcome(
     applier: &mut ItemApplier<'_, '_>,
     planned: &PlannedAction,
@@ -1121,7 +1130,7 @@ fn send_outcome(
             id: &item.id,
             external_id,
             title,
-            file_path: &item.path,
+            sent_content: prepared.content,
         }),
         Some(Payload {
             title,
@@ -1131,7 +1140,7 @@ fn send_outcome(
             external_id,
             title,
             body,
-            file_path: &item.path,
+            sent_content: prepared.content,
         }),
         _ => return ItemOutcome::NotApplied,
     };
@@ -1141,8 +1150,10 @@ fn send_outcome(
     }
 }
 
-/// The file a pull of `item` would write, and the remote it came from.
+/// The file a pull of `item` would write over the one it was classified
+/// against, and the remote it came from.
 struct PulledFile<'a> {
+    classified_content: &'a str,
     content: String,
     projected_body: &'a str,
     remote_updated: RemoteTimestamp,
@@ -1165,9 +1176,11 @@ fn pulled_file<'a>(
                 item_id: item.id.clone(),
                 cause,
             })?;
-    let local = LocalWorkItem::parse(&read_local(item)?)
+    let classified_content = knowledge.local_content(item)?;
+    let local = LocalWorkItem::parse(classified_content)
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     Ok(PulledFile {
+        classified_content,
         content: local.with_body(&remote_body),
         projected_body,
         remote_updated: knowledge.remote_updated(&item.id),
@@ -1186,6 +1199,7 @@ fn pull_outcome(
     match applier.pull(&PullRequest {
         id: &item.id,
         file_path: &item.path,
+        classified_content: pulled.classified_content,
         content: &pulled.content,
         projected_body: pulled.projected_body,
         remote_updated: pulled.remote_updated,
@@ -1920,18 +1934,16 @@ mod tests {
             keyed_read: tracker::Completeness::Complete,
         };
 
-        let comparison = super::BodyComparison::new(
+        let digester = super::BaselineDigester::new(
             &tracker::PlainDialect,
             &corpus_adapters::CommonMarkBody,
         );
-        let knowledge = super::RunKnowledge {
+        let knowledge = super::RunKnowledge::gather(
             facts,
-            comparison: &comparison,
-            items: std::slice::from_ref(&item),
-            snapshots: Vec::new(),
-            shapes: super::EntryShapes(std::collections::BTreeMap::new()),
-            by_id: std::collections::BTreeMap::new(),
-        };
+            std::slice::from_ref(&item),
+            &crate::sync::baseline::Baseline::read(None).0,
+            &digester,
+        );
 
         let prepared = super::prepare_send(&planned, &item, &knowledge);
 

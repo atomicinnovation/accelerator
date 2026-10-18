@@ -50,12 +50,6 @@ impl Fake {
         self.calls.borrow().clone()
     }
 
-    fn seed_file(&self, path: &Path, content: &str) {
-        self.files
-            .borrow_mut()
-            .insert(path.to_path_buf(), content.as_bytes().to_vec());
-    }
-
     fn content(&self, path: &Path) -> Option<String> {
         self.files
             .borrow()
@@ -211,14 +205,15 @@ impl RemoteTracker for Fake {
 }
 
 const BASELINE_PATH: &str = "/baseline/last-sync.json";
-const ITEM_PATH: &str = "/items/0001.md";
+const CLASSIFIED: &str = "---\nstatus: draft\n---\n\nOld body\n";
 
 const fn item_content() -> &'static str {
     "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nBody text\n"
 }
 
-/// `push`'s local-file read goes through real `std::fs`, unlike `pull`'s
-/// write and every baseline access, so push tests need a file on disk.
+/// `pull`'s guard and `record_baseline` read the local file through real
+/// `std::fs`, unlike every write and baseline access, so their tests need a
+/// file on disk.
 fn real_item_file(dir: &tempfile::TempDir, content: &str) -> PathBuf {
     let path = dir.path().join("0001.md");
     std::fs::write(&path, content).expect("seed the real item file");
@@ -228,8 +223,6 @@ fn real_item_file(dir: &tempfile::TempDir, content: &str) -> PathBuf {
 #[test]
 fn push_writes_the_baseline_strictly_after_the_tracker_update(
 ) -> Result<(), TestError> {
-    let dir = tempfile::tempdir()?;
-    let item_path = real_item_file(&dir, item_content());
     let fake = Fake::default();
     fake.set_show_result(RemoteIssue {
         key: ExternalId::new("ENG-1".to_owned()),
@@ -253,7 +246,7 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
             external_id: &external_id,
             title: Some("Title"),
             body: "Body text\n",
-            file_path: &item_path,
+            sent_content: item_content(),
         })?;
     }
 
@@ -310,7 +303,7 @@ fn a_retitle_sends_the_title_alone_and_records_the_read_back(
             id: "0001",
             external_id: &external_id,
             title: "Retitled",
-            file_path: &item_path,
+            sent_content: item_content(),
         })?;
     }
 
@@ -331,7 +324,6 @@ fn a_retitle_sends_the_title_alone_and_records_the_read_back(
 #[test]
 fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
     let fake = Fake::default();
-    fake.seed_file(Path::new(ITEM_PATH), item_content());
     fake.fail_update(TrackerError::Retryable {
         detail: "rejected".to_owned(),
     });
@@ -352,7 +344,7 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
             external_id: &external_id,
             title: Some("Title"),
             body: "Body text\n",
-            file_path: Path::new(ITEM_PATH),
+            sent_content: item_content(),
         })
     };
 
@@ -369,7 +361,6 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
 #[test]
 fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
     let fake = Fake::default();
-    fake.seed_file(Path::new(ITEM_PATH), item_content());
     fake.fail_update(TrackerError::Unconfigured {
         detail: "no team in scope carries label \"typo\"".to_owned(),
     });
@@ -391,7 +382,7 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
                 external_id: &external_id,
                 title: Some("Title"),
                 body: "Body text\n",
-                file_path: Path::new(ITEM_PATH),
+                sent_content: item_content(),
             })
             .expect_err("the tracker refused the push")
     };
@@ -406,8 +397,6 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
 #[test]
 fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
 ) -> Result<(), TestError> {
-    let dir = tempfile::tempdir()?;
-    let item_path = real_item_file(&dir, item_content());
     let fake = Fake::default();
     fake.fail_show();
 
@@ -427,7 +416,7 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
             external_id: &external_id,
             title: Some("Title"),
             body: "Body text\n",
-            file_path: &item_path,
+            sent_content: item_content(),
         })?;
     }
 
@@ -446,11 +435,9 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
 #[test]
 fn pull_writes_the_baseline_strictly_after_the_local_write(
 ) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
@@ -464,7 +451,8 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
         );
         applier.pull(&PullRequest {
             id: "0001",
-            file_path: Path::new(ITEM_PATH),
+            file_path: &item_path,
+            classified_content: CLASSIFIED,
             content: item_content(),
             projected_body: "Title\nProjected body\n",
             remote_updated: RemoteTimestamp::Reported(
@@ -476,7 +464,7 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
     let calls = fake.calls();
     let item_write_index = calls
         .iter()
-        .position(|call| call == &format!("write:{ITEM_PATH}"))
+        .position(|call| call == &format!("write:{}", item_path.display()))
         .expect("item file was written");
     let baseline_write_index = calls
         .iter()
@@ -484,21 +472,16 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
         .expect("baseline was written");
     assert!(item_write_index < baseline_write_index);
 
-    assert_eq!(
-        fake.content(Path::new(ITEM_PATH)),
-        Some(item_content().to_owned())
-    );
+    assert_eq!(fake.content(&item_path), Some(item_content().to_owned()));
     Ok(())
 }
 
 #[test]
 fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
 {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
@@ -512,7 +495,8 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
         );
         applier.pull(&PullRequest {
             id: "0001",
-            file_path: Path::new(ITEM_PATH),
+            file_path: &item_path,
+            classified_content: CLASSIFIED,
             content: item_content(),
             projected_body: "Title\nNew projected body\n",
             remote_updated: RemoteTimestamp::Reported(
@@ -534,18 +518,17 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
 #[test]
 fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
 ) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
     fake.fail_next_write_to(Path::new(BASELINE_PATH));
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let request = PullRequest {
         id: "0001",
-        file_path: Path::new(ITEM_PATH),
+        file_path: &item_path,
+        classified_content: CLASSIFIED,
         content: item_content(),
         projected_body: "Title\nProjected body\n",
         remote_updated: RemoteTimestamp::Reported(
@@ -565,7 +548,7 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     };
     assert!(first_attempt.is_err(), "the injected failure must surface");
     assert_eq!(
-        fake.content(Path::new(ITEM_PATH)),
+        fake.content(&item_path),
         Some(item_content().to_owned()),
         "the side effect must have landed despite the interrupted baseline write"
     );

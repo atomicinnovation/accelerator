@@ -119,9 +119,8 @@ impl std::fmt::Display for ApplyError {
             ),
             Self::LocalChangedSinceClassified { item_id } => write!(
                 formatter,
-                "{item_id}: the local file changed while the run was \
-                 recording its baseline, so nothing was recorded; re-run the \
-                 sync"
+                "{item_id}: the local file changed after the run read it, so \
+                 nothing was written or recorded; re-run the sync"
             ),
         }
     }
@@ -130,21 +129,24 @@ impl std::fmt::Display for ApplyError {
 impl std::error::Error for ApplyError {}
 
 /// A send of the local body; with no `title`, the remote title is left as
-/// it is.
+/// it is. `sent_content` is the local file the title and body came from,
+/// which the baseline records.
 pub struct PushRequest<'a> {
     pub id: &'a str,
     pub external_id: &'a ExternalId,
     pub title: Option<&'a str>,
     pub body: &'a str,
-    pub file_path: &'a Path,
+    pub sent_content: &'a str,
 }
 
 /// A send of the local title alone, leaving the remote description as it is.
+/// `sent_content` is the local file the title came from, which the baseline
+/// records.
 pub struct RetitleRequest<'a> {
     pub id: &'a str,
     pub external_id: &'a ExternalId,
     pub title: &'a str,
-    pub file_path: &'a Path,
+    pub sent_content: &'a str,
 }
 
 /// The inputs `create_from_local` needs beyond the applier's own ports.
@@ -201,6 +203,9 @@ pub struct RecordRequest<'a> {
 pub struct PullRequest<'a> {
     pub id: &'a str,
     pub file_path: &'a Path,
+    /// The local file the pull was classified against, which only it may
+    /// overwrite.
+    pub classified_content: &'a str,
     pub content: &'a str,
     /// Un-normalised, and hashed here rather than by the caller, so the
     /// baseline's `remote_hash` always comes from the projection actually
@@ -253,7 +258,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     /// The baseline entry is written last, so a failed `update` leaves it
-    /// unset and the next run reclassifies from scratch. A failed post-push
+    /// unset and the next run reclassifies from scratch. It records the
+    /// content sent, so an edit made since reads as a local change next run.
+    /// A failed post-push
     /// `show` still writes the entry, with both remote fields empty and
     /// [`RemoteTimestamp::NotRead`] — the only place that variant is
     /// written.
@@ -275,7 +282,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.record_read_back(
             request.id,
             request.external_id,
-            request.file_path,
+            request.sent_content,
         )
     }
 
@@ -299,7 +306,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.record_read_back(
             request.id,
             request.external_id,
-            request.file_path,
+            request.sent_content,
         )
     }
 
@@ -307,25 +314,36 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         id: &str,
         external_id: &ExternalId,
-        file_path: &Path,
+        sent_content: &str,
     ) -> Result<(), ApplyError> {
         let remote = self.tracker.show(external_id).ok();
-        let local_content = std::fs::read_to_string(file_path)
-            .map_err(|error| io_error(id, "read-local", error))?;
-        self.record(id, &local_content, remote.as_ref())
+        self.record(id, sent_content, remote.as_ref())
     }
 
     /// Both baseline hashes come from what was actually written. Deriving
     /// either from pre-pull content self-corrupts the baseline into a
     /// phantom `locally-modified` on the next run.
     ///
+    /// A file already holding what the pull writes is written again, so a
+    /// re-run after an interrupted baseline write still records it.
+    ///
     /// # Errors
     ///
-    /// [`ApplyError`] naming `request.id` and the operation attempted.
+    /// [`ApplyError::LocalChangedSinceClassified`] when the file holds
+    /// neither the classified content nor what the pull writes, so an edit is
+    /// never overwritten; otherwise [`ApplyError`] naming `request.id` and the
+    /// operation attempted.
     pub fn pull(
         &mut self,
         request: &PullRequest<'_>,
     ) -> Result<(), ApplyError> {
+        let current = std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.id, "read-local", error))?;
+        if current != request.classified_content && current != request.content {
+            return Err(ApplyError::LocalChangedSinceClassified {
+                item_id: request.id.to_owned(),
+            });
+        }
         self.writer
             .write(request.file_path, request.content.as_bytes())
             .map_err(|error| io_error(request.id, "write-local", error))?;
@@ -572,7 +590,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// # Errors
     ///
     /// [`ApplyError::LocalChangedSinceClassified`] when the file moved
-    /// since it was classified, so an edit is never absorbed into the
+    /// since the run read it, so an edit is never absorbed into the
     /// baseline; [`ApplyError::Io`] when it cannot be read or the baseline
     /// cannot be written.
     pub fn record_baseline(

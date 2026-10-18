@@ -196,7 +196,8 @@ mistaken for a skip.
 regardless of exit code — a `71` run may also carry conflicts. A `failed` row
 may carry state `synced`: the run was rewriting that item's baseline under the
 current digest recipe and found its local file changed mid-run, so nothing was
-recorded; re-run the sync. A `record-baseline` row (state `locally-modified`)
+recorded; re-run the sync. A `retryable` failure on a `remotely-modified` pull
+likewise means the local file changed mid-run, so the pull wrote nothing. A `record-baseline` row (state `locally-modified`)
 means only the item's baseline was recorded and nothing was sent or written:
 the local change touched no field the tracker holds, or both sides already
 agree. A `push` row also covers a title sent alone, leaving the description as

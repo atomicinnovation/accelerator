@@ -18,16 +18,16 @@ use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::digest;
 use crate::sync::synced_fields;
 
-/// The per-item memo classification and a later baseline record share, so
-/// each read and digest is paid at most once, and only if asked for.
+/// One item's local file, read once when the snapshot is taken.
 ///
-/// A failed read is not memoised: it is reported each time it is asked.
+/// Classification, a send, a pull and a baseline record all digest that one
+/// read. Each digest is paid at most once, and only if asked for.
 pub struct ItemSnapshot<'a> {
     path: &'a Path,
     remote_projection: Option<String>,
     digester: &'a BaselineDigester<'a>,
     mtime: OnceCell<Option<u64>>,
-    content: OnceCell<String>,
+    content: Result<String, String>,
     legacy_local: OnceCell<String>,
     local: OnceCell<LocalFingerprints>,
     legacy_remote: OnceCell<Option<String>>,
@@ -50,7 +50,7 @@ impl<'a> ItemSnapshot<'a> {
     /// `show` call, when one was made this run — `None` when the two-tier
     /// read rule decided this item's stamp proves it unchanged.
     #[must_use]
-    pub const fn new(
+    pub fn new(
         path: &'a Path,
         remote_projection: Option<String>,
         digester: &'a BaselineDigester<'a>,
@@ -60,7 +60,9 @@ impl<'a> ItemSnapshot<'a> {
             remote_projection,
             digester,
             mtime: OnceCell::new(),
-            content: OnceCell::new(),
+            content: std::fs::read_to_string(path).map_err(|error| {
+                format!("could not read {}: {error}", path.display())
+            }),
             legacy_local: OnceCell::new(),
             local: OnceCell::new(),
             legacy_remote: OnceCell::new(),
@@ -68,15 +70,15 @@ impl<'a> ItemSnapshot<'a> {
         }
     }
 
-    fn content(&self) -> Result<String, kernel::Error> {
-        memoised(&self.content, || {
-            std::fs::read_to_string(self.path).map_err(|error| {
-                kernel::Error::Failed(format!(
-                    "could not read {}: {error}",
-                    self.path.display()
-                ))
-            })
-        })
+    /// The local file as the snapshot read it.
+    ///
+    /// # Errors
+    ///
+    /// When the file could not be read.
+    pub fn content(&self) -> Result<&str, kernel::Error> {
+        self.content
+            .as_deref()
+            .map_err(|detail| kernel::Error::Failed(detail.clone()))
     }
 
     /// Both recipes' fingerprints of what classification read, for a
@@ -113,7 +115,7 @@ impl ItemDigests for ItemSnapshot<'_> {
     }
 
     fn legacy_local(&self) -> Result<String, kernel::Error> {
-        memoised(&self.legacy_local, || digest::local(&self.content()?))
+        memoised(&self.legacy_local, || digest::local(self.content()?))
     }
 
     fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
@@ -125,7 +127,7 @@ impl ItemDigests for ItemSnapshot<'_> {
     fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
         memoised(&self.local, || {
             let (legacy, fingerprints) =
-                self.digester.local(&self.content()?)?;
+                self.digester.local(self.content()?)?;
             let _ = self.legacy_local.set(legacy);
             Ok(fingerprints)
         })
@@ -144,7 +146,7 @@ impl ItemDigests for ItemSnapshot<'_> {
 impl ItemSnapshot<'_> {
     fn local_body(&self) -> Option<String> {
         let content = self.content().ok()?;
-        digest::split_frontmatter_and_body(&content)
+        digest::split_frontmatter_and_body(content)
             .ok()
             .map(|(_, body)| body)
     }
@@ -174,7 +176,7 @@ impl ItemComparison for ItemSnapshot<'_> {
         let Some(local) = self
             .content()
             .ok()
-            .and_then(|content| synced_fields::local_fields(&content).ok())
+            .and_then(|content| synced_fields::local_fields(content).ok())
         else {
             return FieldsComparison::Unknown;
         };

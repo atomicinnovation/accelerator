@@ -131,6 +131,9 @@ impl ParkHandle {
     }
 }
 
+/// What runs after a write to an issue lands.
+type WriteHook = Box<dyn Fn(&ExternalId) + Send>;
+
 /// A `RemoteTracker` fake that records every call it receives and can be
 /// configured to fail in the shapes the sync engine must survive.
 pub struct RecordingTracker {
@@ -172,6 +175,7 @@ pub struct RecordingTracker {
     key_prefix: Option<String>,
     dialect: Box<dyn BodyDialect + Send>,
     rewrite: Option<Rewrite>,
+    after_write: Option<WriteHook>,
     calls: RefCell<Vec<Call>>,
 }
 
@@ -203,6 +207,7 @@ impl RecordingTracker {
             key_prefix: None,
             dialect: Box::new(PlainDialect),
             rewrite: None,
+            after_write: None,
             calls: RefCell::new(Vec::new()),
         }
     }
@@ -239,6 +244,23 @@ impl RecordingTracker {
     ) -> Self {
         self.dialect = dialect;
         self
+    }
+
+    /// Runs `hook` with the issue's key after each `update` or `retitle`
+    /// lands, so a test can change the local corpus mid-run.
+    #[must_use]
+    pub fn after_writing(
+        mut self,
+        hook: impl Fn(&ExternalId) + Send + 'static,
+    ) -> Self {
+        self.after_write = Some(Box::new(hook));
+        self
+    }
+
+    fn landed(&self, id: &ExternalId) {
+        if let Some(hook) = &self.after_write {
+            hook(id);
+        }
     }
 
     /// Creates each issue under `<prefix>-<n>`, as a tracker answering with
@@ -642,6 +664,8 @@ impl RemoteTracker for RecordingTracker {
                     str::to_owned,
                 );
                 entry.1.body = format!("{title}\n{body}");
+                drop(issues);
+                self.landed(id);
                 Ok(())
             }
             None => Err(TrackerError::Retryable {
@@ -675,6 +699,8 @@ impl RemoteTracker for RecordingTracker {
                     .split_once('\n')
                     .map_or("", |(_, description)| description);
                 entry.1.body = format!("{title}\n{description}");
+                drop(issues);
+                self.landed(id);
                 Ok(())
             }
             None => Err(TrackerError::Retryable {
@@ -1102,6 +1128,35 @@ mod tests {
         assert_eq!(tracker.local_body("body\n"), Ok("body\n".to_owned()));
         assert_eq!(tracker.as_pushed("body\n"), "body\n");
         assert!(!tracker.is_wire_document("{\"type\":\"doc\"}"));
+    }
+
+    #[test]
+    fn the_after_writing_hook_runs_once_per_landed_write() {
+        let id = ExternalId::new("REC-1".to_owned());
+        let landed = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&landed);
+        let tracker = RecordingTracker::holding(vec![(
+            id.clone(),
+            issue("t", "Title\nThe description\n"),
+        )])
+        .after_writing(move |written: &ExternalId| {
+            seen.lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(written.clone());
+        });
+
+        tracker
+            .update(&id, None, "New description\n")
+            .expect("update succeeds");
+        tracker.retitle(&id, "New title").expect("retitle succeeds");
+        tracker
+            .update(&ExternalId::new("REC-9".to_owned()), None, "x")
+            .expect_err("no such issue");
+
+        assert_eq!(
+            *landed.lock().unwrap_or_else(PoisonError::into_inner),
+            vec![id.clone(), id]
+        );
     }
 
     #[test]

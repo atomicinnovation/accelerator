@@ -183,6 +183,34 @@ impl<'a> Recorded<'a> {
     }
 }
 
+/// When an item's baseline says its local file was last synced, against the
+/// file's own mtime: after it, the mtime pre-filter proves the file unchanged
+/// without reading it.
+#[derive(Clone, Copy)]
+pub enum LastSynced {
+    BeforeItsLastEdit,
+    AfterItsLastEdit,
+}
+
+impl LastSynced {
+    const fn epoch(self) -> u64 {
+        match self {
+            Self::BeforeItsLastEdit => 0,
+            Self::AfterItsLastEdit => 4_000_000_000,
+        }
+    }
+}
+
+/// One item a repository holds: `content` locally, `remote` in the tracker,
+/// and a baseline recording `recorded` as last synced at `last_synced`.
+pub struct Seed<'a> {
+    pub index: usize,
+    pub content: &'a str,
+    pub remote: RemoteIssue,
+    pub recorded: Recorded<'a>,
+    pub last_synced: LastSynced,
+}
+
 pub struct Repo {
     dir: tempfile::TempDir,
     tracker_kind: Tracker,
@@ -206,6 +234,45 @@ impl Repo {
             RecordingTracker::holding(vec![(external(index), remote)])
                 .with_dialect(tracker_kind.dialect());
         Self::over(tracker, tracker_kind, index, content, recorded)
+    }
+
+    /// Several items, synced in the order given.
+    pub fn with_items(tracker_kind: Tracker, seeds: &[Seed<'_>]) -> Self {
+        let tracker = RecordingTracker::holding(
+            seeds
+                .iter()
+                .map(|seed| (external(seed.index), seed.remote.clone()))
+                .collect(),
+        )
+        .with_dialect(tracker_kind.dialect());
+        Self::seeded(tracker, tracker_kind, seeds)
+    }
+
+    /// Rewrites item `edited` to `content` once, when a write to item
+    /// `written` lands in the tracker, as an editor saving mid-run would.
+    #[must_use]
+    pub fn editing_when_written(
+        mut self,
+        written: usize,
+        edited: usize,
+        content: &str,
+    ) -> Self {
+        let path = self.path(edited).to_path_buf();
+        let content = content.to_owned();
+        let trigger = external(written);
+        let pending = std::sync::atomic::AtomicBool::new(true);
+        let tracker = std::mem::replace(
+            &mut self.tracker,
+            RecordingTracker::holding(Vec::new()),
+        );
+        self.tracker = tracker.after_writing(move |landed| {
+            if *landed == trigger
+                && pending.swap(false, std::sync::atomic::Ordering::SeqCst)
+            {
+                std::fs::write(&path, &content).expect("the item is edited");
+            }
+        });
+        self
     }
 
     /// As [`Self::with_item`] for Linear, whose stored descriptions undergo
@@ -234,10 +301,51 @@ impl Repo {
         let dir = tempfile::tempdir().expect("a temporary directory");
         let path = dir.path().join(format!("{}.md", id(index)));
         std::fs::write(&path, content).expect("the item is written");
+        Self::holding(
+            dir,
+            tracker,
+            tracker_kind,
+            vec![(index, path)],
+            fragment(
+                tracker_kind,
+                index,
+                recorded,
+                LastSynced::BeforeItsLastEdit,
+            )
+            .as_slice(),
+        )
+    }
+
+    fn seeded(
+        tracker: RecordingTracker,
+        tracker_kind: Tracker,
+        seeds: &[Seed<'_>],
+    ) -> Self {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let mut paths = Vec::with_capacity(seeds.len());
+        let mut entries = Vec::with_capacity(seeds.len());
+        for seed in seeds {
+            let path = dir.path().join(format!("{}.md", id(seed.index)));
+            std::fs::write(&path, seed.content).expect("the item is written");
+            paths.push((seed.index, path));
+            entries.extend(fragment(
+                tracker_kind,
+                seed.index,
+                &seed.recorded,
+                seed.last_synced,
+            ));
+        }
+        Self::holding(dir, tracker, tracker_kind, paths, &entries)
+    }
+
+    fn holding(
+        dir: tempfile::TempDir,
+        tracker: RecordingTracker,
+        tracker_kind: Tracker,
+        paths: Vec<(usize, PathBuf)>,
+        entries: &[String],
+    ) -> Self {
         let store = Store::default();
-        let entries: Vec<String> = fragment(tracker_kind, index, recorded)
-            .into_iter()
-            .collect();
         *store.baseline.borrow_mut() = Some(format!(
             "{{\"timestamp\":0,\"items\":{{{}}}}}\n",
             entries.join(",")
@@ -245,11 +353,14 @@ impl Repo {
         Self {
             dir,
             tracker_kind,
-            items: vec![LocalItem {
-                id: id(index),
-                path,
-                external_id: Some(external(index)),
-            }],
+            items: paths
+                .into_iter()
+                .map(|(index, path)| LocalItem {
+                    id: id(index),
+                    path,
+                    external_id: Some(external(index)),
+                })
+                .collect(),
             tracker,
             store,
         }
@@ -396,10 +507,11 @@ fn fragment(
     tracker_kind: Tracker,
     index: usize,
     recorded: &Recorded<'_>,
+    last_synced: LastSynced,
 ) -> Option<String> {
     let stamps = || SyncStamps {
         remote_updated_at: RemoteTimestamp::Reported(STAMP.to_owned()),
-        local_synced_at: 0,
+        local_synced_at: last_synced.epoch(),
     };
     let entry = match recorded {
         Recorded::Nothing => return None,

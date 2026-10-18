@@ -118,9 +118,10 @@
   so finish every outstanding promotion before downgrading.
 - **`work sync` reports two new rows.** An item whose baseline entry was
   written by a newer release reports `noop\tindeterminate\tunsupported-recipe`
-  (exit 4) and is left untouched, and a baseline record whose local file
-  changed mid-run reports `failed\tsynced\tretryable` (exit 70). Scripts that
-  parse `work sync` output need updating.
+  (exit 4) and is left untouched, and a baseline record or a pull whose local
+  file changed after the run read it reports `failed\tsynced\tretryable` or
+  `failed\tremotely-modified\tretryable` (exit 70), writing nothing. Scripts
+  that parse `work sync` output need updating.
 - **`work sync` reports a `record-baseline` row for a metadata-only local
   change.** A local change that touches no field the tracker holds, or whose
   bodies already agree, now reports `<id>\trecord-baseline\tlocally-modified\t-`
