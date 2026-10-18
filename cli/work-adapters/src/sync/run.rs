@@ -639,20 +639,15 @@ impl EntryShapes {
 /// Whether `item` is a conflict that keeps its local hash: one with no safe
 /// local overwrite, whose remedy is to revert a metadata edit so the entry
 /// migrates, which needs the hash it was recorded with.
-fn keeps_local_hash(
-    item: &LocalItem,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
-) -> bool {
-    let Some(projected) = fetched_projection(facts, &item.id) else {
+fn keeps_local_hash(item: &LocalItem, knowledge: &RunKnowledge<'_>) -> bool {
+    let Some(projected) = knowledge.projection(&item.id) else {
         return false;
     };
     std::fs::read_to_string(&item.path).is_ok_and(|content| {
         LocalWorkItem::parse(&content).is_ok_and(|local| {
             legacy_unrenderable(
-                comparison,
-                shapes.of(&item.id),
+                knowledge.comparison,
+                knowledge.shape(&item.id),
                 &local.body,
                 projected,
             )
@@ -660,45 +655,103 @@ fn keeps_local_hash(
     })
 }
 
-/// An id-keyed view over the run's local items, built once and shared by the
-/// dossier pass and the apply loop.
-struct ItemIndex<'a> {
-    by_id: BTreeMap<&'a str, (usize, &'a LocalItem)>,
+/// What this run knows about each reconciled item: its local file as the
+/// run read it, the remote it was compared with, and its baseline entry's
+/// shape. Each item and its snapshot are paired once, here.
+struct RunKnowledge<'a> {
+    facts: GatheredFacts,
+    comparison: &'a BodyComparison<'a>,
+    items: &'a [LocalItem],
+    snapshots: Vec<ItemSnapshot<'a>>,
+    shapes: EntryShapes,
+    by_id: BTreeMap<&'a str, usize>,
 }
 
-impl<'a> ItemIndex<'a> {
-    fn build(items: &'a [LocalItem]) -> Self {
+impl<'a> RunKnowledge<'a> {
+    fn gather(
+        facts: GatheredFacts,
+        items: &'a [LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+        digester: &'a BaselineDigester<'a>,
+    ) -> Self {
+        let snapshots = items
+            .iter()
+            .map(|item| {
+                let remote_content = facts
+                    .per_id
+                    .get(&item.id)
+                    .and_then(|(remote, _)| remote.body.clone());
+                ItemSnapshot::new(&item.path, remote_content, digester)
+            })
+            .collect();
+        let by_id = items
+            .iter()
+            .enumerate()
+            .map(|(position, item)| (item.id.as_str(), position))
+            .collect();
         Self {
-            by_id: items
-                .iter()
-                .enumerate()
-                .map(|(position, item)| (item.id.as_str(), (position, item)))
-                .collect(),
+            facts,
+            comparison: digester.comparison(),
+            items,
+            snapshots,
+            shapes: EntryShapes::read(items, baseline),
+            by_id,
         }
     }
 
-    fn get(&self, id: &str) -> Option<&'a LocalItem> {
-        self.by_id.get(id).map(|&(_, item)| item)
+    fn plan(
+        &self,
+        baseline: &crate::sync::baseline::Baseline,
+        request: &SyncRequest<'_>,
+    ) -> Result<SyncPlan, RunError> {
+        let plan_inputs =
+            self.facts
+                .plan_inputs(self.items, &self.snapshots, baseline);
+        compute_plan(&plan_inputs, request.direction, request.resolutions)
+            .map_err(RunError::Internal)
     }
 
-    fn position(&self, id: &str) -> Option<usize> {
-        self.by_id.get(id).map(|&(position, _)| position)
+    fn item(&self, id: &str) -> Option<&'a LocalItem> {
+        self.by_id
+            .get(id)
+            .and_then(|&position| self.items.get(position))
+    }
+
+    fn snapshot(&self, id: &str) -> Option<&ItemSnapshot<'a>> {
+        self.by_id
+            .get(id)
+            .and_then(|&position| self.snapshots.get(position))
+    }
+
+    fn shape(&self, id: &str) -> EntryShape {
+        self.shapes.of(id)
+    }
+
+    fn remote(&self, id: &str) -> Option<&GatheredRemote> {
+        self.facts.per_id.get(id).map(|(remote, _)| remote)
+    }
+
+    fn projection(&self, id: &str) -> Option<&str> {
+        self.remote(id).and_then(|remote| remote.body.as_deref())
+    }
+
+    fn remote_updated(&self, id: &str) -> RemoteTimestamp {
+        self.remote(id).map_or(RemoteTimestamp::NotRead, |remote| {
+            remote.remote_updated.clone()
+        })
     }
 }
 
 fn build_dossiers(
     plan: &SyncPlan,
-    items: &ItemIndex<'_>,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
         .filter(|planned| planned.action == Action::Prompt)
         .filter_map(|planned| {
-            let item = items.get(&planned.id)?;
-            Some(dossier_for(&planned.id, item, facts, comparison, shapes))
+            let item = knowledge.item(&planned.id)?;
+            Some(dossier_for(&planned.id, item, knowledge))
         })
         .collect()
 }
@@ -706,29 +759,17 @@ fn build_dossiers(
 fn dossier_for(
     id: &str,
     item: &LocalItem,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> ConflictDossier {
-    let remote = facts.per_id.get(id).map(|(remote, _)| remote);
-    let remote_updated =
-        remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
-
     let local_content = std::fs::read_to_string(&item.path).ok();
     let local = local_content.as_deref().and_then(|content| {
         Some((content, LocalWorkItem::parse(content).ok()?))
     });
     match local {
-        Some((content, local)) => readable_dossier(
-            id,
-            item,
-            remote,
-            remote_updated,
-            (content, &local),
-            comparison,
-            shapes.of(id),
-        ),
-        None => unreadable_dossier(id, remote_updated),
+        Some((content, local)) => {
+            readable_dossier(id, item, knowledge, content, &local)
+        }
+        None => unreadable_dossier(id, knowledge.remote_updated(id)),
     }
 }
 
@@ -750,14 +791,12 @@ fn unreadable_dossier(
 fn readable_dossier(
     id: &str,
     item: &LocalItem,
-    remote: Option<&GatheredRemote>,
-    remote_updated: RemoteTimestamp,
-    (local_content, local): (&str, &LocalWorkItem),
-    comparison: &BodyComparison<'_>,
-    shape: EntryShape,
+    knowledge: &RunKnowledge<'_>,
+    local_content: &str,
+    local: &LocalWorkItem,
 ) -> ConflictDossier {
-    let remote_projection =
-        remote.and_then(|r| r.body.as_deref()).unwrap_or("");
+    let comparison = knowledge.comparison;
+    let remote_projection = knowledge.projection(id).unwrap_or("");
     let unrenderable_reason = |cause| {
         if comparison
             .pull_residue(&local.body, remote_projection)
@@ -766,7 +805,7 @@ fn readable_dossier(
             UnrenderableReason::LocalPullResidue(cause)
         } else if legacy_unrenderable(
             comparison,
-            shape,
+            knowledge.shape(id),
             &local.body,
             remote_projection,
         ) {
@@ -790,11 +829,11 @@ fn readable_dossier(
     ConflictDossier {
         id: id.to_owned(),
         title: local.title.clone(),
-        remote_title: remote
-            .and_then(|r| r.body.as_deref())
+        remote_title: knowledge
+            .projection(id)
             .map(|projection| remote_fields(projection).title),
         local_modified: file_mtime_secs(&item.path),
-        remote_updated,
+        remote_updated: knowledge.remote_updated(id),
         sections,
         unrenderable,
     }
@@ -811,26 +850,19 @@ fn readable_dossier(
 /// field validation.
 fn validate_pushes(
     plan: &work::sync::SyncPlan,
-    items: &[LocalItem],
     tracker: &dyn RemoteTracker,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> Vec<ReportedItem> {
     plan.actions
         .iter()
         .map(|planned| {
             let checked = if planned.action == Action::Pull {
-                check_pull(planned, items, facts, comparison)
+                check_pull(planned, knowledge)
             } else {
                 planned
                     .action
                     .sends_to_tracker()
-                    .then(|| {
-                        check_send(
-                            planned, items, tracker, facts, comparison, shapes,
-                        )
-                    })
+                    .then(|| check_send(planned, tracker, knowledge))
                     .flatten()
             };
             match checked {
@@ -852,12 +884,10 @@ fn validate_pushes(
 /// Why a pull would fail before writing anything, as the run would report it.
 fn check_pull(
     planned: &PlannedAction,
-    items: &[LocalItem],
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
+    knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = items.iter().find(|candidate| candidate.id == planned.id)?;
-    pulled_file(item, facts, comparison).err().map(Err)
+    let item = knowledge.item(&planned.id)?;
+    pulled_file(item, knowledge).err().map(Err)
 }
 
 /// What a send carries: the local title and body, either withheld.
@@ -906,19 +936,17 @@ impl PreparedSend {
 fn prepare_send(
     planned: &PlannedAction,
     item: &LocalItem,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> Result<PreparedSend, ApplyError> {
     let content = read_local(item)?;
     let local = LocalWorkItem::parse(&content)
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     if let Some(refusal) = send_refusal(
-        comparison,
+        knowledge.comparison,
         planned.action,
-        shapes.of(&item.id),
+        knowledge.shape(&item.id),
         &local.body,
-        fetched_projection(facts, &item.id),
+        knowledge.projection(&item.id),
     ) {
         return Err(refused_send(&item.id, refusal));
     }
@@ -932,16 +960,12 @@ fn prepare_send(
 /// exactly what the action sends.
 fn check_send(
     planned: &PlannedAction,
-    items: &[LocalItem],
     tracker: &dyn RemoteTracker,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = items.iter().find(|candidate| candidate.id == planned.id)?;
+    let item = knowledge.item(&planned.id)?;
     let external_id = item.external_id.as_ref()?;
-    let prepared = match prepare_send(planned, item, facts, comparison, shapes)
-    {
+    let prepared = match prepare_send(planned, item, knowledge) {
         Ok(prepared) => prepared,
         Err(refused) => return Some(Err(refused)),
     };
@@ -951,16 +975,6 @@ fn check_send(
         payload.title,
         payload.body,
     )))
-}
-
-fn fetched_projection<'a>(
-    facts: &'a GatheredFacts,
-    id: &str,
-) -> Option<&'a str> {
-    facts
-        .per_id
-        .get(id)
-        .and_then(|(remote, _)| remote.body.as_deref())
 }
 
 fn refused_send(item_id: &str, refusal: SendRefusal) -> ApplyError {
@@ -1093,12 +1107,9 @@ fn send_outcome(
     planned: &PlannedAction,
     item: &LocalItem,
     external_id: &ExternalId,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let prepared = match prepare_send(planned, item, facts, comparison, shapes)
-    {
+    let prepared = match prepare_send(planned, item, knowledge) {
         Ok(prepared) => prepared,
         Err(refused) => return ItemOutcome::Failed(refused),
     };
@@ -1139,40 +1150,36 @@ struct PulledFile<'a> {
 
 fn pulled_file<'a>(
     item: &LocalItem,
-    facts: &'a GatheredFacts,
-    comparison: &BodyComparison<'_>,
+    knowledge: &'a RunKnowledge<'_>,
 ) -> Result<PulledFile<'a>, ApplyError> {
-    let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
-    let projected_body =
-        remote.and_then(|r| r.body.as_deref()).ok_or_else(|| {
-            ApplyError::RemoteBodyUnavailable {
-                item_id: item.id.clone(),
-            }
-        })?;
+    let projected_body = knowledge.projection(&item.id).ok_or_else(|| {
+        ApplyError::RemoteBodyUnavailable {
+            item_id: item.id.clone(),
+        }
+    })?;
     let remote_body =
-        comparison.local_body(projected_body).map_err(|cause| {
-            ApplyError::RemoteUnrenderable {
+        knowledge
+            .comparison
+            .local_body(projected_body)
+            .map_err(|cause| ApplyError::RemoteUnrenderable {
                 item_id: item.id.clone(),
                 cause,
-            }
-        })?;
+            })?;
     let local = LocalWorkItem::parse(&read_local(item)?)
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     Ok(PulledFile {
         content: local.with_body(&remote_body),
         projected_body,
-        remote_updated: remote
-            .map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone()),
+        remote_updated: knowledge.remote_updated(&item.id),
     })
 }
 
 fn pull_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
+    knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let pulled = match pulled_file(item, facts, comparison) {
+    let pulled = match pulled_file(item, knowledge) {
         Ok(pulled) => pulled,
         Err(error) => return ItemOutcome::Failed(error),
     };
@@ -1192,7 +1199,7 @@ fn record_outcome(
     applier: &ItemApplier<'_, '_>,
     item: &LocalItem,
     snapshot: &ItemSnapshot<'_>,
-    facts: &GatheredFacts,
+    knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
     let fingerprints = match snapshot.recorded() {
         Ok(fingerprints) => fingerprints,
@@ -1204,17 +1211,11 @@ fn record_outcome(
             })
         }
     };
-    let remote_updated = facts
-        .per_id
-        .get(&item.id)
-        .map_or(RemoteTimestamp::NotRead, |(remote, _)| {
-            remote.remote_updated.clone()
-        });
     match applier.record_baseline(&RecordRequest {
         id: &item.id,
         file_path: &item.path,
         fingerprints,
-        remote_updated,
+        remote_updated: knowledge.remote_updated(&item.id),
     }) {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
@@ -1251,26 +1252,18 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
 /// under any skip action records its id for baseline blanking, unless it
 /// [keeps its local hash](keeps_local_hash). The two create actions are
 /// unreachable: both create paths run out-of-band of this loop.
-#[allow(clippy::too_many_arguments)]
 fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
-    index: &ItemIndex<'_>,
-    snapshots: &[ItemSnapshot<'_>],
-    facts: &GatheredFacts,
-    comparison: &BodyComparison<'_>,
-    shapes: &EntryShapes,
+    knowledge: &RunKnowledge<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
-    let item = index.get(&planned.id);
+    let item = knowledge.item(&planned.id);
     let outcome = match planned.action {
         Action::RecordBaseline => {
-            let snapshot = index
-                .position(&planned.id)
-                .and_then(|position| snapshots.get(position));
-            match item.zip(snapshot) {
+            match item.zip(knowledge.snapshot(&planned.id)) {
                 Some((item, snapshot)) => {
-                    record_outcome(applier, item, snapshot, facts)
+                    record_outcome(applier, item, snapshot, knowledge)
                 }
                 None => return not_applied(planned),
             }
@@ -1278,25 +1271,18 @@ fn apply_planned_action(
         Action::Push(_) | Action::Retitle | Action::Overwrite => match item
             .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
         {
-            Some((item, external_id)) => send_outcome(
-                applier,
-                &planned,
-                item,
-                external_id,
-                facts,
-                comparison,
-                shapes,
-            ),
+            Some((item, external_id)) => {
+                send_outcome(applier, &planned, item, external_id, knowledge)
+            }
             None => return not_applied(planned),
         },
         Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, facts, comparison),
+            Some(item) => pull_outcome(applier, item, knowledge),
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-            let keeps_hash = item.is_some_and(|item| {
-                keeps_local_hash(item, facts, comparison, shapes)
-            });
+            let keeps_hash =
+                item.is_some_and(|item| keeps_local_hash(item, knowledge));
             if matches!(planned.state, SyncState::Conflict) && !keeps_hash {
                 blank_local_hash.push(planned.id.clone());
             }
@@ -1361,18 +1347,15 @@ fn apply_local_create(
 /// preview and apply paths so both report the same blast radius.
 struct PreparedRun<'a> {
     run_start_epoch: u64,
-    snapshots: Vec<ItemSnapshot<'a>>,
     unsupported_recipe: BTreeSet<String>,
     degradation: Degradation,
     read_failure: Option<TrackerError>,
     keyed_read_budget_limited: bool,
-    facts: GatheredFacts,
+    knowledge: RunKnowledge<'a>,
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
     discovery: DiscoveryStatus,
     creates_from_local: Vec<&'a LocalItem>,
-    index: ItemIndex<'a>,
-    shapes: EntryShapes,
     dossiers: Vec<ConflictDossier>,
 }
 
@@ -1553,29 +1536,15 @@ fn prepare_run<'a>(
     // both pull and push, so abort here — before any planning or write.
     let keyed_read_budget_limited = classify_keyed_read(facts.keyed_read)?;
 
-    let snapshots: Vec<ItemSnapshot<'a>> = request
-        .reconciled()
-        .iter()
-        .map(|item| {
-            let remote_content = facts
-                .per_id
-                .get(&item.id)
-                .and_then(|(remote, _)| remote.body.clone());
-            ItemSnapshot::new(&item.path, remote_content, digester)
-        })
-        .collect();
+    let knowledge = RunKnowledge::gather(
+        facts,
+        request.reconciled(),
+        &loaded_baseline,
+        digester,
+    );
+    let plan = knowledge.plan(&loaded_baseline, request)?;
 
-    let plan = {
-        let plan_inputs = facts.plan_inputs(
-            request.reconciled(),
-            &snapshots,
-            &loaded_baseline,
-        );
-        compute_plan(&plan_inputs, request.direction, request.resolutions)
-            .map_err(RunError::Internal)?
-    };
-
-    let read_failure = facts.read_failure.clone();
+    let read_failure = knowledge.facts.read_failure.clone();
     let unsupported_recipe = request
         .reconciled()
         .iter()
@@ -1608,25 +1577,19 @@ fn prepare_run<'a>(
         });
     }
 
-    let index = ItemIndex::build(request.reconciled());
-    let shapes = EntryShapes::read(request.reconciled(), &loaded_baseline);
-    let dossiers =
-        build_dossiers(&plan, &index, &facts, digester.comparison(), &shapes);
+    let dossiers = build_dossiers(&plan, &knowledge);
 
     Ok(PreparedRun {
         run_start_epoch,
-        snapshots,
         unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
-        facts,
+        knowledge,
         plan,
         untracked,
         discovery,
         creates_from_local,
-        index,
-        shapes,
         dossiers,
     })
 }
@@ -1679,37 +1642,27 @@ fn execute<'a>(
     let digester = BaselineDigester::new(ports.tracker, ports.parser);
     let PreparedRun {
         run_start_epoch,
-        snapshots,
         unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
-        facts,
+        knowledge,
         plan,
         untracked,
         discovery,
         creates_from_local,
-        index,
-        shapes,
         dossiers,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
-    let comparison = digester.comparison();
     let reported_as = |item: ReportedItem| {
         noting_unsupported_recipe(item, &unsupported_recipe)
     };
     if matches!(request.mode, RunMode::Preview) {
-        let mut reported: Vec<ReportedItem> = validate_pushes(
-            &plan,
-            request.reconciled(),
-            ports.tracker,
-            &facts,
-            comparison,
-            &shapes,
-        )
-        .into_iter()
-        .map(reported_as)
-        .collect();
+        let mut reported: Vec<ReportedItem> =
+            validate_pushes(&plan, ports.tracker, &knowledge)
+                .into_iter()
+                .map(reported_as)
+                .collect();
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),
@@ -1772,11 +1725,7 @@ fn execute<'a>(
             reported.push(reported_as(apply_planned_action(
                 &mut applier,
                 planned,
-                &index,
-                &snapshots,
-                &facts,
-                comparison,
-                &shapes,
+                &knowledge,
                 &mut blank_local_hash,
             )));
         }
@@ -1971,16 +1920,20 @@ mod tests {
             keyed_read: tracker::Completeness::Complete,
         };
 
-        let prepared = super::prepare_send(
-            &planned,
-            &item,
-            &facts,
-            &super::BodyComparison::new(
-                &tracker::PlainDialect,
-                &corpus_adapters::CommonMarkBody,
-            ),
-            &super::EntryShapes(std::collections::BTreeMap::new()),
+        let comparison = super::BodyComparison::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
         );
+        let knowledge = super::RunKnowledge {
+            facts,
+            comparison: &comparison,
+            items: std::slice::from_ref(&item),
+            snapshots: Vec::new(),
+            shapes: super::EntryShapes(std::collections::BTreeMap::new()),
+            by_id: std::collections::BTreeMap::new(),
+        };
+
+        let prepared = super::prepare_send(&planned, &item, &knowledge);
 
         assert!(
             matches!(
