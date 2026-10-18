@@ -307,8 +307,10 @@ pub fn run(
             exit_codes::CLEAN
         }
         Err(refusal) => {
-            console.err(&format!("Error: {refusal}"));
-            refusal.exit_code()
+            let code = refusal.exit_code();
+            console
+                .err(&format!("Error: {}", refusal.relative_to(&located.root)));
+            code
         }
     }
 }
@@ -1185,6 +1187,32 @@ mod tests {
         let forced = repo.rekey_forced(&Unprobeable);
         assert_eq!(forced.code, 0, "{forced:?}");
         assert!(repo.read("meta/work/ACC-0041-first.md").is_some());
+    }
+
+    #[test]
+    fn a_refusal_names_items_relative_to_the_repository() {
+        let repo = Repo::with(
+            KEYED,
+            &[
+                ("meta/work/0042-legacy.md", &item("0042", "Legacy", "")),
+                (
+                    "meta/work/ACC-0042-keyed.md",
+                    &item("ACC-0042", "Keyed", ""),
+                ),
+            ],
+        );
+
+        let ran = repo.rekey();
+
+        assert!(
+            ran.err.starts_with("Error: E_REKEY_ID_COLLISION"),
+            "{ran:?}"
+        );
+        assert!(ran.err.contains(" meta/work/0042-legacy.md"), "{ran:?}");
+        assert!(
+            !ran.err.contains(&repo.root().display().to_string()),
+            "{ran:?}"
+        );
     }
 
     #[test]

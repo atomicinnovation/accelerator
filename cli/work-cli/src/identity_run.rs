@@ -40,9 +40,10 @@ pub fn begin(
     })
 }
 
-/// The stderr line and exit code a guarded command reports a refusal with.
+/// The stderr line and exit code a guarded command reports a refusal with,
+/// naming any path relative to `root`.
 #[must_use]
-pub fn refused(refusal: IdentityRunRefusal) -> (String, u8) {
+pub fn refused(refusal: IdentityRunRefusal, root: &Path) -> (String, u8) {
     match refusal {
         IdentityRunRefusal::Lock(error) => (
             format!("Error: the identity-run lock could not be taken: {error}"),
@@ -50,7 +51,38 @@ pub fn refused(refusal: IdentityRunRefusal) -> (String, u8) {
         ),
         other => {
             let refusal = NotRekeyed::from(other);
-            (format!("Error: {refusal}"), refusal.exit_code())
+            let code = refusal.exit_code();
+            (format!("Error: {}", refusal.relative_to(root)), code)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use work::rekey::run_plan::Unreadability;
+    use work::rekey::run_plan::UnreadablePlan;
+    use work_adapters::identity_run::IdentityRunRefusal;
+
+    use super::refused;
+
+    #[test]
+    fn an_unreadable_plan_is_named_relative_to_the_root() {
+        let root = Path::new("/repo");
+
+        let (message, _) = refused(
+            IdentityRunRefusal::RekeyPlanUnreadable(UnreadablePlan {
+                path: root.join(".accelerator/state/rekey/run-plan.json"),
+                cause: Unreadability::Malformed("bad".to_owned()),
+            }),
+            root,
+        );
+
+        assert!(
+            message.contains(" .accelerator/state/rekey/run-plan.json "),
+            "{message}"
+        );
+        assert!(!message.contains("/repo"), "{message}");
     }
 }

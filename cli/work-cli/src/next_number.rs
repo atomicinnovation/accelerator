@@ -127,7 +127,7 @@ pub fn run(
     let _identity_run = match crate::identity_run::begin(&root, "next-number") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal);
+            let (message, code) = crate::identity_run::refused(refusal, &root);
             return RunOutcome::Refused { message, code };
         }
     };

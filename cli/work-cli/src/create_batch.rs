@@ -181,7 +181,7 @@ pub fn run_with(
     let identity_run = match (seams.identity_run)(&root, "create-batch") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal);
+            let (message, code) = crate::identity_run::refused(refusal, &root);
             return BatchOutcome::Refused { message, code };
         }
     };

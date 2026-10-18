@@ -176,7 +176,32 @@ pub enum RetirementRefusal {
     ItemNotFound(String),
 }
 
+/// `path` relative to `root` when it lies under it, else as it is.
+pub(crate) fn relative_to(path: PathBuf, root: &Path) -> PathBuf {
+    path.strip_prefix(root)
+        .map(Path::to_path_buf)
+        .unwrap_or(path)
+}
+
 impl RetirementRefusal {
+    /// The refusal naming its paths relative to `root`.
+    #[must_use]
+    pub fn relative_to(self, root: &Path) -> Self {
+        match self {
+            Self::IdTaken { holder, field } => Self::IdTaken {
+                holder: relative_to(holder, root),
+                field,
+            },
+            Self::KeyLinked { holder } => Self::KeyLinked {
+                holder: relative_to(holder, root),
+            },
+            Self::TargetExists(path) => {
+                Self::TargetExists(relative_to(path, root))
+            }
+            Self::ItemNotFound(id) => Self::ItemNotFound(id),
+        }
+    }
+
     #[must_use]
     pub const fn keyword(&self) -> &'static str {
         match self {
@@ -241,6 +266,17 @@ pub enum RetirementCauseKind {
 /// The reason keyword a retirement that could not restore the corpus is
 /// reported under.
 pub const RETIREMENT_INCOMPLETE: &str = "retirement-incomplete";
+
+impl RetirementCause {
+    /// The cause naming its path relative to `root`.
+    #[must_use]
+    pub fn relative_to(self, root: &Path) -> Self {
+        Self {
+            path: relative_to(self.path, root),
+            kind: self.kind,
+        }
+    }
+}
 
 impl std::fmt::Display for RetirementCause {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

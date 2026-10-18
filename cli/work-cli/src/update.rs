@@ -318,7 +318,8 @@ fn try_run(
         let root = config_adapters::FileConfigStore::discover_root(start);
         let guard =
             crate::identity_run::begin(&root, "update").map_err(|refusal| {
-                let (message, code) = crate::identity_run::refused(refusal);
+                let (message, code) =
+                    crate::identity_run::refused(refusal, &root);
                 TryRunError::Refused { message, code }
             })?;
         Some(guard)

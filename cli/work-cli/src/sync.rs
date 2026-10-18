@@ -1438,7 +1438,8 @@ pub fn run_sync(
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal);
+            let (message, code) =
+                crate::identity_run::refused(refusal, &repo_root);
             eprintln!("{message}");
             return ExitCode::from(code);
         }

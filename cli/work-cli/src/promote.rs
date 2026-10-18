@@ -181,7 +181,7 @@ fn try_run(
         .map_err(|error| internal(error.to_string()))?;
     let identity_run =
         crate::identity_run::begin(&root, "promote").map_err(|refusal| {
-            let (message, code) = crate::identity_run::refused(refusal);
+            let (message, code) = crate::identity_run::refused(refusal, &root);
             PromoteOutcome::Failed { message, code }
         })?;
     let (draft, draft_path) =

@@ -2,6 +2,7 @@
 //! remedy a person acts on.
 
 use std::fmt;
+use std::path::Path;
 use std::path::PathBuf;
 
 use crate::draft_id::DraftIdExhausted;
@@ -11,6 +12,7 @@ use crate::rekey::run_plan::Unreadability;
 use crate::rekey::run_plan::UnreadablePlan;
 use crate::rekey::write_set::Base;
 use crate::rekey::write_set::Unreverted;
+use crate::retirement::relative_to;
 use crate::retirement::RetirementCause;
 use crate::retirement::RetirementRefusal;
 
@@ -88,6 +90,76 @@ const DISCARD_LISTS_PATHS: &str = "to undo it instead, run `accelerator work \
      rekey --discard`, which lists the paths to restore";
 
 impl NotRekeyed {
+    /// The refusal naming every path relative to `root`, for display.
+    #[must_use]
+    pub fn relative_to(self, root: &Path) -> Self {
+        let under = |path: PathBuf| relative_to(path, root);
+        let all_under =
+            |paths: Vec<PathBuf>| paths.into_iter().map(under).collect();
+        match self {
+            Self::PlanUnreadable(UnreadablePlan { path, cause }) => {
+                Self::PlanUnreadable(UnreadablePlan {
+                    path: under(path),
+                    cause,
+                })
+            }
+            Self::PartlyApplied { items, recoveries } => Self::PartlyApplied {
+                items: all_under(items),
+                recoveries: all_under(recoveries),
+            },
+            Self::SyncUnfinished(blockers) => Self::SyncUnfinished(
+                blockers
+                    .into_iter()
+                    .map(|blocker| match blocker {
+                        SyncBlocker::UnreadableRecord(path) => {
+                            SyncBlocker::UnreadableRecord(under(path))
+                        }
+                        other => other,
+                    })
+                    .collect(),
+            ),
+            Self::PendingPush(paths) => Self::PendingPush(all_under(paths)),
+            Self::Collision {
+                first,
+                second,
+                target,
+            } => Self::Collision {
+                first: under(first),
+                second: under(second),
+                target,
+            },
+            Self::Unclassifiable(path) => Self::Unclassifiable(under(path)),
+            Self::KeptNumberAboveCap {
+                item,
+                number,
+                pattern,
+            } => Self::KeptNumberAboveCap {
+                item: under(item),
+                number,
+                pattern,
+            },
+            Self::TargetExists(path) => Self::TargetExists(under(path)),
+            Self::PreviewStale(Staleness::ItemsChanged(paths)) => {
+                Self::PreviewStale(Staleness::ItemsChanged(all_under(paths)))
+            }
+            Self::EntryRefused { entry, refusal } => Self::EntryRefused {
+                entry,
+                refusal: refusal.relative_to(root),
+            },
+            Self::EntryRolledBack { entry, cause } => Self::EntryRolledBack {
+                entry,
+                cause: Box::new(cause.relative_to(root)),
+            },
+            Self::RestoreIncomplete { entry, recovery } => {
+                Self::RestoreIncomplete {
+                    entry,
+                    recovery: under(recovery),
+                }
+            }
+            other => other,
+        }
+    }
+
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
@@ -436,6 +508,7 @@ mod tests {
     use std::collections::HashSet;
     use std::mem::discriminant;
     use std::mem::Discriminant;
+    use std::path::Path;
     use std::path::PathBuf;
 
     use corpus::StoreError;
@@ -747,6 +820,72 @@ mod tests {
             assert!(code.starts_with("E_"), "{code}");
         }
         assert_eq!(by_code.len(), 20);
+    }
+
+    #[test]
+    fn every_path_a_refusal_names_renders_relative_to_the_root() {
+        let root = Path::new("/repo");
+        let at = |relative: &str| root.join(relative);
+        let item = || at("meta/work/0042-a.md");
+        let refusals = vec![
+            NotRekeyed::PlanUnreadable(UnreadablePlan {
+                path: at(".accelerator/state/rekey/run-plan.json"),
+                cause: Unreadability::Malformed("bad".to_owned()),
+            }),
+            NotRekeyed::PartlyApplied {
+                items: vec![item()],
+                recoveries: vec![at(
+                    ".accelerator/state/retirement-recovery/r",
+                )],
+            },
+            NotRekeyed::SyncUnfinished(vec![SyncBlocker::UnreadableRecord(
+                at(".accelerator/state/retirements"),
+            )]),
+            NotRekeyed::PendingPush(vec![item()]),
+            NotRekeyed::Collision {
+                first: item(),
+                second: at("meta/work/ACC-0042-b.md"),
+                target: "ACC-0042".to_owned(),
+            },
+            NotRekeyed::Unclassifiable(item()),
+            NotRekeyed::KeptNumberAboveCap {
+                item: item(),
+                number: 12_345,
+                pattern: "{number:04d}".to_owned(),
+            },
+            NotRekeyed::TargetExists(item()),
+            NotRekeyed::PreviewStale(Staleness::ItemsChanged(vec![item()])),
+            NotRekeyed::EntryRefused {
+                entry: entry(),
+                refusal: RetirementRefusal::IdTaken {
+                    holder: item(),
+                    field: IdentityField::Id,
+                },
+            },
+            NotRekeyed::EntryRefused {
+                entry: entry(),
+                refusal: RetirementRefusal::KeyLinked { holder: item() },
+            },
+            NotRekeyed::EntryRefused {
+                entry: entry(),
+                refusal: RetirementRefusal::TargetExists(item()),
+            },
+            NotRekeyed::EntryRolledBack {
+                entry: entry(),
+                cause: Box::new(RetirementCause {
+                    path: item(),
+                    kind: RetirementCauseKind::ChangedSinceSnapshot,
+                }),
+            },
+            NotRekeyed::RestoreIncomplete {
+                entry: entry(),
+                recovery: at(".accelerator/state/retirement-recovery/r"),
+            },
+        ];
+        for refusal in refusals {
+            let rendered = refusal.relative_to(root).to_string();
+            assert!(!rendered.contains("/repo"), "{rendered}");
+        }
     }
 
     #[test]

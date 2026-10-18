@@ -618,6 +618,7 @@ pub work::rekey::outcome::NotRekeyed::WorkingCopyUnprobeable(alloc::string::Stri
 impl work::rekey::outcome::NotRekeyed
 pub const fn work::rekey::outcome::NotRekeyed::code(&self) -> &'static str
 pub const fn work::rekey::outcome::NotRekeyed::exit_code(&self) -> u8
+pub fn work::rekey::outcome::NotRekeyed::relative_to(self, root: &std::path::Path) -> Self
 impl core::clone::Clone for work::rekey::outcome::NotRekeyed
 pub fn work::rekey::outcome::NotRekeyed::clone(&self) -> work::rekey::outcome::NotRekeyed
 impl core::cmp::Eq for work::rekey::outcome::NotRekeyed
@@ -906,6 +907,7 @@ pub work::retirement::RetirementRefusal::TargetExists(std::path::PathBuf)
 impl work::retirement::RetirementRefusal
 pub const fn work::retirement::RetirementRefusal::keyword(&self) -> &'static str
 pub fn work::retirement::RetirementRefusal::message(&self, retirement: &work::retirement::Retirement<'_>) -> alloc::string::String
+pub fn work::retirement::RetirementRefusal::relative_to(self, root: &std::path::Path) -> Self
 impl core::clone::Clone for work::retirement::RetirementRefusal
 pub fn work::retirement::RetirementRefusal::clone(&self) -> work::retirement::RetirementRefusal
 impl core::cmp::Eq for work::retirement::RetirementRefusal
@@ -970,6 +972,8 @@ impl<'a> core::marker::StructuralPartialEq for work::retirement::Retirement<'a>
 pub struct work::retirement::RetirementCause
 pub work::retirement::RetirementCause::kind: work::retirement::RetirementCauseKind
 pub work::retirement::RetirementCause::path: std::path::PathBuf
+impl work::retirement::RetirementCause
+pub fn work::retirement::RetirementCause::relative_to(self, root: &std::path::Path) -> Self
 impl core::clone::Clone for work::retirement::RetirementCause
 pub fn work::retirement::RetirementCause::clone(&self) -> work::retirement::RetirementCause
 impl core::cmp::Eq for work::retirement::RetirementCause
