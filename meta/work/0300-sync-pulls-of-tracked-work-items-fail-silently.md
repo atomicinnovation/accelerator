@@ -12,7 +12,7 @@ parent: "work-item:0146"
 relates_to: ["work-item:0257", "work-item:0285", "work-item:0296"]
 external_id: "PP-884"
 tags: ["bug", "sync", "work-cli"]
-last_updated: "2026-10-10T23:17:49+00:00"
+last_updated: "2026-10-19T18:57:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -26,12 +26,15 @@ schema_version: 1
 ## Summary
 
 `accelerator work sync` fails every pull into an already-tracked local work
-item, and reports the failure as a bare `failed … -` row with exit 0. Remote
+item. Since 0296 the failure is visible — a `failed … local-write-refused`
+row with exit 75 — but it gives no cause on stderr and suggests a re-run
+cannot help, when the real fault is the sync's own writer wiring. Remote
 edits to synced items therefore never reach the work directory, and a
 `--resolve <id>=remote` conflict choice cannot take effect. A `--target` run
 also deletes the conflict dossiers of items it did not target, so the
 remaining conflicts lose their diffs mid-resolution. The fix deliberately
-changes the exit code of every apply failure that today exits 0.
+changes the exit code of local apply failures: one before anything for the
+item landed exits 70 instead of 71 or 75.
 
 ## Context
 
@@ -46,7 +49,9 @@ Terms used below:
   item on a full run, only the targets on a `--target` run.
 - **Failure class**: the classification of an apply failure, which the
   report renders in the detail column and the exit code derives from:
-  retryable (70), terminal (71), unconfigured (74) or rejected (75).
+  retryable (70), terminal (71), unconfigured (74), or one of the refusal
+  classes 0296 added beside rejected — `rejected`, `unrenderable`,
+  `pull-residue`, `unparseable`, `local-write-refused` (75).
 - **Exit codes**: 0 clean, 1 error (a run-level failure outside the
   applier, such as unreadable configuration), 4 conflicts awaiting
   resolution, plus the failure classes above. When a run has several
@@ -83,9 +88,12 @@ any path outside that root, so the write to `meta/work/<id>-<slug>.md` is
 rejected. Creating items from remote is unaffected because it writes through
 the separate local-author port.
 
-The refusal surfaces as an I/O apply error, which has no failure class. The
-report renders an unclassified failure with detail `-`, discards its message,
-and the exit-code calculation treats it as clean.
+Before 0296 the refusal surfaced as an unclassified I/O apply error: detail
+`-`, message discarded, exit 0. 0296 made classification total, so it now
+surfaces as `LocalWriteRefused` (`local-write-refused`, exit 75), but the
+error's message still never reaches stderr, and 0296 classes every other
+local I/O failure as terminal (71) even when nothing for the item had been
+written.
 
 Separately, every run deletes all dossiers in the conflicts directory before
 writing dossiers for the conflicts among its planned items. A full run plans
@@ -94,9 +102,10 @@ targets, so it deletes the dossiers of other items that are still
 conflicted. The next full run regenerates them; until then, resolving
 conflicts one `--target` at a time leaves the rest with no diff to present.
 
-Observed on 2026-10-05 against Linear: ten items (0183, 0184, 0197, 0204,
-0207, 0209, 0227, 0229, 0230, 0257) reported `failed remotely-modified -`.
-The full run exited 4 only because conflicts were also pending.
+Observed on 2026-10-05 against Linear, before 0296: ten items (0183, 0184,
+0197, 0204, 0207, 0209, 0227, 0229, 0230, 0257) reported `failed
+remotely-modified -`. The full run exited 4 only because conflicts were
+also pending.
 
 ## Requirements
 
@@ -110,8 +119,9 @@ Expected: the local file is rewritten with the pulled content under its
 unchanged frontmatter, the baseline entry advances, and the row's action is
 `pull`.
 
-Actual: the row is `<id>\tfailed\tremotely-modified\t-`, the file and
-baseline are untouched, nothing is printed to stderr, and the exit code is 0.
+Actual: the row is `<id>\tfailed\tremotely-modified\tlocal-write-refused`
+(before 0296, `-`), the file and baseline are untouched, nothing is printed
+to stderr, and the exit code is 75 (before 0296, 0).
 `--preview` plans the same item as a `pull`; `--per-item-reads` (fetching
 each remote issue individually instead of in bulk) makes no difference.
 
@@ -145,8 +155,9 @@ The fix must:
     persistence uses for conflict dossiers.
 
   The local-author port's wiring is outside this change.
-- Give every `ApplyError` variant a failure class, so that no row renders
-  detail `-` and no apply failure leaves the exit code at 0. An I/O failure
+- Keep every `ApplyError` variant classified (0296 made this total), and
+  class each I/O failure by landing rather than as terminal throughout. An
+  I/O failure
   is retryable (exit 70) when no earlier write in the same item apply has
   landed anywhere — local file, baseline or tracker — so a re-run re-plans
   the item identically. It is terminal (exit 71) once any earlier write in
@@ -155,15 +166,20 @@ The fix must:
   other items in the same run do not count. The rule governs; the table
   lists every operation and context that can fail today, including
   `author-local`, whose classification is in scope even though its port
-  wiring is not:
+  wiring is not. A store refusing a pull's write for lack of permission is a
+  `write-local` failure under this rule, not `local-write-refused`, which
+  keeps only refusals a retry would repeat (an unsafe path, an existing
+  file, invalid content). 0296's other refusal variants keep their own
+  classes:
 
   | Operation | Earlier write landed | Class |
   |---|---|---|
-  | `read-local` | never | retryable |
+  | `read-local` before any write | no | retryable |
+  | `lock-local` (pull) | no | retryable |
   | `write-local` (pull) | no | retryable |
   | `author-local` (create from remote) | no | retryable |
   | `marker-write` before the tracker create | no | retryable |
-  | `hash-local` after a pull's `write-local` | yes | terminal |
+  | `read-local`, `hash-local` after a push or a link | yes | terminal |
   | `baseline-set` after a local or tracker write | yes | terminal |
   | `link-external-id` after the tracker create | yes | terminal |
   | `marker-write` after the tracker create | yes | terminal |
@@ -171,7 +187,7 @@ The fix must:
   Tracker-originated variants keep their current classes: a retryable,
   terminal, unconfigured or rejected `TrackerError` maps to the class of
   the same name. Their operation label is the tracker call that failed
-  (`show`, `update` or `create`).
+  (`show`, `update`, `retitle` or `create`).
 - For every apply failure, put the failure class in the row's detail column
   and print a stderr line naming the item, the failed operation and the
   cause. A failed dossier write is not an apply failure; it keeps today's
@@ -205,7 +221,9 @@ The fix must:
       work directory is made non-writable, with no pending conflicts and no
       other failures — when `work sync` runs, then the row's detail is
       `retryable`, stderr contains a line naming the item id, the operation
-      `write-local` and the operating system's permission error, the item's
+      that failed (`lock-local`, since the pull takes the item's lock before
+      writing, or `write-local` when only the write is refused) and the
+      operating system's permission error, the item's
       file and baseline entry are unchanged, and the exit code is 70.
 - [ ] Given that same item, when the work directory is made writable and
       `work sync` runs again, then the row's action is `pull` and the
@@ -221,12 +239,14 @@ The fix must:
       class matches the table or the same-named class, and when a run whose
       only problem is that failure reports it, the row's detail is that
       class, stderr contains a line naming the item, the operation and the
-      cause, and the exit code is the class's code (70, 71, 74 or 75). The
+      cause, and the exit code is the class's code (70, 71, 74 or 75),
+      including for 0296's refusal classes. The
       test pins today's tracker-originated mapping before the
       classification changes.
-- [ ] Classification is total: `ApplyError::class` returns a class for
+- [ ] Classification stays total: `ApplyError::class` returns a class for
       every variant, with no unclassified outcome in its type, so no report
-      row can carry detail `-` for a failure.
+      row can carry detail `-` for a failure (true since 0296; pinned by an
+      exhaustive test).
 - [ ] Given a run with pending conflicts and a `terminal` I/O failure, when
       it completes, then the exit code is 71; given a run with pending
       conflicts and a `retryable` I/O failure, then the exit code is 4. Both
@@ -253,8 +273,9 @@ The fix must:
       runs, then `<c>` has a dossier holding its section diff and `<b>`'s
       dossier is unchanged.
 - [ ] Given an item `<a>` with a dossier whose local edit now matches remote,
-      when `work sync --target <a>` runs without `--resolve`, then `<a>`'s
-      dossier is removed and other items' dossiers are unchanged.
+      when `work sync --target <a>` runs without `--resolve`, then 0296
+      records its baseline (`record-baseline`), `<a>`'s dossier is removed
+      and other items' dossiers are unchanged.
 - [ ] Given dossiers for an item a full run no longer reports as conflicted
       and for an id that is no longer tracked, when the full run completes,
       then both dossiers are removed.
@@ -281,19 +302,16 @@ None.
 
 ## Dependencies
 
-- Blocked by: none for implementation; the release is gated on 0296 (see
-  below).
+- Blocked by: none. 0296 is implemented on the same branch.
 - Blocks: none
-- Ships with: 0296 (all of it). 0296's open questions must be resolved
-  before this item is released, and both merge in one combined change so
-  neither can reach a release alone. Today every tracked pull fails before
-  writing, so 0296's defects in pulled content (the projected title line,
-  the list-marker style) cannot reach local files. Once this fix makes
-  pulls succeed, they would reach every remotely edited item and be pushed
-  back to Linear. 0296's pull and resolve-to-remote criteria can only be
+- Ships with: 0296, already implemented on this branch; both merge in one
+  combined change so neither reaches a release alone. 0296 fixed the
+  pulled-content defects, so pulls this fix enables write the description
+  with no title line, and settles converged conflicts through
+  `record-baseline`. 0296's pull and resolve-to-remote criteria can only be
   verified end to end with this fix in place. Both items change conflict
-  dossiers — this one which dossiers are deleted, 0296 Defect 3 how they
-  are rendered — so they should be integrated together.
+  dossiers — this one which dossiers are deleted, 0296 how they are
+  rendered.
 - External: the configured remote tracker (Linear via `work.integration`).
   End-to-end verification needs it reachable and an item whose remote copy
   was edited after the last sync.
@@ -301,9 +319,9 @@ None.
   this repository — which branches on its exit codes and report rows, relays
   its stderr, and presents its conflict dossiers.
 - Consumer: user scripts and CI jobs that call `accelerator work sync`
-  directly. Apply failures that exit 0 today will exit 70 or 71, so the
-  combined 0300/0296 change must add a changelog entry calling out the
-  change.
+  directly. Local failures before anything landed move from 0296's 71 (or
+  75 for a permission refusal) to 70, so the combined 0300/0296 change
+  amends 0296's changelog entry rather than adding a second one.
 - Environment: the permission-based retryable criteria need a non-root
   test runner, since root ignores directory permissions; any CI lane
   running them must run as a non-root user, and a root run skips them with
@@ -315,10 +333,10 @@ None.
 ## Assumptions
 
 - On the pull path, only the writer wiring is wrong for the write to succeed.
-  Reconstruction of the pulled content has its own defects, tracked in 0296;
-  the first two criteria check that the reconstructed content lands under
-  unchanged frontmatter, and 0296 verifies the exact body. Baseline logic is correct
-  once the write succeeds (the preview plans these pulls correctly).
+  Reconstruction of the pulled content is 0296's and verified there; the
+  first two criteria check that it lands under unchanged frontmatter.
+  Baseline logic is correct once the write succeeds (the preview plans
+  these pulls correctly).
 
 ## Technical Notes
 
@@ -328,14 +346,15 @@ None.
   store's writer and `SyncPorts.writer`.
 - `cli/corpus-adapters/src/store.rs`: `FileCorpusStore::write` refuses any
   path outside its root via `ensure_contained`.
-- `cli/work-adapters/src/sync/apply.rs`: `ItemApplier::pull` writes the
-  local file through `self.writer` (operation `write-local`) before setting
-  the baseline. `ApplyError::class` returns `None` for `Io` by design, so
-  the fix changes that contract rather than patching an omission.
-- `cli/work-cli/src/sync.rs`: `render_report` renders a `None` class as `-`,
-  and `exit_code_for_report` drops unclassified failures, falling back to
-  `CLEAN`. `ApplyError`'s `Display` already names the item, operation and
-  cause; the report discards it.
+- `cli/work-adapters/src/sync/apply.rs`: `ItemApplier::pull` checks the file
+  still holds the classified content (`LocalChangedSinceClassified`), writes
+  through `self.writer` and maps a store refusal to `LocalWriteRefused` via
+  `local_write_error` before setting the baseline. `ApplyError::class` is
+  total since 0296 and classes every `Io` as terminal by design, so the fix
+  changes that contract rather than patching an omission.
+- `cli/work-cli/src/sync.rs`: `render_report` renders each class keyword and
+  `exit_code_for_report` maps every class. `ApplyError`'s `Display` already
+  names the item, operation and cause; the report discards it.
 - `cli/work-adapters/src/sync/apply.rs`: `SyncPorts.writer` also writes
   pending-push markers (`marker-write`) under `<paths.integrations>`, so
   splitting it means the applier routes marker writes to the
@@ -372,6 +391,11 @@ None.
   not by default. This accepts that 0300's release waits on all of 0296.
 - Two separately bounded writers are required rather than one widened store,
   because a single store cannot refuse paths outside both roots.
+- Revised on 2026-10-19 after 0296 landed on this branch: the symptom is now
+  `local-write-refused`/75 rather than `-`/0; classification totality is
+  0296's; a permission-refused write moves from `local-write-refused` to a
+  retryable `write-local`; converged conflicts are 0296's
+  `record-baseline`.
 
 ## References
 
