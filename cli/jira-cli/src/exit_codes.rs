@@ -62,6 +62,7 @@ pub const JQL_EMPTY_VALUE: u8 = 33;
 pub const REQ_BAD_REQUEST: u8 = 34;
 
 pub const BAD_JSON: u8 = 40;
+/// Markdown that would place a block where Jira's ADF does not allow it.
 pub const ADF_UNSUPPORTED: u8 = 41;
 pub const ADF_BAD_INPUT: u8 = 42;
 
@@ -134,10 +135,10 @@ pub const ATTACH_NO_FILES: u8 = 131;
 pub const ATTACH_FILE_MISSING: u8 = 132;
 pub const ATTACH_BAD_FLAG: u8 = 133;
 
+use adf::AdfError;
 use config::consent::Refusal;
 use config::consent::RefusalReason;
 use config::credentials::CredentialError;
-use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
 use jira_client::classify::Outcome;
 use jira_client::{ClientError, JiraFailure, SurfaceError};
@@ -237,15 +238,15 @@ pub const fn for_cache(error: &CacheError) -> u8 {
     }
 }
 
-/// The exit code for an ADF conversion failure, in the `40`–`42` band.
+/// The exit code for an ADF conversion failure. Only the placeholder render
+/// runs here, so an unrepresentable node never reaches it.
 const fn for_adf(error: &AdfError) -> u8 {
     match error {
         AdfError::RootNotDoc { .. }
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. } => BAD_JSON,
-        AdfError::UnsupportedBlockquote
-        | AdfError::UnsupportedTable
-        | AdfError::UnsupportedNestedList => ADF_UNSUPPORTED,
+        AdfError::Unrepresentable(_) => ERROR,
+        AdfError::DisallowedNesting { .. } => ADF_UNSUPPORTED,
         AdfError::BadInput => ADF_BAD_INPUT,
     }
 }
@@ -273,6 +274,7 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
+    use adf::Unrepresentable;
     use config::consent::{
         CommandPolicy, Distrust, FailureCause, Rejection, StartFailure,
     };
@@ -452,9 +454,19 @@ mod tests {
             }),
             BAD_JSON
         );
-        assert_eq!(for_adf(&AdfError::UnsupportedBlockquote), ADF_UNSUPPORTED);
-        assert_eq!(for_adf(&AdfError::UnsupportedTable), ADF_UNSUPPORTED);
-        assert_eq!(for_adf(&AdfError::UnsupportedNestedList), ADF_UNSUPPORTED);
+        assert_eq!(
+            for_adf(&AdfError::Unrepresentable(Unrepresentable::Node {
+                node: String::new()
+            })),
+            ERROR
+        );
+        assert_eq!(
+            for_adf(&AdfError::DisallowedNesting {
+                child: String::new(),
+                container: String::new()
+            }),
+            ADF_UNSUPPORTED
+        );
         assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);
     }
 }

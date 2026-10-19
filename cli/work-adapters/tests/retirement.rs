@@ -158,12 +158,12 @@ struct Repo {
 }
 
 fn entry(local_hash: &str) -> Entry {
-    Entry {
-        remote_updated_at: RemoteTimestamp::NotRead,
-        remote_hash: String::new(),
-        local_hash: local_hash.to_owned(),
-        local_synced_at: 0,
-    }
+    Entry::persisted_legacy(
+        RemoteTimestamp::NotRead,
+        String::new(),
+        local_hash.to_owned(),
+        0,
+    )
 }
 
 impl Repo {
@@ -932,7 +932,6 @@ fn a_held_retirement_lock_blocks_a_second_retirement() -> Result<(), TestError>
     Ok(())
 }
 
-#[cfg(feature = "bash-parity")]
 mod in_a_real_repository {
     use std::fs;
 

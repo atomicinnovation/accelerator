@@ -1,6 +1,5 @@
 //! The whole-run lock driven end to end against the compiled binary over a
 //! committed git repository.
-#![cfg(feature = "bash-parity")]
 
 mod common;
 

@@ -9,10 +9,10 @@ use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
 
-use crate::adf::markdown_to_document;
 use crate::client::JiraClient;
 use crate::surface::SurfaceError;
 use crate::transport::Received;
+use adf::markdown_to_document;
 
 /// Comments per page when the caller names no size, and the inclusive bounds
 /// the endpoint accepts.

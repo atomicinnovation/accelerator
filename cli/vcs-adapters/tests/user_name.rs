@@ -5,7 +5,6 @@
 //! same reason `scrub.rs` does: the hermetic environment is applied through
 //! process env vars, and libtest runs each test on its own thread, so
 //! in-process `set_var` would be racy.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::Path;

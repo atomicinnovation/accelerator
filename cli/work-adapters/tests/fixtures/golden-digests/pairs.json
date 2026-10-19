@@ -1,0 +1,373 @@
+{
+  "pairs": [
+    {
+      "name": "linear R01",
+      "tracker": "linear",
+      "local": "Roughly ~550 lines remain.\n",
+      "remote": "Title\nRoughly \\~550 lines remain.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "3d0016059f6b3352df549e0acd9b37017a741231f962af8825836731c6bcbd67",
+      "remote_body_hash": "3d0016059f6b3352df549e0acd9b37017a741231f962af8825836731c6bcbd67"
+    },
+    {
+      "name": "linear R02",
+      "tracker": "linear",
+      "local": "This paragraph is wrapped\nacross three source lines\nbefore it ends.\n",
+      "remote": "Title\nThis paragraph is wrapped\nacross three source lines\nbefore it ends.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "2a045e744264a7bcf669328091682fc5d73bb5b3f2b1a8f5cff8299109525006",
+      "remote_body_hash": "2a045e744264a7bcf669328091682fc5d73bb5b3f2b1a8f5cff8299109525006"
+    },
+    {
+      "name": "linear R03",
+      "tracker": "linear",
+      "local": "**first bold line\nsecond bold line**\n",
+      "remote": "Title\n**first bold line**\n**second bold line**\n",
+      "relation": "cosmetic",
+      "local_body_hash": "054dab647a0ccdeb1ac94f7dbf9e12400c8916f911e6c11d265cb807cbe7ad3a",
+      "remote_body_hash": "054dab647a0ccdeb1ac94f7dbf9e12400c8916f911e6c11d265cb807cbe7ad3a"
+    },
+    {
+      "name": "linear R04",
+      "tracker": "linear",
+      "local": "**run `cargo test`**\n",
+      "remote": "Title\n**run** `cargo test`\n",
+      "relation": "cosmetic",
+      "local_body_hash": "4c7906972a6a9beeb20302d82e61a2bf29330d8e3b2862c9c92795ed4e7135a8",
+      "remote_body_hash": "4c7906972a6a9beeb20302d82e61a2bf29330d8e3b2862c9c92795ed4e7135a8"
+    },
+    {
+      "name": "linear R05",
+      "tracker": "linear",
+      "local": "See [the guide](https://example.com/guide) for details.\n",
+      "remote": "Title\nSee [the guide](<https://example.com/guide>) for details.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "a0b357cc68ed2b6351cbb9dbdfd8b8a52010fa1fdb1031a65f923d514f7cb69f",
+      "remote_body_hash": "a0b357cc68ed2b6351cbb9dbdfd8b8a52010fa1fdb1031a65f923d514f7cb69f"
+    },
+    {
+      "name": "linear R06",
+      "tracker": "linear",
+      "local": "Visit https://example.com/autolink today.\n",
+      "remote": "Title\nVisit [https://example.com/autolink](<https://example.com/autolink>) today.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "ffb4dd83154e940be980495ec6b1b27499478f345aea130600783077e5822119",
+      "remote_body_hash": "ffb4dd83154e940be980495ec6b1b27499478f345aea130600783077e5822119"
+    },
+    {
+      "name": "linear R07",
+      "tracker": "linear",
+      "local": "- alpha\n- beta\n",
+      "remote": "Title\n* alpha\n* beta\n",
+      "relation": "cosmetic",
+      "local_body_hash": "043b297b850c24c029e83be8be0838a0ad908a2488fa806f9b6851cd5acccb00",
+      "remote_body_hash": "043b297b850c24c029e83be8be0838a0ad908a2488fa806f9b6851cd5acccb00"
+    },
+    {
+      "name": "linear R08",
+      "tracker": "linear",
+      "local": "- [x] done task\n- [ ] open task\n",
+      "remote": "Title\n- [X] done task\n- [ ] open task\n",
+      "relation": "cosmetic",
+      "local_body_hash": "cfa8f9b5507a293584631d1eb8251bede22e6503a52e084ff7566cd62152ea09",
+      "remote_body_hash": "cfa8f9b5507a293584631d1eb8251bede22e6503a52e084ff7566cd62152ea09"
+    },
+    {
+      "name": "linear R09",
+      "tracker": "linear",
+      "local": "| Name | Value |\n|---|---|\n| a | 1 |\n",
+      "remote": "Title\n| Name | Value |\n| -- | -- |\n| a | 1 |\n",
+      "relation": "cosmetic",
+      "local_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3",
+      "remote_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3"
+    },
+    {
+      "name": "linear R10",
+      "tracker": "linear",
+      "local": "- first item\n- second item\n",
+      "remote": "Title\n* first item\n* second item\n",
+      "relation": "cosmetic",
+      "local_body_hash": "c86c75e6fa1fc7914a22bdaefb71033e0bc5ce78c88765772334501e89f73381",
+      "remote_body_hash": "c86c75e6fa1fc7914a22bdaefb71033e0bc5ce78c88765772334501e89f73381"
+    },
+    {
+      "name": "linear R11",
+      "tracker": "linear",
+      "local": "The removed items are 0158, 0159 and\n  0160. Nothing else moved.\n",
+      "remote": "Title\nThe removed items are 0158, 0159 and\n  0160\\. Nothing else moved.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "08cfed5206ac5e204affe3763b7e31296a81c1420f52985e48e993e094757eaa",
+      "remote_body_hash": "08cfed5206ac5e204affe3763b7e31296a81c1420f52985e48e993e094757eaa"
+    },
+    {
+      "name": "linear R12",
+      "tracker": "linear",
+      "local": "Published to crates.io last week.\n",
+      "remote": "Title\nPublished to [crates.io](<http://crates.io>) last week.\n",
+      "relation": "meaning",
+      "local_body_hash": "c0f63e7fd5b97d97322bba64cff1459daa300e8c37af4d89e9dc2b42fcbfb687",
+      "remote_body_hash": "2b9efabce185cc333a75f65cf6dd2346a723be998a692519712ff642d445e1d5"
+    },
+    {
+      "name": "linear R13",
+      "tracker": "linear",
+      "local": "- Run `cargo nextest\n  run` inside the list item.\n",
+      "remote": "Title\n* Run `cargo nextest run` inside the list item.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "1d3a74112a67c04cd4200dce1aba00bb2a207d2f04b437b1402580fc10d027c6",
+      "remote_body_hash": "1d3a74112a67c04cd4200dce1aba00bb2a207d2f04b437b1402580fc10d027c6"
+    },
+    {
+      "name": "linear X01",
+      "tracker": "linear",
+      "local": "Run `cargo nextest\nrun` at the top level.\n",
+      "remote": "Title\nRun `cargo nextest run` at the top level.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "3fdbdb109e76399106e93a030696b5f780d6a65729a264c8435a160e84294576",
+      "remote_body_hash": "3fdbdb109e76399106e93a030696b5f780d6a65729a264c8435a160e84294576"
+    },
+    {
+      "name": "linear X02",
+      "tracker": "linear",
+      "local": "> Roughly ~550 lines\n> remain in **quoted\n> bold** text.\n",
+      "remote": "Title\n> Roughly \\~550 lines\n> remain in **quoted**\n> **bold** text.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "c81fe21aca3757dd21d7c0531930e205dde0e133c8e1919fa51d78fcd7c0bd01",
+      "remote_body_hash": "c81fe21aca3757dd21d7c0531930e205dde0e133c8e1919fa51d78fcd7c0bd01"
+    },
+    {
+      "name": "linear X03",
+      "tracker": "linear",
+      "local": "Proposed children:\n- first child\n- second child\n",
+      "remote": "Title\nProposed children:\n\n* first child\n* second child\n",
+      "relation": "cosmetic",
+      "local_body_hash": "9bc57ab6821820508629d6b2dcea231e3791d8c7004fcd3ac4c51adefa6125cc",
+      "remote_body_hash": "9bc57ab6821820508629d6b2dcea231e3791d8c7004fcd3ac4c51adefa6125cc"
+    },
+    {
+      "name": "linear X04",
+      "tracker": "linear",
+      "local": "The removed items are 0158, 0159 and\n0160. Nothing else moved.\n",
+      "remote": "Title\nThe removed items are 0158, 0159 and\n0160\\. Nothing else moved.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "08cfed5206ac5e204affe3763b7e31296a81c1420f52985e48e993e094757eaa",
+      "remote_body_hash": "08cfed5206ac5e204affe3763b7e31296a81c1420f52985e48e993e094757eaa"
+    },
+    {
+      "name": "linear X05",
+      "tracker": "linear",
+      "local": "- The removed items are 0158, 0159 and\n  0160. Nothing else moved.\n",
+      "remote": "Title\n* The removed items are 0158, 0159 and\n  0160\\. Nothing else moved.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "63fd28bbb67a4cf0a0d827bfd3a683a6686d70649d04fc2940998ea4665126f6",
+      "remote_body_hash": "63fd28bbb67a4cf0a0d827bfd3a683a6686d70649d04fc2940998ea4665126f6"
+    },
+    {
+      "name": "linear X06",
+      "tracker": "linear",
+      "local": "- The removed items are 0158, 0159 and\n      0160. Nothing else moved.\n",
+      "remote": "Title\n* The removed items are 0158, 0159 and\n      0160\\. Nothing else moved.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "63fd28bbb67a4cf0a0d827bfd3a683a6686d70649d04fc2940998ea4665126f6",
+      "remote_body_hash": "63fd28bbb67a4cf0a0d827bfd3a683a6686d70649d04fc2940998ea4665126f6"
+    },
+    {
+      "name": "linear X07",
+      "tracker": "linear",
+      "local": "Run `cargo nextest\n  run` at the top level.\n",
+      "remote": "Title\nRun `cargo nextest   run` at the top level.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "32d4557028ae157e51743d4d201aacb4b3ef0d39f41d82f7fe7e90a20bf256e2",
+      "remote_body_hash": "32d4557028ae157e51743d4d201aacb4b3ef0d39f41d82f7fe7e90a20bf256e2"
+    },
+    {
+      "name": "linear X08",
+      "tracker": "linear",
+      "local": "- [ ] Given the filters, then Jira `labels IN ('a') AND labels NOT IN\n      ('b')` is composed.\n",
+      "remote": "Title\n- [ ] Given the filters, then Jira `labels IN ('a') AND labels NOT IN     ('b')` is composed.\n",
+      "relation": "cosmetic",
+      "local_body_hash": "a0f82896337a9243173b3e89f39bb3f5ed8bd83b638bc22d1c991be0d337bc3e",
+      "remote_body_hash": "a0f82896337a9243173b3e89f39bb3f5ed8bd83b638bc22d1c991be0d337bc3e"
+    },
+    {
+      "name": "linear X09",
+      "tracker": "linear",
+      "local": "- The tier infrastructure and the migration of existing evals — both owned by\n  0160.\n- Running evals on every CI build.\n\nThe tier infrastructure and the migration of existing evals — both owned by\n0160.\n",
+      "remote": "Title\n* The tier infrastructure and the migration of existing evals — both owned by\n  160. \n* Running evals on every CI build.\n\nThe tier infrastructure and the migration of existing evals — both owned by\n0160.\n",
+      "relation": "meaning",
+      "local_body_hash": "634ac7dadb6492d9234707b5cdf81fb854e68edbc4d29563cc08a82f0efd58f2",
+      "remote_body_hash": "0aae8008df8fa4deb1ea08bc536df68eb430b78a04bc03a494841f8a704b3fd9"
+    },
+    {
+      "name": "near-miss strong and plain",
+      "tracker": "linear",
+      "local": "**a**\n",
+      "remote": "Title\na\n",
+      "relation": "meaning",
+      "local_body_hash": "0e44a847964af5d94e503ab965dc561c5f92fea0bc36069635fab2255bfd7c63",
+      "remote_body_hash": "b84696e6159d5e0bbf05dedc79b2c517f39908332b01903b3832325643e78724"
+    },
+    {
+      "name": "near-miss link text",
+      "tracker": "linear",
+      "local": "[t](u)\n",
+      "remote": "Title\n[u](u)\n",
+      "relation": "meaning",
+      "local_body_hash": "45933029b71fef3225f8d4b4e2c57a8d07dba1684d209948fb7d45432e387ce2",
+      "remote_body_hash": "e348a86fe813dd2878a98b2cb75ee3692a420c89344fd8208016ef3c7be15812"
+    },
+    {
+      "name": "near-miss bullet and ordered lists",
+      "tracker": "linear",
+      "local": "- a\n",
+      "remote": "Title\n1. a\n",
+      "relation": "meaning",
+      "local_body_hash": "823b58af6b0bfc90ad838f502403183307d3a5a9cb75ec880a32512fe15d620a",
+      "remote_body_hash": "247c8b0cdddf47040f25dfea34226d723aef2b73e762ed15ffb126cb00ab22a0"
+    },
+    {
+      "name": "near-miss hard and soft breaks",
+      "tracker": "linear",
+      "local": "a\\\nb\n",
+      "remote": "Title\na\nb\n",
+      "relation": "meaning",
+      "local_body_hash": "b2690f15c5854f911b659d72db104e99b4a23c5f53289548fc19a0cd11d458f0",
+      "remote_body_hash": "30e5b3680c3724595818e9d30ef079037968efdedf3b7e1b59904aeaf36f3b0d"
+    },
+    {
+      "name": "near-miss code span contents",
+      "tracker": "linear",
+      "local": "`a b`\n",
+      "remote": "Title\n`a c`\n",
+      "relation": "meaning",
+      "local_body_hash": "d6ccf3876124ddc7a4747cecc7eeb26b73bf7515e68cf594273c5e30b902fd63",
+      "remote_body_hash": "7e945a27a8a62470d6eb624115b7b215bec529b004b074a4bee92dbe93002299"
+    },
+    {
+      "name": "near-miss table alignment",
+      "tracker": "linear",
+      "local": "| a |\n|:--|\n| 1 |\n",
+      "remote": "Title\n| a |\n|--:|\n| 1 |\n",
+      "relation": "meaning",
+      "local_body_hash": "6e7d27301209af3a81b8b42f4bb8e7af7738fd5ed869dd09b7a09f75086e2acb",
+      "remote_body_hash": "6aa9cc13bcbd1ab01b29f739398924431003ebbe8932b33ed1f9122c507a00ef"
+    },
+    {
+      "name": "near-miss task state",
+      "tracker": "linear",
+      "local": "- [ ] a\n",
+      "remote": "Title\n- [x] a\n",
+      "relation": "meaning",
+      "local_body_hash": "1bb1858f3476015dfd738567ef1e1e3379b437f2e27d55d1c81964d67fea039f",
+      "remote_body_hash": "ed9bbaed537a647da2939c2744f91517760a362415a9b5078424009411dc0baa"
+    },
+    {
+      "name": "near-miss heading levels",
+      "tracker": "linear",
+      "local": "# a\n",
+      "remote": "Title\n## a\n",
+      "relation": "meaning",
+      "local_body_hash": "1ea270377d8f710c585b7251d196f87f00e35ff8cd93206d0fa2d34f824f305e",
+      "remote_body_hash": "10b80a41a3849979f874c7de74e837b726b4c2ffd7624d643c7b93ca14edaecc"
+    },
+    {
+      "name": "near-miss paragraph break and soft break",
+      "tracker": "linear",
+      "local": "a\n\nb\n",
+      "remote": "Title\na\nb\n",
+      "relation": "meaning",
+      "local_body_hash": "86a88622db2e3a0c6ad9f6ee62e30321ce3f5a8d2985aafbc34c238381731b22",
+      "remote_body_hash": "30e5b3680c3724595818e9d30ef079037968efdedf3b7e1b59904aeaf36f3b0d"
+    },
+    {
+      "name": "near-miss ordered list start numbers",
+      "tracker": "linear",
+      "local": "1. a\n",
+      "remote": "Title\n3. a\n",
+      "relation": "meaning",
+      "local_body_hash": "247c8b0cdddf47040f25dfea34226d723aef2b73e762ed15ffb126cb00ab22a0",
+      "remote_body_hash": "2f3305564fcc7adb1e9293af098dfa3d87ba7efe0d0be2cf136cdb8177bf5e06"
+    },
+    {
+      "name": "fenced code marker swap",
+      "tracker": "linear",
+      "local": "```\n- a\n```\n",
+      "remote": "Title\n```\n* a\n```\n",
+      "relation": "meaning",
+      "local_body_hash": "34c95cc72b8ebd04c81b44987b9ba1fd91f78e6877150d3647712862f0e55965",
+      "remote_body_hash": "2845d9da04afa60cb23d555a7dff485e08d8dae1fc3bd3fa00a13e57a15f0a73"
+    },
+    {
+      "name": "fenced code unchanged",
+      "tracker": "linear",
+      "local": "```rust\nfn main() {}\n```\n",
+      "remote": "Title\n```rust\nfn main() {}\n```\n",
+      "relation": "cosmetic",
+      "local_body_hash": "8c2cbaeb02594506a20875051e1dd6c09c6c8820b41a05e56dcaa1bbe5f5cd1e",
+      "remote_body_hash": "8c2cbaeb02594506a20875051e1dd6c09c6c8820b41a05e56dcaa1bbe5f5cd1e"
+    },
+    {
+      "name": "table delimiter widths",
+      "tracker": "linear",
+      "local": "| Name | Value |\n|---|---|\n| a | 1 |\n",
+      "remote": "Title\n| Name | Value |\n| -- | -- |\n| a | 1 |\n",
+      "relation": "cosmetic",
+      "local_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3",
+      "remote_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3"
+    },
+    {
+      "name": "jira strike",
+      "tracker": "jira",
+      "local": "~~gone~~ and kept\n",
+      "remote": "Title\n{\"content\":[{\"content\":[{\"marks\":[{\"type\":\"strike\"}],\"text\":\"gone\",\"type\":\"text\"},{\"text\":\" and kept\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\",\"version\":1}\n",
+      "relation": "cosmetic",
+      "local_body_hash": "40d5557933628a9ffbba3c459afe1f7c96c35681f5376b40be889f2d6df51625",
+      "remote_body_hash": "40d5557933628a9ffbba3c459afe1f7c96c35681f5376b40be889f2d6df51625"
+    },
+    {
+      "name": "jira nested list",
+      "tracker": "jira",
+      "local": "- a\n  - b\n",
+      "remote": "Title\n{\"content\":[{\"content\":[{\"content\":[{\"content\":[{\"text\":\"a\",\"type\":\"text\"}],\"type\":\"paragraph\"},{\"content\":[{\"content\":[{\"content\":[{\"text\":\"b\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"listItem\"}],\"type\":\"bulletList\"}],\"type\":\"listItem\"}],\"type\":\"bulletList\"}],\"type\":\"doc\",\"version\":1}\n",
+      "relation": "cosmetic",
+      "local_body_hash": "48600989cfadccd7d652a705e668455f58bb064816a5dcaba6e99a66b02ef276",
+      "remote_body_hash": "48600989cfadccd7d652a705e668455f58bb064816a5dcaba6e99a66b02ef276"
+    },
+    {
+      "name": "jira table",
+      "tracker": "jira",
+      "local": "| Name | Value |\n|---|---|\n| a | 1 |\n",
+      "remote": "Title\n{\"content\":[{\"content\":[{\"content\":[{\"content\":[{\"content\":[{\"text\":\"Name\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"tableHeader\"},{\"content\":[{\"content\":[{\"text\":\"Value\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"tableHeader\"}],\"type\":\"tableRow\"},{\"content\":[{\"content\":[{\"content\":[{\"text\":\"a\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"tableCell\"},{\"content\":[{\"content\":[{\"text\":\"1\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"tableCell\"}],\"type\":\"tableRow\"}],\"type\":\"table\"}],\"type\":\"doc\",\"version\":1}\n",
+      "relation": "cosmetic",
+      "local_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3",
+      "remote_body_hash": "cd4689db31a7a1ae94ca1cac29cbd2f9afeec01d016956928a12200e79c803f3"
+    },
+    {
+      "name": "jira rejected local body",
+      "tracker": "jira",
+      "local": "a control byte \u001f the converter refuses\n",
+      "remote": "Title\n{\"content\":[{\"content\":[{\"text\":\"a control byte the converter refuses\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\",\"version\":1}\n",
+      "relation": "meaning",
+      "local_body_hash": "548bc230fa48dc048cbd249439def7d334e060ac5e14417b87386fa4080c607c",
+      "remote_body_hash": "460e0a7cfa1261dd457dc7369f33da8d5f34df9347305fed314b71db4a625a08"
+    },
+    {
+      "name": "jira unrenderable remote",
+      "tracker": "jira",
+      "local": "Info\n",
+      "remote": "Title\n{\"content\":[{\"attrs\":{\"panelType\":\"info\"},\"content\":[{\"content\":[{\"text\":\"Info\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"panel\"}],\"type\":\"doc\",\"version\":1}\n",
+      "relation": "meaning",
+      "local_body_hash": "997f06c4d7c451560028830e610b60ae4bf068401cc54eb56a478f5c6d021c2a",
+      "remote_body_hash": "87a0c456a95a9e8dcf1232c4c949f2d748931588376468416802c5e5e22d0952"
+    }
+  ],
+  "fields": [
+    {
+      "name": "a title read from either side",
+      "local": "---\ntitle: \"Add search: phase 2\"\nstatus: ready\n---\n\nBody\n",
+      "remote": "Add search: phase 2\nOther body\n",
+      "local_fields_hash": "42c5747a64832f060f45fc2b35dcc1ecebc59f89ee1e6e121acff41620e5faef",
+      "remote_fields_hash": "42c5747a64832f060f45fc2b35dcc1ecebc59f89ee1e6e121acff41620e5faef"
+    }
+  ]
+}

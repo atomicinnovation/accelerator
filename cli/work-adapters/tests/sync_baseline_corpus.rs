@@ -49,8 +49,7 @@ fn expected(dir: &Path) -> Result<Value, TestError> {
 }
 
 #[test]
-fn every_case_matches_its_bash_generated_expectation() -> Result<(), TestError>
-{
+fn every_case_matches_its_expectation() -> Result<(), TestError> {
     let dirs = case_dirs()?;
     assert_eq!(
         dirs.len(),

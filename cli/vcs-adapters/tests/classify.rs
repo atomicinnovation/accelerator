@@ -1,7 +1,6 @@
 //! `vcs::classify::classify` against the full fixture matrix — every shape
 //! `classify_checkout` had to tell apart, replayed through the library-backed
 //! `InProcessProbe`.
-#![cfg(feature = "bash-parity")]
 
 use std::path::Path;
 use std::path::PathBuf;

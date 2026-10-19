@@ -41,3 +41,17 @@ fn a_failing_show_is_retryable() -> Result<(), Box<dyn std::error::Error>> {
     contract::a_failing_read_is_retryable(&subject)?;
     Ok(())
 }
+
+#[test]
+fn an_update_without_a_title_keeps_the_title_against_the_recording_tracker() {
+    contract::update_without_a_title_keeps_the_title_property(
+        &RecordingTracker::holding(Vec::new()),
+    );
+}
+
+#[test]
+fn a_retitle_keeps_the_description_against_the_recording_tracker() {
+    contract::retitle_keeps_the_description_property(
+        &RecordingTracker::holding(Vec::new()),
+    );
+}

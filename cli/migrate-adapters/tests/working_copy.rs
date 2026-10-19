@@ -1,6 +1,5 @@
 //! `VcsWorkingCopy` against a real repository: the run base and the changes
 //! the migrate pre-flight's unowned-changes gate actually sees.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 

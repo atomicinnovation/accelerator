@@ -2,6 +2,7 @@
 //! key changes and interrupted retirements before the engine plans.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+use corpus_adapters::CommonMarkBody;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -35,6 +36,7 @@ use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::promotion::IntendedBaseline;
+use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
 use work::promotion::PromotionRecord;
@@ -162,14 +164,12 @@ impl Repo {
         if external.is_some() {
             self.baseline_set(
                 id,
-                Entry {
-                    remote_updated_at: RemoteTimestamp::Reported(
-                        STAMP.to_owned(),
-                    ),
-                    remote_hash: digest::remote_body(BODY),
-                    local_hash: digest::local(&content).unwrap(),
-                    local_synced_at: 0,
-                },
+                Entry::persisted_legacy(
+                    RemoteTimestamp::Reported(STAMP.to_owned()),
+                    digest::remote_body(BODY),
+                    digest::local(&content).unwrap(),
+                    0,
+                ),
             );
         }
     }
@@ -582,10 +582,15 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         ownership: options.ownership,
         state_dir: &state,
         probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker,
+            parser: &CommonMarkBody,
+        },
     };
     let author = FileAuthor::default();
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &plain,
         clock: &FixedClock,
@@ -795,12 +800,12 @@ fn a_show_returning_a_different_key_after_a_bulk_read_is_a_move() {
     repo.item("0230-add-search.md", "0230", Some("PP-760"));
     repo.baseline_set(
         "0230",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: digest::remote_body(BODY),
-            local_hash: String::new(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            digest::remote_body(BODY),
+            String::new(),
+            0,
+        ),
     );
     let tracker = RecordingTracker::holding(vec![held("PP-760")])
         .showing_under(&key("PP-760"), &key("ENG-42"));
@@ -816,12 +821,12 @@ fn a_show_returning_the_requested_key_in_another_case_is_not_a_move() {
     repo.item("0230-add-search.md", "0230", Some("PP-760"));
     repo.baseline_set(
         "0230",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: digest::remote_body(BODY),
-            local_hash: String::new(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            digest::remote_body(BODY),
+            String::new(),
+            0,
+        ),
     );
     let tracker = RecordingTracker::holding(vec![held("PP-760")])
         .showing_under(&key("PP-760"), &key("pp-760"));
@@ -1400,15 +1405,13 @@ fn the_engine_gets_the_pull_budget_the_identity_pass_left() {
     repo.item("0001-pulled.md", "0001", Some("ENG-1"));
     repo.baseline_set(
         "0001",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: "stale".to_owned(),
-            local_hash: digest::local(
-                &repo.read("meta/work/0001-pulled.md").unwrap(),
-            )
-            .unwrap(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            "stale".to_owned(),
+            digest::local(&repo.read("meta/work/0001-pulled.md").unwrap())
+                .unwrap(),
+            0,
+        ),
     );
     let tracker =
         RecordingTracker::holding(vec![held("PP-760"), held("ENG-1")])
@@ -1453,15 +1456,13 @@ fn an_engine_refusal_after_applied_key_changes_notes_them() {
     repo.item("0001-pulled.md", "0001", Some("ENG-1"));
     repo.baseline_set(
         "0001",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: "stale".to_owned(),
-            local_hash: digest::local(
-                &repo.read("meta/work/0001-pulled.md").unwrap(),
-            )
-            .unwrap(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            "stale".to_owned(),
+            digest::local(&repo.read("meta/work/0001-pulled.md").unwrap())
+                .unwrap(),
+            0,
+        ),
     );
     let tracker =
         RecordingTracker::holding(vec![held("PP-760"), held("ENG-1")])
@@ -1576,15 +1577,13 @@ fn the_engine_sees_dirtiness_reprobed_after_the_pass() {
     repo.item("0001-pulled.md", "0001", Some("ENG-1"));
     repo.baseline_set(
         "0001",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: "stale".to_owned(),
-            local_hash: digest::local(
-                &repo.read("meta/work/0001-pulled.md").unwrap(),
-            )
-            .unwrap(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            "stale".to_owned(),
+            digest::local(&repo.read("meta/work/0001-pulled.md").unwrap())
+                .unwrap(),
+            0,
+        ),
     );
 
     let outcome = sync(
@@ -1621,15 +1620,13 @@ fn a_key_change_and_a_planned_pull_of_a_referencing_item_in_one_run_keep_the_rew
     );
     repo.baseline_set(
         "0001",
-        Entry {
-            remote_updated_at: RemoteTimestamp::Reported("stale".to_owned()),
-            remote_hash: "stale".to_owned(),
-            local_hash: digest::local(
-                &repo.read("meta/work/0001-child.md").unwrap(),
-            )
-            .unwrap(),
-            local_synced_at: 0,
-        },
+        Entry::persisted_legacy(
+            RemoteTimestamp::Reported("stale".to_owned()),
+            "stale".to_owned(),
+            digest::local(&repo.read("meta/work/0001-child.md").unwrap())
+                .unwrap(),
+            0,
+        ),
     );
     let tracker =
         RecordingTracker::holding(vec![held("PP-760"), held("ENG-1")])
@@ -1691,16 +1688,20 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
     repo.write("meta/work/ENG-42-title.md", promoted);
     let settled_remote = ReadBack {
         hash: digest::remote_body(BODY),
+        fingerprints: None,
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::Retiring {
             key: tracker_key("ENG-42"),
-            baseline: IntendedBaseline {
+            baseline: Box::new(IntendedBaseline {
                 remote_hash: RemoteHash::Known(settled_remote.clone()),
-                local_hash: digest::local(promoted).unwrap(),
-            },
+                local: LocalDigests {
+                    legacy: digest::local(promoted).unwrap(),
+                    fingerprints: None,
+                },
+            }),
             recovery_dir: PathBuf::from(
                 "retirement-recovery/draft-k7mq3x--ENG-42",
             ),
@@ -2139,6 +2140,7 @@ fn a_promotion_record_left_by_failed_retirements_is_finished_by_the_next_sync()
     repo.draft(PROMOTED_DRAFT);
     let remote = ReadBack {
         hash: digest::remote_body(BODY),
+        fingerprints: None,
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(

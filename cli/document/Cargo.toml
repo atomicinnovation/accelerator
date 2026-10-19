@@ -19,3 +19,4 @@ path = "tests/fixtures/document_fixture.rs"
 [dependencies]
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
+pulldown-cmark = { workspace = true }

@@ -11,8 +11,15 @@ use std::rc::Rc;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use corpus_adapters::CommonMarkBody;
 use tempfile::TempDir;
+use tracker::BodyDialect;
+use tracker::PlainDialect;
+use tracker::RemoteTimestamp;
 use work_adapters::sync::baseline::Baseline;
+use work_adapters::sync::baseline::Entry;
+use work_adapters::sync::baseline::SyncStamps;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::digest;
 use work_adapters::sync::realign::realign_baselines;
 use work_adapters::sync::realign::RealignError;
@@ -83,11 +90,53 @@ fn seed_baseline(
 fn local_hash(baseline: &Path, id: &str) -> Result<Option<String>, TestError> {
     let content = fs::read_to_string(baseline)?;
     let (baseline, _) = Baseline::read(Some(&content));
-    Ok(baseline.get(id).map(|entry| entry.local_hash.clone()))
+    Ok(baseline.get(id).map(|entry| {
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default()
+    }))
 }
 
 fn disk_writer_at(_dir: &Path) -> Box<dyn AtomicWrite> {
     Box::new(DiskWriter)
+}
+
+/// Plain body rules for each tracker this binary knows, whose fixtures hold
+/// no tracker-specific bodies.
+fn plain_rules(integration: &str) -> Option<&'static dyn BodyDialect> {
+    matches!(integration, "jira" | "linear").then_some(&PlainDialect)
+}
+
+fn digester() -> BaselineDigester<'static> {
+    BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+}
+
+fn seed_split_baseline(
+    integrations: &Path,
+    original: &str,
+) -> Result<PathBuf, TestError> {
+    let dir = integrations.join("linear");
+    fs::create_dir_all(&dir)?;
+    let path = dir.join("last-sync.json");
+    let mut baseline = Baseline::read(None).0;
+    baseline.set(
+        "0001",
+        Entry::recorded(
+            SyncStamps {
+                remote_updated_at: RemoteTimestamp::NotRead,
+                local_synced_at: 1,
+            },
+            digester().digests(original, Some("Title\nBody\n"))?,
+        ),
+    );
+    fs::write(&path, baseline.render())?;
+    Ok(path)
+}
+
+fn entry(baseline: &Path) -> Result<Option<Entry>, TestError> {
+    let (baseline, _) = Baseline::read(Some(&fs::read_to_string(baseline)?));
+    Ok(baseline.get("0001").cloned())
 }
 
 struct Corpus {
@@ -129,6 +178,8 @@ fn a_synced_entry_advances_to_the_re_rendered_digest() -> Result<(), TestError>
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     )?;
 
     assert_eq!(realigned, 1);
@@ -136,6 +187,59 @@ fn a_synced_entry_advances_to_the_re_rendered_digest() -> Result<(), TestError>
         local_hash(&baseline, "0001")?,
         Some(digest::local(&rendered)?)
     );
+    Ok(())
+}
+
+#[test]
+fn a_synced_split_entry_advances_both_recipes_local_digests(
+) -> Result<(), TestError> {
+    let original = work_item("0001", "Synced");
+    let corpus = re_rendered_corpus(&original)?;
+    let baseline = seed_split_baseline(&corpus.integrations, &original)?;
+    let rendered = quoted_work_item("0001", "Synced");
+    fs::write(&corpus.item, &rendered)?;
+
+    let realigned = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), original)],
+        &DiskReader,
+        &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
+    )?;
+
+    assert_eq!(realigned, 1);
+    let expected = digester().digests(&rendered, Some("Title\nBody\n"))?;
+    let Some(Entry::Split { legacy, split, .. }) = entry(&baseline)? else {
+        return Err("the entry stays recipe 1".into());
+    };
+    assert_eq!(legacy, expected.legacy);
+    assert_eq!(split, expected.split);
+    Ok(())
+}
+
+#[test]
+fn a_diverged_split_entry_keeps_its_baseline() -> Result<(), TestError> {
+    let original = work_item("0001", "Modified");
+    let corpus = re_rendered_corpus(&original)?;
+    let baseline = seed_split_baseline(
+        &corpus.integrations,
+        &work_item("0001", "Edited since the last sync"),
+    )?;
+    let seeded = fs::read_to_string(&baseline)?;
+    fs::write(&corpus.item, quoted_work_item("0001", "Modified"))?;
+
+    let realigned = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), original)],
+        &DiskReader,
+        &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
+    )?;
+
+    assert_eq!(realigned, 0);
+    assert_eq!(fs::read_to_string(&baseline)?, seeded);
     Ok(())
 }
 
@@ -153,6 +257,8 @@ fn a_diverged_entry_keeps_its_baseline() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     )?;
 
     assert_eq!(realigned, 0);
@@ -176,6 +282,8 @@ fn an_unchanged_digest_is_not_counted() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     )?;
 
     assert_eq!(realigned, 0);
@@ -195,6 +303,8 @@ fn an_integration_without_a_baseline_realigns_nothing() -> Result<(), TestError>
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     )?;
 
     assert_eq!(realigned, 0);
@@ -222,6 +332,8 @@ fn each_baseline_is_written_from_its_own_directory() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &DiskReader,
         &writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     )?;
 
     assert_eq!(realigned, 2);
@@ -248,8 +360,14 @@ fn an_unlistable_integrations_root_is_a_listing_error() -> Result<(), TestError>
         .ok_or("listing a file must fail")?
         .to_string();
 
-    let result =
-        realign_baselines(&not_a_directory, &[], &DiskReader, &disk_writer_at);
+    let result = realign_baselines(
+        &not_a_directory,
+        &[],
+        &DiskReader,
+        &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
+    );
 
     let Err(error @ RealignError::Listing(_)) = result else {
         return Err(format!("expected a listing error, got {result:?}").into());
@@ -270,6 +388,8 @@ fn an_unreadable_baseline_is_a_baseline_error() -> Result<(), TestError> {
         &[(corpus.item.clone(), original)],
         &RefusingReader,
         &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
     );
 
     let Err(error @ RealignError::Baseline(_)) = result else {

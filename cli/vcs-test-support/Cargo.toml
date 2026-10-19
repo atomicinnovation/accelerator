@@ -15,9 +15,7 @@ workspace = true
 # Deliberately no edge to vcs-adapters. The fixtures, the hermetic environment
 # and the stubs need only tempfile and the real git/jj binaries, and taking that
 # edge would create a dev-dependency cycle (vcs-adapters tests ->
-# vcs-test-support -> vcs-adapters) that also forces vcs-adapters to be compiled
-# with bash-parity on via a *normal* edge — weakening the whole reason this is a
-# separate crate rather than a feature.
+# vcs-test-support -> vcs-adapters).
 [dependencies]
 tempfile = { workspace = true }
 regex = { workspace = true }

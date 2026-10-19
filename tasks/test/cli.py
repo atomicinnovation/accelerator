@@ -23,9 +23,9 @@ def run(context: Context) -> None:
     coverage in one go. It is report-only — no `--fail-under`/threshold, by
     design. ACCELERATOR_COVERAGE=off drops to plain nextest for a faster loop.
 
-    `--all-features` turns on `bash-parity`, which gates the suites that shell
-    out to bash, awk, jj, and git. They are off by default so `cargo test` stays
-    runnable on a machine without the toolchain; here they must run, and an
+    `--all-features` turns on the `test-loopback` and `test-support` features
+    the black-box suites need. The suites that build real repositories run
+    unconditionally and need the mise-pinned `jj` and a `git` on `PATH`; an
     absent tool hard-fails rather than skipping.
     """
     command = (

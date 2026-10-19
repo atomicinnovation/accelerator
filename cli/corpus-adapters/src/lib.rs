@@ -6,6 +6,7 @@
 //! crate owns only the infra boundary and the orchestration.
 
 pub mod assemble;
+pub mod body;
 pub mod doc_type;
 pub mod document;
 pub mod fs;
@@ -20,6 +21,7 @@ pub mod store;
 pub mod work_item_pattern;
 
 pub use crate::assemble::{assemble, AssembledDocument};
+pub use crate::body::CommonMarkBody;
 pub use crate::document::{
     parse, FrontmatterState, ParsedDocument, YamlFrontmatter,
 };

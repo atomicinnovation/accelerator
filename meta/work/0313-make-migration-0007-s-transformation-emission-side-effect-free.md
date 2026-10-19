@@ -14,6 +14,7 @@ tags: ["migration-engine", "m0007", "interactive-contract"]
 last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-899"
 ---
 
 # 0313: Make Migration 0007's Transformation Emission Side-Effect-Free

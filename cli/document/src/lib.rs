@@ -1,11 +1,13 @@
 //! The markdown-with-YAML-frontmatter document protocol.
 //!
 //! One implementation of fence splitting, frontmatter parsing, and round-trip
-//! rendering, shared by every adapter that reads or writes a meta document.
-//! serde-saphyr is confined to this crate.
+//! rendering, shared by every adapter that reads or writes a meta document, and
+//! the Markdown reader for its body. serde-saphyr and pulldown-cmark are
+//! confined to this crate.
 
 pub mod error;
 pub mod fence;
+pub mod markdown;
 pub mod parse;
 pub mod render;
 mod tags;

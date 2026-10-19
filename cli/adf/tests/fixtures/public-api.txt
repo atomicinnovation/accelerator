@@ -1,0 +1,49 @@
+pub mod adf
+pub enum adf::AdfError
+pub adf::AdfError::BadInput
+pub adf::AdfError::DisallowedNesting
+pub adf::AdfError::DisallowedNesting::child: alloc::string::String
+pub adf::AdfError::DisallowedNesting::container: alloc::string::String
+pub adf::AdfError::HeadingWithoutLevel
+pub adf::AdfError::ListWithoutContent
+pub adf::AdfError::ListWithoutContent::node: alloc::string::String
+pub adf::AdfError::RootNotDoc
+pub adf::AdfError::RootNotDoc::found: alloc::string::String
+pub adf::AdfError::Unrepresentable(adf::Unrepresentable)
+impl core::clone::Clone for adf::AdfError
+pub fn adf::AdfError::clone(&self) -> adf::AdfError
+impl core::cmp::Eq for adf::AdfError
+impl core::cmp::PartialEq for adf::AdfError
+pub fn adf::AdfError::eq(&self, other: &adf::AdfError) -> bool
+impl core::error::Error for adf::AdfError
+impl core::fmt::Debug for adf::AdfError
+pub fn adf::AdfError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for adf::AdfError
+pub fn adf::AdfError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for adf::AdfError
+pub enum adf::Unrepresentable
+pub adf::Unrepresentable::BacktickInInlineCode
+pub adf::Unrepresentable::FenceLineInCodeBlock
+pub adf::Unrepresentable::HardBreakInHeading
+pub adf::Unrepresentable::HardBreakInTableCell
+pub adf::Unrepresentable::HardBreakInTaskItem
+pub adf::Unrepresentable::HeadingBeyondLevelSix
+pub adf::Unrepresentable::LinkToCodeRunningAddress
+pub adf::Unrepresentable::Node
+pub adf::Unrepresentable::Node::node: alloc::string::String
+pub adf::Unrepresentable::PipeInTableCellCode
+pub adf::Unrepresentable::PipeInTableCellLink
+pub adf::Unrepresentable::TableCellOfSeveralBlocks
+impl core::clone::Clone for adf::Unrepresentable
+pub fn adf::Unrepresentable::clone(&self) -> adf::Unrepresentable
+impl core::cmp::Eq for adf::Unrepresentable
+impl core::cmp::PartialEq for adf::Unrepresentable
+pub fn adf::Unrepresentable::eq(&self, other: &adf::Unrepresentable) -> bool
+impl core::fmt::Debug for adf::Unrepresentable
+pub fn adf::Unrepresentable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for adf::Unrepresentable
+pub fn adf::Unrepresentable::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for adf::Unrepresentable
+pub fn adf::document_to_markdown(document: &serde_json::value::Value) -> core::result::Result<alloc::string::String, adf::AdfError>
+pub fn adf::document_to_markdown_strict(document: &serde_json::value::Value) -> core::result::Result<alloc::string::String, adf::AdfError>
+pub fn adf::markdown_to_document(markdown: &str, seed: core::option::Option<&str>) -> core::result::Result<serde_json::value::Value, adf::AdfError>

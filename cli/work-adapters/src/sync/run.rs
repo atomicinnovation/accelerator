@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -14,11 +15,12 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use work::draft_id::DraftId;
-use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
+use work::sync::FieldDelivery;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -33,11 +35,15 @@ use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
+use crate::sync::apply::RecordRequest;
+use crate::sync::apply::RetitleRequest;
 use crate::sync::baseline::Degradation;
+use crate::sync::baseline::Entry;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
 use crate::sync::create::LocalAuthor;
-use crate::sync::digest::LazyItemDigests;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::GatheredRemote;
@@ -45,8 +51,14 @@ use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::identity_settlement::IdentityRow;
+use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::ordering;
 use crate::sync::scope;
+use crate::sync::send_refusal::legacy_unrenderable;
+use crate::sync::send_refusal::send_refusal;
+use crate::sync::send_refusal::EntryShape;
+use crate::sync::send_refusal::SendRefusal;
+use crate::sync::synced_fields::remote_fields;
 
 #[derive(Debug)]
 pub enum RunError {
@@ -102,6 +114,7 @@ pub enum RunMode {
 
 pub struct SyncPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
     pub status: &'a dyn WorkingCopyStatus,
     pub writer: &'a dyn AtomicWrite,
     pub clock: &'a dyn RunClock,
@@ -186,6 +199,9 @@ impl<'a> SyncRequest<'a> {
 pub enum ItemOutcome {
     Applied,
     NotApplied,
+    /// Nothing was read or written: the item's baseline entry was recorded
+    /// under a digest recipe newer than this binary knows.
+    UnsupportedRecipe,
     Failed(ApplyError),
 }
 
@@ -354,8 +370,17 @@ fn finalise_baseline(
         .is_ok()
 }
 
+/// Whether a run settled `item`, so its watermark may move. A change the run
+/// leaves pending, such as a local edit under `--pull-only`, keeps the old
+/// watermark, or the next run's mtime pre-filter would hide it.
 const fn definitively_reconciled(item: &ReportedItem) -> bool {
-    !matches!(item.outcome, ItemOutcome::Failed(_))
+    let deferred = matches!(item.planned.action, Action::Noop)
+        && matches!(
+            item.planned.state,
+            SyncState::LocallyModified | SyncState::RemotelyModified
+        );
+    !deferred
+        && !matches!(item.outcome, ItemOutcome::Failed(_))
         && !matches!(
             item.planned.action,
             Action::Prompt | Action::SkipConflict | Action::SkipDirty
@@ -366,23 +391,39 @@ const fn definitively_reconciled(item: &ReportedItem) -> bool {
         )
 }
 
-fn local_title_and_body(content: &str) -> (String, String) {
-    let (_, body) = crate::sync::digest::split_frontmatter_and_body(content)
-        .unwrap_or_default();
-    let title = create_request_fields::read(content)
-        .map(|fields| fields.title)
-        .unwrap_or_default();
-    (title, body)
+/// A local work item whose frontmatter parses, so its title and body can be
+/// sent and its body replaced by a pull.
+struct LocalWorkItem {
+    frontmatter: String,
+    title: String,
+    body: String,
 }
 
-fn reconstruct_pulled_content(
-    local_content: &str,
-    remote_body: &str,
-) -> String {
-    let (frontmatter, _) =
-        crate::sync::digest::split_frontmatter_and_body(local_content)
-            .unwrap_or_default();
-    format!("---\n{frontmatter}\n---\n\n{remote_body}")
+impl LocalWorkItem {
+    fn parse(content: &str) -> Result<Self, String> {
+        let (frontmatter, body) =
+            crate::sync::digest::split_frontmatter_and_body(content)
+                .map_err(|error| error.to_string())?;
+        let title = create_request_fields::read(content)
+            .map_err(|error| error.to_string())?
+            .title;
+        Ok(Self {
+            frontmatter,
+            title,
+            body,
+        })
+    }
+
+    fn with_body(&self, body: &str) -> String {
+        format!("---\n{}\n---\n\n{body}", self.frontmatter)
+    }
+}
+
+fn unparseable_local(item_id: &str, detail: String) -> ApplyError {
+    ApplyError::LocalUnparseable {
+        item_id: item_id.to_owned(),
+        detail,
+    }
 }
 
 /// The six fields a user needs to choose a side of one conflict, gathered
@@ -392,14 +433,100 @@ fn reconstruct_pulled_content(
 pub struct ConflictDossier {
     pub id: String,
     pub title: String,
+    /// The remote's title, when it was read.
+    pub remote_title: Option<String>,
     pub local_modified: Option<u64>,
     pub remote_updated: RemoteTimestamp,
     pub sections: Vec<SectionDiff>,
-    pub local_unreadable: bool,
+    pub unrenderable: Option<UnrenderableReason>,
 }
 
-/// A dossier rendered to text, tagged by whether the local file could be
-/// read and its sections shown.
+/// Why a dossier's sections cannot be shown. A remote-side reason carries
+/// the content the remote holds that has no Markdown form.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnrenderableReason {
+    LocalUnreadable,
+    /// Reported under the `local-unreadable` keyword, which the sync skill
+    /// documents as covering a file whose frontmatter does not parse.
+    LocalUnparseable(String),
+    RemoteUnrenderable(Unrenderable),
+    LocalPullResidue(Unrenderable),
+    /// The remote has no Markdown form and the item's legacy entry cannot
+    /// show which local change is unsent, so no local overwrite is safe.
+    LegacyUnrenderable(Unrenderable),
+}
+
+impl UnrenderableReason {
+    const fn keyword(&self) -> &'static str {
+        match self {
+            Self::LocalUnreadable | Self::LocalUnparseable(_) => {
+                "local-unreadable"
+            }
+            Self::RemoteUnrenderable(_) => "remote-unrenderable",
+            Self::LocalPullResidue(_) => "local-pull-residue",
+            Self::LegacyUnrenderable(_) => "legacy-unrenderable",
+        }
+    }
+
+    fn cause(&self) -> Option<&str> {
+        match self {
+            Self::LocalUnreadable => None,
+            Self::LocalUnparseable(detail) => Some(detail),
+            Self::RemoteUnrenderable(cause)
+            | Self::LocalPullResidue(cause)
+            | Self::LegacyUnrenderable(cause) => Some(&cause.detail),
+        }
+    }
+
+    fn remedy(&self, id: &str) -> String {
+        match self {
+            Self::LocalUnparseable(_) => format!(
+                "This conflict could not be rendered: the local file's \
+                 frontmatter does not parse. Item {id} was left unresolved. \
+                 Fix the frontmatter and re-run the sync, or edit the work \
+                 item by hand."
+            ),
+            Self::LocalUnreadable => format!(
+                "This conflict could not be rendered: the local file could \
+                 not be read. Item {id} was left unresolved. Fix the file and \
+                 re-run the sync, or edit the work item by hand."
+            ),
+            Self::RemoteUnrenderable(_) => format!(
+                "This conflict could not be rendered: the remote description \
+                 holds content with no Markdown form. Item {id} was left \
+                 unresolved. Either edit the description in Jira until it \
+                 renders and re-run the sync, or resolve with --resolve \
+                 {id}=local, which replaces the remote description with the \
+                 local body."
+            ),
+            Self::LocalPullResidue(_) => format!(
+                "This conflict could not be rendered: the local file still \
+                 holds the raw tracker document an earlier pull wrote, and \
+                 the remote description holds content with no Markdown form. \
+                 Item {id} was left unresolved. If the file holds the \
+                 remote's current document and only its frontmatter changed, \
+                 revert that edit, sync once so the item's baseline is \
+                 rewritten, then reapply it. Otherwise edit the description \
+                 in Jira until it renders, then resolve with --resolve \
+                 {id}=remote."
+            ),
+            Self::LegacyUnrenderable(_) => format!(
+                "This conflict could not be rendered: the remote description \
+                 holds content with no Markdown form, and the item's baseline \
+                 predates the current digest recipe, so it cannot show which \
+                 local change is unsent. Item {id} was left unresolved, and \
+                 --resolve {id}=local is refused. If only the frontmatter \
+                 changed and the remote description has not, revert that \
+                 edit, sync once so the item's baseline is rewritten, then \
+                 reapply it. Otherwise edit the description in Jira until it \
+                 renders, then resolve with --resolve {id}=remote."
+            ),
+        }
+    }
+}
+
+/// A dossier rendered to text, tagged by whether its sections could be
+/// shown.
 pub enum DossierRender {
     Renderable(String),
     Unrenderable(String),
@@ -423,43 +550,62 @@ fn render_local_modified(local_modified: Option<u64>) -> String {
     local_modified.map_or_else(|| "(unavailable)".to_owned(), format_epoch_utc)
 }
 
-fn dossier_header(dossier: &ConflictDossier, status: &str) -> String {
+fn render_titles(dossier: &ConflictDossier) -> String {
+    match &dossier.remote_title {
+        Some(remote) if *remote != dossier.title => {
+            format!("{} → {remote}", dossier.title)
+        }
+        _ => dossier.title.clone(),
+    }
+}
+
+fn dossier_header(dossier: &ConflictDossier, status_lines: &str) -> String {
     format!(
-        "# Conflict: {}\nstatus: {}\ntitle: {}\nlocal modified: {}\nremote \
+        "# Conflict: {}\n{status_lines}title: {}\nlocal modified: {}\nremote \
          updated: {}\n\n",
         dossier.id,
-        status,
-        dossier.title,
+        render_titles(dossier),
         render_local_modified(dossier.local_modified),
         render_stamp(&dossier.remote_updated),
     )
 }
 
 fn renderable_header(dossier: &ConflictDossier) -> String {
-    dossier_header(dossier, "renderable")
+    dossier_header(dossier, "status: renderable\n")
 }
 
-fn unrenderable_header(dossier: &ConflictDossier) -> String {
+fn unrenderable_header(
+    dossier: &ConflictDossier,
+    reason: &UnrenderableReason,
+) -> String {
+    let cause_line = reason
+        .cause()
+        .map(|cause| format!("cause: {cause}\n"))
+        .unwrap_or_default();
+    let status_lines = format!(
+        "status: unrenderable\nreason: {}\n{cause_line}",
+        reason.keyword()
+    );
     format!(
-        "{}This conflict could not be rendered: the local file could not be \
-         read. Item {} was left unresolved. Fix the file and re-run the sync, \
-         or edit the work item by hand.\n\n",
-        dossier_header(dossier, "unrenderable"),
-        dossier.id,
+        "{}{}\n\n",
+        dossier_header(dossier, &status_lines),
+        reason.remedy(&dossier.id),
     )
 }
 
 /// Renders a dossier to text.
 ///
-/// An infallible header, then each section through the injected `render`. An
-/// unreadable local file is the only downgrade to
-/// [`DossierRender::Unrenderable`].
+/// An infallible header, then each section through the injected `render`.
+/// A dossier with an [`UnrenderableReason`] downgrades to
+/// [`DossierRender::Unrenderable`] without rendering any section.
 pub fn render_dossier(
     dossier: &ConflictDossier,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> DossierRender {
-    if dossier.local_unreadable {
-        return DossierRender::Unrenderable(unrenderable_header(dossier));
+    if let Some(reason) = &dossier.unrenderable {
+        return DossierRender::Unrenderable(unrenderable_header(
+            dossier, reason,
+        ));
     }
     let mut sections = String::new();
     for section in &dossier.sections {
@@ -478,35 +624,160 @@ fn file_mtime_secs(path: &std::path::Path) -> Option<u64> {
         .map(|duration| duration.as_secs())
 }
 
-/// An id-keyed view over the run's local items, built once and shared by the
-/// dossier pass and the apply loop.
-struct ItemIndex<'a> {
-    by_id: BTreeMap<&'a str, &'a LocalItem>,
+/// Each reconciled item's baseline entry shape, read once per run.
+struct EntryShapes(BTreeMap<String, EntryShape>);
+
+impl EntryShapes {
+    fn read(
+        items: &[LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+    ) -> Self {
+        Self(
+            items
+                .iter()
+                .map(|item| {
+                    (item.id.clone(), EntryShape::of(baseline.get(&item.id)))
+                })
+                .collect(),
+        )
+    }
+
+    fn of(&self, id: &str) -> EntryShape {
+        self.0.get(id).copied().unwrap_or(EntryShape::Legacy)
+    }
 }
 
-impl<'a> ItemIndex<'a> {
-    fn build(items: &'a [LocalItem]) -> Self {
+/// Whether `item` is a conflict that keeps its local hash: one with no safe
+/// local overwrite, whose remedy is to revert a metadata edit so the entry
+/// migrates, which needs the hash it was recorded with.
+fn keeps_local_hash(item: &LocalItem, knowledge: &RunKnowledge<'_>) -> bool {
+    let Some(projected) = knowledge.projection(&item.id) else {
+        return false;
+    };
+    knowledge.local_content(item).is_ok_and(|content| {
+        LocalWorkItem::parse(content).is_ok_and(|local| {
+            legacy_unrenderable(
+                knowledge.comparison,
+                knowledge.shape(&item.id),
+                &local.body,
+                projected,
+            )
+        })
+    })
+}
+
+/// What this run knows about each reconciled item: its local file as the
+/// run read it, the remote it was compared with, and its baseline entry's
+/// shape. Each item and its snapshot are paired once, here.
+struct RunKnowledge<'a> {
+    facts: GatheredFacts,
+    comparison: &'a BodyComparison<'a>,
+    items: &'a [LocalItem],
+    snapshots: Vec<ItemSnapshot<'a>>,
+    shapes: EntryShapes,
+    by_id: BTreeMap<&'a str, usize>,
+}
+
+impl<'a> RunKnowledge<'a> {
+    fn gather(
+        facts: GatheredFacts,
+        items: &'a [LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+        digester: &'a BaselineDigester<'a>,
+    ) -> Self {
+        let snapshots = items
+            .iter()
+            .map(|item| {
+                let remote_content = facts
+                    .per_id
+                    .get(&item.id)
+                    .and_then(|(remote, _)| remote.body.clone());
+                ItemSnapshot::new(&item.path, remote_content, digester)
+            })
+            .collect();
+        let by_id = items
+            .iter()
+            .enumerate()
+            .map(|(position, item)| (item.id.as_str(), position))
+            .collect();
         Self {
-            by_id: items.iter().map(|item| (item.id.as_str(), item)).collect(),
+            facts,
+            comparison: digester.comparison(),
+            items,
+            snapshots,
+            shapes: EntryShapes::read(items, baseline),
+            by_id,
         }
     }
 
-    fn get(&self, id: &str) -> Option<&'a LocalItem> {
-        self.by_id.get(id).copied()
+    fn plan(
+        &self,
+        baseline: &crate::sync::baseline::Baseline,
+        request: &SyncRequest<'_>,
+    ) -> Result<SyncPlan, RunError> {
+        let plan_inputs =
+            self.facts
+                .plan_inputs(self.items, &self.snapshots, baseline);
+        compute_plan(&plan_inputs, request.direction, request.resolutions)
+            .map_err(RunError::Internal)
+    }
+
+    fn item(&self, id: &str) -> Option<&'a LocalItem> {
+        self.by_id
+            .get(id)
+            .and_then(|&position| self.items.get(position))
+    }
+
+    fn snapshot(&self, id: &str) -> Option<&ItemSnapshot<'a>> {
+        self.by_id
+            .get(id)
+            .and_then(|&position| self.snapshots.get(position))
+    }
+
+    fn shape(&self, id: &str) -> EntryShape {
+        self.shapes.of(id)
+    }
+
+    fn remote(&self, id: &str) -> Option<&GatheredRemote> {
+        self.facts.per_id.get(id).map(|(remote, _)| remote)
+    }
+
+    fn projection(&self, id: &str) -> Option<&str> {
+        self.remote(id).and_then(|remote| remote.body.as_deref())
+    }
+
+    /// `item`'s file as the run read it, before classifying it.
+    fn local_content(&self, item: &LocalItem) -> Result<&str, ApplyError> {
+        let snapshot =
+            self.snapshot(&item.id).ok_or_else(|| ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "read-local",
+                detail: "the run took no snapshot of the file".to_owned(),
+            })?;
+        snapshot.content().map_err(|error| ApplyError::Io {
+            item_id: item.id.clone(),
+            operation: "read-local",
+            detail: error.to_string(),
+        })
+    }
+
+    fn remote_updated(&self, id: &str) -> RemoteTimestamp {
+        self.remote(id).map_or(RemoteTimestamp::NotRead, |remote| {
+            remote.remote_updated.clone()
+        })
     }
 }
 
 fn build_dossiers(
     plan: &SyncPlan,
-    items: &ItemIndex<'_>,
-    facts: &GatheredFacts,
+    knowledge: &RunKnowledge<'_>,
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
         .filter(|planned| planned.action == Action::Prompt)
         .filter_map(|planned| {
-            let item = items.get(&planned.id)?;
-            Some(dossier_for(&planned.id, item, facts))
+            let item = knowledge.item(&planned.id)?;
+            Some(dossier_for(&planned.id, item, knowledge))
         })
         .collect()
 }
@@ -514,91 +785,252 @@ fn build_dossiers(
 fn dossier_for(
     id: &str,
     item: &LocalItem,
-    facts: &GatheredFacts,
+    knowledge: &RunKnowledge<'_>,
 ) -> ConflictDossier {
-    let remote = facts.per_id.get(id).map(|(remote, _)| remote);
-    let remote_updated =
-        remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
-
-    match std::fs::read_to_string(&item.path) {
-        Err(_) => unreadable_dossier(id, remote_updated),
-        Ok(local_content) => {
-            readable_dossier(id, item, remote, remote_updated, &local_content)
-        }
+    let Ok(content) = knowledge.local_content(item) else {
+        return unreadable_dossier(
+            id,
+            knowledge.remote_updated(id),
+            UnrenderableReason::LocalUnreadable,
+        );
+    };
+    match LocalWorkItem::parse(content) {
+        Ok(local) => readable_dossier(id, item, knowledge, content, &local),
+        Err(detail) => unreadable_dossier(
+            id,
+            knowledge.remote_updated(id),
+            UnrenderableReason::LocalUnparseable(detail),
+        ),
     }
 }
 
 fn unreadable_dossier(
     id: &str,
     remote_updated: RemoteTimestamp,
+    reason: UnrenderableReason,
 ) -> ConflictDossier {
     ConflictDossier {
         id: id.to_owned(),
         title: String::new(),
+        remote_title: None,
         local_modified: None,
         remote_updated,
         sections: Vec::new(),
-        local_unreadable: true,
+        unrenderable: Some(reason),
     }
 }
 
 fn readable_dossier(
     id: &str,
     item: &LocalItem,
-    remote: Option<&GatheredRemote>,
-    remote_updated: RemoteTimestamp,
+    knowledge: &RunKnowledge<'_>,
     local_content: &str,
+    local: &LocalWorkItem,
 ) -> ConflictDossier {
-    let (title, _) = local_title_and_body(local_content);
-    let remote_body = remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let reconstructed = reconstruct_pulled_content(local_content, remote_body);
+    let comparison = knowledge.comparison;
+    let remote_projection = knowledge.projection(id).unwrap_or("");
+    let unrenderable_reason = |cause| {
+        if comparison
+            .pull_residue(&local.body, remote_projection)
+            .is_some()
+        {
+            UnrenderableReason::LocalPullResidue(cause)
+        } else if legacy_unrenderable(
+            comparison,
+            knowledge.shape(id),
+            &local.body,
+            remote_projection,
+        ) {
+            UnrenderableReason::LegacyUnrenderable(cause)
+        } else {
+            UnrenderableReason::RemoteUnrenderable(cause)
+        }
+    };
+    let (sections, unrenderable) =
+        comparison.local_body(remote_projection).map_or_else(
+            |cause| (Vec::new(), Some(unrenderable_reason(cause))),
+            |remote_body| {
+                let reconstructed = local.with_body(&remote_body);
+                (
+                    comparison
+                        .differing_sections(local_content, &reconstructed),
+                    None,
+                )
+            },
+        );
     ConflictDossier {
         id: id.to_owned(),
-        title,
+        title: local.title.clone(),
+        remote_title: knowledge
+            .projection(id)
+            .map(|projection| remote_fields(projection).title),
         local_modified: file_mtime_secs(&item.path),
-        remote_updated,
-        sections: differing_sections(local_content, &reconstructed),
-        local_unreadable: false,
+        remote_updated: knowledge.remote_updated(id),
+        sections,
+        unrenderable,
     }
 }
 
-/// Reports the whole plan for a preview, attaching a local payload-validation
-/// outcome to each `Push` entry.
+/// Reports the whole plan for a preview, attaching to each send either the
+/// refusal the run would meet, as a failure, or a local payload-validation
+/// outcome.
 ///
-/// Every planned action is reported `NotApplied`, so the report never shrinks
-/// below the plan. The `validate_update` call is a local composition check —
-/// it makes no remote call — so a `Rejected` outcome names a locally-detectable
-/// missing field without reproducing the tracker's own field validation.
+/// Every other planned action is reported `NotApplied`, so the report never
+/// shrinks below the plan. The `validate_update` call is a local composition
+/// check — it makes no remote call — so a `Rejected` outcome names a
+/// locally-detectable missing field without reproducing the tracker's own
+/// field validation.
 fn validate_pushes(
     plan: &work::sync::SyncPlan,
-    items: &[LocalItem],
     tracker: &dyn RemoteTracker,
+    knowledge: &RunKnowledge<'_>,
 ) -> Vec<ReportedItem> {
     plan.actions
         .iter()
         .map(|planned| {
-            let validation = (planned.action == Action::Push)
-                .then(|| validate_push(planned, items, tracker))
-                .flatten();
-            ReportedItem {
-                planned: planned.clone(),
-                outcome: ItemOutcome::NotApplied,
-                validation,
+            let checked = if planned.action == Action::Pull {
+                check_pull(planned, knowledge)
+            } else {
+                planned
+                    .action
+                    .sends_to_tracker()
+                    .then(|| check_send(planned, tracker, knowledge))
+                    .flatten()
+            };
+            match checked {
+                Some(Err(refused)) => ReportedItem {
+                    planned: planned.clone(),
+                    outcome: ItemOutcome::Failed(refused),
+                    validation: None,
+                },
+                validated => ReportedItem {
+                    planned: planned.clone(),
+                    outcome: ItemOutcome::NotApplied,
+                    validation: validated.and_then(Result::ok),
+                },
             }
         })
         .collect()
 }
 
-fn validate_push(
+/// Why a pull would fail before writing anything, as the run would report it.
+fn check_pull(
     planned: &PlannedAction,
-    items: &[LocalItem],
+    knowledge: &RunKnowledge<'_>,
+) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
+    let item = knowledge.item(&planned.id)?;
+    pulled_file(item, knowledge).err().map(Err)
+}
+
+/// What a send carries: the local title and body, either withheld.
+struct Payload<'a> {
+    title: Option<&'a str>,
+    body: Option<&'a str>,
+}
+
+impl<'a> Payload<'a> {
+    /// `None` for an action that sends nothing.
+    const fn of(action: Action, title: &'a str, body: &'a str) -> Option<Self> {
+        match action {
+            Action::Push(FieldDelivery::Send) | Action::Overwrite => {
+                Some(Self {
+                    title: Some(title),
+                    body: Some(body),
+                })
+            }
+            Action::Push(FieldDelivery::Withhold) => Some(Self {
+                title: None,
+                body: Some(body),
+            }),
+            Action::Retitle => Some(Self {
+                title: Some(title),
+                body: None,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// A send that passed every refusal, ready to validate or to send, with the
+/// local file it was composed from.
+struct PreparedSend<'k> {
+    action: Action,
+    content: &'k str,
+    local: LocalWorkItem,
+}
+
+impl PreparedSend<'_> {
+    fn payload(&self) -> Option<Payload<'_>> {
+        Payload::of(self.action, &self.local.title, &self.local.body)
+    }
+}
+
+/// The one gate both a preview and a run put a send through, so each
+/// reports the same failure.
+fn prepare_send<'k>(
+    planned: &PlannedAction,
+    item: &LocalItem,
+    external_id: &ExternalId,
+    knowledge: &'k RunKnowledge<'_>,
+) -> Result<PreparedSend<'k>, ApplyError> {
+    let content = knowledge.local_content(item)?;
+    let local = LocalWorkItem::parse(content)
+        .map_err(|detail| unparseable_local(&item.id, detail))?;
+    if let Some(refusal) = send_refusal(
+        knowledge.comparison,
+        planned.action,
+        knowledge.shape(&item.id),
+        &local.body,
+        knowledge.projection(&item.id),
+    ) {
+        return Err(refused_send(&item.id, external_id, refusal));
+    }
+    Ok(PreparedSend {
+        action: planned.action,
+        content,
+        local,
+    })
+}
+
+/// The refusal a send would meet, or else the tracker's payload check of
+/// exactly what the action sends.
+fn check_send(
+    planned: &PlannedAction,
     tracker: &dyn RemoteTracker,
-) -> Option<tracker::ValidationOutcome> {
-    let item = items.iter().find(|candidate| candidate.id == planned.id)?;
+    knowledge: &RunKnowledge<'_>,
+) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
+    let item = knowledge.item(&planned.id)?;
     let external_id = item.external_id.as_ref()?;
-    let content = std::fs::read_to_string(&item.path).ok()?;
-    let (title, body) = local_title_and_body(&content);
-    Some(tracker.validate_update(external_id, &title, &body))
+    let prepared = match prepare_send(planned, item, external_id, knowledge) {
+        Ok(prepared) => prepared,
+        Err(refused) => return Some(Err(refused)),
+    };
+    let payload = prepared.payload()?;
+    Some(Ok(tracker.validate_update(
+        external_id,
+        payload.title,
+        payload.body,
+    )))
+}
+
+fn refused_send(
+    item_id: &str,
+    external_id: &ExternalId,
+    refusal: SendRefusal,
+) -> ApplyError {
+    let item_id = item_id.to_owned();
+    match refusal {
+        SendRefusal::PullResidue => ApplyError::LocalPullResidue {
+            item_id,
+            external_id: external_id.clone(),
+        },
+        SendRefusal::RemoteUnrenderable(cause) => {
+            ApplyError::RemoteUnrenderable { item_id, cause }
+        }
+        SendRefusal::RemoteUnfetched => {
+            ApplyError::RemoteBodyUnavailable { item_id }
+        }
+    }
 }
 
 struct Discovered {
@@ -705,54 +1137,146 @@ const fn create_report(
     }
 }
 
-fn push_outcome(
+fn send_outcome(
     applier: &mut ItemApplier<'_, '_>,
+    planned: &PlannedAction,
     item: &LocalItem,
     external_id: &ExternalId,
+    knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let content = match std::fs::read_to_string(&item.path) {
-        Ok(content) => content,
-        Err(error) => {
-            return ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: "read-local",
-                detail: error.to_string(),
-            });
-        }
+    let prepared = match prepare_send(planned, item, external_id, knowledge) {
+        Ok(prepared) => prepared,
+        Err(refused) => return ItemOutcome::Failed(refused),
     };
-    let (title, body) = local_title_and_body(&content);
-    match applier.push(&PushRequest {
+    let sent = match prepared.payload() {
+        Some(Payload {
+            title: Some(title),
+            body: None,
+        }) => applier.retitle(&RetitleRequest {
+            id: &item.id,
+            external_id,
+            title,
+            sent_content: prepared.content,
+        }),
+        Some(Payload {
+            title,
+            body: Some(body),
+        }) => applier.push(&PushRequest {
+            id: &item.id,
+            external_id,
+            title,
+            body,
+            sent_content: prepared.content,
+        }),
+        _ => return ItemOutcome::NotApplied,
+    };
+    match sent {
+        Ok(()) => ItemOutcome::Applied,
+        Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
+/// The file a pull of `item` would write over the one it was classified
+/// against, and the remote it came from.
+struct PulledFile<'a> {
+    classified_content: &'a str,
+    content: String,
+    projected_body: &'a str,
+    remote_updated: RemoteTimestamp,
+}
+
+fn pulled_file<'a>(
+    item: &LocalItem,
+    knowledge: &'a RunKnowledge<'_>,
+) -> Result<PulledFile<'a>, ApplyError> {
+    let projected_body = knowledge.projection(&item.id).ok_or_else(|| {
+        ApplyError::RemoteBodyUnavailable {
+            item_id: item.id.clone(),
+        }
+    })?;
+    let remote_body =
+        knowledge
+            .comparison
+            .local_body(projected_body)
+            .map_err(|cause| ApplyError::RemoteUnrenderable {
+                item_id: item.id.clone(),
+                cause,
+            })?;
+    let classified_content = knowledge.local_content(item)?;
+    let local = LocalWorkItem::parse(classified_content)
+        .map_err(|detail| unparseable_local(&item.id, detail))?;
+    Ok(PulledFile {
+        classified_content,
+        content: local.with_body(&remote_body),
+        projected_body,
+        remote_updated: knowledge.remote_updated(&item.id),
+    })
+}
+
+fn pull_outcome(
+    applier: &mut ItemApplier<'_, '_>,
+    item: &LocalItem,
+    knowledge: &RunKnowledge<'_>,
+) -> ItemOutcome {
+    let pulled = match pulled_file(item, knowledge) {
+        Ok(pulled) => pulled,
+        Err(error) => return ItemOutcome::Failed(error),
+    };
+    match applier.pull(&PullRequest {
         id: &item.id,
-        external_id,
-        title: &title,
-        body: &body,
         file_path: &item.path,
+        classified_content: pulled.classified_content,
+        content: &pulled.content,
+        projected_body: pulled.projected_body,
+        remote_updated: pulled.remote_updated,
     }) {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
     }
 }
 
-fn pull_outcome(
-    applier: &mut ItemApplier<'_, '_>,
+fn record_outcome(
+    applier: &ItemApplier<'_, '_>,
     item: &LocalItem,
-    facts: &GatheredFacts,
+    snapshot: &ItemSnapshot<'_>,
+    knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
-    let projected_body = remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let local_content = std::fs::read_to_string(&item.path).unwrap_or_default();
-    let content = reconstruct_pulled_content(&local_content, projected_body);
-    let remote_updated =
-        remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
-    match applier.pull(&PullRequest {
+    let fingerprints = match snapshot.recorded() {
+        Ok(fingerprints) => fingerprints,
+        Err(error) => {
+            return ItemOutcome::Failed(ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "hash-local",
+                detail: error.to_string(),
+            })
+        }
+    };
+    match applier.record_baseline(&RecordRequest {
         id: &item.id,
         file_path: &item.path,
-        content: &content,
-        projected_body,
-        remote_updated,
+        fingerprints,
+        remote_updated: knowledge.remote_updated(&item.id),
     }) {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
+/// `item` reported as untouched for want of a known digest recipe, when its
+/// entry was recorded under one this binary does not know.
+fn noting_unsupported_recipe(
+    item: ReportedItem,
+    unsupported_recipe: &BTreeSet<String>,
+) -> ReportedItem {
+    if unsupported_recipe.contains(&item.planned.id)
+        && matches!(item.outcome, ItemOutcome::NotApplied)
+    {
+        ReportedItem {
+            outcome: ItemOutcome::UnsupportedRecipe,
+            ..item
+        }
+    } else {
+        item
     }
 }
 
@@ -765,33 +1289,41 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
 }
 
 /// Applies one id-keyed planned action, returning its report line. A `Conflict`
-/// under any skip action records its id for baseline blanking. The two create
-/// actions are unreachable: both create paths run out-of-band of this loop.
+/// under any skip action records its id for baseline blanking, unless it
+/// [keeps its local hash](keeps_local_hash). The two create actions are
+/// unreachable: both create paths run out-of-band of this loop.
 fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
-    index: &ItemIndex<'_>,
-    facts: &GatheredFacts,
+    knowledge: &RunKnowledge<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
-    let item = index.get(&planned.id);
+    let item = knowledge.item(&planned.id);
     let outcome = match planned.action {
-        Action::Push => {
-            match item
-                .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
-            {
-                Some((item, external_id)) => {
-                    push_outcome(applier, item, external_id)
+        Action::RecordBaseline => {
+            match item.zip(knowledge.snapshot(&planned.id)) {
+                Some((item, snapshot)) => {
+                    record_outcome(applier, item, snapshot, knowledge)
                 }
                 None => return not_applied(planned),
             }
         }
+        Action::Push(_) | Action::Retitle | Action::Overwrite => match item
+            .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
+        {
+            Some((item, external_id)) => {
+                send_outcome(applier, &planned, item, external_id, knowledge)
+            }
+            None => return not_applied(planned),
+        },
         Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, facts),
+            Some(item) => pull_outcome(applier, item, knowledge),
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-            if matches!(planned.state, SyncState::Conflict) {
+            let keeps_hash =
+                item.is_some_and(|item| keeps_local_hash(item, knowledge));
+            if matches!(planned.state, SyncState::Conflict) && !keeps_hash {
                 blank_local_hash.push(planned.id.clone());
             }
             ItemOutcome::NotApplied
@@ -855,15 +1387,15 @@ fn apply_local_create(
 /// preview and apply paths so both report the same blast radius.
 struct PreparedRun<'a> {
     run_start_epoch: u64,
+    unsupported_recipe: BTreeSet<String>,
     degradation: Degradation,
     read_failure: Option<TrackerError>,
     keyed_read_budget_limited: bool,
-    facts: GatheredFacts,
+    knowledge: RunKnowledge<'a>,
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
     discovery: DiscoveryStatus,
     creates_from_local: Vec<&'a LocalItem>,
-    index: ItemIndex<'a>,
     dossiers: Vec<ConflictDossier>,
 }
 
@@ -1016,6 +1548,7 @@ pub fn preflight(
 /// short; [`RunError::Refused`] when the plan would exceed the write bounds.
 fn prepare_run<'a>(
     ports: &SyncPorts<'_>,
+    digester: &'a BaselineDigester<'a>,
     baseline: &BaselineStore<'_>,
     request: &SyncRequest<'a>,
     facts: Option<GatheredFacts>,
@@ -1035,6 +1568,7 @@ fn prepare_run<'a>(
             ports.tracker,
             ports.status,
             request.strategy,
+            digester,
         )
     });
 
@@ -1042,26 +1576,26 @@ fn prepare_run<'a>(
     // both pull and push, so abort here — before any planning or write.
     let keyed_read_budget_limited = classify_keyed_read(facts.keyed_read)?;
 
-    let digests: Vec<LazyItemDigests<'_>> = request
+    let knowledge = RunKnowledge::gather(
+        facts,
+        request.reconciled(),
+        &loaded_baseline,
+        digester,
+    );
+    let plan = knowledge.plan(&loaded_baseline, request)?;
+
+    let read_failure = knowledge.facts.read_failure.clone();
+    let unsupported_recipe = request
         .reconciled()
         .iter()
-        .map(|item| {
-            let remote_content = facts
-                .per_id
-                .get(&item.id)
-                .and_then(|(remote, _)| remote.body.clone());
-            LazyItemDigests::new(&item.path, remote_content)
+        .filter(|item| {
+            matches!(
+                loaded_baseline.get(&item.id),
+                Some(Entry::Unsupported { .. })
+            )
         })
+        .map(|item| item.id.clone())
         .collect();
-
-    let plan_inputs =
-        facts.plan_inputs(request.reconciled(), &digests, &loaded_baseline);
-
-    let plan =
-        compute_plan(&plan_inputs, request.direction, request.resolutions)
-            .map_err(RunError::Internal)?;
-
-    let read_failure = facts.read_failure.clone();
 
     let (untracked, discovery) = untracked_to_import(ports, request, settled)?;
     let creates_from_local =
@@ -1083,20 +1617,19 @@ fn prepare_run<'a>(
         });
     }
 
-    let index = ItemIndex::build(request.reconciled());
-    let dossiers = build_dossiers(&plan, &index, &facts);
+    let dossiers = build_dossiers(&plan, &knowledge);
 
     Ok(PreparedRun {
         run_start_epoch,
+        unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
-        facts,
+        knowledge,
         plan,
         untracked,
         discovery,
         creates_from_local,
-        index,
         dossiers,
     })
 }
@@ -1146,23 +1679,30 @@ fn execute<'a>(
     facts: Option<GatheredFacts>,
     settled: &SettledView,
 ) -> Result<RunReport, RunError> {
+    let digester = BaselineDigester::new(ports.tracker, ports.parser);
     let PreparedRun {
         run_start_epoch,
+        unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
-        facts,
+        knowledge,
         plan,
         untracked,
         discovery,
         creates_from_local,
-        index,
         dossiers,
-    } = prepare_run(ports, baseline, request, facts, settled)?;
+    } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
+    let reported_as = |item: ReportedItem| {
+        noting_unsupported_recipe(item, &unsupported_recipe)
+    };
     if matches!(request.mode, RunMode::Preview) {
-        let mut reported =
-            validate_pushes(&plan, request.reconciled(), ports.tracker);
+        let mut reported: Vec<ReportedItem> =
+            validate_pushes(&plan, ports.tracker, &knowledge)
+                .into_iter()
+                .map(reported_as)
+                .collect();
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),
@@ -1202,6 +1742,7 @@ fn execute<'a>(
     {
         let mut applier = ItemApplier::new(
             ports.tracker,
+            ports.parser,
             ports.writer,
             baseline,
             run_start_epoch,
@@ -1221,13 +1762,12 @@ fn execute<'a>(
         }
 
         for planned in plan.actions {
-            reported.push(apply_planned_action(
+            reported.push(reported_as(apply_planned_action(
                 &mut applier,
                 planned,
-                &index,
-                &facts,
+                &knowledge,
                 &mut blank_local_hash,
-            ));
+            )));
         }
 
         for item in &creates_from_local {
@@ -1295,10 +1835,11 @@ mod tests {
         ConflictDossier {
             id: "0009".to_owned(),
             title: "The item's title".to_owned(),
+            remote_title: None,
             local_modified,
             remote_updated,
             sections,
-            local_unreadable: false,
+            unrenderable: None,
         }
     }
 
@@ -1387,13 +1928,90 @@ mod tests {
         };
         let mut unreadable =
             dossier(None, RemoteTimestamp::NotRead, Vec::new());
-        unreadable.local_unreadable = true;
+        unreadable.unrenderable =
+            Some(super::UnrenderableReason::LocalUnreadable);
 
         let rendered = render_dossier(&unreadable, &must_not_render);
         let DossierRender::Unrenderable(text) = rendered else {
             panic!("an unreadable local file downgrades to unrenderable");
         };
         assert!(text.contains("status: unrenderable"), "{text}");
+        assert!(text.contains("reason: local-unreadable"), "{text}");
         assert!(text.contains("left unresolved"), "{text}");
+    }
+
+    #[test]
+    fn a_send_from_an_unreadable_file_fails_as_the_read_it_needs() {
+        let missing = tempfile::tempdir().expect("a temporary directory");
+        let item = super::LocalItem {
+            id: "0009".to_owned(),
+            path: missing.path().join("0009-gone.md"),
+            external_id: None,
+        };
+        let planned = work::sync::PlannedAction {
+            id: "0009".to_owned(),
+            state: work::sync::SyncState::LocallyModified,
+            action: work::sync::Action::Push(work::sync::FieldDelivery::Send),
+        };
+        let facts = super::GatheredFacts {
+            per_id: std::collections::BTreeMap::new(),
+            identity: std::collections::BTreeMap::new(),
+            read_failure: None,
+            keyed_read: tracker::Completeness::Complete,
+        };
+
+        let digester = super::BaselineDigester::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
+        );
+        let knowledge = super::RunKnowledge::gather(
+            facts,
+            std::slice::from_ref(&item),
+            &crate::sync::baseline::Baseline::read(None).0,
+            &digester,
+        );
+
+        let prepared = super::prepare_send(
+            &planned,
+            &item,
+            &tracker::ExternalId::new("ENG-9".to_owned()),
+            &knowledge,
+        );
+
+        assert!(
+            matches!(
+                prepared,
+                Err(super::ApplyError::Io {
+                    operation: "read-local",
+                    ..
+                })
+            ),
+            "the send fails as the run's own read does"
+        );
+    }
+
+    #[test]
+    fn an_unrenderable_remote_dossier_names_its_cause_in_the_header() {
+        let mut unrenderable =
+            dossier(None, RemoteTimestamp::NotRead, Vec::new());
+        unrenderable.unrenderable =
+            Some(super::UnrenderableReason::RemoteUnrenderable(
+                tracker::Unrenderable {
+                    detail: "a panel has no Markdown form".to_owned(),
+                },
+            ));
+
+        let DossierRender::Unrenderable(text) =
+            render_dossier(&unrenderable, &ok_renderer)
+        else {
+            panic!("an unrenderable remote downgrades to unrenderable");
+        };
+        assert!(
+            text.contains(
+                "reason: remote-unrenderable\n\
+                 cause: a panel has no Markdown form\n"
+            ),
+            "{text}"
+        );
     }
 }

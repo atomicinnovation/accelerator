@@ -837,9 +837,12 @@ owes seven things. `cli/tracker/` is the worked example.
 
   One class of diff is **not** a first-party change: a snapshot names the
   third-party types a crate exposes, so a dependency bump moves it on its own.
-  `document` is the only crate where this is live — it renders
-  `serde_core::ser::Serialize`, serde's internal split crate, so a serde bump
-  that renames that path reddens the pin with no first-party edit behind it.
+  Two crates make this live. `document` renders `serde_core::ser::Serialize`,
+  serde's internal split crate, so a serde bump that renames that path reddens
+  the pin with no first-party edit behind it. `adf` takes and returns
+  `serde_json::Value` by design — it is a JSON codec, and `JiraClient` already
+  holds the document as a `Value` — so a `serde_json` bump can move its pin the
+  same way.
   (`__H` in the `corpus` and `tracker` snapshots is *not* an instance: it comes
   from std's `Hash` derive, which no dependency bump touches.)
 

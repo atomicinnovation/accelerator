@@ -3,12 +3,17 @@
 
 use std::path::Path;
 
+use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
+use corpus::store::StoreError;
 use tracker::ExternalId;
+use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use work::sync::push_precondition;
+use work::sync::DualRecipeFingerprints;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
 use work::sync::PushPrecondition;
@@ -16,7 +21,10 @@ use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
 
 use crate::sync::baseline::Entry;
+use crate::sync::baseline::SyncStamps;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
@@ -28,6 +36,10 @@ pub enum FailureClass {
     Terminal,
     Unconfigured,
     Rejected,
+    Unrenderable,
+    PullResidue,
+    Unparseable,
+    WriteRefused,
 }
 
 #[derive(Debug)]
@@ -42,21 +54,51 @@ pub enum ApplyError {
         operation: &'static str,
         detail: String,
     },
+    RemoteBodyUnavailable {
+        item_id: String,
+    },
+    RemoteUnrenderable {
+        item_id: String,
+        cause: Unrenderable,
+    },
+    LocalPullResidue {
+        item_id: String,
+        external_id: ExternalId,
+    },
+    LocalUnparseable {
+        item_id: String,
+        detail: String,
+    },
+    LocalWriteRefused {
+        item_id: String,
+        detail: String,
+    },
+    LocalChangedSinceClassified {
+        item_id: String,
+    },
 }
 
 impl ApplyError {
-    /// `None` for a store-originated failure, which carries no class the
-    /// report can render.
+    /// A local read or write failure is terminal: whether a write landed is
+    /// unknown, so a blind retry is unsafe.
     #[must_use]
-    pub const fn class(&self) -> Option<FailureClass> {
+    pub const fn class(&self) -> FailureClass {
         match self {
-            Self::Tracker { source, .. } => Some(match source {
+            Self::Tracker { source, .. } => match source {
                 TrackerError::Retryable { .. } => FailureClass::Retryable,
                 TrackerError::Terminal { .. } => FailureClass::Terminal,
                 TrackerError::Unconfigured { .. } => FailureClass::Unconfigured,
                 TrackerError::Rejected { .. } => FailureClass::Rejected,
-            }),
-            Self::Io { .. } => None,
+            },
+            Self::Io { .. } => FailureClass::Terminal,
+            Self::RemoteBodyUnavailable { .. }
+            | Self::LocalChangedSinceClassified { .. } => {
+                FailureClass::Retryable
+            }
+            Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
+            Self::LocalPullResidue { .. } => FailureClass::PullResidue,
+            Self::LocalUnparseable { .. } => FailureClass::Unparseable,
+            Self::LocalWriteRefused { .. } => FailureClass::WriteRefused,
         }
     }
 }
@@ -74,18 +116,66 @@ impl std::fmt::Display for ApplyError {
                 operation,
                 detail,
             } => write!(formatter, "{item_id}: {operation} failed: {detail}"),
+            Self::RemoteBodyUnavailable { item_id } => write!(
+                formatter,
+                "{item_id}: the remote description was not fetched this run, \
+                 so nothing was sent or written; re-run the sync"
+            ),
+            Self::RemoteUnrenderable { item_id, cause } => {
+                write!(formatter, "{item_id}: {cause}")
+            }
+            Self::LocalPullResidue {
+                item_id,
+                external_id,
+            } => write!(
+                formatter,
+                "{item_id}: the local file still holds the raw tracker \
+                 document an earlier pull wrote, so nothing was sent; replace \
+                 it with Markdown (`jira show {external_id} --render-adf` \
+                 prints a starting point) and sync, or resolve with --resolve \
+                 {item_id}=remote to discard local changes"
+            ),
+            Self::LocalUnparseable { item_id, detail } => write!(
+                formatter,
+                "{item_id}: the local file's frontmatter does not parse \
+                 ({detail}), so nothing was sent or written; fix the file and \
+                 re-run the sync"
+            ),
+            Self::LocalWriteRefused { item_id, detail } => write!(
+                formatter,
+                "{item_id}: the local file was not written ({detail}), so it \
+                 is as it was; the same write is refused until that changes"
+            ),
+            Self::LocalChangedSinceClassified { item_id } => write!(
+                formatter,
+                "{item_id}: the local file changed after the run read it, so \
+                 nothing was written or recorded; re-run the sync"
+            ),
         }
     }
 }
 
 impl std::error::Error for ApplyError {}
 
+/// A send of the local body; with no `title`, the remote title is left as
+/// it is. `sent_content` is the local file the title and body came from,
+/// which the baseline records.
 pub struct PushRequest<'a> {
     pub id: &'a str,
     pub external_id: &'a ExternalId,
-    pub title: &'a str,
+    pub title: Option<&'a str>,
     pub body: &'a str,
-    pub file_path: &'a Path,
+    pub sent_content: &'a str,
+}
+
+/// A send of the local title alone, leaving the remote description as it is.
+/// `sent_content` is the local file the title came from, which the baseline
+/// records.
+pub struct RetitleRequest<'a> {
+    pub id: &'a str,
+    pub external_id: &'a ExternalId,
+    pub title: &'a str,
+    pub sent_content: &'a str,
 }
 
 /// The inputs `create_from_local` needs beyond the applier's own ports.
@@ -130,15 +220,43 @@ fn refusal_detail(reason: RefusalReason, marker_path: &Path) -> String {
     }
 }
 
+/// A synced item's baseline, rewritten under the current recipe from the
+/// fingerprints classification read.
+pub struct RecordRequest<'a> {
+    pub id: &'a str,
+    pub file_path: &'a Path,
+    pub fingerprints: DualRecipeFingerprints,
+    pub remote_updated: RemoteTimestamp,
+}
+
 pub struct PullRequest<'a> {
     pub id: &'a str,
     pub file_path: &'a Path,
+    /// The local file the pull was classified against, which only it may
+    /// overwrite.
+    pub classified_content: &'a str,
     pub content: &'a str,
     /// Un-normalised, and hashed here rather than by the caller, so the
     /// baseline's `remote_hash` always comes from the projection actually
     /// written.
     pub projected_body: &'a str,
     pub remote_updated: RemoteTimestamp,
+}
+
+/// A store that refuses before writing leaves the file as it was; any other
+/// failure, including one this crate does not know, may have landed part-way,
+/// so its outcome is unknown.
+fn local_write_error(id: &str, error: StoreError) -> ApplyError {
+    match error {
+        StoreError::UnsafePath { .. }
+        | StoreError::NotWritable { .. }
+        | StoreError::AlreadyExists { .. }
+        | StoreError::Validation { .. } => ApplyError::LocalWriteRefused {
+            item_id: id.to_owned(),
+            detail: error.to_string(),
+        },
+        _ => io_error(id, "write-local", error),
+    }
 }
 
 fn io_error(
@@ -161,6 +279,7 @@ fn io_error(
 /// own lifetime, leaving the baseline unreadable afterwards.
 pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
+    parser: &'ctx dyn BodyParser,
     writer: &'ctx dyn AtomicWrite,
     baseline: &'store mut BaselineStore<'ctx>,
     run_start_epoch: u64,
@@ -169,12 +288,14 @@ pub struct ItemApplier<'ctx, 'store> {
 impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn new(
         tracker: &'ctx dyn RemoteTracker,
+        parser: &'ctx dyn BodyParser,
         writer: &'ctx dyn AtomicWrite,
         baseline: &'store mut BaselineStore<'ctx>,
         run_start_epoch: u64,
     ) -> Self {
         Self {
             tracker,
+            parser,
             writer,
             baseline,
             run_start_epoch,
@@ -182,7 +303,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     /// The baseline entry is written last, so a failed `update` leaves it
-    /// unset and the next run reclassifies from scratch. A failed post-push
+    /// unset and the next run reclassifies from scratch. It records the
+    /// content sent, so an edit made since reads as a local change next run.
+    /// A failed post-push
     /// `show` still writes the entry, with both remote fields empty and
     /// [`RemoteTimestamp::NotRead`] — the only place that variant is
     /// written.
@@ -201,59 +324,89 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 operation: "update",
                 source,
             })?;
+        self.record_read_back(
+            request.id,
+            request.external_id,
+            request.sent_content,
+        )
+    }
 
-        let (remote_updated, remote_hash) =
-            match self.tracker.show(request.external_id) {
-                Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
-                Err(_) => (RemoteTimestamp::NotRead, String::new()),
-            };
+    /// As [`Self::push`], sending the title alone; the local file is left
+    /// as it is.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError`] naming `request.id` and the operation attempted.
+    pub fn retitle(
+        &mut self,
+        request: &RetitleRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        self.tracker
+            .retitle(request.external_id, request.title)
+            .map_err(|source| ApplyError::Tracker {
+                item_id: request.id.to_owned(),
+                operation: "retitle",
+                source,
+            })?;
+        self.record_read_back(
+            request.id,
+            request.external_id,
+            request.sent_content,
+        )
+    }
 
-        let local_content = std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(request.id, "hash-local", error))?;
-
-        self.baseline
-            .set(
-                request.id,
-                Entry {
-                    remote_updated_at: remote_updated,
-                    remote_hash,
-                    local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
-            )
-            .map_err(|error| io_error(request.id, "baseline-set", error))
+    fn record_read_back(
+        &self,
+        id: &str,
+        external_id: &ExternalId,
+        sent_content: &str,
+    ) -> Result<(), ApplyError> {
+        let remote = self.tracker.show(external_id).ok();
+        self.record(id, sent_content, remote.as_ref())
     }
 
     /// Both baseline hashes come from what was actually written. Deriving
     /// either from pre-pull content self-corrupts the baseline into a
     /// phantom `locally-modified` on the next run.
     ///
+    /// A file already holding what the pull writes is written again, so a
+    /// re-run after an interrupted baseline write still records it.
+    ///
     /// # Errors
     ///
-    /// [`ApplyError`] naming `request.id` and the operation attempted.
+    /// [`ApplyError::LocalChangedSinceClassified`] when the file holds
+    /// neither the classified content nor what the pull writes, so an edit is
+    /// never overwritten; otherwise [`ApplyError`] naming `request.id` and the
+    /// operation attempted.
     pub fn pull(
         &mut self,
         request: &PullRequest<'_>,
     ) -> Result<(), ApplyError> {
+        let current = std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.id, "read-local", error))?;
+        if current != request.classified_content && current != request.content {
+            return Err(ApplyError::LocalChangedSinceClassified {
+                item_id: request.id.to_owned(),
+            });
+        }
         self.writer
             .write(request.file_path, request.content.as_bytes())
-            .map_err(|error| io_error(request.id, "write-local", error))?;
+            .map_err(|error| local_write_error(request.id, error))?;
 
-        let local_hash = digest::local(request.content)
+        let fingerprints = self
+            .digester()
+            .digests(request.content, Some(request.projected_body))
             .map_err(|error| io_error(request.id, "hash-local", error))?;
-        let remote_hash = digest::remote_body(request.projected_body);
-
         self.baseline
             .set(
                 request.id,
-                Entry {
-                    remote_updated_at: request.remote_updated.clone(),
-                    remote_hash,
-                    local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
+                Entry::recorded(
+                    SyncStamps {
+                        remote_updated_at: request.remote_updated.clone(),
+                        local_synced_at: self.run_start_epoch,
+                    },
+                    fingerprints,
+                ),
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
     }
@@ -283,9 +436,20 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 source,
             }
         })?;
+        let body = BodyComparison::new(self.tracker, self.parser)
+            .local_body(&issue.body)
+            .map_err(|cause| ApplyError::RemoteUnrenderable {
+                item_id: external_id.as_str().to_owned(),
+                cause,
+            })?;
+        let title = remote_projection::split_projected(&issue.body)
+            .title
+            .to_owned();
         let authored = author
             .author_from_remote(&DiscoveredIssue {
                 external_id: external_id.clone(),
+                title,
+                body,
                 issue: issue.clone(),
             })
             .map_err(|error| {
@@ -294,21 +458,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
         let local_content = std::fs::read_to_string(&authored.path)
             .map_err(|error| io_error(&authored.id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(&authored.id, "hash-local", error))?;
-        let remote_hash = digest::remote_body(&issue.body);
-
-        self.baseline
-            .set(
-                &authored.id,
-                Entry {
-                    remote_updated_at: issue.updated,
-                    remote_hash,
-                    local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
-            )
-            .map_err(|error| io_error(&authored.id, "baseline-set", error))?;
+        self.record(&authored.id, &local_content, Some(&issue))?;
         Ok(authored.id)
     }
 
@@ -471,31 +621,77 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 io_error(request.item_id, "link-external-id", error)
             })?;
 
-        let (remote_updated, remote_hash) = match self.tracker.show(external_id)
-        {
-            Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
-            Err(_) => (RemoteTimestamp::NotRead, String::new()),
-        };
+        let remote = self.tracker.show(external_id).ok();
         let local_content = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.item_id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(request.item_id, "hash-local", error))?;
-
-        self.baseline
-            .set(
-                request.item_id,
-                Entry {
-                    remote_updated_at: remote_updated,
-                    remote_hash,
-                    local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
-            )
-            .map_err(|error| {
-                io_error(request.item_id, "baseline-set", error)
-            })?;
+        self.record(request.item_id, &local_content, remote.as_ref())?;
         std::fs::remove_file(request.marker_path).ok();
         Ok(())
+    }
+
+    /// Records `request`'s fingerprints, writing no file and calling no
+    /// tracker, once the local file still digests to what was classified.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError::LocalChangedSinceClassified`] when the file moved
+    /// since the run read it, so an edit is never absorbed into the
+    /// baseline; [`ApplyError::Io`] when it cannot be read or the baseline
+    /// cannot be written.
+    pub fn record_baseline(
+        &self,
+        request: &RecordRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        let content = std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.id, "read-local", error))?;
+        let current = digest::local(&content)
+            .map_err(|error| io_error(request.id, "hash-local", error))?;
+        if request.fingerprints.legacy.local.as_ref() != Some(&current) {
+            return Err(ApplyError::LocalChangedSinceClassified {
+                item_id: request.id.to_owned(),
+            });
+        }
+        self.baseline
+            .set(
+                request.id,
+                Entry::recorded(
+                    SyncStamps {
+                        remote_updated_at: request.remote_updated.clone(),
+                        local_synced_at: self.run_start_epoch,
+                    },
+                    request.fingerprints.clone(),
+                ),
+            )
+            .map_err(|error| io_error(request.id, "baseline-set", error))
+    }
+
+    fn digester(&self) -> BaselineDigester<'ctx> {
+        BaselineDigester::new(self.tracker, self.parser)
+    }
+
+    /// Records `id`'s entry from what was just written locally and read
+    /// back remotely; an unread remote records no remote fingerprints, so
+    /// the next run reads that side as changed.
+    fn record(
+        &self,
+        id: &str,
+        local_content: &str,
+        remote: Option<&RemoteIssue>,
+    ) -> Result<(), ApplyError> {
+        let fingerprints = self
+            .digester()
+            .digests(local_content, remote.map(|issue| issue.body.as_str()))
+            .map_err(|error| io_error(id, "hash-local", error))?;
+        let stamps = SyncStamps {
+            remote_updated_at: remote
+                .map_or(RemoteTimestamp::NotRead, |issue| {
+                    issue.updated.clone()
+                }),
+            local_synced_at: self.run_start_epoch,
+        };
+        self.baseline
+            .set(id, Entry::recorded(stamps, fingerprints))
+            .map_err(|error| io_error(id, "baseline-set", error))
     }
 
     /// Advances the baseline's global timestamp, blanking nothing: the run

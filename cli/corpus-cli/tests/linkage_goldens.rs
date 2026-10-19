@@ -2,9 +2,6 @@
 //! exercised by `cli/corpus-adapters/tests/parity.rs`, proving the CLI
 //! wiring (config composition → doc-type table → `parse_document` → TSV
 //! rendering) end to end.
-//!
-//! Unconditional, like the other `*_goldens.rs` suites: no `bash-parity`
-//! feature gate.
 
 use std::fs;
 use std::path::Path;

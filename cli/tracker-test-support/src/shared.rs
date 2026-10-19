@@ -1,5 +1,7 @@
+use std::borrow::Cow;
 use std::rc::Rc;
 
+use tracker::BodyDialect;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -10,6 +12,7 @@ use tracker::RemoteTracker;
 use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use tracker::ValidationOutcome;
 use tracker::VisibleEntity;
 
@@ -19,6 +22,24 @@ use crate::RecordingTracker;
 /// `Box<dyn RemoteTracker>` and the test that inspects the call log
 /// afterwards.
 pub struct SharedTracker(pub Rc<RecordingTracker>);
+
+impl BodyDialect for SharedTracker {
+    fn local_body(&self, description: &str) -> Result<String, Unrenderable> {
+        self.0.local_body(description)
+    }
+
+    fn as_pushed<'a>(&self, body: &'a str) -> Cow<'a, str> {
+        self.0.as_pushed(body)
+    }
+
+    fn rejects(&self, body: &str) -> bool {
+        self.0.rejects(body)
+    }
+
+    fn is_wire_document(&self, body: &str) -> bool {
+        self.0.is_wire_document(body)
+    }
+}
 
 impl RemoteTracker for SharedTracker {
     fn create(
@@ -33,10 +54,18 @@ impl RemoteTracker for SharedTracker {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
         self.0.update(id, title, body)
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.0.retitle(id, title)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
@@ -81,8 +110,8 @@ impl RemoteTracker for SharedTracker {
     fn validate_update(
         &self,
         id: &ExternalId,
-        title: &str,
-        body: &str,
+        title: Option<&str>,
+        body: Option<&str>,
     ) -> ValidationOutcome {
         self.0.validate_update(id, title, body)
     }

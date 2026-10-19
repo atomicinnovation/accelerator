@@ -3,10 +3,16 @@
 //! (create-from-local), with the combined gate and the pending-push recovery.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
+use crate::support::assert_recipe_one_entry;
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use tracker::PlainDialect;
+use work_adapters::sync::baseline::Baseline;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
@@ -188,6 +194,10 @@ impl Fixture {
     }
 
     /// A local draft with no `external_id`, so it classifies `Unsynced`.
+    fn baseline(&self) -> Baseline {
+        Baseline::read(self.spy.content(BASELINE_PATH).as_deref()).0
+    }
+
     fn unsynced_item(
         &self,
         id: &str,
@@ -227,6 +237,7 @@ fn run_sync(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -271,6 +282,7 @@ fn run_sync_targeted(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -317,6 +329,7 @@ fn run_sync_targeted_pull(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -362,6 +375,7 @@ fn run_at(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &fixture.spy,
         clock: &clock,
@@ -795,6 +809,13 @@ fn the_happy_path_authors_exactly_one_file_per_untracked_issue(
         .find(|item| item.planned.action == Action::CreateFromRemote)
         .expect("one create-from-remote row");
     assert!(matches!(create.outcome, ItemOutcome::Applied));
+    let authored = std::fs::read_to_string(fixture.dir.path().join("9000.md"))?;
+    assert_recipe_one_entry(
+        fixture.baseline().get("9000"),
+        &PlainDialect,
+        &authored,
+        Some("Seven\nremote body"),
+    );
     Ok(())
 }
 
@@ -1584,6 +1605,7 @@ fn a_re_run_reconciles_the_pulled_id_and_advances_its_watermark(
     assert_eq!(
         baseline
             .get("9000")
+            .and_then(work_adapters::sync::baseline::Entry::stamps)
             .expect("the pulled item has a baseline entry")
             .local_synced_at,
         2_000,
@@ -1610,6 +1632,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
         let failing = FailingWrite;
         let sync_ports = SyncPorts {
             tracker: &tracker,
+            parser: &CommonMarkBody,
             status: &status,
             writer: &failing,
             clock: &clock,
@@ -1724,6 +1747,12 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
         item.planned.action == Action::CreateFromLocal
             && matches!(item.outcome, ItemOutcome::Applied)
     }));
+    assert_recipe_one_entry(
+        fixture.baseline().get("0001"),
+        &PlainDialect,
+        &std::fs::read_to_string(&item.path)?,
+        Some("Draft one\n\nBody"),
+    );
     Ok(())
 }
 
@@ -1828,6 +1857,7 @@ fn create_from_local_writes_the_marker_before_the_create(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: &tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &real,
         clock: &clock,
@@ -2086,6 +2116,7 @@ fn run_create_from_local_on_disk(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &real,
         clock: &clock,
@@ -2155,7 +2186,7 @@ fn an_unreachable_tracker_leaves_no_marker_for_a_local_create(
     );
     assert_eq!(
         create_from_local_failure(&report).class(),
-        Some(work_adapters::sync::apply::FailureClass::Retryable)
+        work_adapters::sync::apply::FailureClass::Retryable
     );
     Ok(())
 }
@@ -2185,7 +2216,7 @@ fn a_rejected_create_leaves_no_marker_and_reports_its_cause(
     let failure = create_from_local_failure(&report);
     assert_eq!(
         failure.class(),
-        Some(work_adapters::sync::apply::FailureClass::Rejected)
+        work_adapters::sync::apply::FailureClass::Rejected
     );
     assert!(
         failure.to_string().contains("the body has a table"),
@@ -2250,6 +2281,12 @@ struct MarkerObservingTracker {
     calls: RefCell<Vec<Call>>,
 }
 
+impl tracker::BodyDialect for MarkerObservingTracker {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl tracker::RemoteTracker for MarkerObservingTracker {
     fn create(
         &self,
@@ -2269,8 +2306,16 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     fn update(
         &self,
         _id: &ExternalId,
-        _title: &str,
+        _title: Option<&str>,
         _body: &str,
+    ) -> Result<(), TrackerError> {
+        Ok(())
+    }
+
+    fn retitle(
+        &self,
+        _id: &ExternalId,
+        _title: &str,
     ) -> Result<(), TrackerError> {
         Ok(())
     }
@@ -2334,8 +2379,8 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        _title: &str,
-        _body: &str,
+        _title: Option<&str>,
+        _body: Option<&str>,
     ) -> tracker::ValidationOutcome {
         tracker::ValidationOutcome::Valid
     }

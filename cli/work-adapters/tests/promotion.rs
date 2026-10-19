@@ -3,11 +3,17 @@
 //! stopped at, and the draft is retired to its key.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
+use crate::support::assert_recipe_one_entry;
+use corpus_adapters::CommonMarkBody;
+use serde_json::json;
 use std::cell::Cell;
 use std::fs;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::path::PathBuf;
+use tracker::PlainDialect;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
@@ -29,6 +35,7 @@ use tracker::RemoteTracker as _;
 use tracker::TrackerError;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
+use tracker_test_support::Rewrite;
 use work::dirtiness::Dirtiness;
 use work::draft_id::DraftId;
 use work::promotion::NotPromoted;
@@ -288,6 +295,7 @@ fn promote_reading(
         mode,
         &PromotionPorts {
             tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },
@@ -324,6 +332,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
     let records = repo.records(&store);
     let ports = PromotionPorts {
         tracker,
+        parser: &CommonMarkBody,
         retirement: &retirement,
         records: &records,
     };
@@ -358,7 +367,7 @@ fn creates(tracker: &RecordingTracker) -> usize {
         .count()
 }
 
-fn updates(tracker: &RecordingTracker) -> Vec<(String, String)> {
+fn updates(tracker: &RecordingTracker) -> Vec<(Option<String>, String)> {
     tracker
         .calls()
         .into_iter()
@@ -369,7 +378,7 @@ fn updates(tracker: &RecordingTracker) -> Vec<(String, String)> {
         .collect()
 }
 
-const fn fresh_tracker() -> RecordingTracker {
+fn fresh_tracker() -> RecordingTracker {
     RecordingTracker::holding(Vec::new())
 }
 
@@ -488,7 +497,7 @@ fn the_remote_update_carries_rewritten_self_references() {
     let sent = updates(&tracker);
     assert_eq!(sent.len(), 1);
     let (title, body) = &sent[0];
-    assert_eq!(title, "Add search");
+    assert_eq!(title.as_deref(), Some("Add search"));
     assert!(body.contains("# REC-1: Add search"), "{body}");
     assert!(body.contains("see REC-1."), "{body}");
     assert!(!body.contains(DRAFT_ID), "{body}");
@@ -501,12 +510,78 @@ fn promotion_writes_a_baseline_under_the_tracker_key() {
 
     promoted(&repo, &tracker).unwrap();
 
-    let entry = repo.baseline_entry(KEY).expect("a baseline under the key");
     let promoted_file = repo.read(TARGET).unwrap();
-    assert_eq!(entry.local_hash, digest::local(&promoted_file).unwrap());
     let remote = tracker.show(&key()).unwrap();
-    assert_eq!(entry.remote_hash, digest::remote_body(&remote.body));
+    assert_recipe_one_entry(
+        repo.baseline_entry(KEY).as_ref(),
+        &PlainDialect,
+        &promoted_file,
+        Some(&remote.body),
+    );
     assert_eq!(repo.baseline_entry(DRAFT_ID), None);
+}
+
+#[test]
+fn a_schema_two_created_marker_resumes_comparing_its_create_hash_under_the_legacy_recipe(
+) {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding(&draft_projection());
+    repo.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: Some(digest::remote_body(&draft_projection())),
+    }));
+    let record = fs::read_to_string(repo.record_path())
+        .unwrap()
+        .replace("\"schema\":3", "\"schema\":2");
+    fs::write(repo.record_path(), record).unwrap();
+
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
+
+    assert_eq!(
+        updates(&tracker).len(),
+        1,
+        "the untouched issue is retitled"
+    );
+    let remote = tracker.show(&key()).unwrap();
+    assert_recipe_one_entry(
+        repo.baseline_entry(KEY).as_ref(),
+        &PlainDialect,
+        &repo.read(TARGET).unwrap(),
+        Some(&remote.body),
+    );
+}
+
+#[test]
+fn a_resumed_schema_two_promotion_predicts_under_the_legacy_recipe() {
+    let repo = Repo::new().unwrap();
+    let (_, body) = digest::split_frontmatter_and_body(DRAFT_CONTENT).unwrap();
+    let retitled = format!("Add search\n{}", body.replace(DRAFT_ID, KEY));
+    let tracker = tracker_holding(&retitled);
+    repo.save(&record_at(PromotionStage::RemoteRetitled {
+        key: tracker_key(),
+        read_back: ReadBack {
+            hash: digest::remote_body(&retitled),
+            fingerprints: None,
+            updated: RemoteTimestamp::Reported("t0".to_owned()),
+        },
+    }));
+
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
+
+    let Some(Entry::Legacy { legacy, .. }) = repo.baseline_entry(KEY) else {
+        panic!("a schema-2 promotion records a legacy entry");
+    };
+    assert_eq!(
+        legacy.local,
+        Some(digest::local(&repo.read(TARGET).unwrap()).unwrap())
+    );
+    assert_eq!(legacy.remote, Some(digest::remote_body(&retitled)));
 }
 
 #[test]
@@ -651,6 +726,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         &PromotionMode::Standard,
         &PromotionPorts {
             tracker: &tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },
@@ -733,9 +809,19 @@ fn an_edited_recorded_issue_is_not_rewritten_and_the_next_sync_raises_a_conflict
         "the edit is never overwritten"
     );
     let entry = repo.baseline_entry(KEY).unwrap();
-    assert_eq!(entry.remote_hash, "", "the remote reads as changed");
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        "",
+        "the remote reads as changed"
+    );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the two conflict"
     );
@@ -757,11 +843,135 @@ fn a_kill_between_the_h1_update_and_its_record_resumes_as_retitled_not_edited()
 
     let entry = repo.baseline_entry(KEY).unwrap();
     assert_eq!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the tool's own update is recognised, so the item syncs as synced"
     );
-    assert_eq!(entry.remote_hash, digest::remote_body(&retitled));
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        digest::remote_body(&retitled)
+    );
+}
+
+/// Promotes a draft holding `draft_body` whose created issue's hash was
+/// never read back, so only agreement with the draft can prove the remote
+/// untouched; returns the updates the promotion sent.
+fn promote_unhashed(
+    draft_body: &str,
+    tracker: &RecordingTracker,
+) -> Vec<(Option<String>, String)> {
+    let repo = Repo::new().unwrap();
+    repo.write(
+        DRAFT,
+        &format!(
+            "---\nid: \"draft-k7mq3x\"\ntitle: \"Add search\"\n\
+             kind: \"story\"\n---\n{draft_body}"
+        ),
+    )
+    .unwrap();
+    repo.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: None,
+    }));
+
+    promoted(&repo, tracker).unwrap();
+
+    updates(tracker)
+}
+
+const LISTED_BODY: &str =
+    "\n# draft-k7mq3x: Add search\n\nSupersedes nothing.\n\n- one\n- two\n";
+
+#[test]
+fn a_cosmetically_rewritten_remote_still_agrees_with_the_draft() {
+    let tracker = tracker_holding(&format!(
+        "Add search\n{}",
+        Rewrite::StarBullets.apply(LISTED_BODY)
+    ));
+
+    assert_eq!(
+        promote_unhashed(LISTED_BODY, &tracker).len(),
+        1,
+        "the untouched issue is retitled"
+    );
+}
+
+#[test]
+fn a_remote_title_edit_does_not_agree() {
+    let tracker = tracker_holding(&format!("Find things\n{LISTED_BODY}"));
+
+    assert!(promote_unhashed(LISTED_BODY, &tracker).is_empty());
+}
+
+#[test]
+fn a_remote_body_edit_does_not_agree() {
+    let tracker = tracker_holding(&format!(
+        "Add search\n{}",
+        LISTED_BODY.replace("- two", "- three")
+    ));
+
+    assert!(promote_unhashed(LISTED_BODY, &tracker).is_empty());
+}
+
+#[test]
+fn a_jira_draft_normalised_by_the_push_round_trip_still_agrees() {
+    let paragraph = |text: &str| json!({"type": "paragraph", "content": [{"type": "text", "text": text}]});
+    let cell = |kind: &str, text: &str| json!({"type": kind, "content": [paragraph(text)]});
+    let item =
+        |text: &str| json!({"type": "listItem", "content": [paragraph(text)]});
+    let description = json!({"type": "doc", "version": 1, "content": [
+        {"type": "heading", "attrs": {"level": 1},
+         "content": [{"type": "text", "text": "draft-k7mq3x: Add search"}]},
+        {"type": "table", "content": [
+            {"type": "tableRow", "content": [cell("tableHeader", "a")]},
+            {"type": "tableRow", "content": [cell("tableCell", "1")]},
+        ]},
+        {"type": "bulletList", "content": [item("one"), item("two")]},
+    ]});
+    let tracker = support::jira_recording_tracker(vec![(
+        key(),
+        RemoteIssue {
+            key: key(),
+            updated: RemoteTimestamp::Reported("t0".to_owned()),
+            body: format!("Add search\n{description}\n"),
+        },
+    )]);
+
+    assert_eq!(
+        promote_unhashed(
+            "\n# draft-k7mq3x: Add search\n\n| a |\n|:--|\n| 1 |\n\n\
+             + one\n+ two\n",
+            &tracker
+        )
+        .len(),
+        1,
+        "the untouched issue is retitled"
+    );
+}
+
+#[test]
+fn an_id_inside_cosmetically_rewritten_text_still_agrees() {
+    let tracker = tracker_holding(
+        "Add search\n\n# REC-1: Add search\n\n**Supersedes nothing; see**\n\
+         **REC-1 for \\~550 items.**\n",
+    );
+
+    assert_eq!(
+        promote_unhashed(
+            "\n# draft-k7mq3x: Add search\n\n**Supersedes nothing; see\n\
+             draft-k7mq3x for ~550 items.**\n",
+            &tracker
+        )
+        .len(),
+        1,
+        "the tool's own retitle is not read as an edit"
+    );
 }
 
 /// Serves the draft without its closing fence once the tracker has been
@@ -793,6 +1003,7 @@ fn a_draft_unfenced_mid_promotion_is_refused_before_anything_is_written() {
         key: tracker_key(),
         read_back: ReadBack {
             hash: digest::remote_body(&draft_projection()),
+            fingerprints: None,
             updated: RemoteTimestamp::Reported("t0".to_owned()),
         },
     }));
@@ -837,8 +1048,20 @@ fn a_failed_h1_update_records_a_baseline_that_makes_the_next_sync_push() {
 
     let entry = repo.baseline_entry(KEY).unwrap();
     let remote = tracker.show(&key()).unwrap();
-    assert_eq!(entry.remote_hash, digest::remote_body(&remote.body));
-    assert_eq!(entry.local_hash, digest::local(DRAFT_CONTENT).unwrap());
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        digest::remote_body(&remote.body)
+    );
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        digest::local(DRAFT_CONTENT).unwrap()
+    );
 }
 
 #[test]
@@ -987,16 +1210,20 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
         reason: work::promotion::RemoteKeptReason::NoHash {
             read_back: work::promotion::ReadBack {
                 hash: digest::remote_body(&draft_projection()),
+                fingerprints: None,
                 updated: RemoteTimestamp::Reported("t0".to_owned()),
             },
         },
     };
     repo.save(&record_at(PromotionStage::Retiring {
         key: tracker_key(),
-        baseline: work::promotion::IntendedBaseline {
+        baseline: Box::new(work::promotion::IntendedBaseline {
             remote_hash: RemoteHash::Unknown,
-            local_hash: "draft".to_owned(),
-        },
+            local: work::promotion::LocalDigests {
+                legacy: "draft".to_owned(),
+                fingerprints: None,
+            },
+        }),
         recovery_dir: PathBuf::from("retirement-recovery/draft-k7mq3x--REC-1"),
         before: Box::new(before),
     }));
@@ -1008,7 +1235,14 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
 
     assert_eq!(creates(&tracker), 0);
     assert_promoted(&repo);
-    assert_eq!(repo.baseline_entry(KEY).unwrap().local_hash, "draft");
+    assert_eq!(
+        repo.baseline_entry(KEY)
+            .unwrap()
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        "draft"
+    );
 }
 
 #[test]
@@ -1198,6 +1432,7 @@ fn promoted_waiting(
         &PromotionMode::Standard,
         &PromotionPorts {
             tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },
@@ -1241,9 +1476,19 @@ fn a_user_named_adopt_never_rewrites_and_the_next_sync_raises_a_conflict_when_bo
 
     assert!(updates(&tracker).is_empty(), "the issue is never rewritten");
     let entry = repo.baseline_entry(KEY).unwrap();
-    assert_eq!(entry.remote_hash, "", "the remote reads as changed");
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        "",
+        "the remote reads as changed"
+    );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the two conflict"
     );
@@ -1264,12 +1509,18 @@ fn a_user_named_adopt_differing_only_by_id_reports_local_changed_and_the_next_sy
     let entry = repo.baseline_entry(KEY).unwrap();
     let remote = tracker.show(&key()).unwrap();
     assert_eq!(
-        entry.remote_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
         digest::remote_body(&remote.body),
         "the remote reads as unchanged"
     );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the next sync pushes the key H1"
     );
@@ -1425,4 +1676,144 @@ fn a_clean_promotion_names_nothing() {
     let repo = Repo::new().unwrap();
 
     assert!(reported(&repo, &fresh_tracker()).details.is_empty());
+}
+
+/// The state `work sync --preview` reports the promoted item in.
+fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
+    use work_adapters::sync::fetch::LocalItem;
+    use work_adapters::sync::fetch::RetrievalStrategy;
+    use work_adapters::sync::run::run;
+    use work_adapters::sync::run::ItemSelection;
+    use work_adapters::sync::run::RunMode;
+    use work_adapters::sync::run::SyncPorts;
+    use work_adapters::sync::run::SyncRequest;
+
+    struct Clock;
+    impl work::sync::RunClock for Clock {
+        fn run_start_epoch(&self) -> Result<u64, kernel::Error> {
+            Ok(1_700_000_000)
+        }
+    }
+    struct NoAuthor;
+    impl work_adapters::sync::create::LocalAuthor for NoAuthor {
+        fn author_from_remote(
+            &self,
+            _issue: &work_adapters::sync::create::DiscoveredIssue,
+        ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error>
+        {
+            panic!("a preview authors nothing")
+        }
+
+        fn link_external_id(
+            &self,
+            _path: &Path,
+            _external_id: &ExternalId,
+        ) -> Result<(), kernel::Error> {
+            panic!("a preview links nothing")
+        }
+    }
+
+    let writer = FileCorpusStore::new(repo.root());
+    let mut baseline =
+        BaselineStore::new(repo.path(BASELINE), &RealFs, &writer);
+    let items = [LocalItem {
+        id: KEY.to_owned(),
+        path: repo.path(TARGET),
+        external_id: Some(key()),
+    }];
+    let report = run(
+        &SyncPorts {
+            tracker,
+            parser: &CommonMarkBody,
+            status: &Clean,
+            writer: &writer,
+            clock: &Clock,
+            author: &NoAuthor,
+        },
+        &mut baseline,
+        &SyncRequest {
+            corpus: &items,
+            selection: ItemSelection::All,
+            direction: work::sync::SyncDirection::Bidirectional,
+            strategy: RetrievalStrategy::Bulk,
+            resolutions: &std::collections::BTreeMap::new(),
+            max_pulls: tracker::Ceiling::Unlimited,
+            max_pushes: tracker::Ceiling::Unlimited,
+            mode: RunMode::Preview,
+            integrations_root: &repo.path(INTEGRATIONS),
+            integration: "linear",
+            promote: false,
+            scope: tracker::SearchScope::default(),
+        },
+    )
+    .unwrap_or_else(|_| panic!("the preview runs"));
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == KEY)
+        .map(|item| item.planned.state)
+        .expect("the promoted item is reported")
+}
+
+#[test]
+fn the_predicted_state_equals_the_next_sync_run_for_every_disposition() {
+    let edited_after_create = || {
+        let repo = Repo::new().unwrap();
+        repo.save(&record_at(PromotionStage::Created {
+            key: tracker_key(),
+            created_remote_hash: Some(digest::remote_body(&draft_projection())),
+        }));
+        (repo, tracker_holding("Add search\nSomeone rewrote this.\n"))
+    };
+    let scenarios: Vec<(&str, (Repo, RecordingTracker), bool)> = vec![
+        (
+            "created and retitled",
+            (Repo::new().unwrap(), fresh_tracker()),
+            false,
+        ),
+        (
+            "the key H1 update failed",
+            (
+                Repo::new().unwrap(),
+                fresh_tracker().failing_update(
+                    key(),
+                    TrackerError::Retryable {
+                        detail: "refused".to_owned(),
+                    },
+                ),
+            ),
+            false,
+        ),
+        ("edited after its create", edited_after_create(), false),
+        (
+            "adopted over a differing body",
+            (
+                Repo::new().unwrap(),
+                tracker_holding("Add search\nWritten in the tracker.\n"),
+            ),
+            true,
+        ),
+        (
+            "adopted over the draft's own body",
+            (Repo::new().unwrap(), tracker_holding(&draft_projection())),
+            true,
+        ),
+    ];
+
+    for (name, (repo, tracker), adopt) in scenarios {
+        let promotion = if adopt {
+            adopted(&repo, &tracker)
+        } else {
+            promoted(&repo, &tracker)
+        };
+        let Ok(Promotion::Completed(_, predicted)) = promotion else {
+            panic!("{name}: the promotion completes, got {promotion:?}");
+        };
+
+        assert_eq!(
+            next_sync_preview(&repo, &tracker),
+            predicted,
+            "{name}: the next sync finds what the promotion predicted"
+        );
+    }
 }

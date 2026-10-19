@@ -2935,9 +2935,7 @@ fn a_team_consent_key_is_warned_about_in_both_hook_fields() -> TestResult {
 #[derive(Clone, Copy)]
 enum Checkout {
     Git,
-    #[cfg(feature = "bash-parity")]
     Jj,
-    #[cfg(feature = "bash-parity")]
     ColocatedJj,
 }
 
@@ -2945,9 +2943,7 @@ impl Checkout {
     fn init(self, hermetic: &Hermetic, root: &Path) -> TestResult {
         match self {
             Self::Git => hermetic.git(&["init", "--quiet"], root).map(drop)?,
-            #[cfg(feature = "bash-parity")]
             Self::Jj => hermetic.jj(&["git", "init"], root).map(drop)?,
-            #[cfg(feature = "bash-parity")]
             Self::ColocatedJj => hermetic
                 .jj(&["git", "init", "--colocate"], root)
                 .map(drop)?,
@@ -2958,7 +2954,6 @@ impl Checkout {
     fn track(self, hermetic: &Hermetic, root: &Path, file: &str) -> TestResult {
         match self {
             Self::Git => hermetic.git(&["add", file], root).map(drop)?,
-            #[cfg(feature = "bash-parity")]
             Self::Jj | Self::ColocatedJj => hermetic
                 .jj(&["commit", "-m", "track the personal file"], root)
                 .map(drop)?,
@@ -3030,14 +3025,12 @@ fn a_corrupt_index_with_logging_off_is_unknown_and_silent() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "bash-parity")]
 #[test]
 fn a_personal_file_tracked_by_jj_is_warned_about_in_both_hook_fields(
 ) -> TestResult {
     assert_a_tracked_personal_file_warns(Checkout::Jj)
 }
 
-#[cfg(feature = "bash-parity")]
 #[test]
 fn a_personal_file_tracked_by_colocated_jj_is_warned_about_in_both_hook_fields(
 ) -> TestResult {

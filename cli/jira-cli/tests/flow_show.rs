@@ -84,3 +84,31 @@ fn no_render_adf_leaves_the_document_intact() {
         "the raw ADF document is preserved: {rendered}"
     );
 }
+
+#[test]
+fn render_adf_escapes_text_that_resembles_markdown_syntax() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(ISSUE),
+        Route::Json {
+            status: 200,
+            body: r#"{"key":"ENG-42","fields":{"summary":"a bug","description":
+               {"type":"doc","version":1,"content":[{"type":"paragraph",
+               "content":[{"type":"text","text":"*not em* and snake_case"}]}]}}}"#
+                .to_owned(),
+        },
+    );
+    let dir = support::scratch(support::CONFIG);
+
+    let output = support::run(dir.path(), &server, &["show", "ENG-42"]);
+    let rendered: Value =
+        serde_json::from_slice(&output.stdout).expect("json stdout");
+
+    assert_eq!(
+        rendered
+            .pointer("/fields/description")
+            .and_then(Value::as_str),
+        Some("\\*not em\\* and snake\\_case"),
+        "{rendered}"
+    );
+}

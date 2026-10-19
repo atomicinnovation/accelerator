@@ -1,7 +1,8 @@
-//! The two digest recipes the sync baseline stores.
+//! The hash functions behind both digest recipes the sync baseline stores.
 
 use sha2::Digest as _;
 use sha2::Sha256;
+use work::sync::SyncedTrackerFields;
 
 /// Recognises `^---[[:space:]]*$`, deliberately not `document::fence::split`:
 /// `document` compares the exact bytes `---` and caps its scan at 1 MiB, so
@@ -49,7 +50,7 @@ pub fn split_frontmatter_and_body(
 }
 
 #[must_use]
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
 
     let digest = Sha256::digest(bytes);
@@ -93,87 +94,38 @@ pub fn remote_body(projected_body: &str) -> String {
     sha256_hex(trimmed.as_bytes())
 }
 
-/// A `work::sync::ItemDigests` backed by a file on disk, memoising each
-/// hash and the mtime so a caller pays each cost at most once, and only if
-/// `classify` asks.
+/// The recipe-1 frontmatter digest: `filter_frontmatter_keys` over the
+/// frontmatter alone, so a provenance restamp moves nothing.
 ///
-/// The outer `Option` on `mtime`/`remote_hash` distinguishes "not yet
-/// computed" from the inner `Option`'s "computed as absent", a distinction
-/// `classify` depends on.
-#[allow(clippy::option_option)]
-pub struct LazyItemDigests<'a> {
-    path: &'a std::path::Path,
-    remote_content: Option<String>,
-    mtime: std::cell::RefCell<Option<Option<u64>>>,
-    local_hash: std::cell::RefCell<Option<String>>,
-    remote_hash: std::cell::RefCell<Option<Option<String>>>,
+/// # Errors
+///
+/// As [`local`].
+pub fn frontmatter(file_content: &str) -> Result<String, kernel::Error> {
+    let (frontmatter, _) = split_frontmatter_and_body(file_content)?;
+    let filtered = work::normalise::filter_frontmatter_keys(&frontmatter);
+    Ok(sha256_hex(filtered.as_bytes()))
 }
 
-impl<'a> LazyItemDigests<'a> {
-    /// `remote_content` is the un-normalised projected body from a `show`
-    /// call, when one was made this run — `None` when the two-tier read
-    /// rule decided this item's stamp proves it unchanged.
-    #[must_use]
-    pub const fn new(
-        path: &'a std::path::Path,
-        remote_content: Option<String>,
-    ) -> Self {
-        Self {
-            path,
-            remote_content,
-            mtime: std::cell::RefCell::new(None),
-            local_hash: std::cell::RefCell::new(None),
-            remote_hash: std::cell::RefCell::new(None),
-        }
-    }
-}
-
-impl work::sync::ItemDigests for LazyItemDigests<'_> {
-    fn mtime(&self) -> Result<Option<u64>, kernel::Error> {
-        if let Some(cached) = *self.mtime.borrow() {
-            return Ok(cached);
-        }
-        let value = std::fs::metadata(self.path)
-            .and_then(|metadata| metadata.modified())
-            .ok()
-            .and_then(|modified| {
-                modified.duration_since(std::time::UNIX_EPOCH).ok()
-            })
-            .map(|duration| duration.as_secs());
-        *self.mtime.borrow_mut() = Some(value);
-        Ok(value)
-    }
-
-    fn local(&self) -> Result<String, kernel::Error> {
-        if let Some(cached) = self.local_hash.borrow().as_ref() {
-            return Ok(cached.clone());
-        }
-        let content = std::fs::read_to_string(self.path).map_err(|error| {
-            kernel::Error::Failed(format!(
-                "could not read {}: {error}",
-                self.path.display()
-            ))
-        })?;
-        let hash = local(&content)?;
-        *self.local_hash.borrow_mut() = Some(hash.clone());
-        Ok(hash)
-    }
-
-    fn remote_body(&self) -> Result<Option<String>, kernel::Error> {
-        if let Some(cached) = self.remote_hash.borrow().clone() {
-            return Ok(cached);
-        }
-        let hash = self.remote_content.as_deref().map(remote_body);
-        *self.remote_hash.borrow_mut() = Some(hash.clone());
-        Ok(hash)
-    }
+/// The recipe-1 digest of the tracker fields sync owns, the same for
+/// either side's reading of them.
+#[must_use]
+pub fn fields(fields: &SyncedTrackerFields) -> String {
+    sha256_hex(fields.digest_input().as_bytes())
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use corpus_adapters::CommonMarkBody;
+    use tracker::PlainDialect;
+
+    use super::fields;
+    use super::frontmatter;
     use super::local;
     use super::remote_body;
+    use crate::sync::body_comparison::BodyComparison;
+    use crate::sync::synced_fields::local_fields;
+    use crate::sync::synced_fields::remote_fields;
 
     #[test]
     fn local_hashes_the_composed_frontmatter_and_body() {
@@ -209,6 +161,67 @@ mod tests {
     }
 
     #[test]
+    fn the_frontmatter_hash_ignores_provenance_keys(
+    ) -> Result<(), kernel::Error> {
+        let baseline = "---\nstatus: ready\n---\n\nBody text\n";
+        let restamped = "---\nstatus: ready\nlast_updated: \"2026-01-01\"\n\
+                         ---\n\nOther body\n";
+        assert_eq!(frontmatter(baseline)?, frontmatter(restamped)?);
+        assert_ne!(
+            frontmatter(baseline)?,
+            frontmatter("---\nstatus: done\n---\n\nBody text\n")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_remote_fields_hash_digests_the_synced_fields_in_key_order() {
+        let projected = "Add search\nBody\n";
+        assert_eq!(
+            fields(&remote_fields(projected)),
+            super::sha256_hex(b"title=10:Add search\n")
+        );
+    }
+
+    #[test]
+    fn local_and_remote_fields_with_the_same_title_hash_equal(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let content =
+            "---\ntitle: \"Add search\"\nstatus: ready\n---\n\nBody\n";
+        assert_eq!(
+            fields(&local_fields(content)?),
+            fields(&remote_fields("Add search\nOther body\n"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_status_edit_leaves_the_local_fields_hash_unchanged(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ready = "---\ntitle: Add search\nstatus: ready\n---\n\nBody\n";
+        let done = "---\ntitle: Add search\nstatus: done\n---\n\nBody\n";
+        assert_eq!(fields(&local_fields(ready)?), fields(&local_fields(done)?));
+        assert_ne!(frontmatter(ready)?, frontmatter(done)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_remote_title_change_alone_changes_only_the_remote_fields_hash() {
+        let comparison = BodyComparison::new(&PlainDialect, &CommonMarkBody);
+        let before = "Add search\n# Heading\n";
+        let retitled = "Add search everywhere\n# Heading\n";
+
+        assert_eq!(
+            comparison.remote_body_hash(before),
+            comparison.remote_body_hash(retitled)
+        );
+        assert_ne!(
+            fields(&remote_fields(before)),
+            fields(&remote_fields(retitled))
+        );
+    }
+
+    #[test]
     fn remote_body_is_deterministic_and_hex() {
         let hash = remote_body("Some projected body\n");
         assert_eq!(hash.len(), 64);
@@ -221,80 +234,5 @@ mod tests {
             remote_body("Body text\n"),
             remote_body("Body text   \n\n\n")
         );
-    }
-
-    mod lazy {
-        use work::sync::ItemDigests as _;
-
-        use super::super::LazyItemDigests;
-
-        #[test]
-        fn local_reads_the_file_and_matches_the_pure_recipe(
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("item.md");
-            let content = "---\nstatus: ready\n---\n\nBody text\n";
-            std::fs::write(&path, content)?;
-
-            let digests = LazyItemDigests::new(&path, None);
-
-            assert_eq!(digests.local()?, super::local(content)?);
-            Ok(())
-        }
-
-        #[test]
-        fn remote_body_is_none_when_no_content_was_supplied(
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("item.md");
-            std::fs::write(&path, "---\nstatus: ready\n---\n\nBody\n")?;
-
-            let digests = LazyItemDigests::new(&path, None);
-
-            assert_eq!(digests.remote_body()?, None);
-            Ok(())
-        }
-
-        #[test]
-        fn remote_body_hashes_the_supplied_content(
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("item.md");
-            std::fs::write(&path, "---\nstatus: ready\n---\n\nBody\n")?;
-
-            let digests =
-                LazyItemDigests::new(&path, Some("Remote body\n".to_owned()));
-
-            assert_eq!(
-                digests.remote_body()?,
-                Some(super::super::remote_body("Remote body\n"))
-            );
-            Ok(())
-        }
-
-        #[test]
-        fn mtime_reflects_the_real_file(
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("item.md");
-            std::fs::write(&path, "---\nstatus: ready\n---\n\nBody\n")?;
-
-            let digests = LazyItemDigests::new(&path, None);
-
-            assert!(digests.mtime()?.is_some());
-            Ok(())
-        }
-
-        #[test]
-        fn mtime_is_none_for_a_missing_file(
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("missing.md");
-
-            let digests = LazyItemDigests::new(&path, None);
-
-            assert_eq!(digests.mtime()?, None);
-            Ok(())
-        }
     }
 }

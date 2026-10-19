@@ -216,7 +216,7 @@ fn update_puts_the_whole_content_and_returns_nothing() {
     let client = client_for(&server, brief());
 
     client
-        .update(&id("ENG-42"), "New title", "New body\n")
+        .update(&id("ENG-42"), Some("New title"), "New body\n")
         .expect("update succeeds");
 
     let sent: Value =
@@ -699,13 +699,13 @@ fn a_body_that_cannot_be_converted_is_rejected_and_names_its_cause() {
     let client = client_for(&server, brief());
 
     let error = client
-        .create("A title", "| a | b |\n|---|---|\n| 1 | 2 |\n", "task")
-        .expect_err("a table has no ADF conversion");
+        .create("A title", "bad\u{1f}byte\n", "task")
+        .expect_err("a control byte has no ADF conversion");
 
     let TrackerError::Rejected { detail } = error else {
         panic!("an unconvertible body is rejected: {error}");
     };
-    assert!(detail.contains("table"), "{detail}");
+    assert!(detail.contains("control byte"), "{detail}");
     assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0);
 }
 
@@ -718,7 +718,7 @@ fn a_bad_path_is_rejected_without_being_sent() {
     );
 
     let error = client
-        .update(&id("../ENG-1"), "A title", "A body\n")
+        .update(&id("../ENG-1"), Some("A title"), "A body\n")
         .expect_err("the identifier cannot be composed into a path");
 
     assert!(matches!(error, TrackerError::Rejected { .. }), "{error}");

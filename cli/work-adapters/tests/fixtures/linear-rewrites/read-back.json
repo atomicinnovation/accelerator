@@ -1,0 +1,15 @@
+{
+  "outcome": "found",
+  "data": {
+    "issue": {
+      "id": "5586915e-4430-47ed-bf6d-f44d1cd3fe2b",
+      "identifier": "TES-17",
+      "title": "0296 rewrite capture (scratch, delete me)",
+      "description": "## R01 Escaping\n\nRoughly \\~550 lines remain.\n\n## R02 Joined continuation lines\n\nThis paragraph is wrapped\nacross three source lines\nbefore it ends.\n\n## R03 Per-line bold\n\n**first bold line**\n**second bold line**\n\n## R04 Bold hoisted off code\n\n**run** `cargo test`\n\n## R05 Link destinations\n\nSee [the guide](<https://example.com/guide>) for details.\n\n## R06 Autolinked URLs\n\nVisit [https://example.com/autolink](<https://example.com/autolink>) today.\n\n## R07 Bullet markers\n\n* alpha\n* beta\n\n## R08 Task-marker case\n\n- [X] done task\n- [ ] open task\n\n## R09 Table delimiters\n\n| Name | Value |\n| -- | -- |\n| a | 1 |\n\n## R10 Inserted blank lines\n\n* first item\n* second item\n\n## R11 Wrapped digit lines\n\nThe removed items are 0158, 0159 and\n  0160\\. Nothing else moved.\n\n## R12 Dotted tokens autolinked\n\nPublished to [crates.io](<http://crates.io>) last week.\n\n## R13 Code-span indentation\n\n* Run `cargo nextest run` inside the list item.\n\n## X01 Code-span line ending at top level\n\nRun `cargo nextest run` at the top level.\n\n## X02 Blockquote container\n\n> Roughly \\~550 lines\n> remain in **quoted**\n> **bold** text.\n\n## X03 Paragraph directly followed by a list\n\nProposed children:\n\n* first child\n* second child\n\n## X04 Wrapped digit line without indentation\n\nThe removed items are 0158, 0159 and\n0160\\. Nothing else moved.\n\n## X05 Wrapped digit line inside a list item\n\n* The removed items are 0158, 0159 and\n  0160\\. Nothing else moved.\n\n## X06 Wrapped digit line indented past the content indent\n\n* The removed items are 0158, 0159 and\n      0160\\. Nothing else moved.\n\n## X07 Code-span continuation indented at top level\n\nRun `cargo nextest   run` at the top level.\n\n## X08 Code-span continuation indented past a task item's content indent\n\n- [ ] Given the filters, then Jira `labels IN ('a') AND labels NOT IN     ('b')` is composed.\n\n## X09 Wrapped digit line holding only the number\n\n* The tier infrastructure and the migration of existing evals — both owned by\n  160. \n* Running evals on every CI build.\n\nThe tier infrastructure and the migration of existing evals — both owned by\n0160.",
+      "updatedAt": "2026-10-13T11:15:33.753Z",
+      "state": {
+        "name": "Backlog"
+      }
+    }
+  }
+}

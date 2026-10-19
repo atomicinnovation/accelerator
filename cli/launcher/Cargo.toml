@@ -13,12 +13,6 @@ role = "launcher"
 [lints]
 workspace = true
 
-[features]
-# The session-start tracking tests build real jj repositories. Same contract as
-# vcs-adapters: on, an absent jj hard-fails; off, only the git cases run. CI
-# enables it (tasks/test/cli.py).
-bash-parity = []
-
 [[bin]]
 name = "accelerator"
 path = "src/main.rs"

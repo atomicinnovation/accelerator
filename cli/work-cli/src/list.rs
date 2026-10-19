@@ -4,6 +4,7 @@
 //! (`work::sync::plan` over `fetch::gather`) so the five rendered states are
 //! a presentation mapping over one source of truth, never a second one.
 
+use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,12 +33,13 @@ use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::digest::split_frontmatter_and_body;
-use work_adapters::sync::digest::LazyItemDigests;
 use work_adapters::sync::fetch;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::item_snapshot::ItemSnapshot;
 
 /// One scanned, well-formed work item with the fields the listing renders
 /// plus the identifiers the classifier keys on.
@@ -188,24 +190,26 @@ pub fn classify(
     baseline: &Baseline,
     status: &dyn WorkingCopyStatus,
 ) -> BTreeMap<String, SyncState> {
+    let digester = BaselineDigester::new(tracker, &CommonMarkBody);
     let facts = fetch::gather(
         items,
         baseline,
         tracker,
         status,
         RetrievalStrategy::Bulk,
+        &digester,
     );
-    let digests: Vec<LazyItemDigests<'_>> = items
+    let snapshots: Vec<ItemSnapshot<'_>> = items
         .iter()
         .map(|item| {
             let remote_content = facts
                 .per_id
                 .get(&item.id)
                 .and_then(|(remote, _)| remote.body.clone());
-            LazyItemDigests::new(&item.path, remote_content)
+            ItemSnapshot::new(&item.path, remote_content, &digester)
         })
         .collect();
-    let inputs = facts.plan_inputs(items, &digests, baseline);
+    let inputs = facts.plan_inputs(items, &snapshots, baseline);
     match plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new()) {
         Ok(computed) => computed
             .actions
@@ -1116,21 +1120,29 @@ mod tests {
         let mut baseline = Baseline::read(None).0;
         baseline.set(
             "0001",
-            Entry {
-                remote_updated_at: stamp.clone(),
-                remote_hash: "unused".to_owned(),
-                local_hash: synced_hash,
-                local_synced_at: 0,
-            },
+            Entry::persisted_legacy(
+                stamp.clone(),
+                "unused".to_owned(),
+                synced_hash,
+                0,
+            ),
         );
+        let recorded_before_the_edit =
+            BaselineDigester::new(&tracker::PlainDialect, &CommonMarkBody)
+                .digests(
+                    "---\nid: \"0002\"\n---\nearlier body\n",
+                    Some("Item\nremote body\n"),
+                )
+                .unwrap();
         baseline.set(
             "0002",
-            Entry {
-                remote_updated_at: stamp,
-                remote_hash: "unused".to_owned(),
-                local_hash: "a-different-hash".to_owned(),
-                local_synced_at: 0,
-            },
+            Entry::recorded(
+                work_adapters::sync::baseline::SyncStamps {
+                    remote_updated_at: stamp,
+                    local_synced_at: 0,
+                },
+                recorded_before_the_edit,
+            ),
         );
 
         let items = vec![
@@ -1156,6 +1168,132 @@ mod tests {
         assert_eq!(states.get("0001"), Some(&SyncState::Synced));
         assert_eq!(states.get("0002"), Some(&SyncState::LocallyModified));
         assert_eq!(states.get("0003"), Some(&SyncState::Unsynced));
+    }
+
+    struct UnusedAuthor;
+
+    impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
+        fn author_from_remote(
+            &self,
+            _issue: &work_adapters::sync::create::DiscoveredIssue,
+        ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error>
+        {
+            unreachable!("a preview authors nothing")
+        }
+
+        fn link_external_id(
+            &self,
+            _path: &Path,
+            _external_id: &ExternalId,
+        ) -> Result<(), kernel::Error> {
+            unreachable!("a preview links nothing")
+        }
+    }
+
+    struct FixedClock;
+
+    impl work::sync::RunClock for FixedClock {
+        fn run_start_epoch(&self) -> Result<u64, kernel::Error> {
+            Ok(1_700_000_000)
+        }
+    }
+
+    #[test]
+    fn work_list_and_sync_preview_report_the_same_state() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stamp = RemoteTimestamp::Reported("2026-06-01".to_owned());
+        let held = |index: usize, body: &str| {
+            let key = ExternalId::new(format!("ENG-{index}"));
+            (
+                key.clone(),
+                RemoteIssue {
+                    key,
+                    updated: stamp.clone(),
+                    body: format!("Item\n{body}\n"),
+                },
+            )
+        };
+        let tracker = RecordingTracker::holding(vec![
+            held(1, "unchanged body"),
+            held(2, "remote body"),
+        ]);
+        let items: Vec<LocalItem> = [
+            ("0001", "unchanged body", Some("ENG-1")),
+            ("0002", "changed body", Some("ENG-2")),
+            ("0003", "no remote", None),
+        ]
+        .into_iter()
+        .map(|(id, body, external)| LocalItem {
+            id: id.to_owned(),
+            path: write_item(dir.path(), id, body),
+            external_id: external.map(|key| ExternalId::new(key.to_owned())),
+        })
+        .collect();
+        let mut baseline = Baseline::read(None).0;
+        for (id, local) in [
+            (
+                "0001",
+                work_adapters::sync::digest::local(
+                    &std::fs::read_to_string(&items[0].path).unwrap(),
+                )
+                .unwrap(),
+            ),
+            ("0002", "a-different-hash".to_owned()),
+        ] {
+            baseline.set(
+                id,
+                Entry::persisted_legacy(
+                    stamp.clone(),
+                    "unused".to_owned(),
+                    local,
+                    0,
+                ),
+            );
+        }
+        let baseline_path = dir.path().join("last-sync.json");
+        std::fs::write(&baseline_path, baseline.render()).unwrap();
+        let writer = corpus_adapters::FileCorpusStore::new(dir.path());
+        let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
+            baseline_path,
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+
+        let listed = classify(&items, &tracker, &baseline, &AlwaysClean);
+        let previewed = work_adapters::sync::run::run(
+            &work_adapters::sync::run::SyncPorts {
+                tracker: &tracker,
+                parser: &CommonMarkBody,
+                status: &AlwaysClean,
+                writer: &writer,
+                clock: &FixedClock,
+                author: &UnusedAuthor,
+            },
+            &mut store,
+            &work_adapters::sync::run::SyncRequest {
+                corpus: &items,
+                selection: work_adapters::sync::run::ItemSelection::All,
+                direction: SyncDirection::Bidirectional,
+                strategy: RetrievalStrategy::Bulk,
+                resolutions: &BTreeMap::new(),
+                max_pulls: tracker::Ceiling::Unlimited,
+                max_pushes: tracker::Ceiling::Unlimited,
+                mode: work_adapters::sync::run::RunMode::Preview,
+                integrations_root: dir.path(),
+                integration: "linear",
+                promote: false,
+                scope: tracker::SearchScope::default(),
+            },
+        )
+        .unwrap_or_else(|_| unreachable!("the preview runs"));
+
+        let reported: BTreeMap<String, SyncState> = previewed
+            .reported
+            .into_iter()
+            .map(|item| (item.planned.id, item.planned.state))
+            .collect();
+        assert_eq!(listed, reported);
+        assert_eq!(listed.get("0001"), Some(&SyncState::Synced));
     }
 
     #[test]

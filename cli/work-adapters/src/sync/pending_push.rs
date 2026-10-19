@@ -14,16 +14,23 @@ use tracker::RemoteTimestamp;
 use work::draft_id::DraftId;
 use work::promotion::without_ids;
 use work::promotion::IntendedBaseline;
+use work::promotion::LocalDigests;
 use work::promotion::PromotionRecord;
 use work::promotion::PromotionStage;
 use work::promotion::ReadBack;
 use work::promotion::RemoteHash;
 use work::promotion::RemoteKeptReason;
+use work::sync::LocalFingerprints;
 use work::sync::PendingPush;
+use work::sync::RemoteFingerprints;
 use work::sync::RequestFingerprint;
 use work::tracker_key::TrackerKey;
 
-const PROMOTION_SCHEMA: u64 = 2;
+/// Schema 3 adds the split fingerprints to every read-back and intended
+/// baseline; a schema-2 record has none, and resumes under the legacy
+/// recipe.
+const PROMOTION_SCHEMA: u64 = 3;
+const LEGACY_PROMOTION_SCHEMA: u64 = 2;
 
 /// A file in the pending-push directory: a legacy marker a create names by
 /// its slug or item id, or a promotion record named by its draft ID.
@@ -255,13 +262,23 @@ fn key_of(object: &Map<String, Value>) -> Result<TrackerKey, MarkerError> {
 }
 
 /// A read-back as `<prefix>_hash` and `<prefix>_updated_at`, the stamp
-/// persisted as the sync baseline persists it: reported, or null.
+/// persisted as the sync baseline persists it: reported, or null, and the
+/// split fingerprints as `<prefix>_body_hash` and `<prefix>_fields_hash`
+/// when it carries them.
 fn read_back_from(
     object: &Map<String, Value>,
     prefix: &str,
 ) -> Result<ReadBack, MarkerError> {
+    let fingerprints = match (
+        optional_text(object, &format!("{prefix}_body_hash")),
+        optional_text(object, &format!("{prefix}_fields_hash")),
+    ) {
+        (Some(body), Some(fields)) => Some(RemoteFingerprints { body, fields }),
+        _ => None,
+    };
     Ok(ReadBack {
         hash: text(object, &format!("{prefix}_hash"))?,
+        fingerprints,
         updated: optional_text(object, &format!("{prefix}_updated_at"))
             .map_or(RemoteTimestamp::NotRead, RemoteTimestamp::Reported),
     })
@@ -277,6 +294,49 @@ fn put_read_back(
         format!("{prefix}_updated_at"),
         json!(read_back.updated.reported()),
     );
+    if let Some(fingerprints) = &read_back.fingerprints {
+        object.insert(format!("{prefix}_body_hash"), json!(fingerprints.body));
+        object.insert(
+            format!("{prefix}_fields_hash"),
+            json!(fingerprints.fields),
+        );
+    }
+}
+
+fn local_digests_from(
+    object: &Map<String, Value>,
+) -> Result<LocalDigests, MarkerError> {
+    let fingerprints = match (
+        optional_text(object, "local_frontmatter_hash"),
+        optional_text(object, "local_fields_hash"),
+        optional_text(object, "local_body_hash"),
+    ) {
+        (Some(frontmatter), Some(fields), Some(body)) => {
+            Some(LocalFingerprints {
+                frontmatter,
+                fields,
+                body,
+            })
+        }
+        _ => None,
+    };
+    Ok(LocalDigests {
+        legacy: text(object, "local_hash")?,
+        fingerprints,
+    })
+}
+
+fn put_local_digests(object: &mut Map<String, Value>, local: &LocalDigests) {
+    object.insert("local_hash".to_owned(), json!(local.legacy));
+    if let Some(fingerprints) = &local.fingerprints {
+        object.insert(
+            "local_frontmatter_hash".to_owned(),
+            json!(fingerprints.frontmatter),
+        );
+        object
+            .insert("local_fields_hash".to_owned(), json!(fingerprints.fields));
+        object.insert("local_body_hash".to_owned(), json!(fingerprints.body));
+    }
 }
 
 fn kept_reason(
@@ -318,7 +378,7 @@ fn baseline_from(
     };
     Ok(IntendedBaseline {
         remote_hash,
-        local_hash: text(object, "local_hash")?,
+        local: local_digests_from(object)?,
     })
 }
 
@@ -346,7 +406,7 @@ fn stage_from(
                 )?;
             Ok(PromotionStage::Retiring {
                 key: key_of(object)?,
-                baseline: baseline_from(object.get("baseline"))?,
+                baseline: Box::new(baseline_from(object.get("baseline"))?),
                 recovery_dir: PathBuf::from(text(object, "recovery_dir")?),
                 before: Box::new(stage_from(before)?),
             })
@@ -404,7 +464,7 @@ fn stage_fields(stage: &PromotionStage) -> Map<String, Value> {
                     encoded.insert("remote_hash".to_owned(), Value::Null);
                 }
             }
-            encoded.insert("local_hash".to_owned(), json!(baseline.local_hash));
+            put_local_digests(&mut encoded, &baseline.local);
             put("baseline", Value::Object(encoded));
             put("recovery_dir", json!(recovery_dir.display().to_string()));
             put("before", Value::Object(stage_fields(before)));
@@ -466,7 +526,7 @@ pub fn read_marker(
     })?;
     match object.get("schema").map(Value::as_u64) {
         None => read(Some(raw)).map(|marker| marker.map(Marker::Legacy)),
-        Some(Some(PROMOTION_SCHEMA)) => {
+        Some(Some(LEGACY_PROMOTION_SCHEMA | PROMOTION_SCHEMA)) => {
             record_from(object).map(|record| Some(Marker::Promotion(record)))
         }
         Some(_) => Err(MarkerError::Malformed(
@@ -526,7 +586,7 @@ pub fn outstanding(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use std::path::PathBuf;
     use work::tracker_key::TrackerKey;
@@ -545,12 +605,15 @@ mod tests {
     use tracker::RemoteTimestamp;
     use work::draft_id::DraftId;
     use work::promotion::IntendedBaseline;
+    use work::promotion::LocalDigests;
     use work::promotion::PromotionRecord;
     use work::promotion::PromotionStage;
     use work::promotion::ReadBack;
     use work::promotion::RemoteHash;
     use work::promotion::RemoteKeptReason;
+    use work::sync::LocalFingerprints;
     use work::sync::PendingPush;
+    use work::sync::RemoteFingerprints;
     use work::sync::RequestFingerprint;
 
     fn fingerprint() -> RequestFingerprint {
@@ -697,17 +760,37 @@ mod tests {
         }
     }
 
+    fn remote_fingerprints(hash: &str) -> RemoteFingerprints {
+        RemoteFingerprints {
+            body: format!("{hash}-body"),
+            fields: format!("{hash}-fields"),
+        }
+    }
+
+    fn local(digest: &str) -> LocalDigests {
+        LocalDigests {
+            legacy: digest.to_owned(),
+            fingerprints: Some(LocalFingerprints {
+                frontmatter: format!("{digest}-frontmatter"),
+                fields: format!("{digest}-fields"),
+                body: format!("{digest}-body"),
+            }),
+        }
+    }
+
     fn every_stage() -> Vec<PromotionStage> {
         let retitled = PromotionStage::RemoteRetitled {
             key: key(),
             read_back: ReadBack {
                 hash: "after".to_owned(),
+                fingerprints: Some(remote_fingerprints("after")),
                 updated: RemoteTimestamp::Reported("2026-09-28".to_owned()),
             },
         };
         let kept = |reason| PromotionStage::RemoteKept { key: key(), reason };
         let read_back_hash = || ReadBack {
             hash: "r".to_owned(),
+            fingerprints: Some(remote_fingerprints("r")),
             updated: RemoteTimestamp::NotRead,
         };
         vec![
@@ -735,13 +818,14 @@ mod tests {
             }),
             PromotionStage::Retiring {
                 key: key(),
-                baseline: IntendedBaseline {
+                baseline: Box::new(IntendedBaseline {
                     remote_hash: RemoteHash::Known(ReadBack {
                         hash: "after".to_owned(),
+                        fingerprints: Some(remote_fingerprints("after")),
                         updated: RemoteTimestamp::Reported("t".to_owned()),
                     }),
-                    local_hash: "promoted".to_owned(),
-                },
+                    local: local("promoted"),
+                }),
                 recovery_dir: PathBuf::from(
                     "retirement-recovery/draft-k7mq3x--PP-900",
                 ),
@@ -749,10 +833,10 @@ mod tests {
             },
             PromotionStage::Retiring {
                 key: key(),
-                baseline: IntendedBaseline {
+                baseline: Box::new(IntendedBaseline {
                     remote_hash: RemoteHash::Unknown,
-                    local_hash: "draft".to_owned(),
-                },
+                    local: local("draft"),
+                }),
                 recovery_dir: PathBuf::from("x"),
                 before: Box::new(kept(RemoteKeptReason::Edited {
                     read_back: read_back_hash(),
@@ -783,13 +867,84 @@ mod tests {
         for stage in every_stage() {
             let record = promotion(stage);
             let rendered = render_record(&record);
-            assert!(rendered.contains("\"schema\":2"), "{rendered}");
+            assert!(rendered.contains("\"schema\":3"), "{rendered}");
             assert_eq!(
                 read_marker(Some(&rendered)).expect("reads"),
                 Some(Marker::Promotion(record)),
                 "{rendered}"
             );
         }
+    }
+
+    #[test]
+    fn a_schema_three_marker_round_trips_its_split_fingerprints() {
+        let stage = every_stage()
+            .into_iter()
+            .find(|stage| matches!(stage, PromotionStage::Retiring { .. }))
+            .expect("a retiring stage");
+        let record = promotion(stage);
+        let rendered = render_record(&record);
+
+        for key in [
+            "remote_body_hash",
+            "remote_fields_hash",
+            "local_frontmatter_hash",
+            "local_fields_hash",
+            "local_body_hash",
+        ] {
+            assert!(rendered.contains(key), "{key} in {rendered}");
+        }
+        assert_eq!(
+            read_marker(Some(&rendered)).expect("reads"),
+            Some(Marker::Promotion(record))
+        );
+    }
+
+    #[test]
+    fn a_marker_written_before_recipe_one_still_parses_as_legacy() {
+        let schema_two = "{\"schema\":2,\"kind\":\"retiring\",\
+            \"external_id\":\"PP-900\",\"draft_id\":\"draft-k7mq3x\",\
+            \"content_digest\":\"c\",\"title\":\"Fix flaky test\",\
+            \"digest\":\"d\",\"attempted_at\":1,\"failure\":null,\
+            \"recovery_dir\":\"x\",\"baseline\":{\"remote_hash\":\"after\",\
+            \"remote_updated_at\":\"t\",\"local_hash\":\"promoted\"},\
+            \"before\":{\"kind\":\"remote-retitled\",\
+            \"external_id\":\"PP-900\",\"remote_hash\":\"after\",\
+            \"remote_updated_at\":\"t\"}}\n";
+
+        let Some(Marker::Promotion(record)) =
+            read_marker(Some(schema_two)).expect("a schema-2 record reads")
+        else {
+            panic!("a promotion record");
+        };
+        let PromotionStage::Retiring {
+            baseline, before, ..
+        } = record.stage
+        else {
+            panic!("a retiring stage");
+        };
+        let after = ReadBack {
+            hash: "after".to_owned(),
+            fingerprints: None,
+            updated: RemoteTimestamp::Reported("t".to_owned()),
+        };
+        assert_eq!(
+            *baseline,
+            IntendedBaseline {
+                remote_hash: RemoteHash::Known(after.clone()),
+                local: LocalDigests {
+                    legacy: "promoted".to_owned(),
+                    fingerprints: None,
+                },
+            }
+        );
+        assert_eq!(
+            *before,
+            PromotionStage::RemoteRetitled {
+                key: key(),
+                read_back: after,
+            }
+        );
     }
 
     #[test]

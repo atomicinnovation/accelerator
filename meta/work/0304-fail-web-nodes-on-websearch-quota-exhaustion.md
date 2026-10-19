@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "conduct", "web-profile"]
 last_updated: "2026-10-12T22:28:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-890"
 ---
 
 # 0304: Fail Web Nodes When the WebSearch Quota Runs Out

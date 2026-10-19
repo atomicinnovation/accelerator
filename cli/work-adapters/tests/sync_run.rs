@@ -1,11 +1,14 @@
 //! The whole-corpus run: the write bounds, preview's no-write guarantee,
 //! and the finalise bookkeeping.
 //!
-//! Items live on real files because `run` and `LazyItemDigests` read them
+//! Items live on real files because `run` and `ItemSnapshot` read them
 //! through `std::fs`; only the baseline goes through the injected reader
 //! and writer, which is what lets a spy count writes.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -15,7 +18,9 @@ use std::path::PathBuf;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use jira_client::JiraBodyDialect;
 use tracker::ExternalId;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::Call;
@@ -30,8 +35,10 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
+use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
@@ -39,6 +46,7 @@ use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
+use work_adapters::sync::run::UnrenderableReason;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -182,8 +190,8 @@ fn pullable(
     ))
 }
 
-/// One item whose local side has moved and whose remote side is proven
-/// unchanged, so it classifies `locally-modified` and decides `Push`.
+/// One item whose local title and body have moved and whose remote side is
+/// proven unchanged, so it classifies `locally-modified` and decides `Push`.
 fn pushable(
     dir: &Path,
     index: usize,
@@ -193,9 +201,16 @@ fn pushable(
     let path = dir.join(format!("{id}.md"));
     std::fs::write(&path, item_content(external.as_str()))?;
 
-    let remote_hash = digest::remote_body(projected_body());
-    let entry = format!(
-        "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
+    let recorded = format!(
+        "---\ntitle: Earlier title\nstatus: ready\n\
+         external_id: \"{external}\"\n---\n\nEarlier body\n"
+    );
+    let entry = support::split_entry(
+        &id,
+        &PlainDialect,
+        &recorded,
+        projected_body(),
+        STAMP,
     );
     let issue = RemoteIssue {
         key: external.clone(),
@@ -290,6 +305,7 @@ fn execute(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -329,6 +345,7 @@ fn execute_ceilings(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -367,6 +384,7 @@ fn execute_targeted(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -406,6 +424,9 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
             let outcome = match &item.outcome {
                 ItemOutcome::Applied => "applied".to_owned(),
                 ItemOutcome::NotApplied => "not-applied".to_owned(),
+                ItemOutcome::UnsupportedRecipe => {
+                    "unsupported-recipe".to_owned()
+                }
                 ItemOutcome::Failed(error) => format!("failed:{error:?}"),
             };
             (
@@ -431,6 +452,7 @@ fn run_with<'a>(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: spy,
         clock: &clock,
@@ -588,7 +610,11 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
         .expect("the run writes the baseline");
     let (baseline, _) = Baseline::read(Some(&written));
     assert_eq!(
-        baseline.get("0001").expect("entry present").local_synced_at,
+        baseline
+            .get("0001")
+            .and_then(work_adapters::sync::baseline::Entry::stamps)
+            .expect("entry present")
+            .local_synced_at,
         500,
         "an indeterminate item keeps its watermark, so a later run still \
          detects a pre-existing local edit"
@@ -857,7 +883,9 @@ fn the_fixtures_classify_as_intended() -> Result<(), TestError> {
     let pushes = report
         .reported
         .iter()
-        .filter(|item| item.planned.action == work::sync::Action::Push)
+        .filter(|item| {
+            matches!(item.planned.action, work::sync::Action::Push(_))
+        })
         .count();
 
     assert_eq!(pulls, 2, "two items must decide Pull");
@@ -1138,6 +1166,35 @@ fn an_applied_pull_writes_the_item_and_advances_the_baseline(
 }
 
 #[test]
+fn a_failed_show_after_a_stamp_change_is_indeterminate_and_writes_nothing(
+) -> Result<(), TestError> {
+    let mut scenario = scenario(1, 0)?;
+    let item = scenario.items[0].clone();
+    let external = item.external_id.clone().expect("a tracked item");
+    scenario.tracker = std::mem::replace(
+        &mut scenario.tracker,
+        RecordingTracker::holding(Vec::new()),
+    )
+    .failing_show(
+        external,
+        tracker::TrackerError::Retryable {
+            detail: "show timed out".to_owned(),
+        },
+    );
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a single item within bounds must proceed")?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(
+        scenario.spy.content_of(&item.path),
+        None,
+        "nothing is written over the item"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
@@ -1249,14 +1306,14 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         1,
         "Item one",
         "## Summary\nlocal summary\n## Requirements\nlocal reqs\n",
-        "## Summary\nremote summary\n## Requirements\nremote reqs\n",
+        "Item one\n## Summary\nremote summary\n## Requirements\nremote reqs\n",
     )?;
     let (item_b, issue_b, entry_b) = conflicting(
         dir.path(),
         2,
         "Item two",
         "## Summary\nlocal only\n",
-        "## Summary\nremote only\n",
+        "Item two\n## Summary\nremote only\n",
     )?;
 
     let spy = Spy::default();
@@ -1281,7 +1338,7 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .iter()
         .find(|d| d.id == "0001")
         .expect("the multi-section conflict has a dossier");
-    assert!(!multi.local_unreadable);
+    assert_eq!(multi.unrenderable, None);
     assert!(multi.local_modified.is_some(), "a real file has an mtime");
     assert!(
         matches!(multi.remote_updated, RemoteTimestamp::Reported(ref s) if s == MOVED_STAMP),
@@ -1300,11 +1357,11 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .find(|s| s.name == "Summary")
         .expect("the Summary section differs");
     assert_eq!(
-        summary.local, "local summary\n",
+        summary.local, "## Summary\nlocal summary\n",
         "the local side is bound to the seeded local body"
     );
     assert_eq!(
-        summary.remote, "remote summary\n",
+        summary.remote, "## Summary\nremote summary\n",
         "the remote side is bound to the seeded remote body"
     );
 
@@ -1314,6 +1371,272 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .find(|d| d.id == "0002")
         .expect("the single-section conflict has a dossier");
     assert_eq!(single.sections.len(), 1);
+    Ok(())
+}
+
+fn execute_resolving(
+    scenario: &Scenario,
+    resolutions: &BTreeMap<String, Resolution>,
+) -> Result<RunReport, RunError> {
+    execute_resolving_in(scenario, resolutions, RunMode::Apply, &AlwaysClean)
+}
+
+fn execute_resolving_in(
+    scenario: &Scenario,
+    resolutions: &BTreeMap<String, Resolution>,
+    mode: RunMode,
+    status: &dyn WorkingCopyStatus,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
+        status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    run(
+        &ports,
+        &mut store,
+        &request(
+            &scenario.items,
+            ItemSelection::All,
+            resolutions,
+            scenario.dir.path(),
+            25,
+            25,
+            mode,
+        ),
+    )
+}
+
+fn accepting_remote(id: &str) -> BTreeMap<String, Resolution> {
+    BTreeMap::from([(id.to_owned(), Resolution::AcceptRemote)])
+}
+
+fn pushing_local(id: &str) -> BTreeMap<String, Resolution> {
+    BTreeMap::from([(id.to_owned(), Resolution::PushLocal)])
+}
+
+#[test]
+fn a_local_resolution_overwrites_the_remote_title_and_description(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Local title",
+        "Local body\n",
+        "Title\nRemote body\n",
+    )?;
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Overwrite
+    );
+    assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
+    let updates: Vec<(Option<String>, String)> = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            Call::Update { title, body, .. } => {
+                Some((title, body.trim().to_owned()))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        updates,
+        [(Some("Local title".to_owned()), "Local body".to_owned())]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_previewed_overwrite_carries_a_payload_check() -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Local title",
+        "Local body\n",
+        "Title\nRemote body\n",
+    )?;
+
+    let report = execute_resolving_in(
+        &scenario,
+        &pushing_local("0009"),
+        RunMode::Preview,
+        &AlwaysClean,
+    )
+    .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Overwrite
+    );
+    assert_eq!(
+        report.reported[0].validation,
+        Some(tracker::ValidationOutcome::Valid)
+    );
+    Ok(())
+}
+
+fn conflict_scenario(
+    title: &str,
+    local_body: &str,
+    remote_projection: &str,
+) -> Result<Scenario, TestError> {
+    let dir = tempfile::tempdir()?;
+    let (item, issue, entry) =
+        conflicting(dir.path(), 9, title, local_body, remote_projection)?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry]));
+    Ok(Scenario {
+        items: vec![item],
+        tracker: RecordingTracker::holding(vec![issue]),
+        spy,
+        dir,
+    })
+}
+
+fn written_body(spy: &Spy, path: &Path) -> String {
+    let written = spy
+        .content_of(path)
+        .expect("the pulled item was written through the writer");
+    let (_, body) = written
+        .split_once("\n---\n\n")
+        .expect("the pulled item keeps its frontmatter fence");
+    body.to_owned()
+}
+
+fn only_failure(report: &RunReport) -> &work_adapters::sync::apply::ApplyError {
+    match &report.reported[0].outcome {
+        ItemOutcome::Failed(error) => error,
+        _ => panic!("the item must fail"),
+    }
+}
+
+#[test]
+fn a_pulled_file_carries_no_projected_title_line() -> Result<(), TestError> {
+    let scenario = scenario(1, 0)?;
+
+    execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a single pull within bounds must proceed")?;
+
+    assert_eq!(
+        written_body(&scenario.spy, &scenario.items[0].path),
+        "Remote body\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_remote_resolution_writes_no_projected_title_line() -> Result<(), TestError>
+{
+    let scenario = conflict_scenario(
+        "Item nine",
+        "## Summary\nlocal summary\n",
+        "Item nine\n## Summary\nremote summary\n",
+    )?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(
+        written_body(&scenario.spy, &scenario.items[0].path),
+        "## Summary\nremote summary\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_frontmatter_kept_pull_keeps_local_frontmatter_and_no_title_line(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Item nine",
+        "local body\n",
+        "Remote title\nremote body\n",
+    )?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(
+        scenario.spy.content_of(&scenario.items[0].path),
+        Some(conflict_content(9, "Item nine", "remote body\n"))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_dossier_remote_side_begins_with_the_description() -> Result<(), TestError>
+{
+    let scenario = conflict_scenario(
+        "Item nine",
+        "## Summary\nlocal summary\n",
+        "Item nine\n## Summary\nremote summary\n",
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a conflict is not a write, so bounds cannot refuse it")?;
+
+    let names: Vec<&str> = report.dossiers[0]
+        .sections
+        .iter()
+        .map(|section| section.name.as_str())
+        .collect();
+    assert_eq!(names, ["Summary"]);
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_local_file_fails_the_pull_and_writes_nothing(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Item nine",
+        "local body\n",
+        "Item nine\nremote body\n",
+    )?;
+    let path = scenario.items[0].path.clone();
+    std::fs::remove_file(&path)?;
+    std::fs::create_dir(&path)?;
+    let blank_local_hash = format!(
+        "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"\"}}"
+    );
+    scenario
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[blank_local_hash]));
+
+    let report = execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a blank baseline local_hash needs no local read")?;
+
+    assert!(
+        matches!(
+            only_failure(&report),
+            work_adapters::sync::apply::ApplyError::Io { .. }
+        ),
+        "an unreadable local file must not pull over empty frontmatter"
+    );
+    assert_eq!(scenario.spy.content_of(&path), None);
+    Ok(())
+}
+
+#[test]
+fn an_empty_fetched_description_pulls_to_an_empty_body() -> Result<(), TestError>
+{
+    let scenario =
+        conflict_scenario("Item nine", "local body\n", "Item nine\n")?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(written_body(&scenario.spy, &scenario.items[0].path), "");
     Ok(())
 }
 
@@ -1361,8 +1684,9 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
     );
     assert_eq!(report.dossiers.len(), 1);
     let dossier = &report.dossiers[0];
-    assert!(
-        dossier.local_unreadable,
+    assert_eq!(
+        dossier.unrenderable,
+        Some(UnrenderableReason::LocalUnreadable),
         "the unreadable local file is flagged"
     );
     assert!(
@@ -1387,7 +1711,8 @@ fn preview_lists_every_action_and_validates_push_entries_only(
         "the preview report must not shrink below the whole plan"
     );
     for item in &report.reported {
-        let is_push = item.planned.action == work::sync::Action::Push;
+        let is_push =
+            matches!(item.planned.action, work::sync::Action::Push(_));
         assert_eq!(
             item.validation.is_some(),
             is_push,
@@ -1411,7 +1736,7 @@ fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
     execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "the push must proceed within the bounds")?;
 
-    let pushed: Vec<String> = scenario
+    let pushed: Vec<Option<String>> = scenario
         .tracker
         .calls()
         .into_iter()
@@ -1420,7 +1745,7 @@ fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
             _ => None,
         })
         .collect();
-    assert_eq!(pushed, [r#"Say "hi" to C:\temp"#]);
+    assert_eq!(pushed, [Some(r#"Say "hi" to C:\temp"#.to_owned())]);
     Ok(())
 }
 
@@ -1438,7 +1763,7 @@ fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
     let push = report
         .reported
         .iter()
-        .find(|item| item.planned.action == work::sync::Action::Push)
+        .find(|item| matches!(item.planned.action, work::sync::Action::Push(_)))
         .expect("one push entry");
     assert!(
         matches!(
@@ -1476,6 +1801,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &spy,
         clock: &clock,
@@ -1525,6 +1851,7 @@ fn execute_with_scope(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -1810,6 +2137,7 @@ fn execute_with_scope_bounded(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -2020,5 +2348,230 @@ fn max_items_counts_the_post_dedup_discovered_set() -> Result<(), TestError> {
         matches!(over, Err(RunError::Refused { .. })),
         "the deduped count, not the raw count, is bounded by max_items"
     );
+    Ok(())
+}
+
+const JIRA_PANEL_DESCRIPTION: &str = "{\"content\":[{\"attrs\":{\
+    \"panelType\":\"info\"},\"content\":[],\"type\":\"panel\"}],\
+    \"type\":\"doc\",\"version\":1}";
+const JIRA_MENTION_DESCRIPTION: &str = "{\"content\":[{\"content\":[{\
+    \"attrs\":{\"id\":\"u1\",\"text\":\"@someone\"},\"type\":\"mention\"}],\
+    \"type\":\"paragraph\"}],\"type\":\"doc\",\"version\":1}";
+const JIRA_OTHER_DESCRIPTION: &str = "{\"content\":[{\"content\":[{\
+    \"text\":\"Earlier\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\
+    \"type\":\"doc\",\"version\":1}";
+
+fn jira_projection(description: &str) -> String {
+    format!("Title\n{description}\n")
+}
+
+/// One Jira item whose local body is `local_body` and whose remote holds
+/// `description`, with `entry` as its baseline (or none).
+fn jira_scenario(
+    local_body: &str,
+    description: &str,
+    remote_stamp: &str,
+    entry: Option<&dyn Fn(&str) -> String>,
+) -> Result<Scenario, TestError> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("0009.md");
+    let content = conflict_content(9, "Local title", local_body);
+    std::fs::write(&path, &content)?;
+    let external = ExternalId::new("ENG-9".to_owned());
+    let issue = RemoteIssue {
+        key: external.clone(),
+        updated: RemoteTimestamp::Reported(remote_stamp.to_owned()),
+        body: jira_projection(description),
+    };
+    let spy = Spy::default();
+    let entries: Vec<String> =
+        entry.map(|entry| entry(&content)).into_iter().collect();
+    spy.seed(BASELINE_PATH, &baseline_document(&entries));
+    Ok(Scenario {
+        items: vec![LocalItem {
+            id: "0009".to_owned(),
+            path,
+            external_id: Some(external.clone()),
+        }],
+        tracker: support::jira_recording_tracker(vec![(external, issue)]),
+        spy,
+        dir,
+    })
+}
+
+/// A recipe-1 entry recording a local body of `recorded_local_body` and the
+/// remote at `STAMP` holding `description`.
+fn split_entry_recording<'a>(
+    recorded_local_body: &'a str,
+    description: &'a str,
+) -> impl Fn(&str) -> String + 'a {
+    move |_| {
+        support::split_entry(
+            "0009",
+            &JiraBodyDialect,
+            &conflict_content(9, "Local title", recorded_local_body),
+            &jira_projection(description),
+            STAMP,
+        )
+    }
+}
+
+fn both_moved_entry(_: &str) -> String {
+    format!(
+        "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\
+         \"remote_hash\":\"stale\",\"local_hash\":\"stale\"}}"
+    )
+}
+
+fn sent_nothing(tracker: &RecordingTracker) -> bool {
+    !tracker.calls().iter().any(|call| {
+        matches!(
+            call,
+            Call::Update { .. } | Call::Retitle { .. } | Call::Create { .. }
+        )
+    })
+}
+
+fn failure_class_of(
+    report: &RunReport,
+) -> work_adapters::sync::apply::FailureClass {
+    only_failure(report).class()
+}
+
+#[test]
+fn a_local_edit_over_an_unrenderable_jira_description_is_a_conflict_and_sends_nothing(
+) -> Result<(), TestError> {
+    let scenario = jira_scenario(
+        "Edited locally\n",
+        JIRA_PANEL_DESCRIPTION,
+        STAMP,
+        Some(&split_entry_recording(
+            "Before the edit\n",
+            JIRA_PANEL_DESCRIPTION,
+        )),
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a conflict is within the bounds")?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Prompt
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn resolve_local_overwrites_an_unrenderable_jira_description(
+) -> Result<(), TestError> {
+    let scenario = jira_scenario(
+        "Edited locally\n",
+        JIRA_PANEL_DESCRIPTION,
+        MOVED_STAMP,
+        Some(&split_entry_recording(
+            "Before the edit\n",
+            JIRA_OTHER_DESCRIPTION,
+        )),
+    )?;
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
+    assert!(scenario.tracker.calls().iter().any(|call| matches!(
+        call,
+        Call::Update { title, body, .. }
+            if title.as_deref() == Some("Local title")
+                && body.contains("Edited locally")
+    )));
+    Ok(())
+}
+
+#[test]
+fn resolving_local_on_an_entryless_residue_item_sends_nothing(
+) -> Result<(), TestError> {
+    let residue = format!("Old title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let scenario =
+        jira_scenario(&residue, JIRA_MENTION_DESCRIPTION, MOVED_STAMP, None)?;
+
+    let unresolved = execute_resolving(&scenario, &BTreeMap::new())
+        .map_err(|_| "a conflict is within the bounds")?;
+    let DossierRender::Unrenderable(dossier) =
+        render_dossier(&unresolved.dossiers[0], &|_| String::new())
+    else {
+        panic!("residue over an unrenderable remote has no sections");
+    };
+    assert!(dossier.contains("reason: local-pull-residue"), "{dossier}");
+    assert!(dossier.contains("--resolve 0009=remote"), "{dossier}");
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
+) -> Result<(), TestError> {
+    let residue = format!("Title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let recorded_residue =
+        format!("Old title\n{JIRA_OTHER_DESCRIPTION}\nBefore the edit\n");
+    let scenario = jira_scenario(
+        &residue,
+        JIRA_OTHER_DESCRIPTION,
+        STAMP,
+        Some(&split_entry_recording(
+            &recorded_residue,
+            JIRA_OTHER_DESCRIPTION,
+        )),
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a push within bounds must proceed")?;
+
+    assert!(matches!(
+        report.reported[0].planned.action,
+        work::sync::Action::Push(_)
+    ));
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn a_previewed_residue_overwrite_reports_pull_residue() -> Result<(), TestError>
+{
+    let residue = format!("Title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let scenario = jira_scenario(
+        &residue,
+        JIRA_PANEL_DESCRIPTION,
+        MOVED_STAMP,
+        Some(&both_moved_entry),
+    )?;
+
+    let report = execute_resolving_in(
+        &scenario,
+        &pushing_local("0009"),
+        RunMode::Preview,
+        &AlwaysClean,
+    )
+    .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
     Ok(())
 }

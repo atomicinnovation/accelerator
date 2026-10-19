@@ -13,6 +13,7 @@ from tasks.shared.rust import RUST_NIGHTLY
 # Every entry is a directory name that is also the package name, which the
 # snapshot path and the `-p` argument both rely on.
 _PINNED_CRATES = (
+    "adf",
     "collaboration",
     "config",
     "corpus",

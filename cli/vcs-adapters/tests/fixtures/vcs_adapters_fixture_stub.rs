@@ -8,8 +8,8 @@
 //! floor would catch it.
 //!
 //! A second `[[bin]]` rather than a `stub` feature on `vcs-adapters`: the crate
-//! must gain no `[features]` entry beyond `bash-parity`, and CI's
-//! `--all-features` would otherwise turn a fixture feature on workspace-wide.
+//! declares no `[features]`, and CI's `--all-features` would otherwise turn a
+//! fixture feature on workspace-wide.
 #![allow(
     clippy::exit,
     clippy::print_stdout,

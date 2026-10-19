@@ -81,6 +81,19 @@ impl core::fmt::Debug for remote_projection::Op
 pub fn remote_projection::Op::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for remote_projection::Op
 impl core::marker::StructuralPartialEq for remote_projection::Op
+pub struct remote_projection::ProjectedIssue<'a>
+pub remote_projection::ProjectedIssue::description: &'a str
+pub remote_projection::ProjectedIssue::title: &'a str
+impl<'a> core::clone::Clone for remote_projection::ProjectedIssue<'a>
+pub fn remote_projection::ProjectedIssue<'a>::clone(&self) -> remote_projection::ProjectedIssue<'a>
+impl<'a> core::cmp::Eq for remote_projection::ProjectedIssue<'a>
+impl<'a> core::cmp::PartialEq for remote_projection::ProjectedIssue<'a>
+pub fn remote_projection::ProjectedIssue<'a>::eq(&self, other: &remote_projection::ProjectedIssue<'a>) -> bool
+impl<'a> core::fmt::Debug for remote_projection::ProjectedIssue<'a>
+pub fn remote_projection::ProjectedIssue<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for remote_projection::ProjectedIssue<'a>
+impl<'a> core::marker::StructuralPartialEq for remote_projection::ProjectedIssue<'a>
 pub fn remote_projection::parse_integration(value: &str) -> core::option::Option<remote_projection::Integration>
 pub fn remote_projection::project(integration: remote_projection::Integration, op: remote_projection::Op, remote_json: &serde_json::value::Value) -> alloc::string::String
 pub fn remote_projection::project_raw(integration: remote_projection::Integration, op: remote_projection::Op, remote_json: &str) -> core::result::Result<alloc::string::String, remote_projection::json::JsonError>
+pub fn remote_projection::split_projected(projected: &str) -> remote_projection::ProjectedIssue<'_>

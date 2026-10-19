@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "researcher-agent", "research-guard"]
 last_updated: "2026-10-12T22:35:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-894"
 ---
 
 # 0308: Tell Researchers What Bash Can Do and Give Them Edit and Grep

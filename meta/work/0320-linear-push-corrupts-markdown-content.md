@@ -12,9 +12,10 @@ parent: "work-item:0146"
 blocked_by: ["work-item:0296"]
 relates_to: ["work-item:0296"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-10-10T16:36:05+00:00"
+last_updated: "2026-10-13T11:58:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-906"
 ---
 # 0320: Linear Push Corrupts Markdown Content
 
@@ -101,6 +102,12 @@ strips continuation-line indentation before parsing inline code.
 - Fix on the push side (unwrap soft breaks, escape a leading `<digits>.`,
   escape linkifiable tokens), or report upstream to Linear? The first is
   within our control; the second is not.
+- Is Defect 3 a defect? CommonMark keeps a code span's continuation-line
+  spaces beyond the container's indent, so `` `a⏎  b` `` already means
+  `a   b`. 0296's capture
+  (`cli/work-adapters/tests/fixtures/linear-rewrites/`, `X07`, `X08`, `R13`)
+  shows Linear's read-back equal to the CommonMark reading in every case, and
+  0296 now treats the row as cosmetic.
 
 ## Dependencies
 

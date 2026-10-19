@@ -177,7 +177,7 @@ fn update_replaces_the_content_offline() {
 
     subject
         .tracker()
-        .update(&created, "Updated", "Updated body\n")
+        .update(&created, Some("Updated"), "Updated body\n")
         .expect("update succeeds");
 }
 
@@ -315,9 +315,11 @@ fn the_surface_error_shim_maps_a_read_failure_to_retryable() {
 fn validate_update_rejects_a_missing_summary_offline() {
     let server = conformant_server();
     let id = ExternalId::new(CREATED.to_owned());
-    let outcome = subject(&server)
-        .tracker()
-        .validate_update(&id, "", "Body\n");
+    let outcome = subject(&server).tracker().validate_update(
+        &id,
+        Some(""),
+        Some("Body\n"),
+    );
     match outcome {
         ValidationOutcome::Rejected { reasons } => {
             assert!(!reasons.is_empty());
@@ -344,5 +346,70 @@ fn the_partition_stays_total_over_a_mixed_request() {
     assert!(
         outcome.absent.is_empty(),
         "a failed search proves nothing about absence"
+    );
+}
+
+#[test]
+fn retitle_sends_only_the_title() {
+    let server = conformant_server();
+    let issue = RequestKey::put(&format!("/rest/api/3/issue/{CREATED}"));
+
+    subject(&server)
+        .tracker()
+        .retitle(&ExternalId::new(CREATED.to_owned()), "Retitled")
+        .expect("retitle succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server.last_body(&issue).expect("the retitle was sent"),
+    )
+    .expect("a JSON request");
+    assert_eq!(sent["fields"], serde_json::json!({"summary": "Retitled"}));
+}
+
+#[test]
+fn update_without_a_title_sends_only_the_description() {
+    let server = conformant_server();
+    let issue = RequestKey::put(&format!("/rest/api/3/issue/{CREATED}"));
+
+    subject(&server)
+        .tracker()
+        .update(&ExternalId::new(CREATED.to_owned()), None, "Body\n")
+        .expect("update succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server.last_body(&issue).expect("the update was sent"),
+    )
+    .expect("a JSON request");
+    let fields = sent["fields"].as_object().expect("a fields object");
+    assert_eq!(
+        fields.keys().collect::<Vec<_>>(),
+        vec!["description"],
+        "only the description is sent"
+    );
+}
+
+#[test]
+fn validating_without_a_title_requires_none() {
+    let server = conformant_server();
+    let id = ExternalId::new(CREATED.to_owned());
+
+    assert_eq!(
+        subject(&server)
+            .tracker()
+            .validate_update(&id, None, Some("Body\n")),
+        ValidationOutcome::Valid
+    );
+}
+
+#[test]
+fn validating_without_a_body_composes_no_description() {
+    let server = conformant_server();
+    let id = ExternalId::new(CREATED.to_owned());
+
+    assert_eq!(
+        subject(&server)
+            .tracker()
+            .validate_update(&id, Some("Title"), None),
+        ValidationOutcome::Valid
     );
 }

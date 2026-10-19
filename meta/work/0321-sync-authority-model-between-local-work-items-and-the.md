@@ -14,6 +14,7 @@ tags: ["sync", "adr", "authority"]
 last_updated: "2026-10-10T16:36:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-907"
 ---
 # 0321: Sync Authority Model Between Local Work Items and the Tracker
 

@@ -13,12 +13,6 @@ context = "vcs"
 [lints]
 workspace = true
 
-[features]
-# The detection fixtures build real jj and git repositories. Same contract as
-# corpus-adapters: on, an absent binary hard-fails; off, only the pure tables
-# run. CI enables it (tasks/test/cli.py).
-bash-parity = []
-
 # Composition-root demonstration and black-box test entry point — not a shipped
 # artifact. Lives under tests/fixtures/ so it stays off the crate's normal build
 # surface. The scrub-invariant runs drive both the poisoned and the clean arm
@@ -29,9 +23,8 @@ name = "vcs-adapters-fixture"
 path = "tests/fixtures/vcs_adapters_fixture.rs"
 
 # The stubbed twin, giving the size floor a denominator. A second [[bin]] rather
-# than a `stub` feature: the crate must gain no [features] entry beyond
-# bash-parity, and CI's --all-features would turn a fixture feature on
-# workspace-wide.
+# than a `stub` feature: the crate declares no [features], and CI's
+# --all-features would turn a fixture feature on workspace-wide.
 [[bin]]
 name = "vcs-adapters-fixture-stub"
 path = "tests/fixtures/vcs_adapters_fixture_stub.rs"

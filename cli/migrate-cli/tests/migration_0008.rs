@@ -60,7 +60,12 @@ fn baseline_local_hash(dir: &Path, id: &str) -> Option<String> {
     .ok()?;
     let (baseline, _) =
         work_adapters::sync::baseline::Baseline::read(Some(&content));
-    baseline.get(id).map(|entry| entry.local_hash.clone())
+    baseline.get(id).map(|entry| {
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default()
+    })
 }
 
 fn seed_baseline(
@@ -139,6 +144,30 @@ fn a_pre_migration_synced_baseline_is_realigned_not_flagged(
         Some(after_hash.as_str()),
         "a synced item's baseline must advance to the re-rendered digest"
     );
+    Ok(())
+}
+
+#[test]
+fn a_baseline_of_a_tracker_with_unknown_body_rules_is_left_untouched(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    let file = bare_work_item("0001", "Synced");
+    write(root, "meta/work/0001-x.md", &file)?;
+    already_applied_except_0008(root)?;
+    let baseline = format!(
+        "{{\"timestamp\":1,\"items\":{{\"0001\":{{\
+         \"remote_updated_at\":\"2026-06-01T00:00:00Z\",\
+         \"remote_hash\":\"rh\",\"local_hash\":\"{}\"}}}}}}\n",
+        work_adapters::sync::digest::local(&file)?
+    );
+    let trello = ".accelerator/state/integrations/trello/last-sync.json";
+    write(root, trello, &baseline)?;
+
+    let output = run(root)?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(fs::read_to_string(root.join(trello))?, baseline);
     Ok(())
 }
 

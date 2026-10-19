@@ -1,7 +1,6 @@
 //! `InProcessProbe` through the `vcs::RepositoryProbe` port, against real git
 //! and jj repositories, read through the fixture binary under a hermetic
 //! environment.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

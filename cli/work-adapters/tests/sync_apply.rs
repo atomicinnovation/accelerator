@@ -5,6 +5,9 @@
 //! read back what the first wrote.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::unimplemented)]
 
+mod support;
+
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -15,15 +18,21 @@ use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
+use work_adapters::sync::apply::RecordRequest;
+use work_adapters::sync::apply::RetitleRequest;
 use work_adapters::sync::baseline_store::BaselineStore;
+
+use crate::support::assert_recipe_one_entry;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -32,6 +41,7 @@ struct Fake {
     calls: RefCell<Vec<String>>,
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     fail_write_to: RefCell<Option<PathBuf>>,
+    refuse_write_to: RefCell<Option<PathBuf>>,
     show_result: RefCell<Option<RemoteIssue>>,
     show_fails: RefCell<bool>,
     update_fails: RefCell<Option<TrackerError>>,
@@ -42,17 +52,15 @@ impl Fake {
         self.calls.borrow().clone()
     }
 
-    fn seed_file(&self, path: &Path, content: &str) {
-        self.files
-            .borrow_mut()
-            .insert(path.to_path_buf(), content.as_bytes().to_vec());
-    }
-
     fn content(&self, path: &Path) -> Option<String> {
         self.files
             .borrow()
             .get(path)
             .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+    }
+
+    fn refuse_next_write_to(&self, path: &Path) {
+        *self.refuse_write_to.borrow_mut() = Some(path.to_path_buf());
     }
 
     fn fail_next_write_to(&self, path: &Path) {
@@ -86,6 +94,12 @@ impl AtomicWrite for Fake {
         self.calls
             .borrow_mut()
             .push(format!("write:{}", path.display()));
+        if self.refuse_write_to.borrow().as_deref() == Some(path) {
+            *self.refuse_write_to.borrow_mut() = None;
+            return Err(StoreError::UnsafePath {
+                path: path.display().to_string(),
+            });
+        }
         if self.fail_write_to.borrow().as_deref() == Some(path) {
             *self.fail_write_to.borrow_mut() = None;
             return Err(StoreError::Io {
@@ -97,6 +111,12 @@ impl AtomicWrite for Fake {
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
         Ok(())
+    }
+}
+
+impl tracker::BodyDialect for Fake {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
     }
 }
 
@@ -113,10 +133,21 @@ impl RemoteTracker for Fake {
     fn update(
         &self,
         id: &ExternalId,
-        _title: &str,
+        _title: Option<&str>,
         _body: &str,
     ) -> Result<(), TrackerError> {
         self.calls.borrow_mut().push(format!("update:{id}"));
+        self.update_fails.borrow().clone().map_or(Ok(()), Err)
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.calls
+            .borrow_mut()
+            .push(format!("retitle:{id}:{title}"));
         self.update_fails.borrow().clone().map_or(Ok(()), Err)
     }
 
@@ -178,22 +209,23 @@ impl RemoteTracker for Fake {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        _title: &str,
-        _body: &str,
+        _title: Option<&str>,
+        _body: Option<&str>,
     ) -> tracker::ValidationOutcome {
         unimplemented!("not exercised by the apply suite")
     }
 }
 
 const BASELINE_PATH: &str = "/baseline/last-sync.json";
-const ITEM_PATH: &str = "/items/0001.md";
+const CLASSIFIED: &str = "---\nstatus: draft\n---\n\nOld body\n";
 
 const fn item_content() -> &'static str {
     "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nBody text\n"
 }
 
-/// `push`'s local-file read goes through real `std::fs`, unlike `pull`'s
-/// write and every baseline access, so push tests need a file on disk.
+/// `pull`'s guard and `record_baseline` read the local file through real
+/// `std::fs`, unlike every write and baseline access, so their tests need a
+/// file on disk.
 fn real_item_file(dir: &tempfile::TempDir, content: &str) -> PathBuf {
     let path = dir.path().join("0001.md");
     std::fs::write(&path, content).expect("seed the real item file");
@@ -203,8 +235,6 @@ fn real_item_file(dir: &tempfile::TempDir, content: &str) -> PathBuf {
 #[test]
 fn push_writes_the_baseline_strictly_after_the_tracker_update(
 ) -> Result<(), TestError> {
-    let dir = tempfile::tempdir()?;
-    let item_path = real_item_file(&dir, item_content());
     let fake = Fake::default();
     fake.set_show_result(RemoteIssue {
         key: ExternalId::new("ENG-1".to_owned()),
@@ -216,14 +246,19 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
-            file_path: &item_path,
+            sent_content: item_content(),
         })?;
     }
 
@@ -241,18 +276,66 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
     let (baseline, _) = store.load()?;
     let entry = baseline.get("0001").expect("entry recorded");
     assert_eq!(
-        entry.remote_updated_at,
+        entry.stamps().unwrap().remote_updated_at,
         RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned())
     );
-    assert!(!entry.remote_hash.is_empty());
-    assert!(!entry.local_hash.is_empty());
+    assert_recipe_one_entry(
+        Some(entry),
+        &PlainDialect,
+        item_content(),
+        Some("Title\nProjected body\n"),
+    );
+    Ok(())
+}
+
+#[test]
+fn a_retitle_sends_the_title_alone_and_records_the_read_back(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, item_content());
+    let fake = Fake::default();
+    fake.set_show_result(RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
+        updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
+        body: "Retitled\nBody text\n".to_owned(),
+    });
+
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+    let external_id = ExternalId::new("ENG-1".to_owned());
+    {
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
+        applier.retitle(&RetitleRequest {
+            id: "0001",
+            external_id: &external_id,
+            title: "Retitled",
+            sent_content: item_content(),
+        })?;
+    }
+
+    let calls = fake.calls();
+    assert!(calls.contains(&"retitle:ENG-1:Retitled".to_owned()));
+    assert!(!calls.iter().any(|call| call.starts_with("update:")));
+    assert_eq!(std::fs::read_to_string(&item_path)?, item_content());
+    let (baseline, _) = store.load()?;
+    assert_recipe_one_entry(
+        baseline.get("0001"),
+        &PlainDialect,
+        item_content(),
+        Some("Retitled\nBody text\n"),
+    );
     Ok(())
 }
 
 #[test]
 fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
     let fake = Fake::default();
-    fake.seed_file(Path::new(ITEM_PATH), item_content());
     fake.fail_update(TrackerError::Retryable {
         detail: "rejected".to_owned(),
     });
@@ -261,14 +344,19 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     let result = {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
-            file_path: Path::new(ITEM_PATH),
+            sent_content: item_content(),
         })
     };
 
@@ -285,7 +373,6 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
 #[test]
 fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
     let fake = Fake::default();
-    fake.seed_file(Path::new(ITEM_PATH), item_content());
     fake.fail_update(TrackerError::Unconfigured {
         detail: "no team in scope carries label \"typo\"".to_owned(),
     });
@@ -294,20 +381,25 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     let error = {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier
             .push(&PushRequest {
                 id: "0001",
                 external_id: &external_id,
-                title: "Title",
+                title: Some("Title"),
                 body: "Body text\n",
-                file_path: Path::new(ITEM_PATH),
+                sent_content: item_content(),
             })
             .expect_err("the tracker refused the push")
     };
 
-    assert_eq!(error.class(), Some(FailureClass::Unconfigured));
+    assert_eq!(error.class(), FailureClass::Unconfigured);
     assert!(error.to_string().contains("no team in scope carries label"));
     let (baseline, _) = store.load()?;
     assert!(baseline.get("0001").is_none());
@@ -317,8 +409,6 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
 #[test]
 fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
 ) -> Result<(), TestError> {
-    let dir = tempfile::tempdir()?;
-    let item_path = real_item_file(&dir, item_content());
     let fake = Fake::default();
     fake.fail_show();
 
@@ -326,14 +416,19 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
-            file_path: &item_path,
+            sent_content: item_content(),
         })?;
     }
 
@@ -341,29 +436,35 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
     let entry = baseline
         .get("0001")
         .expect("entry recorded despite the failed show");
-    assert_eq!(entry.remote_updated_at, RemoteTimestamp::NotRead);
-    assert_eq!(entry.remote_hash, "");
-    assert!(!entry.local_hash.is_empty());
+    assert_eq!(
+        entry.stamps().unwrap().remote_updated_at,
+        RemoteTimestamp::NotRead
+    );
+    assert_recipe_one_entry(Some(entry), &PlainDialect, item_content(), None);
     Ok(())
 }
 
 #[test]
 fn pull_writes_the_baseline_strictly_after_the_local_write(
 ) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.pull(&PullRequest {
             id: "0001",
-            file_path: Path::new(ITEM_PATH),
+            file_path: &item_path,
+            classified_content: CLASSIFIED,
             content: item_content(),
             projected_body: "Title\nProjected body\n",
             remote_updated: RemoteTimestamp::Reported(
@@ -375,7 +476,7 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
     let calls = fake.calls();
     let item_write_index = calls
         .iter()
-        .position(|call| call == &format!("write:{ITEM_PATH}"))
+        .position(|call| call == &format!("write:{}", item_path.display()))
         .expect("item file was written");
     let baseline_write_index = calls
         .iter()
@@ -383,30 +484,31 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
         .expect("baseline was written");
     assert!(item_write_index < baseline_write_index);
 
-    assert_eq!(
-        fake.content(Path::new(ITEM_PATH)),
-        Some(item_content().to_owned())
-    );
+    assert_eq!(fake.content(&item_path), Some(item_content().to_owned()));
     Ok(())
 }
 
 #[test]
 fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
 {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.pull(&PullRequest {
             id: "0001",
-            file_path: Path::new(ITEM_PATH),
+            file_path: &item_path,
+            classified_content: CLASSIFIED,
             content: item_content(),
             projected_body: "Title\nNew projected body\n",
             remote_updated: RemoteTimestamp::Reported(
@@ -416,30 +518,29 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
     }
 
     let (baseline, _) = store.load()?;
-    let entry = baseline.get("0001").expect("entry recorded");
-    let expected_local = work_adapters::sync::digest::local(item_content())?;
-    let expected_remote =
-        work_adapters::sync::digest::remote_body("Title\nNew projected body\n");
-    assert_eq!(entry.local_hash, expected_local);
-    assert_eq!(entry.remote_hash, expected_remote);
+    assert_recipe_one_entry(
+        baseline.get("0001"),
+        &PlainDialect,
+        item_content(),
+        Some("Title\nNew projected body\n"),
+    );
     Ok(())
 }
 
 #[test]
 fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
 ) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.seed_file(
-        Path::new(ITEM_PATH),
-        "---\nstatus: draft\n---\n\nOld body\n",
-    );
     fake.fail_next_write_to(Path::new(BASELINE_PATH));
 
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let request = PullRequest {
         id: "0001",
-        file_path: Path::new(ITEM_PATH),
+        file_path: &item_path,
+        classified_content: CLASSIFIED,
         content: item_content(),
         projected_body: "Title\nProjected body\n",
         remote_updated: RemoteTimestamp::Reported(
@@ -448,13 +549,18 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     };
 
     let first_attempt = {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.pull(&request)
     };
     assert!(first_attempt.is_err(), "the injected failure must surface");
     assert_eq!(
-        fake.content(Path::new(ITEM_PATH)),
+        fake.content(&item_path),
         Some(item_content().to_owned()),
         "the side effect must have landed despite the interrupted baseline write"
     );
@@ -464,8 +570,13 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     );
 
     let second_attempt = {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.pull(&request)
     };
     assert!(second_attempt.is_ok(), "the re-run must succeed");
@@ -480,11 +591,125 @@ fn finalise_advances_the_global_timestamp() -> Result<(), TestError> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier =
-            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
         applier.finalise(1_700_000_000)?;
     }
     let (baseline, _) = store.load()?;
     assert_eq!(baseline.timestamp(), 1_700_000_000);
+    Ok(())
+}
+
+#[test]
+fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseline(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, item_content());
+    let classified =
+        work_adapters::sync::baseline_digester::BaselineDigester::new(
+            &PlainDialect,
+            &CommonMarkBody,
+        )
+        .digests(item_content(), Some("Title\nBody text\n"))?;
+    std::fs::write(&item_path, item_content().replace("Body", "Edited"))?;
+    let fake = Fake::default();
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+
+    let error = ItemApplier::new(
+        &fake,
+        &CommonMarkBody,
+        &fake,
+        &mut store,
+        1_700_000_000,
+    )
+    .record_baseline(&RecordRequest {
+        id: "0001",
+        file_path: &item_path,
+        fingerprints: classified,
+        remote_updated: RemoteTimestamp::Reported(
+            "2026-06-01T00:00:00Z".to_owned(),
+        ),
+    })
+    .expect_err("the edit is never recorded as synced");
+
+    assert_eq!(error.class(), FailureClass::Retryable);
+    assert!(!fake
+        .calls()
+        .iter()
+        .any(|call| call == &format!("write:{BASELINE_PATH}")));
+    Ok(())
+}
+
+#[test]
+fn an_unfetched_remote_is_reported_without_naming_a_direction() {
+    assert_eq!(
+        ApplyError::RemoteBodyUnavailable {
+            item_id: "0001".to_owned()
+        }
+        .to_string(),
+        "0001: the remote description was not fetched this run, so nothing \
+         was sent or written; re-run the sync"
+    );
+}
+
+#[test]
+fn a_pull_residue_refusal_names_the_command_for_its_own_key() {
+    let shown = ApplyError::LocalPullResidue {
+        item_id: "0001".to_owned(),
+        external_id: ExternalId::new("ENG-12".to_owned()),
+    }
+    .to_string();
+
+    assert!(shown.contains("`jira show ENG-12 --render-adf`"), "{shown}");
+}
+
+fn pull_through(fake: &Fake, item_path: &Path) -> ApplyError {
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
+    ItemApplier::new(fake, &CommonMarkBody, fake, &mut store, 1_700_000_000)
+        .pull(&PullRequest {
+            id: "0001",
+            file_path: item_path,
+            classified_content: CLASSIFIED,
+            content: item_content(),
+            projected_body: "Title\nProjected body\n",
+            remote_updated: RemoteTimestamp::Reported(
+                "2026-06-01T00:00:00Z".to_owned(),
+            ),
+        })
+        .expect_err("the write fails")
+}
+
+#[test]
+fn a_pull_the_store_refuses_before_writing_is_known_unapplied(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.refuse_next_write_to(&item_path);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::WriteRefused);
+    Ok(())
+}
+
+#[test]
+fn a_pull_whose_write_fails_in_flight_stays_terminal() -> Result<(), TestError>
+{
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.fail_next_write_to(&item_path);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::Terminal);
     Ok(())
 }

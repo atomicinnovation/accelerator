@@ -8,6 +8,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::body::BodyParser;
 use corpus::StoreError;
 use tracker::ExternalId;
 use tracker::Located;
@@ -19,6 +20,8 @@ use work::promotion::intended_baseline;
 use work::promotion::next_step;
 use work::promotion::retitling;
 use work::promotion::without_ids;
+use work::promotion::IntendedBaseline;
+use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
 use work::promotion::PromotionMode;
@@ -35,7 +38,9 @@ use work::retirement::RetirementCause;
 use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
+use work::sync::BodyEquivalence;
 use work::sync::RequestFingerprint;
+use work::sync::SyncedTrackerFields;
 use work::tracker_key::TrackerKey;
 
 use crate::create_request_fields;
@@ -52,9 +57,12 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementLockGuard;
 use crate::retirement::RetirementPorts;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
+use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
+use crate::sync::synced_fields;
 
 /// What became of one draft a run set out to promote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,8 +248,18 @@ pub fn held_key(
 
 pub struct PromotionPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
     pub retirement: &'a RetirementPorts<'a>,
     pub records: &'a dyn PromotionRecords,
+}
+
+impl PromotionPorts<'_> {
+    const fn remote_reading(&self) -> RemoteReading<'_> {
+        RemoteReading {
+            tracker: self.tracker,
+            parser: self.parser,
+        }
+    }
 }
 
 /// The draft as the tracker is asked to create it.
@@ -251,12 +269,6 @@ struct DraftContent {
     title: String,
     body: String,
     kind: String,
-}
-
-impl DraftContent {
-    fn projected(&self) -> String {
-        format!("{}\n{}", self.title, self.body)
-    }
 }
 
 fn now_epoch() -> u64 {
@@ -333,17 +345,34 @@ fn read_draft(
     })
 }
 
-fn read_back_of(issue: &RemoteIssue) -> ReadBack {
+fn read_back_of(
+    digester: &BaselineDigester<'_>,
+    issue: &RemoteIssue,
+) -> ReadBack {
+    let (hash, fingerprints) = digester.remote(&issue.body);
     ReadBack {
-        hash: digest::remote_body(&issue.body),
+        hash,
+        fingerprints: Some(fingerprints),
         updated: issue.updated.clone(),
     }
 }
 
-/// Whether two projected bodies agree once every ID is set aside.
-fn agree_but_for_ids(left: &str, right: &str, ids: &[&str]) -> bool {
-    digest::remote_body(&without_ids(left, ids))
-        == digest::remote_body(&without_ids(right, ids))
+/// Both recipes' digests of `content`; only the legacy one when the
+/// content cannot be fingerprinted.
+fn local_digests(
+    digester: &BaselineDigester<'_>,
+    content: &str,
+) -> LocalDigests {
+    digester.local(content).map_or_else(
+        |_| LocalDigests {
+            legacy: digest::local(content).unwrap_or_default(),
+            fingerprints: None,
+        },
+        |(legacy, fingerprints)| LocalDigests {
+            legacy,
+            fingerprints: Some(fingerprints),
+        },
+    )
 }
 
 const fn record_state(stored: &StoredRecord) -> RecordState<'_> {
@@ -401,6 +430,7 @@ pub fn promote(
                 };
                 return finish_promotion(
                     &record,
+                    &ports.remote_reading(),
                     ports.retirement,
                     ports.records,
                     &lock,
@@ -428,7 +458,13 @@ fn already_promoted(
     };
     if let StoredRecord::Present(record) = ports.records.read(draft) {
         if matches!(record.stage, PromotionStage::Retiring { .. }) {
-            finish_promotion(&record, ports.retirement, ports.records, lock)?;
+            finish_promotion(
+                &record,
+                &ports.remote_reading(),
+                ports.retirement,
+                ports.records,
+                lock,
+            )?;
         }
     }
     Ok(Promotion::AlreadyDone(ExternalId::new(holder.id.clone())))
@@ -531,7 +567,7 @@ impl Promoting<'_> {
                     .tracker
                     .show(&answered)
                     .ok()
-                    .map(|issue| read_back_of(&issue).hash);
+                    .map(|issue| digest::remote_body(&issue.body));
                 self.save(&self.record(
                     request,
                     PromotionStage::Created {
@@ -594,10 +630,39 @@ impl Promoting<'_> {
             PromotionStage::RemoteKept {
                 key: named.clone(),
                 reason: RemoteKeptReason::UserNamedAdopt {
-                    read_back: read_back_of(&issue),
+                    read_back: read_back_of(&self.digester(), &issue),
                 },
             },
         ))
+    }
+
+    fn digester(&self) -> BaselineDigester<'_> {
+        BaselineDigester::new(self.ports.tracker, self.ports.parser)
+    }
+
+    /// Whether `issue` holds the draft's title exactly and a body meaning
+    /// what `body` does, once the draft ID and `key` are set aside.
+    fn agrees_but_for_ids(
+        &self,
+        issue: &RemoteIssue,
+        key: &TrackerKey,
+        body: &str,
+    ) -> bool {
+        let ids = [self.draft.as_str(), key.as_str()];
+        let digester = self.digester();
+        let comparison = digester.comparison();
+        let Ok(rendered) = comparison.local_body(&issue.body) else {
+            return false;
+        };
+        let titled = |title: &str| SyncedTrackerFields {
+            title: without_ids(title, &ids),
+        };
+        titled(&self.content.title)
+            == titled(&synced_fields::remote_fields(&issue.body).title)
+            && comparison.equivalence_to_rendered(
+                &without_ids(body, &ids),
+                &without_ids(&rendered, &ids),
+            ) == BodyEquivalence::Equivalent
     }
 
     fn retirement<'k>(&'k self, key: &'k TrackerKey) -> Retirement<'k> {
@@ -637,10 +702,9 @@ impl Promoting<'_> {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
         let issue = self.show(key)?;
-        let read_back = read_back_of(&issue);
-        let ids = [self.draft.as_str(), key.as_str()];
+        let read_back = read_back_of(&self.digester(), &issue);
         let matches_draft =
-            agree_but_for_ids(&issue.body, &self.content.projected(), &ids);
+            self.agrees_but_for_ids(&issue, key, &self.content.body);
         match retitling(
             created_remote_hash.as_deref(),
             &read_back,
@@ -660,7 +724,11 @@ impl Promoting<'_> {
                 if self
                     .ports
                     .tracker
-                    .update(&ExternalId::from(key), &self.content.title, &body)
+                    .update(
+                        &ExternalId::from(key),
+                        Some(&self.content.title),
+                        &body,
+                    )
                     .is_err()
                 {
                     return self.advance(
@@ -678,7 +746,7 @@ impl Promoting<'_> {
                     stored,
                     PromotionStage::RemoteRetitled {
                         key: key.clone(),
-                        read_back: read_back_of(&updated),
+                        read_back: read_back_of(&self.digester(), &updated),
                     },
                 )
             }
@@ -700,14 +768,12 @@ impl Promoting<'_> {
         let promoted = plan
             .retired_item
             .unwrap_or_else(|| self.promoted_content(key));
-        let local = |content: &str| digest::local(content).unwrap_or_default();
+        let digester = self.digester();
+        let local = |content: &str| local_digests(&digester, content);
         let (_, promoted_body) =
             digest::split_frontmatter_and_body(&promoted).unwrap_or_default();
-        let matches_promoted = agree_but_for_ids(
-            &issue.body,
-            &format!("{}\n{promoted_body}", self.content.title),
-            &[self.draft.as_str(), key.as_str()],
-        );
+        let matches_promoted =
+            self.agrees_but_for_ids(&issue, key, &promoted_body);
         let Some(baseline) = intended_baseline(
             &record.stage,
             &local(&self.content.content),
@@ -719,7 +785,7 @@ impl Promoting<'_> {
         let retiring = PromotionRecord {
             stage: PromotionStage::Retiring {
                 key: key.clone(),
-                baseline,
+                baseline: Box::new(baseline),
                 recovery_dir: retirement.recovery_dir(),
                 before: Box::new(record.stage.clone()),
             },
@@ -728,10 +794,41 @@ impl Promoting<'_> {
         self.save(&retiring)?;
         finish_promotion(
             &retiring,
+            &self.ports.remote_reading(),
             self.ports.retirement,
             self.ports.records,
             self.lock,
         )
+    }
+}
+
+/// The watermark a promotion records: its local digests can describe the
+/// draft rather than the retired file, so the next sync must hash the file
+/// instead of trusting an mtime older than the promotion.
+const UNSYNCED_WATERMARK: u64 = 0;
+
+/// What `finish_promotion` reads the promoted issue with, to predict the
+/// next sync as the classifier will compute it.
+pub struct RemoteReading<'a> {
+    pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
+}
+
+impl RemoteReading<'_> {
+    /// The state the next sync finds the promoted item at `path` in; a read
+    /// that fails predicts `Synced`, as nothing can be compared.
+    fn next_sync(
+        &self,
+        baseline: &IntendedBaseline,
+        key: &ExternalId,
+        path: &Path,
+    ) -> work::sync::SyncState {
+        let digester = BaselineDigester::new(self.tracker, self.parser);
+        let projection = self.tracker.show(key).ok().map(|issue| issue.body);
+        let promoted = ItemSnapshot::new(path, projection, &digester);
+        baseline
+            .next_sync(key, &promoted, &promoted)
+            .unwrap_or(work::sync::SyncState::Synced)
     }
 }
 
@@ -752,6 +849,7 @@ impl Promoting<'_> {
 /// baseline or record cannot be written.
 pub fn finish_promotion(
     record: &PromotionRecord,
+    remote: &RemoteReading<'_>,
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
@@ -793,18 +891,15 @@ pub fn finish_promotion(
                 .any(|alias| same(alias, record.draft_id.as_str()))
     });
     let next_sync = promoted_item
-        .and_then(|item| retirement_ports.files.reader.read(&item.path).ok())
-        .flatten()
-        .and_then(|content| digest::local(&content).ok())
-        .map_or(work::sync::SyncState::Synced, |promoted| {
-            baseline.next_sync(&promoted)
+        .map_or(work::sync::SyncState::Synced, |item| {
+            remote.next_sync(baseline, &ExternalId::from(key), &item.path)
         });
     if promoted_item.is_some() {
         record_created_baseline(
             key.as_str(),
             baseline,
             retirement_ports.baseline,
-            now_epoch(),
+            UNSYNCED_WATERMARK,
         )
         .map_err(|error| unwritable(Some(key), &error))?;
     }

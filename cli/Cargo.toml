@@ -34,6 +34,7 @@ members = [
     "graphql-test-support",
     "tracker-support",
     "cli-test-support",
+    "adf",
     "jira-client",
     "jira-cli",
     "linear-client",
@@ -96,12 +97,12 @@ regex = "1"
 # the section-diff goldens assert its unified-diff output byte-for-byte, so a
 # formatting change in a new release must arrive as a deliberate re-bless.
 similar = "=2.7.0"
-# CommonMark/GFM parser behind the soft-line-break unwrap. Default features
-# off: `getopts` serves only its binary and `html` its renderer. Exact-pinned
-# because which bytes a SoftBreak's offset range covers is observed
-# behaviour, not documented contract, so a release must arrive as a
-# deliberate re-run of the fixtures. `markdown` is the sole permitted wrapper
-# (see deny.toml).
+# CommonMark/GFM parser behind the soft-line-break unwrap and work-item body
+# parsing. Default features off: `getopts` serves only its binary and `html`
+# its renderer. Exact-pinned because which bytes a SoftBreak's offset range
+# covers is observed behaviour, and sync digests hash its parse, so a release
+# must arrive as a deliberate re-run of the fixtures and a digest-recipe bump.
+# `markdown` and `document` are the sole permitted wrappers (see deny.toml).
 pulldown-cmark = { version = "=0.13.4", default-features = false }
 # Unicode data for the plain-question gate: NFKC, general categories and
 # default-ignorable code points. Exact-pinned as a pair from one ICU4X release

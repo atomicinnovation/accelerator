@@ -11,6 +11,7 @@ use tracker::RemoteTimestamp;
 
 use crate::sync::classify;
 use crate::sync::classify::BaselineEntry;
+use crate::sync::classify::ItemComparison;
 use crate::sync::classify::ItemDigests;
 use crate::sync::classify::RemotePresence;
 use crate::sync::classify::Subject;
@@ -50,13 +51,13 @@ impl SyncPlan {
     pub fn push_count(&self) -> usize {
         self.actions
             .iter()
-            .filter(|planned| planned.action == Action::Push)
+            .filter(|planned| planned.action.sends_to_tracker())
             .count()
     }
 }
 
-/// One item's classification inputs, carrying its own [`ItemDigests`] so
-/// `plan` needs no separate lookup port.
+/// One item's classification inputs, carrying its own [`ItemDigests`] and
+/// [`ItemComparison`] so `plan` needs no separate lookup port.
 pub struct PlanInput<'a> {
     pub id: String,
     pub external_id: Option<&'a ExternalId>,
@@ -65,6 +66,7 @@ pub struct PlanInput<'a> {
     pub baseline: BaselineEntry<'a>,
     pub baseline_timestamp: u64,
     pub digests: &'a dyn ItemDigests,
+    pub comparison: &'a dyn ItemComparison,
 }
 
 /// The two-tier read rule as a pure function: the ids whose stamp does not
@@ -115,20 +117,25 @@ pub fn plan(
             remote_updated: item.facts.remote_updated,
             baseline_timestamp: item.baseline_timestamp,
         };
-        let state = classify::classify(&subject, &item.baseline, item.digests)?;
-        let mut action = decide::decide(direction, state, item.dirty);
+        let classification = classify::classify(
+            &subject,
+            &item.baseline,
+            item.digests,
+            item.comparison,
+        )?;
+        let mut action = decide::decide(direction, &classification, item.dirty);
         if action == Action::Prompt {
             if let Some(resolution) = resolutions.get(&item.id) {
                 action = match resolution {
                     Resolution::AcceptRemote => Action::Pull,
-                    Resolution::PushLocal => Action::Push,
+                    Resolution::PushLocal => Action::Overwrite,
                     Resolution::Skip => Action::Prompt,
                 };
             }
         }
         actions.push(PlannedAction {
             id: item.id.clone(),
-            state,
+            state: classification.state(),
             action,
         });
     }

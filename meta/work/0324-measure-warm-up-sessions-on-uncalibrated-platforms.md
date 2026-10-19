@@ -15,6 +15,7 @@ tags: ["cli", "launcher", "performance", "measurement", "ci"]
 last_updated: "2026-10-10T18:25:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-910"
 ---
 
 # 0324: Measure warm-up sessions on uncalibrated platforms

@@ -170,6 +170,12 @@ pub fn tracker::FetchOutcome::eq(&self, other: &tracker::FetchOutcome) -> bool
 impl core::fmt::Debug for tracker::FetchOutcome
 pub fn tracker::FetchOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::FetchOutcome
+pub struct tracker::PlainDialect
+impl tracker::BodyDialect for tracker::PlainDialect
+pub fn tracker::PlainDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
+pub fn tracker::PlainDialect::is_wire_document(&self, _body: &str) -> bool
+pub fn tracker::PlainDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::PlainDialect::rejects(&self, _body: &str) -> bool
 pub struct tracker::RemoteIssue
 pub tracker::RemoteIssue::body: alloc::string::String
 pub tracker::RemoteIssue::key: tracker::ExternalId
@@ -208,6 +214,19 @@ pub fn tracker::SearchScope::default() -> tracker::SearchScope
 impl core::fmt::Debug for tracker::SearchScope
 pub fn tracker::SearchScope::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::SearchScope
+pub struct tracker::Unrenderable
+pub tracker::Unrenderable::detail: alloc::string::String
+impl core::clone::Clone for tracker::Unrenderable
+pub fn tracker::Unrenderable::clone(&self) -> tracker::Unrenderable
+impl core::cmp::Eq for tracker::Unrenderable
+impl core::cmp::PartialEq for tracker::Unrenderable
+pub fn tracker::Unrenderable::eq(&self, other: &tracker::Unrenderable) -> bool
+impl core::error::Error for tracker::Unrenderable
+impl core::fmt::Debug for tracker::Unrenderable
+pub fn tracker::Unrenderable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker::Unrenderable
+pub fn tracker::Unrenderable::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::Unrenderable
 pub struct tracker::VisibleEntity
 pub tracker::VisibleEntity::identifier: alloc::string::String
 pub tracker::VisibleEntity::key: alloc::string::String
@@ -223,15 +242,26 @@ impl core::marker::StructuralPartialEq for tracker::VisibleEntity
 pub const tracker::DEFAULT_MAX_ITEMS: tracker::Ceiling
 pub const tracker::DEFAULT_MAX_PAGES: tracker::Ceiling
 pub const tracker::UNLIMITED_TOKEN: &str
-pub trait tracker::RemoteTracker
+pub trait tracker::BodyDialect
+pub fn tracker::BodyDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
+pub fn tracker::BodyDialect::is_wire_document(&self, body: &str) -> bool
+pub fn tracker::BodyDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::BodyDialect::rejects(&self, _body: &str) -> bool
+impl tracker::BodyDialect for tracker::PlainDialect
+pub fn tracker::PlainDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
+pub fn tracker::PlainDialect::is_wire_document(&self, _body: &str) -> bool
+pub fn tracker::PlainDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::PlainDialect::rejects(&self, _body: &str) -> bool
+pub trait tracker::RemoteTracker: tracker::BodyDialect
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::enumerate_visible_entities(&self) -> core::result::Result<alloc::vec::Vec<tracker::VisibleEntity>, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>
 pub fn tracker::RemoteTracker::locate(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::Located, tracker::TrackerError>
 pub fn tracker::RemoteTracker::preview_create(&self, kind: &str) -> core::result::Result<tracker::CreatePreview, tracker::TrackerError>
 pub fn tracker::RemoteTracker::resolve_scope(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::SearchScope, tracker::ScopeError>
+pub fn tracker::RemoteTracker::retitle(&self, id: &tracker::ExternalId, title: &str) -> core::result::Result<(), tracker::TrackerError>
 pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::Discovery, tracker::TrackerError>
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
-pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>
-pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> tracker::ValidationOutcome
+pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: &str) -> core::result::Result<(), tracker::TrackerError>
+pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: core::option::Option<&str>) -> tracker::ValidationOutcome
 pub fn tracker::supports_tracker_owned_ids(integration: &str) -> bool

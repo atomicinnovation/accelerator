@@ -14,6 +14,7 @@ tags: ["migration-engine", "m0007", "interactive-contract", "resume"]
 last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-904"
 ---
 
 # 0318: Give verify_applied Read Access to the Corpus

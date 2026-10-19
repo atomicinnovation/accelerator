@@ -15,6 +15,7 @@ tags: ["research", "arxiv"]
 last_updated: "2026-10-08T18:02:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-888"
 ---
 # 0301: Fair arXiv Queue Follow-ups from the PR 148 Review
 

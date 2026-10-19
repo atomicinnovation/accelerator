@@ -1,6 +1,5 @@
 //! `vcs detect` against the committed golden fixtures, replayed end to end
 //! through the compiled `accelerator-vcs` binary over real jj/git checkouts.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::Path;

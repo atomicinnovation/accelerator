@@ -3,7 +3,6 @@
 //! secondary workspace it is the workspace root, not the shared main
 //! repository — the discriminating case for surfacing `discover` rather than
 //! `repository_root`.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::Path;

@@ -4,16 +4,21 @@
 
 pub mod apply;
 pub mod baseline;
+pub mod baseline_digester;
 pub mod baseline_store;
+pub mod body_comparison;
 pub mod create;
 pub mod created_baseline;
 pub mod digest;
 pub mod fetch;
 pub mod identity_settlement;
+pub mod item_snapshot;
 mod ordering;
 pub mod pending_push;
 pub mod realign;
 pub mod run;
 pub mod scope;
+pub mod send_refusal;
 pub mod settled_run;
+pub mod synced_fields;
 pub mod working_copy_status;

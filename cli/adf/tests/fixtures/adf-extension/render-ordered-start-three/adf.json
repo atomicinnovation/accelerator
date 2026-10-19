@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "orderedList",
+      "attrs": {
+        "order": 3
+      },
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "a"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

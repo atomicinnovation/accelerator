@@ -379,7 +379,6 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let watching = crate::watcher::spawn(
         crate::watcher::os_watcher,
         watch_dirs,
-        state.cfg.project_root.clone(),
         state.indexer.clone(),
         state.clusters.clone(),
         state.sse_hub.clone(),

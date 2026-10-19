@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "web-profile", "tiers"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-897"
 ---
 
 # 0311: Reduce Web-Profile Tier Drift with Canonical Domain Classes

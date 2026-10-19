@@ -4,6 +4,18 @@
 
 ### Breaking
 
+- **Jira Markdown conversion covers more of Markdown, and escapes text that
+  would read as syntax.** `jira show` and `jira search --render-adf` now render
+  strike as `~~`, blockquotes, pipe tables, rules, nested lists and a list
+  item's later children, and backslash-escape any text that would otherwise
+  read as Markdown syntax, including ordinary `*`, `_` and `[` in prose.
+  Markdown given to `jira create`, `update` and `comment` reads `~~x~~` as
+  strike, honours those escapes, keeps an ordered list's start number, and
+  accepts blockquotes, pipe tables, rules and nested lists that it used to
+  refuse with exit code 41. It still refuses, with exit code 41 and
+  `E_ADF_UNSUPPORTED`, a block Jira does not allow where it stands: a heading,
+  table, rule, task list or nested quote inside a blockquote, or a heading,
+  table, rule, task list or quote inside a list item.
 - **Credential commands run under a hardened runner.** `jira.token_cmd`,
   `linear.token_cmd`, `openalex.api_key_cmd` and their `ACCELERATOR_*_CMD`
   overrides now run in a fresh temporary directory outside the repository
@@ -89,6 +101,52 @@
   promotion record written past its first stage and aborts on it. Run
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
+- **A `work sync` local file read failure, or a write that fails in flight,
+  exits 71** (`terminal`), where it exited 0 with a `-` detail. A write the
+  store refuses before writing, such as through an unsafe path, fails as
+  `local-write-refused` (exit 75) and leaves the file as it was; until 0300
+  lands, that includes every pull into an existing work item. A pull whose
+  remote body could not be
+  fetched fails as `retryable` (exit 70) instead of writing an empty body, and
+  a `show` that fails after the remote stamp moved leaves the item
+  `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
+  a first line above the description. Scripts that parse `work sync` exit codes
+  need updating.
+- **A `work sync` pull over a Jira description with no Markdown form fails as
+  `unrenderable`** (exit 75), where it exited 0, and writes nothing. That
+  now includes a description holding a line break inside a table cell,
+  heading or task item, code text holding a backtick, a pipe in a table cell's
+  code or link address, or a code block holding a fence line, none of which
+  this Markdown can carry; the dossier's `cause:` line names which. Scripts
+  that parse `work sync` exit codes need updating.
+- **A `work sync` item whose local frontmatter does not parse fails as
+  `unparseable`** (exit 75), where it was read as an empty title and body.
+  Nothing is sent or written for it, and its conflict dossier reads
+  `reason: local-unreadable` with a `cause:` line giving the parse error.
+- **Pending-push records move to schema 3**, which earlier releases refuse,
+  so finish every outstanding promotion before downgrading.
+- **`work sync` reports two new rows.** An item whose baseline entry was
+  written by a newer release reports `noop\tindeterminate\tunsupported-recipe`
+  (exit 4) and is left untouched, with a stderr warning naming those items and
+  saying to upgrade, and a baseline record or a pull whose local
+  file changed after the run read it reports `failed\tsynced\tretryable` or
+  `failed\tremotely-modified\tretryable` (exit 70), writing nothing. Scripts
+  that parse `work sync` output need updating.
+- **`work sync` reports a `record-baseline` row for a metadata-only local
+  change.** A local change that touches no field the tracker holds, or whose
+  bodies already agree, now reports `<id>\trecord-baseline\tlocally-modified\t-`
+  and sends nothing; scripts that parse `work sync` output need updating.
+- **Conflict dossiers and `work diff` list only sections whose meaning
+  differs.** A section that differs only in notation, such as bullet
+  characters or line wrapping, is omitted, and each listed section shows its
+  own heading on both sides. A dossier header reads
+  `title: <local> → <remote>` when the titles differ. Scripts that parse
+  `work diff` output need updating.
+- **A file an earlier release's pull left raw ADF JSON in is never sent.** Such
+  a push or `--resolve <id>=local` fails as `pull-residue` (exit 75); replace
+  the JSON with Markdown (`jira show <key> --render-adf` prints a starting
+  point) and sync, or resolve with `=remote` to discard local changes.
+  Scripts that parse `work sync` exit codes need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -278,6 +336,18 @@
 
 ### Changed
 
+- **Jira pulls write Markdown.** `work sync` renders a Jira description to
+  Markdown where it wrote the raw ADF JSON. A conflict over a description with
+  no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
+  a `cause:` line naming the content to change, and offers only `local` or
+  `skip`.
+- **Jira links to any scheme that runs no code are kept.** `jira show`, `jira
+  search --render-adf` and `work sync` pulls render links such as `slack://`
+  and `ftp://` as Markdown links, where they showed bare text; only
+  `javascript:`, `vbscript:` and `data:` links are still dropped, now also
+  when tabs, line breaks or leading control characters disguise the scheme. A
+  `work sync` over a description linking to one of those three refuses it as
+  unrenderable rather than deleting the link on the next push.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already
@@ -468,6 +538,26 @@
 
 ### Fixed
 
+- **Cosmetic rewrites no longer cause pushes, pulls or conflicts.** `work
+  sync` compares bodies by meaning, so Linear's re-serialisation and an
+  equivalent local rewrite are never a change. A title change is sent alone,
+  leaving the description, even over a Jira description the plugin cannot
+  display; a local body edit over such a description is a conflict instead of
+  a failure. On the first run after upgrading, an item edited locally whose
+  body no longer matches the remote is a conflict, resolved once with
+  `--resolve <id>=local` or `=remote`; one over a Jira description the plugin
+  cannot display writes a `reason: legacy-unrenderable` dossier naming the
+  remedies that settle it.
+- **`work sync` no longer blanks a tracker issue or a local file's
+  frontmatter.** Resolving a conflict with `--resolve <id>=local` on a file
+  whose frontmatter did not parse sent an empty title and description, and
+  `=remote` wrote empty frontmatter over the file.
+- **A local Jira body the converter rejects never matches the remote.** Such
+  a body, one holding a `\x1e` or `\x1f` control byte, counted as unchanged
+  against a description holding the same text.
+- **`work sync --preview` reports a pull's failure.** A planned pull the run
+  would fail before writing, such as one over a Jira description with no
+  Markdown form, previewed as not applied.
 - **Web researchers write nothing when fetching is denied.** A researcher on
   the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
   that has neither tool, now writes no finding or level note and reports
@@ -570,6 +660,16 @@
 
 ### Migrations
 
+- **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
+  entry the run classifies is rewritten in one large diff, with no work-item
+  file changed and nothing sent to the tracker; commit the result. A Jira file
+  that is exactly what an earlier pull wrote for the current remote migrates
+  as it is, while one holding raw Jira ADF that has since changed is reported
+  as a conflict. A title line an earlier pull left above a description stays
+  as ordinary text. An earlier release still reads the rewritten file, but its
+  writes strip the recipe-1 keys and the next sync under this release adds
+  them back, so a team should upgrade together to avoid churn in
+  `last-sync.json`.
 - **No manual step for the Linear catalogue.** An existing `catalogue.json`
   reads as incomplete entries, and filtered pulls fetch what they lack. The
   first apply-mode sync whose pull runs completes every synced team's entry
