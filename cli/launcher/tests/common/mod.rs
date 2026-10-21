@@ -8,6 +8,8 @@
     clippy::format_push_string
 )]
 
+pub mod recording_filesystem;
+
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};

@@ -3,13 +3,14 @@
 //!
 //! Writes are atomic (temp-in-dir then rename), and a replacement renames a
 //! fresh inode over any corrupt entry so a process mid-`exec` never hits
-//! `ETXTBSY`. The version-scoped cache needs no eviction.
+//! `ETXTBSY`.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use kernel::TEMP_PREFIX;
 
+use super::filesystem::CacheFilesystem;
 use crate::launch::core::ResolutionError;
 
 // Per-process temp uniqueness; the PID alone collides across threads.
@@ -48,11 +49,15 @@ fn cache_error(path: &Path, error: &std::io::Error) -> ResolutionError {
 /// Find a cached binary for `name`+`version` by prefix scan. Returns the entry
 /// only if its signature sidecar is also present.
 #[must_use]
-pub fn find(root: &Path, name: &str, version: &str) -> Option<CachedBinary> {
+pub fn find(
+    filesystem: &dyn CacheFilesystem,
+    root: &Path,
+    name: &str,
+    version: &str,
+) -> Option<CachedBinary> {
     let prefix = format!("{name}-{version}-");
-    let entries = std::fs::read_dir(root).ok()?;
-    for entry in entries.flatten() {
-        let file_name = entry.file_name();
+    let names = filesystem.list(root).ok()?;
+    for file_name in names {
         let file = file_name.to_str()?;
         let Some(sha) = file.strip_prefix(&prefix) else {
             continue;
@@ -61,9 +66,9 @@ pub fn find(root: &Path, name: &str, version: &str) -> Option<CachedBinary> {
             continue;
         }
         let signature_path = root.join(signature_name(file));
-        if signature_path.exists() {
+        if filesystem.exists(&signature_path) {
             return Some(CachedBinary {
-                path: entry.path(),
+                path: root.join(file),
                 sha256: sha.to_owned(),
                 signature_path,
             });
@@ -79,6 +84,7 @@ pub fn find(root: &Path, name: &str, version: &str) -> Option<CachedBinary> {
 ///
 /// [`ResolutionError::Cache`] on any IO failure.
 pub fn store(
+    filesystem: &dyn CacheFilesystem,
     root: &Path,
     name: &str,
     version: &str,
@@ -86,7 +92,9 @@ pub fn store(
     bytes: &[u8],
     signature: &str,
 ) -> Result<CachedBinary, ResolutionError> {
-    std::fs::create_dir_all(root).map_err(|e| cache_error(root, &e))?;
+    filesystem
+        .create_dir_all(root)
+        .map_err(|e| cache_error(root, &e))?;
     let stem = stem(name, version, sha256);
     let final_path = root.join(&stem);
     let signature_path = root.join(signature_name(&stem));
@@ -100,8 +108,9 @@ pub fn store(
     let temp_binary = root.join(temp_name(&stem, &unique, ""));
     let temp_signature = root.join(temp_name(&stem, &unique, ".minisig"));
 
-    write_then_rename(&temp_binary, &final_path, bytes, true)?;
+    write_then_rename(filesystem, &temp_binary, &final_path, bytes, true)?;
     write_then_rename(
+        filesystem,
         &temp_signature,
         &signature_path,
         signature.as_bytes(),
@@ -116,51 +125,25 @@ pub fn store(
 }
 
 fn write_then_rename(
+    filesystem: &dyn CacheFilesystem,
     temp: &Path,
     final_path: &Path,
     bytes: &[u8],
     executable: bool,
 ) -> Result<(), ResolutionError> {
     // 0600 so bytes are never other-readable before the entry is published.
-    write_private(temp, bytes)?;
+    filesystem
+        .write_private(temp, bytes)
+        .map_err(|e| cache_error(temp, &e))?;
     if executable {
-        set_executable(temp)?;
+        filesystem
+            .make_executable(temp)
+            .map_err(|e| cache_error(temp, &e))?;
     }
-    std::fs::rename(temp, final_path).map_err(|e| {
-        let _ = std::fs::remove_file(temp);
+    filesystem.rename(temp, final_path).map_err(|e| {
+        let _ = filesystem.remove_file(temp);
         cache_error(final_path, &e)
     })
-}
-
-#[cfg(unix)]
-fn write_private(path: &Path, bytes: &[u8]) -> Result<(), ResolutionError> {
-    use std::io::Write as _;
-    use std::os::unix::fs::OpenOptionsExt as _;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|e| cache_error(path, &e))?;
-    file.write_all(bytes).map_err(|e| cache_error(path, &e))
-}
-
-#[cfg(not(unix))]
-fn write_private(path: &Path, bytes: &[u8]) -> Result<(), ResolutionError> {
-    std::fs::write(path, bytes).map_err(|e| cache_error(path, &e))
-}
-
-#[cfg(unix)]
-fn set_executable(path: &Path) -> Result<(), ResolutionError> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-        .map_err(|e| cache_error(path, &e))
-}
-
-#[cfg(not(unix))]
-fn set_executable(_path: &Path) -> Result<(), ResolutionError> {
-    Ok(())
 }
 
 #[cfg(test)]
@@ -169,6 +152,7 @@ mod tests {
 
     use tempfile::TempDir;
 
+    use super::super::filesystem::SystemFilesystem;
     use super::{find, store, temp_name, TEMP_PREFIX};
 
     #[test]
@@ -189,8 +173,17 @@ mod tests {
     fn store_then_find_round_trips() -> Result<(), Box<dyn Error>> {
         let root = tempdir()?;
         let root = root.path().to_path_buf();
-        store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
-        let found = find(&root, "foo", "1.0.0").ok_or("not found")?;
+        store(
+            &SystemFilesystem,
+            &root,
+            "foo",
+            "1.0.0",
+            SHA,
+            b"binary",
+            "sig",
+        )?;
+        let found = find(&SystemFilesystem, &root, "foo", "1.0.0")
+            .ok_or("not found")?;
         assert_eq!(found.sha256, SHA);
         assert_eq!(std::fs::read(&found.path)?, b"binary");
         assert!(found.signature_path.exists());
@@ -203,7 +196,7 @@ mod tests {
         let root = tempdir()?;
         let root = root.path().to_path_buf();
         std::fs::write(root.join(format!("foo-1.0.0-{SHA}")), b"x")?;
-        assert!(find(&root, "foo", "1.0.0").is_none());
+        assert!(find(&SystemFilesystem, &root, "foo", "1.0.0").is_none());
         Ok(())
     }
 
@@ -211,10 +204,28 @@ mod tests {
     fn a_re_store_replaces_the_entry_in_place() -> Result<(), Box<dyn Error>> {
         let root = tempdir()?;
         let root = root.path().to_path_buf();
-        store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
-        let path = find(&root, "foo", "1.0.0").ok_or("not found")?.path;
+        store(
+            &SystemFilesystem,
+            &root,
+            "foo",
+            "1.0.0",
+            SHA,
+            b"binary",
+            "sig",
+        )?;
+        let path = find(&SystemFilesystem, &root, "foo", "1.0.0")
+            .ok_or("not found")?
+            .path;
         std::fs::write(&path, b"poisoned")?;
-        store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
+        store(
+            &SystemFilesystem,
+            &root,
+            "foo",
+            "1.0.0",
+            SHA,
+            b"binary",
+            "sig",
+        )?;
         assert_eq!(std::fs::read(&path)?, b"binary");
         Ok(())
     }

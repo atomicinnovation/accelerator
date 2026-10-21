@@ -8,6 +8,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory as _, FromArgMatches as _};
@@ -31,6 +32,7 @@ use accelerator::launch::outbound::resolve::cache_root::{
     self, CacheRootConfig,
 };
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
 use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
@@ -86,8 +88,13 @@ impl ResolveBinary for LazyProductionResolver {
         let fetcher = Fetcher::new().map_err(|detail| {
             ResolutionError::CacheRootUnavailable { detail }
         })?;
-        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher)
-            .resolve(command)
+        FetchVerifyCacheResolver::with_fetcher(
+            config,
+            keys,
+            fetcher,
+            Arc::new(SystemFilesystem),
+        )
+        .resolve(command)
     }
 }
 
@@ -104,8 +111,12 @@ fn load_help_manifest() -> Option<Manifest> {
     let keys = TrustedKeys::embedded().ok()?;
     let fetcher = Fetcher::for_help().ok()?;
     let config = ResolverConfig::production(release_base_url(), PathBuf::new());
-    let resolver =
-        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher);
+    let resolver = FetchVerifyCacheResolver::with_fetcher(
+        config,
+        keys,
+        fetcher,
+        Arc::new(SystemFilesystem),
+    );
     resolver.load_manifest().ok()
 }
 
