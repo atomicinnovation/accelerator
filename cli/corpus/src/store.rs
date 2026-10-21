@@ -17,7 +17,7 @@ use crate::record::Record;
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StoreError {
-    NotWritable { path: String },
+    NotWritable { path: String, detail: String },
     LockTimeout { path: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
@@ -29,9 +29,10 @@ pub enum StoreError {
 impl Display for StoreError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotWritable { path } => {
-                write!(formatter, "cannot write under '{path}': not writable")
-            }
+            Self::NotWritable { path, detail } => write!(
+                formatter,
+                "cannot write under '{path}': not writable: {detail}"
+            ),
             Self::LockTimeout { path } => {
                 write!(formatter, "lock acquisition timed out on '{path}'")
             }
@@ -197,10 +198,12 @@ mod tests {
     fn not_writable_names_the_path() {
         let error = StoreError::NotWritable {
             path: "/x/log".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
         };
         assert_eq!(
             error.to_string(),
-            "cannot write under '/x/log': not writable"
+            "cannot write under '/x/log': not writable: Permission denied \
+             (os error 13)"
         );
     }
 

@@ -818,6 +818,7 @@ pub corpus::store::StoreError::Io::path: alloc::string::String
 pub corpus::store::StoreError::LockTimeout
 pub corpus::store::StoreError::LockTimeout::path: alloc::string::String
 pub corpus::store::StoreError::NotWritable
+pub corpus::store::StoreError::NotWritable::detail: alloc::string::String
 pub corpus::store::StoreError::NotWritable::path: alloc::string::String
 pub corpus::store::StoreError::UnsafePath
 pub corpus::store::StoreError::UnsafePath::path: alloc::string::String
@@ -1147,6 +1148,7 @@ pub corpus::StoreError::Io::path: alloc::string::String
 pub corpus::StoreError::LockTimeout
 pub corpus::StoreError::LockTimeout::path: alloc::string::String
 pub corpus::StoreError::NotWritable
+pub corpus::StoreError::NotWritable::detail: alloc::string::String
 pub corpus::StoreError::NotWritable::path: alloc::string::String
 pub corpus::StoreError::UnsafePath
 pub corpus::StoreError::UnsafePath::path: alloc::string::String

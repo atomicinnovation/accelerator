@@ -783,9 +783,9 @@ fn io_error(path: &Path, error: &std::io::Error) -> ConfigError {
 fn to_config_error(error: WriteError) -> ConfigError {
     match error {
         WriteError::UnsafePath { path } => ConfigError::UnsafePath { path },
-        WriteError::NotWritable { path } => ConfigError::Io {
+        WriteError::NotWritable { path, detail } => ConfigError::Io {
             path,
-            detail: "not writable".to_owned(),
+            detail: format!("not writable: {detail}"),
         },
         WriteError::CrossFilesystem { path } => ConfigError::Io {
             path,
@@ -846,9 +846,27 @@ mod tests {
     };
     use tempfile::TempDir;
 
-    use super::FileConfigStore;
+    use store::WriteError;
+
+    use super::{to_config_error, FileConfigStore};
 
     type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn a_refused_write_keeps_its_path_and_permission_detail() {
+        let error = to_config_error(WriteError::NotWritable {
+            path: "/r/.accelerator/config.md".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        });
+        assert_eq!(
+            error,
+            ConfigError::Io {
+                path: "/r/.accelerator/config.md".to_owned(),
+                detail: "not writable: Permission denied (os error 13)"
+                    .to_owned(),
+            }
+        );
+    }
 
     fn tempdir() -> Result<TempDir, TestError> {
         Ok(tempfile::Builder::new().prefix("cfg-adapters-").tempdir()?)

@@ -111,7 +111,9 @@ pub(crate) fn io(path: &Path, error: &IoError) -> StoreError {
 
 fn to_store_error(error: WriteError) -> StoreError {
     match error {
-        WriteError::NotWritable { path } => StoreError::NotWritable { path },
+        WriteError::NotWritable { path, detail } => {
+            StoreError::NotWritable { path, detail }
+        }
         WriteError::CrossFilesystem { path } => {
             StoreError::CrossFilesystem { path }
         }
@@ -130,8 +132,8 @@ fn to_store_error(error: WriteError) -> StoreError {
 pub(crate) fn from_lock_error(error: lock::LockError) -> StoreError {
     match error {
         lock::LockError::Timeout { path } => StoreError::LockTimeout { path },
-        lock::LockError::NotWritable { path } => {
-            StoreError::NotWritable { path }
+        lock::LockError::NotWritable { path, detail } => {
+            StoreError::NotWritable { path, detail }
         }
         lock::LockError::Io { path, detail } => StoreError::Io { path, detail },
     }
@@ -257,9 +259,10 @@ mod tests {
         AtomicWrite, FileRemove, Outcome, Record, RecordStore, StoreError,
     };
     use store::lock::{acquire, LockError, LockOptions};
+    use store::WriteError;
     use tempfile::TempDir;
 
-    use super::{from_lock_error, FileCorpusStore};
+    use super::{from_lock_error, to_store_error, FileCorpusStore};
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -447,15 +450,32 @@ mod tests {
     }
 
     #[test]
+    fn a_refused_write_keeps_its_permission_detail() {
+        let write = WriteError::NotWritable {
+            path: "/c/item.md".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        };
+        assert_eq!(
+            to_store_error(write),
+            StoreError::NotWritable {
+                path: "/c/item.md".to_owned(),
+                detail: "Permission denied (os error 13)".to_owned(),
+            }
+        );
+    }
+
+    #[test]
     fn an_unwritable_lockdir_is_a_store_not_writable_with_the_same_text() {
         let lock = LockError::NotWritable {
             path: "/c/log.jsonl.lockdir".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
         };
         let store = from_lock_error(lock.clone());
         assert_eq!(
             store,
             StoreError::NotWritable {
-                path: "/c/log.jsonl.lockdir".to_owned()
+                path: "/c/log.jsonl.lockdir".to_owned(),
+                detail: "Permission denied (os error 13)".to_owned(),
             }
         );
         assert_eq!(store.to_string(), lock.to_string());

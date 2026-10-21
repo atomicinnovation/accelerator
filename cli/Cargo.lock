@@ -4669,6 +4669,7 @@ dependencies = [
  "kernel",
  "rand 0.9.5",
  "rustix",
+ "store",
  "tempfile",
 ]
 

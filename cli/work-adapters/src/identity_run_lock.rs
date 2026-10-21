@@ -65,8 +65,8 @@ impl<'a> IdentityRunLock<'a> {
         match store::lock::acquire(&self.lockdir(), options) {
             Ok(guard) => self.claimed_by(command, guard).map(Some),
             Err(LockError::Timeout { .. }) => Ok(None),
-            Err(LockError::NotWritable { path }) => {
-                Err(StoreError::NotWritable { path })
+            Err(LockError::NotWritable { path, detail }) => {
+                Err(StoreError::NotWritable { path, detail })
             }
             Err(LockError::Io { path, detail }) => {
                 Err(StoreError::Io { path, detail })

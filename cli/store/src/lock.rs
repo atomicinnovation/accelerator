@@ -28,7 +28,7 @@ const RECLAIMING: &str = "reclaiming";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LockError {
     Timeout { path: String },
-    NotWritable { path: String },
+    NotWritable { path: String, detail: String },
     Io { path: String, detail: String },
 }
 
@@ -38,9 +38,10 @@ impl std::fmt::Display for LockError {
             Self::Timeout { path } => {
                 write!(formatter, "lock acquisition timed out on '{path}'")
             }
-            Self::NotWritable { path } => {
-                write!(formatter, "cannot write under '{path}': not writable")
-            }
+            Self::NotWritable { path, detail } => write!(
+                formatter,
+                "cannot write under '{path}': not writable: {detail}"
+            ),
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")
             }
@@ -119,6 +120,7 @@ fn acquire_with(
             Err(error) if error.kind() == ErrorKind::PermissionDenied => {
                 return Err(LockError::NotWritable {
                     path: lockdir.display().to_string(),
+                    detail: error.to_string(),
                 });
             }
             Err(error) => {
@@ -352,6 +354,7 @@ mod tests {
         is_lock_sentinel, jitter_ms, process_is_alive, reclaim_if_stale,
         LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
     };
+    use crate::test_support::ReadOnlyDir;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -770,10 +773,12 @@ mod tests {
     fn an_unwritable_parent_names_the_lockdir() {
         let error = LockError::NotWritable {
             path: "/w/.lockdir".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
         };
         assert_eq!(
             error.to_string(),
-            "cannot write under '/w/.lockdir': not writable"
+            "cannot write under '/w/.lockdir': not writable: Permission \
+             denied (os error 13)"
         );
     }
 
@@ -804,8 +809,34 @@ mod tests {
         fs::set_permissions(&parent, fs::Permissions::from_mode(0o755))?;
         assert!(matches!(
             outcome,
-            Err(LockError::NotWritable { path }) if path == lockdir.display().to_string()
+            Err(LockError::NotWritable { path, .. }) if path == lockdir.display().to_string()
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_lock_refused_for_permission_keeps_the_os_message(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let parent = dir.path().join("sealed");
+        fs::create_dir(&parent)?;
+        let Some(_guard) = ReadOnlyDir::new(&parent)? else {
+            return Ok(());
+        };
+        let lockdir = parent.join("log.lockdir");
+
+        let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
+
+        let Err(error @ LockError::NotWritable { .. }) = outcome else {
+            return Err("expected a NotWritable lock refusal".into());
+        };
+        let rendered = error.to_string();
+        let today = format!(
+            "cannot write under '{}': not writable: ",
+            lockdir.display()
+        );
+        assert!(rendered.starts_with(&today), "{rendered}");
+        assert!(rendered.contains("Permission denied"), "{rendered}");
         Ok(())
     }
 

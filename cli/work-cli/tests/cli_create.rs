@@ -298,7 +298,8 @@ fn a_read_only_work_directory_refuses_the_creation_lock(
         String::from_utf8(output.stderr)?,
         format!(
             "Error: could not acquire the work-item creation lock: cannot \
-             write under '{}': not writable\n",
+             write under '{}': not writable: Permission denied (os error \
+             13)\n",
             work_dir.join(".accelerator-work-create.lockdir").display()
         )
     );
