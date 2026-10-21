@@ -15,6 +15,8 @@
 //! `kernel::Error`.
 
 pub mod lock;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 
 use std::fs;
 use std::io::Error as IoError;
@@ -30,7 +32,7 @@ use tempfile::{Builder, NamedTempFile};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum WriteError {
-    NotWritable { path: String },
+    NotWritable { path: String, detail: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
     AlreadyExists { path: String },
@@ -41,8 +43,11 @@ pub enum WriteError {
 impl std::fmt::Display for WriteError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotWritable { path } => {
-                write!(formatter, "cannot write '{path}': not writable")
+            Self::NotWritable { path, detail } => {
+                write!(
+                    formatter,
+                    "cannot write '{path}': not writable: {detail}"
+                )
             }
             Self::CrossFilesystem { path } => write!(
                 formatter,
@@ -326,7 +331,10 @@ fn stage(
         .tempfile_in(dir)
         .map_err(|error| {
             if error.kind() == ErrorKind::PermissionDenied {
-                WriteError::NotWritable { path: show(dir) }
+                WriteError::NotWritable {
+                    path: show(dir),
+                    detail: error.to_string(),
+                }
             } else {
                 io(dir, &error)
             }
@@ -425,6 +433,7 @@ mod tests {
         require_owner_only_permissions, stage, NewFileMode, WriteBounds,
         WriteError,
     };
+    use crate::test_support::ReadOnlyDir;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -831,6 +840,33 @@ mod tests {
         assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
         assert!(!root.join("missing").exists());
         assert!(!root.join("other/file.md").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_write_refused_for_permission_keeps_the_os_message(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let sealed = project.path().join("sealed");
+        fs::create_dir(&sealed)?;
+        let Some(_guard) = ReadOnlyDir::new(&sealed)? else {
+            return Ok(());
+        };
+
+        let outcome =
+            write_under(&sealed, project.path(), &sealed.join("file.md"));
+
+        let Err(error @ WriteError::NotWritable { .. }) = outcome else {
+            return Err(format!("expected NotWritable, got {outcome:?}").into());
+        };
+        let rendered = error.to_string();
+        let today =
+            format!("cannot write '{}", fs::canonicalize(&sealed)?.display());
+        assert!(rendered.starts_with(&today), "{rendered}");
+        assert!(
+            rendered.contains("': not writable: Permission denied"),
+            "{rendered}"
+        );
         Ok(())
     }
 

@@ -317,7 +317,7 @@ fn the_real_lock_under_a_read_only_state_dir_is_a_cache_io_failure() {
         error.to_string(),
         format!(
             "E_CACHE_IO: {lockdir}: cannot write under '{lockdir}': \
-             not writable"
+             not writable: Permission denied (os error 13)"
         )
     );
 }

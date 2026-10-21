@@ -235,7 +235,8 @@ fn discover_under_a_read_only_state_dir_fails_with_a_cache_io_error() {
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
         format!(
-            "E_CACHE_IO: {lock}: cannot write under '{lock}': not writable\n"
+            "E_CACHE_IO: {lock}: cannot write under '{lock}': not \
+             writable: Permission denied (os error 13)\n"
         )
     );
 }
