@@ -1514,6 +1514,66 @@ fn an_injected_held_probe_spares_an_aged_orphan_while_materialising() {
     assert!(orphan.exists());
 }
 
+fn prune_once_everything_has_aged(harness: &Harness) {
+    let clock = aged();
+    let resolver = harness.resolver_with(&clock, &FlockProbe, &NoSteps);
+    let mut out = Vec::new();
+    cache::run(
+        &CacheAction::Prune { older_than: None },
+        &resolver,
+        &mut out,
+    )
+    .expect("prune");
+}
+
+/// An unclaimed tree of this layout that prune must remove, proving the
+/// prune ran far enough to have removed whatever a test expects it to keep.
+struct ReclaimableControl {
+    pointer: PathBuf,
+    generation: PathBuf,
+}
+
+impl ReclaimableControl {
+    fn plant(harness: &Harness) -> Self {
+        let digest = plant_sibling_generation(harness);
+        Self {
+            pointer: sibling_pointer(harness, &digest),
+            generation: tree_paths(harness)
+                .generation(&sibling_generation(&digest)),
+        }
+    }
+
+    fn assert_reclaimed(&self) {
+        assert!(!self.pointer.exists(), "the control's pointer survived");
+        assert!(!self.generation.exists(), "the control's tree survived");
+    }
+}
+
+#[test]
+fn an_aged_foreign_directory_resembling_a_generation_survives_the_reap() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let control = ReclaimableControl::plant(&harness);
+    let paths = tree_paths(&harness);
+    let foreign = [
+        paths.root().join("backup-2021-1-final"),
+        paths.root().join(format!(
+            "{ARTIFACT}-plan9-x64-{}-1-0011223344556677",
+            "e".repeat(64)
+        )),
+    ];
+    for directory in &foreign {
+        std::fs::create_dir(directory).unwrap();
+    }
+
+    prune_once_everything_has_aged(&harness);
+
+    for directory in &foreign {
+        assert!(directory.exists(), "{} was reaped", directory.display());
+    }
+    control.assert_reclaimed();
+}
+
 fn fresh() -> FixedClock {
     FixedClock(wall_clock_now())
 }
