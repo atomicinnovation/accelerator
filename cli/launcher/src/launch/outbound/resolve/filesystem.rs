@@ -25,6 +25,15 @@ pub trait CacheFilesystem {
     /// If `path` cannot be read or is not UTF-8.
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
+    /// Read a regular file of at most `limit` bytes, never following a symlink
+    /// at `path` and never blocking on a FIFO or device.
+    ///
+    /// # Errors
+    ///
+    /// If `path` is not a regular file, cannot be read, or holds more than
+    /// `limit` bytes.
+    fn read_bounded(&self, path: &Path, limit: u64) -> io::Result<Vec<u8>>;
+
     /// # Errors
     ///
     /// If any missing component cannot be created.
@@ -76,6 +85,28 @@ impl CacheFilesystem for SystemFilesystem {
         std::fs::read_to_string(path)
     }
 
+    fn read_bounded(&self, path: &Path, limit: u64) -> io::Result<Vec<u8>> {
+        use std::io::Read as _;
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        let file = not_following_links_nor_blocking(&mut options).open(path)?;
+        if !file.metadata()?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "not a regular file",
+            ));
+        }
+        let mut bytes = Vec::new();
+        file.take(limit.saturating_add(1)).read_to_end(&mut bytes)?;
+        if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("longer than {limit} bytes"),
+            ));
+        }
+        Ok(bytes)
+    }
+
     fn create_dir_all(&self, path: &Path) -> io::Result<()> {
         std::fs::create_dir_all(path)
     }
@@ -110,6 +141,25 @@ fn private_and_not_following_links(
     options
         .mode(0o600)
         .custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
+}
+
+#[cfg(unix)]
+fn not_following_links_nor_blocking(
+    options: &mut std::fs::OpenOptions,
+) -> &mut std::fs::OpenOptions {
+    use std::os::unix::fs::OpenOptionsExt as _;
+    options.custom_flags(
+        (rustix::fs::OFlags::NOFOLLOW | rustix::fs::OFlags::NONBLOCK)
+            .bits()
+            .cast_signed(),
+    )
+}
+
+#[cfg(not(unix))]
+const fn not_following_links_nor_blocking(
+    options: &mut std::fs::OpenOptions,
+) -> &mut std::fs::OpenOptions {
+    options
 }
 
 #[cfg(not(unix))]

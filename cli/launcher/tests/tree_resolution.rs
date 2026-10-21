@@ -35,6 +35,7 @@ use accelerator::launch::outbound::resolve::tree::{
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use lease::probe_shared_lease;
 use std::fmt::Write as _;
+use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::PermissionsExt as _;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -1572,6 +1573,152 @@ fn an_aged_foreign_directory_resembling_a_generation_survives_the_reap() {
         assert!(directory.exists(), "{} was reaped", directory.display());
     }
     control.assert_reclaimed();
+}
+
+fn plant_pointer(
+    harness: &Harness,
+    digest: &str,
+    contents: impl AsRef<[u8]>,
+) -> PathBuf {
+    std::fs::create_dir_all(tree_paths(harness).root()).unwrap();
+    let pointer = sibling_pointer(harness, digest);
+    std::fs::write(&pointer, contents).unwrap();
+    pointer
+}
+
+fn plant_directory(path: &Path) -> PathBuf {
+    std::fs::create_dir_all(path).unwrap();
+    path.to_path_buf()
+}
+
+#[test]
+fn a_pointer_naming_an_absolute_path_deletes_nothing_outside_the_root() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let control = ReclaimableControl::plant(&harness);
+    let victim = plant_directory(&harness.workdir.path().join("victim"));
+    plant_pointer(&harness, &"a".repeat(64), victim.as_os_str().as_bytes());
+
+    prune_once_everything_has_aged(&harness);
+
+    assert!(victim.exists(), "a directory outside the root was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_pointer_escaping_with_dot_dot_deletes_nothing() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let control = ReclaimableControl::plant(&harness);
+    let victim = plant_directory(&harness.cache.join("victim"));
+    plant_pointer(&harness, &"a".repeat(64), "../victim");
+
+    prune_once_everything_has_aged(&harness);
+
+    assert!(victim.exists(), "a directory above trees/ was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_pointer_naming_another_artifacts_generation_is_kept() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let control = ReclaimableControl::plant(&harness);
+    let digest = "e".repeat(64);
+    let generation =
+        format!("{BYSTANDER}-{HOST_PLATFORM}-{digest}-1-0011223344556677");
+    let victim = plant_directory(&tree_paths(&harness).generation(&generation));
+    let pointer = plant_pointer(&harness, &digest, &generation);
+
+    prune_once_everything_has_aged(&harness);
+
+    assert!(victim.exists(), "another artifact's generation was removed");
+    assert!(pointer.exists(), "the mismatched pointer was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_malformed_pointer_is_kept() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let control = ReclaimableControl::plant(&harness);
+    let digest = "e".repeat(64);
+    let named = format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}-1-short");
+    let victim = plant_directory(&tree_paths(&harness).generation(&named));
+    let pointer = plant_pointer(&harness, &digest, &named);
+
+    prune_once_everything_has_aged(&harness);
+
+    assert!(victim.exists(), "a malformed pointer's target was removed");
+    assert!(pointer.exists(), "the malformed pointer was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    let control = ReclaimableControl::plant(&harness);
+
+    let linked_digest = "1".repeat(64);
+    let target = harness.workdir.path().join("pointer-target");
+    std::fs::write(&target, sibling_generation(&linked_digest)).unwrap();
+    let linked = sibling_pointer(&harness, &linked_digest);
+    std::os::unix::fs::symlink(&target, &linked).unwrap();
+
+    let fifo = sibling_pointer(&harness, &"2".repeat(64));
+    let made = Command::new("mkfifo").arg(&fifo).status().unwrap();
+    assert!(made.success(), "mkfifo failed");
+
+    let oversized_digest = "3".repeat(64);
+    let oversized = plant_pointer(
+        &harness,
+        &oversized_digest,
+        format!(
+            "{}{}",
+            sibling_generation(&oversized_digest),
+            " ".repeat(300)
+        ),
+    );
+
+    let pruning = Arc::clone(&harness);
+    common::within(
+        std::time::Duration::from_secs(10),
+        "the prune",
+        move || prune_once_everything_has_aged(&pruning),
+    );
+
+    for pointer in [&linked, &fifo, &oversized] {
+        assert!(
+            std::fs::symlink_metadata(pointer).is_ok(),
+            "{} was removed",
+            pointer.display()
+        );
+    }
+    assert!(
+        target.exists(),
+        "the symlinked pointer's target was removed"
+    );
+    control.assert_reclaimed();
+}
+
+#[test]
+fn another_layouts_tree_is_kept_and_this_layouts_twin_is_removed() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let twin = ReclaimableControl::plant(&harness);
+    let digest = "e".repeat(64);
+    let generation =
+        format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}-2-0011223344556677");
+    let other_layout =
+        plant_directory(&tree_paths(&harness).generation(&generation));
+    let pointer = plant_pointer(&harness, &digest, &generation);
+
+    prune_once_everything_has_aged(&harness);
+
+    assert!(other_layout.exists(), "another layout's tree was removed");
+    assert!(pointer.exists(), "another layout's pointer was removed");
+    twin.assert_reclaimed();
 }
 
 fn fresh() -> FixedClock {

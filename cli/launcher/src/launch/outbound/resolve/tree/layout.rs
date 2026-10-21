@@ -16,6 +16,7 @@ use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::TreeError;
 
+use super::super::filesystem::CacheFilesystem;
 use super::super::KNOWN_PLATFORMS;
 
 /// The extraction and sealing policy this launcher applies.
@@ -282,6 +283,23 @@ pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>> {
         digest,
         layout,
     })
+}
+
+/// Comfortably above the longest generation name, which is under 128 bytes.
+const POINTER_READ_LIMIT: u64 = 256;
+
+/// A pointer's contents, the only way a prune reads one.
+///
+/// `None` for anything a pointer the launcher wrote could not be — a symlink,
+/// a FIFO, a device, an oversized or non-UTF-8 file — so a planted entry can
+/// neither block nor exhaust a prune.
+#[must_use]
+pub fn read_pointer(
+    path: &Path,
+    filesystem: &dyn CacheFilesystem,
+) -> Option<String> {
+    let bytes = filesystem.read_bounded(path, POINTER_READ_LIMIT).ok()?;
+    String::from_utf8(bytes).ok()
 }
 
 /// The generation a validated pointer names, or why the pointer is unusable.
