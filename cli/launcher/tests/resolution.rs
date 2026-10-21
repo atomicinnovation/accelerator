@@ -792,6 +792,33 @@ fn a_poisoned_cache_entry_is_replaced_in_place_and_reexecs(
 }
 
 #[test]
+fn a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    std::fs::write(&seeded.path, b"poisoned")?;
+    let recorder = harness.recorder();
+
+    harness.resolve_recorded(&recorder)?;
+
+    let mutations: Vec<FilesystemCall> = recorder
+        .calls_touching(&seeded.path)
+        .into_iter()
+        .filter(FilesystemCall::is_mutation)
+        .collect();
+    assert!(
+        matches!(
+            mutations.as_slice(),
+            [FilesystemCall::Rename { to, .. }]
+                if *to == recorder.recorded(&seeded.path)
+        ),
+        "{mutations:?}"
+    );
+    assert_eq!(std::fs::read(&seeded.path)?, harness.fixture_bytes);
+    Ok(())
+}
+
+#[test]
 fn a_poisoned_cache_entry_offline_is_a_distinct_diagnostic(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
