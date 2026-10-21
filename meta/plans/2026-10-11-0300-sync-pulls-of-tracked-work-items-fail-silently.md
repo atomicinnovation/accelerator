@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-21T19:55:24+00:00"
+last_updated: "2026-10-22T03:04:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -535,18 +535,55 @@ enables, so it is outside the snapshot
 
 #### Automated Verification
 
-- [ ] New store tests fail before the change and pass after (the three
+- [x] New store tests fail before the change and pass after (the three
       characterisation tests pass both before and after):
       `cargo test -p store --manifest-path cli/Cargo.toml`
-- [ ] Consumer crates still pass:
+- [x] Consumer crates still pass:
       `cargo test --workspace --manifest-path cli/Cargo.toml`
-- [ ] `mise run public-api:check` exits 0 after the reviewed update
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run public-api:check` exits 0 after the reviewed update
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] Audit findings recorded in the phase's commit message.
+- [x] Audit findings recorded in the phase's commit message.
+
+### As Implemented
+
+Landed as three commits (containment, permission detail, not-durable)
+plus this progress record. Departures from the steps above:
+
+- `a_dotdot_under_an_existing_parent_is_refused` passed before the change:
+  every component of `r/sub/../..` exists, so `fs::canonicalize` resolves
+  it outside the root and today's check already refused it. It stays as a
+  characterisation test.
+- `a_missing_permitted_root_without_dotdot_still_resolves` was not added:
+  the existing `a_write_creates_a_not_yet_existing_permitted_root` pins the
+  same behaviour.
+- The audit found no legitimate use broken. Doc-type `paths.*` values are
+  already refused when they hold `..` (`config::paths::doc_type_dirs`), and
+  the visualiser refuses `..` before reaching `store`. Only unvalidated
+  non-doc-type keys, when misconfigured with `..` through a missing
+  directory, change from silently working to `UnsafePath`; one test per
+  crate pins each:
+  - `paths.tmp`: `research-adapters/tests/scratch.rs`
+    `a_directory_through_a_dotdot_in_a_missing_directory_is_refused`
+  - `paths.integrations`: `jira-client/tests/cache.rs` and
+    `linear-client/tests/cache.rs`
+    `a_state_dir_through_a_dotdot_in_a_missing_directory_is_refused`
+  - `paths.templates`/`paths.research` overrides:
+    `migrate-adapters/tests/context.rs`
+    `a_path_through_a_dotdot_in_a_missing_directory_is_refused`
+- Mapping pins added beside the planned ones: `corpus-adapters`
+  `a_refused_write_keeps_its_permission_detail`, `config-adapters`
+  `a_refused_write_keeps_its_path_and_permission_detail` and
+  `a_write_that_may_not_survive_a_crash_keeps_naming_its_file`, and
+  `corpus` `not_durable_names_the_path_and_the_cause`.
+- The seam is `write_with_directory_sync(.., DirectorySync)` behind
+  `atomic_write`; `atomic_create` maps a failed parent sync to `NotDurable`
+  too, since its rename has also already published.
+- `StoreError::NotDurable` and `WriteError::NotDurable` render as
+  `'<path>' was replaced but may not survive a crash: <detail>`.
 
 ---
 
