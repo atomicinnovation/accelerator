@@ -38,6 +38,7 @@ pub enum WriteError {
     AlreadyExists { path: String },
     Io { path: String, detail: String },
     InsecurePermissions { path: String, mode: u32 },
+    NotDurable { path: String, detail: String },
 }
 
 impl std::fmt::Display for WriteError {
@@ -68,6 +69,10 @@ impl std::fmt::Display for WriteError {
                 "refusing to read '{path}': mode {mode:03o} is wider than \
                  0600 or the path is a symlink; run 'chmod 600 {path}' to \
                  fix it"
+            ),
+            Self::NotDurable { path, detail } => write!(
+                formatter,
+                "'{path}' was replaced but may not survive a crash: {detail}"
             ),
         }
     }
@@ -100,12 +105,26 @@ pub struct WriteBounds<'a> {
 ///
 /// # Errors
 /// Returns [`WriteError`] on a containment refusal, cross-filesystem staging, an
-/// unwritable target, or any underlying I/O failure.
+/// unwritable target, or any underlying I/O failure, or
+/// [`WriteError::NotDurable`] when the new content was published but its
+/// directory entry could not be synced.
 pub fn atomic_write(
     path: &Path,
     bytes: &[u8],
     bounds: &WriteBounds<'_>,
     mode: NewFileMode,
+) -> Result<(), WriteError> {
+    write_with_directory_sync(path, bytes, bounds, mode, sync_directory)
+}
+
+type DirectorySync = fn(&Path) -> Result<(), IoError>;
+
+fn write_with_directory_sync(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+    sync_dir: DirectorySync,
 ) -> Result<(), WriteError> {
     let (parent, target) = contained_target(path, bounds)?;
     let staged = stage(&parent, &target, bytes, mode)?;
@@ -114,7 +133,7 @@ pub fn atomic_write(
         .sync_all()
         .map_err(|error| io(staged.path(), &error))?;
     publish(staged, &target)?;
-    sync_parent_dir(&target)
+    sync_parent_dir(&target, sync_dir)
 }
 
 /// [`atomic_write`] without either fsync: a reader still never observes a
@@ -171,7 +190,7 @@ pub fn atomic_create(
             classify_persist_error(&target, &error.error)
         }
     })?;
-    sync_parent_dir(&target)
+    sync_parent_dir(&target, sync_directory)
 }
 
 /// Resolves `path` against `bounds` and returns the canonical directory a temp
@@ -372,12 +391,21 @@ fn publish(temp: NamedTempFile, target: &Path) -> Result<(), WriteError> {
 /// Fsyncs the target's parent directory so the rename that published the file
 /// survives a crash — a `fsync` of the file's data alone does not persist the
 /// directory entry the rename created.
-fn sync_parent_dir(target: &Path) -> Result<(), WriteError> {
+fn sync_parent_dir(
+    target: &Path,
+    sync_dir: DirectorySync,
+) -> Result<(), WriteError> {
     let Some(parent) = target.parent() else {
         return Ok(());
     };
-    let dir = fs::File::open(parent).map_err(|error| io(parent, &error))?;
-    dir.sync_all().map_err(|error| io(parent, &error))
+    sync_dir(parent).map_err(|error| WriteError::NotDurable {
+        path: show(target),
+        detail: error.to_string(),
+    })
+}
+
+fn sync_directory(dir: &Path) -> Result<(), IoError> {
+    fs::File::open(dir)?.sync_all()
 }
 
 fn classify_persist_error(target: &Path, error: &IoError) -> WriteError {
@@ -430,8 +458,8 @@ mod tests {
     use super::{
         atomic_create, atomic_write, classify_persist_error, ensure_contained,
         is_atomic_temporary, read_within, replace_without_sync,
-        require_owner_only_permissions, stage, NewFileMode, WriteBounds,
-        WriteError,
+        require_owner_only_permissions, stage, write_with_directory_sync,
+        DirectorySync, NewFileMode, WriteBounds, WriteError,
     };
     use crate::test_support::ReadOnlyDir;
 
@@ -867,6 +895,34 @@ mod tests {
             rendered.contains("': not writable: Permission denied"),
             "{rendered}"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_parent_sync_failure_after_the_rename_is_not_durable(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let target = project.path().join("file.md");
+        let failing_sync: DirectorySync =
+            |_| Err(std::io::Error::other("injected fsync failure"));
+
+        let outcome = write_with_directory_sync(
+            &target,
+            b"new",
+            &bounds(project.path(), project.path()),
+            NewFileMode::Set(0o600),
+            failing_sync,
+        );
+
+        assert!(
+            matches!(
+                &outcome,
+                Err(WriteError::NotDurable { detail, .. })
+                    if detail.contains("injected fsync failure")
+            ),
+            "{outcome:?}"
+        );
+        assert_eq!(fs::read(&target)?, b"new");
         Ok(())
     }
 

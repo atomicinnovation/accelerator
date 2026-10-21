@@ -122,6 +122,9 @@ fn to_store_error(error: WriteError) -> StoreError {
             StoreError::AlreadyExists { path }
         }
         WriteError::Io { path, detail } => StoreError::Io { path, detail },
+        WriteError::NotDurable { path, detail } => {
+            StoreError::NotDurable { path, detail }
+        }
         other => StoreError::Io {
             path: String::new(),
             detail: other.to_string(),
@@ -460,6 +463,21 @@ mod tests {
             StoreError::NotWritable {
                 path: "/c/item.md".to_owned(),
                 detail: "Permission denied (os error 13)".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn not_durable_maps_to_not_durable() {
+        let write = WriteError::NotDurable {
+            path: "/c/item.md".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        };
+        assert_eq!(
+            to_store_error(write),
+            StoreError::NotDurable {
+                path: "/c/item.md".to_owned(),
+                detail: "Input/output error (os error 5)".to_owned(),
             }
         );
     }

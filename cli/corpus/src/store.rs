@@ -24,6 +24,7 @@ pub enum StoreError {
     AlreadyExists { path: String },
     Validation { detail: String },
     Io { path: String, detail: String },
+    NotDurable { path: String, detail: String },
 }
 
 impl Display for StoreError {
@@ -53,6 +54,10 @@ impl Display for StoreError {
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")
             }
+            Self::NotDurable { path, detail } => write!(
+                formatter,
+                "'{path}' was replaced but may not survive a crash: {detail}"
+            ),
         }
     }
 }
@@ -204,6 +209,19 @@ mod tests {
             error.to_string(),
             "cannot write under '/x/log': not writable: Permission denied \
              (os error 13)"
+        );
+    }
+
+    #[test]
+    fn not_durable_names_the_path_and_the_cause() {
+        let error = StoreError::NotDurable {
+            path: "/x/log".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "'/x/log' was replaced but may not survive a crash: Input/output \
+             error (os error 5)"
         );
     }
 

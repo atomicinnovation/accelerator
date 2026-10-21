@@ -787,6 +787,9 @@ fn to_config_error(error: WriteError) -> ConfigError {
             path,
             detail: format!("not writable: {detail}"),
         },
+        WriteError::NotDurable { path, detail } => {
+            ConfigError::Io { path, detail }
+        }
         WriteError::CrossFilesystem { path } => ConfigError::Io {
             path,
             detail: "atomic rename crossed a filesystem boundary".to_owned(),
@@ -864,6 +867,21 @@ mod tests {
                 path: "/r/.accelerator/config.md".to_owned(),
                 detail: "not writable: Permission denied (os error 13)"
                     .to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_write_that_may_not_survive_a_crash_keeps_naming_its_file() {
+        let error = to_config_error(WriteError::NotDurable {
+            path: "/r/.accelerator/config.md".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        });
+        assert_eq!(
+            error,
+            ConfigError::Io {
+                path: "/r/.accelerator/config.md".to_owned(),
+                detail: "Input/output error (os error 5)".to_owned(),
             }
         );
     }
