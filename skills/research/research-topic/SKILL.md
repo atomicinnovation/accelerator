@@ -610,7 +610,7 @@ allocate a finding or note path yourself.
    | `budget_exhausted`, keyless | configure `openalex.api_key` (`/accelerator:configure`), then re-run `conduct` |
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
-   | "web search quota exhausted" | the session's `WebSearch` quota ran out; run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` |
+   | "web search quota exhausted" | the session's `WebSearch` quota ran out; follow its Recovery in **Halting failures** |
    | `rate_limited` with `cause: lock_contention` | an arXiv fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or the arXiv queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check `<paths.tmp>/research/arxiv-contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
    | `waiting` never re-presented | the researcher ended before its arXiv ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting outcome |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
@@ -631,7 +631,7 @@ takes a recovery step. Each reason withholds a set of profiles:
 
 | Reason | Halts | Next plan carries | Recovery |
 |---|---|---|---|
-| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` |
+| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower the depth |
 
 Waiting for the refill is not a recovery: a re-run in the same session sizes
 its budgets against the full cap, not the refilled remainder, so it would

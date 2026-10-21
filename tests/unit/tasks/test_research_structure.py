@@ -1022,8 +1022,9 @@ def _quota_exhausted_row() -> str:
 
 def test_the_quota_exhausted_row_stands_apart_from_rate_limited() -> None:
     row = _quota_exhausted_row()
-    assert "run `/clear`, then re-run `conduct <slug>`" in row
-    assert f"raise `{SEARCH_CAP_VARIABLE}`" in row
+    assert "the session's `WebSearch` quota ran out" in row
+    assert "follow its Recovery in **Halting failures**" in row
+    assert "/clear" not in row, "the recovery is written only once"
     assert "rate_limited" not in row
     for refill in ("re-run `conduct` later", "refill", "wait"):
         assert refill not in row, f"the quota row must not offer {refill!r}"
@@ -1145,6 +1146,19 @@ def test_halting_failures_are_defined_once_with_one_member() -> None:
     assert len(rows) == 1, rows
     assert rows[0].startswith(f'| "{QUOTA_EXHAUSTED}" |')
     assert "| `--withhold-profile web` |" in rows[0]
+
+
+def test_the_quota_halt_recovers_by_clearing_or_a_larger_restarted_cap() -> (
+    None
+):
+    (row,) = _table_rows(_halting_failures())
+    assert (
+        "| run `/clear`, then re-run `conduct <slug>`; for larger runs in "
+        f"later sessions, raise `{SEARCH_CAP_VARIABLE}` and restart Claude "
+        "Code, or lower the depth |"
+    ) in row
+    for refill in ("re-run `conduct` later", "refill", "wait"):
+        assert refill not in row, f"the quota halt must not offer {refill!r}"
 
 
 def test_a_halt_withholds_web_researchers_from_the_next_plan_on() -> None:
