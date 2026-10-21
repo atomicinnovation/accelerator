@@ -17,6 +17,7 @@ use accelerator::launch::core::{
 };
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
@@ -136,6 +137,7 @@ impl Harness {
             self.keys(),
             Fetcher::with_backoff(std::time::Duration::from_millis(1))
                 .expect("fetcher"),
+            std::sync::Arc::new(SystemFilesystem),
         )
     }
 
@@ -164,6 +166,7 @@ impl Harness {
     #[track_caller]
     fn seed_cache(&self) -> Result<cache::CachedBinary, Box<dyn Error>> {
         let cached = cache::store(
+            &SystemFilesystem,
             &self.cache,
             BINARY,
             VERSION,
@@ -172,7 +175,8 @@ impl Harness {
             &self.asset_sig,
         )?;
         assert!(
-            cache::find(&self.cache, BINARY, VERSION).is_some(),
+            cache::find(&SystemFilesystem, &self.cache, BINARY, VERSION)
+                .is_some(),
             "a seeded entry must be findable, or the warm-path tests silently \
              degrade into cold-miss duplicates"
         );
@@ -187,7 +191,8 @@ impl Harness {
         std::fs::remove_dir_all(&self.cache)?;
         std::fs::create_dir_all(&self.cache)?;
         assert!(
-            cache::find(&self.cache, BINARY, VERSION).is_none(),
+            cache::find(&SystemFilesystem, &self.cache, BINARY, VERSION)
+                .is_none(),
             "the cache must be empty, or the next resolution is a hit"
         );
         Ok(())
@@ -640,15 +645,19 @@ fn a_signature_read_io_error_propagates_the_refetch_error_verbatim(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     harness.resolve()?;
-    let cached = cache::find(&harness.cache, BINARY, VERSION)
-        .ok_or("cached entry missing")?;
+    let cached =
+        cache::find(&SystemFilesystem, &harness.cache, BINARY, VERSION)
+            .ok_or("cached entry missing")?;
     // Invalid UTF-8 in the signature sidecar: `fs::read_to_string` fails with
     // a plain Cache I/O error, distinct from a checksum/signature mismatch —
     // the cached binary bytes themselves are untouched.
     std::fs::write(&cached.signature_path, [0xFF, 0xFE, 0xFD])?;
     // The entry must still be findable, or resolution takes the cold-miss tail
     // call instead of the cache-I/O refetch arm and still yields `Fetch`.
-    assert!(cache::find(&harness.cache, BINARY, VERSION).is_some());
+    assert!(
+        cache::find(&SystemFilesystem, &harness.cache, BINARY, VERSION)
+            .is_some()
+    );
     let result =
         probes_during("sidecar I/O refetch", 1, || harness.resolve_offline());
     assert!(
