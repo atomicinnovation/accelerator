@@ -662,10 +662,10 @@ a non-numeric layout and a 15-hex suffix.
 
 #### Automated Verification:
 
-- [ ] The new tests fail before the change and pass after:
+- [x] The new tests fail before the change and pass after:
       `mise run test:unit:cli`
-- [ ] The fixed list is unchanged and its test still passes
-- [ ] `mise run cli:check` exits 0
+- [x] The fixed list is unchanged and its test still passes
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
