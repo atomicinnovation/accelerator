@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-21T20:14:56+00:00"
+last_updated: "2026-10-21T20:49:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -534,21 +534,25 @@ removes again between the re-fetch and the second `exec` must not loop.
 `filesystem.exists(missing)`: the binary is there but cannot run, as with a
 missing ELF interpreter, and a re-fetch would not help. Otherwise it returns
 `Resolved` or `Failed` from `self.fetch_verify_store(name)`. The check costs
-nothing on a successful `exec`.
+nothing on a successful `exec`. `resolve` and `re_resolve` share
+`dispatched_name(command)`, so a non-UTF-8 name is `Failed(Unresolved)` in
+both.
 
 **File**: `cli/launcher/src/main.rs`
 **Changes**: `LazyProductionResolver::re_resolve` returns `Declined` when
-`override_path` yields a path. Otherwise it builds the resolver as `resolve`
-does and delegates. The construction is extracted into
+`override_path` yields a path, and `Failed` when it errs. Otherwise it builds
+the resolver as `resolve` does and delegates. The construction is extracted into
 `fn production_resolver() -> Result<FetchVerifyCacheResolver, ResolutionError>`
 so both methods share it.
 
 #### 3. Pointer containment
 
 **File**: `cli/launcher/src/launch/outbound/resolve/tree/resolver.rs`
-**Changes**: `artifact_pointers` classifies each pointer's contents through
-`validated_generation(contents, artifact, platform, digest, LAYOUT_VERSION)`,
-with the digest taken from the pointer's own name:
+**Changes**: `artifact_pointers` reads each pointer through `read_pointer`
+with `&SystemFilesystem` and classifies its contents through
+`PointerTarget::of`, which calls `validated_generation(contents, name,
+platform, digest, LAYOUT_VERSION)` with the digest taken from the pointer's
+own name:
 
 ```rust
 enum PointerTarget {
@@ -566,6 +570,10 @@ enum PointerTarget {
 
 `reclaim_unclaimed` acts only on `Current`. This is the only route from a
 pointer's contents to a generation path in any prune.
+
+A pointer `read_pointer` refuses — a symlink, FIFO, device or oversized file —
+references nothing, so a generation only it names counts as unreferenced to
+the orphan reap and goes once aged and free. The pointer itself is kept.
 
 **File**: `tree/layout.rs`
 **Changes**: `read_pointer(path, filesystem) -> Option<String>` is the only
@@ -593,23 +601,33 @@ pub struct GenerationName<'a> {
 pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>>
 ```
 
-It accepts exactly `<n>-<p>-<64hex>-<u32>-<16hex>` with `p` in
-`KNOWN_PLATFORMS`, locating the platform as `Artifact::owning` does.
+It accepts exactly `<n>-<p>-<64hex>-<u32>-<16hex>` with `n` non-empty and `p`
+in `KNOWN_PLATFORMS`. It parses from the right, where every field has a fixed
+shape, so hyphens in `n` never shift the split; the layout must be ASCII
+digits, so `+1` is refused. The suffix and digest checks share
+`is_lowercase_hex_of_length` with `validated_generation` and
+`is_wellformed_digest`.
 
 **File**: `tree/reap.rs`
 **Changes**: `is_generation` becomes `parse_generation_name(name)` with
 `layout == LAYOUT_VERSION`, replacing the `-{LAYOUT_VERSION}-` substring
-test. A stricter grammar only keeps more, so this is safe in every root.
+test. It still excludes `.tmp-` entries; the separate sidecar-suffix check
+and `reap.rs`'s `has_sidecar_suffix` are gone, because the grammar already rejects a
+sidecar's name. A stricter grammar only keeps more, so this is safe in every
+root.
 
 #### 5. Tests (red first)
 
-**File**: `cli/launcher/src/launch/core.rs` (unit tests, using the
-`RecordingExec`/`FixedResolver` fakes at `:456-548`)
+**File**: `cli/launcher/src/launch/core.rs` (unit tests, using new
+`ReResolvingResolver` and `FailingExec` fakes; `FixedResolver` and
+`FailingResolver` gain `re_resolve` returning `Declined`, as do the fakes in
+`main.rs` and `tests/crypto_provider.rs`)
 
 - `a_missing_program_is_re_resolved_once_and_execed_again`
 - `a_second_missing_program_surfaces_as_exec`
 - `a_failure_other_than_enoent_is_not_re_resolved`
 - `a_resolver_that_cannot_re_resolve_surfaces_the_first_failure`
+- `a_failed_re_resolution_surfaces_its_own_error`
 
 **File**: `cli/launcher/tests/resolution.rs`
 
@@ -620,15 +638,17 @@ test. A stricter grammar only keeps more, so this is safe in every root.
   removes the resolved entry, and an `ExecUnlessMissing` fake returns
   `ENOENT` for a missing path and records the program otherwise. The test
   asserts one successful exec of the refetched path and one asset hit.
-- `an_existing_but_unrunnable_entry_is_not_refetched`: `ExecUnlessMissing`
-  returns `ENOENT` for a path that exists; no asset is fetched and the first
-  failure surfaces
+- `an_existing_but_unrunnable_entry_is_not_refetched`: an
+  `ExecMissingInterpreter` fake returns `ENOENT` for a path that exists; no
+  asset is fetched and the first failure surfaces
 - `a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it`: seed,
   poison, resolve with the recorder. `calls_touching(entry)` filtered to
-  mutations equals `[Rename { to: entry, .. }]`, and the entry then holds the
-  verified bytes. Parameterised by kind in Phase 3 and re-run in Phase 7, as
-  above; the mutation filter on the entry path keeps prune's own calls out of
-  the assertion.
+  mutations is exactly one `Rename` whose `to` is the entry, and the entry
+  then holds the verified bytes. Parameterised by kind in Phase 3 and re-run
+  in Phase 7, as above; the mutation filter on the entry path keeps prune's
+  own calls out of the assertion. It records existing behaviour, so it
+  passes before the change; an unlink inserted before `store`'s rename makes
+  it fail.
 
 **File**: `cli/launcher/src/main.rs` (unit test)
 
@@ -636,27 +656,33 @@ test. A stricter grammar only keeps more, so this is safe in every root.
 - `an_unwritable_cache_root_is_re_resolved_through_the_cold_path`: with no
   `ACCELERATOR_<SUB>_BIN` override and an unwritable `ACCELERATOR_CACHE_DIR`,
   `re_resolve` returns `Failed(CacheRootUnavailable)`. The env-mutating
-  `main.rs` tests run serially.
+  `main.rs` tests serialise on a test-local `ENVIRONMENT` mutex, and a
+  `ScopedVariable` guard restores each variable on drop.
 
 **File**: `cli/launcher/tests/tree_resolution.rs`
 
 Each test plants an aged, lease-free victim directory and an unclaimed
-pointer, plus a valid, unclaimed, aged tree of this layout as a positive
-control. It runs the verb and asserts the victim survives and the control is
-removed in the same run:
+pointer, plus a `ReclaimableControl`: a valid, unclaimed tree of this layout.
+It runs the verb with a clock two backstops ahead and `FlockProbe`, and
+asserts the victim survives and the control is removed in the same run:
 
 - `a_pointer_naming_an_absolute_path_deletes_nothing_outside_the_root`
 - `a_pointer_escaping_with_dot_dot_deletes_nothing`
 - `a_pointer_naming_another_artifacts_generation_is_kept`
 - `a_malformed_pointer_is_kept`
-- `a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept`
+- `a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept`: the prune
+  must finish within 10s; all three pointers and the symlink's target
+  survive. It plants no generation for them, since one named only by a
+  refused pointer is unreferenced and may be reaped.
 - `another_layouts_tree_is_kept_and_this_layouts_twin_is_removed`
 - `an_aged_foreign_directory_resembling_a_generation_survives_the_reap`:
   `backup-2021-1-final` and `<n>-<unknown platform>-<64hex>-1-<16hex>`
 
-**File**: `tree/layout.rs` (unit tests): `parse_generation_name` accepts every
-known platform and rejects an unknown platform, a short or uppercase digest,
-a non-numeric layout and a 15-hex suffix.
+**File**: `tree/layout.rs` (unit tests): `parse_generation_name` accepts
+every known platform, including hyphenated names and one containing a
+platform, and rejects an unknown or extended platform, a short or uppercase
+digest, a non-numeric, signed or empty layout, a short, long or uppercase
+suffix, a sidecar name, a missing artifact name and `backup-2021-1-final`.
 
 ### Success Criteria:
 
@@ -670,7 +696,10 @@ a non-numeric layout and a 15-hex suffix.
 #### Manual Verification:
 
 - [x] Deleting a cached sub-binary between two dispatches in a scratch
-      `ACCELERATOR_CACHE_DIR` re-fetches it once with no user-visible error
+      `ACCELERATOR_CACHE_DIR` re-fetches it once with no user-visible error.
+      This covers the next dispatch's cache miss; the window between `find`
+      and `exec` is covered only by
+      `an_entry_removed_between_find_and_exec_is_refetched_once`.
 
 ---
 
