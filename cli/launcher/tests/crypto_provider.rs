@@ -21,7 +21,7 @@ use tempfile::TempDir;
 
 use accelerator::config_command::core::{ConfigStack, ConsentPorts};
 use accelerator::launch::core::{
-    ExecBinary, ExternalCommand, ResolutionError, ResolveBinary,
+    ExecBinary, ExternalCommand, ReResolution, ResolutionError, ResolveBinary,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::inbound::cli::Cli;
@@ -47,6 +47,15 @@ impl ResolveBinary for SpyResolver {
     ) -> Result<PathBuf, ResolutionError> {
         self.called.set(true);
         Err(ResolutionError::EmptyCommand)
+    }
+
+    fn re_resolve(
+        &self,
+        _command: &ExternalCommand,
+        _missing: &Path,
+    ) -> ReResolution {
+        self.called.set(true);
+        ReResolution::Declined
     }
 }
 

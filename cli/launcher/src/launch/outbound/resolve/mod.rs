@@ -10,10 +10,12 @@ pub mod manifest;
 pub mod tree;
 pub mod verifier;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
+use crate::launch::core::{
+    ExternalCommand, ReResolution, ResolutionError, ResolveBinary,
+};
 
 use self::cache::CachedBinary;
 use self::fetcher::{FetchError, Fetcher};
@@ -203,11 +205,7 @@ impl ResolveBinary for FetchVerifyCacheResolver {
         &self,
         command: &ExternalCommand,
     ) -> Result<PathBuf, ResolutionError> {
-        let name = command.name.to_str().ok_or_else(|| {
-            ResolutionError::Unresolved {
-                name: command.name.clone(),
-            }
-        })?;
+        let name = dispatched_name(command)?;
 
         if let Some(cached) = cache::find(
             self.filesystem.as_ref(),
@@ -253,6 +251,34 @@ impl ResolveBinary for FetchVerifyCacheResolver {
         }
         self.fetch_verify_store(name)
     }
+
+    /// Declines when `missing` is still there: a binary that exists yet cannot
+    /// run, as with a missing ELF interpreter, would not run after a re-fetch
+    /// either.
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution {
+        if self.filesystem.exists(missing) {
+            return ReResolution::Declined;
+        }
+        match dispatched_name(command)
+            .and_then(|name| self.fetch_verify_store(name))
+        {
+            Ok(path) => ReResolution::Resolved(path),
+            Err(error) => ReResolution::Failed(error),
+        }
+    }
+}
+
+fn dispatched_name(command: &ExternalCommand) -> Result<&str, ResolutionError> {
+    command
+        .name
+        .to_str()
+        .ok_or_else(|| ResolutionError::Unresolved {
+            name: command.name.clone(),
+        })
 }
 
 fn file_name(path: &std::path::Path) -> String {

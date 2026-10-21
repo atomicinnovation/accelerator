@@ -6,7 +6,7 @@
 //! is composed here and handed to `dispatch` behind `config`-crate traits.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
@@ -18,8 +18,8 @@ use accelerator::launch::cache;
 use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
     acquire_trees, consumes_trees, tree_var, DispatchFailureExit,
-    DispatchFailurePolicy, ExternalCommand, ResolutionError, ResolveBinary,
-    LAUNCHER_PATH_VAR,
+    DispatchFailurePolicy, ExternalCommand, ReResolution, ResolutionError,
+    ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::{self, augment_with_subbinaries};
@@ -79,23 +79,40 @@ impl ResolveBinary for LazyProductionResolver {
         if let Some(path) = override_path(&command.name)? {
             return Ok(path);
         }
-        let _ = install_crypto_provider();
-        let cache = cache_root::candidate(&CacheRootConfig::from_env(
-            config_adapters::plugin_root_from_env(),
-        ))?;
-        let keys = TrustedKeys::embedded()?;
-        let config = ResolverConfig::production(release_base_url(), cache);
-        let fetcher = Fetcher::new().map_err(|detail| {
-            ResolutionError::CacheRootUnavailable { detail }
-        })?;
-        FetchVerifyCacheResolver::with_fetcher(
-            config,
-            keys,
-            fetcher,
-            Arc::new(SystemFilesystem),
-        )
-        .resolve(command)
+        production_resolver()?.resolve(command)
     }
+
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution {
+        match override_path(&command.name) {
+            Ok(Some(_)) => ReResolution::Declined,
+            Ok(None) => match production_resolver() {
+                Ok(resolver) => resolver.re_resolve(command, missing),
+                Err(error) => ReResolution::Failed(error),
+            },
+            Err(error) => ReResolution::Failed(error),
+        }
+    }
+}
+
+fn production_resolver() -> Result<FetchVerifyCacheResolver, ResolutionError> {
+    let _ = install_crypto_provider();
+    let cache = cache_root::candidate(&CacheRootConfig::from_env(
+        config_adapters::plugin_root_from_env(),
+    ))?;
+    let keys = TrustedKeys::embedded()?;
+    let config = ResolverConfig::production(release_base_url(), cache);
+    let fetcher = Fetcher::new()
+        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
+    Ok(FetchVerifyCacheResolver::with_fetcher(
+        config,
+        keys,
+        fetcher,
+        Arc::new(SystemFilesystem),
+    ))
 }
 
 /// The signature-verified release manifest, or `None` on any failure so the
@@ -545,8 +562,8 @@ mod tests {
     use std::process::ExitCode;
 
     use accelerator::launch::core::{
-        run_external, ExecBinary, ExternalCommand, ResolutionError,
-        ResolveBinary,
+        run_external, ExecBinary, ExternalCommand, ReResolution,
+        ResolutionError, ResolveBinary,
     };
     use accelerator::launch::inbound::cli::Command;
     use clap::error::ErrorKind;
@@ -668,6 +685,14 @@ mod tests {
         ) -> Result<PathBuf, ResolutionError> {
             Err((self.0)())
         }
+
+        fn re_resolve(
+            &self,
+            _command: &ExternalCommand,
+            _missing: &Path,
+        ) -> ReResolution {
+            ReResolution::Declined
+        }
     }
 
     struct UnreachableExec;
@@ -754,6 +779,91 @@ mod tests {
         let error = dispatch_error(integrity_failure);
         let command = Command::External(vec![]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    static ENVIRONMENT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct ScopedVariable {
+        name: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl ScopedVariable {
+        fn set(name: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::set_var(name, value);
+            Self { name, previous }
+        }
+
+        fn unset(name: &'static str) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::remove_var(name);
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedVariable {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.name, value),
+                None => std::env::remove_var(self.name),
+            }
+        }
+    }
+
+    fn frobnicate() -> ExternalCommand {
+        ExternalCommand {
+            name: OsString::from("frobnicate"),
+            args: vec![],
+        }
+    }
+
+    #[test]
+    fn an_override_path_is_never_re_resolved() {
+        let _serial = ENVIRONMENT.lock();
+        let _override =
+            ScopedVariable::set("ACCELERATOR_FROBNICATE_BIN", "/absent/tool");
+
+        let outcome = super::LazyProductionResolver
+            .re_resolve(&frobnicate(), Path::new("/absent/tool"));
+
+        assert!(matches!(outcome, ReResolution::Declined), "{outcome:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_unwritable_cache_root_is_re_resolved_through_the_cold_path(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let _serial = ENVIRONMENT.lock();
+        let root = tempfile::Builder::new().prefix("re-resolve-").tempdir()?;
+        let read_only = root.path().join("cache");
+        std::fs::create_dir(&read_only)?;
+        std::fs::set_permissions(
+            &read_only,
+            std::fs::Permissions::from_mode(0o555),
+        )?;
+        let _no_override = ScopedVariable::unset("ACCELERATOR_FROBNICATE_BIN");
+        let _cache = ScopedVariable::set("ACCELERATOR_CACHE_DIR", &read_only);
+
+        let outcome = super::LazyProductionResolver
+            .re_resolve(&frobnicate(), &read_only.join("frobnicate-entry"));
+
+        std::fs::set_permissions(
+            &read_only,
+            std::fs::Permissions::from_mode(0o755),
+        )?;
+        assert!(
+            matches!(
+                outcome,
+                ReResolution::Failed(
+                    ResolutionError::CacheRootUnavailable { .. }
+                )
+            ),
+            "{outcome:?}"
+        );
+        Ok(())
     }
 
     #[cfg(unix)]
