@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use common::{MockHTTPServer, Route};
 use sha2::{Digest as _, Sha256};
@@ -38,6 +39,20 @@ use std::os::unix::fs::PermissionsExt as _;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ARTIFACT: &str = "driver";
+const BYSTANDER: &str = "browser";
+
+/// Distinct from the harness's archive digest, so the bystander's archive
+/// survives by its own pin rather than by sharing `ARTIFACT`'s.
+fn bystander_digest() -> String {
+    "b".repeat(64)
+}
+
+fn pinning(artifact: &str, digest: &str) -> BTreeMap<(String, String), String> {
+    BTreeMap::from([(
+        (artifact.to_owned(), HOST_PLATFORM.to_owned()),
+        digest.to_owned(),
+    )])
+}
 
 /// A clock the tests do not need to advance.
 struct StoppedClock;
@@ -234,18 +249,25 @@ fn attestation_json(
     )
 }
 
-fn manifest_json(
-    archive_sha: &str,
-    signature: &str,
-    archive_len: u64,
-) -> String {
+struct ManifestEntry {
+    signature: String,
+    archive_size: u64,
+    uncompressed_size: u64,
+}
+
+fn manifest_json(archive_sha: &str, entry: &ManifestEntry) -> String {
+    let ManifestEntry {
+        signature,
+        archive_size,
+        uncompressed_size,
+    } = entry;
     let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
     format!(
         "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":{{}},\
          \"artifacts\":{{\"{ARTIFACT}\":{{\"description\":\"driver\",\
          \"platforms\":{{\"{HOST_PLATFORM}\":{{\"sha256\":\"{archive_sha}\",\
-         \"signature\":\"{escaped}\",\"archive_size\":{archive_len},\
-         \"uncompressed_size\":999999,\"entry_count\":9}}}}}}}}}}"
+         \"signature\":\"{escaped}\",\"archive_size\":{archive_size},\
+         \"uncompressed_size\":{uncompressed_size},\"entry_count\":9}}}}}}}}}}"
     )
 }
 
@@ -255,7 +277,10 @@ struct Harness {
     trusted: String,
     archive_sha: String,
     archive_bytes: Vec<u8>,
-    _workdir: TempDir,
+    archive_signature: String,
+    minisign: PathBuf,
+    secret: PathBuf,
+    workdir: TempDir,
     _cache: TempDir,
 }
 
@@ -294,6 +319,18 @@ impl Harness {
         )
     }
 
+    fn resolver_also_pinning_bystander(&self) -> TreeResolver<'_> {
+        let mut digests = pinning(ARTIFACT, &self.archive_sha);
+        digests.extend(pinning(BYSTANDER, &bystander_digest()));
+        self.resolver_pinning(
+            digests,
+            "test-install",
+            &StoppedClock,
+            &FlockProbe,
+            &NoSteps,
+        )
+    }
+
     fn resolver_over<'a>(
         &'a self,
         digest: &str,
@@ -302,11 +339,23 @@ impl Harness {
         liveness: &'a dyn LivenessProbe,
         steps: &'a dyn StepObserver,
     ) -> TreeResolver<'a> {
-        let mut digests = BTreeMap::new();
-        digests.insert(
-            (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-            digest.to_owned(),
-        );
+        self.resolver_pinning(
+            pinning(ARTIFACT, digest),
+            launcher_id,
+            clock,
+            liveness,
+            steps,
+        )
+    }
+
+    fn resolver_pinning<'a>(
+        &'a self,
+        digests: BTreeMap<(String, String), String>,
+        launcher_id: &str,
+        clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
         TreeResolver {
             cache_root: self.cache.clone(),
             base_url: self.server.base_url(),
@@ -334,6 +383,27 @@ impl Harness {
     fn hits(&self, path: &str) -> usize {
         self.server.hits(path)
     }
+
+    fn sign(&self, bytes: &[u8]) -> String {
+        sign(&self.minisign, &self.secret, self.workdir.path(), bytes)
+    }
+
+    fn default_entry(&self) -> ManifestEntry {
+        ManifestEntry {
+            signature: self.archive_signature.clone(),
+            archive_size: self.archive_bytes.len() as u64,
+            uncompressed_size: 999_999,
+        }
+    }
+
+    fn serve_manifest(&self, entry: &ManifestEntry) {
+        let manifest = manifest_json(&self.archive_sha, entry);
+        let signature = self.sign(manifest.as_bytes());
+        self.server
+            .route("/manifest.json", Route::Ok(manifest.into_bytes()));
+        self.server
+            .route("/manifest.minisig", Route::Ok(signature.into_bytes()));
+    }
 }
 
 fn happy_harness(minisign: &Path) -> Harness {
@@ -350,15 +420,8 @@ fn happy_harness(minisign: &Path) -> Harness {
     let attestation_sig =
         sign(minisign, &secret, workdir.path(), attestation.as_bytes());
 
-    let manifest =
-        manifest_json(&archive_sha, &archive_sig, archive.len() as u64);
-    let manifest_sig =
-        sign(minisign, &secret, workdir.path(), manifest.as_bytes());
-
     let archive_bytes = archive.clone();
     let server = MockHTTPServer::start();
-    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
     let asset = format!("/accelerator-{ARTIFACT}-{HOST_PLATFORM}.tar.gz");
     server.route(&asset, Route::Ok(archive));
     server.route(
@@ -370,15 +433,20 @@ fn happy_harness(minisign: &Path) -> Harness {
         Route::Ok(attestation_sig.into_bytes()),
     );
 
-    Harness {
+    let harness = Harness {
         server,
         cache: cache.path().to_path_buf(),
         trusted: trusted_pub,
         archive_sha,
         archive_bytes,
-        _workdir: workdir,
+        archive_signature: archive_sig,
+        minisign: minisign.to_owned(),
+        secret,
+        workdir,
         _cache: cache,
-    }
+    };
+    harness.serve_manifest(&harness.default_entry());
+    harness
 }
 
 fn archive_path() -> String {
@@ -878,18 +946,191 @@ fn every_cache_verb_refuses_an_unknown_name_without_touching_the_filesystem() {
 }
 
 #[test]
-fn cache_prune_reclaims_orphan_residue() {
+fn cache_prune_reclaims_owned_orphans_and_keeps_unowned_ones() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
-    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
-    // An orphan temp tree the reaper should reclaim.
-    let orphan = harness.cache.join("trees/.tmp-orphan");
-    std::fs::create_dir(&orphan).unwrap();
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let owned =
+        paths.temp_generation(&sibling_generation(&harness.archive_sha));
+    std::fs::create_dir(&owned).unwrap();
+    let unowned = paths.root().join(".tmp-orphan");
+    std::fs::create_dir(&unowned).unwrap();
 
     let out = run_cache(&harness, &CacheAction::Prune { older_than: None })
         .expect("prune");
-    assert!(String::from_utf8_lossy(&out).contains("reclaimed"));
-    assert!(!orphan.exists(), "prune left an orphan temp tree");
+
+    assert!(
+        String::from_utf8_lossy(&out).contains("reclaimed 1 entries"),
+        "{}",
+        String::from_utf8_lossy(&out)
+    );
+    assert!(!owned.exists(), "prune left an owned orphan temp tree");
+    assert!(unowned.exists(), "prune removed residue nobody owns");
+}
+
+fn lock_files(harness: &Harness) -> Vec<String> {
+    let mut locks: Vec<String> = std::fs::read_dir(tree_paths(harness).root())
+        .unwrap()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| {
+            name.starts_with(".tmp-")
+                && std::path::Path::new(name)
+                    .extension()
+                    .is_some_and(|extension| extension == "lock")
+        })
+        .collect();
+    locks.sort();
+    locks
+}
+
+/// Run a resolution against `harness` under the 10s bound, asserting that it
+/// neither creates nor removes a lock file.
+fn within_bound<T: Send + 'static>(
+    harness: &Arc<Harness>,
+    run: impl FnOnce(&Harness) -> T + Send + 'static,
+) -> T {
+    let locks_before = lock_files(harness);
+    let bounded = Arc::clone(harness);
+    let outcome = common::within(
+        std::time::Duration::from_secs(10),
+        "the resolution",
+        move || run(&bounded),
+    );
+    assert_eq!(lock_files(harness), locks_before, "a lock file changed");
+    outcome
+}
+
+/// A materialise creates its own lock file, so the lock-file set can only be
+/// compared across one once both artifacts' lock files exist.
+fn create_free_tree_locks(harness: &Harness) {
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    let paths = tree_paths(harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    for artifact in [ARTIFACT, BYSTANDER] {
+        drop(
+            take_single_flight(&paths.single_flight_lock(&on_host(artifact)))
+                .unwrap(),
+        );
+    }
+}
+
+fn plant_bystanders_pinned_archive(harness: &Harness) -> PathBuf {
+    let archive = tree_paths(harness)
+        .temp_archive(&on_host(BYSTANDER), &bystander_digest());
+    std::fs::write(&archive, b"resumable").unwrap();
+    archive
+}
+
+#[test]
+fn another_artifacts_pinned_archive_survives_a_materialise() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    create_free_tree_locks(&harness);
+    let pinned = plant_bystanders_pinned_archive(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .materialise(ARTIFACT)
+    })
+    .expect("materialise");
+
+    assert!(pinned.exists(), "the bystander's pinned archive was reaped");
+}
+
+#[test]
+fn another_artifacts_pinned_archive_survives_a_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    create_free_tree_locks(&harness);
+    let pinned = plant_bystanders_pinned_archive(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .prune(ARTIFACT, None)
+    })
+    .expect("prune");
+
+    assert!(pinned.exists(), "the bystander's pinned archive was reaped");
+}
+
+/// The bystander's materialise in progress: its lock held on the test thread,
+/// with a temp tree, its temp pointer and an unpinned partial archive.
+struct BystanderInProgress {
+    _held: accelerator::launch::outbound::resolve::tree::lease::SingleFlight,
+    residue: [PathBuf; 3],
+}
+
+fn bystander_in_progress(harness: &Harness) -> BystanderInProgress {
+    use accelerator::launch::outbound::resolve::tree::layout::{
+        generation_name, LAYOUT_VERSION,
+    };
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    create_free_tree_locks(harness);
+    let paths = tree_paths(harness);
+    let held =
+        take_single_flight(&paths.single_flight_lock(&on_host(BYSTANDER)))
+            .unwrap();
+    let generation = generation_name(
+        BYSTANDER,
+        HOST_PLATFORM,
+        &bystander_digest(),
+        LAYOUT_VERSION,
+        "0011223344556677",
+    );
+    let tree = paths.temp_generation(&generation);
+    std::fs::create_dir(&tree).unwrap();
+    let pointer = paths.temp_pointer(&generation);
+    std::fs::write(&pointer, &generation).unwrap();
+    let archive = paths.temp_archive(&on_host(BYSTANDER), &"f".repeat(64));
+    std::fs::write(&archive, b"partial").unwrap();
+    BystanderInProgress {
+        _held: held,
+        residue: [tree, pointer, archive],
+    }
+}
+
+fn assert_in_progress_residue_survives(bystander: &BystanderInProgress) {
+    for entry in &bystander.residue {
+        assert!(entry.exists(), "{} was reaped", entry.display());
+    }
+}
+
+#[test]
+fn another_artifacts_materialise_survives_this_ones_materialise() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    let bystander = bystander_in_progress(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .materialise(ARTIFACT)
+    })
+    .expect("materialise");
+
+    assert_in_progress_residue_survives(&bystander);
+}
+
+#[test]
+fn another_artifacts_materialise_survives_this_ones_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    let bystander = bystander_in_progress(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .prune(ARTIFACT, None)
+    })
+    .expect("prune");
+
+    assert_in_progress_residue_survives(&bystander);
 }
 
 use accelerator::launch::outbound::resolve::tree::claims;
@@ -1129,7 +1370,13 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
     let _ = sealed;
 }
 
-use accelerator::launch::outbound::resolve::tree::layout::TreePaths;
+use accelerator::launch::outbound::resolve::tree::layout::{
+    Artifact, TreePaths,
+};
+
+fn on_host(name: &str) -> Artifact {
+    Artifact::new(name, HOST_PLATFORM)
+}
 
 /// Answers every probe the same way, so `Held` and `Unknown` can be exercised
 /// without a live holder or a filesystem that lacks `flock`.
@@ -1536,6 +1783,282 @@ fn an_interrupted_download_resumes_with_a_range_request() {
     harness.resolver().verify(ARTIFACT).expect("verify resumed");
 }
 
+fn plant_partial(harness: &Harness, bytes: &[u8]) -> PathBuf {
+    let paths = tree_paths(harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let partial = paths.temp_archive(&on_host(ARTIFACT), &harness.archive_sha);
+    std::fs::write(&partial, bytes).unwrap();
+    partial
+}
+
+fn with_trailing_bytes(archive: &[u8], extra: usize) -> Vec<u8> {
+    let mut longer = archive.to_vec();
+    longer.extend(std::iter::repeat_n(0_u8, extra));
+    longer
+}
+
+fn serve_a_loose_size_bound(harness: &Harness) {
+    harness.serve_manifest(&ManifestEntry {
+        archive_size: harness.archive_bytes.len() as u64 + 1024,
+        ..harness.default_entry()
+    });
+}
+
+#[test]
+fn a_complete_partial_is_verified_without_refetching() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    plant_partial(&harness, &harness.archive_bytes);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a complete partial materialises");
+
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
+#[test]
+fn a_complete_partial_under_a_loose_size_bound_is_confirmed_by_the_server() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    serve_a_loose_size_bound(&harness);
+    plant_partial(&harness, &harness.archive_bytes);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a complete partial materialises");
+
+    assert_eq!(harness.hits(&archive_path()), 1);
+    assert_eq!(harness.server.range_hits(&archive_path()), 1);
+}
+
+#[test]
+fn a_partial_longer_than_the_served_file_under_a_loose_bound_is_refetched_whole(
+) {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    serve_a_loose_size_bound(&harness);
+    plant_partial(&harness, &with_trailing_bytes(&harness.archive_bytes, 10));
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the refetched archive materialises");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 1);
+    assert_eq!(harness.hits(&archive_path()), 2);
+}
+
+#[test]
+fn an_over_long_partial_is_refetched_whole() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    plant_partial(&harness, &with_trailing_bytes(&harness.archive_bytes, 1));
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the refetched archive materialises");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 0);
+    assert_eq!(harness.hits(&archive_path()), 1);
+}
+
+#[test]
+fn a_resumed_download_that_fails_mid_body_retries_from_the_agreed_offset() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+    harness
+        .server
+        .route(&archive_path(), Route::FailFirstRange(archive.clone()));
+    plant_partial(&harness, &archive[..archive.len() / 2]);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the retried resume materialises");
+
+    assert_eq!(harness.server.hits(&archive_path()), 2);
+    assert_eq!(
+        harness.server.range_hits(&archive_path()),
+        2,
+        "the retry fell back to a whole fetch rather than resuming"
+    );
+}
+
+fn set_mode(path: &Path, mode: u32) {
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+        .unwrap();
+}
+
+#[test]
+fn an_unreadable_partial_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    set_mode(&partial, 0o000);
+    if std::fs::File::open(&partial).is_ok() {
+        eprintln!("skipping: this process reads files it has no access to");
+        return;
+    }
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(&outcome, Err(TreeError::Extraction { detail })
+            if detail.contains("cannot re-read")),
+        "got {outcome:?}"
+    );
+    assert!(!partial.exists(), "the unreadable partial survived");
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run recovers");
+}
+
+#[test]
+fn a_forced_repair_starts_from_no_partial_archive() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    set_mode(&partial, 0o000);
+    if std::fs::File::open(&partial).is_ok() {
+        eprintln!("skipping: this process reads files it has no access to");
+        return;
+    }
+
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: true,
+        },
+    )
+    .expect("a forced repair recovers in the same run");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 0);
+    assert_eq!(harness.server.hits(&archive_path()), 1);
+}
+
+#[test]
+fn an_unwritable_short_partial_is_replaced_in_the_same_run() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+    let partial = plant_partial(&harness, &archive[..archive.len() / 2]);
+    set_mode(&partial, 0o444);
+    if std::fs::OpenOptions::new()
+        .write(true)
+        .open(&partial)
+        .is_ok()
+    {
+        eprintln!("skipping: this process writes files it has no access to");
+        return;
+    }
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the unwritable partial is replaced");
+}
+
+fn with_a_byte_flipped(bytes: &[u8]) -> Vec<u8> {
+    let mut flipped = bytes.to_vec();
+    flipped[bytes.len() / 2] ^= 0xff;
+    flipped
+}
+
+fn assert_a_corrupt_partial_is_discarded(harness: &Harness, planted: &[u8]) {
+    let partial = plant_partial(harness, planted);
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "got {outcome:?}"
+    );
+    assert!(!partial.exists(), "the corrupt partial survived");
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run recovers");
+}
+
+#[test]
+fn a_corrupt_partial_archive_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+
+    assert_a_corrupt_partial_is_discarded(
+        &harness,
+        &with_a_byte_flipped(&archive[..archive.len() / 2]),
+    );
+}
+
+#[test]
+fn a_complete_corrupt_partial_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+
+    assert_a_corrupt_partial_is_discarded(
+        &harness,
+        &with_a_byte_flipped(&archive),
+    );
+}
+
+#[test]
+fn a_partial_whose_signature_fails_is_kept_for_the_next_run() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    harness.serve_manifest(&ManifestEntry {
+        signature: harness.sign(b"other bytes"),
+        ..harness.default_entry()
+    });
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(&outcome, Err(TreeError::Attestation { detail })
+            if detail.contains("does not verify under")),
+        "got {outcome:?}"
+    );
+    assert!(partial.exists(), "a partial matching its pin was discarded");
+    harness.serve_manifest(&harness.default_entry());
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run verifies the kept partial");
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
+#[test]
+fn the_free_space_check_counts_the_partial_already_on_disk() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let uncompressed_size = 1_u64 << 50;
+    harness.serve_manifest(&ManifestEntry {
+        uncompressed_size,
+        ..harness.default_entry()
+    });
+    let archive = harness.archive_bytes.clone();
+    plant_partial(&harness, &archive[..archive.len() / 2]);
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    let length = archive.len() as u64;
+    assert!(
+        matches!(outcome, Err(TreeError::DiskShortfall { needed, .. })
+            if needed == uncompressed_size + length - length / 2),
+        "got {outcome:?}"
+    );
+}
+
 #[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
@@ -1593,6 +2116,12 @@ fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
     assert!(
         matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
         "a corrupt archive must be a digest refusal, got {outcome:?}"
+    );
+    assert!(
+        !tree_paths(&harness)
+            .temp_archive(&on_host(ARTIFACT), &harness.archive_sha)
+            .exists(),
+        "the corrupt download was kept"
     );
 
     // Nothing was extracted: no generation directory and no temp generation
@@ -1674,11 +2203,13 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
 
     // This launcher expects a digest the correctly-signed manifest does not
     // name, so materialise must refuse rather than fetch what the manifest lists.
+    let expected = "0".repeat(64);
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let partial = paths.temp_archive(&on_host(ARTIFACT), &expected);
+    std::fs::write(&partial, b"resumable").unwrap();
     let mut digests = BTreeMap::new();
-    digests.insert(
-        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-        "0".repeat(64),
-    );
+    digests.insert((ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()), expected);
     let keys = harness.keys();
     let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
         .expect("fetcher");
@@ -1707,6 +2238,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         0,
         "a digest disagreement must not fetch the archive"
     );
+    assert!(partial.exists(), "a refused manifest discarded a partial");
 }
 
 #[test]

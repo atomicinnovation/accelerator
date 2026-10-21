@@ -28,6 +28,15 @@ pub const HOST_PLATFORM: &str = "linux-arm64";
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 pub const HOST_PLATFORM: &str = "linux-x64";
 
+/// Every platform alias any launcher build has published trees for, so a
+/// cache entry's name can be split at its platform.
+///
+/// The list only grows: a retired platform stays so its temp residue still has
+/// an owner a reap can reclaim it for. No alias may end in `-` followed by
+/// another, or entries of the longer would be split at the shorter.
+pub const KNOWN_PLATFORMS: [&str; 4] =
+    ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"];
+
 /// Injectable resolver configuration.
 pub struct ResolverConfig {
     pub expected_version: String,
@@ -257,11 +266,11 @@ fn fetch_error(
             target: target.to_owned(),
             url: url.to_owned(),
         },
-        FetchError::Unreachable(_) | FetchError::TooLarge { .. } => {
-            ResolutionError::Fetch {
-                target: target.to_owned(),
-                url: url.to_owned(),
-            }
-        }
+        FetchError::Unreachable(_)
+        | FetchError::TooLarge { .. }
+        | FetchError::Sink(_) => ResolutionError::Fetch {
+            target: target.to_owned(),
+            url: url.to_owned(),
+        },
     }
 }

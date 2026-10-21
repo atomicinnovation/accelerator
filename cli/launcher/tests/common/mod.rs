@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -30,6 +31,10 @@ pub enum Route {
     /// Send headers promising a body, then go idle for this long without
     /// sending it — so the client's body read stalls (exercises read timeout).
     Stall(Duration),
+    /// As `Ok`, except that the first ranged request is answered with a 206
+    /// promising the whole suffix, half of which is sent before the
+    /// connection closes.
+    FailFirstRange(Vec<u8>),
 }
 
 struct Shared {
@@ -139,8 +144,8 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
-    // Consume headers, capturing a `Range: bytes=N-` if present so the Ok route
-    // can serve a 206 partial (exercising resume).
+    // Capture any `Range: bytes=N-` so the Ok route can serve a 206 partial,
+    // or a 416 past the end, as a real server does.
     let mut range_from: Option<u64> = None;
     let mut header = String::new();
     loop {
@@ -175,33 +180,25 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     };
     let index = hit.map_or(0, |count| count.fetch_add(1, Ordering::SeqCst));
 
-    if range_from.is_some() {
+    let earlier_ranges = if range_from.is_some() {
         let ranges = shared.ranges.lock().expect("ranges");
-        if let Some(count) = ranges.get(&path) {
-            count.fetch_add(1, Ordering::SeqCst);
-        }
-    }
+        ranges
+            .get(&path)
+            .map(|count| count.fetch_add(1, Ordering::SeqCst))
+    } else {
+        None
+    };
 
     let route = shared.routes.lock().expect("routes").get(&path).cloned();
-    let response = match route {
-        Some(Route::Ok(body)) => {
-            match range_from.and_then(|offset| usize::try_from(offset).ok()) {
-                Some(offset) if offset < body.len() => {
-                    let total = body.len();
-                    let suffix = body[offset..].to_vec();
-                    http_response(
-                        206,
-                        "Partial Content",
-                        &[(
-                            "Content-Range",
-                            &format!("bytes {offset}-{}/{total}", total - 1),
-                        )],
-                        &suffix,
-                    )
-                }
-                _ => http_response(200, "OK", &[], &body),
-            }
+    let route = match (route, range_from, earlier_ranges) {
+        (Some(Route::FailFirstRange(body)), Some(offset), Some(0)) => {
+            return send_half_of_the_suffix(&mut stream, &body, offset);
         }
+        (Some(Route::FailFirstRange(body)), _, _) => Some(Route::Ok(body)),
+        (route, _, _) => route,
+    };
+    let response = match route {
+        Some(Route::Ok(body)) => ranged_response(&body, range_from),
         Some(Route::Status(code)) => http_response(code, "STATUS", &[], &[]),
         Some(Route::Redirect(location)) => {
             http_response(302, "Found", &[("Location", location.as_str())], &[])
@@ -223,6 +220,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             thread::sleep(delay);
             return Ok(());
         }
+        Some(Route::FailFirstRange(_)) => {
+            unreachable!("a first-range failure resolves before dispatch")
+        }
         None => http_response(404, "Not Found", &[], &[]),
     };
     stream.write_all(&response)?;
@@ -231,6 +231,51 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
     Ok(())
+}
+
+fn ranged_response(body: &[u8], range_from: Option<u64>) -> Vec<u8> {
+    match range_from.and_then(|offset| usize::try_from(offset).ok()) {
+        Some(offset) if offset < body.len() => {
+            let total = body.len();
+            let suffix = body[offset..].to_vec();
+            http_response(
+                206,
+                "Partial Content",
+                &[(
+                    "Content-Range",
+                    &format!("bytes {offset}-{}/{total}", total - 1),
+                )],
+                &suffix,
+            )
+        }
+        Some(_) => http_response(
+            416,
+            "Range Not Satisfiable",
+            &[("Content-Range", &format!("bytes */{}", body.len()))],
+            &[],
+        ),
+        None => http_response(200, "OK", &[], body),
+    }
+}
+
+fn send_half_of_the_suffix(
+    stream: &mut TcpStream,
+    body: &[u8],
+    offset: u64,
+) -> std::io::Result<()> {
+    let offset = usize::try_from(offset).unwrap();
+    let suffix = &body[offset..];
+    let head = format!(
+        "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+         Content-Range: bytes {offset}-{}/{}\r\n\
+         Connection: close\r\n\r\n",
+        suffix.len(),
+        body.len() - 1,
+        body.len()
+    );
+    stream.write_all(head.as_bytes())?;
+    stream.write_all(&suffix[..suffix.len() / 2])?;
+    stream.flush()
 }
 
 fn http_response(
@@ -249,4 +294,84 @@ fn http_response(
     let mut bytes = response.into_bytes();
     bytes.extend_from_slice(body);
     bytes
+}
+
+/// Run `run` on a detached thread, failing rather than hanging if it outlasts
+/// `bound`; a panic inside it is re-raised as itself.
+#[allow(clippy::panic)]
+pub fn within<T: Send + 'static>(
+    bound: Duration,
+    what: &str,
+    run: impl FnOnce() -> T + Send + 'static,
+) -> T {
+    let dispatch = tracing::dispatcher::get_default(Clone::clone);
+    let (sender, receiver) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        let _ = sender.send(tracing::dispatcher::with_default(&dispatch, run));
+    });
+    match receiver.recv_timeout(bound) {
+        Ok(outcome) => outcome,
+        Err(RecvTimeoutError::Timeout) => panic!("{what} blocked"),
+        Err(RecvTimeoutError::Disconnected) => match worker.join() {
+            Err(panic) => std::panic::resume_unwind(panic),
+            Ok(()) => panic!("{what} ended without an outcome"),
+        },
+    }
+}
+
+#[allow(clippy::panic)]
+mod tests {
+    use std::time::Duration;
+
+    use std::sync::{Arc, Mutex};
+
+    use super::within;
+
+    #[test]
+    #[should_panic(expected = "the run blocked")]
+    fn a_run_that_outlasts_its_bound_fails_instead_of_hanging() {
+        within(Duration::from_millis(100), "the run", || {
+            std::thread::sleep(Duration::from_secs(2));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "boom")]
+    fn a_panic_within_a_bounded_run_is_reraised_not_reported_as_blocked() {
+        within::<()>(Duration::from_secs(10), "the run", || panic!("boom"));
+    }
+
+    #[derive(Clone, Default)]
+    struct Captured(Arc<Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Captured {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().expect("captured").extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_warning_raised_within_a_bounded_run_reaches_the_callers_subscriber() {
+        let captured = Captured::default();
+        let writer = captured.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            within(Duration::from_secs(10), "the warning", || {
+                tracing::warn!("raised in the worker");
+            });
+        });
+
+        let log = String::from_utf8_lossy(&captured.0.lock().expect("log"))
+            .into_owned();
+        assert!(log.contains("raised in the worker"), "log: {log:?}");
+    }
 }
