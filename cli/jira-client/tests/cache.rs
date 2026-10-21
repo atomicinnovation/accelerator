@@ -333,3 +333,18 @@ fn the_real_write_atomically_replaces_content() {
 
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "second");
 }
+
+#[test]
+fn a_state_dir_through_a_dotdot_in_a_missing_directory_is_refused() {
+    let dir = TempDir::new().expect("a temp dir");
+    let fs = SystemFilesystem::new(dir.path().to_path_buf());
+    let state = dir.path().join("missing/../state");
+
+    let error = fs
+        .write_atomic(&state.join("site.json"), b"{}")
+        .expect_err("a dotdot through a missing directory is refused");
+
+    assert!(error.to_string().contains("unsafe path"), "{error}");
+    assert!(!dir.path().join("missing").exists());
+    assert!(!dir.path().join("state/site.json").exists());
+}
