@@ -190,14 +190,15 @@
   for its index, so a set holding both resumes the tree rather than starting
   afresh at the marker's index.
 - **`research topic outstanding` plans deepened research.** `--depth N`
-  (1 to 10) reports each pair's `stage`, the level-note `nodes` it still needs or the
-  `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
-  `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
-  and the new `end-run` verb closes one. `--concurrency` falls back to
-  `research.topic.concurrency` and is reported as `concurrency`, clamped to
-  the subagent cap described below, which is reported as `subagent_cap` with
-  its source. Every plan carries both, a plain query included, so an empty
-  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`.
+  (1 to 10) reports each pair's `stage`, the level-note `nodes` it still
+  needs or the `notes` its composer reads, `trims` and `shallow` findings;
+  `--concurrency`, `--start`, `--run` and `--spawned` let `conduct` batch its
+  spawns as a run, and the new `end-run` verb closes one. `--concurrency`
+  falls back to `research.topic.concurrency` and is reported as
+  `concurrency`, clamped to the subagent cap described below, which is
+  reported as `subagent_cap` with its source. Every plan carries both, a
+  plain query included, so an empty value exits 1 with
+  `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`.
   `--start` over another run's readable ledger reports that run's last batch as
   `replaced_run` and plans as if its invalid findings were already quarantined;
   `conduct` shows that report before its first batch and quarantines those
