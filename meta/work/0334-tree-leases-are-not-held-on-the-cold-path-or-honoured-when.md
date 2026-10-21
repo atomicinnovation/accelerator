@@ -5,7 +5,7 @@ title: "Tree leases are not held on the cold path or honoured when liveness is u
 date: "2026-10-11T15:00:35+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "low"
 parent: "work-item:0136"
@@ -18,7 +18,7 @@ schema_version: 1
 # 0334: Tree leases are not held on the cold path or honoured when liveness is unknown
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
