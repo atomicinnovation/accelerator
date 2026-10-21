@@ -4,10 +4,13 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+mod common;
+
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use http_test_support::{MockHTTPServer, RequestKey, Route};
 use tempfile::TempDir;
@@ -17,11 +20,16 @@ use accelerator::launch::core::{
 };
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
-use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
+use accelerator::launch::outbound::resolve::filesystem::{
+    CacheFilesystem, SystemFilesystem,
+};
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
     cache, FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+};
+use common::recording_filesystem::{
+    in_root, FilesystemCall, RecordingFilesystem,
 };
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
@@ -132,13 +140,36 @@ impl Harness {
     }
 
     fn resolver_for(&self, base_url: String) -> FetchVerifyCacheResolver {
+        self.resolver_over(base_url, Arc::new(SystemFilesystem))
+    }
+
+    fn resolver_over(
+        &self,
+        base_url: String,
+        filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    ) -> FetchVerifyCacheResolver {
         FetchVerifyCacheResolver::with_fetcher(
             self.config(base_url),
             self.keys(),
             Fetcher::with_backoff(std::time::Duration::from_millis(1))
                 .expect("fetcher"),
-            std::sync::Arc::new(SystemFilesystem),
+            filesystem,
         )
+    }
+
+    fn recorder(&self) -> RecordingFilesystem {
+        RecordingFilesystem::new(&self.cache, &self.workdir)
+    }
+
+    fn resolve_recorded(
+        &self,
+        recorder: &RecordingFilesystem,
+    ) -> Result<PathBuf, ResolutionError> {
+        self.resolver_over(self.server.base_url(), Arc::new(recorder.clone()))
+            .resolve(&ExternalCommand {
+                name: OsString::from(BINARY),
+                args: vec![],
+            })
     }
 
     fn resolver(&self) -> FetchVerifyCacheResolver {
@@ -290,6 +321,33 @@ macro_rules! skip_if_no_minisign {
             }
         }
     };
+}
+
+fn default_root_warm_dispatch_calls(sha: &str) -> Vec<FilesystemCall> {
+    let entry = in_root(format!("{BINARY}-{VERSION}-{sha}"));
+    let signature = in_root(format!("{BINARY}-{VERSION}-{sha}.minisig"));
+    vec![
+        FilesystemCall::List(in_root("")),
+        FilesystemCall::Exists(signature.clone()),
+        FilesystemCall::Read(entry),
+        FilesystemCall::ReadToString(signature),
+    ]
+}
+
+#[test]
+fn a_default_root_warm_dispatch_performs_exactly_the_fixed_calls(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    let recorder = harness.recorder();
+
+    harness.resolve_recorded(&recorder)?;
+
+    assert_eq!(
+        recorder.calls(),
+        default_root_warm_dispatch_calls(&harness.sha)
+    );
+    Ok(())
 }
 
 #[test]
