@@ -65,3 +65,18 @@ fn a_file_s_modification_time_is_read_and_a_missing_one_is_none() {
     assert!(dir.modified("dated").is_some());
     assert_eq!(dir.modified("absent"), None);
 }
+
+#[test]
+fn a_directory_through_a_dotdot_in_a_missing_directory_is_refused() {
+    let scratch = Scratch::new();
+    let through_missing = scratch.dir().nested("missing/../research");
+
+    let replaced = through_missing.replace("state", b"x");
+    let transient = through_missing.replace_without_sync("state", b"x");
+    let removed = through_missing.remove("state");
+
+    assert!(replaced.is_err());
+    assert!(transient.is_err());
+    assert!(removed.is_err());
+    assert!(!scratch.dir().path("missing").exists());
+}
