@@ -246,6 +246,44 @@ pub fn generation_name(
     )
 }
 
+/// What a generation directory's name says about the tree inside it.
+#[derive(Debug, PartialEq, Eq)]
+pub struct GenerationName<'a> {
+    pub artifact: Artifact,
+    pub digest: &'a str,
+    pub layout: u32,
+}
+
+/// Parse `<name>-<platform>-<digest>-<layout>-<suffix>` whole, or `None` for
+/// any name the plugin would not have produced.
+///
+/// Parsed from the right, where every field has a fixed shape, so the hyphens
+/// an artifact name may carry never shift the split.
+#[must_use]
+pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>> {
+    let (rest, suffix) = name.rsplit_once('-')?;
+    let (rest, layout) = rest.rsplit_once('-')?;
+    let (stem, digest) = rest.rsplit_once('-')?;
+    if !is_lowercase_hex_of_length(suffix, SUFFIX_LEN)
+        || !is_wellformed_digest(digest)
+        || !layout.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let layout = layout.parse().ok()?;
+    let artifact = KNOWN_PLATFORMS.iter().find_map(|platform| {
+        stem.strip_suffix(platform)?
+            .strip_suffix('-')
+            .filter(|artifact| !artifact.is_empty())
+            .map(|artifact| Artifact::new(artifact, platform))
+    })?;
+    Some(GenerationName {
+        artifact,
+        digest,
+        layout,
+    })
+}
+
 /// The generation a validated pointer names, or why the pointer is unusable.
 ///
 /// A pointer is unsigned local state whose contents become a path, so it is
@@ -286,11 +324,7 @@ pub fn validated_generation(
             candidate, name, platform, digest, layout,
         ));
     };
-    if suffix.len() != SUFFIX_LEN
-        || !suffix
-            .chars()
-            .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
-    {
+    if !is_lowercase_hex_of_length(suffix, SUFFIX_LEN) {
         return Err(pointer_error(
             "the generation suffix is not sixteen lowercase hex characters",
         ));
@@ -334,8 +368,12 @@ fn pointer_error(detail: &str) -> TreeError {
 /// Whether a digest is the lowercase hex the naming grammar admits.
 #[must_use]
 pub fn is_wellformed_digest(digest: &str) -> bool {
-    digest.len() == DIGEST_LEN
-        && digest
+    is_lowercase_hex_of_length(digest, DIGEST_LEN)
+}
+
+fn is_lowercase_hex_of_length(candidate: &str, length: usize) -> bool {
+    candidate.len() == length
+        && candidate
             .chars()
             .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
 }
@@ -378,7 +416,8 @@ mod tests {
     use super::super::pins::EXPECTED_TREE_DIGESTS;
     use super::{
         generation_name, generation_prefix, is_wellformed_digest,
-        validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
+        parse_generation_name, validated_generation, Artifact, TreePaths,
+        LAYOUT_VERSION,
     };
 
     const DIGEST: &str =
@@ -709,6 +748,47 @@ mod tests {
             SUFFIX
         )
         .starts_with(&prefix));
+    }
+
+    #[test]
+    fn a_generation_name_on_every_known_platform_parses_whole() {
+        for platform in KNOWN_PLATFORMS {
+            for name in ["browser", "headless-shell", "driver-linux-x64-shim"] {
+                let generation =
+                    generation_name(name, platform, DIGEST, 7, SUFFIX);
+                let parsed = parse_generation_name(&generation)
+                    .expect("a generation name the launcher produced");
+                assert_eq!(parsed.artifact, Artifact::new(name, platform));
+                assert_eq!(parsed.digest, DIGEST);
+                assert_eq!(parsed.layout, 7);
+            }
+        }
+    }
+
+    #[test]
+    fn a_name_breaking_the_generation_grammar_does_not_parse() {
+        let generation = generation();
+        let cases = [
+            generation.replace("linux-x64", "plan9-x64"),
+            generation.replace("linux-x64", "linux-x64-musl"),
+            generation.replace(DIGEST, &DIGEST[1..]),
+            generation.replace(DIGEST, &DIGEST.to_uppercase()),
+            generation.replace("-1-", "-one-"),
+            generation.replace("-1-", "-+1-"),
+            generation.replace("-1-", "--"),
+            generation.replace(SUFFIX, &SUFFIX[1..]),
+            generation.replace(SUFFIX, &SUFFIX.to_uppercase()),
+            format!("{generation}0"),
+            format!("{generation}.sealed"),
+            generation.replace("browser-", ""),
+            "backup-2021-1-final".to_owned(),
+        ];
+        for candidate in cases {
+            assert!(
+                parse_generation_name(&candidate).is_none(),
+                "{candidate} parsed as a generation"
+            );
+        }
     }
 
     #[test]
