@@ -6,6 +6,7 @@
 
 mod common;
 
+use std::cell::RefCell;
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -16,7 +17,8 @@ use http_test_support::{MockHTTPServer, RequestKey, Route};
 use tempfile::TempDir;
 
 use accelerator::launch::core::{
-    ExternalCommand, ResolutionError, ResolveBinary,
+    run_external, ExecBinary, ExternalCommand, ReResolution, ResolutionError,
+    ResolveBinary,
 };
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
@@ -347,6 +349,111 @@ fn a_default_root_warm_dispatch_performs_exactly_the_fixed_calls(
         recorder.calls(),
         default_root_warm_dispatch_calls(&harness.sha)
     );
+    Ok(())
+}
+
+struct RemovingAfterResolve(FetchVerifyCacheResolver);
+
+impl ResolveBinary for RemovingAfterResolve {
+    fn resolve(
+        &self,
+        command: &ExternalCommand,
+    ) -> Result<PathBuf, ResolutionError> {
+        let path = self.0.resolve(command)?;
+        let mut signature = path.clone().into_os_string();
+        signature.push(".minisig");
+        std::fs::remove_file(&path).expect("remove the resolved entry");
+        std::fs::remove_file(signature).expect("remove its signature");
+        Ok(path)
+    }
+
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution {
+        self.0.re_resolve(command, missing)
+    }
+}
+
+/// Fails as `exec` does on a missing program, and otherwise records the
+/// program as executed.
+#[derive(Default)]
+struct ExecUnlessMissing {
+    executed: RefCell<Vec<PathBuf>>,
+}
+
+impl ExecBinary for ExecUnlessMissing {
+    fn exec(&self, program: &Path, _args: &[OsString]) -> ResolutionError {
+        if !program.exists() {
+            return ResolutionError::Exec {
+                program: program.to_path_buf(),
+                source: std::io::Error::from(std::io::ErrorKind::NotFound),
+            };
+        }
+        self.executed.borrow_mut().push(program.to_path_buf());
+        ResolutionError::Exec {
+            program: program.to_path_buf(),
+            source: std::io::Error::other("executed"),
+        }
+    }
+}
+
+/// Fails as `exec` does when a present binary's interpreter is missing.
+struct ExecMissingInterpreter;
+
+impl ExecBinary for ExecMissingInterpreter {
+    fn exec(&self, program: &Path, _args: &[OsString]) -> ResolutionError {
+        ResolutionError::Exec {
+            program: program.to_path_buf(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        }
+    }
+}
+
+fn visualiser() -> ExternalCommand {
+    ExternalCommand {
+        name: OsString::from(BINARY),
+        args: vec![],
+    }
+}
+
+#[test]
+fn an_entry_removed_between_find_and_exec_is_refetched_once(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    let resolver = RemovingAfterResolve(harness.resolver());
+    let executor = ExecUnlessMissing::default();
+
+    run_external(&resolver, &executor, &visualiser());
+
+    assert_eq!(*executor.executed.borrow(), [seeded.path.as_path()]);
+    assert_eq!(std::fs::read(&seeded.path)?, harness.fixture_bytes);
+    assert_eq!(harness.server.hits(&RequestKey::get(&asset_path())), 1);
+    Ok(())
+}
+
+#[test]
+fn an_existing_but_unrunnable_entry_is_not_refetched(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+
+    let error = run_external(
+        &harness.resolver(),
+        &ExecMissingInterpreter,
+        &visualiser(),
+    );
+
+    assert!(
+        matches!(
+            &error,
+            ResolutionError::Exec { program, .. } if *program == seeded.path
+        ),
+        "{error:?}"
+    );
+    assert_eq!(harness.server.hits(&RequestKey::get(&asset_path())), 0);
     Ok(())
 }
 
