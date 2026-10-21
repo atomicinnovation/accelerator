@@ -4,17 +4,20 @@
 pub mod cache;
 pub mod cache_root;
 pub mod fetcher;
+pub mod filesystem;
 pub mod keys;
 pub mod manifest;
 pub mod tree;
 pub mod verifier;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
 
 use self::cache::CachedBinary;
 use self::fetcher::{FetchError, Fetcher};
+use self::filesystem::CacheFilesystem;
 use self::keys::TrustedKeys;
 use self::manifest::Manifest;
 
@@ -63,6 +66,7 @@ pub struct FetchVerifyCacheResolver {
     config: ResolverConfig,
     keys: TrustedKeys,
     fetcher: Fetcher,
+    filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
 }
 
 impl FetchVerifyCacheResolver {
@@ -72,6 +76,7 @@ impl FetchVerifyCacheResolver {
     pub fn new(
         config: ResolverConfig,
         keys: TrustedKeys,
+        filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
     ) -> Result<Self, ResolutionError> {
         let fetcher = Fetcher::new().map_err(|detail| {
             ResolutionError::CacheRootUnavailable { detail }
@@ -80,31 +85,36 @@ impl FetchVerifyCacheResolver {
             config,
             keys,
             fetcher,
+            filesystem,
         })
     }
 
     /// Construct with a caller-supplied fetcher.
     #[must_use]
-    pub const fn with_fetcher(
+    pub fn with_fetcher(
         config: ResolverConfig,
         keys: TrustedKeys,
         fetcher: Fetcher,
+        filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
     ) -> Self {
         Self {
             config,
             keys,
             fetcher,
+            filesystem,
         }
     }
 
     fn reverify(&self, cached: &CachedBinary) -> Result<(), ResolutionError> {
-        let bytes = std::fs::read(&cached.path).map_err(|error| {
+        let bytes = self.filesystem.read(&cached.path).map_err(|error| {
             ResolutionError::Cache {
                 path: cached.path.clone(),
                 detail: error.to_string(),
             }
         })?;
-        let signature = std::fs::read_to_string(&cached.signature_path)
+        let signature = self
+            .filesystem
+            .read_to_string(&cached.signature_path)
             .map_err(|error| ResolutionError::Cache {
                 path: cached.signature_path.clone(),
                 detail: error.to_string(),
@@ -176,6 +186,7 @@ impl FetchVerifyCacheResolver {
         )?;
 
         let cached = cache::store(
+            self.filesystem.as_ref(),
             &self.config.cache_root,
             name,
             &self.config.expected_version,
@@ -199,6 +210,7 @@ impl ResolveBinary for FetchVerifyCacheResolver {
         })?;
 
         if let Some(cached) = cache::find(
+            self.filesystem.as_ref(),
             &self.config.cache_root,
             name,
             &self.config.expected_version,

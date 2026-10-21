@@ -18,6 +18,9 @@ ALLOWLIST: frozenset[str] = frozenset(
     {
         # 0600 publish + a paired signature, not a whole-file replacement.
         "cli/launcher/src/launch/outbound/resolve/cache.rs",
+        # The single-file cache's filesystem port: its rename is the
+        # primitive cache.rs's publish composes, not a write of its own.
+        "cli/launcher/src/launch/outbound/resolve/filesystem.rs",
         # Publishes a materialised tree: one rename relocates a fresh
         # generation *directory* into place, the other is a 0600 pointer
         # publish paired with it — cache.rs's shape, not a whole-file write.
