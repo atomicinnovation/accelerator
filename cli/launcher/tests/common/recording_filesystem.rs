@@ -24,6 +24,7 @@ pub enum FilesystemCall {
     Exists(RecordedPath),
     Read(RecordedPath),
     ReadToString(RecordedPath),
+    ReadBounded(RecordedPath),
     CreateDirAll(RecordedPath),
     WritePrivate(RecordedPath),
     MakeExecutable(RecordedPath),
@@ -53,6 +54,7 @@ impl FilesystemCall {
             | Self::Exists(touched)
             | Self::Read(touched)
             | Self::ReadToString(touched)
+            | Self::ReadBounded(touched)
             | Self::CreateDirAll(touched)
             | Self::WritePrivate(touched)
             | Self::MakeExecutable(touched)
@@ -160,6 +162,11 @@ impl CacheFilesystem for RecordingFilesystem {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         self.record(FilesystemCall::ReadToString(self.recorded(path)));
         SystemFilesystem.read_to_string(path)
+    }
+
+    fn read_bounded(&self, path: &Path, limit: u64) -> io::Result<Vec<u8>> {
+        self.record(FilesystemCall::ReadBounded(self.recorded(path)));
+        SystemFilesystem.read_bounded(path, limit)
     }
 
     fn create_dir_all(&self, path: &Path) -> io::Result<()> {

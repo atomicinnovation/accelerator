@@ -17,12 +17,13 @@ use crate::launch::core::tree_entry::{EntryKind, ExtractionLimits};
 
 use super::super::cache_root;
 use super::super::fetcher::Fetcher;
+use super::super::filesystem::SystemFilesystem;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
 use super::attestation::Attestation;
 use super::download::Resumption;
 use super::layout::{
-    generation_name, generation_prefix, is_privately_owned,
+    generation_name, generation_prefix, is_privately_owned, read_pointer,
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
@@ -792,9 +793,11 @@ impl TreeResolver<'_> {
         let window = older_than.unwrap_or(claims::CLAIM_WINDOW);
         let own = self.expected_digest(artifact);
         let mut reclaimed = reap::Reclaimed::default();
-        for (pointer, digest, generation) in
-            self.artifact_pointers(paths, artifact)
+        for (pointer, digest, target) in self.artifact_pointers(paths, artifact)
         {
+            let PointerTarget::Current(generation) = target else {
+                continue;
+            };
             if own.as_deref() == Some(digest.as_str()) {
                 continue;
             }
@@ -819,13 +822,13 @@ impl TreeResolver<'_> {
         reclaimed
     }
 
-    /// The `(pointer path, digest, generation name)` of every pointer this
-    /// artifact currently publishes.
+    /// The `(pointer path, digest, target)` of every pointer this artifact
+    /// currently publishes.
     fn artifact_pointers(
         &self,
         paths: &TreePaths,
         artifact: &str,
-    ) -> Vec<(PathBuf, String, String)> {
+    ) -> Vec<(PathBuf, String, PointerTarget)> {
         let prefix = format!("{artifact}-{}-", self.platform);
         let Ok(entries) = std::fs::read_dir(paths.root()) else {
             return Vec::new();
@@ -840,15 +843,41 @@ impl TreeResolver<'_> {
             else {
                 continue;
             };
-            if let Ok(generation) = std::fs::read_to_string(entry.path()) {
-                pointers.push((
-                    entry.path(),
-                    digest.to_owned(),
-                    generation.trim().to_owned(),
-                ));
-            }
+            let target = PointerTarget::of(
+                read_pointer(&entry.path(), &SystemFilesystem),
+                &Artifact::new(artifact, &self.platform),
+                digest,
+            );
+            pointers.push((entry.path(), digest.to_owned(), target));
         }
         pointers
+    }
+}
+
+/// What a pointer's contents name, judged by the grammar `locate` holds a
+/// pointer to before any of it becomes a path.
+enum PointerTarget {
+    Current(String),
+    OtherLayout,
+    Malformed,
+}
+
+impl PointerTarget {
+    fn of(contents: Option<String>, artifact: &Artifact, digest: &str) -> Self {
+        let Some(contents) = contents else {
+            return Self::Malformed;
+        };
+        match validated_generation(
+            &contents,
+            artifact.name(),
+            artifact.platform(),
+            digest,
+            LAYOUT_VERSION,
+        ) {
+            Ok(generation) => Self::Current(generation),
+            Err(TreeError::LayoutUnsupported { .. }) => Self::OtherLayout,
+            Err(_) => Self::Malformed,
+        }
     }
 }
 

@@ -34,8 +34,9 @@ use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
+use super::super::filesystem::SystemFilesystem;
 use super::layout::{
-    parse_generation_name, Artifact, TreePaths, LAYOUT_VERSION,
+    parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::{
     probe_single_flight, Liveness, LivenessProbe, SingleFlight,
@@ -297,7 +298,9 @@ fn referenced_generations(root: &Path) -> BTreeSet<String> {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
         if name.ends_with(".ref") {
-            if let Ok(contents) = std::fs::read_to_string(entry.path()) {
+            if let Some(contents) =
+                read_pointer(&entry.path(), &SystemFilesystem)
+            {
                 referenced.insert(contents.trim().to_owned());
             }
         }
