@@ -5,7 +5,7 @@ title: "Bound a Relocated Cache Root's Growth Implementation Plan"
 date: "2026-10-19T18:27:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0218"
 parent: "work-item:0218"
 derived_from: ["codebase-research:2026-10-18-0218-bound-cache-root-growth"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-21T19:37:54+00:00"
+last_updated: "2026-10-21T20:14:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -362,10 +362,15 @@ their first parameter.
 - The module doc's "needs no eviction" sentence is deleted.
 
 **File**: `cli/launcher/src/launch/outbound/resolve/mod.rs`
-**Changes**: `FetchVerifyCacheResolver::new` takes an
-`Arc<dyn CacheFilesystem + Send + Sync>` as a required argument, and
-`main.rs` passes `SystemFilesystem`. It is an `Arc` because later phases share
-the same instance with the retention. `reverify` reads through it.
+**Changes**: `FetchVerifyCacheResolver::new` and `with_fetcher`, which
+production uses, take an `Arc<dyn CacheFilesystem + Send + Sync>` as a
+required argument, and `main.rs` passes `SystemFilesystem`. It is an `Arc`
+because later phases share the same instance with the retention. `reverify`
+reads through it.
+
+**File**: `tasks/lint/store_duplication.py`
+**Changes**: `filesystem.rs` joins `cache.rs` in `ALLOWLIST`: the raw
+`rename` that `cache.rs`'s publish composes now lives in the port's adapter.
 
 #### 2. The recording filesystem (commit 1)
 
@@ -403,8 +408,10 @@ The recorder is built with the cache root and an outer anchor, the test's
 temp directory, and canonicalises both at construction. A path under the
 cache root, given or canonical, is recorded `InRoot`, relative to it; any
 other path under the anchor, given or canonical, is recorded `Outside`,
-relative to it. A recorder self-test records one path under each spelling of
-the root and of the anchor. On macOS a
+relative to it; a path under neither is recorded `Outside` with its absolute
+path. A recorder self-test records one path under each spelling of the root
+and of the anchor, built through a symlinked anchor so both spellings differ
+on every host. On macOS a
 `tempfile` directory is `/var/folders/…` while its canonical form is
 `/private/var/folders/…`, and from Phase 3 the launcher works on the
 canonical form, so matching both spellings keeps the lists identical on the
@@ -415,7 +422,11 @@ the plugin `bin` or the shim source is visible as `Outside`.
 #### 3. The fixed warm-path list (commit 2: tests only)
 
 **File**: `cli/launcher/tests/resolution.rs`
-**Changes**: The constant and a test that passes against today's resolver:
+**Changes**: The constant and a test that passes against today's resolver.
+The harness keeps its cache in its own temp directory, so the recorder's
+anchor is the harness's work directory. `resolution.rs` now declares
+`mod common`.
+
 
 ```rust
 fn default_root_warm_dispatch_calls(sha: &str) -> Vec<FilesystemCall> {
@@ -439,16 +450,16 @@ Later commits must not modify `default_root_warm_dispatch_calls`.
 
 #### Automated Verification:
 
-- [ ] Commit 1 changes no behaviour; existing suites pass:
+- [x] Commit 1 changes no behaviour; existing suites pass:
       `mise run test:unit:cli`
-- [ ] Commit 2's diff touches only `cli/launcher/tests/`:
+- [x] Commit 2's diff touches only `cli/launcher/tests/`:
       `jj diff -r <commit> --summary`
-- [ ] `a_default_root_warm_dispatch_performs_exactly_the_fixed_calls` passes
-- [ ] `mise run cli:check` exits 0
+- [x] `a_default_root_warm_dispatch_performs_exactly_the_fixed_calls` passes
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] The fixed list matches the calls `find` and `reverify` make, read
+- [x] The fixed list matches the calls `find` and `reverify` make, read
       against `cache.rs` and `resolve/mod.rs`
 
 ---
