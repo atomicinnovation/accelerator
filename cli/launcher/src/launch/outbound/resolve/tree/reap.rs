@@ -34,7 +34,9 @@ use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
-use super::layout::{Artifact, TreePaths, LAYOUT_VERSION};
+use super::layout::{
+    parse_generation_name, Artifact, TreePaths, LAYOUT_VERSION,
+};
 use super::lease::{
     probe_single_flight, Liveness, LivenessProbe, SingleFlight,
     SingleFlightProbe,
@@ -276,18 +278,12 @@ fn is_resumable(
     })
 }
 
-/// A generation directory: the fixed grammar, no sidecar suffix, and never a
+/// A generation directory of this layout: the full name grammar, and never a
 /// temp entry, which only the temp arm may judge.
 fn is_generation(name: &str) -> bool {
     !name.starts_with(TEMP_PREFIX)
-        && name.contains(&format!("-{LAYOUT_VERSION}-"))
-        && !has_sidecar_suffix(name)
-}
-
-fn has_sidecar_suffix(name: &str) -> bool {
-    [".ref", ".sealed", ".sealed.sig", lease::LEASE_SUFFIX]
-        .iter()
-        .any(|suffix| name.ends_with(suffix))
+        && parse_generation_name(name)
+            .is_some_and(|generation| generation.layout == LAYOUT_VERSION)
 }
 
 /// The generation directory names any pointer currently references.
