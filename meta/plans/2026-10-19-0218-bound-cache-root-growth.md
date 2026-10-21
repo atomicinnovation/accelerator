@@ -669,7 +669,7 @@ a non-numeric layout and a 15-hex suffix.
 
 #### Manual Verification:
 
-- [ ] Deleting a cached sub-binary between two dispatches in a scratch
+- [x] Deleting a cached sub-binary between two dispatches in a scratch
       `ACCELERATOR_CACHE_DIR` re-fetches it once with no user-visible error
 
 ---
