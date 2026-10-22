@@ -29,6 +29,7 @@ pub struct StartUp {
     /// An identification error is carried rather than raised, so a built-in
     /// that never touches the cache behaves as if the root were never read.
     cache_root: Result<CacheRoot, String>,
+    overridden: bool,
     retention: Arc<dyn RootRetention + Send + Sync>,
     ports: Arc<CachePorts>,
 }
@@ -63,6 +64,7 @@ pub fn start_up(config: &CacheRootConfig, ports: Arc<CachePorts>) -> StartUp {
             ResolutionError::CacheRootUnavailable { detail } => detail,
             other => other.to_string(),
         }),
+        overridden: config.cache_dir_override.is_some(),
         retention,
         ports,
     }
@@ -114,12 +116,20 @@ impl StartUp {
         self.retention.as_ref()
     }
 
+    /// Logged here rather than at identification, so a built-in that never
+    /// needs the root stays silent.
     fn cache_root(&self) -> Result<PathBuf, ResolutionError> {
-        self.cache_root
-            .as_ref()
-            .map(|root| root.path.clone())
-            .map_err(|detail| ResolutionError::CacheRootUnavailable {
+        let root = self.cache_root.as_ref().map_err(|detail| {
+            ResolutionError::CacheRootUnavailable {
                 detail: detail.clone(),
-            })
+            }
+        })?;
+        if self.overridden {
+            tracing::info!(
+                path = %root.path.display(),
+                "using ACCELERATOR_CACHE_DIR override for the cache root"
+            );
+        }
+        Ok(root.path.clone())
     }
 }
