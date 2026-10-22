@@ -41,6 +41,7 @@ const POINTER_SUFFIX: &str = ".ref";
 const ATTESTATION_SUFFIX: &str = ".sealed";
 const ATTESTATION_SIGNATURE_SUFFIX: &str = ".sealed.sig";
 const ARCHIVE_SUFFIX: &str = ".archive";
+const LOCK_SUFFIX: &str = ".lock";
 
 /// Hex characters of CSPRNG output in a generation suffix.
 const SUFFIX_LEN: usize = 16;
@@ -206,8 +207,10 @@ impl TreePaths {
 
     #[must_use]
     pub fn single_flight_lock(&self, artifact: &Artifact) -> PathBuf {
-        self.root
-            .join(format!("{TEMP_PREFIX}{}.lock", artifact.entry_stem()))
+        self.root.join(format!(
+            "{TEMP_PREFIX}{}{LOCK_SUFFIX}",
+            artifact.entry_stem()
+        ))
     }
 }
 
@@ -271,18 +274,96 @@ pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>> {
     {
         return None;
     }
-    let layout = layout.parse().ok()?;
-    let artifact = KNOWN_PLATFORMS.iter().find_map(|platform| {
+    Some(GenerationName {
+        artifact: artifact_of_stem(stem)?,
+        digest,
+        layout: layout.parse().ok()?,
+    })
+}
+
+/// `<name>-<platform>`, split at a known platform with a non-empty name
+/// before it.
+fn artifact_of_stem(stem: &str) -> Option<Artifact> {
+    KNOWN_PLATFORMS.iter().find_map(|platform| {
         stem.strip_suffix(platform)?
             .strip_suffix('-')
             .filter(|artifact| !artifact.is_empty())
             .map(|artifact| Artifact::new(artifact, platform))
-    })?;
-    Some(GenerationName {
-        artifact,
-        digest,
-        layout,
     })
+}
+
+/// What a name under `trees/` is, named apart from an archive's entries.
+#[derive(Debug, PartialEq, Eq)]
+pub enum TreesEntry<'a> {
+    Pointer {
+        artifact: Artifact,
+        digest: &'a str,
+    },
+    Generation(GenerationName<'a>),
+    Sidecar {
+        artifact: Artifact,
+        generation: &'a str,
+    },
+    TempResidue {
+        artifact: Artifact,
+    },
+    Lock {
+        artifact: Artifact,
+    },
+    Unrecognised,
+}
+
+/// The one classification of the shared `trees/` index; a name on a platform
+/// this launcher does not know is `Unrecognised`, so it is kept.
+#[must_use]
+pub fn classify_trees_entry(name: &str) -> TreesEntry<'_> {
+    if name.starts_with(TEMP_PREFIX) {
+        return classify_temp_entry(name);
+    }
+    if let Some(stem) = name.strip_suffix(POINTER_SUFFIX) {
+        return classify_pointer(stem);
+    }
+    for suffix in [
+        ATTESTATION_SIGNATURE_SUFFIX,
+        ATTESTATION_SUFFIX,
+        lease::LEASE_SUFFIX,
+    ] {
+        if let Some(generation) = name.strip_suffix(suffix) {
+            return parse_generation_name(generation).map_or(
+                TreesEntry::Unrecognised,
+                |parsed| TreesEntry::Sidecar {
+                    artifact: parsed.artifact,
+                    generation,
+                },
+            );
+        }
+    }
+    parse_generation_name(name)
+        .map_or(TreesEntry::Unrecognised, TreesEntry::Generation)
+}
+
+fn classify_temp_entry(name: &str) -> TreesEntry<'_> {
+    let lock_stem = name
+        .strip_prefix(TEMP_PREFIX)
+        .and_then(|rest| rest.strip_suffix(LOCK_SUFFIX));
+    if let Some(artifact) = lock_stem.and_then(artifact_of_stem) {
+        return TreesEntry::Lock { artifact };
+    }
+    Artifact::owning(name).map_or(TreesEntry::Unrecognised, |artifact| {
+        TreesEntry::TempResidue { artifact }
+    })
+}
+
+fn classify_pointer(stem: &str) -> TreesEntry<'_> {
+    stem.rsplit_once('-')
+        .filter(|(_, digest)| is_wellformed_digest(digest))
+        .and_then(|(artifact, digest)| {
+            Some(TreesEntry::Pointer {
+                artifact: artifact_of_stem(artifact)?,
+                digest,
+            })
+        })
+        .unwrap_or(TreesEntry::Unrecognised)
 }
 
 /// Comfortably above the longest generation name, which is under 128 bytes.
@@ -433,9 +514,9 @@ mod tests {
     use super::super::super::KNOWN_PLATFORMS;
     use super::super::pins::EXPECTED_TREE_DIGESTS;
     use super::{
-        generation_name, generation_prefix, is_wellformed_digest,
-        parse_generation_name, validated_generation, Artifact, TreePaths,
-        LAYOUT_VERSION,
+        classify_trees_entry, generation_name, generation_prefix,
+        is_wellformed_digest, parse_generation_name, validated_generation,
+        Artifact, GenerationName, TreePaths, TreesEntry, LAYOUT_VERSION,
     };
 
     const DIGEST: &str =
@@ -805,6 +886,109 @@ mod tests {
             assert!(
                 parse_generation_name(&candidate).is_none(),
                 "{candidate} parsed as a generation"
+            );
+        }
+    }
+
+    #[test]
+    fn every_name_the_launcher_writes_under_trees_is_classified() {
+        let browser = Artifact::new("browser", "darwin-arm64");
+        let paths = paths();
+        let generation =
+            generation_name("browser", "darwin-arm64", DIGEST, 1, SUFFIX);
+        let cases = [
+            (
+                paths.pointer("browser", "darwin-arm64", DIGEST),
+                TreesEntry::Pointer {
+                    artifact: browser.clone(),
+                    digest: DIGEST,
+                },
+            ),
+            (
+                paths.generation(&generation),
+                TreesEntry::Generation(GenerationName {
+                    artifact: browser.clone(),
+                    digest: DIGEST,
+                    layout: 1,
+                }),
+            ),
+            (
+                paths.temp_generation(&generation),
+                TreesEntry::TempResidue {
+                    artifact: browser.clone(),
+                },
+            ),
+            (
+                paths.temp_pointer(&generation),
+                TreesEntry::TempResidue {
+                    artifact: browser.clone(),
+                },
+            ),
+            (
+                paths.temp_archive(&browser, DIGEST),
+                TreesEntry::TempResidue {
+                    artifact: browser.clone(),
+                },
+            ),
+            (
+                paths.single_flight_lock(&browser),
+                TreesEntry::Lock {
+                    artifact: browser.clone(),
+                },
+            ),
+        ];
+        for (path, expected) in cases {
+            let name = entry(&path);
+            assert_eq!(classify_trees_entry(&name), expected, "{name}");
+        }
+        for sidecar in [
+            paths.attestation(&generation),
+            paths.attestation_signature(&generation),
+            paths.lease(&generation),
+        ] {
+            let name = entry(&sidecar);
+            assert!(
+                matches!(
+                    classify_trees_entry(&name),
+                    TreesEntry::Sidecar { artifact, generation: named }
+                        if artifact == browser && named == generation
+                ),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_generation_of_another_layout_is_still_a_generation() {
+        let other = generation_name("browser", "linux-x64", DIGEST, 2, SUFFIX);
+        assert!(matches!(
+            classify_trees_entry(&other),
+            TreesEntry::Generation(GenerationName { layout: 2, .. })
+        ));
+    }
+
+    #[test]
+    fn a_name_on_an_unknown_platform_or_with_a_malformed_digest_is_unrecognised(
+    ) {
+        let unknown = Artifact::new("browser", "plan9-x64");
+        let generation = generation();
+        for name in [
+            format!("browser-plan9-x64-{DIGEST}.ref"),
+            format!("browser-linux-x64-{}.ref", &DIGEST[1..]),
+            format!("browser-linux-x64-{}.ref", DIGEST.to_uppercase()),
+            format!("-linux-x64-{DIGEST}.ref"),
+            entry(&paths().single_flight_lock(&unknown)),
+            ".tmp--linux-x64.lock".to_owned(),
+            generation.replace("linux-x64", "plan9-x64"),
+            format!("{}.sealed", generation.replace(DIGEST, "abc")),
+            ".tmp-orphan-residue".to_owned(),
+            "claims".to_owned(),
+            "backup-2021-1-final".to_owned(),
+        ] {
+            assert_eq!(
+                classify_trees_entry(&name),
+                TreesEntry::Unrecognised,
+                "{name}"
             );
         }
     }
