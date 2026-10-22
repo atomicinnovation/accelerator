@@ -153,6 +153,7 @@ const fn primary_path(call: &FilesystemCall) -> &RecordedPath {
         | FilesystemCall::MakeExecutable(path)
         | FilesystemCall::RemoveFile(path)
         | FilesystemCall::RemoveDir(path)
+        | FilesystemCall::RemoveTree(path)
         | FilesystemCall::Entry(path)
         | FilesystemCall::Resolve(path)
         | FilesystemCall::CreatePrivateDir(path)
@@ -238,6 +239,13 @@ impl CacheFilesystem for ScriptedFilesystem {
         self.intercepted(
             &FilesystemCall::RemoveDir(self.recorded(path)),
             || self.recorder.remove_dir(path),
+        )
+    }
+
+    fn remove_tree(&self, path: &Path) -> io::Result<()> {
+        self.intercepted(
+            &FilesystemCall::RemoveTree(self.recorded(path)),
+            || self.recorder.remove_tree(path),
         )
     }
 

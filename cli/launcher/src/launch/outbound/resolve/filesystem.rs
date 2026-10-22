@@ -115,6 +115,13 @@ pub trait CacheFilesystem {
     /// If the directory cannot be removed.
     fn remove_dir(&self, path: &Path) -> io::Result<()>;
 
+    /// Remove a directory and everything in it, never following a symlink.
+    ///
+    /// # Errors
+    ///
+    /// If anything in the tree cannot be removed.
+    fn remove_tree(&self, path: &Path) -> io::Result<()>;
+
     /// # Errors
     ///
     /// If `path` cannot be examined.
@@ -230,6 +237,10 @@ impl CacheFilesystem for SystemFilesystem {
 
     fn remove_dir(&self, path: &Path) -> io::Result<()> {
         std::fs::remove_dir(path)
+    }
+
+    fn remove_tree(&self, path: &Path) -> io::Result<()> {
+        std::fs::remove_dir_all(path)
     }
 
     fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
@@ -585,6 +596,10 @@ pub mod testing {
 
         fn remove_dir(&self, path: &Path) -> io::Result<()> {
             self.inner.remove_dir(path)
+        }
+
+        fn remove_tree(&self, path: &Path) -> io::Result<()> {
+            self.inner.remove_tree(path)
         }
 
         fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {

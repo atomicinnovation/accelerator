@@ -100,6 +100,19 @@ impl Removals {
         self.tally(path, filesystem.remove_dir(path), count)
     }
 
+    /// Remove the directory at `path` and everything in it, tracing the
+    /// `rule` that allowed it.
+    pub fn remove_tree(
+        &mut self,
+        filesystem: &dyn CacheFilesystem,
+        path: &Path,
+        rule: &str,
+        count: Count,
+    ) -> Removal {
+        tracing::debug!(path = %path.display(), rule, "removing");
+        self.tally(path, filesystem.remove_tree(path), count)
+    }
+
     pub fn absorb(&mut self, other: Self) {
         self.reclaimed += other.reclaimed;
         self.failures.extend(other.failures);

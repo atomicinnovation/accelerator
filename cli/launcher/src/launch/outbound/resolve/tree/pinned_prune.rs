@@ -9,12 +9,11 @@ use crate::launch::core::tree::{Clock, TreeError};
 use super::super::filesystem::SystemFilesystem;
 use super::super::HOST_PLATFORM;
 use super::claims;
-use super::layout::{
-    read_pointer, validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
-};
+use super::layout::{read_pointer, Artifact, TreePaths};
 use super::lease::LivenessProbe;
 use super::locks::TreeLocks;
 use super::pins;
+use super::prune::PointerTarget;
 use super::reap::{self, PinnedDigests, Reaper};
 
 /// What a pinned prune consults: no resolver, so a retention can run it
@@ -160,33 +159,6 @@ fn artifact_pointers(
         pointers.push((entry.path(), digest.to_owned(), target));
     }
     pointers
-}
-
-/// What a pointer's contents name, judged by the grammar `locate` holds a
-/// pointer to before any of it becomes a path.
-enum PointerTarget {
-    Current(String),
-    OtherLayout,
-    Malformed,
-}
-
-impl PointerTarget {
-    fn of(contents: Option<String>, artifact: &Artifact, digest: &str) -> Self {
-        let Some(contents) = contents else {
-            return Self::Malformed;
-        };
-        match validated_generation(
-            &contents,
-            artifact.name(),
-            artifact.platform(),
-            digest,
-            LAYOUT_VERSION,
-        ) {
-            Ok(generation) => Self::Current(generation),
-            Err(TreeError::LayoutUnsupported { .. }) => Self::OtherLayout,
-            Err(_) => Self::Malformed,
-        }
-    }
 }
 
 #[cfg(test)]
