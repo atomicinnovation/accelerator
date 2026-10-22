@@ -13,7 +13,7 @@ use accelerator::launch::outbound::resolve::filesystem::{
 
 /// A path relative to the cache root, or else to the test's outer anchor, so
 /// an expected sequence is independent of where the temp directory lives.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordedPath {
     InRoot(PathBuf),
     Outside(PathBuf),
@@ -43,7 +43,27 @@ pub enum FilesystemCall {
     IgnoresOwnership(RecordedPath),
 }
 
+/// What a scripted decorator did, on the same timeline as the calls, so a
+/// test can assert it happened immediately before the call it guards.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScriptedEvent {
+    Ran { before: FilesystemCall, nth: usize },
+    Failed { call: FilesystemCall, nth: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TimelineEvent {
+    Call(FilesystemCall),
+    Scripted(ScriptedEvent),
+}
+
+pub type CallKind = std::mem::Discriminant<FilesystemCall>;
+
 impl FilesystemCall {
+    pub const fn kind(&self) -> CallKind {
+        std::mem::discriminant(self)
+    }
+
     pub const fn is_mutation(&self) -> bool {
         matches!(
             self,
@@ -58,7 +78,29 @@ impl FilesystemCall {
         )
     }
 
-    fn touches(&self, path: &RecordedPath) -> bool {
+    pub fn paths(&self) -> Vec<&RecordedPath> {
+        match self {
+            Self::Rename { from, to } => vec![from, to],
+            Self::List(path)
+            | Self::Exists(path)
+            | Self::Read(path)
+            | Self::ReadToString(path)
+            | Self::ReadBounded(path)
+            | Self::CreateDirAll(path)
+            | Self::WritePrivate(path)
+            | Self::MakeExecutable(path)
+            | Self::RemoveFile(path)
+            | Self::RemoveDir(path)
+            | Self::Entry(path)
+            | Self::Resolve(path)
+            | Self::CreatePrivateDir(path)
+            | Self::SetModified(path)
+            | Self::AccessAcl(path)
+            | Self::IgnoresOwnership(path) => vec![path],
+        }
+    }
+
+    pub fn touches(&self, path: &RecordedPath) -> bool {
         match self {
             Self::Rename { from, to } => from == path || to == path,
             Self::List(touched)
@@ -119,7 +161,7 @@ impl Spellings {
 pub struct RecordingFilesystem {
     root: Spellings,
     anchor: Spellings,
-    calls: Arc<Mutex<Vec<FilesystemCall>>>,
+    timeline: Arc<Mutex<Vec<TimelineEvent>>>,
 }
 
 impl RecordingFilesystem {
@@ -127,12 +169,29 @@ impl RecordingFilesystem {
         Self {
             root: Spellings::of(root),
             anchor: Spellings::of(anchor),
-            calls: Arc::default(),
+            timeline: Arc::default(),
         }
     }
 
     pub fn calls(&self) -> Vec<FilesystemCall> {
-        self.calls.lock().expect("recorded calls").clone()
+        self.timeline()
+            .into_iter()
+            .filter_map(|event| match event {
+                TimelineEvent::Call(call) => Some(call),
+                TimelineEvent::Scripted(_) => None,
+            })
+            .collect()
+    }
+
+    pub fn timeline(&self) -> Vec<TimelineEvent> {
+        self.timeline.lock().expect("timeline").clone()
+    }
+
+    pub fn note(&self, event: ScriptedEvent) {
+        self.timeline
+            .lock()
+            .expect("timeline")
+            .push(TimelineEvent::Scripted(event));
     }
 
     pub fn calls_touching(&self, path: &Path) -> Vec<FilesystemCall> {
@@ -157,7 +216,10 @@ impl RecordingFilesystem {
     }
 
     fn record(&self, call: FilesystemCall) {
-        self.calls.lock().expect("recorded calls").push(call);
+        self.timeline
+            .lock()
+            .expect("timeline")
+            .push(TimelineEvent::Call(call));
     }
 }
 

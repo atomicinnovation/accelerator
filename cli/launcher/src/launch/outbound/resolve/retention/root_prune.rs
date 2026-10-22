@@ -1,0 +1,127 @@
+//! The root prune of a relocated cache root: single-file prune and the
+//! residue sweep under the root lock, then tree prune once it is released.
+
+use std::path::Path;
+use std::time::Duration;
+
+use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
+use super::super::prune_report::{
+    LockFailure, RemovalFailure, Removals, UnreadableClaims,
+};
+use super::super::single_flight::LockPatience;
+use super::super::tree::{prune_pinned_on_host, PinnedPruneCollaborators};
+use super::ports::CachePorts;
+use super::residue::ResidueSweep;
+use super::root_entries::RootListing;
+use super::root_lock::{HeldRootLock, ROOT_LOCK};
+use super::single_file::SingleFilePrune;
+
+/// Prunes the root that was checked safe, and nothing else.
+pub struct RootPrune<'a> {
+    pub safe: &'a SafePruneRoot,
+    pub running_version: &'a str,
+    pub plugin_root: Option<&'a Path>,
+    pub claim_window: Duration,
+    pub ports: &'a CachePorts,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PruneReport {
+    pub reclaimed: u64,
+    pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Vec<UnreadableClaims>,
+    pub removal_failures: Vec<RemovalFailure>,
+}
+
+impl PruneReport {
+    fn absorb(&mut self, removals: Removals) {
+        self.reclaimed += removals.reclaimed;
+        self.removal_failures.extend(removals.failures);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum PruneOutcome {
+    Refused(UnsafeRoot),
+    Ran(PruneReport),
+    /// The cache root could not be identified, so there is nothing to prune.
+    Unavailable {
+        detail: String,
+    },
+}
+
+impl RootPrune<'_> {
+    pub fn run(&self, patience: LockPatience) -> PruneReport {
+        let mut report = PruneReport::default();
+        self.prune_single_files(patience, &mut report);
+        self.prune_trees(&mut report);
+        report
+    }
+
+    /// The root lock is released when this returns, before any tree lock is
+    /// taken.
+    fn prune_single_files(
+        &self,
+        patience: LockPatience,
+        report: &mut PruneReport,
+    ) {
+        let root = self.safe.path();
+        let held = match HeldRootLock::acquire(root, patience, self.ports) {
+            Ok(Some(held)) => held,
+            Ok(None) => return,
+            Err(error) => {
+                report.lock_failures.push(LockFailure {
+                    lock: root.join(ROOT_LOCK),
+                    detail: error.to_string(),
+                });
+                return;
+            }
+        };
+        let listing = match RootListing::read(
+            root,
+            self.ports.filesystem.as_ref(),
+            self.ports.steps.as_ref(),
+        ) {
+            Ok(listing) => listing,
+            Err(error) => {
+                report.removal_failures.push(RemovalFailure {
+                    path: root.to_path_buf(),
+                    kind: error.kind(),
+                });
+                return;
+            }
+        };
+        let single_files = SingleFilePrune {
+            root,
+            running_version: self.running_version,
+            plugin_root: self.plugin_root,
+            claim_window: self.claim_window,
+            ports: self.ports,
+        }
+        .run(&listing, &held);
+        report.absorb(single_files.removals);
+        report
+            .unreadable_claims
+            .extend(single_files.unreadable_claims);
+        report.absorb(ResidueSweep::new(root, self.ports).run(&listing));
+    }
+
+    fn prune_trees(&self, report: &mut PruneReport) {
+        let collaborators = PinnedPruneCollaborators {
+            clock: self.ports.clock.as_ref(),
+            liveness: self.ports.lease_liveness.as_ref(),
+            pins: self.ports.pins.as_ref(),
+        };
+        match prune_pinned_on_host(
+            self.safe.path(),
+            &collaborators,
+            Some(self.claim_window),
+        ) {
+            Ok(reclaimed) => report.reclaimed += reclaimed.entries,
+            Err(error) => report.lock_failures.push(LockFailure {
+                lock: self.safe.path().join("trees"),
+                detail: error.to_string(),
+            }),
+        }
+    }
+}

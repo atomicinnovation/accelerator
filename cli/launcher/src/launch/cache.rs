@@ -6,23 +6,33 @@
 //! from an unrecognised token and `verify`/`prune` stay offline.
 
 use std::io::Write;
+use std::time::Duration;
 
 use crate::launch::core::tree::{
     Discrepancy, MaterialiseTree as _, TreeError, TreeReport, VerifyTree as _,
 };
+use crate::launch::core::ResolutionError;
 use crate::launch::inbound::cli::CacheAction;
+use crate::launch::outbound::resolve::retention::root_prune::{
+    PruneOutcome, PruneReport,
+};
+use crate::launch::outbound::resolve::retention::root_retention::RootRetention;
 use crate::launch::outbound::resolve::tree::{pins, TreeResolver};
 
-/// Run one `cache` verb against `resolver`, writing results to `out`.
+/// Run one `cache` verb against `resolver`, or `retention` for `prune`,
+/// writing results to `out` and what a prune failed to do to `err`.
 ///
 /// # Errors
 ///
-/// A [`kernel::Error`] for an unrecognised artifact name (a refusal) or a
-/// resolution failure that is not a recoverable miss.
+/// A [`kernel::Error`] for an unrecognised artifact name (a refusal), a
+/// resolution failure that is not a recoverable miss, or a prune that was
+/// refused or did not finish.
 pub fn run(
     action: &CacheAction,
     resolver: &TreeResolver<'_>,
+    retention: &dyn RootRetention,
     out: &mut dyn Write,
+    err: &mut dyn Write,
 ) -> Result<(), kernel::Error> {
     match action {
         CacheAction::Verify { name } => verify(resolver, name.as_deref(), out),
@@ -30,7 +40,9 @@ pub fn run(
             repair(resolver, name.as_deref(), *force, out)
         }
         CacheAction::Ensure { names } => ensure(resolver, names, out),
-        CacheAction::Prune { older_than } => prune(resolver, *older_than, out),
+        CacheAction::Prune { older_than } => {
+            prune(retention, *older_than, out, err)
+        }
     }
 }
 
@@ -141,17 +153,60 @@ fn escape(raw: &str) -> String {
 }
 
 fn prune(
-    resolver: &TreeResolver<'_>,
+    retention: &dyn RootRetention,
     older_than: Option<u64>,
     out: &mut dyn Write,
+    err: &mut dyn Write,
 ) -> Result<(), kernel::Error> {
-    let older_than = older_than.map(std::time::Duration::from_secs);
-    let mut reclaimed = 0;
-    for artifact in pins::artifact_names() {
-        reclaimed += resolver.prune(artifact, older_than)?.entries;
+    match retention.prune(older_than.map(Duration::from_secs)) {
+        PruneOutcome::Ran(report) => render_prune_report(&report, out, err),
+        PruneOutcome::Refused(unsafe_root) => {
+            Err(kernel::Error::Failed(format!("not pruning: {unsafe_root}")))
+        }
+        PruneOutcome::Unavailable { detail } => {
+            Err(ResolutionError::CacheRootUnavailable { detail }.into())
+        }
     }
-    let _ = writeln!(out, "reclaimed {reclaimed} entries");
-    Ok(())
+}
+
+/// An unreadable claims directory alone succeeds: it only kept entries.
+fn render_prune_report(
+    report: &PruneReport,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(), kernel::Error> {
+    let _ = writeln!(out, "reclaimed {} entries", report.reclaimed);
+    for failure in &report.lock_failures {
+        let _ = writeln!(
+            err,
+            "could not lock {}: {}",
+            failure.lock.display(),
+            failure.detail
+        );
+    }
+    for unreadable in &report.unreadable_claims {
+        let _ = writeln!(
+            err,
+            "claims unreadable ({}) in {}; kept every versioned entry",
+            unreadable.kind,
+            unreadable.directory.display()
+        );
+    }
+    for failure in &report.removal_failures {
+        let _ = writeln!(
+            err,
+            "could not remove {}: {}",
+            failure.path.display(),
+            failure.kind
+        );
+    }
+    if report.lock_failures.is_empty() && report.removal_failures.is_empty() {
+        Ok(())
+    } else {
+        Err(kernel::Error::Failed(
+            "the prune did not finish; see the failures above".to_owned(),
+        ))
+    }
 }
 
 fn render_report(report: &TreeReport, out: &mut dyn Write) {

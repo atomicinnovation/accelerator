@@ -12,12 +12,12 @@ use crate::launch::outbound::resolve::cache_root::{
 };
 use crate::launch::outbound::resolve::fetcher::Fetcher;
 use crate::launch::outbound::resolve::keys::TrustedKeys;
+use crate::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
 use crate::launch::outbound::resolve::retention::launcher_id;
 use crate::launch::outbound::resolve::retention::ports::CachePorts;
 use crate::launch::outbound::resolve::retention::root_retention::{
     for_root, RootRetention,
 };
-use crate::launch::outbound::resolve::tree::lease::LivenessProbe;
 use crate::launch::outbound::resolve::tree::{
     ExpectedDigests, StepObserver, TreeResolver,
 };
@@ -46,7 +46,6 @@ pub struct TreeConfig<'a> {
     pub base_url: String,
     pub keys: &'a TrustedKeys,
     pub fetcher: &'a Fetcher,
-    pub liveness: &'a dyn LivenessProbe,
     pub expected_digests: ExpectedDigests,
     pub waiter_bound: Duration,
     pub steps: &'a dyn StepObserver,
@@ -54,16 +53,30 @@ pub struct TreeConfig<'a> {
 
 /// Identify the root, then claim the running version in it before anything
 /// can look an entry up.
+///
+/// `trusted_owners` is taken rather than read here, so a test sets it
+/// without touching the environment.
 #[must_use]
-pub fn start_up(config: &CacheRootConfig, ports: Arc<CachePorts>) -> StartUp {
-    let cache_root = identify(config, ports.filesystem.as_ref());
-    let retention = for_root(cache_root.as_ref().ok(), Arc::clone(&ports));
-    retention.claim_running_version();
-    StartUp {
-        cache_root: cache_root.map_err(|error| match error {
+pub fn start_up(
+    config: &CacheRootConfig,
+    trusted_owners: TrustedOwners,
+    ports: Arc<CachePorts>,
+) -> StartUp {
+    let cache_root = identify(config, ports.filesystem.as_ref()).map_err(
+        |error| match error {
             ResolutionError::CacheRootUnavailable { detail } => detail,
             other => other.to_string(),
-        }),
+        },
+    );
+    let retention = for_root(
+        cache_root.as_ref().map_err(String::as_str),
+        config.plugin_root.as_deref(),
+        trusted_owners,
+        Arc::clone(&ports),
+    );
+    retention.claim_running_version();
+    StartUp {
+        cache_root,
         overridden: config.cache_dir_override.is_some(),
         retention,
         ports,
@@ -103,7 +116,7 @@ impl StartUp {
             keys: config.keys,
             fetcher: config.fetcher,
             clock: self.ports.clock.as_ref(),
-            liveness: config.liveness,
+            liveness: self.ports.lease_liveness.as_ref(),
             launcher_id: launcher_id(),
             expected_digests: config.expected_digests,
             waiter_bound: config.waiter_bound,
