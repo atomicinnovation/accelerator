@@ -9,6 +9,7 @@ use super::super::filesystem::CacheFilesystem;
 use super::super::ownership::Ownership;
 use super::super::prune_report::PruneSteps;
 use super::super::single_flight::SingleFlightLocks;
+use super::residue::BootstrapHolderLiveness;
 
 pub struct CachePorts {
     pub filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
@@ -16,4 +17,5 @@ pub struct CachePorts {
     pub clock: Arc<dyn Clock + Send + Sync>,
     pub locks: Arc<dyn SingleFlightLocks + Send + Sync>,
     pub steps: Arc<dyn PruneSteps + Send + Sync>,
+    pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
 }

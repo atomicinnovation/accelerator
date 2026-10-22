@@ -82,6 +82,7 @@ mod tests {
     use super::super::super::tree::locks::FlockLocks;
     use super::super::launcher_id;
     use super::super::ports::CachePorts;
+    use super::super::residue::KillZeroProbe;
     use super::super::version_claims::VERSION_CLAIMS_DIR;
     use super::{for_root, PluginBinRetention, RootRetention as _};
 
@@ -102,6 +103,7 @@ mod tests {
             clock: Arc::new(AtClock(1_000_000)),
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),
+            bootstrap_holders: Arc::new(KillZeroProbe),
         })
     }
 

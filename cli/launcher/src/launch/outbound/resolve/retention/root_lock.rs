@@ -89,6 +89,7 @@ mod tests {
     use super::super::super::tree::locks::FlockLocks;
     use super::super::super::tree::testing::{within, BLOCKING_BOUND};
     use super::super::ports::CachePorts;
+    use super::super::residue::KillZeroProbe;
     use super::{HeldRootLock, ROOT_LOCK};
 
     struct AtClock;
@@ -120,6 +121,7 @@ mod tests {
             clock: Arc::new(AtClock),
             locks: Arc::new(FlockLocks),
             steps,
+            bootstrap_holders: Arc::new(KillZeroProbe),
         })
     }
 

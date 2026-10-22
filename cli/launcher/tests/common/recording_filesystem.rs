@@ -34,6 +34,7 @@ pub enum FilesystemCall {
         to: RecordedPath,
     },
     RemoveFile(RecordedPath),
+    RemoveDir(RecordedPath),
     Entry(RecordedPath),
     Resolve(RecordedPath),
     CreatePrivateDir(RecordedPath),
@@ -51,6 +52,7 @@ impl FilesystemCall {
                 | Self::MakeExecutable(_)
                 | Self::Rename { .. }
                 | Self::RemoveFile(_)
+                | Self::RemoveDir(_)
                 | Self::CreatePrivateDir(_)
                 | Self::SetModified(_)
         )
@@ -68,6 +70,7 @@ impl FilesystemCall {
             | Self::WritePrivate(touched)
             | Self::MakeExecutable(touched)
             | Self::RemoveFile(touched)
+            | Self::RemoveDir(touched)
             | Self::Entry(touched)
             | Self::Resolve(touched)
             | Self::CreatePrivateDir(touched)
@@ -210,6 +213,11 @@ impl CacheFilesystem for RecordingFilesystem {
     fn remove_file(&self, path: &Path) -> io::Result<()> {
         self.record(FilesystemCall::RemoveFile(self.recorded(path)));
         SystemFilesystem.remove_file(path)
+    }
+
+    fn remove_dir(&self, path: &Path) -> io::Result<()> {
+        self.record(FilesystemCall::RemoveDir(self.recorded(path)));
+        SystemFilesystem.remove_dir(path)
     }
 
     fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
