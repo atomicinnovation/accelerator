@@ -22,7 +22,7 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
-use work::draft_id::DraftId;
+use work::draft_id::is_token_safe;
 use work::identity_run::IdentityRunGuard;
 use work::identity::IdentityField;
 use work::retirement::RECOVERY_PARENT;
@@ -618,12 +618,6 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
         .unwrap_or(exit_codes::CLEAN)
 }
 
-fn id_is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
-    scheme.is_canonical_id_token(id)
-        || (scheme.ownership() == IdOwnership::Tracker
-            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
-}
-
 fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -636,7 +630,7 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
         };
         let is_stale_dossier = name
             .strip_suffix(".md")
-            .is_some_and(|stem| id_is_token_safe(scheme, stem));
+            .is_some_and(|stem| is_token_safe(scheme, stem));
         let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
         if is_stale_dossier || is_write_artefact {
             let _ = std::fs::remove_file(&path);
@@ -675,7 +669,7 @@ fn persist_dossiers(
 ) {
     let store = FileCorpusStore::new(dir);
     for dossier in dossiers {
-        if !id_is_token_safe(scheme, &dossier.id) {
+        if !is_token_safe(scheme, &dossier.id) {
             console.warn(format_args!(
                 "warning: skipping dossier for unsafe id {:?}",
                 dossier.id
@@ -3829,17 +3823,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn id_is_token_safe_admits_only_canonical_ids() {
-        let scheme = scheme();
-        assert!(super::id_is_token_safe(&scheme, "0001"));
-        assert!(!super::id_is_token_safe(&scheme, "../foo"));
-        assert!(!super::id_is_token_safe(&scheme, "a/b"));
-        assert!(!super::id_is_token_safe(&scheme, "0001; rm -rf ~"));
-        assert!(!super::id_is_token_safe(&scheme, "1"));
-        assert!(!super::id_is_token_safe(&scheme, ""));
-    }
-
     fn tracker_scheme() -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: corpus::TRACKER_TOKEN.to_owned(),
@@ -3888,12 +3871,6 @@ mod tests {
         );
 
         assert_eq!(md_files(dir.path()), vec!["draft-k7mq3x.md"]);
-    }
-
-    #[test]
-    fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
-        assert!(!super::id_is_token_safe(&scheme(), "ENG-42"));
-        assert!(!super::id_is_token_safe(&scheme(), "draft-k7mq3x"));
     }
 
     fn md_files(dir: &std::path::Path) -> Vec<String> {

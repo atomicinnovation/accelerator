@@ -1,5 +1,8 @@
 //! The provisional identity of a work item no tracker has confirmed yet.
 
+use corpus::IdOwnership;
+use corpus::WorkItemIdScheme;
+
 use crate::identity::holder_of;
 use crate::identity::ItemIdentity;
 
@@ -25,6 +28,16 @@ impl DraftId {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+/// Whether `id` can name a file or directory as it stands: a canonical id
+/// under `scheme`, or, where the tracker owns ids, a tracker key or a draft
+/// id.
+#[must_use]
+pub fn is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
+    scheme.is_canonical_id_token(id)
+        || (scheme.ownership() == IdOwnership::Tracker
+            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
 }
 
 /// A source of random draft suffixes.
@@ -107,6 +120,9 @@ mod tests {
     use std::collections::VecDeque;
     use std::path::PathBuf;
 
+    use corpus::WorkItemIdScheme;
+
+    use super::is_token_safe;
     use super::mint_draft_id;
     use super::mint_draft_ids;
     use super::DraftId;
@@ -270,5 +286,34 @@ mod tests {
     #[test]
     fn an_all_digit_draft_suffix_is_not_a_draft_id() {
         assert!(DraftId::parse("draft-123456").is_none());
+    }
+
+    #[test]
+    fn only_canonical_ids_are_token_safe() {
+        let scheme = WorkItemIdScheme::numeric();
+        assert!(is_token_safe(&scheme, "0001"));
+        assert!(!is_token_safe(&scheme, "../foo"));
+        assert!(!is_token_safe(&scheme, "a/b"));
+        assert!(!is_token_safe(&scheme, "0001; rm -rf ~"));
+        assert!(!is_token_safe(&scheme, "1"));
+        assert!(!is_token_safe(&scheme, ""));
+    }
+
+    #[test]
+    fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
+        let scheme = WorkItemIdScheme::numeric();
+        assert!(!is_token_safe(&scheme, "ENG-42"));
+        assert!(!is_token_safe(&scheme, "draft-k7mq3x"));
+    }
+
+    #[test]
+    fn a_tracker_key_and_a_draft_are_token_safe_where_the_tracker_owns_ids() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
+            key: None,
+        };
+        assert!(is_token_safe(&scheme, "ENG-42"));
+        assert!(is_token_safe(&scheme, "draft-k7mq3x"));
+        assert!(!is_token_safe(&scheme, "../ENG-1"));
     }
 }
