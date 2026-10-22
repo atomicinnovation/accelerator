@@ -300,8 +300,41 @@ impl RecoveryCopies for FaultyRecovery {
         self.inner.kept(parent)
     }
 
-    fn copy_settled(&self, dir: &Path, original: &Path) -> bool {
-        self.inner.copy_settled(dir, original)
+    fn all_entries(
+        &self,
+        parent: &Path,
+    ) -> Result<Vec<corpus::store::RecoveryEntry>, StoreError> {
+        self.inner.all_entries(parent)
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        self.inner.location(path)
+    }
+
+    fn mirrored_copy(
+        &self,
+        dir: &Path,
+        original: &Path,
+    ) -> corpus::store::RecordedCopy {
+        self.inner.mirrored_copy(dir, original)
+    }
+
+    fn mark_copy_pending(
+        &self,
+        copy: &corpus::store::RecordedCopy,
+    ) -> Result<(), StoreError> {
+        self.inner.mark_copy_pending(copy)
+    }
+
+    fn recorded_copy(&self, dir: &Path) -> Option<corpus::store::RecordedCopy> {
+        self.inner.recorded_copy(dir)
+    }
+
+    fn compare_copy(
+        &self,
+        copy: &corpus::store::RecordedCopy,
+    ) -> corpus::store::CopyComparison {
+        self.inner.compare_copy(copy)
     }
 }
 

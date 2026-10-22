@@ -11,6 +11,7 @@ use corpus::lock::LockName;
 use corpus::scan::CorpusWalker;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
 use corpus::store::KeptState;
@@ -628,6 +629,21 @@ pub enum RecoveryNotice {
     },
 }
 
+/// Whether a person has dealt with `original`'s copy in `dir`: the original
+/// matches it again, or the copy has been deleted or cannot be read.
+pub fn copy_settled(
+    recovery: &dyn RecoveryCopies,
+    dir: &Path,
+    original: &Path,
+) -> bool {
+    matches!(
+        recovery.compare_copy(&recovery.mirrored_copy(dir, original)),
+        CopyComparison::Equal
+            | CopyComparison::CopyMissing
+            | CopyComparison::CopyUnreadable
+    )
+}
+
 /// Removes the recovery directories nobody needs any more.
 ///
 /// That is a completed retirement's, whose notice an earlier run gave, and
@@ -648,7 +664,7 @@ pub fn sweep_recoveries(
             KeptState::RestorePending(unrestored) => {
                 let settled = unrestored
                     .iter()
-                    .all(|path| recovery.copy_settled(&kept.dir, path));
+                    .all(|path| copy_settled(recovery, &kept.dir, path));
                 if settled {
                     recovery.remove_dir(&kept.dir)?;
                     notices.push(RecoveryNotice::Cleared { dir: kept.dir });
@@ -662,4 +678,119 @@ pub fn sweep_recoveries(
         }
     }
     Ok(notices)
+}
+
+#[cfg(test)]
+#[allow(clippy::unimplemented)]
+mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use corpus::store::CopyComparison;
+    use corpus::store::KeptRecovery;
+    use corpus::store::RecordedCopy;
+    use corpus::store::RecoveryCopies;
+    use corpus::store::RecoveryEntry;
+    use corpus::store::StoreError;
+
+    use super::copy_settled;
+
+    struct Comparing(CopyComparison);
+
+    impl RecoveryCopies for Comparing {
+        fn exists(&self, _dir: &Path) -> bool {
+            unimplemented!()
+        }
+
+        fn prepare(&self, _dir: &Path) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn write_once(
+            &self,
+            _dir: &Path,
+            _original: &Path,
+            _bytes: &[u8],
+        ) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn mark_restore_pending(
+            &self,
+            _dir: &Path,
+            _unrestored: &[PathBuf],
+        ) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn is_restore_pending(&self, _dir: &Path) -> bool {
+            unimplemented!()
+        }
+
+        fn mark_completed(&self, _dir: &Path) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn remove_dir(&self, _dir: &Path) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn kept(
+            &self,
+            _parent: &Path,
+        ) -> Result<Vec<KeptRecovery>, StoreError> {
+            unimplemented!()
+        }
+
+        fn all_entries(
+            &self,
+            _parent: &Path,
+        ) -> Result<Vec<RecoveryEntry>, StoreError> {
+            unimplemented!()
+        }
+
+        fn location(&self, _path: &Path) -> PathBuf {
+            unimplemented!()
+        }
+
+        fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+            RecordedCopy {
+                dir: dir.to_path_buf(),
+                original: original.to_path_buf(),
+                copy: PathBuf::from("copy"),
+            }
+        }
+
+        fn mark_copy_pending(
+            &self,
+            _copy: &RecordedCopy,
+        ) -> Result<(), StoreError> {
+            unimplemented!()
+        }
+
+        fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+            unimplemented!()
+        }
+
+        fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+            self.0
+        }
+    }
+
+    #[test]
+    fn a_copy_is_settled_once_its_original_matches_it_or_it_is_deleted() {
+        let settled = |comparison| {
+            copy_settled(
+                &Comparing(comparison),
+                Path::new("retirement-recovery/PP-1--ENG-1"),
+                Path::new("/repo/meta/work/a.md"),
+            )
+        };
+
+        assert!(settled(CopyComparison::Equal));
+        assert!(settled(CopyComparison::CopyMissing));
+        assert!(settled(CopyComparison::CopyUnreadable));
+        assert!(!settled(CopyComparison::Different));
+        assert!(!settled(CopyComparison::OriginalUnreadable));
+    }
 }

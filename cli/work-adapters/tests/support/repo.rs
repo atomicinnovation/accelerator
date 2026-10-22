@@ -11,8 +11,11 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
 use corpus::store::KeptRecovery;
+use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
+use corpus::store::RecoveryEntry;
 use corpus::store::StoreError;
 use corpus_adapters::CommonMarkBody;
 use tracker::BodyDialect;
@@ -152,13 +155,9 @@ impl RecoveryCopies for FileEvents {
 
     fn mark_restore_pending(
         &self,
-        dir: &Path,
-        unrestored: &[PathBuf],
+        _dir: &Path,
+        _unrestored: &[PathBuf],
     ) -> Result<(), StoreError> {
-        self.kept.borrow_mut().push(dir.to_path_buf());
-        for path in unrestored {
-            edit_once(&self.edit_on_kept, path);
-        }
         Ok(())
     }
 
@@ -178,8 +177,37 @@ impl RecoveryCopies for FileEvents {
         Ok(Vec::new())
     }
 
-    fn copy_settled(&self, _dir: &Path, _original: &Path) -> bool {
-        true
+    fn all_entries(
+        &self,
+        _parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        path.to_path_buf()
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        RecordedCopy {
+            dir: dir.to_path_buf(),
+            original: original.to_path_buf(),
+            copy: original.file_name().map(PathBuf::from).unwrap_or_default(),
+        }
+    }
+
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
+        self.kept.borrow_mut().push(copy.dir.clone());
+        edit_once(&self.edit_on_kept, &copy.original);
+        Ok(())
+    }
+
+    fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+        None
+    }
+
+    fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+        CopyComparison::CopyMissing
     }
 }
 

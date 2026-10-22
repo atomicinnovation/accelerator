@@ -15,10 +15,13 @@ use corpus::lock::ExclusiveLock;
 use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
 use corpus::store::KeptRecovery;
+use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
+use corpus::store::RecoveryEntry;
 use corpus::StoreError;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::CommonMarkBody;
@@ -33,14 +36,14 @@ use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
+use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
+use vcs::tracking::RootsAnswer;
 use vcs::RepoFacts;
 use vcs::RepositoryProbe;
 use vcs::VcsKind;
 use vcs::WorkingCopyState;
 use vcs::WorkingCopyStateProbe;
-use vcs::tracking::FileTracking;
-use vcs::tracking::RepositoryTracking;
-use vcs::tracking::RootsAnswer;
 use work::dirtiness::Dirtiness;
 use work::identity_run::begin_rekey_run;
 use work::identity_run::HeldIdentityRun;
@@ -365,8 +368,32 @@ impl RecoveryCopies for CountingRecovery<'_> {
         self.inner.kept(parent)
     }
 
-    fn copy_settled(&self, dir: &Path, original: &Path) -> bool {
-        self.inner.copy_settled(dir, original)
+    fn all_entries(
+        &self,
+        parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        self.inner.all_entries(parent)
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        self.inner.location(path)
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        self.inner.mirrored_copy(dir, original)
+    }
+
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
+        self.mutations.check(&copy.dir)?;
+        self.inner.mark_copy_pending(copy)
+    }
+
+    fn recorded_copy(&self, dir: &Path) -> Option<RecordedCopy> {
+        self.inner.recorded_copy(dir)
+    }
+
+    fn compare_copy(&self, copy: &RecordedCopy) -> CopyComparison {
+        self.inner.compare_copy(copy)
     }
 }
 
@@ -828,8 +855,38 @@ impl RecoveryCopies for DiscardedCopies {
         Ok(Vec::new())
     }
 
-    fn copy_settled(&self, _dir: &Path, _original: &Path) -> bool {
-        true
+    fn all_entries(
+        &self,
+        _parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        path.to_path_buf()
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        RecordedCopy {
+            dir: dir.to_path_buf(),
+            original: original.to_path_buf(),
+            copy: original.file_name().map(PathBuf::from).unwrap_or_default(),
+        }
+    }
+
+    fn mark_copy_pending(
+        &self,
+        _copy: &RecordedCopy,
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+        None
+    }
+
+    fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+        CopyComparison::CopyMissing
     }
 }
 

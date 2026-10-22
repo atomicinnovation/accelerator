@@ -25,7 +25,10 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
+use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
+use corpus::store::RecoveryEntry;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
@@ -64,7 +67,7 @@ struct Fake {
     dirtiness: RefCell<Option<Dirtiness>>,
     tracking: RefCell<Option<FileTracking>>,
     fail_recovery_at: RefCell<Option<&'static str>>,
-    rewrite_on_restore_pending: RefCell<Option<(PathBuf, String)>>,
+    rewrite_on_copy_recorded: RefCell<Option<(PathBuf, String)>>,
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     fail_write_to: RefCell<Option<PathBuf>>,
     refuse_write_to: RefCell<Option<PathBuf>>,
@@ -98,8 +101,8 @@ impl Fake {
         *self.fail_recovery_at.borrow_mut() = Some(step);
     }
 
-    fn rewrite_on_restore_pending(&self, path: &Path, content: &str) {
-        *self.rewrite_on_restore_pending.borrow_mut() =
+    fn rewrite_on_copy_recorded(&self, path: &Path, content: &str) {
+        *self.rewrite_on_copy_recorded.borrow_mut() =
             Some((path.to_path_buf(), content.to_owned()));
     }
 
@@ -107,7 +110,7 @@ impl Fake {
         self.calls()
             .into_iter()
             .filter(|call| {
-                ["prepare:", "write_once:", "mark_restore_pending:"]
+                ["prepare:", "write_once:", "mark_copy_pending:"]
                     .iter()
                     .any(|step| call.starts_with(step))
             })
@@ -260,16 +263,10 @@ impl RecoveryCopies for Fake {
 
     fn mark_restore_pending(
         &self,
-        dir: &Path,
+        _dir: &Path,
         _unrestored: &[PathBuf],
     ) -> Result<(), StoreError> {
-        self.record(format!("mark_restore_pending:{}", dir.display()));
-        if let Some((path, content)) =
-            self.rewrite_on_restore_pending.borrow().as_ref()
-        {
-            std::fs::write(path, content).expect("rewrite the item file");
-        }
-        self.recovery_step("mark_restore_pending")
+        unimplemented!("a pull records its copy, not a retirement's paths")
     }
 
     fn is_restore_pending(&self, _dir: &Path) -> bool {
@@ -291,8 +288,45 @@ impl RecoveryCopies for Fake {
         unimplemented!("a pull never lists kept copies")
     }
 
-    fn copy_settled(&self, _dir: &Path, _original: &Path) -> bool {
-        unimplemented!("a pull never settles a copy")
+    fn all_entries(
+        &self,
+        _parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        unimplemented!("a pull never lists recovery entries")
+    }
+
+    fn location(&self, _path: &Path) -> PathBuf {
+        unimplemented!("a pull never locates a recovery entry")
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        RecordedCopy {
+            dir: dir.to_path_buf(),
+            original: original.to_path_buf(),
+            copy: PathBuf::from("0001.md"),
+        }
+    }
+
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
+        self.record(format!(
+            "mark_copy_pending:{}:{}",
+            copy.dir.display(),
+            copy.copy.display()
+        ));
+        if let Some((path, content)) =
+            self.rewrite_on_copy_recorded.borrow().as_ref()
+        {
+            std::fs::write(path, content).expect("rewrite the item file");
+        }
+        self.recovery_step("mark_copy_pending")
+    }
+
+    fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+        unimplemented!("a pull never reads a copy's record")
+    }
+
+    fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+        unimplemented!("a pull never compares a copy")
     }
 }
 
@@ -954,7 +988,7 @@ fn kept_a_copy_of(item_path: &Path, content: &str) -> Vec<String> {
     vec![
         format!("prepare:{KEPT_DIR}"),
         format!("write_once:{KEPT_DIR}:{}:{content}", item_path.display()),
-        format!("mark_restore_pending:{KEPT_DIR}"),
+        format!("mark_copy_pending:{KEPT_DIR}:0001.md"),
     ]
 }
 
@@ -1094,7 +1128,7 @@ fn a_re_run_over_a_file_already_holding_the_target_keeps_no_copy(
 
 #[test]
 fn a_failed_recovery_copy_stops_the_pull() -> Result<(), TestError> {
-    for step in ["prepare", "write_once", "mark_restore_pending"] {
+    for step in ["prepare", "write_once", "mark_copy_pending"] {
         let dir = tempfile::tempdir()?;
         let item_path = real_item_file(&dir, CLASSIFIED);
         let fake = Fake::default();
@@ -1242,7 +1276,7 @@ fn a_file_edited_while_its_copy_was_kept_is_not_pulled_over(
     let fake = Fake::default();
     fake.report_status(Dirtiness::Dirty);
     let concurrent = "---\nstatus: draft\n---\n\nConcurrent edit\n";
-    fake.rewrite_on_restore_pending(&item_path, concurrent);
+    fake.rewrite_on_copy_recorded(&item_path, concurrent);
 
     let attempt = pull_with(&fake, &pull_request(&item_path));
 
