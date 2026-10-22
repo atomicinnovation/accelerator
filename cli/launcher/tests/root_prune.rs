@@ -43,14 +43,18 @@ use accelerator::launch::outbound::resolve::retention_windows::{
     AGE_BACKSTOP, CLAIM_WINDOW,
 };
 use accelerator::launch::outbound::resolve::single_flight::{
-    LockGuard, LockProbe, SingleFlightLocks,
+    LockGuard, LockPatience, LockProbe, SingleFlightLocks,
 };
 use accelerator::launch::outbound::resolve::tree::layout::Artifact;
 use accelerator::launch::outbound::resolve::tree::lease::{
     Liveness, LivenessProbe,
 };
-use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
-use accelerator::launch::outbound::resolve::tree::{ExpectedDigests, NoSteps};
+use accelerator::launch::outbound::resolve::tree::locks::{
+    FlockLocks, TreeLocks,
+};
+use accelerator::launch::outbound::resolve::tree::{
+    ExpectedDigests, NoSteps, TreePrune, TreePrunePorts, TreePruneRegime,
+};
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use accelerator::launch::start_up::{start_up, StartUp, TreeConfig};
 use common::recording_filesystem::{
@@ -184,6 +188,11 @@ impl RootHarness {
 
     const fn young(&self) -> u64 {
         self.now - 60
+    }
+
+    /// A clock far enough on that everything this test made is aged.
+    fn later(&self) -> Arc<dyn Clock + Send + Sync> {
+        Arc::new(FixedClock(self.now + 2 * AGE_BACKSTOP.as_secs()))
     }
 
     fn file(&self, name: &str, modified: u64) -> PathBuf {
@@ -1305,4 +1314,221 @@ fn the_verb_reports_a_failed_tree_lock_and_exits_non_zero() {
         verb.err
     );
     assert!(verb.err.contains("No locks available"), "{}", verb.err);
+}
+
+#[test]
+fn old_orphans_sidecars_and_retired_locks_go_and_young_generations_stay() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let orphaned = Trees::generation_of(&on_host("retired-a"), &digest('a'));
+    let sidecars = trees.plant_sidecars(&orphaned, harness.aged());
+    let lock = trees.plant_lock(&on_host("retired-b"), harness.aged());
+    let young = trees.plant_generation(
+        &Trees::generation_of(&on_host("retired-c"), &digest('c')),
+        harness.young(),
+    );
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(sidecars.iter().all(|sidecar| !exists(sidecar)));
+    assert!(!exists(&lock), "the retired lock survived");
+    assert!(exists(&young), "a young generation was reaped");
+}
+
+#[test]
+fn only_old_unheld_orphan_sidecars_are_removed() {
+    for (liveness, aged, removed) in [
+        (Liveness::Held, true, false),
+        (Liveness::Free, false, false),
+        (Liveness::Free, true, true),
+        (Liveness::Unknown, true, true),
+    ] {
+        let harness = RootHarness::new();
+        let modified = if aged {
+            harness.aged()
+        } else {
+            harness.young()
+        };
+        let sidecars = harness.trees().plant_sidecars(
+            &Trees::generation_of(&on_host("retired"), &digest('a')),
+            modified,
+        );
+
+        harness
+            .prune(Ports {
+                lease_liveness: Arc::new(FixedLiveness(liveness)),
+                ..harness.ports()
+            })
+            .succeeded();
+
+        for sidecar in &sidecars {
+            assert_eq!(
+                !exists(sidecar),
+                removed,
+                "{liveness:?}, aged {aged}: {}",
+                sidecar.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn orphan_tree_locks_go_only_once_aged_and_never_for_a_current_tree() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let aged = trees.plant_lock(&on_host("retired-a"), harness.aged());
+    let young = trees.plant_lock(&on_host("retired-b"), harness.young());
+    let current = on_host("retired-c");
+    let tree = trees.plant_tree(&current, &digest('c'), harness.aged());
+    trees.plant_claim(&digest('c'), OTHER_ID, harness.now);
+    let current_lock = trees.plant_lock(&current, harness.aged());
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(!exists(&aged), "an aged orphan lock survived");
+    assert!(exists(&young), "a young lock was removed");
+    assert!(exists(&current_lock), "a current tree's lock was removed");
+    tree.assert_survives();
+}
+
+#[test]
+fn a_tree_lock_is_kept_while_its_partial_archive_remains() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let pinned = on_host("driver");
+    let archive =
+        trees.plant_partial_archive(&pinned, &digest('a'), harness.aged());
+    let lock = trees.plant_lock(&pinned, harness.aged());
+
+    harness
+        .prune(Ports {
+            pins: pinning("driver", &digest('a')),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    assert!(exists(&archive), "the resumable archive was reaped");
+    assert!(exists(&lock), "the lock went while its archive remained");
+    assert!(!exists(&trees.paths().pointer(
+        "driver",
+        HOST_PLATFORM,
+        &digest('a')
+    )));
+}
+
+#[test]
+fn a_lockless_partial_archive_waits_for_its_own_lock() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let archive =
+        trees.plant_partial_archive(&retired, &digest('e'), harness.aged());
+    let earlier =
+        trees.plant_tree(&on_host("aardvark"), &digest('a'), harness.aged());
+    let lock = trees.paths().single_flight_lock(&retired);
+
+    harness.prune(harness.ports()).succeeded();
+    earlier.assert_reclaimed();
+    assert!(exists(&archive), "a lockless partial archive was reaped");
+    assert!(exists(&lock), "the residue did not take its own lock");
+
+    harness.prune(harness.ports()).succeeded();
+    assert!(!exists(&archive), "the archive outlived its own lock");
+    assert!(exists(&lock), "a young lock was removed");
+
+    harness
+        .prune(Ports {
+            clock: harness.later(),
+            ..harness.ports()
+        })
+        .succeeded();
+    assert!(!exists(&lock), "the aged lock survived");
+
+    let alone = RootHarness::new();
+    let archive = alone.trees().plant_partial_archive(
+        &retired,
+        &digest('e'),
+        alone.aged(),
+    );
+    alone.prune(alone.ports()).succeeded();
+    assert!(!exists(&archive), "its own lock did not reap it");
+}
+
+#[test]
+fn a_retired_partial_archive_goes_with_its_lock() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let archive =
+        trees.plant_partial_archive(&retired, &digest('e'), harness.aged());
+    let lock = trees.plant_lock(&retired, harness.aged());
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(!exists(&archive), "the archive survived");
+    assert!(!exists(&lock), "the lock survived its archive");
+}
+
+#[test]
+fn a_residue_only_artifact_is_locked_and_reaped() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let residue =
+        trees.plant_temp_generation(&retired, &digest('e'), harness.aged());
+    let lock = trees.paths().single_flight_lock(&retired);
+
+    harness.prune(harness.ports()).succeeded();
+    assert!(!exists(&residue), "the orphan temp generation survived");
+    assert!(exists(&lock), "a young lock was removed");
+
+    harness
+        .prune(Ports {
+            clock: harness.later(),
+            ..harness.ports()
+        })
+        .succeeded();
+    assert!(!exists(&lock), "the aged lock survived");
+}
+
+fn prune_trees_directly(
+    harness: &RootHarness,
+    ports: &CachePorts,
+    patience: LockPatience,
+) {
+    let safe = SafePruneRoot::check(
+        &harness.root,
+        ports.filesystem.as_ref(),
+        ports.ownership.as_ref(),
+        &TrustedOwners::none(),
+    )
+    .expect("safe");
+    TreePrune {
+        regime: TreePruneRegime::WholeTree(&safe),
+        claim_window: CLAIM_WINDOW,
+        ports: TreePrunePorts {
+            filesystem: ports.filesystem.as_ref(),
+            ownership: ports.ownership.as_ref(),
+            clock: ports.clock.as_ref(),
+            lease_liveness: ports.lease_liveness.as_ref(),
+            pins: ports.pins.as_ref(),
+            locks: TreeLocks::over(ports.locks.as_ref()),
+            steps: ports.steps.as_ref(),
+        },
+    }
+    .run(patience);
+}
+
+#[test]
+fn a_lock_only_artifact_reaches_the_orphan_lock_step() {
+    for patience in [LockPatience::Wait, LockPatience::Try] {
+        let harness = RootHarness::new();
+        let lock = harness
+            .trees()
+            .plant_lock(&on_host("retired"), harness.aged());
+
+        prune_trees_directly(&harness, &harness.ports().build(), patience);
+
+        assert!(!exists(&lock), "{patience:?}");
+    }
 }
