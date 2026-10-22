@@ -2,6 +2,10 @@
 
 mod console;
 mod recovery_labels;
+mod stores;
+
+use stores::StoreFactories;
+use stores::SyncStores;
 
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
@@ -13,15 +17,21 @@ use work::sync::PendingPush;
 use work_adapters::sync::pending_push::Marker;
 
 use ::config::catalogue::TRACKERS;
+use ::config::consent::ProvenanceContext;
+use ::config::provenance::path_source;
 use ::config::tracker_block::read_block;
 use ::config::tracker_block::BlockName;
 use ::config::ConfigAccess;
-use corpus::store::AtomicWrite;
+use ::config::Key;
+use config_adapters::credentials::SystemEnvironment;
+use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
+use config_adapters::TrackedConfigFile;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
+use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
@@ -45,6 +55,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::files::SyncStore;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
@@ -70,6 +81,10 @@ use work_adapters::sync::settled_run::DiscoveredCorpus;
 use work_adapters::sync::settled_run::SettledRunFailure;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
+use crate::bounded_roots::configure_failure;
+use crate::bounded_roots::ConfiguredRoot;
+use crate::bounded_roots::RootKey;
+use crate::bounded_roots::ValidatedRoots;
 use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
@@ -109,6 +124,35 @@ pub fn integrations_dir(
     } else {
         root.join(path)
     })
+}
+
+/// The work and integrations directories as configured, each with who
+/// configured it, which decides whether a root outside the repository may
+/// be written unattended.
+fn configured_roots(
+    config: &dyn ConfigAccess,
+    repo_root: &Path,
+) -> Result<(ConfiguredRoot, ConfiguredRoot), String> {
+    let provenance = ProvenanceContext {
+        config,
+        tracking: &TrackedConfigFile(InProcessTracking),
+        environment: &SystemEnvironment,
+        personal_config: repo_root.join(PERSONAL_CONFIG_RELATIVE),
+    };
+    let configured = |key: RootKey, path: PathBuf| {
+        Key::parse(key.config_key())
+            .and_then(|parsed| path_source(&provenance, &parsed))
+            .map(|source| ConfiguredRoot { key, path, source })
+            .map_err(|error| error.to_string())
+    };
+    let work = crate::config::resolve_work_dir(config, repo_root)
+        .map_err(|error| error.to_string())?;
+    let integrations = integrations_dir(config, repo_root)
+        .map_err(|error| error.to_string())?;
+    Ok((
+        configured(RootKey::Work, work)?,
+        configured(RootKey::Integrations, integrations)?,
+    ))
 }
 
 fn warn_outstanding_pushes(
@@ -821,7 +865,11 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
         .unwrap_or(exit_codes::CLEAN)
 }
 
-fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
+fn clear_stale_dossiers(
+    store: &dyn SyncStore,
+    dir: &Path,
+    scheme: &WorkItemIdScheme,
+) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -836,7 +884,7 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
             .is_some_and(|stem| is_token_safe(scheme, stem));
         let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
         if is_stale_dossier || is_write_artefact {
-            let _ = std::fs::remove_file(&path);
+            let _ = store.remove(&path);
         }
     }
 }
@@ -848,29 +896,32 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
 /// and this surface's own `.tmp-*` write artefacts, so anything else a user
 /// placed under `conflicts/` survives.
 fn prepare_conflicts_dir(
+    store: &dyn SyncStore,
     dir: &Path,
     scheme: &WorkItemIdScheme,
-) -> std::io::Result<()> {
-    std::fs::create_dir_all(dir)?;
+) -> Result<(), String> {
     let gitignore = dir.join(".gitignore");
-    std::fs::write(&gitignore, "*\n")?;
-    if !std::fs::read_to_string(&gitignore)?.contains('*') {
-        return Err(std::io::Error::other(
-            "the conflicts .gitignore could not be verified",
-        ));
+    store
+        .write(&gitignore, b"*\n")
+        .map_err(|error| error.to_string())?;
+    let verified = std::fs::read_to_string(&gitignore)
+        .map_err(|error| error.to_string())?
+        .contains('*');
+    if !verified {
+        return Err("the conflicts .gitignore could not be verified".to_owned());
     }
-    clear_stale_dossiers(dir, scheme);
+    clear_stale_dossiers(store, dir, scheme);
     Ok(())
 }
 
 fn persist_dossiers(
     console: &mut Console<'_>,
+    store: &dyn SyncStore,
     dossiers: &[ConflictDossier],
     dir: &Path,
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) {
-    let store = FileCorpusStore::new(dir);
     for dossier in dossiers {
         if !is_token_safe(scheme, &dossier.id) {
             console.warn(format_args!(
@@ -900,18 +951,21 @@ fn persist_dossiers(
 /// is overwritten before it is read.
 fn persist_conflict_dossiers(
     console: &mut Console<'_>,
+    store: &dyn SyncStore,
     dir: &Path,
     dossiers: &[ConflictDossier],
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) {
-    match prepare_conflicts_dir(dir, scheme) {
-        Ok(()) => persist_dossiers(console, dossiers, dir, scheme, render),
+    match prepare_conflicts_dir(store, dir, scheme) {
+        Ok(()) => {
+            persist_dossiers(console, store, dossiers, dir, scheme, render);
+        }
         Err(error) => console.warn(format_args!(
             "warning: conflict dossiers not written — could not guarantee an \
              ignored {} ({})",
             single_line(&dir.display().to_string()),
-            single_line(&error.to_string())
+            single_line(&error)
         )),
     }
 }
@@ -1643,6 +1697,7 @@ pub struct SyncSeams<'a> {
     pub registry: &'a dyn TrackerRegistry,
     pub finaliser: &'a dyn RunFinaliser,
     pub console: Console<'a>,
+    pub stores: StoreFactories<'a>,
 }
 
 /// # Errors
@@ -1666,6 +1721,7 @@ pub fn run_sync(
             registry,
             finaliser,
             console: Console::new(&mut out, &mut err),
+            stores: StoreFactories::production(),
         },
     )
 }
@@ -1682,6 +1738,7 @@ pub fn run_sync_with(
         registry,
         finaliser,
         console,
+        stores,
     } = seams;
     let direction = if args.push_only {
         SyncDirection::PushOnly
@@ -1735,6 +1792,20 @@ pub fn run_sync_with(
             return ExitCode::from(exit_codes::USAGE);
         }
     };
+    let (work, integrations) = match configured_roots(config, &repo_root) {
+        Ok(roots) => roots,
+        Err(error) => {
+            console.warn(error);
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let roots = match ValidatedRoots::check(&work, &integrations, &repo_root) {
+        Ok(roots) => roots,
+        Err(refusal) => {
+            console.warn(configure_failure(&refusal));
+            return ExitCode::from(exit_codes::UNCONFIGURED);
+        }
+    };
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
@@ -1744,20 +1815,8 @@ pub fn run_sync_with(
             return ExitCode::from(code);
         }
     };
-    let work_dir = match crate::config::resolve_work_dir(config, &repo_root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let integrations_root = match integrations_dir(config, &repo_root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
+    let work_dir = roots.work_items.root().to_path_buf();
+    let integrations_root = roots.integrations.root().to_path_buf();
 
     let items = match discover_items(&work_dir) {
         Ok(items) => items,
@@ -1828,11 +1887,10 @@ pub fn run_sync_with(
         }
     };
 
-    let workspace = match IdentityWorkspace::open(
+    let workspace = match IdentityWorkspace::for_sync(
         config,
         &repo_root,
-        &work_dir,
-        &integrations_root,
+        &roots,
         &integration,
     ) {
         Ok(workspace) => workspace,
@@ -1909,8 +1967,14 @@ pub fn run_sync_with(
     };
 
     sweep_kept_recoveries(console, recovery);
+    let stores = SyncStores::bounded(
+        &roots.work_items,
+        &roots.integration_state(&integration),
+        stores,
+    );
     let outcome = assemble_run(
         &RunAssembly {
+            stores: &stores,
             config,
             workspace: &workspace,
             repo_root: &repo_root,
@@ -1944,6 +2008,7 @@ pub fn run_sync_with(
                 scheme: &scheme,
                 discarding: &discarding,
                 finaliser: *finaliser,
+                dossier_store: stores.integration_state.as_ref(),
             },
             &report,
         ),
@@ -1984,6 +2049,7 @@ fn ids_to_discard(
 
 /// What a run's stores and ports are built from.
 struct RunAssembly<'a> {
+    stores: &'a SyncStores,
     config: &'a dyn ConfigAccess,
     workspace: &'a IdentityWorkspace,
     repo_root: &'a Path,
@@ -2005,15 +2071,14 @@ fn assemble_run<T>(
     ) -> T,
 ) -> T {
     let workspace = assembly.workspace;
-    let baseline_path = workspace.baseline_path();
-    let baseline_dir =
-        baseline_path.parent().unwrap_or(assembly.integrations_root);
-    let corpus_store = FileCorpusStore::new(baseline_dir);
+    let stores = assembly.stores;
     let project_store = FileCorpusStore::new(assembly.repo_root);
     let state_store = FileCorpusStore::new(workspace.state_dir());
     let integrations_store = FileCorpusStore::new(assembly.integrations_root);
-    let mut baseline_store = workspace.baseline(&corpus_store);
-    let retirement_baseline = workspace.baseline(&corpus_store);
+    let mut baseline_store =
+        workspace.baseline(stores.integration_state.as_ref());
+    let retirement_baseline =
+        workspace.baseline(stores.integration_state.as_ref());
     let retirement =
         workspace.retirement_ports(&project_store, &retirement_baseline);
     let records = workspace.retirement_records(&state_store);
@@ -2049,8 +2114,8 @@ fn assemble_run<T>(
         parser: &CommonMarkBody,
         status: workspace.status(),
         files: SyncFiles {
-            work_items: &corpus_store,
-            integration_state: &corpus_store,
+            work_items: stores.work_items.as_ref(),
+            integration_state: stores.integration_state.as_ref(),
             file_locks: workspace.locks(),
             recovery: workspace.recovery(),
             tracking: workspace.tracking(),
@@ -2078,6 +2143,7 @@ struct FinishedRunContext<'a> {
     scheme: &'a WorkItemIdScheme,
     discarding: &'a BTreeSet<String>,
     finaliser: &'a dyn RunFinaliser,
+    dossier_store: &'a dyn SyncStore,
 }
 
 impl FinishedRunContext<'_> {
@@ -2165,6 +2231,7 @@ fn report_finished_run(
     match crate::config::resolve_scheme(context.config) {
         Ok(scheme) => persist_conflict_dossiers(
             console,
+            context.dossier_store,
             &conflicts_dir,
             &report.dossiers,
             &scheme,
@@ -2233,7 +2300,8 @@ fn report_stopped_run(
     clippy::expect_used,
     clippy::unwrap_used,
     clippy::unnecessary_wraps,
-    clippy::unimplemented
+    clippy::unimplemented,
+    clippy::panic
 )]
 mod tests {
     use corpus::WorkItemIdScheme;
@@ -2826,12 +2894,10 @@ mod tests {
 
         assert_eq!(
             leftover_marker_warnings(&report),
-            vec![
-                "warning: 0001: could not clear marker \
+            vec!["warning: 0001: could not clear marker \
                  /s/pending-push/0001.json: not writable; the item is \
                  linked, so remove the marker by hand"
-                    .to_owned()
-            ]
+                .to_owned()]
         );
     }
 
@@ -4412,6 +4478,7 @@ mod tests {
 
         super::persist_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &dossiers,
             dir.path(),
             &tracker_scheme(),
@@ -4432,6 +4499,7 @@ mod tests {
 
         super::persist_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &[conflict_dossier("draft-k7mq3x", false)],
             dir.path(),
             &tracker_scheme(),
@@ -4469,6 +4537,7 @@ mod tests {
 
         super::persist_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &dossiers,
             dir.path(),
             &scheme(),
@@ -4496,6 +4565,7 @@ mod tests {
 
         super::persist_conflict_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
             &[conflict_dossier("0001", false)],
             &scheme(),
@@ -4525,6 +4595,7 @@ mod tests {
 
         super::persist_conflict_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
             &[conflict_dossier("0002", false)],
             &scheme(),
@@ -4592,6 +4663,7 @@ mod tests {
 
         super::persist_conflict_dossiers(
             &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
             &[conflict_dossier("0002", false)],
             &scheme(),
@@ -4631,6 +4703,11 @@ mod tests {
     use tracker::RemoteTracker;
     use tracker_test_support::Call;
     use tracker_test_support::RecordingTracker;
+
+    use corpus_adapters::CommonMarkBody;
+    use corpus_adapters::FileCorpusStore;
+    use work_adapters::sync::baseline_store::BaselineStore;
+    use work_adapters::sync::files::SyncStore;
 
     use crate::cli::SyncArgs;
     use crate::finaliser::FinishedRun;
@@ -5041,6 +5118,22 @@ mod tests {
         args: &SyncArgs,
         finaliser: &dyn RunFinaliser,
     ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            args,
+            finaliser,
+            super::stores::StoreFactories::production(),
+        )
+    }
+
+    fn capture_sync_over(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        finaliser: &dyn RunFinaliser,
+        stores: super::stores::StoreFactories<'_>,
+    ) -> CapturedRun {
         let composed = config_adapters::compose(
             dir,
             config_adapters::LegacyPolicy::Reject,
@@ -5056,6 +5149,7 @@ mod tests {
                 registry: &registry,
                 finaliser,
                 console: super::Console::new(&mut out, &mut err),
+                stores,
             },
         );
         CapturedRun {
@@ -5417,6 +5511,780 @@ mod tests {
         std::fs::create_dir_all(baseline.parent().expect("parent"))
             .expect("mkdir");
         std::fs::write(baseline, "not json").expect("seed the baseline");
+    }
+
+    const CLEAN_ITEM: &str = "---\nid: \"0001\"\ntitle: \"Title\"\n\
+                              external_id: \"PP-1\"\n---\n\nOld body\n";
+
+    fn item_path(dir: &Path) -> PathBuf {
+        dir.join("meta/work/0001-title.md")
+    }
+
+    fn baseline_path_in(dir: &Path) -> PathBuf {
+        baseline_under(&dir.join(".accelerator/state/integrations"))
+    }
+
+    fn baseline_under(integrations: &Path) -> PathBuf {
+        integrations.join("jira/last-sync.json")
+    }
+
+    fn git_in(dir: &Path, args: &[&str]) {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git invocation");
+        assert!(status.success(), "git {args:?}");
+    }
+
+    fn commit_all(dir: &Path) {
+        git_in(dir, &["add", "-A"]);
+        git_in(dir, &["commit", "-q", "-m", "seed"]);
+    }
+
+    /// Item `0001` tracked as `PP-1`, holding `local`, with a recipe-1
+    /// baseline entry recording `local` against `remote_body` as of the
+    /// start of 2026.
+    fn synced_item(
+        dir: &Path,
+        tracker: &RecordingTracker,
+        local: &str,
+        remote_body: &str,
+    ) {
+        synced_item_recorded_at(
+            &baseline_path_in(dir),
+            dir,
+            tracker,
+            local,
+            remote_body,
+        );
+    }
+
+    fn synced_item_recorded_at(
+        baseline_path: &Path,
+        dir: &Path,
+        tracker: &RecordingTracker,
+        local: &str,
+        remote_body: &str,
+    ) {
+        std::fs::write(item_path(dir), local).expect("write the item");
+        let baseline_path = baseline_path.to_path_buf();
+        std::fs::create_dir_all(baseline_path.parent().expect("parent"))
+            .expect("mkdir");
+        let writer = FileCorpusStore::new(
+            baseline_path.parent().expect("the baseline's directory"),
+        );
+        let baseline = BaselineStore::new(
+            baseline_path,
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        let fingerprints =
+            work_adapters::sync::baseline_digester::BaselineDigester::new(
+                tracker,
+                &CommonMarkBody,
+            )
+            .digests(local, Some(remote_body))
+            .expect("the item is well formed");
+        baseline
+            .set(
+                "0001",
+                work_adapters::sync::baseline::Entry::recorded(
+                    work_adapters::sync::baseline::SyncStamps {
+                        remote_updated_at: tracker::RemoteTimestamp::Reported(
+                            "2026-01-01T00:00:00Z".to_owned(),
+                        ),
+                        local_synced_at: 0,
+                    },
+                    fingerprints,
+                ),
+            )
+            .expect("seed the baseline");
+    }
+
+    fn edited_remotely(body: &str) -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-1".to_owned()),
+            RemoteIssue {
+                key: ExternalId::new("PP-1".to_owned()),
+                updated: tracker::RemoteTimestamp::Reported(
+                    "2026-02-01T00:00:00Z".to_owned(),
+                ),
+                body: body.to_owned(),
+            },
+        )]))
+    }
+
+    fn frontmatter_of(content: &str) -> &str {
+        let end = content[4..].find("\n---\n").expect("a closing fence") + 4;
+        &content[..end]
+    }
+
+    fn assert_recorded_as_pulled(
+        dir: &Path,
+        tracker: &RecordingTracker,
+        remote_body: &str,
+    ) {
+        assert_recorded_as_pulled_at(
+            &baseline_path_in(dir),
+            dir,
+            tracker,
+            remote_body,
+        );
+    }
+
+    fn assert_recorded_as_pulled_at(
+        baseline_path: &Path,
+        dir: &Path,
+        tracker: &RecordingTracker,
+        remote_body: &str,
+    ) {
+        let content =
+            std::fs::read_to_string(item_path(dir)).expect("read the item");
+        let unused_writer = FileCorpusStore::new(dir);
+        let baseline = BaselineStore::new(
+            baseline_path.to_path_buf(),
+            &corpus_adapters::RealFs,
+            &unused_writer,
+        );
+        let (loaded, _) = baseline.load().expect("the baseline loads");
+        let expected =
+            work_adapters::sync::baseline_digester::BaselineDigester::new(
+                tracker,
+                &CommonMarkBody,
+            )
+            .digests(&content, Some(remote_body))
+            .expect("the pulled item is well formed");
+        let Some(work_adapters::sync::baseline::Entry::Split {
+            legacy,
+            split,
+            ..
+        }) = loaded.get("0001")
+        else {
+            panic!("expected a recipe-1 entry for 0001");
+        };
+        assert_eq!(split, &expected.split, "the split fingerprints");
+        assert_eq!(legacy, &expected.legacy, "the legacy hashes");
+    }
+
+    #[test]
+    fn a_remote_edit_to_a_clean_tracked_item_is_pulled() {
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        let content = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert_eq!(frontmatter_of(&content), frontmatter_of(CLEAN_ITEM));
+        assert_eq!(
+            &content[frontmatter_of(&content).len()..],
+            "\n---\n\nPulled body\n"
+        );
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert!(!run.err.contains("note:"), "{}", run.err);
+        assert!(!run.err.contains("error:"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::SUCCESS);
+
+        let preview = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..sync_args(vec![])
+            },
+        );
+        assert!(!preview.out.contains("0001\t"), "{}", preview.out);
+        assert!(
+            preview.out.contains("#\tsummary\tsynced\t1"),
+            "{}",
+            preview.out
+        );
+        assert_eq!(preview.code, ExitCode::SUCCESS);
+    }
+
+    fn kept_edits_record<'a>(out: &'a str, id: &str) -> Option<Vec<&'a str>> {
+        out.lines()
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .find(|fields| {
+                fields.get(1) == Some(&"kept-edits")
+                    && fields.get(2) == Some(&id)
+            })
+    }
+
+    #[test]
+    fn a_resolve_to_remote_pull_lands_and_keeps_the_local_edits() {
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+        let edited = CLEAN_ITEM.replace("Old body", "Local edit");
+        std::fs::write(item_path(dir.path()), &edited).expect("edit");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                resolutions: vec![("0001".to_owned(), "remote".to_owned())],
+                ..sync_args(vec![])
+            },
+        );
+
+        let content = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert!(content.ends_with("\n---\n\nPulled body\n"), "{content}");
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+        assert!(run.out.contains("0001\tpull\tconflict\t-"), "{}", run.out);
+        let record = kept_edits_record(&run.out, "0001")
+            .unwrap_or_else(|| panic!("no kept-edits record: {}", run.out));
+        assert_eq!(record[3], "this-run", "{record:?}");
+        assert_eq!(
+            Path::new(record[4]).canonicalize().expect("the item"),
+            item_path(dir.path()).canonicalize().expect("the item")
+        );
+        let copy = record[5];
+        assert_eq!(std::fs::read_to_string(copy).expect("the copy"), edited);
+        assert!(
+            run.err.contains(&format!(
+                "note: 0001: kept-edits: local edits kept at {copy}; merge \
+                 them, then run accelerator work sync --target 0001 \
+                 --discard-kept-edits 0001"
+            )),
+            "{}",
+            run.err
+        );
+    }
+
+    fn kept_copy_settles_over_three_runs(dir: &Path) {
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir, &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        let edited = CLEAN_ITEM.replace("Old body", "Local edit");
+        std::fs::write(item_path(dir), &edited).expect("edit");
+        let resolving = SyncArgs {
+            resolutions: vec![("0001".to_owned(), "remote".to_owned())],
+            ..sync_args(vec![])
+        };
+
+        let first = drive_sync_captured(dir, &tracker, &resolving);
+        let kept = kept_edits_record(&first.out, "0001")
+            .unwrap_or_else(|| panic!("no kept copy: {}", first.out));
+        assert_eq!(kept[3], "this-run");
+        let copy = PathBuf::from(kept[5]);
+
+        let second = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        let carried = kept_edits_record(&second.out, "0001")
+            .unwrap_or_else(|| panic!("no carried copy: {}", second.out));
+        assert_eq!(carried[3], "earlier", "{}", second.out);
+        assert!(
+            !second.err.contains("tracked by version control"),
+            "{}",
+            second.err
+        );
+
+        std::fs::write(item_path(dir), &edited).expect("restore the edit");
+        let third = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        assert!(
+            kept_edits_record(&third.out, "0001").is_none(),
+            "{}",
+            third.out
+        );
+        assert!(!copy.exists(), "the settled copy is swept");
+    }
+
+    #[test]
+    fn a_kept_copy_is_read_as_untracked_and_settles_over_three_runs_under_git()
+    {
+        let dir = sync_repo();
+        commit_all(dir.path());
+
+        kept_copy_settles_over_three_runs(dir.path());
+    }
+
+    #[test]
+    fn a_kept_copy_is_read_as_untracked_and_settles_over_three_runs_under_jj() {
+        vcs_test_support::hermetic::assert_jj_matches("0.43.0")
+            .expect("the pinned jj");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let config = tempfile::tempdir().expect("tempdir");
+        let env =
+            vcs_test_support::hermetic::Hermetic::rooted_at(config.path())
+                .expect("an isolated VCS config");
+        env.jj(&["git", "init", "--no-colocate"], dir.path())
+            .expect("jj init");
+        std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join(".accelerator"))
+            .expect("mkdir");
+        team_config(dir.path(), "");
+
+        kept_copy_settles_over_three_runs(dir.path());
+    }
+
+    /// Fails the first baseline write, then writes through `inner`.
+    struct FailingFirstBaselineWrite {
+        inner: Box<dyn SyncStore>,
+        failed: std::cell::Cell<bool>,
+    }
+
+    impl corpus::store::AtomicWrite for FailingFirstBaselineWrite {
+        fn write(
+            &self,
+            path: &Path,
+            bytes: &[u8],
+        ) -> Result<(), corpus::store::StoreError> {
+            if path.ends_with("last-sync.json") && !self.failed.replace(true) {
+                return Err(corpus::store::StoreError::Io {
+                    path: path.display().to_string(),
+                    detail: "injected baseline failure".to_owned(),
+                });
+            }
+            self.inner.write(path, bytes)
+        }
+    }
+
+    impl corpus::store::FileRemove for FailingFirstBaselineWrite {
+        fn remove(&self, path: &Path) -> Result<(), corpus::store::StoreError> {
+            self.inner.remove(path)
+        }
+    }
+
+    /// Writes through `inner`, logging every path written.
+    struct RecordingWrites {
+        inner: Box<dyn SyncStore>,
+        written: Rc<RefCell<Vec<PathBuf>>>,
+    }
+
+    impl corpus::store::AtomicWrite for RecordingWrites {
+        fn write(
+            &self,
+            path: &Path,
+            bytes: &[u8],
+        ) -> Result<(), corpus::store::StoreError> {
+            self.written.borrow_mut().push(path.to_path_buf());
+            self.inner.write(path, bytes)
+        }
+    }
+
+    impl corpus::store::FileRemove for RecordingWrites {
+        fn remove(&self, path: &Path) -> Result<(), corpus::store::StoreError> {
+            self.inner.remove(path)
+        }
+    }
+
+    fn mutations(tracker: &RecordingTracker) -> Vec<Call> {
+        tracker
+            .calls()
+            .into_iter()
+            .filter(|call| {
+                matches!(
+                    call,
+                    Call::Update { .. }
+                        | Call::Retitle { .. }
+                        | Call::Create { .. }
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_terminal_baseline_set_after_a_pull_records_the_baseline_on_the_next_run(
+    ) {
+        use super::stores::rooted_store;
+        use super::stores::StoreFactories;
+
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+        let failing_baseline = |root: &crate::bounded_roots::BoundedRoot| {
+            Box::new(FailingFirstBaselineWrite {
+                inner: rooted_store(root),
+                failed: std::cell::Cell::new(false),
+            }) as Box<dyn SyncStore>
+        };
+        let first = capture_sync_over(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            StoreFactories {
+                work_items: &rooted_store,
+                integration_state: &failing_baseline,
+            },
+        );
+        assert!(
+            first
+                .out
+                .contains("0001\tfailed\tremotely-modified\tterminal"),
+            "{}",
+            first.out
+        );
+        let pulled = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert!(pulled.ends_with("\n---\n\nPulled body\n"), "{pulled}");
+        let mutations_before = mutations(&tracker).len();
+
+        let written = Rc::new(RefCell::new(Vec::new()));
+        let recording_items = |root: &crate::bounded_roots::BoundedRoot| {
+            Box::new(RecordingWrites {
+                inner: rooted_store(root),
+                written: Rc::clone(&written),
+            }) as Box<dyn SyncStore>
+        };
+        let second = capture_sync_over(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            StoreFactories {
+                work_items: &recording_items,
+                integration_state: &rooted_store,
+            },
+        );
+
+        assert!(!second.out.contains("0001\t"), "{}", second.out);
+        assert!(
+            second.out.contains("#\tsummary\tsynced\t1"),
+            "{}",
+            second.out
+        );
+        assert!(
+            !written
+                .borrow()
+                .iter()
+                .any(|path| path.ends_with("0001-title.md")),
+            "{:?}",
+            written.borrow()
+        );
+        assert_eq!(mutations(&tracker).len(), mutations_before);
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+
+        let third = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..sync_args(vec![])
+            },
+        );
+        assert!(!third.out.contains("0001\t"), "{}", third.out);
+        assert_eq!(third.code, ExitCode::SUCCESS);
+    }
+
+    fn team_config(dir: &Path, extra: &str) {
+        std::fs::write(
+            dir.join(".accelerator/config.md"),
+            format!("---\nwork:\n  integration: jira\n{extra}---\n"),
+        )
+        .expect("write the team config");
+    }
+
+    fn personal_config(dir: &Path, yaml: &str) {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join(".accelerator/config.local.md");
+        std::fs::write(&path, format!("---\n{yaml}---\n"))
+            .expect("write the personal config");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .expect("chmod");
+    }
+
+    fn integrations_at(path: &Path) -> String {
+        format!("paths:\n  integrations: \"{}\"\n", path.display())
+    }
+
+    fn assert_refused_before_any_tracker_call(
+        run: &CapturedRun,
+        tracker: &RecordingTracker,
+        cause: &str,
+    ) {
+        assert_eq!(run.code, ExitCode::from(exit_codes::UNCONFIGURED));
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        assert!(
+            run.err
+                .contains(&format!("error: -: configure failed: {cause}")),
+            "{}",
+            run.err
+        );
+    }
+
+    fn is_empty_dir(path: &Path) -> bool {
+        std::fs::read_dir(path)
+            .expect("read the directory")
+            .next()
+            .is_none()
+    }
+
+    #[test]
+    fn a_symlinked_work_root_refuses_the_run_before_any_tracker_call() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let work = dir.path().join("meta/work");
+        std::fs::remove_dir(&work).expect("rmdir");
+        std::os::unix::fs::symlink(elsewhere.path(), &work).expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            &format!(
+                "work directory {} is a symlink outside the repository; move \
+                 it inside the repository",
+                work.display()
+            ),
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_integrations_root_refuses_the_run_before_any_tracker_call() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let state = dir.path().join(".accelerator/state");
+        std::fs::create_dir_all(&state).expect("mkdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            state.join("integrations"),
+        )
+        .expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "integrations directory ",
+        );
+        assert!(
+            run.err.contains(
+                "is a symlink outside the repository; set paths.integrations \
+                 to its absolute target in .accelerator/config.local.md to \
+                 sync it"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_state_root_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            dir.path().join(".accelerator/state"),
+        )
+        .expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            ".accelerator/state is a symlink outside the repository; move it \
+             back inside the repository",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_recovery_parent_refuses_the_run() {
+        for parent in ["sync-recovery", "retirement-recovery"] {
+            let dir = sync_repo();
+            let elsewhere = tempfile::tempdir().expect("tempdir");
+            let state = dir.path().join(".accelerator/state");
+            std::fs::create_dir_all(&state).expect("mkdir");
+            std::os::unix::fs::symlink(elsewhere.path(), state.join(parent))
+                .expect("symlink");
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert_refused_before_any_tracker_call(
+                &run,
+                &tracker,
+                &format!(
+                    ".accelerator/state/{parent} is a symlink to {}; move its \
+                     contents back into .accelerator/state/{parent}/, then \
+                     remove the link",
+                    elsewhere.path().display()
+                ),
+            );
+            assert!(is_empty_dir(elsewhere.path()), "{parent}");
+        }
+    }
+
+    #[test]
+    fn a_nested_integrations_root_inside_the_work_root_refuses_the_run() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  integrations: meta/work/state\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work and paths.integrations overlap; configure them as \
+             separate directories",
+        );
+    }
+
+    #[test]
+    fn overlapping_work_and_integrations_roots_refuse_the_run() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  integrations: meta/work\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work and paths.integrations overlap",
+        );
+    }
+
+    #[test]
+    fn a_work_root_containing_the_state_root_refuses_the_run() {
+        let dir = sync_repo();
+        team_config(
+            dir.path(),
+            "paths:\n  work: .accelerator\n  integrations: integrations\n",
+        );
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work contains .accelerator/state; configure it as a \
+             directory beside it",
+        );
+    }
+
+    #[test]
+    fn a_team_config_root_outside_the_repository_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        team_config(dir.path(), &integrations_at(elsewhere.path()));
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.integrations points outside the repository from the team \
+             config; set it in .accelerator/config.local.md to sync there",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn an_outside_root_from_a_tracked_personal_config_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        personal_config(dir.path(), &integrations_at(elsewhere.path()));
+        git_in(dir.path(), &["add", "-f", ".accelerator/config.local.md"]);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.integrations points outside the repository from a \
+             config.local.md tracked by version control; untrack it",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    fn assert_pulled(run: &CapturedRun) {
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}\n{}",
+            run.out,
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn an_absolute_integrations_root_outside_the_repository_syncs() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let integrations = elsewhere.path().join("integrations");
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item_recorded_at(
+            &baseline_under(&integrations),
+            dir.path(),
+            &tracker,
+            CLEAN_ITEM,
+            "Title\nOld body\n",
+        );
+        commit_all(dir.path());
+        personal_config(dir.path(), &integrations_at(&integrations));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_pulled(&run);
+        assert_recorded_as_pulled_at(
+            &baseline_under(&integrations),
+            dir.path(),
+            &tracker,
+            remote_body,
+        );
+        assert!(!baseline_path_in(dir.path()).exists());
+    }
+
+    #[test]
+    fn a_dotdot_configured_integrations_root_pulls() {
+        let dir = sync_repo();
+        team_config(
+            dir.path(),
+            "paths:\n  integrations: \
+             .accelerator/../.accelerator/state/integrations\n",
+        );
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_pulled(&run);
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+    }
+
+    #[test]
+    fn a_team_in_repo_paths_work_raises_no_consent_warning() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  work: meta/work\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        assert!(!run.err.contains("consent"), "{}", run.err);
+        assert!(!run.err.contains("E_CONSENT"), "{}", run.err);
     }
 
     #[test]
