@@ -6,8 +6,13 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::KeptRecovery;
+use corpus::store::RecoveryCopies;
 use corpus::store::StoreError;
 use corpus_adapters::CommonMarkBody;
 use tracker::BodyDialect;
@@ -18,6 +23,7 @@ use tracker::RemoteTimestamp;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use tracker_test_support::Rewrite;
+use vcs::tracking::RepositoryTracking;
 use work::sync::Action;
 use work::sync::Dirtiness;
 use work::sync::LegacyHashes;
@@ -33,6 +39,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::ReportedItem;
@@ -89,6 +96,90 @@ impl AtomicWrite for Store {
             path: path.display().to_string(),
             detail: error.to_string(),
         })
+    }
+}
+
+/// The lock and recovery ports of a run, recording each kept copy and able
+/// to edit an item at the moment its lock is taken or its copy is kept, as
+/// an editor saving mid-pull would.
+#[derive(Default)]
+struct FileEvents {
+    edit_on_lock: RefCell<Option<(PathBuf, String)>>,
+    edit_on_kept: RefCell<Option<(PathBuf, String)>>,
+    kept: RefCell<Vec<PathBuf>>,
+}
+
+#[allow(clippy::expect_used)]
+fn edit_once(edit: &RefCell<Option<(PathBuf, String)>>, path: &Path) {
+    let due = edit
+        .borrow()
+        .as_ref()
+        .is_some_and(|(edited, _)| edited == path);
+    if due {
+        let (edited, content) = edit.borrow_mut().take().expect("due");
+        std::fs::write(edited, content).expect("the item is edited");
+    }
+}
+
+impl ExclusiveLock for FileEvents {
+    fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError> {
+        if let LockName::ForFile(path) = name {
+            edit_once(&self.edit_on_lock, path);
+        }
+        Ok(HeldLock::new(()))
+    }
+
+    fn clear_abandoned(&self, _name: &LockName) {}
+}
+
+impl RecoveryCopies for FileEvents {
+    fn exists(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn prepare(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn write_once(
+        &self,
+        _dir: &Path,
+        _original: &Path,
+        _bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn mark_restore_pending(
+        &self,
+        dir: &Path,
+        unrestored: &[PathBuf],
+    ) -> Result<(), StoreError> {
+        self.kept.borrow_mut().push(dir.to_path_buf());
+        for path in unrestored {
+            edit_once(&self.edit_on_kept, path);
+        }
+        Ok(())
+    }
+
+    fn is_restore_pending(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn mark_completed(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn remove_dir(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn kept(&self, _parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn copy_settled(&self, _dir: &Path, _original: &Path) -> bool {
+        true
     }
 }
 
@@ -217,6 +308,8 @@ pub struct Repo {
     pub items: Vec<LocalItem>,
     pub tracker: RecordingTracker,
     store: Store,
+    events: FileEvents,
+    tracking: Option<Box<dyn RepositoryTracking>>,
 }
 
 #[allow(clippy::expect_used, clippy::panic)]
@@ -363,6 +456,8 @@ impl Repo {
                 .collect(),
             tracker,
             store,
+            events: FileEvents::default(),
+            tracking: None,
         }
     }
 
@@ -377,9 +472,18 @@ impl Repo {
             tracker: &self.tracker,
             parser: &CommonMarkBody,
             status: &Clean,
-            files: super::sync_files(&self.store),
+            files: SyncFiles {
+                file_locks: &self.events,
+                recovery: &self.events,
+                tracking: self
+                    .tracking
+                    .as_deref()
+                    .unwrap_or(&super::AllTracked),
+                ..super::sync_files(&self.store)
+            },
             clock: &FixedClock,
             author: &author,
+            recovery_labels: &super::LabelsEveryId,
         };
         let mut store = BaselineStore::new(
             PathBuf::from(BASELINE_PATH),
@@ -429,6 +533,40 @@ impl Repo {
             &BTreeMap::from([(id(index), resolution)]),
             RunMode::Apply,
         )
+    }
+
+    /// Asks the repositories enclosing the items whether each is tracked,
+    /// rather than answering that every one is.
+    #[must_use]
+    pub fn asking_the_repository(mut self) -> Self {
+        self.tracking = Some(Box::new(vcs_adapters::InProcessTracking));
+        self
+    }
+
+    pub fn root(&self) -> &Path {
+        self.dir.path()
+    }
+
+    /// Rewrites item `index` to `content` once, when a pull takes its lock.
+    #[must_use]
+    pub fn editing_when_locked(self, index: usize, content: &str) -> Self {
+        *self.events.edit_on_lock.borrow_mut() =
+            Some((self.path(index).to_path_buf(), content.to_owned()));
+        self
+    }
+
+    /// Rewrites item `index` to `content` once, when a pull has kept its
+    /// edits.
+    #[must_use]
+    pub fn editing_when_kept(self, index: usize, content: &str) -> Self {
+        *self.events.edit_on_kept.borrow_mut() =
+            Some((self.path(index).to_path_buf(), content.to_owned()));
+        self
+    }
+
+    /// Every directory a run kept local edits in, in the order kept.
+    pub fn kept_edits(&self) -> Vec<PathBuf> {
+        self.events.kept.borrow().clone()
     }
 
     pub fn read(&self, index: usize) -> String {

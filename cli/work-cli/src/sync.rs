@@ -1,6 +1,7 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
 mod console;
+mod recovery_labels;
 
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
@@ -16,7 +17,6 @@ use ::config::tracker_block::read_block;
 use ::config::tracker_block::BlockName;
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
-use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -33,6 +33,7 @@ use work::sync::RunClock;
 use work::sync::SyncDirection;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
+use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::retirement::sweep_recoveries;
@@ -1707,8 +1708,8 @@ pub fn run_sync_with(
             work_dir: &work_dir,
             integrations_root: &integrations_root,
             tracker: tracker.as_ref(),
-            ownership: scheme.ownership(),
             identity_run: &identity_run,
+            scheme: &scheme,
         },
         |ports, settlement, baseline| {
             for warning in
@@ -1756,8 +1757,8 @@ struct RunAssembly<'a> {
     work_dir: &'a Path,
     integrations_root: &'a Path,
     tracker: &'a dyn tracker::RemoteTracker,
-    ownership: IdOwnership,
     identity_run: &'a IdentityRunGuard,
+    scheme: &'a WorkItemIdScheme,
 }
 
 /// Builds the stores and ports a run writes through and hands them to
@@ -1794,7 +1795,7 @@ fn assemble_run<T>(
         retirement: &retirement,
         records: &records,
         promotions: &promotions,
-        ownership: assembly.ownership,
+        ownership: assembly.scheme.ownership(),
         state_dir: workspace.state_dir(),
         probe_status: &probe_status,
         remote: work_adapters::promotion::RemoteReading {
@@ -1818,9 +1819,15 @@ fn assemble_run<T>(
             work_items: &corpus_store,
             integration_state: &corpus_store,
             file_locks: workspace.locks(),
+            recovery: workspace.recovery(),
+            tracking: workspace.tracking(),
         },
         clock: &clock,
         author: &author,
+        recovery_labels: &recovery_labels::DrawnRecoveryLabels::new(
+            assembly.scheme,
+            RandomSuffixDraws,
+        ),
     };
     run(&ports, &settlement, &mut baseline_store)
 }
@@ -2492,6 +2499,7 @@ mod tests {
             },
             outcome: ItemOutcome::NotApplied,
             validation: None,
+            kept_edits: None,
         }
     }
 
@@ -2512,6 +2520,7 @@ mod tests {
                 source,
             }),
             validation: None,
+            kept_edits: None,
         }
     }
 
@@ -3588,6 +3597,7 @@ mod tests {
             },
             outcome: ItemOutcome::Failed(error),
             validation: None,
+            kept_edits: None,
         }
     }
 
@@ -3607,6 +3617,7 @@ mod tests {
             },
             outcome,
             validation: None,
+            kept_edits: None,
         }
     }
 
@@ -3641,6 +3652,7 @@ mod tests {
             },
             outcome: ItemOutcome::Applied,
             validation: None,
+            kept_edits: None,
         }]);
 
         let rendered = render_report(&report);

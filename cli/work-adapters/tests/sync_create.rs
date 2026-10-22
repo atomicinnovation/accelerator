@@ -242,6 +242,7 @@ fn run_sync(
         files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
@@ -287,6 +288,7 @@ fn run_sync_targeted(
         files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
@@ -334,6 +336,7 @@ fn run_sync_targeted_pull(
         files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
@@ -380,6 +383,7 @@ fn run_at(
         files: support::sync_files(&fixture.spy),
         clock: &clock,
         author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -1637,6 +1641,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
             files: support::sync_files(&failing),
             clock: &clock,
             author: &author,
+            recovery_labels: &support::LabelsEveryId,
         };
         let mut store = BaselineStore::new(
             PathBuf::from(BASELINE_PATH),
@@ -1862,6 +1867,7 @@ fn create_from_local_writes_the_marker_before_the_create(
         files: support::sync_files(&real),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let baseline_path = fixture.dir.path().join("last-sync.json");
     std::fs::write(&baseline_path, baseline_document(&[]))?;
@@ -2121,6 +2127,7 @@ fn run_create_from_local_on_disk(
         files: support::sync_files(&real),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let baseline_path = fixture.dir.path().join("last-sync.json");
     std::fs::write(&baseline_path, baseline_document(&[]))

@@ -342,6 +342,7 @@ mod tests {
             },
             outcome,
             validation: None,
+            kept_edits: None,
         }
     }
 

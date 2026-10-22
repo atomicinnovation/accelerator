@@ -1737,6 +1737,7 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
             files: support::sync_files(&writer),
             clock: &Clock,
             author: &NoAuthor,
+            recovery_labels: &support::LabelsEveryId,
         },
         &mut baseline,
         &SyncRequest {

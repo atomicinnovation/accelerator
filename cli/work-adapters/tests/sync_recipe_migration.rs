@@ -334,6 +334,7 @@ fn sync(harness: &Harness, settings: &Run<'_>) -> RunReport {
         files: support::sync_files(&harness.spy),
         clock: &FixedClock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
