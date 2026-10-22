@@ -89,6 +89,7 @@ struct Repo {
     locks: Locks,
     items: Vec<LocalItem>,
     scheme: WorkItemIdScheme,
+    discarding: BTreeSet<String>,
 }
 
 impl Repo {
@@ -104,6 +105,7 @@ impl Repo {
             locks: Locks::default(),
             items: Vec::new(),
             scheme: WorkItemIdScheme::numeric(),
+            discarding: BTreeSet::new(),
         }
     }
 
@@ -152,7 +154,13 @@ impl Repo {
             work_root: self.root.path().join("meta/work"),
             scheme: &self.scheme,
             corpus: &self.items,
+            discarding: &self.discarding,
         }
+    }
+
+    fn discarding(mut self, id: &str) -> Self {
+        self.discarding.insert(id.to_owned());
+        self
     }
 
     fn review(&self) -> Vec<KeptEdits> {
@@ -621,4 +629,161 @@ fn a_copy_without_a_record_is_matched_to_its_item_by_its_mirrored_path() {
         vec![KeptEdits::KeptEarlier(kept_copy(&repo, "0001", dir, &item))]
     );
     assert!(repo.location(dir).is_dir());
+}
+
+fn discarding(entry: KeptEdits, dir: &Path, item: Option<&Path>) -> KeptEdits {
+    KeptEdits::Discarding {
+        entry: Box::new(entry),
+        dir: dir.to_path_buf(),
+        item: item.map(Path::to_path_buf),
+    }
+}
+
+#[test]
+fn a_named_items_kept_copies_are_discarded() {
+    let mut repo = Repo::new().discarding("0001");
+    let item = repo.item("0001", SYNCED);
+    let dir = repo.keep("1700000000-k7mq3x-0001", &item, EDITED);
+
+    assert_eq!(
+        repo.review(),
+        vec![discarding(
+            KeptEdits::KeptEarlier(kept_copy(&repo, "0001", &dir, &item)),
+            &dir,
+            Some(&item)
+        )]
+    );
+    assert_eq!(
+        repo.sweep(),
+        vec![KeptEdits::Discarded {
+            id: "0001".to_owned(),
+            directory: repo.location(&dir),
+        }]
+    );
+    assert!(!repo.location(&dir).exists());
+}
+
+#[test]
+fn a_preview_discards_nothing() {
+    let mut repo = Repo::new().discarding("0001");
+    let item = repo.item("0001", SYNCED);
+    let dir = repo.keep("1700000000-k7mq3x-0001", &item, EDITED);
+
+    repo.review();
+
+    assert!(repo.location(&dir).is_dir());
+}
+
+#[test]
+fn this_runs_copy_is_not_discarded() {
+    let mut repo = Repo::new().discarding("0001");
+    let item = repo.item("0001", SYNCED);
+    let dir = repo.keep("1700000000-k7mq3x-0001", &item, EDITED);
+    let retention = repo.retention();
+    let review = retention
+        .review(&BTreeSet::from([dir.clone()]))
+        .expect("the review");
+
+    let swept = retention.sweep(review);
+
+    assert_eq!(
+        swept.entries,
+        vec![KeptEdits::KeptThisRun(kept_copy(
+            &repo, "0001", &dir, &item
+        ))]
+    );
+    assert!(repo.location(&dir).is_dir());
+}
+
+#[test]
+fn an_unrecorded_directory_is_discarded_by_its_id() {
+    let repo = Repo::new().discarding("0001");
+    let dir = Path::new("sync-recovery/1700000000-k7mq3x-0001");
+    repo.recovery.prepare(dir).expect("prepare");
+
+    assert_eq!(
+        repo.sweep(),
+        vec![KeptEdits::Discarded {
+            id: "0001".to_owned(),
+            directory: repo.location(dir),
+        }]
+    );
+    assert!(!repo.location(dir).exists());
+}
+
+#[test]
+fn a_discard_naming_no_kept_copy_says_so() {
+    let repo = Repo::new().discarding("0009");
+
+    assert_eq!(
+        repo.review(),
+        vec![KeptEdits::NothingToDiscard {
+            id: "0009".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn a_discard_whose_item_lock_cannot_be_taken_keeps_the_copy() {
+    let mut repo = Repo::new().discarding("0001");
+    let item = repo.item("0001", SYNCED);
+    let dir = repo.keep("1700000000-k7mq3x-0001", &item, EDITED);
+    *repo.locks.refused.borrow_mut() = true;
+
+    let swept = repo.sweep();
+
+    assert!(
+        matches!(swept.as_slice(), [KeptEdits::NotDiscarded { .. }]),
+        "{swept:?}"
+    );
+    assert!(repo.location(&dir).is_dir());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_discard_whose_removal_fails_keeps_the_directory_and_says_so() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let mut repo = Repo::new().discarding("0001");
+    let item = repo.item("0001", SYNCED);
+    let dir = repo.keep("1700000000-k7mq3x-0001", &item, EDITED);
+    let parent = repo.location(Path::new("sync-recovery"));
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o555))
+        .expect("read-only");
+    let still_writable = fs::write(parent.join("probe"), "").is_ok();
+
+    let swept = repo.sweep();
+
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o755))
+        .expect("writable again");
+    if still_writable {
+        return;
+    }
+    let [KeptEdits::NotDiscarded { entry, reason }] = swept.as_slice() else {
+        panic!("the discard fails: {swept:?}");
+    };
+    assert_eq!(
+        **entry,
+        KeptEdits::KeptEarlier(kept_copy(&repo, "0001", &dir, &item))
+    );
+    assert!(reason.contains("ermission denied"), "{reason}");
+    assert!(repo.location(&dir).is_dir());
+}
+
+#[cfg(unix)]
+#[test]
+fn discarding_a_symlinked_entry_removes_only_the_link() {
+    let repo = Repo::new().discarding("0001");
+    let outside = TempDir::new().expect("outside");
+    fs::write(outside.path().join("keep.md"), "kept").expect("a file");
+    let dir = Path::new("sync-recovery/1700000000-k7mq3x-0001");
+    fs::create_dir_all(repo.location(Path::new("sync-recovery")))
+        .expect("parent");
+    std::os::unix::fs::symlink(outside.path(), repo.location(dir))
+        .expect("a link");
+
+    repo.sweep();
+
+    assert!(fs::symlink_metadata(repo.location(dir)).is_err());
+    assert!(outside.path().join("keep.md").is_file());
 }

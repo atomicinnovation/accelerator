@@ -412,6 +412,11 @@ pub struct SyncArgs {
     /// path. Naming any target suppresses untracked-remote discovery.
     #[arg(long = "target")]
     pub targets: Vec<String>,
+    /// Remove the local edits an earlier pull kept for this work item;
+    /// repeatable. A discard happens on an apply run, so the narrow form is
+    /// `--target <id> --discard-kept-edits <id>`.
+    #[arg(long = "discard-kept-edits", value_name = "ID")]
+    pub discard_kept_edits: Vec<String>,
 }
 
 /// `work promote`'s arguments, boxed for the same reason as [`CreateArgs`].

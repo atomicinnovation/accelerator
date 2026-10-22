@@ -70,6 +70,59 @@ pub enum KeptEdits {
         kept: KeptCopy,
         reason: String,
     },
+    /// A person named its item to discard; the sweep removes `dir`.
+    Discarding {
+        entry: Box<Self>,
+        dir: PathBuf,
+        item: Option<PathBuf>,
+    },
+    Discarded {
+        id: String,
+        directory: PathBuf,
+    },
+    NotDiscarded {
+        entry: Box<Self>,
+        reason: String,
+    },
+    /// A person named an item to discard that has no kept copy.
+    NothingToDiscard {
+        id: String,
+    },
+}
+
+impl KeptEdits {
+    /// The item the entry keeps edits of, when known.
+    #[must_use]
+    pub fn id(&self) -> Option<&str> {
+        match self {
+            Self::KeptThisRun(kept)
+            | Self::KeptEarlier(kept)
+            | Self::Settled { kept, .. }
+            | Self::NotRemoved { kept, .. } => Some(&kept.id),
+            Self::Unrecorded { id, .. } => id.as_deref(),
+            Self::Discarding { entry, .. }
+            | Self::NotDiscarded { entry, .. } => entry.id(),
+            Self::Discarded { id, .. } | Self::NothingToDiscard { id } => {
+                Some(id)
+            }
+        }
+    }
+
+    /// The directory the entry is about, on disk.
+    #[must_use]
+    pub fn directory(&self) -> Option<&Path> {
+        match self {
+            Self::KeptThisRun(kept)
+            | Self::KeptEarlier(kept)
+            | Self::Settled { kept, .. }
+            | Self::NotRemoved { kept, .. } => Some(&kept.directory),
+            Self::Unrecorded { directory, .. }
+            | Self::Discarded { directory, .. } => Some(directory),
+            Self::Discarding { entry, .. }
+            | Self::NotDiscarded { entry, .. } => entry.directory(),
+            Self::NothingToDiscard { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +137,8 @@ pub struct KeptEditsRetention<'a> {
     pub work_root: PathBuf,
     pub scheme: &'a WorkItemIdScheme,
     pub corpus: &'a [LocalItem],
+    /// The items whose earlier copies a person asked to discard.
+    pub discarding: &'a BTreeSet<String>,
 }
 
 /// The files directly or deeply under a directory, and whether any entry
@@ -105,7 +160,7 @@ impl KeptEditsRetention<'_> {
         &self,
         this_run: &BTreeSet<PathBuf>,
     ) -> Result<KeptEditsReview, StoreError> {
-        let entries = self
+        let mut entries: Vec<KeptEdits> = self
             .recovery
             .all_entries(Path::new(PARENT))?
             .into_iter()
@@ -113,17 +168,77 @@ impl KeptEditsRetention<'_> {
                 if this_run.contains(&entry.path) {
                     self.kept_this_run(&entry.path)
                 } else if entry.kind == EntryKind::Directory {
-                    self.kept_earlier(&entry.path)
+                    self.named_for_discard(
+                        self.kept_earlier(&entry.path),
+                        &entry.path,
+                    )
                 } else {
-                    self.unrecorded(&entry.path, Provenance::Unknown)
+                    self.named_for_discard(
+                        self.unrecorded(&entry.path, Provenance::Unknown),
+                        &entry.path,
+                    )
                 }
             })
             .collect();
+        let found: BTreeSet<String> = entries
+            .iter()
+            .filter_map(|entry| entry.id().map(str::to_owned))
+            .collect();
+        entries.extend(
+            self.discarding
+                .difference(&found)
+                .map(|id| KeptEdits::NothingToDiscard { id: id.clone() }),
+        );
         Ok(KeptEditsReview { entries })
     }
 
+    fn named_for_discard(&self, entry: KeptEdits, dir: &Path) -> KeptEdits {
+        if !entry.id().is_some_and(|id| self.discarding.contains(id)) {
+            return entry;
+        }
+        let item = match &entry {
+            KeptEdits::KeptEarlier(kept) | KeptEdits::Settled { kept, .. } => {
+                Some(kept.item.clone())
+            }
+            _ => None,
+        };
+        KeptEdits::Discarding {
+            entry: Box::new(entry),
+            dir: dir.to_path_buf(),
+            item,
+        }
+    }
+
+    fn discard(
+        &self,
+        entry: KeptEdits,
+        dir: &Path,
+        item: Option<&Path>,
+    ) -> KeptEdits {
+        let held = item.map(|item| {
+            self.locks.acquire(&LockName::ForFile(item.to_path_buf()))
+        });
+        if let Some(Err(error)) = held {
+            return KeptEdits::NotDiscarded {
+                entry: Box::new(entry),
+                reason: error.to_string(),
+            };
+        }
+        match self.recovery.remove_dir(dir) {
+            Ok(()) => KeptEdits::Discarded {
+                id: entry.id().unwrap_or_default().to_owned(),
+                directory: self.recovery.location(dir),
+            },
+            Err(error) => KeptEdits::NotDiscarded {
+                entry: Box::new(entry),
+                reason: error.to_string(),
+            },
+        }
+    }
+
     /// Removes exactly the directories `review` found settled, each only
-    /// while its item's lock is held and it is still settled.
+    /// while its item's lock is held and it is still settled, and those a
+    /// person named to discard, under the item's lock when it is known.
     #[must_use]
     pub fn sweep(&self, review: KeptEditsReview) -> KeptEditsReview {
         let entries = review
@@ -132,6 +247,9 @@ impl KeptEditsRetention<'_> {
             .filter_map(|entry| match entry {
                 KeptEdits::Settled { kept, recorded } => {
                     self.remove_settled(kept, &recorded)
+                }
+                KeptEdits::Discarding { entry, dir, item } => {
+                    Some(self.discard(*entry, &dir, item.as_deref()))
                 }
                 other => Some(other),
             })
