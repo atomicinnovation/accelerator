@@ -17,16 +17,16 @@ use crate::launch::core::tree_entry::{EntryKind, ExtractionLimits};
 
 use super::super::cache_root;
 use super::super::fetcher::Fetcher;
-use super::super::filesystem::SystemFilesystem;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
 use super::attestation::Attestation;
 use super::download::Resumption;
 use super::layout::{
-    generation_name, generation_prefix, is_privately_owned, read_pointer,
+    generation_name, generation_prefix, is_privately_owned,
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
+use super::pinned_prune::{prune_pinned_artifact, PinnedPruneCollaborators};
 use super::table::{FileTable, TABLE_NAME};
 use super::tree_lock::HeldTreeLock;
 use super::{claims, download, extract, pins, reap, seal};
@@ -751,13 +751,8 @@ impl TreeResolver<'_> {
         }
     }
 
-    /// Reclaim residue for one artifact under its single-flight lock.
-    ///
-    /// Another artifact's temp residue is removed only under that artifact's
-    /// tree lock, taken without blocking, or, all but its partial archives,
-    /// when that artifact has no lock file; the reap module records why.
-    /// Every artifact's pinned partial archive is spared, so a resumable
-    /// download survives.
+    /// Reclaim residue for one artifact under its single-flight lock; see
+    /// [`prune_pinned_artifact`].
     ///
     /// # Errors
     ///
@@ -768,116 +763,16 @@ impl TreeResolver<'_> {
         artifact: &str,
         older_than: Option<Duration>,
     ) -> Result<reap::Reclaimed, TreeError> {
-        let paths = self.paths();
-        let held = HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
-
-        // First reclaim any pointed-at generation whose digest no installed
-        // launcher has claimed inside the window — the running launcher's own
-        // expected digest is spared, since it just refreshed its claim.
-        let mut reclaimed =
-            self.reclaim_unclaimed(&paths, artifact, older_than);
-
-        let orphans = self.reaper(&held).reap_orphans()?;
-        reclaimed.entries += orphans.entries;
-        Ok(reclaimed)
-    }
-
-    /// Remove pointers, and the generations they name, whose digest has no
-    /// fresh claim — the running launcher's own expected digest excepted.
-    fn reclaim_unclaimed(
-        &self,
-        paths: &TreePaths,
-        artifact: &str,
-        older_than: Option<Duration>,
-    ) -> reap::Reclaimed {
-        let window = older_than.unwrap_or(claims::CLAIM_WINDOW);
-        let own = self.expected_digest(artifact);
-        let mut reclaimed = reap::Reclaimed::default();
-        for (pointer, digest, target) in self.artifact_pointers(paths, artifact)
-        {
-            let PointerTarget::Current(generation) = target else {
-                continue;
-            };
-            if own.as_deref() == Some(digest.as_str()) {
-                continue;
-            }
-            if claims::claimed_within(paths, &digest, window, self.clock) {
-                continue;
-            }
-            if !reap::unclaimed_is_reclaimable(
-                self.liveness.probe(&paths.lease(&generation)),
-                reap::generation_is_aged(paths, &generation, self.clock),
-            ) {
-                continue;
-            }
-            let _ = std::fs::remove_file(&pointer);
-            if std::fs::remove_dir_all(paths.generation(&generation)).is_ok() {
-                reclaimed.entries += 1;
-            }
-            for sidecar in reap::sidecars_of(paths, &generation) {
-                let _ = std::fs::remove_file(sidecar);
-            }
-            claims::drop_all(paths, &digest);
-        }
-        reclaimed
-    }
-
-    /// The `(pointer path, digest, target)` of every pointer this artifact
-    /// currently publishes.
-    fn artifact_pointers(
-        &self,
-        paths: &TreePaths,
-        artifact: &str,
-    ) -> Vec<(PathBuf, String, PointerTarget)> {
-        let prefix = format!("{artifact}-{}-", self.platform);
-        let Ok(entries) = std::fs::read_dir(paths.root()) else {
-            return Vec::new();
-        };
-        let mut pointers = Vec::new();
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            let Some(digest) = name
-                .strip_prefix(&prefix)
-                .and_then(|rest| rest.strip_suffix(".ref"))
-            else {
-                continue;
-            };
-            let target = PointerTarget::of(
-                read_pointer(&entry.path(), &SystemFilesystem),
-                &Artifact::new(artifact, &self.platform),
-                digest,
-            );
-            pointers.push((entry.path(), digest.to_owned(), target));
-        }
-        pointers
-    }
-}
-
-/// What a pointer's contents name, judged by the grammar `locate` holds a
-/// pointer to before any of it becomes a path.
-enum PointerTarget {
-    Current(String),
-    OtherLayout,
-    Malformed,
-}
-
-impl PointerTarget {
-    fn of(contents: Option<String>, artifact: &Artifact, digest: &str) -> Self {
-        let Some(contents) = contents else {
-            return Self::Malformed;
-        };
-        match validated_generation(
-            &contents,
-            artifact.name(),
-            artifact.platform(),
-            digest,
-            LAYOUT_VERSION,
-        ) {
-            Ok(generation) => Self::Current(generation),
-            Err(TreeError::LayoutUnsupported { .. }) => Self::OtherLayout,
-            Err(_) => Self::Malformed,
-        }
+        prune_pinned_artifact(
+            &self.paths(),
+            &self.on_this_platform(artifact),
+            &PinnedPruneCollaborators {
+                clock: self.clock,
+                liveness: self.liveness,
+                pins: &self.expected_digests,
+            },
+            older_than,
+        )
     }
 }
 
