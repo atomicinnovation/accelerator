@@ -1177,6 +1177,7 @@ mod tests {
                     inner: FileCorpusStore::new(root),
                     applies,
                     left: std::cell::Cell::new(left),
+                    error: crate::test_support::injected,
                 })
             };
             run_with(

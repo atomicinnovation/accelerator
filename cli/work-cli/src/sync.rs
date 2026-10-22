@@ -6156,6 +6156,504 @@ mod tests {
         assert_eq!(third.code, ExitCode::SUCCESS);
     }
 
+    fn numbered_item(id: &str, key: &str, body: &str) -> String {
+        format!(
+            "---\nid: \"{id}\"\ntitle: \"Title\"\nexternal_id: \"{key}\"\n\
+             ---\n\n{body}"
+        )
+    }
+
+    fn numbered_path(dir: &Path, id: &str) -> PathBuf {
+        dir.join(format!("meta/work/{id}-title.md"))
+    }
+
+    /// Items each tracked under their key, recorded in sync with the
+    /// remote's old body, whose remote side now holds a new body.
+    fn edited_remotely_numbered(
+        dir: &Path,
+        items: &[(&str, &str)],
+    ) -> Rc<RecordingTracker> {
+        let tracker = Rc::new(RecordingTracker::holding(
+            items
+                .iter()
+                .map(|(_, key)| {
+                    (
+                        ExternalId::new((*key).to_owned()),
+                        RemoteIssue {
+                            key: ExternalId::new((*key).to_owned()),
+                            updated: tracker::RemoteTimestamp::Reported(
+                                "2026-02-01T00:00:00Z".to_owned(),
+                            ),
+                            body: "Title\nPulled body\n".to_owned(),
+                        },
+                    )
+                })
+                .collect(),
+        ));
+        let writer = FileCorpusStore::new(
+            baseline_path_in(dir)
+                .parent()
+                .expect("a baseline directory"),
+        );
+        std::fs::create_dir_all(
+            baseline_path_in(dir)
+                .parent()
+                .expect("a baseline directory"),
+        )
+        .expect("mkdir");
+        let baseline = BaselineStore::new(
+            baseline_path_in(dir),
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        for (id, key) in items {
+            let local = numbered_item(id, key, "Old body\n");
+            std::fs::write(numbered_path(dir, id), &local)
+                .expect("write the item");
+            let fingerprints =
+                work_adapters::sync::baseline_digester::BaselineDigester::new(
+                    tracker.as_ref(),
+                    &CommonMarkBody,
+                )
+                .digests(&local, Some("Title\nOld body\n"))
+                .expect("the item is well formed");
+            baseline
+                .set(
+                    id,
+                    work_adapters::sync::baseline::Entry::recorded(
+                        work_adapters::sync::baseline::SyncStamps {
+                            remote_updated_at:
+                                tracker::RemoteTimestamp::Reported(
+                                    "2026-01-01T00:00:00Z".to_owned(),
+                                ),
+                            local_synced_at: 0,
+                        },
+                        fingerprints,
+                    ),
+                )
+                .expect("seed the baseline");
+        }
+        commit_all(dir);
+        tracker
+    }
+
+    fn recorded_entry(
+        dir: &Path,
+        id: &str,
+    ) -> Option<work_adapters::sync::baseline::Entry> {
+        let unused_writer = FileCorpusStore::new(dir);
+        let baseline = BaselineStore::new(
+            baseline_path_in(dir),
+            &corpus_adapters::RealFs,
+            &unused_writer,
+        );
+        let (loaded, _) = baseline.load().expect("the baseline loads");
+        loaded.get(id).cloned()
+    }
+
+    type StoreFactory =
+        dyn Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore>;
+
+    fn failing_work_items(
+        applies: fn(&Path) -> bool,
+        error: fn(&Path) -> corpus::store::StoreError,
+    ) -> impl Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore> {
+        move |root| {
+            Box::new(crate::test_support::Faults {
+                inner: super::stores::rooted_store(root),
+                applies,
+                left: std::cell::Cell::new(1),
+                error,
+            }) as Box<dyn SyncStore>
+        }
+    }
+
+    fn not_writable(path: &Path) -> corpus::store::StoreError {
+        corpus::store::StoreError::NotWritable {
+            path: path.display().to_string(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        }
+    }
+
+    fn capture_with_stores(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        work_items: &StoreFactory,
+        integration_state: &StoreFactory,
+    ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            super::stores::StoreFactories {
+                work_items,
+                integration_state,
+            },
+        )
+    }
+
+    fn error_lines(err: &str) -> Vec<&str> {
+        err.lines()
+            .filter(|line| line.starts_with("error:"))
+            .collect()
+    }
+
+    #[test]
+    fn a_write_refused_for_permission_after_the_lock_is_retryable() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                not_writable,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(errors[0].starts_with("error: 0001: write-local failed: "));
+        assert!(errors[0].contains("Permission denied"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_failed_work_item_write_is_retryable() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(errors[0].contains("write-local"), "{}", run.err);
+        assert!(errors[0].contains("injected"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_failed_baseline_write_after_a_pull_is_terminal() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let before = recorded_entry(dir.path(), "0001");
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &super::stores::rooted_store,
+            &failing_work_items(
+                |path| path.ends_with("last-sync.json"),
+                crate::test_support::injected,
+            ),
+        );
+
+        let content =
+            std::fs::read_to_string(numbered_path(dir.path(), "0001"))
+                .expect("read the item");
+        assert!(content.ends_with("\n---\n\nPulled body\n"), "{content}");
+        assert_eq!(recorded_entry(dir.path(), "0001"), before);
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tterminal"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert!(
+            errors.iter().any(|line| line
+                .starts_with("error: 0001: baseline-set failed: after pull: ")
+                && line.contains("injected")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn another_items_successful_pull_does_not_make_a_failure_terminal() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(
+            dir.path(),
+            &[("0001", "PP-1"), ("0002", "PP-2")],
+        );
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0002-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out
+                .contains("0002\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_conflict_beside_a_local_failure_shows_both_rows() {
+        for (applies, row, code) in [
+            (
+                (|path: &Path| path.ends_with("0002-title.md"))
+                    as fn(&Path) -> bool,
+                "0002\tfailed\tremotely-modified\tretryable",
+                super::exit_codes::UNRESOLVED,
+            ),
+            (
+                |path: &Path| path.ends_with("last-sync.json"),
+                "0002\tfailed\tremotely-modified\tterminal",
+                super::exit_codes::TERMINAL,
+            ),
+        ] {
+            let dir = sync_repo();
+            let tracker = edited_remotely_numbered(
+                dir.path(),
+                &[("0001", "PP-1"), ("0002", "PP-2")],
+            );
+            std::fs::write(
+                numbered_path(dir.path(), "0001"),
+                numbered_item("0001", "PP-1", "Local edit\n"),
+            )
+            .expect("edit the item");
+            let faulty =
+                failing_work_items(applies, crate::test_support::injected);
+            let (work_items, integration_state): (
+                &StoreFactory,
+                &StoreFactory,
+            ) = if code == super::exit_codes::UNRESOLVED {
+                (&faulty, &super::stores::rooted_store)
+            } else {
+                (&super::stores::rooted_store, &faulty)
+            };
+
+            let run = capture_with_stores(
+                dir.path(),
+                &tracker,
+                work_items,
+                integration_state,
+            );
+
+            assert!(
+                run.out.contains("0001\tunresolved\tconflict\t-"),
+                "{}",
+                run.out
+            );
+            assert!(run.out.contains(row), "{}", run.out);
+            assert!(
+                error_lines(&run.err)
+                    .iter()
+                    .any(|line| line.starts_with("error: 0002: ")),
+                "{}",
+                run.err
+            );
+            assert_eq!(run.code, ExitCode::from(code));
+        }
+    }
+
+    #[test]
+    fn a_read_only_work_directory_fails_the_pull_as_retryable_then_pulls() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let work = dir.path().join("meta/work");
+        let item_before = std::fs::read(numbered_path(dir.path(), "0001"))
+            .expect("read the item");
+        let baseline_before = recorded_entry(dir.path(), "0001");
+        std::fs::set_permissions(&work, std::fs::Permissions::from_mode(0o555))
+            .expect("make the work directory read-only");
+        let probe = work.join(".probe");
+        let enforced = std::fs::write(&probe, "").is_err();
+        let _ = std::fs::remove_file(&probe);
+
+        let refused =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+        std::fs::set_permissions(&work, std::fs::Permissions::from_mode(0o755))
+            .expect("restore the work directory");
+        if !enforced {
+            return;
+        }
+
+        assert!(
+            refused
+                .out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            refused.out
+        );
+        let errors = error_lines(&refused.err);
+        assert_eq!(errors.len(), 1, "{}", refused.err);
+        assert!(errors[0].contains("0001"), "{}", refused.err);
+        assert!(errors[0].contains("lock-local"), "{}", refused.err);
+        assert!(errors[0].contains("Permission denied"), "{}", refused.err);
+        assert_eq!(
+            std::fs::read(numbered_path(dir.path(), "0001")).expect("read"),
+            item_before
+        );
+        assert_eq!(recorded_entry(dir.path(), "0001"), baseline_before);
+        assert_eq!(refused.code, ExitCode::from(super::exit_codes::RETRYABLE));
+
+        let pulled =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            pulled.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            pulled.out
+        );
+        assert_ne!(recorded_entry(dir.path(), "0001"), baseline_before);
+    }
+
+    #[test]
+    fn each_tracker_failure_kind_reports_its_class_detail_and_exit() {
+        for (error, detail, code) in [
+            (
+                TrackerError::Retryable {
+                    detail: "offline".to_owned(),
+                },
+                "retryable",
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                TrackerError::Terminal {
+                    detail: "timed out after sending".to_owned(),
+                },
+                "terminal",
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                TrackerError::Unconfigured {
+                    detail: "no such field".to_owned(),
+                },
+                "unconfigured",
+                super::exit_codes::UNCONFIGURED,
+            ),
+            (
+                TrackerError::Rejected {
+                    detail: "the body has a table".to_owned(),
+                },
+                "rejected",
+                super::exit_codes::REJECTED,
+            ),
+        ] {
+            let dir = sync_repo();
+            let local = numbered_item("0001", "PP-1", "Old body\n");
+            let tracker = Rc::new(
+                RecordingTracker::holding(vec![(
+                    ExternalId::new("PP-1".to_owned()),
+                    RemoteIssue {
+                        key: ExternalId::new("PP-1".to_owned()),
+                        updated: tracker::RemoteTimestamp::Reported(
+                            "2026-01-01T00:00:00Z".to_owned(),
+                        ),
+                        body: "Title\nOld body\n".to_owned(),
+                    },
+                )])
+                .failing_update(
+                    ExternalId::new("PP-1".to_owned()),
+                    error.clone(),
+                ),
+            );
+            synced_item(dir.path(), &tracker, &local, "Title\nOld body\n");
+            std::fs::write(
+                item_path(dir.path()),
+                numbered_item("0001", "PP-1", "Local edit\n"),
+            )
+            .expect("edit the item");
+            commit_all(dir.path());
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(
+                run.out.contains(&format!(
+                    "0001\tfailed\tlocally-modified\t{detail}"
+                )),
+                "{detail}: {}",
+                run.out
+            );
+            let errors = error_lines(&run.err);
+            assert!(
+                errors.iter().any(|line| {
+                    line.starts_with("error: 0001: update failed: ")
+                        && line.contains(&error.to_string())
+                }),
+                "{detail}: {}",
+                run.err
+            );
+            assert_eq!(run.code, ExitCode::from(code), "{detail}");
+        }
+    }
+
+    #[test]
+    fn a_pending_push_refusal_reports_terminal_and_names_its_reason() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join("meta/work/0001-title.md"),
+            "---\nid: \"0001\"\ntitle: \"Title\"\nkind: task\n---\n\nBody\n",
+        )
+        .expect("write the draft");
+        let marker = dir.path().join(
+            ".accelerator/state/integrations/jira/pending-push/0001.json",
+        );
+        std::fs::create_dir_all(marker.parent().expect("a parent"))
+            .expect("mkdir");
+        std::fs::write(&marker, "{ not a marker").expect("seed the marker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out.contains("0001\tfailed\tunsynced\tterminal"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                "error: 0001: create failed: pending push refused \
+                 (marker-unreadable): "
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
     fn team_config(dir: &Path, extra: &str) {
         std::fs::write(
             dir.join(".accelerator/config.md"),

@@ -86,24 +86,41 @@ impl ReadTemplate for PluginWorkItemTemplate {
     }
 }
 
-/// A store whose operations on the paths `applies` selects fail, `left`
-/// times in all.
-pub struct Faults {
-    pub inner: FileCorpusStore,
+/// A store whose operations on the paths `applies` selects fail with
+/// `error`, `left` times in all.
+pub struct Faults<S = FileCorpusStore> {
+    pub inner: S,
     pub applies: fn(&Path) -> bool,
     pub left: std::cell::Cell<usize>,
+    pub error: fn(&Path) -> corpus::StoreError,
 }
 
-impl Faults {
+/// The fault a store reports when a test does not say which.
+pub fn injected(path: &Path) -> corpus::StoreError {
+    corpus::StoreError::Io {
+        path: path.display().to_string(),
+        detail: "injected".to_owned(),
+    }
+}
+
+impl<S> Faults<S> {
     fn check(&self, path: &Path) -> Result<(), corpus::StoreError> {
         if (self.applies)(path) && self.left.get() > 0 {
             self.left.set(self.left.get() - 1);
-            return Err(corpus::StoreError::Io {
-                path: path.display().to_string(),
-                detail: "injected".to_owned(),
-            });
+            return Err((self.error)(path));
         }
         Ok(())
+    }
+}
+
+impl<S: AtomicWrite + ?Sized> AtomicWrite for Faults<Box<S>> {
+    fn write(
+        &self,
+        path: &Path,
+        bytes: &[u8],
+    ) -> Result<(), corpus::StoreError> {
+        self.check(path)?;
+        self.inner.write(path, bytes)
     }
 }
 
@@ -130,6 +147,13 @@ impl ExclusiveCreate for Faults {
 }
 
 impl FileRemove for Faults {
+    fn remove(&self, path: &Path) -> Result<(), corpus::StoreError> {
+        self.check(path)?;
+        self.inner.remove(path)
+    }
+}
+
+impl<S: FileRemove + ?Sized> FileRemove for Faults<Box<S>> {
     fn remove(&self, path: &Path) -> Result<(), corpus::StoreError> {
         self.check(path)?;
         self.inner.remove(path)
