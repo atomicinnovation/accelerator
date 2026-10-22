@@ -67,6 +67,7 @@ use common::recording_filesystem::{
     in_root, FilesystemCall, RecordedPath, RecordingFilesystem, ScriptedEvent,
     TimelineEvent,
 };
+use common::recording_locks::{LockCall, RecordingLocks};
 use common::scripted_filesystem::ScriptedFilesystem;
 use common::trees::{
     another_platform, digest, exists, on_host, set_mode, set_mtime,
@@ -2169,4 +2170,103 @@ fn no_production_path_unlinks_a_tree_lock_it_does_not_hold() {
         .collect();
     assert_eq!(locks.len(), 2, "{seen:#?}");
     assert!(locks.iter().all(|(_, held)| *held), "{locks:#?}");
+}
+
+#[test]
+fn no_prune_path_probes_or_takes_a_lock_it_holds() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    trees.plant_tree(&on_host("aardvark"), &digest('a'), harness.aged());
+    trees.plant_temp_generation(
+        &on_host("aardvark"),
+        &digest('f'),
+        harness.aged(),
+    );
+    let retired = on_host("retired-b");
+    trees.plant_partial_archive(&retired, &digest('b'), harness.aged());
+    trees.plant_lock(&retired, harness.aged());
+    trees.plant_temp_generation(
+        &on_host("retired-c"),
+        &digest('c'),
+        harness.aged(),
+    );
+    trees.plant_lock(&on_host("retired-d"), harness.aged());
+    trees.plant_sidecars(
+        &Trees::generation_of(&on_host("retired-e"), &digest('e')),
+        harness.aged(),
+    );
+    harness.entry(OLD, harness.aged());
+    let locks = RecordingLocks::default();
+
+    harness
+        .prune(Ports {
+            locks: Arc::new(locks.clone()),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    let calls = locks.calls();
+    assert!(
+        calls.iter().any(|(call, _)| *call == LockCall::Probe),
+        "the reap probed no other artifact's lock: {calls:#?}"
+    );
+    assert!(calls.len() >= 5, "{calls:#?}");
+    assert_eq!(locks.calls_on_held_locks(), Vec::new(), "{calls:#?}");
+}
+
+#[test]
+fn each_artifact_state_and_patience_uses_the_tables_lock_call() {
+    enum State {
+        Work,
+        LockOnly,
+        SidecarsOnly,
+    }
+    for (state, patience, expected) in [
+        (State::Work, LockPatience::Wait, vec![LockCall::Take]),
+        (State::Work, LockPatience::Try, vec![LockCall::TryTake]),
+        (
+            State::LockOnly,
+            LockPatience::Wait,
+            vec![LockCall::WaitExisting],
+        ),
+        (State::LockOnly, LockPatience::Try, vec![LockCall::Probe]),
+        (State::SidecarsOnly, LockPatience::Wait, vec![]),
+        (State::SidecarsOnly, LockPatience::Try, vec![]),
+    ] {
+        let harness = RootHarness::new();
+        let trees = harness.trees();
+        let retired = on_host("retired");
+        match state {
+            State::Work => {
+                trees.plant_tree(&retired, &digest('a'), harness.aged());
+            }
+            State::LockOnly => {
+                trees.plant_lock(&retired, harness.aged());
+            }
+            State::SidecarsOnly => {
+                trees.plant_sidecars(
+                    &Trees::generation_of(&retired, &digest('a')),
+                    harness.aged(),
+                );
+            }
+        }
+        let locks = RecordingLocks::default();
+
+        prune_trees_directly(
+            &harness,
+            &Ports {
+                locks: Arc::new(locks.clone()),
+                ..harness.ports()
+            }
+            .build(),
+            &HeldLeases::none(),
+            patience,
+        );
+
+        assert_eq!(
+            locks.calls_on(&trees.paths().single_flight_lock(&retired)),
+            expected,
+            "{patience:?}"
+        );
+    }
 }
