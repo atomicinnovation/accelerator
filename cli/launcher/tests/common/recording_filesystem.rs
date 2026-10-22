@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use accelerator::launch::outbound::resolve::filesystem::{
-    CacheFilesystem, EntryMetadata, ResolvedDirectory, SystemFilesystem,
+    AccessAcl, CacheFilesystem, EntryMetadata, ResolvedDirectory,
+    SystemFilesystem,
 };
 
 /// A path relative to the cache root, or else to the test's outer anchor, so
@@ -37,6 +38,7 @@ pub enum FilesystemCall {
     Resolve(RecordedPath),
     CreatePrivateDir(RecordedPath),
     SetModified(RecordedPath),
+    AccessAcl(RecordedPath),
 }
 
 impl FilesystemCall {
@@ -68,7 +70,8 @@ impl FilesystemCall {
             | Self::Entry(touched)
             | Self::Resolve(touched)
             | Self::CreatePrivateDir(touched)
-            | Self::SetModified(touched) => touched == path,
+            | Self::SetModified(touched)
+            | Self::AccessAcl(touched) => touched == path,
         }
     }
 }
@@ -225,6 +228,11 @@ impl CacheFilesystem for RecordingFilesystem {
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()> {
         self.record(FilesystemCall::SetModified(self.recorded(path)));
         SystemFilesystem.set_modified(path, seconds)
+    }
+
+    fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
+        self.record(FilesystemCall::AccessAcl(self.recorded(path)));
+        SystemFilesystem.access_acl(path)
     }
 }
 

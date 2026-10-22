@@ -41,6 +41,16 @@ pub struct ResolvedDirectory {
     pub identity: DirectoryIdentity,
 }
 
+/// What a directory's access ACL adds to its mode bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessAcl {
+    None,
+    /// A POSIX ACL, whose mask the group mode bits then show.
+    Posix,
+    /// Any other ACL, which mode bits only approximate.
+    Other,
+}
+
 pub trait CacheFilesystem {
     /// The names in `dir`; an entry the directory stream fails on is skipped.
     ///
@@ -125,6 +135,13 @@ pub trait CacheFilesystem {
     ///
     /// If the file cannot be opened or its time set.
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()>;
+
+    /// The access ACL on the directory at `path`, never following a symlink.
+    ///
+    /// # Errors
+    ///
+    /// If the ACL cannot be read for a reason other than there being none.
+    fn access_acl(&self, path: &Path) -> io::Result<AccessAcl>;
 }
 
 pub struct SystemFilesystem;
@@ -222,6 +239,62 @@ impl CacheFilesystem for SystemFilesystem {
                 std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds),
             )
     }
+
+    fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
+        access_acl_of(path)
+    }
+}
+
+/// An allow entry granting any of these lets its principal create, rename or
+/// remove names in the directory. Owner entries are counted too: matching the
+/// owner would need a uid lookup, and refusing one only refuses more.
+#[cfg(target_os = "macos")]
+fn access_acl_of(path: &Path) -> io::Result<AccessAcl> {
+    use exacl::{AclOption, Perm};
+    let writes = Perm::WRITE | Perm::APPEND | Perm::DELETE_CHILD;
+    let entries = exacl::getfacl(path, AclOption::SYMLINK_ACL)?;
+    Ok(
+        if entries
+            .iter()
+            .any(|entry| entry.allow && entry.perms.intersects(writes))
+        {
+            AccessAcl::Other
+        } else {
+            AccessAcl::None
+        },
+    )
+}
+
+#[cfg(target_os = "linux")]
+const OTHER_ACL_ATTRIBUTES: [&str; 3] =
+    ["system.nfs4_acl", "system.nfs4_acl_xdr", "system.richacl"];
+
+#[cfg(target_os = "linux")]
+fn access_acl_of(path: &Path) -> io::Result<AccessAcl> {
+    if has_attribute(path, "system.posix_acl_access")? {
+        return Ok(AccessAcl::Posix);
+    }
+    for name in OTHER_ACL_ATTRIBUTES {
+        if has_attribute(path, name)? {
+            return Ok(AccessAcl::Other);
+        }
+    }
+    Ok(AccessAcl::None)
+}
+
+#[cfg(target_os = "linux")]
+fn has_attribute(path: &Path, name: &str) -> io::Result<bool> {
+    use rustix::io::Errno;
+    match rustix::fs::lgetxattr(path, name, &mut [0_u8; 0][..]) {
+        Ok(_) => Ok(true),
+        Err(Errno::NODATA | Errno::NOTSUP) => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+const fn access_acl_of(_path: &Path) -> io::Result<AccessAcl> {
+    Ok(AccessAcl::Other)
 }
 
 #[cfg(unix)]
@@ -351,7 +424,8 @@ pub mod testing {
     use std::sync::{Mutex, MutexGuard};
 
     use super::{
-        CacheFilesystem, EntryMetadata, ResolvedDirectory, SystemFilesystem,
+        AccessAcl, CacheFilesystem, EntryMetadata, ResolvedDirectory,
+        SystemFilesystem,
     };
 
     /// Answers `entry` and `resolve` for chosen paths with synthetic results,
@@ -366,6 +440,7 @@ pub mod testing {
     struct Overlay {
         entries: BTreeMap<PathBuf, EntryMetadata>,
         resolutions: BTreeMap<PathBuf, ResolvedDirectory>,
+        acls: BTreeMap<PathBuf, AccessAcl>,
         resolved: Vec<PathBuf>,
     }
 
@@ -399,6 +474,12 @@ pub mod testing {
             self.overlay()
                 .resolutions
                 .insert(path.to_path_buf(), resolved);
+            self
+        }
+
+        #[must_use]
+        pub fn reporting_acl(self, path: &Path, acl: AccessAcl) -> Self {
+            self.overlay().acls.insert(path.to_path_buf(), acl);
             self
         }
 
@@ -475,6 +556,70 @@ pub mod testing {
 
         fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()> {
             self.inner.set_modified(path, seconds)
+        }
+
+        fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
+            let reported = self.overlay().acls.get(path).copied();
+            reported.map_or_else(|| self.inner.access_acl(path), Ok)
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests {
+    use std::path::Path;
+    use std::process::Command;
+
+    use super::{AccessAcl, CacheFilesystem as _, SystemFilesystem};
+
+    fn acl_of(path: &Path) -> AccessAcl {
+        SystemFilesystem.access_acl(path).expect("access ACL")
+    }
+
+    #[cfg(target_os = "macos")]
+    fn add_ace(path: &Path, ace: &str) {
+        let status = Command::new("/bin/chmod")
+            .args(["+a", ace])
+            .arg(path)
+            .status()
+            .expect("chmod +a");
+        assert!(status.success(), "chmod +a {ace}");
+    }
+
+    #[test]
+    fn the_system_filesystem_reports_acls() {
+        let fresh = tempfile::tempdir().expect("tempdir");
+        assert_eq!(acl_of(fresh.path()), AccessAcl::None);
+
+        #[cfg(target_os = "macos")]
+        {
+            let denied = tempfile::tempdir().expect("tempdir");
+            add_ace(denied.path(), "everyone deny delete");
+            assert_eq!(acl_of(denied.path()), AccessAcl::None);
+
+            let allowed = tempfile::tempdir().expect("tempdir");
+            add_ace(allowed.path(), "everyone allow add_file");
+            assert_eq!(acl_of(allowed.path()), AccessAcl::Other);
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let granted = tempfile::tempdir().expect("tempdir");
+            match Command::new("setfacl")
+                .args(["-m", "u:nobody:rwx"])
+                .arg(granted.path())
+                .status()
+            {
+                Ok(status) => {
+                    assert!(status.success(), "setfacl");
+                    assert_eq!(acl_of(granted.path()), AccessAcl::Posix);
+                }
+                Err(_) if std::env::var_os("CI").is_some() => {
+                    panic!("setfacl is required under CI and was not on PATH")
+                }
+                Err(_) => eprintln!("skipping: setfacl not on PATH"),
+            }
         }
     }
 }
