@@ -34,6 +34,7 @@ rand = { workspace = true }
 config = { path = "../config" }
 tempfile = { workspace = true }
 corpus-adapters = { path = "../corpus-adapters" }
+store = { path = "../store", features = ["test-support"] }
 tracker-test-support = { path = "../tracker-test-support" }
 vcs-adapters = { path = "../vcs-adapters" }
 vcs-test-support = { path = "../vcs-test-support" }
