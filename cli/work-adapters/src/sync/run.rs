@@ -62,6 +62,7 @@ use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
+use crate::sync::item_snapshot::UnreadContent;
 use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
@@ -443,6 +444,7 @@ impl LocalWorkItem {
 fn unparseable_local(item_id: &str, detail: String) -> ApplyError {
     ApplyError::LocalUnparseable {
         item_id: item_id.to_owned(),
+        operation: SyncOperation::ParseLocal,
         detail,
     }
 }
@@ -837,15 +839,19 @@ impl<'a> RunKnowledge<'a> {
     fn local_content(&self, item: &LocalItem) -> Result<&str, ApplyError> {
         ItemAttempt::begin(&item.id).observe_local(
             SyncOperation::ReadLocal,
-            || {
-                self.snapshot(&item.id)
-                    .ok_or_else(|| {
-                        StepError::Failed(
-                            "the run took no snapshot of the file".to_owned(),
-                        )
-                    })?
-                    .content()
-                    .map_err(|error| StepError::Failed(error.to_string()))
+            || match self.snapshot(&item.id).map(ItemSnapshot::read) {
+                None => Err(StepError::Failed(
+                    "the run took no snapshot of the file".to_owned(),
+                )),
+                Some(Ok(content)) => Ok(content),
+                Some(Err(UnreadContent::Undecodable)) => {
+                    Err(StepError::Refused(ApplyError::LocalUnparseable {
+                        item_id: item.id.clone(),
+                        operation: SyncOperation::ReadLocal,
+                        detail: UnreadContent::Undecodable.to_string(),
+                    }))
+                }
+                Some(Err(unread)) => Err(StepError::Failed(unread.to_string())),
             },
         )
     }
@@ -1076,7 +1082,12 @@ fn prepare_send<'k>(
         &local.body,
         knowledge.projection(&item.id),
     ) {
-        return Err(refused_send(&item.id, external_id, refusal));
+        return Err(refused_send(
+            &item.id,
+            planned.action,
+            external_id,
+            refusal,
+        ));
     }
     Ok(PreparedSend {
         action: planned.action,
@@ -1106,22 +1117,37 @@ fn check_send(
     )))
 }
 
+/// The tracker operation `action` sends through.
+const fn sending_operation(action: Action) -> SyncOperation {
+    match action {
+        Action::Retitle => SyncOperation::Retitle,
+        _ => SyncOperation::Update,
+    }
+}
+
 fn refused_send(
     item_id: &str,
+    action: Action,
     external_id: &ExternalId,
     refusal: SendRefusal,
 ) -> ApplyError {
     let item_id = item_id.to_owned();
+    let operation = sending_operation(action);
     match refusal {
         SendRefusal::PullResidue => ApplyError::LocalPullResidue {
             item_id,
+            operation,
             external_id: external_id.clone(),
         },
         SendRefusal::RemoteUnrenderable(cause) => {
-            ApplyError::RemoteUnrenderable { item_id, cause }
+            ApplyError::RemoteUnrenderable {
+                item_id,
+                operation,
+                cause,
+            }
         }
         SendRefusal::RemoteUnfetched => {
-            ApplyError::RemoteBodyUnavailable { item_id }
+            ApplyError::RemoteBodyUnavailable { item_id, operation }
         }
     }
 }
@@ -1209,13 +1235,32 @@ fn unsynced_creates<'a>(
 }
 
 /// The `(title, body, kind)` a create-from-local needs, read from the draft's
-/// own frontmatter and body. `None` when the file is unreadable or malformed.
-fn create_inputs(path: &Path) -> Option<(String, String, String)> {
-    let content = std::fs::read_to_string(path).ok()?;
+/// own frontmatter and body.
+fn create_inputs(
+    item: &LocalItem,
+) -> Result<(String, String, String), ApplyError> {
+    let content = ItemAttempt::begin(&item.id).observe_local(
+        SyncOperation::ReadLocal,
+        || {
+            std::fs::read_to_string(&item.path).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidData {
+                    StepError::Refused(ApplyError::LocalUnparseable {
+                        item_id: item.id.clone(),
+                        operation: SyncOperation::ReadLocal,
+                        detail: UnreadContent::Undecodable.to_string(),
+                    })
+                } else {
+                    StepError::Failed(error)
+                }
+            })
+        },
+    )?;
     let (_, body) =
-        crate::sync::digest::split_frontmatter_and_body(&content).ok()?;
-    let fields = create_request_fields::read(&content).ok()?;
-    Some((fields.title, body, fields.kind))
+        crate::sync::digest::split_frontmatter_and_body(&content)
+            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+    let fields = create_request_fields::read(&content)
+        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+    Ok((fields.title, body, fields.kind))
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
@@ -1297,6 +1342,7 @@ fn pulled_file<'a>(
     let projected_body = knowledge.projection(&item.id).ok_or_else(|| {
         ApplyError::RemoteBodyUnavailable {
             item_id: item.id.clone(),
+            operation: SyncOperation::Pull,
         }
     })?;
     let remote_body =
@@ -1305,6 +1351,7 @@ fn pulled_file<'a>(
             .local_body(projected_body)
             .map_err(|cause| ApplyError::RemoteUnrenderable {
                 item_id: item.id.clone(),
+                operation: SyncOperation::Pull,
                 cause,
             })?;
     let classified_content = knowledge.local_content(item)?;
@@ -1481,15 +1528,15 @@ fn apply_local_create(
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ReportedItem {
-    let Some((title, body, kind)) = create_inputs(&item.path) else {
-        return create_report(
-            item.id.clone(),
-            Action::CreateFromLocal,
-            ItemOutcome::Failed(ItemAttempt::begin(&item.id).io_failure(
-                SyncOperation::ReadLocal,
-                "unreadable or malformed frontmatter",
-            )),
-        );
+    let (title, body, kind) = match create_inputs(item) {
+        Ok(inputs) => inputs,
+        Err(error) => {
+            return create_report(
+                item.id.clone(),
+                Action::CreateFromLocal,
+                ItemOutcome::Failed(error),
+            );
+        }
     };
     let Some(marker_path) = crate::sync::pending_push::for_item(
         request.integrations_root,
@@ -2147,6 +2194,123 @@ mod tests {
             ),
             "the send fails as the run's own read does"
         );
+    }
+
+    fn knowledge_of<'a>(
+        item: &'a super::LocalItem,
+        digester: &'a super::BaselineDigester<'a>,
+    ) -> super::RunKnowledge<'a> {
+        super::RunKnowledge::gather(
+            super::GatheredFacts {
+                per_id: std::collections::BTreeMap::new(),
+                identity: std::collections::BTreeMap::new(),
+                read_failure: None,
+                keyed_read: tracker::Completeness::Complete,
+            },
+            std::slice::from_ref(item),
+            &crate::sync::baseline::Baseline::read(None).0,
+            digester,
+        )
+    }
+
+    fn item_holding(dir: &std::path::Path, bytes: &[u8]) -> super::LocalItem {
+        let path = dir.join("0009-item.md");
+        std::fs::write(&path, bytes).expect("the item is written");
+        super::LocalItem {
+            id: "0009".to_owned(),
+            path,
+            external_id: Some(tracker::ExternalId::new("ENG-9".to_owned())),
+        }
+    }
+
+    fn planned(action: work::sync::Action) -> work::sync::PlannedAction {
+        work::sync::PlannedAction {
+            id: "0009".to_owned(),
+            state: work::sync::SyncState::LocallyModified,
+            action,
+        }
+    }
+
+    #[test]
+    fn a_send_from_an_undecodable_file_is_unparseable_at_its_read() {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let item = item_holding(dir.path(), &[0xff, 0xfe, b'\n']);
+        let digester = super::BaselineDigester::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
+        );
+        let knowledge = knowledge_of(&item, &digester);
+
+        let refused = super::prepare_send(
+            &planned(work::sync::Action::Push(work::sync::FieldDelivery::Send)),
+            &item,
+            &tracker::ExternalId::new("ENG-9".to_owned()),
+            &knowledge,
+        )
+        .err()
+        .expect("an undecodable file cannot be sent");
+
+        assert_eq!(
+            refused.class(),
+            crate::sync::apply::FailureClass::Unparseable
+        );
+        assert_eq!(refused.operation(), super::SyncOperation::ReadLocal);
+        assert!(refused.cause().contains("not UTF-8"), "{refused}");
+    }
+
+    #[test]
+    fn each_refusal_names_the_operation_it_refused() {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let unparseable = item_holding(dir.path(), b"---\nid: 0009\n");
+        let digester = super::BaselineDigester::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
+        );
+        let knowledge = knowledge_of(&unparseable, &digester);
+        let external_id = tracker::ExternalId::new("ENG-9".to_owned());
+
+        let unfetched = super::pulled_file(&unparseable, &knowledge)
+            .err()
+            .expect("a pull needs the remote body");
+        assert_eq!(unfetched.operation(), super::SyncOperation::Pull);
+
+        for (action, operation) in [
+            (
+                work::sync::Action::Push(work::sync::FieldDelivery::Send),
+                super::SyncOperation::ParseLocal,
+            ),
+            (
+                work::sync::Action::Retitle,
+                super::SyncOperation::ParseLocal,
+            ),
+        ] {
+            let refused = super::prepare_send(
+                &planned(action),
+                &unparseable,
+                &external_id,
+                &knowledge,
+            )
+            .err()
+            .expect("unparseable frontmatter cannot be sent");
+            assert_eq!(refused.operation(), operation, "{action:?}");
+        }
+
+        for (action, operation) in [
+            (
+                work::sync::Action::Push(work::sync::FieldDelivery::Send),
+                super::SyncOperation::Update,
+            ),
+            (work::sync::Action::Overwrite, super::SyncOperation::Update),
+            (work::sync::Action::Retitle, super::SyncOperation::Retitle),
+        ] {
+            let refused = super::refused_send(
+                "0009",
+                action,
+                &external_id,
+                super::SendRefusal::RemoteUnfetched,
+            );
+            assert_eq!(refused.operation(), operation, "{action:?}");
+        }
     }
 
     #[test]

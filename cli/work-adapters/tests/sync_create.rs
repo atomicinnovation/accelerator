@@ -3277,3 +3277,32 @@ fn each_pending_push_refusal_is_terminal_and_names_its_reason(
     }
     Ok(())
 }
+
+#[test]
+fn a_local_create_over_wrong_content_is_unparseable_at_the_step_that_saw_it(
+) -> Result<(), TestError> {
+    for (content, operation) in [
+        (&[0xff, 0xfe, b'\n'][..], SyncOperation::ReadLocal),
+        (
+            &b"---\nid: \"0001\"\ntitle: Draft\n"[..],
+            SyncOperation::ParseLocal,
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        std::fs::write(&item.path, content)?;
+
+        let report = run_create_from_local_over(
+            &fixture,
+            &item,
+            &RecordingTracker::holding(Vec::new()),
+            &Spy::default(),
+            &Spy::default(),
+        );
+
+        let error = create_from_local_failure(&report);
+        assert_eq!(error.class(), FailureClass::Unparseable, "{error}");
+        assert_eq!(error.operation(), operation, "{error}");
+    }
+    Ok(())
+}

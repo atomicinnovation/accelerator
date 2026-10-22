@@ -2288,6 +2288,7 @@ mod tests {
     use work_adapters::sync::apply::ItemProgress;
     use work_adapters::sync::apply::LeftoverMarker;
     use work_adapters::sync::baseline::Degradation;
+    use work_adapters::sync::operation::SyncOperation;
     use work_adapters::sync::run::ConflictDossier;
     use work_adapters::sync::run::DiscoveryStatus;
     use work_adapters::sync::run::ItemOutcome;
@@ -2912,6 +2913,7 @@ mod tests {
                     "0011",
                     ApplyError::RemoteUnrenderable {
                         item_id: "0011".to_owned(),
+                        operation: SyncOperation::Update,
                         cause: tracker::Unrenderable {
                             detail: "panel".to_owned(),
                         },
@@ -2921,6 +2923,7 @@ mod tests {
                     "0012",
                     ApplyError::LocalPullResidue {
                         item_id: "0012".to_owned(),
+                        operation: SyncOperation::Update,
                         external_id: tracker::ExternalId::new(
                             "ENG-12".to_owned(),
                         ),
@@ -4266,8 +4269,7 @@ mod tests {
             id,
             ApplyError::Io {
                 item_id: id.to_owned(),
-                operation:
-                    work_adapters::sync::operation::SyncOperation::WriteLocal,
+                operation: SyncOperation::WriteLocal,
                 progress,
                 detail: "disk full".to_owned(),
             },
@@ -4311,6 +4313,7 @@ mod tests {
             "0001",
             ApplyError::RemoteBodyUnavailable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Pull,
             },
         )]);
 
@@ -4373,6 +4376,7 @@ mod tests {
             "0001",
             ApplyError::LocalUnparseable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::ParseLocal,
                 detail: "no frontmatter".to_owned(),
             },
         )]);
@@ -4393,6 +4397,7 @@ mod tests {
             "0001",
             ApplyError::LocalPullResidue {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Update,
                 external_id: tracker::ExternalId::new("ENG-1".to_owned()),
             },
         )]);
@@ -4413,6 +4418,7 @@ mod tests {
             "0001",
             ApplyError::RemoteUnrenderable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Pull,
                 cause: tracker::Unrenderable {
                     detail: "panel".to_owned(),
                 },

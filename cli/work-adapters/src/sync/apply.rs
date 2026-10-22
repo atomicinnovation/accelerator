@@ -89,17 +89,23 @@ pub enum ApplyError {
     },
     RemoteBodyUnavailable {
         item_id: String,
+        operation: SyncOperation,
     },
     RemoteUnrenderable {
         item_id: String,
+        operation: SyncOperation,
         cause: Unrenderable,
     },
     LocalPullResidue {
         item_id: String,
+        operation: SyncOperation,
         external_id: ExternalId,
     },
+    /// The file's content is wrong: not UTF-8 (`read-local`), or
+    /// frontmatter that does not parse (`parse-local`).
     LocalUnparseable {
         item_id: String,
+        operation: SyncOperation,
         detail: String,
     },
     LocalWriteRefused {
@@ -153,66 +159,99 @@ impl ApplyError {
     }
 }
 
-impl std::fmt::Display for ApplyError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl ApplyError {
+    #[must_use]
+    pub fn item_id(&self) -> &str {
         match self {
-            Self::Tracker {
-                item_id,
-                operation,
-                source,
-            } => write!(formatter, "{item_id}: {operation} failed: {source}"),
-            Self::Io {
-                item_id,
-                operation,
-                detail,
-                ..
-            } => write!(formatter, "{item_id}: {operation} failed: {detail}"),
-            Self::RemoteBodyUnavailable { item_id } => write!(
-                formatter,
-                "{item_id}: the remote description was not fetched this run, \
-                 so nothing was sent or written; re-run the sync"
-            ),
-            Self::RemoteUnrenderable { item_id, cause } => {
-                write!(formatter, "{item_id}: {cause}")
+            Self::Tracker { item_id, .. }
+            | Self::Io { item_id, .. }
+            | Self::RemoteBodyUnavailable { item_id, .. }
+            | Self::RemoteUnrenderable { item_id, .. }
+            | Self::LocalPullResidue { item_id, .. }
+            | Self::LocalUnparseable { item_id, .. }
+            | Self::LocalWriteRefused { item_id, .. }
+            | Self::LocalChangedSinceClassified { item_id }
+            | Self::PendingPushRefused { item_id, .. } => item_id,
+        }
+    }
+
+    #[must_use]
+    pub const fn operation(&self) -> SyncOperation {
+        match self {
+            Self::Tracker { operation, .. }
+            | Self::Io { operation, .. }
+            | Self::RemoteBodyUnavailable { operation, .. }
+            | Self::RemoteUnrenderable { operation, .. }
+            | Self::LocalPullResidue { operation, .. }
+            | Self::LocalUnparseable { operation, .. } => *operation,
+            Self::LocalWriteRefused { .. } => SyncOperation::WriteLocal,
+            Self::LocalChangedSinceClassified { .. } => {
+                SyncOperation::RecheckLocal
             }
+            Self::PendingPushRefused { .. } => SyncOperation::Create,
+        }
+    }
+
+    /// Why the operation failed, naming neither the item nor the operation.
+    #[must_use]
+    pub fn cause(&self) -> String {
+        match self {
+            Self::Tracker { source, .. } => source.to_string(),
+            Self::Io { detail, .. } => detail.clone(),
+            Self::RemoteBodyUnavailable { .. } => {
+                "the remote description was not fetched this run, so nothing \
+                 was sent or written; re-run the sync"
+                    .to_owned()
+            }
+            Self::RemoteUnrenderable { cause, .. } => cause.to_string(),
             Self::LocalPullResidue {
                 item_id,
                 external_id,
-            } => write!(
-                formatter,
-                "{item_id}: the local file still holds the raw tracker \
-                 document an earlier pull wrote, so nothing was sent; replace \
-                 it with Markdown (`jira show {external_id} --render-adf` \
-                 prints a starting point) and sync, or resolve with --resolve \
+                ..
+            } => format!(
+                "the local file still holds the raw tracker document an \
+                 earlier pull wrote, so nothing was sent; replace it with \
+                 Markdown (`jira show {external_id} --render-adf` prints a \
+                 starting point) and sync, or resolve with --resolve \
                  {item_id}=remote to discard local changes"
             ),
-            Self::LocalUnparseable { item_id, detail } => write!(
-                formatter,
-                "{item_id}: the local file's frontmatter does not parse \
-                 ({detail}), so nothing was sent or written; fix the file and \
-                 re-run the sync"
-            ),
-            Self::LocalWriteRefused { item_id, detail } => write!(
-                formatter,
-                "{item_id}: the local file was not written ({detail}), so it \
-                 is as it was; the same write is refused until that changes"
-            ),
-            Self::LocalChangedSinceClassified { item_id } => write!(
-                formatter,
-                "{item_id}: the local file changed after the run read it, so \
-                 nothing was written or recorded; re-run the sync"
-            ),
-            Self::PendingPushRefused {
-                item_id,
-                reason,
+            Self::LocalUnparseable {
+                operation: SyncOperation::ParseLocal,
                 detail,
-            } => write!(
-                formatter,
-                "{item_id}: create failed: pending push refused ({}): \
-                 {detail}",
-                reason.token()
+                ..
+            } => format!(
+                "the local file's frontmatter does not parse ({detail}), so \
+                 nothing was sent or written; fix the file and re-run the sync"
             ),
+            Self::LocalUnparseable { detail, .. } => format!(
+                "the local file cannot be read as text ({detail}), so nothing \
+                 was sent or written; fix the file and re-run the sync"
+            ),
+            Self::LocalWriteRefused { detail, .. } => format!(
+                "the local file was not written ({detail}), so it is as it \
+                 was; the same write is refused until that changes"
+            ),
+            Self::LocalChangedSinceClassified { .. } => {
+                "the local file changed after the run read it, so nothing was \
+                 written or recorded; re-run the sync"
+                    .to_owned()
+            }
+            Self::PendingPushRefused { reason, detail, .. } => {
+                format!("pending push refused ({}): {detail}", reason.token())
+            }
         }
+    }
+}
+
+impl std::fmt::Display for ApplyError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}: {} failed: {}",
+            self.item_id(),
+            self.operation(),
+            self.cause()
+        )
     }
 }
 
@@ -694,6 +733,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .local_body(&issue.body)
             .map_err(|cause| ApplyError::RemoteUnrenderable {
                 item_id: external_id.as_str().to_owned(),
+                operation: SyncOperation::Create,
                 cause,
             })?;
         let title = remote_projection::split_projected(&issue.body)
