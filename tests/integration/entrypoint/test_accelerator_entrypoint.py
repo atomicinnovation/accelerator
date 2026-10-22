@@ -1611,3 +1611,68 @@ def test_stale_staged_shim_is_ignored_not_trusted_or_removed(
         before.st_mtime_ns,
     )
     assert stale.exists()
+
+
+def _verify_then(harness: Harness, host_platform: str, action: str) -> None:
+    """Replace the shim with one that passes, then does `action` to the
+    launcher it was asked about, as a prune or a remount would between the
+    bootstrap's verification and its `exec`."""
+    shim = harness.root / f"bin/accelerator-verify-{host_platform}"
+    shim.write_text(f'#!/bin/sh\n{action} "$3"\nexit 0\n')
+    shim.chmod(0o755)
+
+
+def test_a_launcher_removed_before_exec_honours_fail_safe(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "rm -f")
+
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("visualiser", "--fail-safe"),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vanished before it could run" in result.stderr, result.stderr
+
+
+def test_a_launcher_removed_before_exec_fails_with_the_diagnostic(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "rm -f")
+
+    result = _run_bootstrap(
+        harness.root, harness.server, downloader, args=("visualiser",)
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "vanished before it could run" in result.stderr, result.stderr
+
+
+def test_an_unexecutable_launcher_still_fails_under_fail_safe(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "chmod -x")
+
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("visualiser", "--fail-safe"),
+    )
+
+    assert result.returncode == 126, result.stdout + result.stderr
