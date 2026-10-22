@@ -2845,7 +2845,8 @@ mod tests {
             },
             outcome: ItemOutcome::Failed(ApplyError::Tracker {
                 item_id: id.to_owned(),
-                operation: "update",
+                operation:
+                    work_adapters::sync::operation::SyncOperation::Update,
                 source,
             }),
             validation: None,
@@ -4265,7 +4266,8 @@ mod tests {
             "0001",
             ApplyError::Io {
                 item_id: "0001".to_owned(),
-                operation: "write-local",
+                operation:
+                    work_adapters::sync::operation::SyncOperation::WriteLocal,
                 detail: "disk full".to_owned(),
             },
         )]);

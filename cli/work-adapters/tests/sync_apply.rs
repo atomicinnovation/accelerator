@@ -55,6 +55,7 @@ use work_adapters::sync::apply::UnchangedSinceSync;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::operation::SyncOperation;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 
 use crate::support::assert_recipe_one_entry;
@@ -925,7 +926,7 @@ fn a_pull_whose_lock_cannot_be_taken_writes_nothing() -> Result<(), TestError> {
     else {
         panic!("a refused lock is a local failure: {error}");
     };
-    assert_eq!(*operation, "lock-local");
+    assert_eq!(*operation, SyncOperation::LockLocal);
     assert!(
         detail.contains(&format!("{}.lockdir", item_path.display())),
         "{detail}"
@@ -974,7 +975,7 @@ fn a_pull_hashes_before_it_writes() -> Result<(), TestError> {
         matches!(
             error,
             ApplyError::Io {
-                operation: "hash-local",
+                operation: SyncOperation::HashLocal,
                 ..
             }
         ),
@@ -1179,7 +1180,7 @@ fn a_failed_recovery_copy_stops_the_pull() -> Result<(), TestError> {
         else {
             panic!("{step}: a failed copy is a local failure");
         };
-        assert_eq!(*operation, "keep-edits", "{step}");
+        assert_eq!(*operation, SyncOperation::KeepEdits, "{step}");
         assert!(detail.contains(KEPT_DIR), "{step}: {detail}");
         assert!(detail.contains("injected recovery failure"), "{detail}");
         assert!(
@@ -1211,7 +1212,7 @@ fn an_id_unsafe_for_a_recovery_directory_stops_the_pull(
         matches!(
             attempt.result,
             Err(ApplyError::Io {
-                operation: "keep-edits",
+                operation: SyncOperation::KeepEdits,
                 ..
             })
         ),
@@ -1363,7 +1364,12 @@ fn tracker_failures_keep_their_named_class() {
             FailureClass::Rejected,
         ),
     ];
-    for operation in ["show", "update", "retitle", "create"] {
+    for operation in [
+        SyncOperation::Show,
+        SyncOperation::Update,
+        SyncOperation::Retitle,
+        SyncOperation::Create,
+    ] {
         for (source, class) in kinds.clone() {
             let error = ApplyError::Tracker {
                 item_id: "0001".to_owned(),

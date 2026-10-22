@@ -39,6 +39,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::operation::SyncOperation;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
@@ -2362,7 +2363,7 @@ fn an_unremovable_marker_after_a_refused_create_fails_the_item(
     else {
         panic!("an unremovable marker is a local failure");
     };
-    assert_eq!(*operation, "marker-write");
+    assert_eq!(*operation, SyncOperation::MarkerWrite);
     let marker = marker_of(&fixture, "0001");
     assert!(
         detail.starts_with(&format!(
@@ -2437,7 +2438,7 @@ fn an_unsafe_id_writes_no_marker() -> Result<(), TestError> {
     else {
         panic!("an unsafe id is a local failure");
     };
-    assert_eq!(*operation, "marker-write");
+    assert_eq!(*operation, SyncOperation::MarkerWrite);
     assert_eq!(detail, "id cannot name a pending-push marker");
     assert_eq!(
         *integration_state.writes.borrow(),

@@ -59,6 +59,7 @@ use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
+use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
@@ -834,12 +835,12 @@ impl<'a> RunKnowledge<'a> {
         let snapshot =
             self.snapshot(&item.id).ok_or_else(|| ApplyError::Io {
                 item_id: item.id.clone(),
-                operation: "read-local",
+                operation: SyncOperation::ReadLocal,
                 detail: "the run took no snapshot of the file".to_owned(),
             })?;
         snapshot.content().map_err(|error| ApplyError::Io {
             item_id: item.id.clone(),
-            operation: "read-local",
+            operation: SyncOperation::ReadLocal,
             detail: error.to_string(),
         })
     }
@@ -1352,7 +1353,7 @@ fn record_outcome(
         Err(error) => {
             return ItemOutcome::Failed(ApplyError::Io {
                 item_id: item.id.clone(),
-                operation: "hash-local",
+                operation: SyncOperation::HashLocal,
                 detail: error.to_string(),
             })
         }
@@ -1473,7 +1474,7 @@ fn apply_local_create(
             Action::CreateFromLocal,
             ItemOutcome::Failed(ApplyError::Io {
                 item_id: item.id.clone(),
-                operation: "read-local",
+                operation: SyncOperation::ReadLocal,
                 detail: "unreadable or malformed frontmatter".to_owned(),
             }),
         );
@@ -1488,7 +1489,7 @@ fn apply_local_create(
             Action::CreateFromLocal,
             ItemOutcome::Failed(ApplyError::Io {
                 item_id: item.id.clone(),
-                operation: "marker-write",
+                operation: SyncOperation::MarkerWrite,
                 detail: "id cannot name a pending-push marker".to_owned(),
             }),
         );
@@ -2129,7 +2130,7 @@ mod tests {
             matches!(
                 prepared,
                 Err(super::ApplyError::Io {
-                    operation: "read-local",
+                    operation: super::SyncOperation::ReadLocal,
                     ..
                 })
             ),
