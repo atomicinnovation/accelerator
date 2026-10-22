@@ -2755,8 +2755,8 @@ fn floor_warning(
         "the worst-case demand of {demand} web searches exceeds the \
          {available} left by the search cap of {cap} from {source} after a \
          reserve of {} — every search budget is 1, so expect a halt, then \
-         run /clear and re-run conduct; for later runs, raise {SEARCH_CAP} \
-         and restart Claude Code, or lower the depth",
+         run /clear, then re-run conduct; for later runs, raise \
+         {SEARCH_CAP} and restart Claude Code, or lower the depth",
         cap - available
     )
 }

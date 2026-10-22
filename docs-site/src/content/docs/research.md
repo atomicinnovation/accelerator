@@ -529,7 +529,7 @@ over the worst-case tree of every outstanding web pair: each unresearched
 node is assumed to record its level's full follow-up cap. Budgets shrink, or
 stay level, with depth. When even budgets of 1 do not fit, every budget is 1
 and the sizing plan warns, naming the worst-case demand and the cap. Expect a
-halt, then run `/clear` and re-run `conduct`; for later runs, raise
+halt, then run `/clear`, then re-run `conduct`; for later runs, raise
 `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower
 the depth.
 
@@ -581,9 +581,12 @@ writes nothing and reports "web search quota exhausted". `conduct` then
 halts: it passes `--withhold-profile web` so no later plan offers a web
 researcher, still runs the run's other researchers and composers, ends the
 run, and opens its summary with the halt and the web pairs left unfinished.
-To recover, run `/clear`, then re-run `conduct`. Waiting for the quota to
-refill is not enough: a re-run in the same session sizes its budgets against
-the full cap, so it would halt again.
+To recover, run `/clear`, then re-run `conduct`; for later runs, raise
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower the
+depth. The quota belongs to the Claude Code session, and `/clear` starts a new
+session with a full quota. Waiting for it to refill is not enough: a re-run in
+the same session sizes its budgets against the full cap, so it would halt
+again.
 
 Each exit code below exits `1`:
 

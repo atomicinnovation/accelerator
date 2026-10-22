@@ -630,7 +630,7 @@ takes a recovery step. Each reason withholds a set of profiles:
 
 | Reason | Halts | Next plan carries | Recovery |
 |---|---|---|---|
-| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower the depth |
+| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct`; for later runs, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower the depth |
 
 Waiting for the refill is not a recovery: a re-run in the same session sizes
 its budgets against the full cap, not the refilled remainder, so it would

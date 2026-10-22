@@ -522,13 +522,30 @@ def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
         assert fragment in cli
 
 
-def test_the_floor_warning_reads_alike_in_prose_and_in_the_cli() -> None:
-    for fragment in (
-        "expect a halt, then run",
-        "restart Claude Code, or lower the depth",
-    ):
-        assert fragment in _configure_research_section()
-        assert fragment in _rust_text(SEARCH_WORDING)
+DOCS_RESEARCH = REPO_ROOT / "docs-site/src/content/docs/research.md"
+QUOTA_RECOVERY = (
+    "run `/clear`, then re-run `conduct`; for later runs, raise "
+    f"`{SEARCH_CAP_VARIABLE}` and restart Claude Code, or lower the depth"
+)
+
+
+def test_every_quota_recovery_reads_alike() -> None:
+    assert QUOTA_RECOVERY in " ".join(_configure_research_section().split())
+    assert QUOTA_RECOVERY in " ".join(_halting_failures().split())
+    assert _prose(DOCS_RESEARCH).count(QUOTA_RECOVERY) == 2
+    in_the_cli = QUOTA_RECOVERY.replace("`", "").replace(
+        SEARCH_CAP_VARIABLE, "{}"
+    )
+    assert in_the_cli in _rust_text(SEARCH_WORDING)
+
+
+def test_the_docs_explain_why_clearing_recovers_and_waiting_does_not() -> None:
+    assert (
+        "The quota belongs to the Claude Code session, and `/clear` starts a "
+        "new session with a full quota. Waiting for it to refill is not "
+        "enough: a re-run in the same session sizes its budgets against the "
+        "full cap, so it would halt again."
+    ) in _prose(DOCS_RESEARCH)
 
 
 def test_configure_documents_the_search_cap() -> None:
@@ -539,9 +556,8 @@ def test_configure_documents_the_search_cap() -> None:
         "It keeps back a twentieth of the cap, rounded up, for the main "
         "conversation, `outline` and searches made earlier in the session.",
         "When even one search per node exceeds what is left, every budget is "
-        "1 and `conduct` warns: expect a halt, then run `/clear` and re-run "
-        "`conduct`. For later runs, raise the variable, then restart Claude "
-        "Code, or lower the depth (`--depth` or `research.topic.depth`).",
+        f"1 and `conduct` warns: expect a halt, then {QUOTA_RECOVERY} "
+        "(`--depth` or `research.topic.depth`).",
         "Set the variable where both Claude Code and its Bash tool see it. A "
         "value Claude Code would not accept is ignored with a warning.",
     ):
@@ -1155,11 +1171,7 @@ def test_the_quota_halt_recovers_by_clearing_or_a_larger_restarted_cap() -> (
     None
 ):
     (row,) = _table_rows(_halting_failures())
-    assert (
-        "| run `/clear`, then re-run `conduct <slug>`; for larger runs in "
-        f"later sessions, raise `{SEARCH_CAP_VARIABLE}` and restart Claude "
-        "Code, or lower the depth |"
-    ) in row
+    assert f"| {QUOTA_RECOVERY} |" in row
     for refill in ("re-run `conduct` later", "refill", "wait"):
         assert refill not in row, f"the quota halt must not offer {refill!r}"
 
@@ -1262,8 +1274,7 @@ def test_the_halt_recovery_offers_clear_and_a_raised_cap_not_the_refill() -> (
 ):
     halting = _halting_failures()
     (row,) = _table_rows(halting)
-    assert "run `/clear`, then re-run `conduct <slug>`" in row
-    assert f"raise `{SEARCH_CAP_VARIABLE}`" in row
+    assert QUOTA_RECOVERY in row
     assert "wait" not in row.lower()
     assert (
         "Waiting for the refill is not a recovery: a re-run in the same "
