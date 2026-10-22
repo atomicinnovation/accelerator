@@ -1083,9 +1083,9 @@ constructor `run` uses:
 
 #### Automated Verification:
 
-- [ ] All Phase 3 tests pass and the fixed list is untouched:
+- [x] All Phase 3 tests pass and the fixed list is untouched:
       `mise run test:unit:cli`
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
