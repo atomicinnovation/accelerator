@@ -64,6 +64,7 @@ use work_adapters::sync::kept_edits::KeptEdits;
 use work_adapters::sync::kept_edits::KeptEditsRetention;
 use work_adapters::sync::kept_edits::KeptEditsReview;
 use work_adapters::sync::kept_edits::Provenance;
+use work_adapters::sync::report::CorpusScope;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -1135,13 +1136,8 @@ fn resolve_targets(
     })
 }
 
-enum Scope {
-    All,
-    Targeted,
-}
-
 struct SelectedTargets {
-    scope: Scope,
+    scope: CorpusScope,
     items: Vec<LocalItem>,
     remote_candidates: Vec<ExternalId>,
 }
@@ -1180,7 +1176,7 @@ fn build_selection(
 ) -> Result<SelectedTargets, ExitCode> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
-            scope: Scope::All,
+            scope: CorpusScope::WholeCorpus,
             items: Vec::new(),
             remote_candidates: Vec::new(),
         });
@@ -1196,7 +1192,7 @@ fn build_selection(
                 return Err(ExitCode::from(exit_codes::USAGE));
             }
             Ok(SelectedTargets {
-                scope: Scope::Targeted,
+                scope: CorpusScope::Targeted,
                 items: found.items,
                 remote_candidates: found.remote_candidates,
             })
@@ -1903,8 +1899,8 @@ pub fn run_sync_with(
         filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
-        Scope::All => ItemSelection::All,
-        Scope::Targeted => ItemSelection::Targeted {
+        CorpusScope::WholeCorpus => ItemSelection::All,
+        CorpusScope::Targeted => ItemSelection::Targeted {
             items: &selected.items,
             pull_ids: &pull_ids,
         },
@@ -1973,7 +1969,6 @@ pub fn run_sync_with(
                 integration: &integration,
                 integrations_root: &integrations_root,
                 repo_root: &repo_root,
-                mode,
                 corpus: &items,
                 workspace: &workspace,
                 work_dir: &work_dir,
@@ -2108,7 +2103,6 @@ struct FinishedRunContext<'a> {
     integration: &'a str,
     integrations_root: &'a Path,
     repo_root: &'a Path,
-    mode: RunMode,
     corpus: &'a [LocalItem],
     workspace: &'a IdentityWorkspace,
     work_dir: &'a Path,
@@ -2147,7 +2141,7 @@ fn review_kept_edits(
         .filter_map(|item| item.kept_edits.clone())
         .collect();
     match retention.review(&this_run) {
-        Ok(review) if context.mode == RunMode::Apply => retention.sweep(review),
+        Ok(review) if report.mode == RunMode::Apply => retention.sweep(review),
         Ok(review) => review,
         Err(error) => {
             console.warn(format_args!(
@@ -2217,7 +2211,6 @@ fn report_finished_run(
     }
     let finished = FinishedRun {
         report,
-        mode: context.mode,
         corpus_external_ids: context
             .corpus
             .iter()
@@ -2310,10 +2303,10 @@ mod tests {
     use super::render_report;
     use super::resolve_targets;
     use super::unbounded_gate_fires;
-    use super::Scope;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
+    use work_adapters::sync::report::CorpusScope;
 
     #[test]
     fn the_unbounded_gate_fires_only_on_unlimited_over_a_broadened_scope() {
@@ -2792,7 +2785,7 @@ mod tests {
         )
         .expect("no targets is a whole-corpus run");
 
-        assert!(matches!(selected.scope, Scope::All));
+        assert!(matches!(selected.scope, CorpusScope::WholeCorpus));
         assert!(selected.items.is_empty());
     }
 
