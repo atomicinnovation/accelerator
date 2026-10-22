@@ -1374,3 +1374,20 @@ fn tracker_failures_keep_their_named_class() {
         }
     }
 }
+
+#[test]
+fn each_failure_class_has_its_report_keyword() {
+    let keywords = [
+        (FailureClass::Retryable, "retryable"),
+        (FailureClass::Terminal, "terminal"),
+        (FailureClass::Unconfigured, "unconfigured"),
+        (FailureClass::Rejected, "rejected"),
+        (FailureClass::Unrenderable, "unrenderable"),
+        (FailureClass::PullResidue, "pull-residue"),
+        (FailureClass::Unparseable, "unparseable"),
+        (FailureClass::WriteRefused, "local-write-refused"),
+    ];
+    for (class, keyword) in keywords {
+        assert_eq!(class.keyword(), keyword);
+    }
+}
