@@ -325,7 +325,7 @@ fn finalise_baseline(
     let advance_ids: Vec<&str> = reported
         .iter()
         .filter(|item| definitively_reconciled(item))
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     let advance_document = matches!(
         selection,
@@ -348,19 +348,19 @@ fn finalise_baseline(
 /// leaves pending, such as a local edit under `--pull-only`, keeps the old
 /// watermark, or the next run's mtime pre-filter would hide it.
 const fn definitively_reconciled(item: &ReportedItem) -> bool {
-    let deferred = matches!(item.planned.action, Action::Noop)
+    let deferred = matches!(item.planned.action(), Action::Noop)
         && matches!(
-            item.planned.state,
+            item.planned.state(),
             SyncState::LocallyModified | SyncState::RemotelyModified
         );
     !deferred
         && !matches!(item.outcome, ItemOutcome::Failed(_))
         && !matches!(
-            item.planned.action,
+            item.planned.action(),
             Action::Prompt | Action::SkipConflict | Action::SkipDirty
         )
         && !matches!(
-            item.planned.state,
+            item.planned.state(),
             SyncState::RemoteAbsent | SyncState::Indeterminate
         )
 }
@@ -821,10 +821,10 @@ fn build_dossiers(
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
-        .filter(|planned| planned.action == Action::Prompt)
+        .filter(|planned| planned.action() == Action::Prompt)
         .filter_map(|planned| {
-            let item = knowledge.item(&planned.id)?;
-            Some(dossier_for(&planned.id, item, knowledge))
+            let item = knowledge.item(planned.id())?;
+            Some(dossier_for(planned.id(), item, knowledge))
         })
         .collect()
 }
@@ -935,11 +935,11 @@ fn validate_pushes(
     plan.actions
         .iter()
         .map(|planned| {
-            let checked = if planned.action == Action::Pull {
+            let checked = if planned.action() == Action::Pull {
                 check_pull(planned, knowledge)
             } else {
                 planned
-                    .action
+                    .action()
                     .sends_to_tracker()
                     .then(|| check_send(planned, tracker, knowledge))
                     .flatten()
@@ -969,7 +969,7 @@ fn check_pull(
     planned: &PlannedAction,
     knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = knowledge.item(&planned.id)?;
+    let item = knowledge.item(planned.id())?;
     pulled_file(item, knowledge).err().map(Err)
 }
 
@@ -1029,20 +1029,20 @@ fn prepare_send<'k>(
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     if let Some(refusal) = send_refusal(
         knowledge.comparison,
-        planned.action,
+        planned.action(),
         knowledge.shape(&item.id),
         &local.body,
         knowledge.projection(&item.id),
     ) {
         return Err(refused_send(
             &item.id,
-            planned.action,
+            planned.action(),
             external_id,
             refusal,
         ));
     }
     Ok(PreparedSend {
-        action: planned.action,
+        action: planned.action(),
         content,
         local,
     })
@@ -1055,7 +1055,7 @@ fn check_send(
     tracker: &dyn RemoteTracker,
     knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = knowledge.item(&planned.id)?;
+    let item = knowledge.item(planned.id())?;
     let external_id = item.external_id.as_ref()?;
     let prepared = match prepare_send(planned, item, external_id, knowledge) {
         Ok(prepared) => prepared,
@@ -1180,8 +1180,8 @@ fn unsynced_creates<'a>(
     }
     plan.actions
         .iter()
-        .filter(|planned| planned.state == SyncState::Unsynced)
-        .filter_map(|planned| items.iter().find(|item| item.id == planned.id))
+        .filter(|planned| planned.state() == SyncState::Unsynced)
+        .filter_map(|planned| items.iter().find(|item| item.id == planned.id()))
         .filter(|item| DraftId::parse(&item.id).is_none())
         .collect()
 }
@@ -1217,17 +1217,13 @@ fn create_inputs(
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
 /// row rather than folding into the synced count, and never awaiting-human.
-const fn create_report(
+fn create_report(
     id: String,
     action: Action,
     outcome: ItemOutcome,
 ) -> ReportedItem {
     ReportedItem {
-        planned: PlannedAction {
-            id,
-            state: SyncState::Unsynced,
-            action,
-        },
+        planned: PlannedAction::new(id, SyncState::Unsynced, action),
         outcome,
         validation: None,
         kept_edits: None,
@@ -1387,7 +1383,7 @@ fn noting_unsupported_recipe(
     item: ReportedItem,
     unsupported_recipe: &BTreeSet<String>,
 ) -> ReportedItem {
-    if unsupported_recipe.contains(&item.planned.id)
+    if unsupported_recipe.contains(item.planned.id())
         && matches!(item.outcome, ItemOutcome::NotApplied)
     {
         ReportedItem {
@@ -1420,11 +1416,11 @@ fn apply_planned_action(
     labels: &RunLabels<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
-    let item = knowledge.item(&planned.id);
+    let item = knowledge.item(planned.id());
     let mut kept_edits = None;
-    let outcome = match planned.action {
+    let outcome = match planned.action() {
         Action::RecordBaseline => {
-            match item.zip(knowledge.snapshot(&planned.id)) {
+            match item.zip(knowledge.snapshot(planned.id())) {
                 Some((item, snapshot)) => {
                     record_outcome(applier, item, snapshot, knowledge)
                 }
@@ -1451,8 +1447,8 @@ fn apply_planned_action(
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
             let keeps_hash =
                 item.is_some_and(|item| keeps_local_hash(item, knowledge));
-            if matches!(planned.state, SyncState::Conflict) && !keeps_hash {
-                blank_local_hash.push(planned.id.clone());
+            if matches!(planned.state(), SyncState::Conflict) && !keeps_hash {
+                blank_local_hash.push(planned.id().to_owned());
             }
             ItemOutcome::NotApplied
         }
@@ -2164,11 +2160,11 @@ mod tests {
             path: missing.path().join("0009-gone.md"),
             external_id: None,
         };
-        let planned = work::sync::PlannedAction {
-            id: "0009".to_owned(),
-            state: work::sync::SyncState::LocallyModified,
-            action: work::sync::Action::Push(work::sync::FieldDelivery::Send),
-        };
+        let planned = work::sync::PlannedAction::new(
+            "0009".to_owned(),
+            work::sync::SyncState::LocallyModified,
+            work::sync::Action::Push(work::sync::FieldDelivery::Send),
+        );
         let facts = super::GatheredFacts {
             per_id: std::collections::BTreeMap::new(),
             identity: std::collections::BTreeMap::new(),
@@ -2234,11 +2230,11 @@ mod tests {
     }
 
     fn planned(action: work::sync::Action) -> work::sync::PlannedAction {
-        work::sync::PlannedAction {
-            id: "0009".to_owned(),
-            state: work::sync::SyncState::LocallyModified,
+        work::sync::PlannedAction::new(
+            "0009",
+            work::sync::SyncState::LocallyModified,
             action,
-        }
+        )
     }
 
     #[test]

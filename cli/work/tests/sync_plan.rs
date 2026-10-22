@@ -248,8 +248,8 @@ fn an_absent_item_plans_as_remote_absent_and_noop() {
         plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new());
 
     assert_eq!(result.actions.len(), 1);
-    assert_eq!(result.actions[0].state, SyncState::RemoteAbsent);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
+    assert_eq!(result.actions[0].state(), SyncState::RemoteAbsent);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 #[test]
@@ -275,8 +275,8 @@ fn an_indeterminate_item_plans_as_indeterminate_and_noop() {
         plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new());
 
     assert_eq!(result.actions.len(), 1);
-    assert_eq!(result.actions[0].state, SyncState::Indeterminate);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
+    assert_eq!(result.actions[0].state(), SyncState::Indeterminate);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 fn conflicting_item<'a>(
@@ -323,8 +323,8 @@ fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull() {
     let result =
         plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
 
-    assert_eq!(result.actions[0].state, SyncState::Conflict);
-    assert_eq!(result.actions[0].action, work::sync::Action::Pull);
+    assert_eq!(result.actions[0].state(), SyncState::Conflict);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
 }
 
 fn resolved_conflict(resolution: Resolution) -> work::sync::SyncPlan {
@@ -348,7 +348,7 @@ fn resolved_conflict(resolution: Resolution) -> work::sync::SyncPlan {
 fn a_resolved_local_push_is_an_overwrite() {
     let result = resolved_conflict(Resolution::PushLocal);
 
-    assert_eq!(result.actions[0].action, work::sync::Action::Overwrite);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Overwrite);
 }
 
 #[test]
@@ -394,11 +394,11 @@ fn only_a_push_a_retitle_or_an_overwrite_sends_to_the_tracker() {
 #[test]
 fn a_retitle_counts_against_max_pushes() {
     let retitling = work::sync::SyncPlan {
-        actions: vec![work::sync::PlannedAction {
-            id: "0013".to_owned(),
-            state: SyncState::LocallyModified,
-            action: work::sync::Action::Retitle,
-        }],
+        actions: vec![work::sync::PlannedAction::new(
+            "0013".to_owned(),
+            SyncState::LocallyModified,
+            work::sync::Action::Retitle,
+        )],
         unclassifiable: Vec::new(),
     };
 
@@ -424,7 +424,7 @@ fn a_resolution_of_skip_leaves_the_prompt_unresolved() {
     let result =
         plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
 
-    assert_eq!(result.actions[0].action, work::sync::Action::Prompt);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Prompt);
 }
 
 #[test]
@@ -454,8 +454,8 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert() {
     let result =
         plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
 
-    assert_eq!(result.actions[0].state, SyncState::Synced);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
+    assert_eq!(result.actions[0].state(), SyncState::Synced);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 #[test]
@@ -486,8 +486,8 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert() {
     let result =
         plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
 
-    assert_eq!(result.actions[0].state, SyncState::RemotelyModified);
-    assert_eq!(result.actions[0].action, work::sync::Action::Pull);
+    assert_eq!(result.actions[0].state(), SyncState::RemotelyModified);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
 }
 
 #[test]
@@ -551,9 +551,9 @@ fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction() {
 
         let result = plan::plan(&[item], direction, &BTreeMap::new());
 
-        assert_eq!(result.actions[0].state, SyncState::Synced);
+        assert_eq!(result.actions[0].state(), SyncState::Synced);
         assert_eq!(
-            result.actions[0].action,
+            result.actions[0].action(),
             work::sync::Action::RecordBaseline,
             "{direction:?}"
         );
@@ -637,7 +637,7 @@ fn a_classification_error_fails_only_its_item() {
     let planned: Vec<&str> = result
         .actions
         .iter()
-        .map(|action| action.id.as_str())
+        .map(work::sync::PlannedAction::id)
         .collect();
     assert_eq!(planned, vec!["0002"]);
 }

@@ -466,8 +466,8 @@ impl Outcome {
         self.report()
             .reported
             .iter()
-            .find(|reported| reported.planned.id == id)
-            .map(|reported| reported.planned.state)
+            .find(|reported| reported.planned.id() == id)
+            .map(|reported| reported.planned.state())
     }
 
     fn promotion(&self, draft: &str) -> &PromotionOutcome {
@@ -1015,7 +1015,7 @@ fn preview_does_not_offer_to_import_a_moved_key() {
             .report()
             .reported
             .iter()
-            .all(|reported| reported.planned.id != "ENG-42"),
+            .all(|reported| reported.planned.id() != "ENG-42"),
         "the moved key is not offered for import"
     );
 }
@@ -1616,10 +1616,10 @@ fn the_engine_sees_dirtiness_reprobed_after_the_pass() {
         .report()
         .reported
         .iter()
-        .find(|reported| reported.planned.id == "0001")
+        .find(|reported| reported.planned.id() == "0001")
         .expect("the item is planned");
     assert_eq!(
-        reported.planned.action,
+        reported.planned.action(),
         work::sync::Action::Prompt,
         "a dirty, remotely modified item is not pulled over"
     );

@@ -30,11 +30,11 @@ impl FinishedRun<'_> {
             .iter()
             .filter(|item| {
                 matches!(
-                    item.planned.action,
+                    item.planned.action(),
                     work::sync::Action::CreateFromRemote
                 ) && matches!(item.outcome, ItemOutcome::Applied)
             })
-            .map(|item| ExternalId::new(item.planned.id.clone()))
+            .map(|item| ExternalId::new(item.planned.id().to_owned()))
             .collect()
     }
 }
