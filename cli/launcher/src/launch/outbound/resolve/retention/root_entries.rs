@@ -5,9 +5,13 @@
 //! residue.
 
 use std::collections::BTreeSet;
+use std::io;
+use std::path::Path;
 
 use kernel::TEMP_PREFIX;
 
+use super::super::filesystem::CacheFilesystem;
+use super::super::prune_report::{PruneStep, PruneSteps};
 use super::super::KNOWN_PLATFORMS;
 use super::residue::parse_pid;
 
@@ -31,6 +35,45 @@ pub enum RootEntry<'a> {
     Probe,
     BootstrapLock,
     Unrecognised,
+}
+
+/// One listing of a cache root's top level, which single-file prune and the
+/// residue sweep both act on; a name that is not UTF-8 is no name the plugin
+/// writes, so it is left out and kept.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RootListing {
+    names: Vec<String>,
+}
+
+impl RootListing {
+    /// # Errors
+    ///
+    /// If the root cannot be listed.
+    pub fn read(
+        root: &Path,
+        filesystem: &dyn CacheFilesystem,
+        steps: &dyn PruneSteps,
+    ) -> io::Result<Self> {
+        steps.reached(PruneStep::AboutToList);
+        let names = filesystem.list(root)?;
+        steps.reached(PruneStep::Listed);
+        Ok(Self {
+            names: names
+                .into_iter()
+                .filter_map(|name| name.into_string().ok())
+                .collect(),
+        })
+    }
+
+    /// Every listed name beside what it is.
+    pub fn classified(&self) -> Vec<(&str, RootEntry<'_>)> {
+        let listed: BTreeSet<&str> =
+            self.names.iter().map(String::as_str).collect();
+        self.names
+            .iter()
+            .map(|name| (name.as_str(), classify(name, &listed)))
+            .collect()
+    }
 }
 
 /// What `name` is, given every name `listed` beside it.

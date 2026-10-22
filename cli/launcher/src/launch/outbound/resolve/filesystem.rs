@@ -108,6 +108,13 @@ pub trait CacheFilesystem {
     /// If the file cannot be removed.
     fn remove_file(&self, path: &Path) -> io::Result<()>;
 
+    /// Remove an empty directory.
+    ///
+    /// # Errors
+    ///
+    /// If the directory cannot be removed.
+    fn remove_dir(&self, path: &Path) -> io::Result<()>;
+
     /// # Errors
     ///
     /// If `path` cannot be examined.
@@ -219,6 +226,10 @@ impl CacheFilesystem for SystemFilesystem {
 
     fn remove_file(&self, path: &Path) -> io::Result<()> {
         std::fs::remove_file(path)
+    }
+
+    fn remove_dir(&self, path: &Path) -> io::Result<()> {
+        std::fs::remove_dir(path)
     }
 
     fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
@@ -570,6 +581,10 @@ pub mod testing {
 
         fn remove_file(&self, path: &Path) -> io::Result<()> {
             self.inner.remove_file(path)
+        }
+
+        fn remove_dir(&self, path: &Path) -> io::Result<()> {
+            self.inner.remove_dir(path)
         }
 
         fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
