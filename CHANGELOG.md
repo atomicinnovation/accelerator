@@ -215,24 +215,9 @@
   deleting the ledger would skip that. `conduct`'s failure-reason table
   gains a "run that did not end" row: re-run `conduct`, first waiting out any
   agent usage limit the earlier session showed. Consider adding
-  `**/.conduct-run.json` to your `.gitignore`. Every plan also reports Claude
-  Code's per-session `WebSearch` cap as `search_cap` with its source, read from
-  `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it, else 200;
-  a `--start` with web pairs warns when the variable holds a value Claude Code
-  would not honour. A run's first plan sizes a per-level `WebSearch` budget for
-  its web researchers from that cap, less a reserve of a twentieth, over the
-  worst-case tree of every outstanding web pair, and keeps the budgets in its
-  ledger for the rest of the run. Run plans with web pairs report
-  `search_budgets` and `search_demand`, and give every web `single_pass` pair
-  and node its `search_budget`. When even budgets of 1 do not fit, the sizing
-  plan warns. Web researchers make at most their search budget of `WebSearch`
-  calls, and web level notes record it as `search_budget`, an optional
-  level-note field. A project that overrides `topic-research-level-note.md`
-  should add the `search_budget` line. `--withhold-profile P`, with `--run`,
-  withholds researcher spawns of profile `P` for the rest of the run, which
-  its ledger remembers; run plans report them as `withheld`. Every plan lists
-  its full outstanding set as `unanswered`, which `pairs` narrows to the
-  spawns offered now.
+  `**/.conduct-run.json` to your `.gitignore`. Every plan lists its full
+  outstanding set as `unanswered`, which `pairs` narrows to the spawns
+  offered now.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
@@ -252,11 +237,28 @@
   with one.
   `conduct` re-issues spawns Claude Code refuses for capacity (verified on
   Claude Code 2.1.296), and records a spawn still refused once retrying
-  stops, for a later run to retry. When a web researcher exhausts Claude
-  Code's web search quota, `conduct` halts: it spawns no further web
-  researchers, re-issues no web spawn refused for capacity, still finishes
-  the run's other work, and opens its summary with the halt, the web pairs
-  left unfinished, and the recovery of `/clear` and a re-run.
+  stops, for a later run to retry.
+- **`research-topic`'s `conduct` caps each web researcher at a per-level
+  `WebSearch` budget, and halts when Claude Code's web search quota runs
+  out.** Every `research topic outstanding` plan reports Claude Code's
+  per-session `WebSearch` cap as `search_cap` with its source, read from
+  `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it, else
+  200; a `--start` with web pairs warns when the variable holds a value
+  Claude Code would not honour. A run's first plan sizes a per-level budget
+  for its web researchers from that cap, less a reserve of a twentieth, over
+  the worst-case tree of every outstanding web pair, and keeps the budgets in
+  its ledger for the rest of the run. Run plans with web pairs report
+  `search_budgets` and `search_demand`, and give every web `single_pass` pair
+  and node its `search_budget`. When even budgets of 1 do not fit, the sizing
+  plan warns. Web researchers make at most their search budget of
+  `WebSearch` calls, and web level notes record it as `search_budget`, an
+  optional level-note field. When a web researcher exhausts the quota,
+  `conduct` halts: it spawns no further web researchers, re-issues no web
+  spawn refused for capacity, still finishes the run's other work, and opens
+  its summary with the halt, the web pairs left unfinished, and the recovery
+  of `/clear` and a re-run. `--withhold-profile P`, with `--run`, withholds
+  researcher spawns of profile `P` for the rest of the run, which its ledger
+  remembers; run plans report them as `withheld`.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
@@ -705,6 +707,10 @@
 - **A Linear `assignee` filter must name a member of a team in scope.** A
   user who has left the team, or who assigns work without being a member, now
   refuses the sync. Use a current member, or widen the scope.
+- **A project that overrides `topic-research-level-note.md` should add a
+  `search_budget` line after `depth`.** Web level notes record their search
+  budget there; the field is optional, so an override without it still
+  writes valid notes, but they do not record the budget.
 
 ## [1.23.0] - 2026-06-23
 
