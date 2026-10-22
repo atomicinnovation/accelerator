@@ -561,28 +561,30 @@ allocate a finding or note path yourself.
       1. **Halt.** Printed only when the last run plan's `withheld` was
          non-empty, so it rests on what the CLI reported, not on what
          `conduct` remembers. Each withheld profile maps to its reason
-         through the **Halting failures** table:
+         through the **Halting failures** table, and the notice is printed
+         once per withheld profile:
 
          ```text
          conduct halted: {reason}
-         ended with it:
+         spawns that reported it:
          - {stem} {lineage}: {question}
          - {stem}: {question}
-         web pairs left unfinished:
+         {profile} pairs left unfinished:
          - {stem}: {question}
          {recovery}
          ```
 
-         "ended with it" lists each spawn whose own summary gave the reason,
-         not the capacity-refused ones. "web pairs left unfinished" lists
-         each entry of the tick plan's `unanswered` with `profile` `web` and
-         a `stage` other than `compose`. Those spawns are also listed under
-         Failures.
+         "spawns that reported it" lists each spawn whose own summary gave
+         the reason, not the capacity-refused ones. "{profile} pairs left
+         unfinished" lists each entry of the tick plan's `unanswered` with
+         that `profile` and a `stage` other than `compose`. Failures leaves
+         out the spawns listed under "spawns that reported it": their next
+         step is the `{recovery}` above.
       2. **Run that did not end.** The step 2 report, unchanged, when the first
          plan carried `replaced_run`.
       3. **Failures.** Each failed node as `<stem> <lineage>`, each failed
          composition as `<stem> (composer)`, and each failed `single_pass` pair
-         as `<stem>`, with the node or pair question, the reason recorded
+         as `<stem>`, except those the Halt section lists, with the node or pair question, the reason recorded
          for it, and its next step from the table below. For a node, the
          next step also offers re-running with a smaller `--depth` to
          compose from the notes already on disk.

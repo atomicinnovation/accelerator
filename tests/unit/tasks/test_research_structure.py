@@ -1254,19 +1254,27 @@ def test_the_halt_notice_names_what_it_halted() -> None:
     halt = _halt_section()
     for line in (
         "conduct halted: {reason}",
-        "ended with it:",
-        "web pairs left unfinished:",
+        "spawns that reported it:",
+        "{profile} pairs left unfinished:",
         "{recovery}",
     ):
         assert line in halt, f"the halt notice must carry {line!r}"
     for sentence in (
-        '"ended with it" lists each spawn whose own summary gave the reason, '
-        "not the capacity-refused ones.",
-        "with `profile` `web` and a `stage` other than `compose`",
+        "once per withheld profile",
+        '"spawns that reported it" lists each spawn whose own summary gave '
+        "the reason, not the capacity-refused ones.",
+        "with that `profile` and a `stage` other than `compose`",
         "the tick plan's `unanswered`",
-        "Those spawns are also listed under Failures.",
+        "Failures leaves out the spawns listed under",
     ):
         assert sentence in halt, f"the halt section must state {sentence!r}"
+    for stale in ("ended with it", "web pairs left", "also listed under"):
+        assert stale not in halt, f"the halt section must not say {stale!r}"
+
+
+def test_failures_leave_out_the_spawns_a_halt_lists() -> None:
+    failures = _section(_summary(), "3. **Failures.**", "4. **Unexpected")
+    assert "except those the Halt section lists" in failures
 
 
 def test_the_halt_recovery_offers_clear_and_a_raised_cap_not_the_refill() -> (
