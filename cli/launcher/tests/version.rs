@@ -184,3 +184,40 @@ fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
     );
     Ok(())
 }
+
+fn is_launcher_id(candidate: &str) -> bool {
+    candidate.len() == 16
+        && candidate
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+#[test]
+fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>>
+{
+    let cache = tempfile::Builder::new()
+        .prefix("version-claim-")
+        .tempdir()?;
+    let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+
+    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+
+    assert!(output.status.success(), "{output:?}");
+    let claims: Vec<String> = std::fs::read_dir(cache.path().join("claims"))?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|name| name.to_string_lossy().into_owned())
+        .collect();
+    let prefix = format!("{}.", env!("CARGO_PKG_VERSION"));
+    assert!(
+        matches!(
+            claims.as_slice(),
+            [claim] if claim
+                .strip_prefix(&prefix)
+                .is_some_and(is_launcher_id)
+        ),
+        "{claims:?}"
+    );
+    Ok(())
+}
