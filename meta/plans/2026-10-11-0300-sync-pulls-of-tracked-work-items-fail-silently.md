@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-22T11:44:45+00:00"
+last_updated: "2026-10-22T19:12:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1824,7 +1824,13 @@ Landed as seven commits plus this progress record: the project-bounded
 corpus store, `SyncStore` and the split harness, marker removal through the
 integration-state store, the marker id refusal, `config::provenance`, the
 two bounded stores with the pre-flight root check, and the batch push's
-warning. Departures from the steps above:
+warning. Two further commits were needed for `mise run` to pass, neither
+part of this phase's design: the visualiser's SSE end-to-end tests now
+wait for the server's filesystem watches before timing an event (through
+a new `server::run_signalling` and `StartupSignals`; a loaded `fseventsd`
+was measured taking 59–159 s per registration, beyond the old 300 s
+budget under a full run), and the docs site takes DOMPurify 3.4.17 for
+two newly published advisories. Departures from the steps above:
 
 - `paths.work` is a doc-type key, which `config::paths::doc_type_dirs`
   already refuses when absolute or holding `..`, and no `paths.*` key has
@@ -3045,8 +3051,9 @@ the call-site updates and the compiler, not by a snapshot.
       `PlannedAction::new`, its getters, `Instruction`, `PlannedAction::ordered`
       (crate-visible, so absent) and `plan()`'s new pending-push-orders
       input, `Action::Relink` and `SyncRequest`-side `unconfirmed_links`;
-      `config` shows `provenance::path_source`, `PathSource` and nothing
-      changed in the consent catalogue (`work-adapters`, unpinned, gains
+      `config` shows nothing new (`provenance::path_source` and
+      `PathSource` landed in Phase 4) and nothing changed in the consent
+      catalogue (`work-adapters`, unpinned, gains
       `OrderRefusal`, `ApplyError::CorpusIncomplete`)
 - [ ] Golden report fixture unchanged (only the test's `RunReport` literal
       changes): `cargo test -p accelerator-work --manifest-path cli/Cargo.toml render_report_sorts_fixed_width_ids_numerically`
@@ -3282,7 +3289,8 @@ assertion checks `a.md` holds the new remote text:
 - New conflict `c` without a dossier, `--target c`: `c.md` written with its
   section diff; `b.md` unchanged.
 - `a`'s local edit now matches remote (title and an equivalent body),
-  `--target a`: row `a\trecord-baseline\t…`, `a.md` removed; others
+  `--target a`: no `a` row (`Synced(RecordOnly)` counts as synced without
+  one), the baseline recorded, `a.md` removed; others
   unchanged. On `--preview` the same corpus keeps `a.md`.
 - `--target a --pull-only` on conflicted `a`: `a.md` byte-identical.
 - Budget-limited full run leaving `a` `Indeterminate`: `a.md` kept.
@@ -3629,7 +3637,7 @@ rule):
 
     | Row state | Operation, prefix | Recovery |
     |---|---|---|
-    | any | `baseline-set`, `after pull` | the file holds the remote content; the next sync records its baseline (`record-baseline`), or reports a conflict to resolve with `<id>=remote` |
+    | any | `baseline-set`, `after pull` | the file holds the remote content; the next sync records its baseline (counted as synced, with no row), or reports a conflict to resolve with `<id>=remote` |
     | any | `hash-local`/`baseline-set`, `after push` | the tracker holds your local content; the next sync records its baseline, or reports a conflict to resolve with `<id>=local` |
     | `unsynced` | `baseline-set`, `after author` or `after link` | the item and its issue match; the next sync settles it |
     | any | `update`, `retitle` | check whether the tracker issue now shows your local content, then sync |
@@ -3813,10 +3821,11 @@ Amend 0296's entries in place rather than adding parallel ones:
   per-item classification error, which aborted the whole run with exit `1`,
   now fails only that item (exit `70`); a `meta/work` or integrations
   directory that is a symlink out of the repository refuses the run at the
-  start with exit `74`, before anything is sent — set `paths.work` or
-  `paths.integrations` to the absolute target in `.accelerator/config.local.md`
-  instead; an out-of-repo `paths.work`/`paths.integrations`, absolute or
-  `..`-relative, is honoured only from an untracked
+  start with exit `74`, before anything is sent — move the work directory
+  back inside the repository, or set `paths.integrations` to the absolute
+  target in `.accelerator/config.local.md`; an out-of-repo
+  `paths.integrations`, absolute or `..`-relative, is honoured only from an
+  untracked
   `.accelerator/config.local.md`, and one in the team config or a tracked
   personal file now refuses the run with exit `74` naming that remedy (other
   `work` commands still use such a path; only sync writes there unattended);
@@ -3835,9 +3844,8 @@ Amend 0296's entries in place rather than adding parallel ones:
 - `### Migrations` — run `/accelerator:migrate` (migration 0011) to ignore
   machine-local sync state; settle any tracked pending-push markers with
   `--resolve <id>=adopt:<KEY>`/`=create` before untracking what it names;
-  move a team-config `paths.work`/`paths.integrations` outside the
-  repository into an untracked `.accelerator/config.local.md`, or sync
-  refuses with `74`.
+  move a team-config `paths.integrations` outside the repository into an
+  untracked `.accelerator/config.local.md`, or sync refuses with `74`.
 - `### Changed` — `accelerator config init` and migration `0011` ignore
   `.accelerator/state/{retirement,sync}-recovery/` and every integration's
   `pending-push/`, `conflicts/` and `adopted/`; a symlinked recovery directory is now
@@ -3952,8 +3960,9 @@ lists one directory.
 - 0296 already has `a_pulled_item_syncs_again_as_synced_with_no_update`
   (`sync_equivalence.rs`). Phase 4 adds
   `a_terminal_baseline_set_after_a_pull_records_the_baseline_on_the_next_run`:
-  after a pull whose baseline write failed, the next run reports
-  `record-baseline`, writes nothing to the item and sends nothing.
+  after a pull whose baseline write failed, the next run records the
+  baseline with no row (counted as synced), writes nothing to the item and
+  sends nothing.
 - Scripts and CI calling `accelerator work sync` that relied on 0296's exit
   71 for a local read failure, or 75 for a permission-refused pull, now see
   70; those that relied on exit 0 after silently skipped work files now see
@@ -3981,8 +3990,9 @@ lists one directory.
   "absolute paths are also supported" line (`skills/config/configure/SKILL.md:571`)
   gains that condition in Phase 7. A `meta/work` (or any
   in-repo configured root) that is a symlink out of the repository refuses
-  the run at the start, with exit 74 and a cause naming the remedy: set
-  `paths.work` or `paths.integrations` to the absolute target in
+  the run at the start, with exit 74 and a cause naming the remedy: move
+  the work directory back inside the repository, or set
+  `paths.integrations` to the absolute target in
   `.accelerator/config.local.md`. Overlapping roots, or a root containing
   `.accelerator/state`, refuse with 74 too; a symlinked `.accelerator/state`
   or recovery directory refuses `work promote` with 74 as well, and makes
