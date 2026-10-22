@@ -601,6 +601,11 @@ def test_depth_above_the_ceiling_clamps_to_it() -> None:
 
 def test_the_depth_ceiling_reads_alike_in_prose_and_in_the_cli() -> None:
     assert f"pub const DEEPEST: u32 = {DEPTH_CEILING};" in _rust_text(TREE)
+    docs = _prose(REPO_ROOT / "docs-site/src/content/docs/research.md")
+    assert f"levels from 1 to {DEPTH_CEILING}" in docs
+    assert (
+        f"| `--depth` is not 1 to {DEPTH_CEILING} | pass 1 to {DEPTH_CEILING} |"
+    ) in docs
 
 
 def test_configure_documents_the_depth_ceiling() -> None:
