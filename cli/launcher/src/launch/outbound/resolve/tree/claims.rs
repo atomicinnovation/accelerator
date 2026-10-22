@@ -60,42 +60,6 @@ pub fn refresh(
     write_private(&claim, clock);
 }
 
-/// Whether any valid claim on `digest` was refreshed within `window`.
-///
-/// A claim that is a symlink, or not owned by the effective uid, is ignored
-/// rather than trusted — otherwise a planted claim would pin a generation
-/// forever.
-#[must_use]
-pub fn claimed_within(
-    paths: &TreePaths,
-    digest: &str,
-    window: Duration,
-    clock: &dyn Clock,
-) -> bool {
-    let prefix = format!("{digest}.");
-    let Ok(entries) = std::fs::read_dir(paths.claims()) else {
-        return false;
-    };
-    let now = clock.now_seconds();
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if !name.starts_with(&prefix) {
-            continue;
-        }
-        let path = entry.path();
-        if !is_valid_claim(&path) {
-            continue;
-        }
-        if let Some(modified) = modified_seconds(&path) {
-            if now.saturating_sub(modified) < window.as_secs() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 /// One tree claim whose name parses as `<digest>.<launcher-id>`.
 #[derive(Debug, Clone)]
 pub struct ListedTreeClaim {
@@ -240,42 +204,12 @@ fn is_launcher_id(candidate: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-/// Remove every claim on `digest` — used when the digest's generation is
-/// reclaimed, so a stale pointer's claims do not linger.
-pub fn drop_all(paths: &TreePaths, digest: &str) {
-    let prefix = format!("{digest}.");
-    let Ok(entries) = std::fs::read_dir(paths.claims()) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        if name.to_str().is_some_and(|name| name.starts_with(&prefix)) {
-            let _ = std::fs::remove_file(entry.path());
-        }
-    }
-}
-
 fn is_fresh_enough(claim: &Path, clock: &dyn Clock) -> bool {
     let Some(modified) = modified_seconds(claim) else {
         return false;
     };
     clock.now_seconds().saturating_sub(modified)
         < CLAIM_WINDOW.as_secs() / REFRESH_FRACTION
-}
-
-#[cfg(unix)]
-fn is_valid_claim(path: &Path) -> bool {
-    use std::os::unix::fs::MetadataExt as _;
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    !metadata.file_type().is_symlink()
-        && metadata.uid() == rustix::process::geteuid().as_raw()
-}
-
-#[cfg(not(unix))]
-fn is_valid_claim(_path: &Path) -> bool {
-    false
 }
 
 fn modified_seconds(path: &Path) -> Option<u64> {
@@ -314,14 +248,16 @@ fn write_private(path: &Path, _clock: &dyn Clock) {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use std::time::Duration;
 
     use crate::launch::core::tree::Clock;
 
+    use super::super::super::filesystem::SystemFilesystem;
+    use super::super::super::ownership::{Ownership as _, ProcessOwnership};
     use super::super::layout::TreePaths;
-    use super::{claimed_within, refresh, CLAIM_WINDOW};
+    use super::{list, refresh, TreeClaimsListing, CLAIM_WINDOW};
 
     struct AtClock(u64);
     impl Clock for AtClock {
@@ -341,6 +277,21 @@ mod tests {
     const DIGEST: &str =
         "abc0000000000000000000000000000000000000000000000000000000000123";
 
+    fn protected(paths: &TreePaths, window: Duration, clock: &AtClock) -> bool {
+        let ownership = ProcessOwnership::default();
+        let TreeClaimsListing::Read(claims) =
+            list(paths, &SystemFilesystem, &ownership)
+        else {
+            panic!("the claims were not read");
+        };
+        claims.protects(
+            DIGEST,
+            window,
+            clock.now_seconds(),
+            ownership.effective_uid(),
+        )
+    }
+
     fn trees(root: &std::path::Path) -> TreePaths {
         let paths = TreePaths::under(root);
         std::fs::create_dir_all(paths.root()).expect("trees");
@@ -353,11 +304,10 @@ mod tests {
         let paths = trees(dir.path());
         let present = AtClock(now());
         refresh(&paths, DIGEST, "install-a", &present);
-        assert!(claimed_within(&paths, DIGEST, CLAIM_WINDOW, &present));
+        assert!(protected(&paths, CLAIM_WINDOW, &present));
 
-        // A clock a fortnight on sees the same claim as stale.
         let later = AtClock(now() + CLAIM_WINDOW.as_secs() + 1);
-        assert!(!claimed_within(&paths, DIGEST, CLAIM_WINDOW, &later));
+        assert!(!protected(&paths, CLAIM_WINDOW, &later));
     }
 
     #[test]
@@ -414,13 +364,7 @@ mod tests {
             paths.claims().join(format!("{DIGEST}.planted")),
         )
         .expect("symlink");
-        let clock = AtClock(now());
-        assert!(!claimed_within(
-            &paths,
-            DIGEST,
-            Duration::from_secs(60),
-            &clock
-        ));
+        assert!(!protected(&paths, Duration::from_secs(60), &AtClock(now())));
     }
 
     fn back_date(path: &std::path::Path, seconds: u64) {

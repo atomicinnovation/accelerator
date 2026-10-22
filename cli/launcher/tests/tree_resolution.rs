@@ -29,24 +29,27 @@ use accelerator::launch::outbound::resolve::cache_root::{
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
-use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::ownership::{
+    Ownership as _, ProcessOwnership,
+};
 use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention::root_retention::PluginBinRetention;
 use accelerator::launch::outbound::resolve::retention_windows;
+use accelerator::launch::outbound::resolve::single_flight::LockPatience;
+use accelerator::launch::outbound::resolve::single_flight::SingleFlightLocks;
+use accelerator::launch::outbound::resolve::tree::lease::HeldLeases;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::locks::{
     FlockLocks, TreeLocks,
 };
-use accelerator::launch::outbound::resolve::tree::reap::{
-    PinnedDigests, Reclaimed,
-};
+use accelerator::launch::outbound::resolve::tree::reap::PinnedDigests;
 use accelerator::launch::outbound::resolve::tree::{
-    prune_pinned_artifact, ExpectedDigests, MaterialiseStep, NoSteps,
-    PinnedPruneCollaborators, StepObserver, TreeResolver,
+    ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreePrune,
+    TreePrunePorts, TreePruneRegime, TreePruneReport, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use lease::probe_shared_lease;
@@ -333,6 +336,7 @@ impl Harness {
                 ARTIFACT,
                 &self.archive_sha,
             ))),
+            patience: LockPatience::Wait,
         }
     }
 
@@ -373,13 +377,22 @@ impl Harness {
         clock: Arc<dyn Clock + Send + Sync>,
         lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
     ) -> PluginBinRetention {
+        self.retention_over(clock, lease_liveness, Arc::new(FlockLocks))
+    }
+
+    fn retention_over(
+        &self,
+        clock: Arc<dyn Clock + Send + Sync>,
+        lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
+        locks: Arc<dyn SingleFlightLocks + Send + Sync>,
+    ) -> PluginBinRetention {
         PluginBinRetention::new(
             self.plugin_bin_root(),
             Arc::new(CachePorts {
                 filesystem: Arc::new(SystemFilesystem),
                 ownership: Arc::new(ProcessOwnership::default()),
                 clock,
-                locks: Arc::new(FlockLocks),
+                locks,
                 steps: Arc::new(NoPruneSteps),
                 bootstrap_holders: Arc::new(KillZeroProbe),
                 lease_liveness,
@@ -484,31 +497,36 @@ struct PluginBinSeams {
     clock: Box<dyn Clock>,
     lease_liveness: Box<dyn LivenessProbe>,
     pins: Box<dyn PinnedDigests>,
+    patience: LockPatience,
 }
 
 fn prune_plugin_bin(
     harness: &Harness,
     seams: PluginBinSeams,
-    artifact: &str,
     older_than: Option<std::time::Duration>,
-) -> Reclaimed {
+) -> TreePruneReport {
     let PluginBinSeams {
         clock,
         lease_liveness,
         pins,
+        patience,
     } = seams;
-    prune_pinned_artifact(
-        &tree_paths(harness),
-        &on_host(artifact),
-        &PinnedPruneCollaborators {
+    let root = harness.plugin_bin_root();
+    TreePrune {
+        regime: TreePruneRegime::PinnedOnHost(&root),
+        claim_window: older_than.unwrap_or(retention_windows::CLAIM_WINDOW),
+        ports: TreePrunePorts {
+            held_leases: &HeldLeases::none(),
+            filesystem: &SystemFilesystem,
+            ownership: &ProcessOwnership::default(),
             clock: clock.as_ref(),
-            liveness: lease_liveness.as_ref(),
+            lease_liveness: lease_liveness.as_ref(),
             pins: pins.as_ref(),
             locks: TreeLocks::over(&FlockLocks),
+            steps: &NoPruneSteps,
         },
-        older_than,
-    )
-    .expect("prune")
+    }
+    .run(patience)
 }
 
 fn happy_harness(minisign: &Path) -> Harness {
@@ -762,7 +780,6 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
         prune_plugin_bin(
             &harness,
             harness.seams_with(far_future, FlockProbe),
-            ARTIFACT,
             None,
         );
         let residue = residual_generations(&harness);
@@ -1162,17 +1179,19 @@ fn another_artifacts_pinned_archive_survives_a_prune() {
     let harness = Arc::new(happy_harness(&minisign));
     create_free_tree_locks(&harness);
     let pinned = plant_bystanders_pinned_archive(&harness);
+    let unpinned =
+        tree_paths(&harness).temp_archive(&on_host(BYSTANDER), &"f".repeat(64));
+    std::fs::write(&unpinned, b"partial").unwrap();
 
     within_bound(&harness, |harness| {
-        prune_plugin_bin(
-            harness,
-            harness.seams_also_pinning_bystander(),
-            ARTIFACT,
-            None,
-        )
+        prune_plugin_bin(harness, harness.seams_also_pinning_bystander(), None)
     });
 
     assert!(pinned.exists(), "the bystander's pinned archive was reaped");
+    assert!(
+        !unpinned.exists(),
+        "the bystander's unpinned archive survived"
+    );
 }
 
 /// The bystander's materialise in progress: its lock held on the test thread,
@@ -1240,16 +1259,23 @@ fn another_artifacts_materialise_survives_this_ones_prune() {
     let harness = Arc::new(happy_harness(&minisign));
     let bystander = bystander_in_progress(&harness);
 
-    within_bound(&harness, |harness| {
+    let report = within_bound(&harness, |harness| {
         prune_plugin_bin(
             harness,
-            harness.seams_also_pinning_bystander(),
-            ARTIFACT,
+            PluginBinSeams {
+                patience: LockPatience::Try,
+                ..harness.seams_also_pinning_bystander()
+            },
             None,
         )
     });
 
     assert_in_progress_residue_survives(&bystander);
+    assert_eq!(
+        report,
+        TreePruneReport::default(),
+        "the bystander was pruned"
+    );
 }
 
 use accelerator::launch::outbound::resolve::tree::claims;
@@ -1307,7 +1333,6 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(FixedClock(present), FlockProbe),
-        ARTIFACT,
         None,
     );
     assert!(
@@ -1320,7 +1345,6 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(FixedClock(later), FlockProbe),
-        ARTIFACT,
         None,
     );
     assert!(
@@ -1358,7 +1382,6 @@ fn prune_older_than_overrides_the_window() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(FixedClock(present + 2), FlockProbe),
-        ARTIFACT,
         Some(std::time::Duration::from_secs(1)),
     );
     assert!(
@@ -1487,7 +1510,6 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(StoppedClock, FlockProbe),
-        ARTIFACT,
         Some(std::time::Duration::from_secs(0)),
     );
     assert!(
@@ -1582,7 +1604,6 @@ fn an_injected_held_probe_spares_a_stale_sibling_in_prune() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(StoppedClock, FixedLiveness(Liveness::Held)),
-        ARTIFACT,
         Some(ZERO),
     );
 
@@ -1622,7 +1643,6 @@ fn an_injected_held_probe_spares_an_aged_orphan_in_prune() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(aged(), FixedLiveness(Liveness::Held)),
-        ARTIFACT,
         None,
     );
 
@@ -1881,7 +1901,6 @@ fn unclaimed_sibling_kept(
     prune_plugin_bin(
         &harness,
         harness.seams_with(clock(), FixedLiveness(liveness)),
-        ARTIFACT,
         Some(ZERO),
     );
 
@@ -1994,7 +2013,6 @@ fn a_kept_unknown_superseded_generation_is_reaped_once_aged() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(aged(), FixedLiveness(Liveness::Unknown)),
-        ARTIFACT,
         None,
     );
 
@@ -2035,7 +2053,6 @@ fn an_old_unknown_superseded_generation_is_kept_for_a_full_backstop() {
             almost_a_backstop_later,
             FixedLiveness(Liveness::Unknown),
         ),
-        ARTIFACT,
         None,
     );
 
@@ -2782,7 +2799,6 @@ fn prune_never_reclaims_the_current_generation_even_at_a_zero_window() {
     prune_plugin_bin(
         &harness,
         harness.seams_with(StoppedClock, FlockProbe),
-        ARTIFACT,
         Some(std::time::Duration::from_secs(0)),
     );
 
@@ -2993,7 +3009,6 @@ fn a_second_launcher_spares_generations_a_live_daemon_holds() {
     prune_plugin_bin(
         &harness,
         harness.seams_expecting(&second_digest),
-        ARTIFACT,
         Some(ZERO),
     );
 
@@ -3016,7 +3031,6 @@ fn a_second_launcher_reclaims_generations_no_daemon_holds() {
     prune_plugin_bin(
         &harness,
         harness.seams_expecting(&second_digest),
-        ARTIFACT,
         Some(ZERO),
     );
 
@@ -3040,7 +3054,6 @@ fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
     prune_plugin_bin(
         &harness,
         harness.seams_expecting(&second_digest),
-        ARTIFACT,
         Some(ZERO),
     );
     assert!(sealed.path.exists());
@@ -3050,10 +3063,171 @@ fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
     prune_plugin_bin(
         &harness,
         harness.seams_expecting(&second_digest),
-        ARTIFACT,
         Some(ZERO),
     );
 
     assert!(!sealed.path.exists());
     assert!(!own_pointer(&harness).exists());
+}
+
+struct PruneVerb {
+    outcome: Result<(), kernel::Error>,
+    out: String,
+    err: String,
+}
+
+fn prune_verb(harness: &Harness, retention: &PluginBinRetention) -> PruneVerb {
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let outcome = cache::run(
+        &CacheAction::Prune { older_than: None },
+        &harness.resolver(),
+        retention,
+        &mut out,
+        &mut err,
+    );
+    PruneVerb {
+        outcome,
+        out: String::from_utf8(out).unwrap(),
+        err: String::from_utf8(err).unwrap(),
+    }
+}
+
+#[test]
+fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    std::fs::create_dir_all(tree_paths(&harness).root()).unwrap();
+
+    prune_verb(
+        &harness,
+        &harness.retention_with(Arc::new(aged()), Arc::new(FlockProbe)),
+    )
+    .outcome
+    .expect("prune");
+
+    assert_eq!(lock_files(&harness), Vec::<String>::new());
+}
+
+#[test]
+fn the_verb_tolerates_a_missing_trees_directory() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    let verb = prune_verb(
+        &harness,
+        &harness.retention_with(Arc::new(aged()), Arc::new(FlockProbe)),
+    );
+
+    verb.outcome.expect("prune");
+    assert!(verb.out.contains("reclaimed 0 entries"), "{}", verb.out);
+    assert!(!tree_paths(&harness).root().exists());
+}
+
+#[test]
+fn an_unreadable_tree_claims_directory_reclaims_nothing_in_the_plugin_bin() {
+    let minisign = minisign_or_skip!();
+    if ProcessOwnership::default().effective_uid() == 0 {
+        return;
+    }
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let sibling = plant_sibling_generation(&harness);
+    let claims = tree_paths(&harness).claims();
+    std::fs::set_permissions(&claims, std::fs::Permissions::from_mode(0o000))
+        .unwrap();
+
+    let verb = prune_verb(
+        &harness,
+        &harness.retention_with(Arc::new(aged()), Arc::new(FlockProbe)),
+    );
+
+    std::fs::set_permissions(&claims, std::fs::Permissions::from_mode(0o700))
+        .unwrap();
+    verb.outcome.expect("prune");
+    assert!(sibling_pointer(&harness, &sibling).exists());
+    assert!(
+        verb.err.contains("claims unreadable (permission denied)"),
+        "{}",
+        verb.err
+    );
+}
+
+#[test]
+fn the_plugin_bin_verb_still_reclaims_an_unclaimed_superseded_tree() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let superseded = ReclaimableControl::plant(&harness);
+
+    prune_once_everything_has_aged(&harness);
+
+    superseded.assert_reclaimed();
+    assert!(sealed.path.exists(), "the current tree was reclaimed");
+}
+
+#[test]
+fn a_residue_only_default_root_is_still_reaped() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let residue = paths.temp_generation(&format!(
+        "retired-{HOST_PLATFORM}-{}-1-0011223344556677",
+        "e".repeat(64)
+    ));
+    std::fs::create_dir(&residue).unwrap();
+
+    prune_verb(
+        &harness,
+        &harness.retention_with(Arc::new(StoppedClock), Arc::new(FlockProbe)),
+    )
+    .outcome
+    .expect("prune");
+
+    assert!(
+        !residue.exists(),
+        "the unpinned artifact's residue survived"
+    );
+}
+
+#[test]
+fn the_plugin_bin_verb_reports_a_failed_tree_lock_and_prunes_the_rest() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let superseded = ReclaimableControl::plant(&harness);
+    let paths = tree_paths(&harness);
+    std::fs::create_dir(paths.temp_generation(&format!(
+        "{BYSTANDER}-{HOST_PLATFORM}-{}-1-0011223344556677",
+        bystander_digest()
+    )))
+    .unwrap();
+    let unlockable = paths.single_flight_lock(&on_host(BYSTANDER));
+
+    let verb = prune_verb(
+        &harness,
+        &harness.retention_over(
+            Arc::new(aged()),
+            Arc::new(FlockProbe),
+            Arc::new(common::trees::FailingLockAt(unlockable.clone())),
+        ),
+    );
+
+    assert!(verb.outcome.is_err(), "the prune succeeded: {}", verb.out);
+    assert!(
+        verb.err.contains(&unlockable.display().to_string()),
+        "{}",
+        verb.err
+    );
+    superseded.assert_reclaimed();
 }

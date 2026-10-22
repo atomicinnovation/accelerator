@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
+use super::super::cache_root::PluginBinRoot;
 use super::super::filesystem::{CacheFilesystem, EntryMetadata};
 use super::super::ownership::safe_root::SafePruneRoot;
 use super::super::ownership::{is_trusted_directory, Ownership};
@@ -27,6 +28,7 @@ use super::super::prune_report::{
 };
 use super::super::retention_windows::is_aged;
 use super::super::single_flight::LockPatience;
+use super::super::HOST_PLATFORM;
 use super::claims::{self, is_stale_claim_entry, TreeClaimIndex};
 use super::layout::{
     classify_trees_entry, read_pointer, validated_generation, Artifact,
@@ -36,11 +38,17 @@ use super::lease::{
     try_exclusive_lease, HeldLeases, HeldLeasesFirst, LivenessProbe,
 };
 use super::locks::{TreeLockProbe, TreeLocks};
+use super::pins;
 use super::reap::{self, PinnedDigests, Reaper, RemovalObserver};
 use super::tree_lock::HeldTreeLock;
 
-/// Which artifacts a tree prune visits.
+/// Which artifacts a tree prune visits, and whether it sweeps the
+/// bookkeeping a materialise leaves: orphan sidecars, orphan tree locks and
+/// stale tree claims.
 pub enum TreePruneRegime<'a> {
+    /// The pinned artifacts on this host, and no bookkeeping, as the plugin's
+    /// own `bin` has always been pruned.
+    PinnedOnHost(&'a PluginBinRoot),
     /// Every artifact and platform under a relocated root's `trees/`.
     WholeTree(&'a SafePruneRoot),
 }
@@ -48,9 +56,27 @@ pub enum TreePruneRegime<'a> {
 impl TreePruneRegime<'_> {
     fn paths(&self) -> TreePaths {
         match self {
+            Self::PinnedOnHost(root) => TreePaths::under(root.path()),
             Self::WholeTree(safe) => TreePaths::under(safe.path()),
         }
     }
+
+    fn artifacts(&self, index: &TreesIndex) -> BTreeSet<Artifact> {
+        match self {
+            Self::PinnedOnHost(_) => pinned_on_host().collect(),
+            Self::WholeTree(_) => index.artifacts(),
+        }
+    }
+
+    const fn sweeps_bookkeeping(&self) -> bool {
+        matches!(self, Self::WholeTree(_))
+    }
+}
+
+fn pinned_on_host() -> impl Iterator<Item = Artifact> {
+    pins::artifact_names()
+        .into_iter()
+        .map(|name| Artifact::new(name, HOST_PLATFORM))
 }
 
 pub struct TreePrunePorts<'a> {
@@ -119,7 +145,7 @@ impl TreePrune<'_> {
             }
         };
         let mut reaped = false;
-        for artifact in index.artifacts() {
+        for artifact in self.regime.artifacts(&index) {
             match self.lock(&paths, &artifact, &index, patience) {
                 ArtifactLock::Taken(held) => {
                     self.ports.steps.reached(PruneStep::TreeLockHeld);
@@ -135,13 +161,15 @@ impl TreePrune<'_> {
                             &mut report,
                         );
                     }
-                    self.reclaim_orphan_sidecars(
-                        &paths,
-                        &artifact,
-                        &index,
-                        &mut report,
-                    );
-                    self.reclaim_orphan_lock(held, &index, &mut report);
+                    if self.regime.sweeps_bookkeeping() {
+                        self.reclaim_orphan_sidecars(
+                            &paths,
+                            &artifact,
+                            &index,
+                            &mut report,
+                        );
+                        self.reclaim_orphan_lock(held, &index, &mut report);
+                    }
                 }
                 ArtifactLock::LockFree => self.reclaim_orphan_sidecars(
                     &paths,
@@ -155,10 +183,42 @@ impl TreePrune<'_> {
                 }
             }
         }
-        if let Some(claims) = &claims {
-            self.sweep_stale_tree_claims(claims, &mut report);
+        if !reaped && index.holds_orphan_residue(self.ports.filesystem) {
+            self.reap_under_the_first_pinned_artifact(
+                &paths,
+                &index,
+                patience,
+                &mut report,
+            );
+        }
+        if let Some(claims) =
+            claims.filter(|_| self.regime.sweeps_bookkeeping())
+        {
+            self.sweep_stale_tree_claims(&claims, &mut report);
         }
         report
+    }
+
+    /// No artifact's own lock reached the residue, as when it belongs only to
+    /// artifacts this regime does not visit.
+    fn reap_under_the_first_pinned_artifact(
+        &self,
+        paths: &TreePaths,
+        index: &TreesIndex,
+        patience: LockPatience,
+        report: &mut TreePruneReport,
+    ) {
+        let Some(first) = pinned_on_host().next() else {
+            return;
+        };
+        match self.take(paths, &first, patience) {
+            ArtifactLock::Taken(held) => {
+                self.ports.steps.reached(PruneStep::TreeLockHeld);
+                self.reap_orphans_under(&held, index, report);
+            }
+            ArtifactLock::Failed(failure) => report.lock_failures.push(failure),
+            ArtifactLock::LockFree | ArtifactLock::Skipped => {}
+        }
     }
 
     /// Claims that cannot be read or trusted protect nothing and are swept
@@ -195,6 +255,9 @@ impl TreePrune<'_> {
     ) -> ArtifactLock {
         if index.has_work_for(artifact) {
             return self.take(paths, artifact, patience);
+        }
+        if !self.regime.sweeps_bookkeeping() {
+            return ArtifactLock::Skipped;
         }
         if index.has_lock_of(artifact) {
             return self.take_existing(paths, artifact, patience);
@@ -621,6 +684,24 @@ impl TreesIndex {
             TreesEntry::Generation(generation) => {
                 &generation.artifact == artifact
             }
+            _ => false,
+        })
+    }
+
+    /// Temp residue of any artifact, or a generation no pointer names: what
+    /// only a reap reclaims.
+    fn holds_orphan_residue(&self, filesystem: &dyn CacheFilesystem) -> bool {
+        let referenced: BTreeSet<String> = self
+            .entries()
+            .filter(|(_, entry)| matches!(entry, TreesEntry::Pointer { .. }))
+            .filter_map(|(name, _)| {
+                read_pointer(&self.paths.root().join(name), filesystem)
+            })
+            .map(|contents| contents.trim().to_owned())
+            .collect();
+        self.entries().any(|(name, entry)| match entry {
+            TreesEntry::TempResidue { .. } => true,
+            TreesEntry::Generation(_) => !referenced.contains(name),
             _ => false,
         })
     }

@@ -4,13 +4,17 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use accelerator::launch::core::tree::Clock;
+use accelerator::launch::core::tree::{Clock, TreeError};
+use accelerator::launch::outbound::resolve::single_flight::{
+    LockGuard, LockProbe, SingleFlightLocks,
+};
 use accelerator::launch::outbound::resolve::tree::layout::{
     generation_name, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use accelerator::launch::outbound::resolve::tree::lease::{
     take_single_flight, Liveness, LivenessProbe,
 };
+use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use accelerator::launch::outbound::resolve::KNOWN_PLATFORMS;
 
@@ -33,6 +37,45 @@ pub struct FixedLiveness(pub Liveness);
 impl LivenessProbe for FixedLiveness {
     fn probe(&self, _lease: &Path) -> Liveness {
         self.0
+    }
+}
+
+/// Fails every lock call on one path and takes every other for real.
+pub struct FailingLockAt(pub PathBuf);
+
+impl FailingLockAt {
+    fn fails(&self, path: &Path) -> Result<(), TreeError> {
+        if path == self.0 {
+            return Err(TreeError::Lease {
+                detail: "No locks available (os error 77)".to_owned(),
+            });
+        }
+        Ok(())
+    }
+}
+
+impl SingleFlightLocks for FailingLockAt {
+    fn take(&self, path: &Path) -> Result<LockGuard, TreeError> {
+        self.fails(path)?;
+        FlockLocks.take(path)
+    }
+
+    fn try_take(&self, path: &Path) -> Result<Option<LockGuard>, TreeError> {
+        self.fails(path)?;
+        FlockLocks.try_take(path)
+    }
+
+    fn wait_existing(
+        &self,
+        path: &Path,
+    ) -> Result<Option<LockGuard>, TreeError> {
+        self.fails(path)?;
+        FlockLocks.wait_existing(path)
+    }
+
+    fn probe(&self, path: &Path) -> Result<LockProbe, TreeError> {
+        self.fails(path)?;
+        FlockLocks.probe(path)
     }
 }
 

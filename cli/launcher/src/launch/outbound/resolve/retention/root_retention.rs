@@ -6,12 +6,11 @@ use std::time::Duration;
 
 use super::super::cache_root::{CacheRoot, PluginBinRoot};
 use super::super::ownership::safe_root::{SafePruneRoot, TrustedOwners};
-use super::super::prune_report::LockFailure;
 use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
 use super::super::tree::locks::TreeLocks;
-use super::super::tree::{prune_pinned_on_host, PinnedPruneCollaborators};
+use super::super::tree::{TreePrune, TreePrunePorts, TreePruneRegime};
 use super::launcher_id;
 use super::ports::CachePorts;
 use super::root_prune::{PruneOutcome, PruneReport, RootPrune};
@@ -44,21 +43,24 @@ impl RootRetention for PluginBinRetention {
     fn claim_running_version(&self) {}
 
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome {
-        let collaborators = PinnedPruneCollaborators {
-            clock: self.ports.clock.as_ref(),
-            liveness: self.ports.lease_liveness.as_ref(),
-            pins: self.ports.pins.as_ref(),
-            locks: TreeLocks::over(self.ports.locks.as_ref()),
-        };
         let mut report = PruneReport::default();
-        match prune_pinned_on_host(self.root.path(), &collaborators, older_than)
-        {
-            Ok(reclaimed) => report.reclaimed = reclaimed.entries,
-            Err(error) => report.lock_failures.push(LockFailure {
-                lock: self.root.path().join("trees"),
-                detail: error.to_string(),
-            }),
-        }
+        report.absorb_trees(
+            TreePrune {
+                regime: TreePruneRegime::PinnedOnHost(&self.root),
+                claim_window: older_than.unwrap_or(CLAIM_WINDOW),
+                ports: TreePrunePorts {
+                    held_leases: &HeldLeases::none(),
+                    filesystem: self.ports.filesystem.as_ref(),
+                    ownership: self.ports.ownership.as_ref(),
+                    clock: self.ports.clock.as_ref(),
+                    lease_liveness: self.ports.lease_liveness.as_ref(),
+                    pins: self.ports.pins.as_ref(),
+                    locks: TreeLocks::over(self.ports.locks.as_ref()),
+                    steps: self.ports.steps.as_ref(),
+                },
+            }
+            .run(LockPatience::Wait),
+        );
         PruneOutcome::Ran(report)
     }
 }
