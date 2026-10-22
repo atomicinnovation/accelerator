@@ -111,6 +111,10 @@ pub struct KeptRecovery {
     pub state: KeptState,
 }
 
+/// The files a recovery directory keeps about its copies rather than as
+/// copies: its ignore rule and its restore-pending record.
+pub const RECOVERY_BOOKKEEPING: [&str; 2] = [".gitignore", "RESTORE-PENDING"];
+
 /// One copy a record names: the original it was taken from, and where in
 /// its directory it was written.
 #[derive(Debug, Clone, PartialEq, Eq)]

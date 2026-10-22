@@ -904,6 +904,7 @@ pub fn corpus::store::RecoveryEntry::eq(&self, other: &corpus::store::RecoveryEn
 impl core::fmt::Debug for corpus::store::RecoveryEntry
 pub fn corpus::store::RecoveryEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::store::RecoveryEntry
+pub const corpus::store::RECOVERY_BOOKKEEPING: [&str; 2]
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::ExclusiveCreate

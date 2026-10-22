@@ -14,6 +14,7 @@ pub mod fetch;
 pub mod files;
 pub mod identity_settlement;
 pub mod item_snapshot;
+pub mod kept_edits;
 mod ordering;
 pub mod pending_push;
 pub mod realign;
