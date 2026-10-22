@@ -20,18 +20,28 @@ use accelerator::launch::core::{
     run_external, ExecBinary, ExternalCommand, ReResolution, ResolutionError,
     ResolveBinary,
 };
-use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
+use accelerator::launch::outbound::resolve::cache_root::{
+    probe_attempts, CacheRootConfig,
+};
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::{
     CacheFilesystem, SystemFilesystem,
 };
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::retention::launcher_id;
+use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
+use accelerator::launch::outbound::resolve::retention_windows::{
+    CLAIM_WINDOW, REFRESH_FRACTION,
+};
+use accelerator::launch::outbound::resolve::tree::SystemClock;
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
     cache, FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
+use accelerator::launch::start_up::{start_up, DispatchConfig, StartUp};
 use common::recording_filesystem::{
-    in_root, FilesystemCall, RecordingFilesystem,
+    in_root, outside, FilesystemCall, RecordingFilesystem,
 };
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
@@ -116,6 +126,7 @@ struct Harness {
     sha: String,
     asset_sig: String,
     workdir: PathBuf,
+    plugin_root_of_cache: PathBuf,
     minisign: PathBuf,
     trusted_secret: PathBuf,
     // RAII guards: keep the temp dirs alive for the harness's lifetime and
@@ -194,6 +205,64 @@ impl Harness {
         )
     }
 
+    /// The cache is the plugin's own `bin`, named with no override.
+    fn plugin_bin_root(&self) -> CacheRootConfig {
+        CacheRootConfig {
+            cache_dir_override: None,
+            plugin_root: Some(self.plugin_root_of_cache.clone()),
+        }
+    }
+
+    /// The cache is an override naming a directory other than the plugin
+    /// `bin`, which exists.
+    fn relocated_root(&self) -> CacheRootConfig {
+        let plugin_root = self.workdir.join("plugin");
+        std::fs::create_dir_all(plugin_root.join("bin")).expect("plugin bin");
+        CacheRootConfig {
+            cache_dir_override: Some(self.cache.clone()),
+            plugin_root: Some(plugin_root),
+        }
+    }
+
+    fn dispatch_resolver(&self, start: &StartUp) -> FetchVerifyCacheResolver {
+        start
+            .dispatch_resolver(DispatchConfig {
+                base_url: self.server.base_url(),
+                keys: self.keys(),
+                fetcher: Fetcher::with_backoff(
+                    std::time::Duration::from_millis(1),
+                )
+                .expect("fetcher"),
+            })
+            .expect("dispatch resolver")
+    }
+
+    /// Start up and resolve as `run` does, recording every call.
+    fn dispatch_recorded(
+        &self,
+        config: &CacheRootConfig,
+        recorder: &RecordingFilesystem,
+    ) -> Result<PathBuf, ResolutionError> {
+        let start = start_up_over(config, Arc::new(recorder.clone()));
+        self.dispatch_resolver(&start).resolve(&visualiser())
+    }
+
+    fn version_claim(&self) -> PathBuf {
+        self.cache
+            .join("claims")
+            .join(format!("{VERSION}.{}", launcher_id()))
+    }
+
+    fn seed_version_claim(&self, bytes: &[u8], modified: u64) {
+        let claim = self.version_claim();
+        std::fs::create_dir_all(claim.parent().expect("claims dir"))
+            .expect("claims dir");
+        std::fs::write(&claim, bytes).expect("claim");
+        SystemFilesystem
+            .set_modified(&claim, modified)
+            .expect("claim mtime");
+    }
+
     /// Write a verifiable cache entry directly, without resolving — so a
     /// warm-path test starts with no probe of its own already counted.
     #[track_caller]
@@ -232,6 +301,20 @@ impl Harness {
     }
 }
 
+fn start_up_over(
+    config: &CacheRootConfig,
+    filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+) -> StartUp {
+    start_up(
+        config,
+        Arc::new(CachePorts {
+            filesystem,
+            ownership: Arc::new(ProcessOwnership),
+            clock: Arc::new(SystemClock),
+        }),
+    )
+}
+
 #[track_caller]
 fn probes_during<T>(
     branch: &str,
@@ -258,7 +341,9 @@ fn happy_harness() -> Option<Harness> {
     let workdir_guard = tempdir("work");
     let workdir = workdir_guard.path().to_path_buf();
     let cache_guard = tempdir("cache");
-    let cache = cache_guard.path().to_path_buf();
+    let plugin_root_of_cache = cache_guard.path().to_path_buf();
+    let cache = plugin_root_of_cache.join("bin");
+    std::fs::create_dir(&cache).expect("mkdir cache");
     let (trusted_pub, trusted_secret) =
         generate_keypair(&minisign, &workdir, "release");
     let fixture_bytes = std::fs::read(FIXTURE).expect("read fixture");
@@ -299,6 +384,7 @@ fn happy_harness() -> Option<Harness> {
         sha,
         asset_sig,
         workdir,
+        plugin_root_of_cache,
         minisign,
         trusted_secret,
         _workdir_guard: workdir_guard,
@@ -418,19 +504,55 @@ fn visualiser() -> ExternalCommand {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum RootKind {
+    PluginBin,
+    Relocated,
+}
+
+const BOTH_ROOT_KINDS: [RootKind; 2] =
+    [RootKind::PluginBin, RootKind::Relocated];
+
+impl Harness {
+    fn root_of(&self, kind: RootKind) -> CacheRootConfig {
+        match kind {
+            RootKind::PluginBin => self.plugin_bin_root(),
+            RootKind::Relocated => self.relocated_root(),
+        }
+    }
+}
+
 #[test]
 fn an_entry_removed_between_find_and_exec_is_refetched_once(
 ) -> Result<(), Box<dyn Error>> {
-    let harness = skip_if_no_minisign!(happy_harness());
-    let seeded = harness.seed_cache()?;
-    let resolver = RemovingAfterResolve(harness.resolver());
-    let executor = ExecUnlessMissing::default();
+    for kind in BOTH_ROOT_KINDS {
+        let harness = skip_if_no_minisign!(happy_harness());
+        let seeded = harness.seed_cache()?;
+        let start =
+            start_up_over(&harness.root_of(kind), Arc::new(SystemFilesystem));
+        let resolver = RemovingAfterResolve(harness.dispatch_resolver(&start));
+        let executor = ExecUnlessMissing::default();
 
-    run_external(&resolver, &executor, &visualiser());
+        run_external(&resolver, &executor, &visualiser());
 
-    assert_eq!(*executor.executed.borrow(), [seeded.path.as_path()]);
-    assert_eq!(std::fs::read(&seeded.path)?, harness.fixture_bytes);
-    assert_eq!(harness.server.hits(&RequestKey::get(&asset_path())), 1);
+        let executed: Vec<PathBuf> = executor
+            .executed
+            .borrow()
+            .iter()
+            .map(|path| path.canonicalize().expect("executed path"))
+            .collect();
+        assert_eq!(executed, [seeded.path.canonicalize()?], "{kind:?}");
+        assert_eq!(
+            std::fs::read(&seeded.path)?,
+            harness.fixture_bytes,
+            "{kind:?}"
+        );
+        assert_eq!(
+            harness.server.hits(&RequestKey::get(&asset_path())),
+            1,
+            "{kind:?}"
+        );
+    }
     Ok(())
 }
 
@@ -794,27 +916,195 @@ fn a_poisoned_cache_entry_is_replaced_in_place_and_reexecs(
 #[test]
 fn a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it(
 ) -> Result<(), Box<dyn Error>> {
+    for kind in BOTH_ROOT_KINDS {
+        let harness = skip_if_no_minisign!(happy_harness());
+        let seeded = harness.seed_cache()?;
+        std::fs::write(&seeded.path, b"poisoned")?;
+        let recorder = harness.recorder();
+
+        harness.dispatch_recorded(&harness.root_of(kind), &recorder)?;
+
+        let mutations: Vec<FilesystemCall> = recorder
+            .calls_touching(&seeded.path)
+            .into_iter()
+            .filter(FilesystemCall::is_mutation)
+            .collect();
+        assert!(
+            matches!(
+                mutations.as_slice(),
+                [FilesystemCall::Rename { to, .. }]
+                    if *to == recorder.recorded(&seeded.path)
+            ),
+            "{kind:?}: {mutations:?}"
+        );
+        assert_eq!(
+            std::fs::read(&seeded.path)?,
+            harness.fixture_bytes,
+            "{kind:?}"
+        );
+    }
+    Ok(())
+}
+
+fn now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("after epoch")
+        .as_secs()
+}
+
+const REFRESH_AGE: u64 = CLAIM_WINDOW.as_secs() / REFRESH_FRACTION;
+
+#[test]
+fn an_override_root_dispatch_writes_its_claim_before_find(
+) -> Result<(), Box<dyn Error>> {
+    for seeded_claim_age in [None, Some(REFRESH_AGE + 60)] {
+        let harness = skip_if_no_minisign!(happy_harness());
+        harness.seed_cache()?;
+        if let Some(age) = seeded_claim_age {
+            harness.seed_version_claim(b"", now() - age);
+        }
+        let recorder = harness.recorder();
+
+        harness.dispatch_recorded(&harness.relocated_root(), &recorder)?;
+
+        let calls = recorder.calls();
+        let claim_written = calls.iter().position(|call| {
+            *call
+                == FilesystemCall::WritePrivate(
+                    recorder.recorded(&harness.version_claim()),
+                )
+        });
+        let found = calls
+            .iter()
+            .position(|call| *call == FilesystemCall::List(in_root("")));
+        assert!(
+            claim_written
+                .zip(found)
+                .is_some_and(|(claim, find)| claim < find),
+            "{seeded_claim_age:?}: {calls:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn an_override_root_dispatch_with_a_young_claim_does_not_rewrite_it(
+) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    let seeded = harness.seed_cache()?;
-    std::fs::write(&seeded.path, b"poisoned")?;
+    harness.seed_cache()?;
+    harness.seed_version_claim(b"sentinel", now());
     let recorder = harness.recorder();
 
-    harness.resolve_recorded(&recorder)?;
+    harness.dispatch_recorded(&harness.relocated_root(), &recorder)?;
 
-    let mutations: Vec<FilesystemCall> = recorder
-        .calls_touching(&seeded.path)
-        .into_iter()
-        .filter(FilesystemCall::is_mutation)
-        .collect();
-    assert!(
-        matches!(
-            mutations.as_slice(),
-            [FilesystemCall::Rename { to, .. }]
-                if *to == recorder.recorded(&seeded.path)
-        ),
-        "{mutations:?}"
+    assert!(recorder
+        .calls_touching(&harness.version_claim())
+        .iter()
+        .all(|call| !call.is_mutation()));
+    assert_eq!(std::fs::read(harness.version_claim())?, b"sentinel");
+    Ok(())
+}
+
+#[test]
+fn a_fresh_claim_costs_one_metadata_read_beyond_the_fixed_list(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    harness.seed_version_claim(b"", now());
+    let recorder = harness.recorder();
+
+    harness.dispatch_recorded(&harness.relocated_root(), &recorder)?;
+
+    let mut expected = vec![
+        FilesystemCall::Resolve(in_root("")),
+        FilesystemCall::Resolve(outside("plugin/bin")),
+        FilesystemCall::Entry(recorder.recorded(&harness.version_claim())),
+    ];
+    expected.extend(default_root_warm_dispatch_calls(&harness.sha));
+    assert_eq!(recorder.calls(), expected);
+    Ok(())
+}
+
+#[test]
+fn naming_the_plugin_bin_adds_only_the_canonical_resolution(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    let recorder = harness.recorder();
+    let config = CacheRootConfig {
+        cache_dir_override: Some(harness.cache.clone()),
+        ..harness.plugin_bin_root()
+    };
+
+    harness.dispatch_recorded(&config, &recorder)?;
+
+    let mut expected = vec![
+        FilesystemCall::Resolve(in_root("")),
+        FilesystemCall::Resolve(in_root("")),
+    ];
+    expected.extend(default_root_warm_dispatch_calls(&harness.sha));
+    assert_eq!(recorder.calls(), expected);
+    Ok(())
+}
+
+#[test]
+fn an_unset_override_performs_exactly_the_fixed_calls(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    let recorder = harness.recorder();
+
+    harness.dispatch_recorded(&harness.plugin_bin_root(), &recorder)?;
+
+    assert_eq!(
+        recorder.calls(),
+        default_root_warm_dispatch_calls(&harness.sha)
     );
-    assert_eq!(std::fs::read(&seeded.path)?, harness.fixture_bytes);
+    Ok(())
+}
+
+#[test]
+fn a_read_only_override_root_still_dispatches_warm(
+) -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    let config = harness.relocated_root();
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o555),
+    )?;
+
+    let result = harness
+        .dispatch_recorded(&config, &harness.recorder())
+        .map(|path| path.canonicalize());
+
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o755),
+    )?;
+    assert_eq!(result??, seeded.path.canonicalize()?);
+    assert!(!harness.version_claim().exists());
+    Ok(())
+}
+
+#[test]
+fn a_development_checkout_relocated_elsewhere_claims_its_version(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    let checkout = harness.workdir.join("checkout");
+    std::fs::create_dir_all(checkout.join("bin"))?;
+    std::fs::write(checkout.join("bin/accelerator"), b"#!/bin/sh\n")?;
+    let config = CacheRootConfig {
+        cache_dir_override: Some(harness.cache.clone()),
+        plugin_root: Some(checkout),
+    };
+
+    harness.dispatch_recorded(&config, &harness.recorder())?;
+
+    assert!(harness.version_claim().is_file());
     Ok(())
 }
 

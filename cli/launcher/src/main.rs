@@ -28,22 +28,24 @@ use accelerator::launch::inbound::cli::{
 };
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
-use accelerator::launch::outbound::resolve::cache_root::{
-    self, CacheRootConfig,
-};
+use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
-use accelerator::launch::outbound::resolve::retention::launcher_id;
+use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
 use accelerator::launch::outbound::resolve::tree::{
-    pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
+    pins, ExpectedDigests, NoSteps, SystemClock,
 };
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+    FetchVerifyCacheResolver, ResolverConfig,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
+use accelerator::launch::start_up::{
+    start_up, DispatchConfig, StartUp, TreeConfig,
+};
 use accelerator::version::core::VersionReporter;
 use accelerator::version::outbound::build_metadata::VergenBuildMetadata;
 use config::ConfigError;
@@ -66,13 +68,13 @@ fn release_base_url() -> String {
     )
 }
 
-/// The override first, else the real resolver built lazily so built-ins never
-/// touch the cache root, TLS, or the network. The rustls crypto provider is
-/// installed here rather than in `main`, so a `version` or `config` built-in
-/// never pays for capability it does not use.
-struct LazyProductionResolver;
+/// The override first, else the real resolver built lazily over the root
+/// `start_up` identified, so built-ins never touch TLS or the network. The
+/// rustls crypto provider is installed here rather than in `main`, so a
+/// `version` or `config` built-in never pays for capability it does not use.
+struct LazyProductionResolver<'a>(&'a StartUp);
 
-impl ResolveBinary for LazyProductionResolver {
+impl ResolveBinary for LazyProductionResolver<'_> {
     fn resolve(
         &self,
         command: &ExternalCommand,
@@ -80,7 +82,7 @@ impl ResolveBinary for LazyProductionResolver {
         if let Some(path) = override_path(&command.name)? {
             return Ok(path);
         }
-        production_resolver()?.resolve(command)
+        production_resolver(self.0)?.resolve(command)
     }
 
     fn re_resolve(
@@ -90,7 +92,7 @@ impl ResolveBinary for LazyProductionResolver {
     ) -> ReResolution {
         match override_path(&command.name) {
             Ok(Some(_)) => ReResolution::Declined,
-            Ok(None) => match production_resolver() {
+            Ok(None) => match production_resolver(self.0) {
                 Ok(resolver) => resolver.re_resolve(command, missing),
                 Err(error) => ReResolution::Failed(error),
             },
@@ -99,21 +101,26 @@ impl ResolveBinary for LazyProductionResolver {
     }
 }
 
-fn production_resolver() -> Result<FetchVerifyCacheResolver, ResolutionError> {
+fn production_resolver(
+    start: &StartUp,
+) -> Result<FetchVerifyCacheResolver, ResolutionError> {
     let _ = install_crypto_provider();
-    let cache = cache_root::candidate(&CacheRootConfig::from_env(
-        config_adapters::plugin_root_from_env(),
-    ))?;
     let keys = TrustedKeys::embedded()?;
-    let config = ResolverConfig::production(release_base_url(), cache);
     let fetcher = Fetcher::new()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
-    Ok(FetchVerifyCacheResolver::with_fetcher(
-        config,
+    start.dispatch_resolver(DispatchConfig {
+        base_url: release_base_url(),
         keys,
         fetcher,
-        Arc::new(SystemFilesystem),
-    ))
+    })
+}
+
+fn production_ports() -> Arc<CachePorts> {
+    Arc::new(CachePorts {
+        filesystem: Arc::new(SystemFilesystem),
+        ownership: Arc::new(ProcessOwnership),
+        clock: Arc::new(SystemClock),
+    })
 }
 
 /// The signature-verified release manifest, or `None` on any failure so the
@@ -347,33 +354,33 @@ fn resolution_start(command: &Command) -> Option<PathBuf> {
 /// rather than at `run`'s top, so a `version` or `config` dispatch never
 /// constructs it. The dependencies are locals the resolver borrows, so they
 /// outlive the `cache::run` call inside this function.
-fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
+fn run_cache(
+    action: &CacheAction,
+    start: &StartUp,
+) -> Result<(), kernel::Error> {
     let _ = install_crypto_provider();
-    let cache = cache_root::candidate(&CacheRootConfig::from_env(
-        config_adapters::plugin_root_from_env(),
-    ))?;
     let keys = TrustedKeys::embedded()?;
     let fetcher = Fetcher::new()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
-    let clock = SystemClock;
-    let steps = NoSteps;
-    let liveness = FlockProbe;
-    let resolver = TreeResolver {
-        cache_root: cache,
-        base_url: release_base_url(),
-        platform: HOST_PLATFORM.to_owned(),
-        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
-        keys: &keys,
-        fetcher: &fetcher,
-        clock: &clock,
-        liveness: &liveness,
-        launcher_id: launcher_id(),
-        expected_digests: ExpectedDigests::Compiled,
-        waiter_bound: WAITER_BOUND,
-        steps: &steps,
-    };
+    let resolver =
+        start.tree_resolver(production_tree_config(&keys, &fetcher))?;
     let mut out = std::io::stdout().lock();
     cache::run(action, &resolver, &mut out)
+}
+
+fn production_tree_config<'a>(
+    keys: &'a TrustedKeys,
+    fetcher: &'a Fetcher,
+) -> TreeConfig<'a> {
+    TreeConfig {
+        base_url: release_base_url(),
+        keys,
+        fetcher,
+        liveness: &FlockProbe,
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &NoSteps,
+    }
 }
 
 /// The single-flight waiter's deadline: a loser gives up after this rather than
@@ -391,7 +398,10 @@ const WAITER_BOUND: std::time::Duration = std::time::Duration::from_secs(20);
 /// after which the consumer reaches `cache ensure` exactly as on a cold cache.
 /// Best-effort: a tree that is absent, unpointed or failing its checks simply
 /// yields no variable, because "not materialised yet" is the normal state.
-fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
+fn export_consumed_trees(
+    command: &Command,
+    start: &StartUp,
+) -> Vec<AcquiredTree> {
     let Command::External(raw) = command else {
         return Vec::new();
     };
@@ -410,7 +420,7 @@ fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
         std::env::set_var(LAUNCHER_PATH_VAR, exe);
     }
 
-    let acquired = acquire_consumed_trees().unwrap_or_default();
+    let acquired = acquire_consumed_trees(start).unwrap_or_default();
     for tree in &acquired {
         std::env::set_var(tree_var(&tree.tree.artifact), &tree.tree.path);
     }
@@ -423,54 +433,40 @@ fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
 /// The `Fetcher` is unused on the `acquire` path (local reads and `lstat`s
 /// only, no network, no cache-root write probe) and is dropped before the
 /// caller mutates the environment, so the mutation is single-threaded.
-fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
+fn acquire_consumed_trees(start: &StartUp) -> Option<Vec<AcquiredTree>> {
     let _ = install_crypto_provider();
-    let cache = cache_root::candidate(&CacheRootConfig::from_env(
-        config_adapters::plugin_root_from_env(),
-    ))
-    .ok()?;
     let keys = TrustedKeys::embedded().ok()?;
     let fetcher = Fetcher::new().ok()?;
-    let clock = SystemClock;
-    let steps = NoSteps;
-    let liveness = FlockProbe;
-    let resolver = TreeResolver {
-        cache_root: cache,
-        base_url: release_base_url(),
-        platform: HOST_PLATFORM.to_owned(),
-        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
-        keys: &keys,
-        fetcher: &fetcher,
-        clock: &clock,
-        liveness: &liveness,
-        launcher_id: launcher_id(),
-        expected_digests: ExpectedDigests::Compiled,
-        waiter_bound: WAITER_BOUND,
-        steps: &steps,
-    };
+    let resolver = start
+        .tree_resolver(production_tree_config(&keys, &fetcher))
+        .ok()?;
     let names: Vec<&str> = pins::artifact_names();
     acquire_trees(&resolver, &names).ok()
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
+    let start = start_up(
+        &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+        production_ports(),
+    );
     // Held until `dispatch` execs the consumer: on success the process image is
     // replaced and no destructor runs, so the leases pin their trees against
     // reclamation right up to the handover.
-    let _tree_leases = export_consumed_trees(&cli.command);
+    let _tree_leases = export_consumed_trees(&cli.command, &start);
     let reporter = VersionReporter::new(VergenBuildMetadata);
-    let resolver = LazyProductionResolver;
+    let resolver = LazyProductionResolver(&start);
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
-    let start = resolution_start(&cli.command);
+    let resolution_root = resolution_start(&cli.command);
     let warning = personal_file_warning(&cli.command);
     dispatch(
         cli,
         &reporter,
         &resolver,
         &executor,
-        move || compose_stack(policy, start, warning),
-        run_cache,
+        move || compose_stack(policy, resolution_root, warning),
+        |action| run_cache(action, &start),
     )
 }
 
@@ -549,6 +545,8 @@ mod tests {
         ResolutionError, ResolveBinary,
     };
     use accelerator::launch::inbound::cli::Command;
+    use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
+    use accelerator::launch::start_up::{start_up, StartUp};
     use clap::error::ErrorKind;
 
     use super::{
@@ -794,6 +792,13 @@ mod tests {
         }
     }
 
+    fn production_start_up() -> StartUp {
+        start_up(
+            &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+            super::production_ports(),
+        )
+    }
+
     fn frobnicate() -> ExternalCommand {
         ExternalCommand {
             name: OsString::from("frobnicate"),
@@ -807,7 +812,8 @@ mod tests {
         let _override =
             ScopedVariable::set("ACCELERATOR_FROBNICATE_BIN", "/absent/tool");
 
-        let outcome = super::LazyProductionResolver
+        let start = production_start_up();
+        let outcome = super::LazyProductionResolver(&start)
             .re_resolve(&frobnicate(), Path::new("/absent/tool"));
 
         assert!(matches!(outcome, ReResolution::Declined), "{outcome:?}");
@@ -830,7 +836,8 @@ mod tests {
         let _no_override = ScopedVariable::unset("ACCELERATOR_FROBNICATE_BIN");
         let _cache = ScopedVariable::set("ACCELERATOR_CACHE_DIR", &read_only);
 
-        let outcome = super::LazyProductionResolver
+        let start = production_start_up();
+        let outcome = super::LazyProductionResolver(&start)
             .re_resolve(&frobnicate(), &read_only.join("frobnicate-entry"));
 
         std::fs::set_permissions(
