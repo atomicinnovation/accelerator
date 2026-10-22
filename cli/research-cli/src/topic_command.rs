@@ -33,8 +33,10 @@ use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
 use research::conduct::window::UnfinishedSpawn;
 use research::conduct::window::Window;
+use research::topic::claims::ClaimedIndexes;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::note_ref::NoteRef;
+use research::topic::layout::stem::Stem;
 use research::topic::plan::OutstandingPair;
 use research::topic::plan::RoundInputs;
 use research::topic::plan::RoundPlan;
@@ -43,6 +45,7 @@ use research::topic::tree::Depth;
 use research::topic::tree::MissingNode;
 use research::topic::tree::Stage;
 use research::topic::tree::Trim;
+use research::topic::tree::WorstCaseTree;
 use research_adapters::conduct::ledger::delete_run_ledger;
 use research_adapters::conduct::ledger::read_run_ledger;
 use research_adapters::conduct::ledger::run_ledger_path;
@@ -293,10 +296,8 @@ where
     F: DirReader + FileReader + DirectoryProbe,
     S: AtomicWrite,
 {
-    let mut notices = Vec::new();
-    planned(set_root, profiles_dir, request, fs, store, &mut notices).map_err(
-        |error| format!("{}{error}", warning_lines(notices.iter().cloned())),
-    )
+    let (opened, notices) = opened(set_root, request, fs)?;
+    planned(set_root, profiles_dir, request, fs, store, opened, notices)
 }
 
 fn planned<F, S>(
@@ -305,81 +306,43 @@ fn planned<F, S>(
     request: &PlanRequest,
     fs: &F,
     store: &S,
-    notices: &mut Vec<String>,
+    opened: OpenedRun,
+    mut notices: Vec<String>,
 ) -> Result<Printed, String>
 where
     F: DirReader + FileReader + DirectoryProbe,
     S: AtomicWrite,
 {
-    let (continued, replaced) = match &request.mode {
-        RunMode::Continue {
-            run,
-            spawned,
-            withheld,
-        } => (
-            Some(
-                continued_ledger(set_root, run, *spawned, fs)?
-                    .withholding(withheld),
-            ),
-            ReplacedLedger::Absent,
-        ),
-        RunMode::Start(_) => {
-            notices.extend(start_notices(&request.concurrency));
-            let replaced = replaced_ledger(set_root, fs)?;
-            if matches!(replaced, ReplacedLedger::Corrupt) {
-                notices.push(ledger_wording::corrupt_notice());
-            }
-            (None, replaced)
-        }
-        RunMode::Query => (None, ReplacedLedger::Absent),
-    };
-    let claims = continued
-        .as_ref()
-        .map(|ledger| ledger.claims().clone())
-        .unwrap_or_default();
     let reading = read_round_inputs(
         set_root,
         profiles_dir,
         request.depth,
-        claims,
+        opened.claims(),
         fs,
         &YamlFrontmatter,
         &UnicodeTables,
     )
-    .map_err(|error| error.to_string())?;
-    let continued = continued
-        .map(|ledger| settled(ledger, &reading.inputs, set_root))
-        .transpose()?;
-    let (inputs, plan, replaced_run, owed_quarantine) = match &replaced {
-        ReplacedLedger::Readable(stored) => {
-            let recovery = Recovery::of(stored, reading.inputs, &UnicodeTables);
-            (
-                recovery.inputs,
-                recovery.plan,
-                Some(recovery.replaced_run),
-                recovery.owed_quarantine,
-            )
-        }
-        ReplacedLedger::Absent | ReplacedLedger::Corrupt => {
-            let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
-            (reading.inputs, plan, None, Vec::new())
-        }
-    };
-    if matches!(request.mode, RunMode::Start(_)) {
+    .map_err(|error| reported(&notices, &error.to_string()))?;
+    let opened = opened
+        .settled(&reading.inputs, set_root)
+        .map_err(|error| reported(&notices, &error))?;
+    let round = opened.planned_round(reading.inputs);
+    let tree = unsearched_tree(&round.plan.pairs);
+    if opened.is_starting() {
         notices
-            .extend(unhonoured_search_cap_notice(&request.search_cap, &plan));
+            .extend(unhonoured_search_cap_notice(&request.search_cap, &tree));
     }
-    let observed = Observed::of(&inputs);
-    let ledger = match &request.mode {
-        RunMode::Start(run) => Some(
-            RunLedger::start(run.clone(), &observed)
-                .owing_quarantine(&owed_quarantine),
-        ),
-        RunMode::Continue { .. } => continued,
-        RunMode::Query => None,
-    };
-    let ledger = ledger
-        .map(|ledger| budgeted(ledger, &plan, &request.search_cap, notices));
+    let observed = Observed::of(&round.inputs);
+    let ledger =
+        opened
+            .ledger(&observed, &round.owed_quarantine)
+            .map(|ledger| {
+                let (ledger, floor) =
+                    budgeted(ledger, &tree, &request.search_cap);
+                notices.extend(floor);
+                ledger
+            });
+    let plan = round.plan;
     let window = window(
         &plan,
         &observed,
@@ -388,15 +351,17 @@ where
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
     if let Some(ledger) = &ledger {
-        stored(set_root, ledger, store)?;
+        stored(set_root, ledger, store)
+            .map_err(|error| reported(&notices, &error))?;
     }
-    let stderr = printed_warnings(notices, replaced_run.as_ref(), &plan);
+    let replaced_run = round.replaced_run;
+    let stderr = printed_warnings(&notices, replaced_run.as_ref(), &plan);
     let warnings = plan
         .warnings
         .iter()
         .map(plan_wording::warning)
         .chain(reading.warnings.iter().map(ToString::to_string))
-        .chain(notices.iter().cloned())
+        .chain(notices)
         .collect();
     let rendered = PlanOutput {
         plan: &plan,
@@ -411,6 +376,119 @@ where
         stdout: format!("{}\n", rendered.render()),
         stderr,
     })
+}
+
+/// The run a plan belongs to, as far as it is known before the set is read.
+enum OpenedRun {
+    Query,
+    Starting {
+        run: RunId,
+        replaced: ReplacedLedger,
+    },
+    Continuing(Box<RunLedger>),
+}
+
+struct PlannedRound {
+    inputs: RoundInputs,
+    plan: RoundPlan,
+    replaced_run: Option<ReplacedRun>,
+    owed_quarantine: Vec<Stem>,
+}
+
+impl OpenedRun {
+    fn claims(&self) -> ClaimedIndexes {
+        match self {
+            Self::Continuing(ledger) => ledger.claims().clone(),
+            Self::Query | Self::Starting { .. } => ClaimedIndexes::default(),
+        }
+    }
+
+    fn settled(
+        self,
+        inputs: &RoundInputs,
+        set_root: &Path,
+    ) -> Result<Self, String> {
+        match self {
+            Self::Continuing(ledger) => settled(*ledger, inputs, set_root)
+                .map(|ledger| Self::Continuing(Box::new(ledger))),
+            unsettled @ (Self::Query | Self::Starting { .. }) => Ok(unsettled),
+        }
+    }
+
+    fn planned_round(&self, inputs: RoundInputs) -> PlannedRound {
+        if let Self::Starting {
+            replaced: ReplacedLedger::Readable(stored),
+            ..
+        } = self
+        {
+            let recovery = Recovery::of(stored, inputs, &UnicodeTables);
+            return PlannedRound {
+                inputs: recovery.inputs,
+                plan: recovery.plan,
+                replaced_run: Some(recovery.replaced_run),
+                owed_quarantine: recovery.owed_quarantine,
+            };
+        }
+        let plan = RoundPlan::of(&inputs, &UnicodeTables);
+        PlannedRound {
+            inputs,
+            plan,
+            replaced_run: None,
+            owed_quarantine: Vec::new(),
+        }
+    }
+
+    const fn is_starting(&self) -> bool {
+        matches!(self, Self::Starting { .. })
+    }
+
+    fn ledger(
+        self,
+        observed: &Observed,
+        owed_quarantine: &[Stem],
+    ) -> Option<RunLedger> {
+        match self {
+            Self::Query => None,
+            Self::Starting { run, .. } => Some(
+                RunLedger::start(run, observed)
+                    .owing_quarantine(owed_quarantine),
+            ),
+            Self::Continuing(ledger) => Some(*ledger),
+        }
+    }
+}
+
+fn opened<F: FileReader>(
+    set_root: &Path,
+    request: &PlanRequest,
+    fs: &F,
+) -> Result<(OpenedRun, Vec<String>), String> {
+    match &request.mode {
+        RunMode::Query => Ok((OpenedRun::Query, Vec::new())),
+        RunMode::Continue {
+            run,
+            spawned,
+            withheld,
+        } => {
+            let ledger = continued_ledger(set_root, run, *spawned, fs)?
+                .withholding(withheld);
+            Ok((OpenedRun::Continuing(Box::new(ledger)), Vec::new()))
+        }
+        RunMode::Start(run) => {
+            let mut notices = start_notices(&request.concurrency);
+            let replaced = replaced_ledger(set_root, fs)
+                .map_err(|error| reported(&notices, &error))?;
+            if matches!(replaced, ReplacedLedger::Corrupt) {
+                notices.push(ledger_wording::corrupt_notice());
+            }
+            let run = run.clone();
+            Ok((OpenedRun::Starting { run, replaced }, notices))
+        }
+    }
+}
+
+fn reported(notices: &[String], error: &str) -> String {
+    format!("{}{error}", warning_lines(notices.iter().cloned()))
 }
 
 /// Runs `research topic end-run`: removes the set's ledger when `run` owns
@@ -517,28 +595,25 @@ fn warning_lines(warnings: impl Iterator<Item = String>) -> String {
 
 fn budgeted(
     ledger: RunLedger,
-    plan: &RoundPlan,
+    tree: &WorstCaseTree,
     search_cap: &EnvironmentSearchCap,
-    notices: &mut Vec<String>,
-) -> RunLedger {
+) -> (RunLedger, Option<String>) {
     if !ledger.awaits_search_budgets() {
-        return ledger;
+        return (ledger, None);
     }
-    let budgets =
-        SearchBudgets::sized(&unsearched_tree(&plan.pairs), search_cap.cap);
-    if budgets.overruns(search_cap.cap) {
-        notices.push(search_wording::search_floor(&budgets, search_cap));
-    }
-    ledger.budgeting_searches(budgets)
+    let budgets = SearchBudgets::sized(tree, search_cap.cap);
+    let floor = budgets
+        .overruns(search_cap.cap)
+        .then(|| search_wording::search_floor(&budgets, search_cap));
+    (ledger.budgeting_searches(budgets), floor)
 }
 
 fn unhonoured_search_cap_notice(
     search_cap: &EnvironmentSearchCap,
-    plan: &RoundPlan,
+    tree: &WorstCaseTree,
 ) -> Option<String> {
     let value = search_cap.unhonoured.as_deref()?;
-    let has_web_nodes = !unsearched_tree(&plan.pairs).is_empty();
-    has_web_nodes
+    (!tree.is_empty())
         .then(|| search_wording::unhonoured_search_cap(value, search_cap.cap))
 }
 
