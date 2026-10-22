@@ -929,6 +929,8 @@ def test_the_web_profile_limits_searches_to_the_injected_budget() -> None:
         "Make at most {search budget} `WebSearch` calls",
         "`WebFetch` calls do not count.",
         "Refine the question rather than re-search with near-identical text.",
+        "When no search budget is injected, make as many `WebSearch` calls "
+        "as the question needs; Claude Code's session quota still applies.",
     ):
         assert sentence in web, f"the web profile must state {sentence!r}"
 
