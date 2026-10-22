@@ -80,10 +80,39 @@ pub enum CacheRootKind {
     Relocated,
 }
 
+/// A cache root as only [`identify`] names one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheRoot {
-    pub path: PathBuf,
-    pub kind: CacheRootKind,
+    path: PathBuf,
+    kind: CacheRootKind,
+}
+
+impl CacheRoot {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// The plugin's own `bin`, when that is what this root was identified as.
+    #[must_use]
+    pub fn plugin_bin(&self) -> Option<PluginBinRoot> {
+        (self.kind == CacheRootKind::PluginBin).then(|| PluginBinRoot {
+            root: self.path.clone(),
+        })
+    }
+}
+
+/// The plugin's own `bin`, which no bare path can stand in for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginBinRoot {
+    root: PathBuf,
+}
+
+impl PluginBinRoot {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.root
+    }
 }
 
 /// The cache root [`candidate`] selects, tagged with its kind.
@@ -615,6 +644,30 @@ mod tests {
         )?;
 
         assert_eq!(root.kind, CacheRootKind::PluginBin);
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_root_identified_as_the_plugin_bin_names_one(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let plugin_bin = identify(
+            &CacheRootConfig {
+                cache_dir_override: None,
+                plugin_root: Some(layout.plugin_root.clone()),
+            },
+            &SystemFilesystem,
+        )?;
+        let relocated = identify(
+            &overriding(&layout.elsewhere, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(
+            plugin_bin.plugin_bin().map(|bin| bin.path().to_path_buf()),
+            Some(layout.plugin_bin)
+        );
+        assert_eq!(relocated.plugin_bin(), None);
         Ok(())
     }
 

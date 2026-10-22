@@ -23,7 +23,9 @@ use tempfile::TempDir;
 use accelerator::launch::core::tree::{
     AcquireSealedTree, Clock, MaterialiseTree, TreeError, VerifyTree,
 };
-use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
+use accelerator::launch::outbound::resolve::cache_root::{
+    identify, probe_attempts, CacheRootConfig, PluginBinRoot,
+};
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
@@ -292,7 +294,7 @@ struct Harness {
     minisign: PathBuf,
     secret: PathBuf,
     workdir: TempDir,
-    _cache: TempDir,
+    plugin: TempDir,
 }
 
 impl Harness {
@@ -330,6 +332,20 @@ impl Harness {
         )
     }
 
+    /// The plugin's own `bin`, which this harness's cache is.
+    fn plugin_bin_root(&self) -> PluginBinRoot {
+        identify(
+            &CacheRootConfig {
+                cache_dir_override: None,
+                plugin_root: Some(self.plugin.path().to_path_buf()),
+            },
+            &SystemFilesystem,
+        )
+        .expect("identified")
+        .plugin_bin()
+        .expect("the plugin bin")
+    }
+
     /// The plugin-bin retention of this cache, pinning what `resolver` pins.
     fn retention_with(
         &self,
@@ -337,7 +353,7 @@ impl Harness {
         lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
     ) -> PluginBinRetention {
         PluginBinRetention::new(
-            self.cache.clone(),
+            self.plugin_bin_root(),
             Arc::new(CachePorts {
                 filesystem: Arc::new(SystemFilesystem),
                 ownership: Arc::new(ProcessOwnership::default()),
@@ -444,7 +460,9 @@ impl Harness {
 
 fn happy_harness(minisign: &Path) -> Harness {
     let workdir = tempfile::tempdir().expect("workdir");
-    let cache = tempfile::tempdir().expect("cache");
+    let plugin = tempfile::tempdir().expect("plugin root");
+    let cache = plugin.path().join("bin");
+    std::fs::create_dir(&cache).expect("plugin bin");
     let (trusted_pub, secret) = generate_keypair(minisign, workdir.path());
 
     let (archive, table_sha, uncompressed, count) = build_archive();
@@ -471,7 +489,7 @@ fn happy_harness(minisign: &Path) -> Harness {
 
     let harness = Harness {
         server,
-        cache: cache.path().to_path_buf(),
+        cache,
         trusted: trusted_pub,
         archive_sha,
         archive_bytes,
@@ -479,7 +497,7 @@ fn happy_harness(minisign: &Path) -> Harness {
         minisign: minisign.to_owned(),
         secret,
         workdir,
-        _cache: cache,
+        plugin,
     };
     harness.serve_manifest(&harness.default_entry());
     harness
