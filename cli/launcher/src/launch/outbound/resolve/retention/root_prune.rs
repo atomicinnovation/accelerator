@@ -142,6 +142,7 @@ impl RootPrune<'_> {
                 pins: self.ports.pins.as_ref(),
                 locks: TreeLocks::over(self.ports.locks.as_ref()),
                 steps: self.ports.steps.as_ref(),
+                removals: self.ports.removals.as_ref(),
             },
         }
         .run(patience)

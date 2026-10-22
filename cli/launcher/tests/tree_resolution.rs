@@ -46,7 +46,9 @@ use accelerator::launch::outbound::resolve::tree::lease::{
 use accelerator::launch::outbound::resolve::tree::locks::{
     FlockLocks, TreeLocks,
 };
-use accelerator::launch::outbound::resolve::tree::reap::PinnedDigests;
+use accelerator::launch::outbound::resolve::tree::reap::{
+    PinnedDigests, UnobservedRemovals,
+};
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreePrune,
     TreePrunePorts, TreePruneRegime, TreePruneReport, TreeResolver,
@@ -400,6 +402,7 @@ impl Harness {
                     ARTIFACT,
                     &self.archive_sha,
                 ))),
+                removals: Arc::new(UnobservedRemovals),
             }),
         )
     }
@@ -524,6 +527,7 @@ fn prune_plugin_bin(
             pins: pins.as_ref(),
             locks: TreeLocks::over(&FlockLocks),
             steps: &NoPruneSteps,
+            removals: &UnobservedRemovals,
         },
     }
     .run(patience)

@@ -10,7 +10,7 @@ use super::super::ownership::Ownership;
 use super::super::prune_report::PruneSteps;
 use super::super::single_flight::SingleFlightLocks;
 use super::super::tree::lease::LivenessProbe;
-use super::super::tree::reap::PinnedDigests;
+use super::super::tree::reap::{PinnedDigests, RemovalObserver};
 use super::residue::BootstrapHolderLiveness;
 
 pub struct CachePorts {
@@ -22,4 +22,5 @@ pub struct CachePorts {
     pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
     pub lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
     pub pins: Arc<dyn PinnedDigests + Send + Sync>,
+    pub removals: Arc<dyn RemovalObserver + Send + Sync>,
 }

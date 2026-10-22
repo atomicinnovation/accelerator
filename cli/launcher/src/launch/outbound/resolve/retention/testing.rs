@@ -16,7 +16,9 @@ use super::super::retention_windows::AGE_BACKSTOP;
 use super::super::single_flight::SingleFlightLocks;
 use super::super::tree::lease::{FlockProbe, LivenessProbe};
 use super::super::tree::locks::FlockLocks;
-use super::super::tree::reap::PinnedDigests;
+use super::super::tree::reap::{
+    PinnedDigests, RemovalObserver, UnobservedRemovals,
+};
 use super::super::tree::ExpectedDigests;
 use super::ports::CachePorts;
 use super::residue::BootstrapHolderLiveness;
@@ -122,6 +124,7 @@ pub struct Ports {
     pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
     pub lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
     pub pins: Arc<dyn PinnedDigests + Send + Sync>,
+    pub removals: Arc<dyn RemovalObserver + Send + Sync>,
 }
 
 impl Ports {
@@ -135,6 +138,7 @@ impl Ports {
             bootstrap_holders: Arc::new(LiveHolders::default()),
             lease_liveness: Arc::new(FlockProbe),
             pins: Arc::new(ExpectedDigests::Compiled),
+            removals: Arc::new(UnobservedRemovals),
         }
     }
 
@@ -148,6 +152,7 @@ impl Ports {
             bootstrap_holders: self.bootstrap_holders,
             lease_liveness: self.lease_liveness,
             pins: self.pins,
+            removals: self.removals,
         }
     }
 }

@@ -54,6 +54,9 @@ use accelerator::launch::outbound::resolve::tree::lease::{
 use accelerator::launch::outbound::resolve::tree::locks::{
     FlockLocks, TreeLocks,
 };
+use accelerator::launch::outbound::resolve::tree::reap::{
+    RemovalObserver, UnobservedRemovals,
+};
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, NoSteps, TreePrune, TreePrunePorts, TreePruneRegime,
     TreePruneReport,
@@ -102,6 +105,7 @@ struct Ports {
     bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
     lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
     pins: ExpectedDigests,
+    removals: Arc<dyn RemovalObserver + Send + Sync>,
 }
 
 impl Ports {
@@ -115,6 +119,7 @@ impl Ports {
             bootstrap_holders: self.bootstrap_holders,
             lease_liveness: self.lease_liveness,
             pins: Arc::new(self.pins),
+            removals: self.removals,
         })
     }
 }
@@ -248,6 +253,7 @@ impl RootHarness {
             bootstrap_holders: Arc::new(LiveHolders::default()),
             lease_liveness: Arc::new(FixedLiveness(Liveness::Free)),
             pins: ExpectedDigests::Compiled,
+            removals: Arc::new(UnobservedRemovals),
         }
     }
 
@@ -1480,6 +1486,7 @@ fn prune_trees_directly(
             pins: ports.pins.as_ref(),
             locks: TreeLocks::over(ports.locks.as_ref()),
             steps: ports.steps.as_ref(),
+            removals: ports.removals.as_ref(),
         },
     }
     .run(patience);
@@ -2051,6 +2058,7 @@ fn prune_held_tree(
             pins: ports.pins.as_ref(),
             locks,
             steps: ports.steps.as_ref(),
+            removals: ports.removals.as_ref(),
         },
     }
     .prune_held(&held)
@@ -2089,4 +2097,76 @@ fn a_symlinked_trees_directory_is_not_pruned_by_prune_held() {
     tree.assert_reclaimed();
     bystander.assert_survives();
     assert!(sidecars.iter().all(|sidecar| !exists(sidecar)));
+}
+
+/// Records every entry a prune is about to remove, trying each tree lock
+/// among them from a separate open file description, as another process
+/// would.
+#[derive(Default)]
+struct ProbingRemovals(Mutex<Vec<(PathBuf, Option<bool>)>>);
+
+impl ProbingRemovals {
+    fn seen(&self) -> Vec<(PathBuf, Option<bool>)> {
+        self.0.lock().expect("seen").clone()
+    }
+}
+
+impl RemovalObserver for ProbingRemovals {
+    fn removing(&self, entry: &Path) {
+        let held = entry
+            .extension()
+            .is_some_and(|extension| extension == "lock")
+            .then(|| matches!(FlockLocks.probe(entry), Ok(LockProbe::Held)));
+        self.0
+            .lock()
+            .expect("seen")
+            .push((entry.to_path_buf(), held));
+    }
+}
+
+#[test]
+fn no_production_path_unlinks_a_tree_lock_it_does_not_hold() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let lock_only = trees.plant_lock(&on_host("retired-a"), harness.aged());
+    let retired = on_host("retired-b");
+    trees.plant_partial_archive(&retired, &digest('b'), harness.aged());
+    let with_archive = trees.plant_lock(&retired, harness.aged());
+    let tree =
+        trees.plant_tree(&on_host("retired-c"), &digest('c'), harness.aged());
+    let claim = trees.plant_claim(
+        &digest('d'),
+        OTHER_ID,
+        harness.now - 2 * CLAIM_WINDOW.as_secs(),
+    );
+    let observer = Arc::new(ProbingRemovals::default());
+
+    harness
+        .prune(Ports {
+            removals: Arc::clone(&observer)
+                as Arc<dyn RemovalObserver + Send + Sync>,
+            ..harness.ports()
+        })
+        .succeeded();
+
+    let seen = observer.seen();
+    for expected in [
+        &lock_only,
+        &with_archive,
+        &tree.pointer,
+        &tree.generation,
+        &claim,
+    ] {
+        assert!(
+            seen.iter().any(|(entry, _)| entry == expected),
+            "{} went unobserved: {seen:#?}",
+            expected.display()
+        );
+    }
+    let locks: Vec<_> = seen
+        .iter()
+        .filter_map(|(entry, held)| held.map(|held| (entry, held)))
+        .collect();
+    assert_eq!(locks.len(), 2, "{seen:#?}");
+    assert!(locks.iter().all(|(_, held)| *held), "{locks:#?}");
 }

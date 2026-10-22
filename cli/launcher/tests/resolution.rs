@@ -39,6 +39,7 @@ use accelerator::launch::outbound::resolve::retention_windows::{
 };
 use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
 use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
+use accelerator::launch::outbound::resolve::tree::reap::UnobservedRemovals;
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, SystemClock,
 };
@@ -324,6 +325,7 @@ fn start_up_over(
             bootstrap_holders: Arc::new(KillZeroProbe),
             lease_liveness: Arc::new(FlockProbe),
             pins: Arc::new(ExpectedDigests::Compiled),
+            removals: Arc::new(UnobservedRemovals),
         }),
     )
 }

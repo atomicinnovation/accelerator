@@ -88,6 +88,7 @@ pub struct TreePrunePorts<'a> {
     pub pins: &'a dyn PinnedDigests,
     pub locks: TreeLocks<'a>,
     pub steps: &'a dyn PruneSteps,
+    pub removals: &'a dyn RemovalObserver,
 }
 
 pub struct TreePrune<'a> {
@@ -375,7 +376,10 @@ impl TreePrune<'_> {
             &liveness,
             self.ports.pins,
         )
-        .observed_by(index)
+        .observed_by(&Announcing {
+            index,
+            observer: self.ports.removals,
+        })
         .reap_orphans()
         {
             Ok(reaped) => report.removals.reclaimed += reaped.entries,
@@ -459,10 +463,9 @@ impl TreePrune<'_> {
             if reap::orphan_is_reclaimable(
                 self.liveness().probe(&paths.lease(&generation)),
                 self.is_aged(&sidecar),
-            ) && report
-                .removals
-                .remove_file(
-                    self.ports.filesystem,
+            ) && self
+                .unlink_file(
+                    &mut report.removals,
                     &sidecar,
                     "orphan sidecar",
                     Count::Once,
@@ -491,10 +494,9 @@ impl TreePrune<'_> {
         let confirmed = TreesIndex::read(paths, self.ports.filesystem)
             .is_ok_and(|relisted| !relisted.has_work_for(artifact));
         if confirmed
-            && report
-                .removals
-                .remove_file(
-                    self.ports.filesystem,
+            && self
+                .unlink_file(
+                    &mut report.removals,
                     &lock,
                     "orphan tree lock",
                     Count::Once,
@@ -520,10 +522,9 @@ impl TreePrune<'_> {
         report: &mut TreePruneReport,
     ) {
         let removals = &mut report.removals;
-        let filesystem = self.ports.filesystem;
         let paths = tree.paths;
-        if removals.remove_file(
-            filesystem,
+        if self.unlink_file(
+            removals,
             &tree.pointer,
             "unclaimed tree",
             Count::WithItsEntry,
@@ -538,23 +539,23 @@ impl TreePrune<'_> {
                 Ok(None) => return,
                 Err(_) => None,
             };
-        removals.remove_tree(
-            filesystem,
+        self.unlink_tree(
+            removals,
             &paths.generation(&tree.generation),
             "unclaimed tree",
             Count::Once,
         );
         for sidecar in reap::sidecars_of(paths, &tree.generation) {
-            removals.remove_file(
-                filesystem,
+            self.unlink_file(
+                removals,
                 &sidecar,
                 "unclaimed tree",
                 Count::WithItsEntry,
             );
         }
         for claim in claims.on(tree.digest) {
-            removals.remove_file(
-                filesystem,
+            self.unlink_file(
+                removals,
                 &claim.path,
                 "claim on an unclaimed tree",
                 Count::WithItsEntry,
@@ -587,14 +588,37 @@ impl TreePrune<'_> {
                 .entry(&claim.path)
                 .is_ok_and(|entry| is_stale(&entry))
             {
-                report.removals.remove_file(
-                    self.ports.filesystem,
+                self.unlink_file(
+                    &mut report.removals,
                     &claim.path,
                     "stale tree claim",
                     Count::Once,
                 );
             }
         }
+    }
+
+    /// Every unlink this prune makes is announced to the observer first.
+    fn unlink_file(
+        &self,
+        removals: &mut Removals,
+        path: &Path,
+        rule: &str,
+        count: Count,
+    ) -> Removal {
+        self.ports.removals.removing(path);
+        removals.remove_file(self.ports.filesystem, path, rule, count)
+    }
+
+    fn unlink_tree(
+        &self,
+        removals: &mut Removals,
+        path: &Path,
+        rule: &str,
+        count: Count,
+    ) -> Removal {
+        self.ports.removals.removing(path);
+        removals.remove_tree(self.ports.filesystem, path, rule, count)
     }
 
     fn is_protected(&self, claims: &TreeClaimIndex, digest: &str) -> bool {
@@ -778,10 +802,17 @@ impl TreesIndex {
     }
 }
 
-/// The reap removes through `std::fs`; the index forgets what it saw go.
-impl RemovalObserver for TreesIndex {
+/// The reap removes through `std::fs`, so the index forgets what it is told
+/// goes, and the prune's own observer is told too.
+struct Announcing<'a> {
+    index: &'a TreesIndex,
+    observer: &'a dyn RemovalObserver,
+}
+
+impl RemovalObserver for Announcing<'_> {
     fn removing(&self, entry: &Path) {
-        self.forget(entry);
+        self.observer.removing(entry);
+        self.index.forget(entry);
     }
 }
 
