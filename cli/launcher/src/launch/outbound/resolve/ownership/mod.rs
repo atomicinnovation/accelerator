@@ -42,8 +42,13 @@ pub struct ProcessOwnership {
 }
 
 impl Default for ProcessOwnership {
+    /// The C library first; on Linux, `getent` when it finds no entry.
     fn default() -> Self {
-        Self::with_lookups(vec![Box::new(LibcLookup)])
+        Self::with_lookups(vec![
+            Box::new(LibcLookup),
+            #[cfg(target_os = "linux")]
+            Box::new(accounts::GetentLookup::production()),
+        ])
     }
 }
 
