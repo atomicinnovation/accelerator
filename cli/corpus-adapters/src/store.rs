@@ -23,6 +23,7 @@ use crate::jsonl::{compose_record, parse_record, remove_prefix};
 /// process-global `umask`.
 pub struct FileCorpusStore {
     root: PathBuf,
+    project_root: PathBuf,
     lock: LockOptions,
     fresh_mode: u32,
 }
@@ -33,13 +34,28 @@ impl FileCorpusStore {
         Self::with_lock_options(root, LockOptions::default())
     }
 
+    /// A store whose root must itself resolve inside `project_root`, so a
+    /// root that is a symlink out of the project is refused.
+    #[must_use]
+    pub fn within_project(
+        root: impl Into<PathBuf>,
+        project_root: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            project_root: project_root.into(),
+            ..Self::new(root)
+        }
+    }
+
     #[must_use]
     pub fn with_lock_options(
         root: impl Into<PathBuf>,
         lock: LockOptions,
     ) -> Self {
+        let root = root.into();
         Self {
-            root: root.into(),
+            project_root: root.clone(),
+            root,
             lock,
             fresh_mode: 0o666 & !store::current_umask(),
         }
@@ -48,7 +64,7 @@ impl FileCorpusStore {
     fn bounds(&self) -> WriteBounds<'_> {
         WriteBounds {
             permitted_root: &self.root,
-            project_root: &self.root,
+            project_root: &self.project_root,
         }
     }
 
@@ -289,6 +305,20 @@ mod tests {
         fs::write(&target, b"old contents")?;
         FileCorpusStore::new(dir.path()).write(&target, b"new")?;
         assert_eq!(fs::read(&target)?, b"new");
+        Ok(())
+    }
+
+    #[test]
+    fn a_project_bounded_store_refuses_a_root_symlinked_out_of_the_project(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        let root = project.path().join("work");
+        std::os::unix::fs::symlink(elsewhere.path(), &root)?;
+        let result = FileCorpusStore::within_project(&root, project.path())
+            .write(&root.join("0001.md"), b"new");
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(!elsewhere.path().join("0001.md").exists());
         Ok(())
     }
 
