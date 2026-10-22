@@ -9,6 +9,7 @@ use super::super::prune_report::{
     LockFailure, RemovalFailure, Removals, UnreadableClaims,
 };
 use super::super::single_flight::LockPatience;
+use super::super::tree::locks::TreeLocks;
 use super::super::tree::{prune_pinned_on_host, PinnedPruneCollaborators};
 use super::ports::CachePorts;
 use super::residue::ResidueSweep;
@@ -111,6 +112,7 @@ impl RootPrune<'_> {
             clock: self.ports.clock.as_ref(),
             liveness: self.ports.lease_liveness.as_ref(),
             pins: self.ports.pins.as_ref(),
+            locks: TreeLocks::over(self.ports.locks.as_ref()),
         };
         match prune_pinned_on_host(
             self.safe.path(),
