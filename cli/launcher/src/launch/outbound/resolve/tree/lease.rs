@@ -5,12 +5,15 @@
 //! seconds after every bootstrap. The kernel is the liveness oracle: a crashed
 //! holder releases with no cleanup code and leaves no stale state.
 
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
 pub use lease::Liveness;
 
 #[cfg(unix)]
 pub use unix::{
-    probe_single_flight, take_single_flight, try_single_flight, wait_existing,
-    SingleFlight,
+    probe_single_flight, take_single_flight, try_exclusive_lease,
+    try_single_flight, wait_existing, ExclusiveLease, SingleFlight,
 };
 
 pub enum SingleFlightProbe {
@@ -31,6 +34,59 @@ pub struct FlockProbe;
 impl LivenessProbe for FlockProbe {
     fn probe(&self, lease: &std::path::Path) -> Liveness {
         lease::probe_shared_lease(lease)
+    }
+}
+
+/// The generation directories this process holds shared leases on.
+///
+/// Each is held without a probe: where `flock` is emulated with
+/// process-owned POSIX locks, probing a lease the process holds would
+/// release it.
+#[derive(Debug, Default)]
+pub struct HeldLeases {
+    generations: BTreeSet<PathBuf>,
+}
+
+impl HeldLeases {
+    #[must_use]
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    pub fn holding(generations: impl IntoIterator<Item = PathBuf>) -> Self {
+        Self {
+            generations: generations.into_iter().collect(),
+        }
+    }
+
+    /// `probe`, asked only about leases this process does not hold.
+    #[must_use]
+    pub const fn before<'a>(
+        &'a self,
+        probe: &'a dyn LivenessProbe,
+    ) -> HeldLeasesFirst<'a> {
+        HeldLeasesFirst { held: self, probe }
+    }
+
+    fn holds_lease(&self, lease: &Path) -> bool {
+        self.generations
+            .iter()
+            .any(|generation| lease::lease_beside(generation) == lease)
+    }
+}
+
+pub struct HeldLeasesFirst<'a> {
+    held: &'a HeldLeases,
+    probe: &'a dyn LivenessProbe,
+}
+
+impl LivenessProbe for HeldLeasesFirst<'_> {
+    fn probe(&self, lease: &Path) -> Liveness {
+        if self.held.holds_lease(lease) {
+            Liveness::Held
+        } else {
+            self.probe.probe(lease)
+        }
     }
 }
 
@@ -141,6 +197,40 @@ mod unix {
             flock(fd, FlockOperation::LockExclusive)
         })
         .and_then(wait_existing_outcome)
+    }
+
+    /// An exclusive lock on a generation's lease, held across its removal so
+    /// no dispatch can lease the generation meanwhile.
+    pub struct ExclusiveLease {
+        _file: File,
+    }
+
+    /// Lock the lease exclusively without blocking, creating its file if
+    /// missing; `Ok(None)` when a live process holds it shared.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lease cannot be opened or `flock` fails
+    /// for a reason other than contention, as where it is unsupported.
+    pub fn try_exclusive_lease(
+        path: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError> {
+        let file = open_creating(path)
+            .map_err(|error| {
+                lease(&format!(
+                    "cannot open the lease {}: {error}",
+                    path.display()
+                ))
+            })?
+            .ok_or_else(no_lock_file)?;
+        match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive) {
+            Ok(()) => Ok(Some(ExclusiveLease { _file: file })),
+            Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
+            Err(error) => Err(lease(&format!(
+                "cannot lock the lease {}: {error}",
+                path.display()
+            ))),
+        }
     }
 
     const MAX_LOCK_ATTEMPTS: usize = 8;
