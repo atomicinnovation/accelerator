@@ -3,6 +3,7 @@
 //! web nodes a run may still spawn.
 
 use std::collections::BTreeMap;
+use std::iter;
 use std::num::NonZeroU32;
 
 use crate::topic::plan::OutstandingPair;
@@ -207,31 +208,43 @@ fn topped_up(
     cap: SearchCap,
 ) -> SearchBudgets {
     let available = u64::from(cap.available());
-    while let Some((level, nodes, raised)) =
-        rising_level(tree, &sized, available)
-    {
-        sized.budgets.insert(level, raised);
-        sized.demand += nodes;
+    while let Some(raise) = rising_level(tree, &sized, available) {
+        sized.budgets.insert(raise.level, raise.budget);
+        sized.demand += raise.nodes;
     }
     sized
+}
+
+struct Raise {
+    level: u32,
+    nodes: u64,
+    budget: NonZeroU32,
 }
 
 fn rising_level(
     tree: &WorstCaseTree,
     sized: &SearchBudgets,
     available: u64,
-) -> Option<(u32, u64, NonZeroU32)> {
+) -> Option<Raise> {
     let levels: Vec<(u32, NonZeroU32)> = sized.levels().collect();
-    (0..levels.len()).rev().find_map(|index| {
-        let (level, budget) = levels[index];
-        let nodes = tree.nodes_at(level);
-        let raised = budget.checked_add(1)?;
-        let fits = sized.demand.saturating_add(nodes) <= available;
-        let keeps_shape = index
-            .checked_sub(1)
-            .is_none_or(|shallower| raised <= levels[shallower].1);
-        (fits && keeps_shape).then_some((level, nodes, raised))
-    })
+    let above: Vec<Option<NonZeroU32>> = iter::once(None)
+        .chain(levels.iter().map(|&(_, budget)| Some(budget)))
+        .collect();
+    levels
+        .iter()
+        .zip(above)
+        .rev()
+        .find_map(|(&(level, budget), above)| {
+            let nodes = tree.nodes_at(level);
+            let raised = budget.checked_add(1)?;
+            let fits = sized.demand.saturating_add(nodes) <= available;
+            let keeps_shape = above.is_none_or(|above| raised <= above);
+            (fits && keeps_shape).then_some(Raise {
+                level,
+                nodes,
+                budget: raised,
+            })
+        })
 }
 
 #[cfg(test)]
