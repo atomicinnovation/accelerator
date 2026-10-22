@@ -282,8 +282,8 @@ def test_conduct_reads_the_search_budget_fields() -> None:
     for field in (
         "`search_cap`, the session's `WebSearch` cap as `searches` and the "
         "`source` it came from",
-        "`search_budgets`, each `level` with its `budget`, and "
-        "`search_demand`, on run plans with web pairs",
+        "`search_budgets`, on run plans with web pairs: its `levels`, each "
+        "`level` with its `budget`, and the worst-case `demand`",
         "a `single_pass` pair carries its `spawn` and, for a `web` pair, its "
         "`search_budget`",
         "its `spawn`, `rejected` when the note on disk was refused, and "

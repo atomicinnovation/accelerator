@@ -367,8 +367,8 @@ allocate a finding or note path yourself.
      `pairs`, each as `stem`, `question`, `profile` and `stage`;
    - `search_cap`, the session's `WebSearch` cap as `searches` and the
      `source` it came from;
-   - `search_budgets`, each `level` with its `budget`, and `search_demand`,
-     on run plans with web pairs;
+   - `search_budgets`, on run plans with web pairs: its `levels`, each
+     `level` with its `budget`, and the worst-case `demand`;
    - `replaced_run`, on the first plan after a run that did not end: its
      `run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, each
      entry a `spawn`, `question` and `profile`; `quarantine`, the absolute

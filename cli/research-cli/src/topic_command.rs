@@ -730,10 +730,11 @@ const fn stage_name(stage: &Stage) -> &'static str {
 }
 
 fn search_budgets(budgets: &SearchBudgets) -> Value {
-    budgets
+    let levels: Vec<Value> = budgets
         .levels()
         .map(|(level, budget)| json!({"level": level, "budget": budget}))
-        .collect()
+        .collect();
+    json!({"levels": levels, "demand": budgets.demand()})
 }
 
 fn shallow_finding(finding: &ShallowFinding) -> Value {
@@ -836,7 +837,6 @@ impl PlanOutput<'_> {
                 .filter(|budgets| budgets.levels().next().is_some())
             {
                 rendered["search_budgets"] = search_budgets(budgets);
-                rendered["search_demand"] = json!(budgets.demand());
             }
         }
         if let Some(replaced) = self.replaced_run {

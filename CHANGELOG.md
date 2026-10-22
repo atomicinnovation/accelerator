@@ -248,17 +248,17 @@
   for its web researchers from that cap, less a reserve of a twentieth, over
   the worst-case tree of every outstanding web pair, and keeps the budgets in
   its ledger for the rest of the run. Run plans with web pairs report
-  `search_budgets` and `search_demand`, and give every web `single_pass` pair
-  and node its `search_budget`. When even budgets of 1 do not fit, the sizing
-  plan warns. Web researchers make at most their search budget of
-  `WebSearch` calls, and web level notes record it as `search_budget`, an
-  optional level-note field. When a web researcher exhausts the quota,
-  `conduct` halts: it spawns no further web researchers, re-issues no web
-  spawn refused for capacity, still finishes the run's other work, and opens
-  its summary with the halt, the web pairs left unfinished, and the recovery
-  of `/clear` and a re-run. `--withhold-profile P`, with `--run`, withholds
-  researcher spawns of profile `P` for the rest of the run, which its ledger
-  remembers; run plans report them as `withheld`. A profile with no skill
+  `search_budgets`, its `levels` and worst-case `demand`, and give every web
+  `single_pass` pair and node its `search_budget`. When even budgets of 1 do
+  not fit, the sizing plan warns. Web researchers make at most their search
+  budget of `WebSearch` calls, and web level notes record it as
+  `search_budget`, an optional level-note field. When a web researcher
+  exhausts the quota, `conduct` halts: it spawns no further web researchers,
+  re-issues no web spawn refused for capacity, still finishes the run's other
+  work, and opens its summary with the halt, the web pairs left unfinished, and
+  the recovery of `/clear` and a re-run. `--withhold-profile P`, with `--run`,
+  withholds researcher spawns of profile `P` for the rest of the run, which its
+  ledger remembers; run plans report them as `withheld`. A profile with no skill
   under `--profiles-dir` exits 1 with `E_TOPIC_RESEARCH_WITHHOLD_PROFILE`.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,

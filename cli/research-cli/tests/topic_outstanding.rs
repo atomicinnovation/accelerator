@@ -2772,13 +2772,16 @@ fn budgets(levels: &[(u32, u32)]) -> Value {
 }
 
 fn assert_budgeted(plan: &Value, levels: &[(u32, u32)], demand: u64) {
-    assert_eq!(plan["search_budgets"], budgets(levels), "{plan}");
-    assert_eq!(plan["search_demand"], json!(demand), "{plan}");
+    assert_eq!(
+        plan["search_budgets"],
+        json!({"levels": budgets(levels), "demand": demand}),
+        "{plan}"
+    );
+    assert_eq!(plan.get("search_demand"), None, "{plan}");
 }
 
 fn assert_unbudgeted(plan: &Value) {
     assert_eq!(plan.get("search_budgets"), None, "{plan}");
-    assert_eq!(plan.get("search_demand"), None, "{plan}");
     assert!(!plan.to_string().contains("search_budget"), "{plan}");
 }
 
@@ -3120,7 +3123,7 @@ fn every_web_spawn_carries_its_budget() -> Result<(), TestError> {
     let (plan, _) = budgeted_start(&project, "2", &[])?;
 
     let budget_at = |level: &Value| {
-        plan["search_budgets"]
+        plan["search_budgets"]["levels"]
             .as_array()
             .and_then(|levels| {
                 levels.iter().find(|entry| &entry["level"] == level)
