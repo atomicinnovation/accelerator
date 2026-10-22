@@ -1169,12 +1169,15 @@ def test_a_halt_withholds_web_researchers_from_the_next_plan_on() -> None:
     assert f"--run {{run}} --spawned {{batch}} {WITHHOLD_FLAGS}" in plan
     for sentence in (
         "`--withhold-profile web`",
-        "until a run plan's `withheld` names it",
-        "A plan that should name a profile in `withheld` but does not is "
-        "reported and stops the loop, like a non-zero exit.",
+        "From the halt on, every continue plan carries",
+        "and must name each of them in `withheld`.",
+        "A plan that does not is reported and stops the loop, like a "
+        "non-zero exit.",
         "The tick plan in step 7 never carries the flag.",
     ):
         assert sentence in plan, f"step 2 must state {sentence!r}"
+    for optional in ("until a run plan's `withheld` names it", "may drop"):
+        assert optional not in plan, f"step 2 must not offer {optional!r}"
     loop = _section(_conduct(), "6. **Loop.**", "7. **Tick")
     assert WITHHOLD_FLAGS in loop, "every re-plan must carry the withholding"
     tick = _section(_conduct(), "**Tick from disk.**", "**Edit `manifest.md`**")

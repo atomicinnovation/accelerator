@@ -271,13 +271,11 @@ allocate a finding or note path yourself.
    ```
 
    `{withhold flags}` is nothing until the run halts (see **Halting
-   failures** below). Once it halts, every continue plan carries
+   failures** below). From the halt on, every continue plan carries
    `--withhold-profile {profile}` for each profile the halting reason
    withholds — `--withhold-profile web` for an exhausted web search quota —
-   until a run plan's `withheld` names it. After that the ledger remembers
-   it for the rest of the run, so later plans may drop it, and repeating it
-   is harmless. A plan that should name a profile in `withheld` but does not
-   is reported and stops the loop, like a non-zero exit. The tick plan in
+   and must name each of them in `withheld`. A plan that does not is
+   reported and stops the loop, like a non-zero exit. The tick plan in
    step 7 never carries the flag.
 
    The CLI records the run in its ledger, so carry no list of attempted
