@@ -2270,3 +2270,71 @@ fn each_artifact_state_and_patience_uses_the_tables_lock_call() {
         );
     }
 }
+
+#[test]
+fn the_plugin_bin_root_is_never_claimed_or_pruned() {
+    for spelling in ["named", "symlinked", "slashed"] {
+        let harness = RootHarness::new();
+        let bin = harness.plugin.join("bin");
+        let seeded: Vec<PathBuf> = [
+            format!("vcs-{OLD}-{DIGEST}"),
+            format!("vcs-{OLD}-{DIGEST}.minisig"),
+            format!("accelerator-launcher-{OLD}-{HOST_PLATFORM}"),
+            format!("accelerator-launcher-{OLD}-{HOST_PLATFORM}.minisig"),
+            format!("accelerator-verify-{HOST_PLATFORM}-{DIGEST}"),
+            format!("accelerator-verify-{HOST_PLATFORM}-{DIGEST}.staging.4343"),
+            format!(".tmp-vcs-{DIGEST}-1-2"),
+            ".tmp-launcher-4343".to_owned(),
+            ".accelerator-probe-77".to_owned(),
+        ]
+        .iter()
+        .map(|name| {
+            let path = bin.join(name);
+            std::fs::write(&path, b"x").expect("seeded");
+            set_mtime(&path, harness.aged());
+            path
+        })
+        .collect();
+        let lock = bin.join(format!(".accelerator-lock-{HOST_PLATFORM}"));
+        std::fs::create_dir(&lock).expect("bootstrap lock");
+        std::fs::write(lock.join("pid"), "4343\n").expect("pid");
+        set_mtime(&lock, harness.aged());
+        let superseded = Trees::under(&bin).plant_tree(
+            &on_host("driver"),
+            &digest('d'),
+            harness.aged(),
+        );
+        let cache_dir = match spelling {
+            "named" => bin.clone(),
+            "symlinked" => {
+                let link = harness.anchor.path().join("bin-link");
+                std::os::unix::fs::symlink(&bin, &link).expect("symlink");
+                link
+            }
+            _ => PathBuf::from(format!("{}/", bin.display())),
+        };
+
+        let verb = prune_through(
+            &harness.start_over(
+                &cache_dir,
+                TrustedOwners::none(),
+                Ports {
+                    pins: pinning("driver", &digest('a')),
+                    ..harness.ports()
+                },
+            ),
+            None,
+        );
+
+        verb.succeeded();
+        assert!(!bin.join(VERSION_CLAIMS_DIR).exists(), "{spelling}");
+        for path in seeded.iter().chain([&lock.join("pid")]) {
+            assert!(
+                path.exists(),
+                "{spelling}: {} was removed",
+                path.display()
+            );
+        }
+        superseded.assert_reclaimed();
+    }
+}
