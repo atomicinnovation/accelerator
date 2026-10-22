@@ -68,6 +68,10 @@ impl CorpusWorkspace {
         &self.roots
     }
 
+    pub const fn locks(&self) -> &LockdirLock {
+        &self.locks
+    }
+
     pub const fn recovery(&self) -> &FileRecoveryCopies {
         &self.recovery
     }
@@ -156,6 +160,10 @@ impl IdentityWorkspace {
 
     pub fn state_dir(&self) -> &Path {
         self.corpus.state_dir()
+    }
+
+    pub const fn locks(&self) -> &LockdirLock {
+        self.corpus.locks()
     }
 
     pub const fn recovery(&self) -> &FileRecoveryCopies {

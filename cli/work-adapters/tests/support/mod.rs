@@ -11,6 +11,9 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
@@ -768,5 +771,17 @@ pub fn sync_files(writer: &dyn AtomicWrite) -> SyncFiles<'_> {
     SyncFiles {
         work_items: writer,
         integration_state: writer,
+        file_locks: &Unlocked,
     }
+}
+
+/// Grants every lock at once, for runs that never contend.
+pub struct Unlocked;
+
+impl ExclusiveLock for Unlocked {
+    fn acquire(&self, _name: &LockName) -> Result<HeldLock, StoreError> {
+        Ok(HeldLock::new(()))
+    }
+
+    fn clear_abandoned(&self, _name: &LockName) {}
 }

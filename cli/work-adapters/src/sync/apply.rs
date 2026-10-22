@@ -4,6 +4,8 @@
 use std::path::Path;
 
 use corpus::body::BodyParser;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
@@ -388,6 +390,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &mut self,
         request: &PullRequest<'_>,
     ) -> Result<(), ApplyError> {
+        let _held = self.lock_item(request)?;
         let current = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.id, "read-local", error))?;
         if current != request.classified_content && current != request.content {
@@ -416,6 +419,16 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 ),
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
+    }
+
+    fn lock_item(
+        &self,
+        request: &PullRequest<'_>,
+    ) -> Result<HeldLock, ApplyError> {
+        self.files
+            .file_locks
+            .acquire(&LockName::ForFile(request.file_path.to_path_buf()))
+            .map_err(|error| io_error(request.id, "lock-local", error))
     }
 
     /// Authors a discovered remote issue as a new local file and records its
