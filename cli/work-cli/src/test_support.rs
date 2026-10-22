@@ -227,6 +227,8 @@ pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
 /// fields it is about.
 pub fn run_report() -> work_adapters::sync::run::RunReport {
     work_adapters::sync::run::RunReport {
+        scope: work_adapters::sync::report::CorpusScope::WholeCorpus,
+        mode: work_adapters::sync::run::RunMode::Apply,
         identity: Vec::new(),
         promotions: Vec::new(),
         deferred: 0,

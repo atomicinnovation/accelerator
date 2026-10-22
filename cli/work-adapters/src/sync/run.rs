@@ -63,6 +63,7 @@ use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
+use crate::sync::report::CorpusScope;
 use crate::sync::report::Finalisation;
 pub use crate::sync::report::ItemOutcome;
 pub use crate::sync::report::ReportedItem;
@@ -190,6 +191,16 @@ pub struct SyncRequest<'a> {
     pub scope: SearchScope,
     /// Whether a run under a tracker-owned pattern promotes its drafts.
     pub promote: bool,
+}
+
+impl ItemSelection<'_> {
+    #[must_use]
+    pub const fn corpus_scope(&self) -> CorpusScope {
+        match self {
+            Self::All | Self::Settled { .. } => CorpusScope::WholeCorpus,
+            Self::Targeted { .. } => CorpusScope::Targeted,
+        }
+    }
 }
 
 impl<'a> SyncRequest<'a> {
@@ -1850,6 +1861,8 @@ fn execute<'a>(
             ));
         }
         return Ok(RunReport {
+            scope: request.selection.corpus_scope(),
+            mode: request.mode,
             identity: Vec::new(),
             promotions: Vec::new(),
             deferred: 0,
@@ -1929,6 +1942,8 @@ fn execute<'a>(
     );
 
     Ok(RunReport {
+        scope: request.selection.corpus_scope(),
+        mode: request.mode,
         identity: Vec::new(),
         promotions: Vec::new(),
         deferred: 0,

@@ -53,7 +53,7 @@ impl<'a> LinearCatalogueFinaliser<'a> {
 
 impl RunFinaliser for LinearCatalogueFinaliser<'_> {
     fn finalise(&self, run: &FinishedRun<'_>, diagnostics: &mut dyn Write) {
-        if run.mode == RunMode::Preview
+        if run.report.mode == RunMode::Preview
             || matches!(run.report.discovery, DiscoveryStatus::SkippedPushOnly)
         {
             return;
@@ -261,7 +261,6 @@ mod tests {
             &self,
             linear: Result<Linear, FetchUnavailable>,
             report: &RunReport,
-            mode: RunMode,
             corpus: &[&str],
         ) -> String {
             let factory = move || match linear.clone() {
@@ -277,7 +276,6 @@ mod tests {
             finaliser.finalise(
                 &FinishedRun {
                     report,
-                    mode,
                     corpus_external_ids: corpus
                         .iter()
                         .map(|id| ExternalId::new((*id).to_owned()))
@@ -348,8 +346,10 @@ mod tests {
 
             let diagnostics = repo.finalise(
                 Ok(Linear::default().team("t-eng", "ENG")),
-                &report(status.clone()),
-                mode,
+                &RunReport {
+                    mode,
+                    ..report(status.clone())
+                },
                 &[],
             );
 
@@ -381,7 +381,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(linear),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &["OPS-1"],
         );
 
@@ -398,7 +397,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(Linear::default()),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &["PROJ-12"],
         );
 
@@ -421,7 +419,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(linear),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &[],
         );
 
@@ -442,14 +439,8 @@ mod tests {
         let complete = Repo::seeded(&complete_catalogue());
         let apply = report(DiscoveryStatus::Ran { found: 0 });
 
-        let warned =
-            needs_healing.finalise(unavailable(), &apply, RunMode::Apply, &[]);
-        let quiet = complete.finalise(
-            unavailable(),
-            &apply,
-            RunMode::Apply,
-            &["ENG-1"],
-        );
+        let warned = needs_healing.finalise(unavailable(), &apply, &[]);
+        let quiet = complete.finalise(unavailable(), &apply, &["ENG-1"]);
 
         assert!(warned.contains("no Linear token"), "{warned}");
         assert_eq!(quiet, "");
@@ -465,7 +456,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(Linear::default()),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &[],
         );
 
@@ -486,7 +476,6 @@ mod tests {
         let integrations = Path::new("/unused");
         let run = FinishedRun {
             report: &run_report,
-            mode: RunMode::Apply,
             corpus_external_ids: Vec::new(),
             integrations_root: integrations,
             repo_root: integrations,
@@ -520,7 +509,6 @@ mod tests {
         finaliser.finalise(
             &FinishedRun {
                 report: &report(DiscoveryStatus::Ran { found: 0 }),
-                mode: RunMode::Apply,
                 corpus_external_ids: vec![ExternalId::new("ENG-1".to_owned())],
                 integrations_root: &integrations,
                 repo_root: repo.root.path(),

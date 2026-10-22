@@ -76,6 +76,7 @@ use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
+use work_adapters::sync::report::CorpusScope;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
@@ -2202,4 +2203,36 @@ fn a_failed_promotion_retirement_then_sync_then_sync_creates_one_issue() {
 
     assert_eq!(creates(&tracker), 1);
     assert!(repo.promoted_file(&key).is_some());
+}
+
+#[test]
+fn the_report_records_the_runs_scope_and_mode() {
+    let repo = Repo::new();
+    repo.item("0001-one.md", "0001", Some("ENG-1"));
+    let tracker = RecordingTracker::holding(vec![held("ENG-1")]);
+
+    for (options, scope, mode) in [
+        (Options::default(), CorpusScope::WholeCorpus, RunMode::Apply),
+        (
+            Options {
+                targets: Some(vec!["0001"]),
+                ..Options::default()
+            },
+            CorpusScope::Targeted,
+            RunMode::Apply,
+        ),
+        (
+            Options {
+                mode: RunMode::Preview,
+                ..Options::default()
+            },
+            CorpusScope::WholeCorpus,
+            RunMode::Preview,
+        ),
+    ] {
+        let outcome = sync(&repo, &tracker, options);
+
+        assert_eq!(outcome.report().scope, scope);
+        assert_eq!(outcome.report().mode, mode);
+    }
 }

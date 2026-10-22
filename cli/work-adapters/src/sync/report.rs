@@ -16,6 +16,7 @@ use crate::sync::baseline::Degradation;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::run::ConflictDossier;
 use crate::sync::run::DiscoveryStatus;
+use crate::sync::run::RunMode;
 
 pub enum ItemOutcome {
     Applied,
@@ -43,6 +44,14 @@ pub struct ReportedItem {
     pub leftover_marker: Option<LeftoverMarker>,
 }
 
+/// How much of the corpus a run looked at, which decides what it may judge
+/// about the corpus as a whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CorpusScope {
+    WholeCorpus,
+    Targeted,
+}
+
 /// Whether a run recorded its baseline bookkeeping: a preview does not
 /// try, and a failed write keeps the store's reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,6 +62,8 @@ pub enum Finalisation {
 }
 
 pub struct RunReport {
+    pub scope: CorpusScope,
+    pub mode: RunMode,
     /// The identity pass's rows, each keyed by the item's id when the run
     /// started. The engine's row for the same item is not rendered.
     pub identity: Vec<IdentityRow>,

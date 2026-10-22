@@ -6,12 +6,10 @@ use std::path::Path;
 use tracker::ExternalId;
 use work_adapters::sync::kept_edits::KeptEditsReview;
 use work_adapters::sync::run::ItemOutcome;
-use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 
 pub struct FinishedRun<'a> {
     pub report: &'a RunReport,
-    pub mode: RunMode,
     /// The `external_id` of every tracked work item in the corpus.
     pub corpus_external_ids: Vec<ExternalId>,
     pub integrations_root: &'a Path,
@@ -47,7 +45,6 @@ impl<'a> FinishedRun<'a> {
     pub fn for_report(report: &'a RunReport) -> Self {
         Self {
             report,
-            mode: RunMode::Apply,
             corpus_external_ids: Vec::new(),
             integrations_root: Path::new(""),
             repo_root: Path::new(""),
