@@ -773,6 +773,26 @@ fn classification_failures(report: &RunReport) -> Vec<String> {
         .collect()
 }
 
+/// A linked item never creates again, so its leftover marker is harmless;
+/// it is named so a person can remove it.
+fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| {
+            item.leftover_marker.as_ref().map(|leftover| {
+                format!(
+                    "warning: {}: could not clear marker {}: {}; the item is \
+                     linked, so remove the marker by hand",
+                    single_line(&item.planned.id),
+                    single_line(&leftover.path.display().to_string()),
+                    single_line(&leftover.reason)
+                )
+            })
+        })
+        .collect()
+}
+
 fn exit_code_for_report(report: &RunReport) -> u8 {
     let failures =
         report
@@ -2172,6 +2192,9 @@ fn report_finished_run(
     for failure in classification_failures(report) {
         console.warn(failure);
     }
+    for warning in leftover_marker_warnings(report) {
+        console.warn(warning);
+    }
     for note in kept_edits_notes(&finished.kept_edits) {
         console.warn(note);
     }
@@ -2222,6 +2245,7 @@ mod tests {
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
+    use work_adapters::sync::apply::LeftoverMarker;
     use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ConflictDossier;
     use work_adapters::sync::run::DiscoveryStatus;
@@ -2240,6 +2264,7 @@ mod tests {
 
     use super::build_selection;
     use super::highest_precedence_code;
+    use super::leftover_marker_warnings;
     use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
@@ -2763,6 +2788,7 @@ mod tests {
             outcome: ItemOutcome::NotApplied,
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }
     }
 
@@ -2784,7 +2810,29 @@ mod tests {
             }),
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }
+    }
+
+    #[test]
+    fn a_linked_items_leftover_marker_is_a_warning_naming_it() {
+        let report = report_of(vec![ReportedItem {
+            leftover_marker: Some(LeftoverMarker {
+                path: PathBuf::from("/s/pending-push/0001.json"),
+                reason: "not writable".to_owned(),
+            }),
+            ..reported("0001", SyncState::Unsynced, Action::CreateFromLocal)
+        }]);
+
+        assert_eq!(
+            leftover_marker_warnings(&report),
+            vec![
+                "warning: 0001: could not clear marker \
+                 /s/pending-push/0001.json: not writable; the item is \
+                 linked, so remove the marker by hand"
+                    .to_owned()
+            ]
+        );
     }
 
     #[test]
@@ -4085,6 +4133,7 @@ mod tests {
             outcome: ItemOutcome::Failed(error),
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }
     }
 
@@ -4105,6 +4154,7 @@ mod tests {
             outcome,
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }
     }
 
@@ -4142,6 +4192,7 @@ mod tests {
             outcome: ItemOutcome::Applied,
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }]);
 
         let rendered = render_report(

@@ -1002,6 +1002,30 @@ fn kept_a_copy_of(item_path: &Path, content: &str) -> Vec<String> {
 }
 
 #[test]
+fn pull_writes_through_the_work_item_store() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let (fake, work_items) = (Fake::default(), Fake::default());
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+    let ports = ApplierPorts {
+        files: SyncFiles {
+            work_items: &work_items,
+            ..ports(&fake).files
+        },
+        ..ports(&fake)
+    };
+
+    ItemApplier::new(ports, &mut store, 1_700_000_000)
+        .pull(&pull_request(&item_path))
+        .result?;
+
+    assert_eq!(work_items.content(&item_path).as_deref(), Some(item_content()));
+    assert_eq!(fake.content(&item_path), None);
+    Ok(())
+}
+
+#[test]
 fn a_pull_takes_its_lock_then_keeps_a_copy_then_writes() -> Result<(), TestError>
 {
     let dir = tempfile::tempdir()?;
