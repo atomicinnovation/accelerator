@@ -19,6 +19,7 @@ use research::conduct::memory::RunMemory;
 use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
 use research::conduct::search_budget::SearchBudgets;
+use research::conduct::search_budget::SearchCap;
 use research::conduct::spawn::SpawnRef;
 use research::topic::claims::ClaimedIndexes;
 use research::topic::evidence::Digest;
@@ -157,7 +158,11 @@ fn search_budgets_to(budgets: &SearchBudgets) -> Value {
         .levels()
         .map(|(level, budget)| (level.to_string(), json!(budget.get())))
         .collect();
-    json!({"levels": levels, "demand": budgets.demand()})
+    json!({
+        "levels": levels,
+        "demand": budgets.demand(),
+        "cap": budgets.sized_against().searches().get(),
+    })
 }
 
 fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
@@ -203,9 +208,11 @@ fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
             Some((level_from(level)?, NonZeroU32::new(number(budget)?)?))
         })
         .collect::<Option<BTreeMap<u32, NonZeroU32>>>()?;
+    let cap = NonZeroU32::new(number(value.get("cap")?)?)?;
     Some(SearchBudgets::from_parts(
         levels,
         value.get("demand")?.as_u64()?,
+        SearchCap::new(cap),
     ))
 }
 
@@ -319,6 +326,7 @@ mod tests {
     use research::conduct::memory::Withheld;
     use research::conduct::observed::Observed;
     use research::conduct::search_budget::SearchBudgets;
+    use research::conduct::search_budget::SearchCap;
     use research::conduct::spawn::SpawnRef;
     use research::topic::claims::ClaimedIndexes;
     use research::topic::evidence::Digest;
@@ -427,6 +435,7 @@ mod tests {
                     (3, NonZeroU32::MIN),
                 ]),
                 190,
+                SearchCap::new(NonZeroU32::new(200).expect("cap")),
             )),
         )
     }
@@ -515,7 +524,11 @@ mod tests {
         assert_eq!(written["claims"], json!({"A ?": 3}));
         assert_eq!(
             written["search_budgets"],
-            json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190})
+            json!({
+                "levels": {"1": 3, "2": 2, "3": 1},
+                "demand": 190,
+                "cap": 200
+            })
         );
         assert_eq!(written["withheld"], json!(["web"]));
         Ok(())
@@ -576,13 +589,15 @@ mod tests {
     #[test]
     fn a_run_without_web_pairs_stores_empty_budgets() -> Result<(), TestError> {
         let mut ledger = well_formed();
-        ledger["search_budgets"] = json!({"levels": {}, "demand": 0});
+        ledger["search_budgets"] =
+            json!({"levels": {}, "demand": 0, "cap": 60});
 
         let read = read(&stored(&ledger))?.ok_or("no ledger")?;
 
         let budgets = read.search_budgets().ok_or("no search budgets")?;
         assert_eq!(budgets.levels().count(), 0);
         assert_eq!(budgets.demand(), 0);
+        assert_eq!(budgets.sized_against().searches().get(), 60);
         Ok(())
     }
 
@@ -591,13 +606,16 @@ mod tests {
         for value in [
             json!("x"),
             json!({"levels": {}}),
-            json!({"levels": {"0": 1}, "demand": 1}),
-            json!({"levels": {"a": 1}, "demand": 1}),
-            json!({"levels": {"01": 1}, "demand": 1}),
-            json!({"levels": {"+1": 1}, "demand": 1}),
-            json!({"levels": {"1": 0}, "demand": 1}),
-            json!({"levels": {"1": -1}, "demand": 1}),
-            json!({"levels": {}, "demand": -1}),
+            json!({"levels": {}, "demand": 0}),
+            json!({"levels": {}, "demand": 0, "cap": 0}),
+            json!({"levels": {}, "demand": 0, "cap": "200"}),
+            json!({"levels": {"0": 1}, "demand": 1, "cap": 200}),
+            json!({"levels": {"a": 1}, "demand": 1, "cap": 200}),
+            json!({"levels": {"01": 1}, "demand": 1, "cap": 200}),
+            json!({"levels": {"+1": 1}, "demand": 1, "cap": 200}),
+            json!({"levels": {"1": 0}, "demand": 1, "cap": 200}),
+            json!({"levels": {"1": -1}, "demand": 1, "cap": 200}),
+            json!({"levels": {}, "demand": -1, "cap": 200}),
         ] {
             let mut ledger = well_formed();
             ledger["search_budgets"] = value.clone();

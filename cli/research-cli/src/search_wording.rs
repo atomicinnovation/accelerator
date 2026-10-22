@@ -1,5 +1,6 @@
 //! How the search cap's diagnostics read to whoever runs `conduct`.
 
+use research::conduct::ledger::RunId;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::search_budget::SearchCap;
 
@@ -25,6 +26,20 @@ pub fn search_floor(
         cap.searches(),
         cap.reserve(),
         SearchCapSource::raised_by(),
+    )
+}
+
+pub fn unsized_run(run: &RunId) -> String {
+    format!(
+        "run {run} began before search budgets were sized; budgeting each web \
+         researcher 1 search"
+    )
+}
+
+pub fn unbudgeted_level(level: u32) -> String {
+    format!(
+        "level {level} has no search budget; budgeting each of its web \
+         researchers 1 search"
     )
 }
 
@@ -65,7 +80,7 @@ mod tests {
 
     fn ones_demanding(demand: u64) -> SearchBudgets {
         let levels = (1..=3).map(|level| (level, NonZeroU32::MIN)).collect();
-        SearchBudgets::from_parts(levels, demand)
+        SearchBudgets::from_parts(levels, demand, HARNESS_DEFAULT)
     }
 
     fn search_cap(

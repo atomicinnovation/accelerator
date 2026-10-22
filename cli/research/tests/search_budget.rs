@@ -96,6 +96,27 @@ fn budgets_of_one_that_overrun_stay_at_one() {
 }
 
 #[test]
+fn the_floor_budgets_every_populated_level_one_whatever_the_cap() {
+    let floor =
+        SearchBudgets::floor(&tree(&shallowest_first("–/4/8")), cap(500));
+    assert_eq!(budgets(&floor), per_level("–/1/1"));
+    assert_eq!(floor.demand(), 12);
+}
+
+#[test]
+fn budgets_remember_the_cap_they_were_sized_against() {
+    let nodes = tree(&shallowest_first("1/4/8"));
+    for searches in [60, 200, 500] {
+        let sized = SearchBudgets::sized(&nodes, cap(searches));
+        let floor = SearchBudgets::floor(&nodes, cap(searches));
+        assert_eq!(sized.sized_against(), cap(searches));
+        assert_eq!(floor.sized_against(), cap(searches));
+    }
+    let empty = SearchBudgets::sized(&WorstCaseTree::default(), cap(60));
+    assert_eq!(empty.sized_against(), cap(60));
+}
+
+#[test]
 fn a_resized_remainder_would_grant_more() {
     assert_sized(200, "–/10/20", "–/9/5", 190);
 }
@@ -116,10 +137,18 @@ fn an_empty_tree_sizes_no_budgets_and_no_demand() {
 }
 
 #[test]
-fn a_level_without_a_budget_is_budgeted_one() {
+fn a_level_without_a_budget_has_none() {
     let sized = SearchBudgets::sized(&tree(&[(2, 2), (3, 7)]), cap(200));
-    assert_eq!(sized.at(1), NonZeroU32::MIN);
-    assert_eq!(sized.at(4), NonZeroU32::MIN);
+    assert_eq!(sized.at(1), None);
+    assert_eq!(sized.at(4), None);
+    assert!(sized.at(2).is_some());
+}
+
+#[test]
+fn a_deeper_tree_names_the_levels_its_budgets_lack() {
+    let sized = SearchBudgets::sized(&tree(&[(2, 2), (3, 7)]), cap(200));
+    let deeper = tree(&[(1, 1), (2, 2), (3, 7), (4, 3)]);
+    assert_eq!(sized.unbudgeted_levels(&deeper).collect::<Vec<_>>(), [1, 4]);
 }
 
 fn could_rise(

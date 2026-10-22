@@ -518,8 +518,12 @@ else 200. A set value Claude Code would not honour is ignored, with a warning
 on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
 counterpart.
 
-A run sizes per-level search budgets once, on its first plan, and stores them
-in its ledger, so later plans keep them rather than resize to what remains.
+A run sizes per-level search budgets once, on its `--start` plan, and stores
+them in its ledger with the cap they were sized against, so later plans keep
+them rather than resize to what remains. A run begun before budgets existed
+gets 1 search per node rather than a sizing against the full cap mid-run, and
+a level the sizing did not cover, such as one a deeper `--depth` adds, gets 1
+too; each case is warned about.
 Sizing keeps back a twentieth of the cap, rounded up, then shares the rest
 over the worst-case tree of every outstanding web pair: each unresearched
 node is assumed to record its level's full follow-up cap. Budgets shrink, or
@@ -540,8 +544,9 @@ run the JSON also carries `run`, `batch` (the number the next `--spawned` must
 pass), `withheld` (the profiles the run withholds, sorted) and `unexpected` (the
 spawn refs of notes or findings nobody was asked to write, or whose content
 changed). When the run has web pairs, it also carries `search_budgets`: its
-`levels`, each `level` with its `budget`, and its `demand`, the searches the
-worst-case tree would make spending every budget.
+`levels`, each `level` with its `budget`; its `demand`, the searches the
+worst-case tree would make spending every budget; and the `cap` the budgets
+were sized against.
 `--start` over another run's readable ledger also carries `replaced_run`: that
 run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
 and `unasked`, each entry a `spawn` ref with the outline `question` and

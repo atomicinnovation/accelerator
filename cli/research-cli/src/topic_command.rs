@@ -333,15 +333,20 @@ where
             .extend(unhonoured_search_cap_notice(&request.search_cap, &tree));
     }
     let observed = Observed::of(&round.inputs);
-    let ledger =
-        opened
-            .ledger(&observed, &round.owed_quarantine)
-            .map(|ledger| {
-                let (ledger, floor) =
-                    budgeted(ledger, &tree, &request.search_cap);
-                notices.extend(floor);
-                ledger
-            });
+    let (ledger, budgeting) = opened.ledger(
+        &observed,
+        &round.owed_quarantine,
+        &tree,
+        &request.search_cap,
+    );
+    notices.extend(budgeting);
+    if let Some(budgets) = ledger.as_ref().and_then(RunLedger::search_budgets) {
+        notices.extend(
+            budgets
+                .unbudgeted_levels(&tree)
+                .map(search_wording::unbudgeted_level),
+        );
+    }
     let plan = round.plan;
     let window = window(
         &plan,
@@ -458,14 +463,29 @@ impl OpenedRun {
         self,
         observed: &Observed,
         owed_quarantine: &[Stem],
-    ) -> Option<RunLedger> {
+        tree: &WorstCaseTree,
+        search_cap: &EnvironmentSearchCap,
+    ) -> (Option<RunLedger>, Option<String>) {
         match self {
-            Self::Query => None,
-            Self::Starting { run, .. } => Some(
-                RunLedger::start(run, observed)
-                    .owing_quarantine(owed_quarantine),
-            ),
-            Self::Continuing { ledger, .. } => Some(*ledger),
+            Self::Query => (None, None),
+            Self::Starting { run, .. } => {
+                let (budgets, floor) = sized(tree, search_cap);
+                let ledger = RunLedger::start(run, observed)
+                    .owing_quarantine(owed_quarantine)
+                    .budgeting_searches(budgets);
+                (Some(ledger), floor)
+            }
+            Self::Continuing { ledger, .. }
+                if ledger.awaits_search_budgets() =>
+            {
+                let floored = search_wording::unsized_run(ledger.run());
+                let ledger = ledger.budgeting_searches(SearchBudgets::floor(
+                    tree,
+                    search_cap.cap,
+                ));
+                (Some(ledger), Some(floored))
+            }
+            Self::Continuing { ledger, .. } => (Some(*ledger), None),
         }
     }
 }
@@ -625,19 +645,15 @@ fn warning_lines(warnings: impl Iterator<Item = String>) -> String {
     stderr
 }
 
-fn budgeted(
-    ledger: RunLedger,
+fn sized(
     tree: &WorstCaseTree,
     search_cap: &EnvironmentSearchCap,
-) -> (RunLedger, Option<String>) {
-    if !ledger.awaits_search_budgets() {
-        return (ledger, None);
-    }
+) -> (SearchBudgets, Option<String>) {
     let budgets = SearchBudgets::sized(tree, search_cap.cap);
     let floor = budgets
         .overruns(search_cap.cap)
         .then(|| search_wording::search_floor(&budgets, search_cap));
-    (ledger.budgeting_searches(budgets), floor)
+    (budgets, floor)
 }
 
 fn unhonoured_search_cap_notice(
@@ -734,7 +750,11 @@ fn search_budgets(budgets: &SearchBudgets) -> Value {
         .levels()
         .map(|(level, budget)| json!({"level": level, "budget": budget}))
         .collect();
-    json!({"levels": levels, "demand": budgets.demand()})
+    json!({
+        "levels": levels,
+        "demand": budgets.demand(),
+        "cap": budgets.sized_against().searches().get(),
+    })
 }
 
 fn shallow_finding(finding: &ShallowFinding) -> Value {
@@ -927,7 +947,7 @@ impl PlanOutput<'_> {
     ) -> Option<NonZeroU32> {
         let budgets = self.ledger?.search_budgets()?;
         (outstanding.pair.profile == SEARCHING_PROFILE)
-            .then(|| budgets.at(level))
+            .then(|| budgets.at(level).unwrap_or(NonZeroU32::MIN))
     }
 
     fn node(

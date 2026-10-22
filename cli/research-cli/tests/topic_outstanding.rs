@@ -2772,11 +2772,8 @@ fn budgets(levels: &[(u32, u32)]) -> Value {
 }
 
 fn assert_budgeted(plan: &Value, levels: &[(u32, u32)], demand: u64) {
-    assert_eq!(
-        plan["search_budgets"],
-        json!({"levels": budgets(levels), "demand": demand}),
-        "{plan}"
-    );
+    assert_eq!(plan["search_budgets"]["levels"], budgets(levels), "{plan}");
+    assert_eq!(plan["search_budgets"]["demand"], json!(demand), "{plan}");
     assert_eq!(plan.get("search_demand"), None, "{plan}");
 }
 
@@ -2831,6 +2828,30 @@ fn a_raised_cap_raises_budgets() -> Result<(), TestError> {
     assert_eq!(
         plan["search_cap"],
         json!({"searches": 500, "source": SEARCH_CAP})
+    );
+    Ok(())
+}
+
+#[test]
+fn plans_report_the_cap_their_budgets_were_sized_against(
+) -> Result<(), TestError> {
+    let project = web_set("budget-sized-against", 10, 0, 0)?;
+    let raised = [(SEARCH_CAP, "500")];
+    let (first, run) = {
+        let (plan, _) = budgeted_start(&project, "3", &raised)?;
+        let run = plan["run"].as_str().ok_or("no run")?.to_owned();
+        (plan, run)
+    };
+
+    let (next, _) = project
+        .plan_in(&["--run", &run, "--spawned", "0", "--depth", "3"], &[])?;
+
+    assert_eq!(first["search_budgets"]["cap"], json!(500), "{first}");
+    assert_eq!(next["search_budgets"]["cap"], json!(500), "{next}");
+    assert_eq!(next["search_cap"]["searches"], json!(200), "{next}");
+    assert_eq!(
+        stored_ledger(&project)?["search_budgets"]["cap"],
+        json!(500)
     );
     Ok(())
 }
@@ -2980,7 +3001,7 @@ fn a_run_without_web_pairs_sizes_nothing() -> Result<(), TestError> {
     }
     assert_eq!(
         stored_ledger(&project)?["search_budgets"],
-        json!({"levels": {}, "demand": 0})
+        json!({"levels": {}, "demand": 0, "cap": 200})
     );
     Ok(())
 }
@@ -3046,24 +3067,27 @@ const LEDGER_BEFORE_BUDGETS: &str = r#"{
 }
 "#;
 
+fn unsized_run(run: &str) -> String {
+    format!(
+        "run {run} began before search budgets were sized; budgeting each web \
+         researcher 1 search"
+    )
+}
+
 #[test]
-fn a_ledger_without_budgets_is_sized_by_the_next_plan() -> Result<(), TestError>
-{
-    let project = web_set("budget-pre-ledger", 20, 0, 0)?;
+fn a_ledger_without_budgets_gets_the_floor_rather_than_a_full_cap_sizing(
+) -> Result<(), TestError> {
+    let project = web_set("budget-pre-ledger", 3, 0, 0)?;
     fs::write(project.ledger(), LEDGER_BEFORE_BUDGETS)?;
 
     let (plan, stderr) =
         project.plan_with(&["--run", "earlier-run", "--depth", "3"])?;
 
-    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 260);
-    assert_warned(
-        &plan,
-        &stderr,
-        &[floor_warning(260, 190, 200, "the default")],
-    );
+    assert_budgeted(&plan, &[(1, 1), (2, 1), (3, 1)], 39);
+    assert_warned(&plan, &stderr, &[unsized_run("earlier-run")]);
     assert_eq!(
-        stored_ledger(&project)?["search_budgets"],
-        json!({"levels": {"1": 1, "2": 1, "3": 1}, "demand": 260})
+        stored_ledger(&project)?["search_budgets"]["levels"],
+        json!({"1": 1, "2": 1, "3": 1})
     );
 
     let (next, stderr) = project.plan_with(&[
@@ -3076,7 +3100,32 @@ fn a_ledger_without_budgets_is_sized_by_the_next_plan() -> Result<(), TestError>
     ])?;
 
     assert_warned(&next, &stderr, &[]);
-    assert_budgeted(&next, &[(1, 1), (2, 1), (3, 1)], 260);
+    assert_budgeted(&next, &[(1, 1), (2, 1), (3, 1)], 39);
+    Ok(())
+}
+
+#[test]
+fn a_level_its_run_never_sized_is_budgeted_one_with_a_warning(
+) -> Result<(), TestError> {
+    let project = web_set("budget-deepened", 1, 0, 0)?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+
+    let (deeper, stderr) = project.plan_with(&[
+        "--run",
+        &run,
+        "--spawned",
+        "0",
+        "--depth",
+        "3",
+    ])?;
+
+    assert_warned(
+        &deeper,
+        &stderr,
+        &["level 3 has no search budget; budgeting each of its web \
+           researchers 1 search"
+            .to_owned()],
+    );
     Ok(())
 }
 
@@ -3099,7 +3148,7 @@ fn later_plans_keep_the_stored_budgets() -> Result<(), TestError> {
     assert_budgeted(&next, &[(1, 3), (2, 2), (3, 1)], 190);
     assert_eq!(
         stored_ledger(&project)?["search_budgets"],
-        json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190})
+        json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190, "cap": 200})
     );
     let nodes = every_node(&next)?;
     assert_eq!(nodes.len(), 10);

@@ -234,6 +234,7 @@ mod tests {
     use crate::conduct::memory::Withheld;
     use crate::conduct::observed::Observed;
     use crate::conduct::search_budget::SearchBudgets;
+    use crate::conduct::search_budget::SearchCap;
     use crate::conduct::spawn::SpawnRef;
     use crate::conduct::window::window;
     use crate::conduct::window::Window;
@@ -581,7 +582,8 @@ mod tests {
                 (level, NonZeroU32::new(budget).expect("a budget"))
             })
             .collect::<BTreeMap<_, _>>();
-        SearchBudgets::from_parts(levels, 190)
+        let cap = SearchCap::new(NonZeroU32::new(200).expect("a cap"));
+        SearchBudgets::from_parts(levels, 190, cap)
     }
 
     #[test]

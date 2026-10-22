@@ -57,6 +57,7 @@ impl SearchCap {
 pub struct SearchBudgets {
     budgets: BTreeMap<u32, NonZeroU32>,
     demand: u64,
+    sized_against: SearchCap,
 }
 
 impl SearchBudgets {
@@ -66,30 +67,49 @@ impl SearchBudgets {
     #[must_use]
     pub fn sized(tree: &WorstCaseTree, cap: SearchCap) -> Self {
         if tree.is_empty() {
-            return Self::from_parts(BTreeMap::new(), 0);
+            return Self::from_parts(BTreeMap::new(), 0, cap);
         }
-        let floor = budgets_at(tree, 1);
+        let floor = Self::floor(tree, cap);
         if floor.overruns(cap) {
             return floor;
         }
         topped_up(
             tree,
-            budgets_at(tree, largest_fitting_scale(tree, cap)),
+            budgets_at(tree, largest_fitting_scale(tree, cap), cap),
             cap,
         )
+    }
+
+    #[must_use]
+    pub fn floor(tree: &WorstCaseTree, cap: SearchCap) -> Self {
+        budgets_at(tree, 1, cap)
     }
 
     #[must_use]
     pub const fn from_parts(
         budgets: BTreeMap<u32, NonZeroU32>,
         demand: u64,
+        sized_against: SearchCap,
     ) -> Self {
-        Self { budgets, demand }
+        Self {
+            budgets,
+            demand,
+            sized_against,
+        }
     }
 
     #[must_use]
-    pub fn at(&self, level: u32) -> NonZeroU32 {
-        self.budgets.get(&level).copied().unwrap_or(NonZeroU32::MIN)
+    pub fn at(&self, level: u32) -> Option<NonZeroU32> {
+        self.budgets.get(&level).copied()
+    }
+
+    pub fn unbudgeted_levels<'a>(
+        &'a self,
+        tree: &'a WorstCaseTree,
+    ) -> impl Iterator<Item = u32> + 'a {
+        tree.populated_levels()
+            .map(|(level, _)| level)
+            .filter(|level| !self.budgets.contains_key(level))
     }
 
     pub fn levels(&self) -> impl Iterator<Item = (u32, NonZeroU32)> + '_ {
@@ -99,6 +119,11 @@ impl SearchBudgets {
     #[must_use]
     pub const fn demand(&self) -> u64 {
         self.demand
+    }
+
+    #[must_use]
+    pub const fn sized_against(&self) -> SearchCap {
+        self.sized_against
     }
 
     /// Only budgets of 1 at every level can overrun: sizing otherwise
@@ -121,7 +146,11 @@ pub fn unsearched_tree(pairs: &[OutstandingPair]) -> WorstCaseTree {
 
 /// `scale` is a budget multiplier in units of `1 / WEIGHT_SCALE`, so scale 1
 /// grants every level the floor of 1.
-fn budgets_at(tree: &WorstCaseTree, scale: u64) -> SearchBudgets {
+fn budgets_at(
+    tree: &WorstCaseTree,
+    scale: u64,
+    cap: SearchCap,
+) -> SearchBudgets {
     let mut demand = 0_u64;
     let budgets = tree
         .populated_levels()
@@ -133,7 +162,7 @@ fn budgets_at(tree: &WorstCaseTree, scale: u64) -> SearchBudgets {
             (level, saturated(budget))
         })
         .collect();
-    SearchBudgets::from_parts(budgets, demand)
+    SearchBudgets::from_parts(budgets, demand, cap)
 }
 
 fn saturated(budget: u64) -> NonZeroU32 {
@@ -150,7 +179,7 @@ fn largest_fitting_scale(tree: &WorstCaseTree, cap: SearchCap) -> u64 {
         WEIGHT_SCALE * u64::from(cap.available()) + WEIGHT_SCALE;
     while overrunning - fitting > 1 {
         let middle = fitting + (overrunning - fitting) / 2;
-        if budgets_at(tree, middle).overruns(cap) {
+        if budgets_at(tree, middle, cap).overruns(cap) {
             overrunning = middle;
         } else {
             fitting = middle;
