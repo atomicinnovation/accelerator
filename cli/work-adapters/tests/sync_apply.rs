@@ -891,14 +891,15 @@ fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseli
 }
 
 #[test]
-fn an_unfetched_remote_is_reported_without_naming_a_direction() {
+fn an_unfetched_remotes_cause_names_no_direction() {
     assert_eq!(
         ApplyError::RemoteBodyUnavailable {
-            item_id: "0001".to_owned()
+            item_id: "0001".to_owned(),
+            operation: SyncOperation::Pull,
         }
-        .to_string(),
-        "0001: the remote description was not fetched this run, so nothing \
-         was sent or written; re-run the sync"
+        .cause(),
+        "the remote description was not fetched this run, so nothing was \
+         sent or written; re-run the sync"
     );
 }
 
@@ -906,6 +907,7 @@ fn an_unfetched_remote_is_reported_without_naming_a_direction() {
 fn a_pull_residue_refusal_names_the_command_for_its_own_key() {
     let shown = ApplyError::LocalPullResidue {
         item_id: "0001".to_owned(),
+        operation: SyncOperation::Update,
         external_id: ExternalId::new("ENG-12".to_owned()),
     }
     .to_string();
@@ -1707,4 +1709,97 @@ fn each_failing_step_of_a_record_only_apply_is_retryable(
         assert_eq!(io_failure_of(&error).0, operation, "{step}");
     }
     Ok(())
+}
+
+#[test]
+fn every_failure_reads_as_its_id_operation_and_cause() {
+    let unrenderable = || tracker::Unrenderable {
+        detail: "a panel".to_owned(),
+    };
+    let failures = [
+        (
+            ApplyError::Tracker {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::Update,
+                source: TrackerError::Retryable {
+                    detail: "offline".to_owned(),
+                },
+            },
+            SyncOperation::Update,
+        ),
+        (
+            ApplyError::Io {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::WriteLocal,
+                progress:
+                    work_adapters::sync::apply::ItemProgress::NothingLanded,
+                detail: "disk full".to_owned(),
+            },
+            SyncOperation::WriteLocal,
+        ),
+        (
+            ApplyError::RemoteBodyUnavailable {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::Pull,
+            },
+            SyncOperation::Pull,
+        ),
+        (
+            ApplyError::RemoteUnrenderable {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::Update,
+                cause: unrenderable(),
+            },
+            SyncOperation::Update,
+        ),
+        (
+            ApplyError::LocalPullResidue {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::Retitle,
+                external_id: ExternalId::new("ENG-1".to_owned()),
+            },
+            SyncOperation::Retitle,
+        ),
+        (
+            ApplyError::LocalUnparseable {
+                item_id: "0001".to_owned(),
+                operation: SyncOperation::ParseLocal,
+                detail: "no closing fence".to_owned(),
+            },
+            SyncOperation::ParseLocal,
+        ),
+        (
+            ApplyError::LocalWriteRefused {
+                item_id: "0001".to_owned(),
+                detail: "unsafe path".to_owned(),
+            },
+            SyncOperation::WriteLocal,
+        ),
+        (
+            ApplyError::LocalChangedSinceClassified {
+                item_id: "0001".to_owned(),
+            },
+            SyncOperation::RecheckLocal,
+        ),
+        (
+            ApplyError::PendingPushRefused {
+                item_id: "0001".to_owned(),
+                reason: work::sync::RefusalReason::MarkerUnreadable,
+                detail: "the marker could not be parsed".to_owned(),
+            },
+            SyncOperation::Create,
+        ),
+    ];
+    for (failure, operation) in failures {
+        assert_eq!(failure.item_id(), "0001");
+        assert_eq!(failure.operation(), operation, "{failure:?}");
+        assert_eq!(
+            failure.to_string(),
+            format!(
+                "0001: {} failed: {}",
+                operation.keyword(),
+                failure.cause()
+            )
+        );
+    }
 }
