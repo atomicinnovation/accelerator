@@ -45,6 +45,7 @@ use accelerator::launch::outbound::resolve::retention_windows::{
 use accelerator::launch::outbound::resolve::single_flight::{
     LockGuard, LockProbe, SingleFlightLocks,
 };
+use accelerator::launch::outbound::resolve::tree::layout::Artifact;
 use accelerator::launch::outbound::resolve::tree::lease::{
     Liveness, LivenessProbe,
 };
@@ -57,6 +58,10 @@ use common::recording_filesystem::{
     TimelineEvent,
 };
 use common::scripted_filesystem::ScriptedFilesystem;
+use common::trees::{
+    another_platform, digest, exists, on_host, set_mode, set_mtime, FixedClock,
+    FixedLiveness, Trees,
+};
 
 const OLD: &str = "1.0.0";
 const RUNNING: &str = env!("CARGO_PKG_VERSION");
@@ -64,16 +69,6 @@ const DIGEST: &str =
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const OTHER_ID: &str = "fedcba9876543210";
 const BOUND: Duration = Duration::from_secs(10);
-
-struct FixedClock(u64);
-
-impl Clock for FixedClock {
-    fn now_seconds(&self) -> u64 {
-        self.0
-    }
-
-    fn sleep_poll_interval(&self) {}
-}
 
 #[derive(Default)]
 struct LiveHolders(Vec<i32>);
@@ -84,32 +79,11 @@ impl BootstrapHolderLiveness for LiveHolders {
     }
 }
 
-struct FixedLiveness(Liveness);
-
-impl LivenessProbe for FixedLiveness {
-    fn probe(&self, _lease: &Path) -> Liveness {
-        self.0
-    }
-}
-
 fn now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("after the epoch")
         .as_secs()
-}
-
-fn set_mode(path: &Path, mode: u32) {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
-        .expect("mode");
-}
-
-fn set_mtime(path: &Path, seconds: u64) {
-    std::fs::File::open(path)
-        .expect("opened to set its mtime")
-        .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds))
-        .expect("mtime");
 }
 
 struct Ports {
@@ -244,6 +218,10 @@ impl RootHarness {
         path
     }
 
+    fn trees(&self) -> Trees {
+        Trees::under(&self.root)
+    }
+
     fn recorder(&self) -> RecordingFilesystem {
         RecordingFilesystem::new(&self.root, self.anchor.path())
     }
@@ -335,14 +313,35 @@ fn foreign_names_survive_every_trigger() {
     std::fs::write(&foreign_claim, b"").expect("foreign claim");
     set_mtime(&foreign_claim, harness.now - 2 * CLAIM_WINDOW.as_secs());
     let unclaimed = harness.entry(OLD, harness.aged());
+    let trees = harness.trees();
+    let foreign_in_trees = [
+        trees.root().join(".tmp-foreign"),
+        trees.root().join("notes.txt"),
+    ];
+    for path in &foreign_in_trees {
+        std::fs::write(path, b"x").expect("foreign file");
+        set_mtime(path, harness.aged());
+    }
+    let foreign_directories = [
+        trees.plant_generation("backup-2021-1-final", harness.aged()),
+        trees.plant_generation(
+            &format!("driver-plan9-x64-{DIGEST}-1-0011223344556677"),
+            harness.aged(),
+        ),
+    ];
+    let unclaimed_tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
 
     let verb = harness.prune(harness.ports());
 
     verb.succeeded();
     assert!(foreign.iter().all(|name| harness.has(name)));
     assert!(foreign_claim.exists());
+    assert!(foreign_in_trees.iter().all(|path| exists(path)));
+    assert!(foreign_directories.iter().all(|path| exists(path)));
     assert!(!harness.has(&unclaimed), "the positive control survived");
-    assert!(verb.out.contains("reclaimed 1 entries"), "{}", verb.out);
+    unclaimed_tree.assert_reclaimed();
+    assert!(verb.out.contains("reclaimed 2 entries"), "{}", verb.out);
 }
 
 #[test]
@@ -1029,4 +1028,281 @@ fn the_reclaimed_count_counts_an_entry_and_its_signature_once() {
         "{}",
         verb.out
     );
+}
+
+fn pinning(artifact: &str, digest: &str) -> ExpectedDigests {
+    ExpectedDigests::Fixed(BTreeMap::from([(
+        (artifact.to_owned(), HOST_PLATFORM.to_owned()),
+        digest.to_owned(),
+    )]))
+}
+
+#[test]
+fn unclaimed_retired_and_foreign_platform_trees_go_and_claimed_ones_stay() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    let foreign_platform = trees.plant_tree(
+        &Artifact::new("driver", another_platform()),
+        &digest('b'),
+        harness.aged(),
+    );
+    let claimed =
+        trees.plant_tree(&on_host("retired"), &digest('c'), harness.aged());
+    let claim = trees.plant_claim(&digest('c'), OTHER_ID, harness.now);
+
+    harness.prune(harness.ports()).succeeded();
+
+    retired.assert_reclaimed();
+    foreign_platform.assert_reclaimed();
+    claimed.assert_survives();
+    assert!(claim.exists());
+}
+
+#[test]
+fn only_aged_unknown_and_free_unpinned_trees_are_reclaimed() {
+    for (liveness, aged, pinned, reclaimed) in [
+        (Liveness::Held, true, false, false),
+        (Liveness::Unknown, false, false, false),
+        (Liveness::Unknown, true, false, true),
+        (Liveness::Free, false, false, true),
+        (Liveness::Free, false, true, false),
+    ] {
+        let harness = RootHarness::new();
+        let modified = if aged {
+            harness.aged()
+        } else {
+            harness.young()
+        };
+        let tree = harness.trees().plant_tree(
+            &on_host("driver"),
+            &digest('a'),
+            modified,
+        );
+        let pins = if pinned {
+            pinning("driver", &digest('a'))
+        } else {
+            ExpectedDigests::Fixed(BTreeMap::new())
+        };
+
+        harness
+            .prune(Ports {
+                lease_liveness: Arc::new(FixedLiveness(liveness)),
+                pins,
+                ..harness.ports()
+            })
+            .succeeded();
+
+        assert_eq!(
+            !exists(&tree.generation),
+            reclaimed,
+            "{liveness:?}, aged {aged}, pinned {pinned}"
+        );
+        assert_eq!(exists(&tree.pointer), exists(&tree.generation));
+    }
+}
+
+#[test]
+fn only_tree_claims_outside_the_window_are_removed() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let stale_seconds = harness.now - CLAIM_WINDOW.as_secs() - 1;
+    let stale = trees.plant_claim(&digest('a'), OTHER_ID, stale_seconds);
+    let fresh = trees.plant_claim(&digest('b'), OTHER_ID, harness.now - 60);
+    let unparsed_launcher =
+        trees.plant_claim(&digest('c'), "test-install", stale_seconds);
+    let foreign = trees.claims().join("not-a-claim");
+    std::fs::write(&foreign, b"").expect("foreign");
+    set_mtime(&foreign, stale_seconds);
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(!stale.exists(), "a stale claim survived");
+    assert!(fresh.exists());
+    assert!(unparsed_launcher.exists());
+    assert!(foreign.exists());
+}
+
+#[test]
+fn a_tree_claim_exactly_at_the_window_is_stale() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let at_the_window = harness.now - CLAIM_WINDOW.as_secs();
+    let tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    trees.plant_claim(&digest('a'), OTHER_ID, at_the_window);
+    let treeless = trees.plant_claim(&digest('b'), OTHER_ID, at_the_window);
+
+    harness.prune(harness.ports()).succeeded();
+
+    tree.assert_reclaimed();
+    assert!(!treeless.exists());
+}
+
+#[test]
+fn older_than_narrows_the_tree_claim_window() {
+    let day = 24 * 60 * 60;
+    for (older_than, survives) in [(Some(day), false), (None, true)] {
+        let harness = RootHarness::new();
+        let trees = harness.trees();
+        let tree =
+            trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+        trees.plant_claim(&digest('a'), OTHER_ID, harness.now - 2 * day);
+
+        harness
+            .prune_older_than(harness.ports(), older_than)
+            .succeeded();
+
+        assert_eq!(exists(&tree.generation), survives, "{older_than:?}");
+    }
+}
+
+#[test]
+fn the_verb_reclaims_single_file_entries_and_an_unclaimed_tree() {
+    let harness = RootHarness::new();
+    let entry = harness.entry(OLD, harness.aged());
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+
+    let verb = harness.prune(harness.ports());
+
+    assert!(
+        verb.succeeded().out.contains("reclaimed 2 entries"),
+        "{}",
+        verb.out
+    );
+    assert!(!harness.has(&entry));
+    tree.assert_reclaimed();
+}
+
+#[test]
+fn the_pointer_goes_before_its_generation() {
+    let harness = RootHarness::new();
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+    let recorder = harness.recorder();
+
+    harness
+        .prune(Ports {
+            filesystem: Arc::new(recorder.clone()),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    let calls = recorder.calls();
+    let position = |wanted: FilesystemCall| {
+        calls
+            .iter()
+            .position(|call| call == &wanted)
+            .unwrap_or_else(|| panic!("no {wanted:?} in {calls:#?}"))
+    };
+    assert!(
+        position(FilesystemCall::RemoveFile(recorder.recorded(&tree.pointer)))
+            < position(FilesystemCall::RemoveTree(
+                recorder.recorded(&tree.generation)
+            ))
+    );
+}
+
+#[test]
+fn the_verb_waits_for_a_held_tree_lock() {
+    let harness = Arc::new(RootHarness::new());
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let tree = trees.plant_tree(&retired, &digest('a'), harness.aged());
+    let held = FlockLocks
+        .take(&trees.paths().single_flight_lock(&retired))
+        .expect("held");
+    let (done, finished) = mpsc::channel();
+    let pruner = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            let succeeded = harness.prune(harness.ports()).outcome.is_ok();
+            done.send(()).expect("announced");
+            succeeded
+        })
+    };
+
+    assert!(
+        finished.recv_timeout(Duration::from_millis(300)).is_err(),
+        "the verb did not wait for the held tree lock"
+    );
+    tree.assert_survives();
+    drop(held);
+
+    finished.recv_timeout(BOUND).expect("the verb finished");
+    assert!(pruner.join().expect("pruner"));
+    tree.assert_reclaimed();
+}
+
+/// Fails every lock call on one path and takes every other for real.
+struct FailingLockAt(PathBuf);
+
+impl FailingLockAt {
+    fn fails(&self, path: &Path) -> Result<(), TreeError> {
+        if path == self.0 {
+            return Err(TreeError::Lease {
+                detail: "No locks available (os error 77)".to_owned(),
+            });
+        }
+        Ok(())
+    }
+}
+
+impl SingleFlightLocks for FailingLockAt {
+    fn take(&self, path: &Path) -> Result<LockGuard, TreeError> {
+        self.fails(path)?;
+        FlockLocks.take(path)
+    }
+
+    fn try_take(&self, path: &Path) -> Result<Option<LockGuard>, TreeError> {
+        self.fails(path)?;
+        FlockLocks.try_take(path)
+    }
+
+    fn wait_existing(
+        &self,
+        path: &Path,
+    ) -> Result<Option<LockGuard>, TreeError> {
+        self.fails(path)?;
+        FlockLocks.wait_existing(path)
+    }
+
+    fn probe(&self, path: &Path) -> Result<LockProbe, TreeError> {
+        self.fails(path)?;
+        FlockLocks.probe(path)
+    }
+}
+
+#[test]
+fn the_verb_reports_a_failed_tree_lock_and_exits_non_zero() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let unlockable = on_host("retired-x");
+    let x = trees.plant_tree(&unlockable, &digest('a'), harness.aged());
+    let y =
+        trees.plant_tree(&on_host("retired-y"), &digest('b'), harness.aged());
+    let lock = trees.paths().single_flight_lock(&unlockable);
+
+    let verb = harness.prune(Ports {
+        locks: Arc::new(FailingLockAt(lock.clone())),
+        ..harness.ports()
+    });
+
+    verb.failed();
+    x.assert_survives();
+    y.assert_reclaimed();
+    assert!(
+        verb.err.contains(&lock.display().to_string()),
+        "{}",
+        verb.err
+    );
+    assert!(verb.err.contains("No locks available"), "{}", verb.err);
 }
