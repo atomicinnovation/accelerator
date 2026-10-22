@@ -8,7 +8,7 @@ use std::num::NonZeroU32;
 use crate::topic::plan::OutstandingPair;
 use crate::topic::tree::WorstCaseTree;
 
-pub const SEARCHING_PROFILE: &str = "web";
+const SEARCHING_PROFILE: &str = "web";
 
 const RESERVE_ONE_IN: u32 = 20;
 const WEIGHT_SCALE: u64 = level_weight(1);
@@ -135,10 +135,15 @@ impl SearchBudgets {
 }
 
 #[must_use]
+pub fn searches(profile: &str) -> bool {
+    profile == SEARCHING_PROFILE
+}
+
+#[must_use]
 pub fn unsearched_tree(pairs: &[OutstandingPair]) -> WorstCaseTree {
     pairs
         .iter()
-        .filter(|outstanding| outstanding.pair.profile == SEARCHING_PROFILE)
+        .filter(|outstanding| searches(&outstanding.pair.profile))
         .fold(WorstCaseTree::default(), |tree, outstanding| {
             tree.joined(&outstanding.worst_case)
         })
@@ -226,6 +231,7 @@ fn rising_level(
 
 #[cfg(test)]
 mod tests {
+    use super::searches;
     use super::unsearched_tree;
     use crate::topic::layout::stem::Stem;
     use crate::topic::outline::Pair;
@@ -243,6 +249,14 @@ mod tests {
             stage: Stage::SinglePass,
             worst_case: WorstCaseTree::from_levels(&[(1, 1), (2, 4), (3, 8)]),
         })
+    }
+
+    #[test]
+    fn only_the_web_profile_searches() {
+        assert!(searches("web"));
+        for profile in ["openalex", "arxiv", "Web", ""] {
+            assert!(!searches(profile), "{profile}");
+        }
     }
 
     #[test]

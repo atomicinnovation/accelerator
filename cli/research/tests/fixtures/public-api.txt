@@ -310,7 +310,7 @@ impl core::fmt::Debug for research::conduct::search_budget::SearchCap
 pub fn research::conduct::search_budget::SearchCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::search_budget::SearchCap
 impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchCap
-pub const research::conduct::search_budget::SEARCHING_PROFILE: &str
+pub fn research::conduct::search_budget::searches(profile: &str) -> bool
 pub fn research::conduct::search_budget::unsearched_tree(pairs: &[research::topic::plan::OutstandingPair]) -> research::topic::tree::WorstCaseTree
 pub mod research::conduct::spawn
 pub enum research::conduct::spawn::SpawnRef
