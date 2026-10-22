@@ -51,6 +51,9 @@ flate2 = { workspace = true }
 # depending on a transitive edge is the coupling the workspace's pin discipline
 # exists to prevent.
 rustix = { workspace = true }
+# rustix exposes no account or group database, which the cache root's safety
+# rule reads to recognise a user-private group.
+libc = { workspace = true }
 # The generation suffix is drawn from the platform CSPRNG. "Fresh by
 # construction" is what removes the rename-collision branch when a materialised
 # tree is published, and this repository has already been bitten by pid reuse in

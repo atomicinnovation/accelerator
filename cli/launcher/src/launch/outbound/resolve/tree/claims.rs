@@ -42,7 +42,11 @@ pub fn refresh(
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
         Err(_) => return,
     }
-    if !is_trusted_directory(&claims, &SystemFilesystem, &ProcessOwnership) {
+    if !is_trusted_directory(
+        &claims,
+        &SystemFilesystem,
+        &ProcessOwnership::default(),
+    ) {
         return;
     }
     write_private(&claim, clock);

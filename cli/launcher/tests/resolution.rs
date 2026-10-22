@@ -311,7 +311,7 @@ fn start_up_over(
         config,
         Arc::new(CachePorts {
             filesystem,
-            ownership: Arc::new(ProcessOwnership),
+            ownership: Arc::new(ProcessOwnership::default()),
             clock: Arc::new(SystemClock),
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),
