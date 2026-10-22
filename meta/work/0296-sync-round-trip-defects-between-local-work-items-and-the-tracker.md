@@ -5,7 +5,7 @@ title: "Sync Round-Trip Defects Between Local Work Items and the Tracker"
 date: "2026-09-24T22:48:31+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0296: Sync Round-Trip Defects Between Local Work Items and the Tracker
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

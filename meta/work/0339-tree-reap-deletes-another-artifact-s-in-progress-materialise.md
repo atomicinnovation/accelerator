@@ -5,7 +5,7 @@ title: "Tree reap deletes another artifact's in-progress materialise"
 date: "2026-10-15T23:11:47+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0339: Tree reap deletes another artifact's in-progress materialise
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
