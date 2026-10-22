@@ -6,11 +6,14 @@ mod concurrency_wording;
 mod context;
 mod fetch_command;
 mod guard;
+mod harness_setting;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
 mod plan_wording;
 mod render;
+mod search_cap;
+mod search_wording;
 mod subagent_cap;
 mod topic_command;
 mod write_target;
@@ -61,6 +64,7 @@ use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::SourceCall;
 use crate::topic_command::OutstandingFlags;
+use crate::topic_command::PlanRequest;
 use crate::topic_command::Printed;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
@@ -185,12 +189,14 @@ fn topic(action: TopicAction) -> ExitCode {
             start,
             run,
             spawned,
+            withhold_profile,
         } => OutstandingFlags::parse(
             &depth,
             concurrency.as_deref(),
             start,
             run.as_deref(),
             spawned.as_deref(),
+            &withhold_profile,
         )
         .and_then(|flags| outstanding(&slug, &profiles_dir, flags)),
         TopicAction::EndRun { slug, run } => {
@@ -226,16 +232,28 @@ fn outstanding(
     let mode = match flags.run {
         RunFlag::Query => RunMode::Query,
         RunFlag::Start => RunMode::Start(minted_run()?),
-        RunFlag::Continue { run, spawned } => {
-            RunMode::Continue { run, spawned }
-        }
+        RunFlag::Continue {
+            run,
+            spawned,
+            withheld,
+        } => RunMode::Continue {
+            run,
+            spawned,
+            withheld,
+        },
+    };
+    let request = PlanRequest {
+        depth: flags.depth,
+        concurrency,
+        search_cap: search_cap::from_environment(|name| {
+            std::env::var(name).ok()
+        }),
+        mode,
     };
     topic_command::run_outstanding(
         &set_root,
         profiles_dir,
-        flags.depth,
-        &concurrency,
-        mode,
+        &request,
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )

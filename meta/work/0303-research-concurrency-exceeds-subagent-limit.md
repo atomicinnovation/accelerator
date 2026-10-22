@@ -9,9 +9,10 @@ status: "done"
 kind: "bug"
 priority: "high"
 parent: "work-item:0121"
+blocks: ["work-item:0304"]
 relates_to: ["work-item:0282", "work-item:0283", "work-item:0304", "work-item:0307", "work-item:0310"]
 tags: ["research", "deep-research", "conduct"]
-last_updated: "2026-10-10T21:22:58+00:00"
+last_updated: "2026-10-15T18:36:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-889"
@@ -316,7 +317,8 @@ offers fewer spawns than the run requires, is invalid rather than failed.
 ## Dependencies
 
 - Blocked by: none known
-- Blocks: none known
+- Blocks: 0304 — builds on this item's capacity-refusal rounds and
+  subagent-cap resolution; recorded on this item.
 - External: the Claude Code harness's concurrent-subagent contract. It has
   three parts: the default cap of 20 (enforced from v2.1.217), the
   `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` parser, and the refusal text
@@ -326,13 +328,11 @@ offers fewer spawns than the run requires, is invalid rather than failed.
 - Relates to: 0310. Both edit step 5 and the failure-reason table.
   Capacity exhaustion is not a halting failure: it is transient and
   confined to the slots other subagents hold. Either item may land first;
-  the second reconciles the table. Retry rounds stop early once any spawn
-  the batch message or a round accepted ended with a halting failure, and
-  the spawns still capacity-refused are recorded with the capacity reason.
-  Whichever item lands second adds that rule.
-- Relates to: 0304. Both add a row to the failure-reason table. Once 0304
-  joins 0310's halting-failure class, a WebSearch quota failure also stops
-  retry rounds early.
+  the second reconciles the table.
+- Relates to: 0304. Both add a row to the failure-reason table. 0304 owns
+  the halting-failure class and the retry-round rule: in a halted run,
+  capacity-refused spawns the halting reason halts are not retried and
+  keep the capacity reason.
 - Relates to: 0307. Its per-response ceiling and its "current offered
   batch" node query assume step 4 issues a batch in one message. Rounds are
   follow-up messages within the same offered batch. 0307 must make its

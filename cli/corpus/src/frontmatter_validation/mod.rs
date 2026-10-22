@@ -896,6 +896,22 @@ mod tests {
     }
 
     #[test]
+    fn a_level_note_with_a_search_budget_validates() {
+        let note = level_note_with(&[
+            "depth: 2",
+            "search_budget: 3",
+            "follow_ups: []",
+        ]);
+        assert_eq!(validate_file(&note), Vec::new());
+    }
+
+    #[test]
+    fn a_level_note_without_a_search_budget_validates() {
+        let note = level_note_with(&["depth: 2", "follow_ups: []"]);
+        assert_eq!(validate_file(&note), Vec::new());
+    }
+
+    #[test]
     fn follow_ups_is_exempt_from_empty_placeholder() {
         let note = level_note_with(&["depth: 2", "follow_ups: []"]);
         assert_eq!(validate_file(&note), Vec::new());

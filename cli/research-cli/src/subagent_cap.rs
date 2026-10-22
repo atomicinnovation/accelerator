@@ -4,6 +4,9 @@ use std::num::NonZeroU32;
 
 use research::conduct::concurrency::SubagentCap;
 
+use crate::harness_setting::is_set;
+use crate::harness_setting::positive_whole_number;
+
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAPS: [&str; 1] = ["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
 
@@ -48,16 +51,13 @@ pub struct UnhonouredCap {
     pub value: String,
 }
 
-/// Each variable is read as the harness's JavaScript parser reads its own:
-/// trimmed as `String.prototype.trim` trims, an optionally signed run of
-/// ASCII digits, at least 1.
 pub fn from_environment(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> EnvironmentCap {
     let accelerator = lookup(ACCELERATOR_CAP);
     let unhonoured = accelerator
         .as_deref()
-        .filter(|value| is_set(value) && harness_slots(value).is_none())
+        .filter(|value| is_set(value) && positive_whole_number(value).is_none())
         .map(|value| UnhonouredCap {
             variable: ACCELERATOR_CAP,
             value: value.to_owned(),
@@ -65,7 +65,7 @@ pub fn from_environment(
     let honoured = std::iter::once((ACCELERATOR_CAP, accelerator))
         .chain(HARNESS_CAPS.into_iter().map(|name| (name, lookup(name))))
         .find_map(|(name, setting)| {
-            Some((CapSource::Variable(name), harness_slots(&setting?)?))
+            Some((CapSource::Variable(name), positive_whole_number(&setting?)?))
         });
     let (source, cap) = honoured.map_or(
         (CapSource::HarnessDefault, HARNESS_DEFAULT),
@@ -76,26 +76,6 @@ pub fn from_environment(
         source,
         unhonoured,
     }
-}
-
-fn is_set(setting: &str) -> bool {
-    !setting.trim_matches(is_javascript_whitespace).is_empty()
-}
-
-fn harness_slots(setting: &str) -> Option<NonZeroU32> {
-    let trimmed = setting.trim_matches(is_javascript_whitespace);
-    let digits = trimmed.strip_prefix('+').unwrap_or(trimmed);
-    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    NonZeroU32::new(digits.parse().unwrap_or(u32::MAX))
-}
-
-/// JavaScript's `trim` keeps U+0085, which Rust counts as whitespace, and
-/// strips U+FEFF, which Rust does not.
-const fn is_javascript_whitespace(character: char) -> bool {
-    (character.is_whitespace() && character != '\u{85}')
-        || character == '\u{FEFF}'
 }
 
 #[cfg(test)]
@@ -224,47 +204,6 @@ mod tests {
             CapSource::Variable(ACCELERATOR_CAP).raised_by(),
             ACCELERATOR_CAP
         );
-    }
-
-    #[test]
-    fn a_cap_is_parsed_as_the_harness_parses_it() {
-        let zero_padded = format!("{}8", "0".repeat(40));
-        for (setting, slots) in [
-            ("8", 8),
-            ("007", 7),
-            ("+8", 8),
-            (" 8 ", 8),
-            ("\t8\n", 8),
-            ("\u{FEFF}8", 8),
-            ("30", 30),
-            ("1", 1),
-            (zero_padded.as_str(), 8),
-        ] {
-            assert_eq!(
-                cap_in(&[(ACCELERATOR_CAP, setting)]),
-                slots,
-                "cap {setting:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_cap_the_harness_ignores_is_the_default() {
-        for setting in [
-            "0", "-5", "-0", "-", "abc", "20.5", "1e2", "1,000", "٨",
-            "\u{85}8", "", "  ", "+",
-        ] {
-            assert_eq!(
-                cap_in(&[(ACCELERATOR_CAP, setting)]),
-                HARNESS_DEFAULT.slots().get(),
-                "cap {setting:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_cap_too_large_for_u32_saturates() {
-        assert_eq!(cap_in(&[(ACCELERATOR_CAP, "99999999999")]), u32::MAX);
     }
 
     #[test]

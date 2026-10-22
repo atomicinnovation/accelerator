@@ -9,9 +9,10 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
+blocks: ["work-item:0304"]
 relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:0307", "work-item:0308"]
 tags: ["research", "deep-research", "conduct", "recovery"]
-last_updated: "2026-10-13T17:29:58+00:00"
+last_updated: "2026-10-15T18:36:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-896"
@@ -68,8 +69,9 @@ orchestrator survives, which 0304 owns as its halting-failure class.
 
 The next run never sees the dead run's errors, so it cannot tell a usage
 limit from a crash or a closed terminal; the user can, from the earlier
-session's output. 0304 owns the usage-limit recovery wording, and
-recognises the limit only when the orchestrator survives it.
+session's output. The recovery row carries the usage-limit step itself;
+0304 halts only on failures the orchestrator survives and adds no
+usage-limit recovery.
 
 Much of the recovery already works:
 
@@ -128,11 +130,9 @@ Much of the recovery already works:
 - **Recovery guidance**: the failure-reason table gains an "unfinished run"
   row whose next step is to re-run `conduct <slug>`, which offers what the
   earlier run left unfinished, and, when the user saw an agent usage limit
-  in the earlier session, to follow 0304's agent-usage-limit recovery
-  first. The row does not repeat 0304's wait-or-raise detail; if this item
-  lands before 0304, the row carries that step inline — re-run after the
-  reset time in the message, or after raising the limit when it gives none
-  — until 0304 replaces it with a reference.
+  in the earlier session, to wait out or raise the limit first — re-run
+  after the reset time in the message, or after raising the limit when it
+  gives none.
 
 ## Acceptance Criteria
 
@@ -176,21 +176,21 @@ Much of the recovery already works:
       manifest's `round_count` and `finding_count` match what is on disk
       (guards existing step 7 behaviour).
 - [ ] The failure-reason table has an "unfinished run" row whose next step
-      says to re-run `conduct <slug>` and refers to 0304's agent-usage-limit
-      recovery, or carries its wait-or-raise step inline when 0304 has not
-      landed, distinct from `rate_limited`, the concurrent-subagent-limit
-      row and any halting-reason rows 0304 has added.
+      says to re-run `conduct <slug>` and carries the agent-usage-limit
+      wait-or-raise step inline, distinct from `rate_limited`, the
+      concurrent-subagent-limit row and any halting-reason rows 0304 has
+      added.
 
 ## Dependencies
 
 - Blocked by: none known
-- Blocks: none
+- Blocks: 0304 — builds on this item's step 7 and replaced-ledger report;
+  recorded on this item.
 - Relates to:
-  - 0304 owns the halting-failure class and the agent-usage-limit recovery
-    wording that the new row refers to. Either may land first; the second
-    reconciles the failure-reason table, and if this item lands first,
-    0304 replaces the row's inline wait-or-raise step with a reference to
-    its own row.
+  - 0304 owns the halting-failure class, for failures the orchestrator
+    survives. It adds no agent-usage-limit recovery, so the new row's inline
+    wait-or-raise step is final; 0304 adds its halting-reason rows beside
+    it.
   - 0303, landed, whose concurrent-subagent-limit row sits beside the new
     row.
   - 0307 adds snapshot fields to the run ledger and refuses its node query
@@ -258,6 +258,8 @@ Much of the recovery already works:
   `outstanding` does not already handle.
 - Usage-limit recovery wording deferred to 0304, so this item no longer
   depends on Claude Code's error wording.
+- 0304 later dropped agent usage limits from its halting class, so the
+  row's inline wait-or-raise step became final rather than a stopgap.
 - Quarantine of invalid leftovers stays with the skill's step 3 rather than
   moving into `outstanding --start`: the CLI never renames files, at the
   cost of a fresh index for the re-offered pair.

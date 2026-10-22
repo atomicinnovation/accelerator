@@ -6,5 +6,6 @@ pub mod ledger;
 pub mod memory;
 pub mod observed;
 pub mod replaced_run;
+pub mod search_budget;
 pub mod spawn;
 pub mod window;

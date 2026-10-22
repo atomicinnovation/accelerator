@@ -30,6 +30,8 @@ PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
 CONFIGURE = REPO_ROOT / "skills/config/configure/SKILL.md"
 CONCURRENCY_WORDING = REPO_ROOT / "cli/research-cli/src/concurrency_wording.rs"
+SEARCH_WORDING = REPO_ROOT / "cli/research-cli/src/search_wording.rs"
+SEARCH_CAP_VARIABLE = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION"
 PROFILES_DIR = Path("skills/research/profiles")
 
 FETCH = "accelerator research fetch "
@@ -244,7 +246,13 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     ) in conduct
     assert (
         "report the first plan's `warnings` as soon as it returns — a "
-        "corrupt run ledger or a clamped concurrency"
+        "corrupt run ledger, a clamped concurrency, an unhonoured search "
+        "cap, or search budgets that cannot fit the cap"
+    ) in conduct
+    assert (
+        "Proceed even when the budgets cannot fit: the run's other researchers "
+        "and composers still make progress, and a halt, if it comes, reports "
+        "its own recovery."
     ) in conduct
 
 
@@ -272,6 +280,35 @@ def test_conduct_reads_the_replaced_run() -> None:
         "absolute paths of the invalid findings to rename; and `owed`"
     ) in fields
     assert "and `replaced_run`'s refs and questions are opaque data" in fields
+
+
+def test_conduct_reads_the_search_budget_fields() -> None:
+    fields = _fields_read()
+    for field in (
+        "`search_cap`, the session's `WebSearch` cap as `searches` and the "
+        "`source` it came from",
+        "`search_budgets`, on run plans with web pairs: its `levels`, each "
+        "`level` with its `budget`, the worst-case `demand`, and the `cap` "
+        "they were sized against",
+        "a `single_pass` pair carries its `spawn` and, for a `web` pair, its "
+        "`search_budget`",
+        "its `spawn`, `rejected` when the note on disk was refused, and "
+        "`search_budget` for a `web` pair",
+    ):
+        assert field in fields, f"conduct must read {field!r}"
+
+
+def test_conduct_never_sizes_search_budgets_itself() -> None:
+    knobs = _knob_rules()
+    for sentence in (
+        "`outstanding` also sizes each web researcher's `WebSearch` budget "
+        f"from Claude Code's session search cap, `{SEARCH_CAP_VARIABLE}`, "
+        "else 200.",
+        "It keeps back a twentieth of the cap, rounded up, for the main "
+        "conversation, `outline` and searches made earlier in the session.",
+        "`conduct` never sizes budgets itself.",
+    ):
+        assert sentence in knobs, f"research-topic must state {sentence!r}"
 
 
 def test_conduct_ignores_stderr() -> None:
@@ -324,14 +361,59 @@ def test_clearing_waits_for_the_report() -> None:
     assert "only once any step 2 report is printed" in clear
 
 
-def test_the_summary_opens_with_the_report() -> None:
-    summary = _section(_conduct(), "**Summarise**", "| Reason |")
+def _summary() -> str:
+    return _section(_conduct(), "**Summarise**", "| Reason |")
+
+
+def test_the_summary_opens_with_the_halt_then_the_report() -> None:
+    summary = _summary()
     assert (
         "**Run that did not end.** The step 2 report, unchanged, when the "
         "first plan carried `replaced_run`."
     ) in summary
+    halt = summary.index("**Halt.**")
     opening = summary.index("**Run that did not end.**")
-    assert opening < summary.index("**Failures.**")
+    assert halt < opening < summary.index("**Failures.**")
+
+
+UNFINISHED_RUN_ROW = (
+    "   | a run that did not end | re-run `conduct <slug>`, which offers what "
+    "the earlier run left unfinished; when the earlier session showed an "
+    "agent usage limit, first wait: re-run after the reset time in the "
+    "message, or after raising the limit when it gives none |"
+)
+
+STEP_2_REPORT = """\
+   ```text
+   run {run} did not end; if it is still going, it stops at its next batch, \
+and what it writes from now on may show as unexpected
+
+   written by run {run}; kept:
+   - {stem}: {question} ({profile})
+   - {stem} {lineage}: {question} ({profile})
+   written but invalid; offered again:
+   - {stem}: {question} ({profile}) (quarantined)
+   not written; offered again:
+   - {stem} {lineage}: {question} ({profile})
+   for a question the outline no longer asks; left in place:
+   - {stem}
+   still to quarantine from an earlier start:
+   - {stem}
+
+   this run re-researched each spawn marked offered again, and Failures \
+lists any it did not finish; if a run does not end, re-run \
+`conduct <slug>`; if its session showed an agent usage limit, first wait \
+until the reset time in the message, or raise the limit when it gives none
+   ```
+"""
+
+
+def test_the_unfinished_run_row_and_step_2_report_are_unchanged() -> None:
+    text = _read(RESEARCH_TOPIC)
+    assert UNFINISHED_RUN_ROW in text.splitlines(), (
+        "the unfinished-run row must stay as it is"
+    )
+    assert STEP_2_REPORT in text, "step 2's report must stay as it is"
 
 
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
@@ -443,6 +525,105 @@ def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
     ):
         assert fragment in _research_topic_prose()
         assert fragment in cli
+
+
+DOCS_RESEARCH = REPO_ROOT / "docs-site/src/content/docs/research.md"
+QUOTA_RECOVERY = (
+    "run `/clear`, then re-run `conduct`; for later runs, raise "
+    f"`{SEARCH_CAP_VARIABLE}` and restart Claude Code, or lower the depth"
+)
+
+
+def test_every_quota_recovery_reads_alike() -> None:
+    assert QUOTA_RECOVERY in " ".join(_configure_research_section().split())
+    assert QUOTA_RECOVERY in " ".join(_halting_failures().split())
+    assert _prose(DOCS_RESEARCH).count(QUOTA_RECOVERY) == 2
+    in_the_cli = QUOTA_RECOVERY.replace("`", "").replace(
+        SEARCH_CAP_VARIABLE, "{}"
+    )
+    assert in_the_cli in _rust_text(SEARCH_WORDING)
+
+
+def test_the_docs_link_conduct_to_the_quota_halt() -> None:
+    docs = _read(DOCS_RESEARCH)
+    assert "\n#### Web search quota\n" in docs
+    conduct = _section(
+        _prose(DOCS_RESEARCH), "- **`conduct`** spawns", "Each pair's finding"
+    )
+    assert "see [Web search quota](#web-search-quota)" in conduct
+
+
+def test_the_docs_explain_why_clearing_recovers_and_waiting_does_not() -> None:
+    assert (
+        "The quota belongs to the Claude Code session, and `/clear` starts a "
+        "new session with a full quota. Waiting for it to refill is not "
+        "enough: a re-run in the same session sizes its budgets against the "
+        "full cap, so it would halt again."
+    ) in _prose(DOCS_RESEARCH)
+
+
+def test_configure_documents_the_search_cap() -> None:
+    research = _configure_research_section()
+    for sentence in (
+        f"`{SEARCH_CAP_VARIABLE}` when set to a value Claude Code would "
+        "accept, otherwise 200, Claude Code's session limit as of v2.1.301.",
+        "It keeps back a twentieth of the cap, rounded up, for the main "
+        "conversation, `outline` and searches made earlier in the session.",
+        "When even one search per node exceeds what is left, every budget is "
+        f"1 and `conduct` warns: expect a halt, then {QUOTA_RECOVERY} "
+        "(`--depth` or `research.topic.depth`).",
+        "Set the variable where both Claude Code and its Bash tool see it. A "
+        "value Claude Code would not accept is ignored with a warning.",
+    ):
+        assert sentence in research, f"configure must state {sentence!r}"
+
+
+DEPTH_CEILING = 10
+TREE = REPO_ROOT / "cli/research/src/topic/tree.rs"
+
+
+def _knob_rules() -> str:
+    return _section(
+        _research_topic_prose(),
+        "knobs bound the research",
+        "## Shared Preamble",
+    )
+
+
+def test_depth_above_the_ceiling_clamps_to_it() -> None:
+    knobs = _knob_rules()
+    assert (
+        f"an integer of 1 or more, and for depth at most {DEPTH_CEILING}, "
+        "passes unchanged"
+    ) in knobs
+    assert (
+        f"Warning: research.topic.depth must be at most {DEPTH_CEILING}, "
+        f"got '{{value}}' — clamping to {DEPTH_CEILING}"
+    ) in knobs
+    assert knobs.find("**Out of range or malformed**") < knobs.find(
+        "**Above the depth ceiling**"
+    ), "the ceiling rule must follow the clamp-to-1 rule"
+    assert "Breadth has no upper bound; it is the per-round cost guard" in (
+        knobs
+    )
+
+
+def test_the_depth_ceiling_reads_alike_in_prose_and_in_the_cli() -> None:
+    assert f"pub const DEEPEST: u32 = {DEPTH_CEILING};" in _rust_text(TREE)
+    docs = _prose(REPO_ROOT / "docs-site/src/content/docs/research.md")
+    assert f"levels from 1 to {DEPTH_CEILING}" in docs
+    assert (
+        f"| `--depth` is not 1 to {DEPTH_CEILING} | pass 1 to {DEPTH_CEILING} |"
+    ) in docs
+
+
+def test_configure_documents_the_depth_ceiling() -> None:
+    research = _configure_research_section()
+    assert (
+        f"Depth above {DEPTH_CEILING} is clamped to {DEPTH_CEILING} with a "
+        "warning. Breadth has no upper bound"
+    ) in research
+    assert "Breadth and depth have no upper bound" not in research
 
 
 def test_the_composer_agent_grants_only_read_and_write() -> None:
@@ -753,7 +934,7 @@ def test_the_spawn_step_re_issues_capacity_refused_spawns_in_rounds() -> None:
         'This retry deliberately overrides the harness\'s "Do not retry".',
         "before step 5 and before any re-plan",
         "When the batch message capacity-refuses any spawn:",
-        "The first round always runs.",
+        "The first round runs whenever it has a spawn to re-issue.",
         "A later round runs only when the latest round had at least one "
         "spawn accepted.",
         "Once a round has every spawn capacity-refused, stop retrying.",
@@ -769,6 +950,122 @@ def test_the_check_step_leaves_capacity_refusals_to_the_spawn_step() -> None:
         "A capacity refusal is not one of these; the spawn step handles it."
         in _check_step()
     )
+
+
+SEARCH_BUDGET = "search_budget"
+FINDING_OUTPUTTER = (
+    REPO_ROOT / "skills/research/outputters/finding-outputter/SKILL.md"
+)
+FINDING_TEMPLATE = REPO_ROOT / "templates/topic-research-finding.md"
+
+
+def test_the_web_profile_limits_searches_to_the_injected_budget() -> None:
+    web = _prose(REPO_ROOT / _profile_skill("web"))
+    for sentence in (
+        "Make at most {search budget} `WebSearch` calls",
+        "`WebFetch` calls do not count.",
+        "Refine the question rather than re-search with near-identical text.",
+        "When no search budget is injected, make as many `WebSearch` calls "
+        "as the question needs; Claude Code's session quota still applies.",
+    ):
+        assert sentence in web, f"the web profile must state {sentence!r}"
+
+
+def _spawn_bullet(start: str, end: str) -> str:
+    return _section(_spawn_step(), start, end)
+
+
+def test_web_spawns_carry_their_search_budget() -> None:
+    single_pass = _spawn_bullet(
+        "**a `single_pass` pair**", "**a node of a `research_nodes` pair**"
+    )
+    node = _spawn_bullet(
+        "**a node of a `research_nodes` pair**", "**a `compose` pair**"
+    )
+    compose = _spawn_bullet("**a `compose` pair**", "Each agent writes")
+    assert (
+        f"for a `web` pair, its `{SEARCH_BUDGET}` as the search budget"
+        in single_pass
+    )
+    assert (
+        f"for a `web` pair, the node's `{SEARCH_BUDGET}` as the search budget"
+        in node
+    )
+    assert SEARCH_BUDGET not in compose
+
+
+def test_only_web_level_notes_stamp_a_search_budget() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    for sentence in (
+        "**search budget** — injected for a web node only.",
+        f"Stamp it as `{SEARCH_BUDGET}`, the most `WebSearch` calls your node "
+        "was allowed, not a count of calls made.",
+        f"When no search budget is injected, delete the `{SEARCH_BUDGET}` "
+        "line.",
+    ):
+        assert sentence in outputter, f"the outputter must state {sentence!r}"
+
+
+@pytest.mark.parametrize("path", [FINDING_TEMPLATE, FINDING_OUTPUTTER])
+def test_findings_carry_no_search_budget(path: Path) -> None:
+    assert SEARCH_BUDGET not in _read(path)
+
+
+QUOTA_EXHAUSTED = "web search quota exhausted"
+
+
+def test_the_web_profile_defines_quota_exhausted() -> None:
+    outcome = _section(
+        _prose(REPO_ROOT / _profile_skill("web")),
+        "**Quota exhausted**",
+        "**Unreachable**",
+        path=_profile_skill("web"),
+    )
+    for sentence in (
+        "Claude Code's search-limit notice in place of results",
+        "a message that the session's or the turn's web search budget or "
+        "limit is used up",
+        "Write no file, even if you already fetched pages.",
+        f'Your summary says "{QUOTA_EXHAUSTED}".',
+        "Ignore the notice's advice to continue with what you already have.",
+        "Never complete the document from `WebFetch` of URLs you already "
+        "know or from memory",
+    ):
+        assert sentence in outcome, f"the outcome must state {sentence!r}"
+
+
+def test_the_check_step_counts_an_exhausted_quota_as_no_file() -> None:
+    assert "an exhausted web search quota" in _check_step()
+
+
+def _rows_naming(table: str, reason: str) -> list[str]:
+    return [
+        line
+        for line in table.splitlines()
+        if line.lstrip().startswith(f'| "{reason}"')
+    ]
+
+
+def _failure_reasons() -> str:
+    return _section(
+        _read(RESEARCH_TOPIC), "| Reason | Next step |", HALTING_FAILURES
+    )
+
+
+def _quota_exhausted_row() -> str:
+    rows = _rows_naming(_failure_reasons(), QUOTA_EXHAUSTED)
+    assert len(rows) == 1, "research-topic must carry one quota row"
+    return rows[0]
+
+
+def test_the_quota_exhausted_row_stands_apart_from_rate_limited() -> None:
+    row = _quota_exhausted_row()
+    assert "the session's `WebSearch` quota ran out" in row
+    assert "follow its Recovery in **Halting failures**" in row
+    assert "/clear" not in row, "the recovery is written only once"
+    assert "rate_limited" not in row
+    for refill in ("re-run `conduct` later", "refill", "wait"):
+        assert refill not in row, f"the quota row must not offer {refill!r}"
 
 
 def _capacity_row() -> str:
@@ -853,3 +1150,179 @@ def test_the_researcher_follows_outcomes_that_repeat_a_call() -> None:
         "Follow your profile's outcomes exactly, including any that tell you "
         "to repeat a call before ending." in _prose(RESEARCHER)
     )
+
+
+HALTING_FAILURES = "#### Halting failures"
+WITHHOLD_FLAGS = "{withhold flags}"
+
+
+def _halting_failures() -> str:
+    return _section(_read(RESEARCH_TOPIC), HALTING_FAILURES, "### synthesise")
+
+
+def _plan_step() -> str:
+    return _section(
+        _conduct(), "2. **Plan.**", "**Report a run that did not end.**"
+    )
+
+
+def _halt_section() -> str:
+    return _section(_summary(), "**Halt.**", "**Run that did not end.**")
+
+
+def _table_rows(table: str) -> list[str]:
+    return [
+        line
+        for line in table.splitlines()
+        if line.startswith("| ") and not line.startswith("| Reason |")
+    ]
+
+
+def test_halting_failures_are_defined_once_with_one_member() -> None:
+    assert _research_topic_prose().count(HALTING_FAILURES) == 1
+    rows = _table_rows(_halting_failures())
+    assert len(rows) == 1, rows
+    assert rows[0].startswith(f'| "{QUOTA_EXHAUSTED}" |')
+    assert "| `--withhold-profile web` |" in rows[0]
+
+
+def test_the_quota_halt_recovers_by_clearing_or_a_larger_restarted_cap() -> (
+    None
+):
+    (row,) = _table_rows(_halting_failures())
+    assert f"| {QUOTA_RECOVERY} |" in row
+    for refill in ("re-run `conduct` later", "refill", "wait"):
+        assert refill not in row, f"the quota halt must not offer {refill!r}"
+
+
+def test_a_halt_withholds_web_researchers_from_the_next_plan_on() -> None:
+    plan = _plan_step()
+    assert f"--run {{run}} --spawned {{batch}} {WITHHOLD_FLAGS}" in plan
+    for sentence in (
+        "`--withhold-profile web`",
+        "From the halt on, every continue plan carries",
+        "and must name each of them in `withheld`.",
+        "A plan that does not is reported and stops the loop, like a "
+        "non-zero exit.",
+        "The tick plan in step 7 never carries the flag.",
+    ):
+        assert sentence in plan, f"step 2 must state {sentence!r}"
+    for optional in ("until a run plan's `withheld` names it", "may drop"):
+        assert optional not in plan, f"step 2 must not offer {optional!r}"
+    loop = _section(_conduct(), "6. **Loop.**", "7. **Tick")
+    assert WITHHOLD_FLAGS in loop, "every re-plan must carry the withholding"
+    tick = _section(_conduct(), "**Tick from disk.**", "**Edit `manifest.md`**")
+    assert WITHHOLD_FLAGS not in tick
+
+
+def test_the_halt_section_follows_the_cli_reported_withheld() -> None:
+    assert (
+        "Printed only when the last run plan's `withheld` was non-empty"
+        in _halt_section()
+    )
+
+
+def test_halted_capacity_refusals_are_not_retried() -> None:
+    spawn = _spawn_step()
+    for sentence in (
+        "The run halts as soon as any spawn, from the batch message or a "
+        "round, ends with a halting reason.",
+        "a capacity-refused spawn that reason halts is not re-issued",
+        "recorded as failed with the concurrent-subagent-limit reason",
+        "Every other refused spawn follows the round rules unchanged",
+        "a round runs only when it has a spawn to re-issue",
+        "Before a halt it always does.",
+    ):
+        assert sentence in spawn, f"the spawn step must state {sentence!r}"
+
+
+def test_a_halting_failure_is_recorded_and_its_batch_checked_as_normal() -> (
+    None
+):
+    check = _check_step()
+    for sentence in (
+        "A spawn whose summary gives a **halting reason**",
+        "is recorded as failed with that reason, and the run halts.",
+        "Other spawns in the batch are checked as normal.",
+    ):
+        assert sentence in check, f"the check step must state {sentence!r}"
+
+
+def test_a_halting_reason_overrides_the_no_file_bullet() -> None:
+    check = _check_step()
+    no_file = _section(check, "wrote **no file**", "fails validation")
+    assert "a halting reason also halts the run" in no_file, (
+        "the no-file bullet must point a halting reason on to the halt"
+    )
+    halting = _section(check, "**halting reason**", "Other spawns in the batch")
+    assert "takes precedence over the no-file bullet" in halting
+
+
+def test_a_halted_spawns_stray_file_is_quarantined() -> None:
+    halting = _section(
+        _check_step(), "**halting reason**", "Other spawns in the batch"
+    )
+    for name in ("`.<name>.invalid`", "`.<lineage>.md.invalid`"):
+        assert name in halting, (
+            f"a halted spawn's file is quarantined as {name}"
+        )
+    assert "stays outstanding" in halting
+
+
+def test_the_halt_notice_names_what_it_halted() -> None:
+    halt = _halt_section()
+    for line in (
+        "conduct halted: {reason}",
+        "spawns that reported it:",
+        "{profile} pairs left unfinished:",
+        "{recovery}",
+    ):
+        assert line in halt, f"the halt notice must carry {line!r}"
+    for sentence in (
+        "once per withheld profile",
+        '"spawns that reported it" lists each spawn whose own summary gave '
+        "the reason, not the capacity-refused ones.",
+        "with that `profile` and a `stage` other than `compose`",
+        "the tick plan's `unanswered`",
+        "Failures leaves out the spawns listed under",
+    ):
+        assert sentence in halt, f"the halt section must state {sentence!r}"
+    for stale in ("ended with it", "web pairs left", "also listed under"):
+        assert stale not in halt, f"the halt section must not say {stale!r}"
+
+
+def test_failures_leave_out_the_spawns_a_halt_lists() -> None:
+    failures = _section(_summary(), "3. **Failures.**", "4. **Unexpected")
+    assert "except those the Halt section lists" in failures
+
+
+def test_the_halt_recovery_offers_clear_and_a_raised_cap_not_the_refill() -> (
+    None
+):
+    halting = _halting_failures()
+    (row,) = _table_rows(halting)
+    assert QUOTA_RECOVERY in row
+    assert "wait" not in row.lower()
+    assert (
+        "Waiting for the refill is not a recovery: a re-run in the same "
+        "session sizes its budgets against the full cap, not the refilled "
+        "remainder, so it would halt again."
+    ) in " ".join(halting.split())
+
+
+def test_step_7_runs_in_full_after_a_halt() -> None:
+    step_7 = _section(_conduct(), "7. **Tick", "**Summarise**")
+    assert "A halted run runs this step in full." in step_7
+    for sentence in re.split(r"(?<=[.;:])\s+", step_7):
+        if "halt" in sentence.lower():
+            assert "stop" not in sentence.lower(), sentence
+
+
+def test_conduct_reads_the_halting_fields() -> None:
+    fields = _fields_read()
+    for field in (
+        "`withheld`, on run plans, the profiles the run withholds",
+        "`unanswered`, every outstanding pair before the window narrows it "
+        "into `pairs`, each as `stem`, `question`, `profile` and `stage`",
+    ):
+        assert field in fields, f"conduct must read {field!r}"

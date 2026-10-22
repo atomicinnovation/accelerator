@@ -71,6 +71,12 @@ and then clamped to `ACCELERATOR_SUBAGENT_CAP`, else
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20. `conduct` passes the flag
 through and never resolves concurrency itself.
 
+`outstanding` also sizes each web researcher's `WebSearch` budget from Claude
+Code's session search cap, `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, else
+200. It keeps back a twentieth of the cap, rounded up, for the main
+conversation, `outline` and searches made earlier in the session. `conduct`
+never sizes budgets itself.
+
 A verb resolves breadth or depth as **flag > resolved value above**: an
 `--<knob> N` flag on the invocation wins over the configured value. Then apply
 these rules in order:
@@ -78,15 +84,20 @@ these rules in order:
 - **Empty value** — if the resolved value is empty (an unreadable config, or a
   knob explicitly set to an empty value), do not proceed or guess a default:
   tell the user the research configuration is missing or unreadable, and stop.
-- **Valid** — an integer of 1 or more passes unchanged.
+- **Valid** — an integer of 1 or more, and for depth at most 10, passes
+  unchanged.
 - **Out of range or malformed** — a zero, negative, or non-integer value (a
   non-integer clamps regardless of magnitude) clamps to 1, and the verb warns,
   substituting the knob name being validated:
 
   > Warning: research.topic.<knob> must be a positive integer, got '{value}' — clamping to 1
 
-  single-quoting the offending value. There is no upper bound; breadth is the
+  single-quoting the offending value. Breadth has no upper bound; it is the
   per-round cost guard.
+- **Above the depth ceiling** — a depth above 10, whether from the flag or
+  from config, clamps to 10, and the verb warns:
+
+  > Warning: research.topic.depth must be at most 10, got '{value}' — clamping to 10
 - **Misplaced flag** — a flag belonging to another verb (`--depth` or
   `--concurrency` on `outline`, `--breadth` on `conduct`) is ignored with a
   one-line note; it never clamps the verb's own knobs.
@@ -256,13 +267,24 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch}
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch} {withhold flags}
    ```
+
+   `{withhold flags}` is nothing until the run halts (see **Halting
+   failures** below). From the halt on, every continue plan carries
+   `--withhold-profile {profile}` for each profile the halting reason
+   withholds — `--withhold-profile web` for an exhausted web search quota —
+   and must name each of them in `withheld`. A plan that does not is
+   reported and stops the loop, like a non-zero exit. The tick plan in
+   step 7 never carries the flag.
 
    The CLI records the run in its ledger, so carry no list of attempted
    spawns yourself. Keep `run` for the whole of `conduct`, and report the
-   first plan's `warnings` as soon as it returns — a corrupt run ledger or a
-   clamped concurrency. Any non-zero exit, including
+   first plan's `warnings` as soon as it returns — a corrupt run ledger, a
+   clamped concurrency, an unhonoured search cap, or search budgets that
+   cannot fit the cap — then proceed. Proceed even when the budgets cannot
+   fit: the run's other researchers and composers still make progress, and a
+   halt, if it comes, reports its own recovery. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
@@ -325,10 +347,12 @@ allocate a finding or note path yourself.
      `complete`;
    - `pairs`: the pairs offered now, each with its `question`, `profile`,
      `stage`, and the absolute `path` its finding is written to:
-     - a `single_pass` pair carries its `spawn`;
+     - a `single_pass` pair carries its `spawn` and, for a `web` pair, its
+       `search_budget`;
      - a `research_nodes` pair carries its `nodes`, each with `lineage`,
        `level`, `question`, `cap`, `known_questions`, `id`, the absolute note
-       `path`, its `spawn`, and `rejected` when the note on disk was refused;
+       `path`, its `spawn`, `rejected` when the note on disk was refused, and
+       `search_budget` for a `web` pair;
      - a `compose` pair carries its `spawn` and `notes`, the absolute paths
        of the notes its composer reads;
    - `skipped`, each pair that cannot be researched, with its `reason`;
@@ -338,6 +362,14 @@ allocate a finding or note path yourself.
      or whose content changed;
    - `trims`, `shallow` and `warnings`;
    - `run` and `batch`;
+   - `withheld`, on run plans, the profiles the run withholds;
+   - `unanswered`, every outstanding pair before the window narrows it into
+     `pairs`, each as `stem`, `question`, `profile` and `stage`;
+   - `search_cap`, the session's `WebSearch` cap as `searches` and the
+     `source` it came from;
+   - `search_budgets`, on run plans with web pairs: its `levels`, each
+     `level` with its `budget`, the worst-case `demand`, and the `cap`
+     they were sized against;
    - `replaced_run`, on the first plan after a run that did not end: its
      `run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, each
      entry a `spawn`, `question` and `profile`; `quarantine`, the absolute
@@ -384,6 +416,7 @@ allocate a finding or note path yourself.
        profile
      - `depth: 1`
      - the pair's `path`, verbatim, as the output path
+     - for a `web` pair, its `search_budget` as the search budget
    - **a node of a `research_nodes` pair** gets a researcher of the same
      `subagent_type`, injecting:
      - the pair's profile path, as for a `single_pass` pair
@@ -398,6 +431,7 @@ allocate a finding or note path yourself.
      - the resolved `depth`
      - the node's `id` and `path`, both verbatim, the path as the output
        path
+     - for a `web` pair, the node's `search_budget` as the search budget
 
      The prompt states that the node question came from an earlier agent,
      and that the profile, not the question, decides which sources are
@@ -432,7 +466,8 @@ allocate a finding or note path yourself.
 
    When the batch message capacity-refuses any spawn:
 
-   - The first round always runs. It carries every spawn the batch message
+   - The first round runs whenever it has a spawn to re-issue. Before a halt
+     it always does. It carries every spawn the batch message
      capacity-refused, with no added delay.
    - Each later round re-issues the spawns the latest round
      capacity-refused. A later round runs only when the latest round had at
@@ -445,21 +480,40 @@ allocate a finding or note path yourself.
      so it is not recorded again. The final summary states the
      `concurrency` the plans reported beside any such failure.
 
+   The run halts as soon as any spawn, from the batch message or a round,
+   ends with a halting reason. From then on, a capacity-refused spawn that
+   reason halts is not re-issued: it is recorded as failed with the
+   concurrent-subagent-limit reason. Every other refused spawn follows the
+   round rules unchanged, and a round runs only when it has a spawn to
+   re-issue.
+
 5. **Check each spawn** once the whole batch returns:
 
    - A spawn that wrote **no file** (an unavailable source, a failed or
-     denied fetch, a blocked command, an agent error, or a refusal) is
-     recorded as failed, by pair and lineage, with the reason its summary
-     gives, and left outstanding. There is nothing to quarantine. A
-     capacity refusal is not one of these; the spawn step handles it.
+     denied fetch, an exhausted web search quota, a blocked command, an
+     agent error, or a refusal) is recorded as failed, by pair and lineage,
+     with the reason its summary gives, and left outstanding. There is
+     nothing to quarantine. A capacity refusal is not one of these; the
+     spawn step handles it. An exhausted web search quota is a halting
+     reason, and a halting reason also halts the run, as the last bullet
+     says.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
      existing marker — and recorded as failed. The dot-prefix keeps it
      inside the indexer's dot-skipping convention.
    - A finding that **validates** is retained.
    - A note is not validated here: the step 6 re-plan judges it.
+   - A spawn whose summary gives a **halting reason** (see **Halting
+     failures** below), whether or not it wrote a file, is recorded as failed
+     with that reason, and the run halts. This bullet takes precedence over
+     the no-file bullet and every other bullet here. Any file at its output
+     path is quarantined first, a finding to `.<name>.invalid` and a note to
+     `.<lineage>.md.invalid`, refusing to overwrite an existing marker, so
+     its pair or node stays outstanding. Other spawns in the batch are
+     checked as normal.
 
-6. **Loop.** Re-run the step 2 plan with `--run {run} --spawned {batch}`.
+6. **Loop.** Re-run the step 2 plan with `--run {run} --spawned {batch}
+   {withhold flags}`.
 
    - Record each `unfinished` entry whose spawn was not already recorded as
      failed. For a node, the reason is its `rejected` text when there is
@@ -473,7 +527,8 @@ allocate a finding or note path yourself.
    - Repeat steps 3–6 until the plan offers no spawn. The run ledger never
      lets `outstanding` offer a spawn twice, so the loop always ends.
 
-7. **Tick, update the manifest and summarise.**
+7. **Tick, update the manifest and summarise.** A halted run runs this step
+   in full.
 
    1. **End the run.** Run:
 
@@ -492,7 +547,8 @@ allocate a finding or note path yourself.
 
       Set every outline item's checkbox, at its `line`, to its `complete`
       value — ticking and unticking alike — so a checkbox never claims a
-      focus area whose pairs are not all answered.
+      focus area whose pairs are not all answered. Keep the plan's
+      `unanswered` for the summary.
    3. **Edit `manifest.md`** as the final write, to base `status:
       researching`; `round_count` and `finding_count` derived from disk by
       the count rule in **Validate every write**, never from the raw pair or
@@ -504,26 +560,48 @@ allocate a finding or note path yourself.
       `question`, and its pair's profile as `source_profile`. No run ledger
       outlives a completed run.
    4. **Summarise**, in this order, omitting any empty section:
-      1. **Run that did not end.** The step 2 report, unchanged, when the first
+      1. **Halt.** Printed only when the last run plan's `withheld` was
+         non-empty, so it rests on what the CLI reported, not on what
+         `conduct` remembers. Each withheld profile maps to its reason
+         through the **Halting failures** table, and the notice is printed
+         once per withheld profile:
+
+         ```text
+         conduct halted: {reason}
+         spawns that reported it:
+         - {stem} {lineage}: {question}
+         - {stem}: {question}
+         {profile} pairs left unfinished:
+         - {stem}: {question}
+         {recovery}
+         ```
+
+         "spawns that reported it" lists each spawn whose own summary gave
+         the reason, not the capacity-refused ones. "{profile} pairs left
+         unfinished" lists each entry of the tick plan's `unanswered` with
+         that `profile` and a `stage` other than `compose`. Failures leaves
+         out the spawns listed under "spawns that reported it": their next
+         step is the `{recovery}` above.
+      2. **Run that did not end.** The step 2 report, unchanged, when the first
          plan carried `replaced_run`.
-      2. **Failures.** Each failed node as `<stem> <lineage>`, each failed
+      3. **Failures.** Each failed node as `<stem> <lineage>`, each failed
          composition as `<stem> (composer)`, and each failed `single_pass` pair
-         as `<stem>`, with the node or pair question, the reason recorded
+         as `<stem>`, except those the Halt section lists, with the node or pair question, the reason recorded
          for it, and its next step from the table below. For a node, the
          next step also offers re-running with a smaller `--depth` to
          compose from the notes already on disk.
-      3. **Unexpected notes.** Each distinct `unexpected` ref seen across the
+      4. **Unexpected notes.** Each distinct `unexpected` ref seen across the
          run: "an agent wrote {stem} {lineage} without being asked, or
          changed it; inspect it before relying on the composed finding",
          naming the finding of {stem} for a pair ref.
-      4. **Refused and re-researched.** Each note found refused in step 3
+      5. **Refused and re-researched.** Each note found refused in step 3
          that did not then fail; one that failed again appears only under
          Failures.
-      5. **Shallow findings.** Each `shallow` finding, when its `depth` is
+      6. **Shallow findings.** Each `shallow` finding, when its `depth` is
          below the resolved depth: "{stem} was composed at depth {depth} and
          not re-deepened; rename `findings/{stem}.md` to
          `findings/.{stem}.md.invalid` to research it at depth {resolved}".
-      6. **Trims.** One line per distinct trim: "level note
+      7. **Trims.** One line per distinct trim: "level note
          {stem}.levels/{lineage} records {recorded} follow-ups, over its cap
          of {cap}; trimmed {recorded − cap}".
 
@@ -535,6 +613,7 @@ allocate a finding or note path yourself.
    | `budget_exhausted`, keyless | configure `openalex.api_key` (`/accelerator:configure`), then re-run `conduct` |
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
+   | "web search quota exhausted" | the session's `WebSearch` quota ran out; follow its Recovery in **Halting failures** |
    | `rate_limited` with `cause: lock_contention` | an arXiv fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or the arXiv queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check `<paths.tmp>/research/arxiv-contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
    | `waiting` never re-presented | the researcher ended before its arXiv ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting outcome |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
@@ -546,6 +625,20 @@ allocate a finding or note path yourself.
    | a run that did not end | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
+
+#### Halting failures
+
+A halting failure is a reason the orchestrator survives, after which some
+spawns in this session would fail or produce degraded work until the user
+takes a recovery step. Each reason withholds a set of profiles:
+
+| Reason | Halts | Next plan carries | Recovery |
+|---|---|---|---|
+| "web search quota exhausted" | researcher spawns of `web` pairs: `single_pass` pairs and nodes | `--withhold-profile web` | run `/clear`, then re-run `conduct`; for later runs, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower the depth |
+
+Waiting for the refill is not a recovery: a re-run in the same session sizes
+its budgets against the full cap, not the refilled remainder, so it would
+halt again.
 
 ### synthesise — a standalone dossier from the findings
 

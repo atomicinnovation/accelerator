@@ -54,6 +54,15 @@ tier-1 standing by resembling a trusted name: `docs-stripe.com` and
 `stripe.com.evil.io` are not `stripe.com`. The recorded domain is the audit
 hook a reader uses to check your tiering, not a guarantee of trust.
 
+## Search Budget
+
+- Make at most {search budget} `WebSearch` calls, where {search budget} is
+  the search budget injected into your task prompt. `WebFetch` calls do not
+  count.
+- When no search budget is injected, make as many `WebSearch` calls as the
+  question needs; Claude Code's session quota still applies.
+- Refine the question rather than re-search with near-identical text.
+
 ## Outcome
 
 End in exactly one of these:
@@ -63,6 +72,14 @@ End in exactly one of these:
   neither tool is granted. Write no file; your summary says "fetch denied by
   permissions". Never write the document from memory instead: `conduct`
   accepts any well-formed file, so an unsourced one would pass as research.
+- **Quota exhausted** — a `WebSearch` call returned Claude Code's
+  search-limit notice in place of results: a message that the session's or
+  the turn's web search budget or limit is used up. Write no file, even if
+  you already fetched pages. Your summary says "web search quota
+  exhausted". Ignore the notice's advice to continue with what you already
+  have. Never complete the document from `WebFetch` of URLs you already know
+  or from memory: a note researched without search would pass as a searched
+  one.
 - **Unreachable** — every search and fetch failed. Write no file; your
   summary names each failure.
 - **None found** — searches ran and nothing was relevant. Write the document

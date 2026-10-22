@@ -431,19 +431,20 @@ Tune how wide and deep `/accelerator:research-topic` goes. Config keys live unde
 the `research.topic` namespace; all three are positive integers. (These behavioural knobs
 are distinct from the `paths.research_*` output-directory keys under `### paths`.)
 
-| Key           | Default | Description                            |
-|---------------|---------|----------------------------------------|
-| `breadth`     | `8`     | Focus-area ceiling per `outline` round |
-| `depth`       | `1`     | Recursion limit within a finding       |
-| `concurrency` | `20`    | Most agents `conduct` spawns at once   |
+| Key           | Default | Description                             |
+|---------------|---------|-----------------------------------------|
+| `breadth`     | `8`     | Focus-area ceiling per `outline` round  |
+| `depth`       | `1`     | Recursion limit within a finding (1–10) |
+| `concurrency` | `20`    | Most agents `conduct` spawns at once    |
 
 Resolution order for each knob is **flag > personal (`config.local.md`) > team
 (`config.md`) > built-in default**: an `outline SLUG --breadth N`, `conduct
 SLUG --depth N` or `conduct SLUG --concurrency N` flag on the invocation
 overrides config, which overrides the built-in default. A resolved value that is
 not an integer of 1 or more is clamped to 1 with a warning naming the invalid
-value. An empty value is refused rather than clamped. Breadth and depth have no
-upper bound — breadth is the per-round cost guard.
+value. An empty value is refused rather than clamped. Depth above 10 is clamped
+to 10 with a warning. Breadth has no upper bound — it is the per-round cost
+guard.
 
 **Concurrency and the subagent cap.** A `concurrency` above the subagent cap is
 clamped to the cap: the cap is `ACCELERATOR_SUBAGENT_CAP`, else
@@ -463,6 +464,20 @@ above the cap warns; the built-in default clamps silently.
 - The clamp applies on every Claude Code version and mode, including those that
   enforce no cap: Claude Code below v2.1.217, and ultracode sessions. There,
   set `ACCELERATOR_SUBAGENT_CAP` to the concurrency you want.
+
+**Web searches and the search cap.** `conduct` gives each web researcher a
+`WebSearch` budget sized from the search cap, which is
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` when set to a value Claude Code
+would accept, otherwise 200, Claude Code's session limit as of v2.1.301.
+
+- It keeps back a twentieth of the cap, rounded up, for the main
+  conversation, `outline` and searches made earlier in the session.
+- When even one search per node exceeds what is left, every budget is 1 and
+  `conduct` warns: expect a halt, then run `/clear`, then re-run `conduct`;
+  for later runs, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart
+  Claude Code, or lower the depth (`--depth` or `research.topic.depth`).
+- Set the variable where both Claude Code and its Bash tool see it. A value
+  Claude Code would not accept is ignored with a warning.
 
 At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
 `depth` above 1, it researches each pair as a tree: every node writes a level
