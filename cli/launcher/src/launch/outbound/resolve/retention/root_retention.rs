@@ -98,7 +98,7 @@ mod tests {
     fn ports() -> Arc<CachePorts> {
         Arc::new(CachePorts {
             filesystem: Arc::new(SystemFilesystem),
-            ownership: Arc::new(ProcessOwnership),
+            ownership: Arc::new(ProcessOwnership::default()),
             clock: Arc::new(AtClock(1_000_000)),
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),

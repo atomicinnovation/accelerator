@@ -120,7 +120,7 @@ fn production_resolver(
 fn production_ports() -> Arc<CachePorts> {
     Arc::new(CachePorts {
         filesystem: Arc::new(SystemFilesystem),
-        ownership: Arc::new(ProcessOwnership),
+        ownership: Arc::new(ProcessOwnership::default()),
         clock: Arc::new(SystemClock),
         locks: Arc::new(FlockLocks),
         steps: Arc::new(NoPruneSteps),

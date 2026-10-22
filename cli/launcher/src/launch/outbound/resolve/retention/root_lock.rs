@@ -116,7 +116,7 @@ mod tests {
     ) -> Arc<CachePorts> {
         Arc::new(CachePorts {
             filesystem,
-            ownership: Arc::new(ProcessOwnership),
+            ownership: Arc::new(ProcessOwnership::default()),
             clock: Arc::new(AtClock),
             locks: Arc::new(FlockLocks),
             steps,
@@ -189,7 +189,7 @@ mod tests {
         let filesystem = ReportingFilesystem::over_system().reporting(
             &lock,
             EntryMetadata {
-                owner: ProcessOwnership.effective_uid() + 1,
+                owner: ProcessOwnership::default().effective_uid() + 1,
                 ..SystemFilesystem.entry(&lock).expect("lock metadata")
             },
         );
