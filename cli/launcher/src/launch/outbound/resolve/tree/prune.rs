@@ -3,7 +3,14 @@
 //! A process holds at most one tree lock at a time, and each artifact's lock
 //! is taken inside that artifact's own iteration and released before the
 //! next, so no prune ever probes or retakes a tree lock it holds.
+//!
+//! Unlinking a lock file this prune holds is safe only while every launcher
+//! confirms its lock's inode after taking it: one that does not can go on
+//! holding the unlinked inode while another takes a fresh file, and neither
+//! then excludes the other. A held tree lock means a materialise or prune of
+//! that artifact is in progress.
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::io;
 use std::path::Path;
@@ -26,8 +33,8 @@ use super::layout::{
     TreePaths, TreesEntry, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
-use super::locks::TreeLocks;
-use super::reap::{self, PinnedDigests, Reaper};
+use super::locks::{TreeLockProbe, TreeLocks};
+use super::reap::{self, PinnedDigests, Reaper, RemovalObserver};
 use super::tree_lock::HeldTreeLock;
 
 /// Which artifacts a tree prune visits.
@@ -68,6 +75,7 @@ pub struct TreePruneReport {
 
 enum ArtifactLock {
     Taken(HeldTreeLock),
+    LockFree,
     Skipped,
     Failed(LockFailure),
 }
@@ -108,7 +116,7 @@ impl TreePrune<'_> {
                 ArtifactLock::Taken(held) => {
                     self.ports.steps.reached(PruneStep::TreeLockHeld);
                     if !reaped {
-                        self.reap_orphans_under(&held, &mut report);
+                        self.reap_orphans_under(&held, &index, &mut report);
                         reaped = true;
                     }
                     self.reclaim_unclaimed_trees(
@@ -117,7 +125,20 @@ impl TreePrune<'_> {
                         &claims,
                         &mut report,
                     );
+                    self.reclaim_orphan_sidecars(
+                        &paths,
+                        &artifact,
+                        &index,
+                        &mut report,
+                    );
+                    self.reclaim_orphan_lock(held, &index, &mut report);
                 }
+                ArtifactLock::LockFree => self.reclaim_orphan_sidecars(
+                    &paths,
+                    &artifact,
+                    &index,
+                    &mut report,
+                ),
                 ArtifactLock::Skipped => {}
                 ArtifactLock::Failed(failure) => {
                     report.lock_failures.push(failure);
@@ -135,9 +156,27 @@ impl TreePrune<'_> {
         index: &TreesIndex,
         patience: LockPatience,
     ) -> ArtifactLock {
-        if !index.has_work_for(artifact) {
-            return ArtifactLock::Skipped;
+        if index.has_work_for(artifact) {
+            return self.take(paths, artifact, patience);
         }
+        if index.has_lock_of(artifact) {
+            return self.take_existing(paths, artifact, patience);
+        }
+        if index.sidecars_of(artifact).is_empty() {
+            ArtifactLock::Skipped
+        } else {
+            ArtifactLock::LockFree
+        }
+    }
+
+    /// Taking the lock creates it if missing, which only an artifact a
+    /// materialise left something of may do.
+    fn take(
+        &self,
+        paths: &TreePaths,
+        artifact: &Artifact,
+        patience: LockPatience,
+    ) -> ArtifactLock {
         let taken = match patience {
             LockPatience::Wait => {
                 self.ports.locks.take_tree(paths, artifact).map(Some)
@@ -155,9 +194,39 @@ impl TreePrune<'_> {
         }
     }
 
+    /// An artifact with only bookkeeping left never has its lock created.
+    fn take_existing(
+        &self,
+        paths: &TreePaths,
+        artifact: &Artifact,
+        patience: LockPatience,
+    ) -> ArtifactLock {
+        let locks = self.ports.locks;
+        let taken = match patience {
+            LockPatience::Wait => {
+                locks.wait_existing_tree(paths, artifact).map(|held| {
+                    held.map_or(ArtifactLock::LockFree, ArtifactLock::Taken)
+                })
+            }
+            LockPatience::Try => {
+                locks
+                    .probe_tree(paths, artifact)
+                    .map(|probed| match probed {
+                        TreeLockProbe::Taken(held) => ArtifactLock::Taken(held),
+                        TreeLockProbe::Held => ArtifactLock::Skipped,
+                        TreeLockProbe::Absent => ArtifactLock::LockFree,
+                    })
+            }
+        };
+        taken.unwrap_or_else(|error| {
+            ArtifactLock::Failed(lock_failure(paths, artifact, &error))
+        })
+    }
+
     fn reap_orphans_under(
         &self,
         held: &HeldTreeLock,
+        index: &TreesIndex,
         report: &mut TreePruneReport,
     ) {
         match Reaper::new(
@@ -167,6 +236,7 @@ impl TreePrune<'_> {
             self.ports.lease_liveness,
             self.ports.pins,
         )
+        .observed_by(index)
         .reap_orphans()
         {
             Ok(reaped) => report.removals.reclaimed += reaped.entries,
@@ -220,19 +290,86 @@ impl TreePrune<'_> {
                 }
                 _ => continue,
             };
-            self.remove_tree(
+            if self.remove_tree(
                 paths,
                 &pointer,
                 &generation,
                 &claimed_since,
                 digest,
                 report,
-            );
+            ) {
+                index.forget(&pointer);
+                index.forget(&paths.generation(&generation));
+            }
         }
     }
 
+    /// Step 2: a sidecar whose generation is gone, once aged and unheld.
+    fn reclaim_orphan_sidecars(
+        &self,
+        paths: &TreePaths,
+        artifact: &Artifact,
+        index: &TreesIndex,
+        report: &mut TreePruneReport,
+    ) {
+        for (name, generation) in index.sidecars_of(artifact) {
+            if index.holds(&generation) {
+                continue;
+            }
+            let sidecar = paths.root().join(&name);
+            if reap::orphan_is_reclaimable(
+                self.ports.lease_liveness.probe(&paths.lease(&generation)),
+                self.is_aged(&sidecar),
+            ) && report
+                .removals
+                .remove_file(
+                    self.ports.filesystem,
+                    &sidecar,
+                    "orphan sidecar",
+                    Count::Once,
+                )
+                .left_nothing()
+            {
+                index.forget(&sidecar);
+            }
+        }
+    }
+
+    /// Step 3: an aged lock file of an artifact nothing else is left of goes
+    /// while this prune holds it, once a fresh listing confirms the index.
+    fn reclaim_orphan_lock(
+        &self,
+        held: HeldTreeLock,
+        index: &TreesIndex,
+        report: &mut TreePruneReport,
+    ) {
+        let paths = held.paths();
+        let artifact = held.artifact();
+        let lock = paths.single_flight_lock(artifact);
+        if index.has_work_for(artifact) || !self.is_aged(&lock) {
+            return;
+        }
+        let confirmed = TreesIndex::read(paths, self.ports.filesystem)
+            .is_ok_and(|relisted| !relisted.has_work_for(artifact));
+        if confirmed
+            && report
+                .removals
+                .remove_file(
+                    self.ports.filesystem,
+                    &lock,
+                    "orphan tree lock",
+                    Count::Once,
+                )
+                .left_nothing()
+        {
+            index.forget(&lock);
+        }
+        drop(held);
+    }
+
     /// The pointer goes first, so a concurrent `locate` misses and
-    /// re-materialises rather than leasing a generation about to go.
+    /// re-materialises rather than leasing a generation about to go; the
+    /// generation goes only once its pointer has.
     fn remove_tree(
         &self,
         paths: &TreePaths,
@@ -241,7 +378,7 @@ impl TreePrune<'_> {
         claims: &TreeClaimIndex,
         digest: &str,
         report: &mut TreePruneReport,
-    ) {
+    ) -> bool {
         let removals = &mut report.removals;
         let filesystem = self.ports.filesystem;
         if removals.remove_file(
@@ -251,7 +388,7 @@ impl TreePrune<'_> {
             Count::WithItsEntry,
         ) == Removal::Failed
         {
-            return;
+            return false;
         }
         removals.remove_tree(
             filesystem,
@@ -275,6 +412,7 @@ impl TreePrune<'_> {
                 Count::WithItsEntry,
             );
         }
+        true
     }
 
     /// Each stale claim is re-read immediately before its unlink, so one
@@ -342,9 +480,12 @@ fn lock_failure(
     }
 }
 
-/// `trees/` listed once, so every step judges the same names.
+/// `trees/` listed once, so every step judges the same names, less what
+/// this prune has since removed.
 struct TreesIndex {
+    paths: TreePaths,
     names: Vec<String>,
+    removed: RefCell<BTreeSet<String>>,
 }
 
 impl TreesIndex {
@@ -360,13 +501,40 @@ impl TreesIndex {
             .filter_map(|name| name.into_string().ok())
             .collect();
         names.sort();
-        Ok(Self { names })
+        Ok(Self {
+            paths: paths.clone(),
+            names,
+            removed: RefCell::default(),
+        })
     }
 
     fn entries(&self) -> impl Iterator<Item = (&str, TreesEntry<'_>)> {
         self.names
             .iter()
+            .filter(|name| !self.removed.borrow().contains(name.as_str()))
             .map(|name| (name.as_str(), classify_trees_entry(name)))
+    }
+
+    fn holds(&self, name: &str) -> bool {
+        self.entries().any(|(listed, _)| listed == name)
+    }
+
+    /// A generation's sidecars go with it, so they are forgotten with it.
+    fn forget(&self, path: &Path) {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return;
+        };
+        let mut removed = self.removed.borrow_mut();
+        if matches!(classify_trees_entry(name), TreesEntry::Generation(_)) {
+            for sidecar in reap::sidecars_of(&self.paths, name) {
+                if let Some(sidecar) =
+                    sidecar.file_name().and_then(|name| name.to_str())
+                {
+                    removed.insert(sidecar.to_owned());
+                }
+            }
+        }
+        removed.insert(name.to_owned());
     }
 
     fn artifacts(&self) -> BTreeSet<Artifact> {
@@ -397,17 +565,44 @@ impl TreesIndex {
         })
     }
 
-    fn pointers_of<'a>(
-        &'a self,
-        artifact: &'a Artifact,
-    ) -> impl Iterator<Item = (&'a str, &'a str)> {
-        self.entries().filter_map(move |(name, entry)| match entry {
-            TreesEntry::Pointer {
-                artifact: owner,
-                digest,
-            } if &owner == artifact => Some((name, digest)),
-            _ => None,
+    fn has_lock_of(&self, artifact: &Artifact) -> bool {
+        self.entries().any(|(_, entry)| {
+            matches!(entry, TreesEntry::Lock { artifact: owner } if &owner == artifact)
         })
+    }
+
+    fn pointers_of(&self, artifact: &Artifact) -> Vec<(&str, &str)> {
+        self.entries()
+            .filter_map(|(name, entry)| match entry {
+                TreesEntry::Pointer {
+                    artifact: owner,
+                    digest,
+                } if &owner == artifact => Some((name, digest)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// `(sidecar name, generation name)` for each of the artifact's sidecars.
+    fn sidecars_of(&self, artifact: &Artifact) -> Vec<(String, String)> {
+        self.entries()
+            .filter_map(|(name, entry)| match entry {
+                TreesEntry::Sidecar {
+                    artifact: owner,
+                    generation,
+                } if &owner == artifact => {
+                    Some((name.to_owned(), generation.to_owned()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+/// The reap removes through `std::fs`; the index forgets what it saw go.
+impl RemovalObserver for TreesIndex {
+    fn removing(&self, entry: &Path) {
+        self.forget(entry);
     }
 }
 
