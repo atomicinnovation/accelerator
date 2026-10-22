@@ -1341,3 +1341,36 @@ fn a_pull_failing_after_its_copy_still_reports_kept_edits(
     assert_eq!(attempt.kept_edits, Some(PathBuf::from(KEPT_DIR)));
     Ok(())
 }
+
+#[test]
+fn tracker_failures_keep_their_named_class() {
+    let detail = || "injected".to_owned();
+    let kinds = [
+        (
+            TrackerError::Retryable { detail: detail() },
+            FailureClass::Retryable,
+        ),
+        (
+            TrackerError::Terminal { detail: detail() },
+            FailureClass::Terminal,
+        ),
+        (
+            TrackerError::Unconfigured { detail: detail() },
+            FailureClass::Unconfigured,
+        ),
+        (
+            TrackerError::Rejected { detail: detail() },
+            FailureClass::Rejected,
+        ),
+    ];
+    for operation in ["show", "update", "retitle", "create"] {
+        for (source, class) in kinds.clone() {
+            let error = ApplyError::Tracker {
+                item_id: "0001".to_owned(),
+                operation,
+                source,
+            };
+            assert_eq!(error.class(), class, "{operation}");
+        }
+    }
+}
