@@ -49,6 +49,23 @@ pub enum FailureClass {
     WriteRefused,
 }
 
+impl FailureClass {
+    /// How a failed row names this class.
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Retryable => "retryable",
+            Self::Terminal => "terminal",
+            Self::Unconfigured => "unconfigured",
+            Self::Rejected => "rejected",
+            Self::Unrenderable => "unrenderable",
+            Self::PullResidue => "pull-residue",
+            Self::Unparseable => "unparseable",
+            Self::WriteRefused => "local-write-refused",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ApplyError {
     Tracker {

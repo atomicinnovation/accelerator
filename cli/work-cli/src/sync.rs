@@ -508,35 +508,7 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
             continue;
         }
         let (action_field, detail) = match &item.outcome {
-            ItemOutcome::Failed(error) => (
-                "failed",
-                match error.class() {
-                    work_adapters::sync::apply::FailureClass::Retryable => {
-                        "retryable"
-                    }
-                    work_adapters::sync::apply::FailureClass::Terminal => {
-                        "terminal"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unconfigured => {
-                        "unconfigured"
-                    }
-                    work_adapters::sync::apply::FailureClass::Rejected => {
-                        "rejected"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unrenderable => {
-                        "unrenderable"
-                    }
-                    work_adapters::sync::apply::FailureClass::PullResidue => {
-                        "pull-residue"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unparseable => {
-                        "unparseable"
-                    }
-                    work_adapters::sync::apply::FailureClass::WriteRefused => {
-                        "local-write-refused"
-                    }
-                },
-            ),
+            ItemOutcome::Failed(error) => ("failed", error.class().keyword()),
             ItemOutcome::UnsupportedRecipe => {
                 (action_keyword(item.planned.action), "unsupported-recipe")
             }
