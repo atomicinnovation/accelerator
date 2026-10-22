@@ -1812,7 +1812,7 @@ the removal so tests can assert it; none is a silent no-op.
 - [x] Production-wiring, confinement and routing tests pass:
       `cargo test -p accelerator-work -p work-adapters -p corpus-adapters --manifest-path cli/Cargo.toml`
 - [x] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
