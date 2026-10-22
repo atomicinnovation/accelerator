@@ -441,7 +441,10 @@ the researcher agent follows: `web-profile` (web search and fetch),
   is skipped and reported. At `depth` above 1, a pair is researched as a tree
   of level notes under `findings/<stem>.levels/`, each node recording the
   follow-up questions the next level researches, and the `composer` agent
-  then writes the pair's one finding from those notes.
+  then writes the pair's one finding from those notes. Each web researcher
+  gets a per-level `WebSearch` budget, and `conduct` halts its web
+  researchers when the session's search quota runs out; see
+  [Web search quota](#web-search-quota).
 
 Each pair's finding lives at `findings/<nn>-<question-slug>-<profile>.md`,
 where every profile of one focus area shares its `<nn>`. The finding's
@@ -576,6 +579,8 @@ anyway, and a write after the rename to a path the plan does not offer again
 stops the next `--run` with `E_TOPIC_RESEARCH_QUARANTINE_OWED`. No finding is
 deleted either way. Consider ignoring `**/.conduct-run.json`.
 
+#### Web search quota
+
 A web researcher whose search returns Claude Code's search-limit notice
 writes nothing and reports "web search quota exhausted". `conduct` then
 halts: it passes `--withhold-profile web` so no later plan offers a web
@@ -587,6 +592,8 @@ depth. The quota belongs to the Claude Code session, and `/clear` starts a new
 session with a full quota. Waiting for it to refill is not enough: a re-run in
 the same session sizes its budgets against the full cap, so it would halt
 again.
+
+#### Exit codes
 
 Each exit code below exits `1`:
 

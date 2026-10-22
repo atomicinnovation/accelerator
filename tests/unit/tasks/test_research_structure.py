@@ -544,6 +544,15 @@ def test_every_quota_recovery_reads_alike() -> None:
     assert in_the_cli in _rust_text(SEARCH_WORDING)
 
 
+def test_the_docs_link_conduct_to_the_quota_halt() -> None:
+    docs = _read(DOCS_RESEARCH)
+    assert "\n#### Web search quota\n" in docs
+    conduct = _section(
+        _prose(DOCS_RESEARCH), "- **`conduct`** spawns", "Each pair's finding"
+    )
+    assert "see [Web search quota](#web-search-quota)" in conduct
+
+
 def test_the_docs_explain_why_clearing_recovers_and_waiting_does_not() -> None:
     assert (
         "The quota belongs to the Claude Code session, and `/clear` starts a "
