@@ -254,9 +254,9 @@
   Claude Code 2.1.296), and records a spawn still refused once retrying
   stops, for a later run to retry. When a web researcher exhausts Claude
   Code's web search quota, `conduct` halts: it spawns no further web
-  researchers, re-issues none refused for capacity, still finishes the run's
-  other work, and opens its summary with the halt, the web pairs left
-  unfinished, and the recovery of `/clear` and a re-run.
+  researchers, re-issues no web spawn refused for capacity, still finishes
+  the run's other work, and opens its summary with the halt, the web pairs
+  left unfinished, and the recovery of `/clear` and a re-run.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
