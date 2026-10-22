@@ -1,22 +1,26 @@
 //! The retention regime governing a cache root, chosen once from its kind.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::super::cache_root::{CacheRoot, PluginBinRoot};
-use super::super::ownership::safe_root::{SafePruneRoot, TrustedOwners};
+use super::super::ownership::safe_root::{
+    SafePruneRoot, TrustedOwners, UnsafeRoot,
+};
 use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
 use super::super::tree::locks::TreeLocks;
 use super::super::tree::{TreePrune, TreePrunePorts, TreePruneRegime};
+use super::super::AfterStore;
 use super::launcher_id;
 use super::ports::CachePorts;
 use super::root_prune::{PruneOutcome, PruneReport, RootPrune};
 use super::version_claims::{self, VersionClaim};
 
-pub trait RootRetention {
+pub trait RootRetention: AfterStore {
     /// Declare that the running version still uses this root.
     fn claim_running_version(&self);
 
@@ -37,6 +41,10 @@ impl PluginBinRetention {
     pub const fn new(root: PluginBinRoot, ports: Arc<CachePorts>) -> Self {
         Self { root, ports }
     }
+}
+
+impl AfterStore for PluginBinRetention {
+    fn after_store(&self, _held_leases: &HeldLeases) {}
 }
 
 impl RootRetention for PluginBinRetention {
@@ -74,6 +82,62 @@ pub struct RelocatedRetention {
     plugin_root: Option<PathBuf>,
     trusted_owners: TrustedOwners,
     ports: Arc<CachePorts>,
+    refusal_logged: AtomicBool,
+}
+
+impl RelocatedRetention {
+    fn safe_root(&self) -> Result<SafePruneRoot, UnsafeRoot> {
+        SafePruneRoot::check(
+            &self.root,
+            self.ports.filesystem.as_ref(),
+            self.ports.ownership.as_ref(),
+            &self.trusted_owners,
+        )
+    }
+
+    fn root_prune<'a>(
+        &'a self,
+        safe: &'a SafePruneRoot,
+        claim_window: Duration,
+    ) -> RootPrune<'a> {
+        RootPrune {
+            safe,
+            running_version: &self.running_version,
+            plugin_root: self.plugin_root.as_deref(),
+            claim_window,
+            ports: &self.ports,
+        }
+    }
+
+    /// A cold path skips what it cannot lock and reports nothing to the user,
+    /// so what it could not do is logged instead, and an unsafe root only
+    /// once per process.
+    fn prune_without_waiting(&self, held_leases: &HeldLeases) {
+        match self.safe_root() {
+            Ok(safe) => warn_of(
+                &self
+                    .root_prune(&safe, CLAIM_WINDOW)
+                    .run(LockPatience::Try, held_leases),
+            ),
+            Err(unsafe_root) => {
+                if !self.refusal_logged.swap(true, Ordering::Relaxed) {
+                    tracing::warn!(%unsafe_root, "not pruning the cache root");
+                }
+            }
+        }
+    }
+}
+
+fn warn_of(report: &PruneReport) {
+    for problem in report.problems() {
+        tracing::warn!("{problem}");
+    }
+}
+
+impl AfterStore for RelocatedRetention {
+    fn after_store(&self, held_leases: &HeldLeases) {
+        self.prune_without_waiting(held_leases);
+    }
 }
 
 impl RootRetention for RelocatedRetention {
@@ -94,24 +158,13 @@ impl RootRetention for RelocatedRetention {
     /// An unsafe root removes nothing; its claims are still written, so a root
     /// made safe later keeps its protection.
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome {
-        let safe = match SafePruneRoot::check(
-            &self.root,
-            self.ports.filesystem.as_ref(),
-            self.ports.ownership.as_ref(),
-            &self.trusted_owners,
-        ) {
+        let safe = match self.safe_root() {
             Ok(safe) => safe,
             Err(unsafe_root) => return PruneOutcome::Refused(unsafe_root),
         };
         PruneOutcome::Ran(
-            RootPrune {
-                safe: &safe,
-                running_version: &self.running_version,
-                plugin_root: self.plugin_root.as_deref(),
-                claim_window: older_than.unwrap_or(CLAIM_WINDOW),
-                ports: &self.ports,
-            }
-            .run(LockPatience::Wait, &HeldLeases::none()),
+            self.root_prune(&safe, older_than.unwrap_or(CLAIM_WINDOW))
+                .run(LockPatience::Wait, &HeldLeases::none()),
         )
     }
 }
@@ -119,6 +172,10 @@ impl RootRetention for RelocatedRetention {
 /// A root that could not be identified is never claimed or pruned.
 pub struct UnidentifiedRetention {
     detail: String,
+}
+
+impl AfterStore for UnidentifiedRetention {
+    fn after_store(&self, _held_leases: &HeldLeases) {}
 }
 
 impl RootRetention for UnidentifiedRetention {
@@ -157,6 +214,7 @@ pub fn for_root(
             plugin_root: plugin_root.map(Path::to_path_buf),
             trusted_owners,
             ports,
+            refusal_logged: AtomicBool::new(false),
         }),
     }
 }

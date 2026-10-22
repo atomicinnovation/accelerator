@@ -37,7 +37,9 @@ use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention_windows::{
     CLAIM_WINDOW, REFRESH_FRACTION,
 };
-use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
+use accelerator::launch::outbound::resolve::tree::lease::{
+    FlockProbe, HeldLeases,
+};
 use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::tree::reap::UnobservedRemovals;
 use accelerator::launch::outbound::resolve::tree::{
@@ -45,7 +47,8 @@ use accelerator::launch::outbound::resolve::tree::{
 };
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
-    cache, FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+    cache, FetchVerifyCacheResolver, NothingAfterStore, ResolverConfig,
+    ResolverPorts, HOST_PLATFORM,
 };
 use accelerator::launch::start_up::{start_up, DispatchConfig, StartUp};
 use common::recording_filesystem::{
@@ -55,7 +58,6 @@ use common::signed_release::{
     asset_path, generate_keypair, manifest_json, sign, SignedRelease, BINARY,
     VERSION,
 };
-
 
 fn tempdir(tag: &str) -> TempDir {
     tempfile::Builder::new()
@@ -112,7 +114,11 @@ impl Harness {
             self.keys(),
             Fetcher::with_backoff(std::time::Duration::from_millis(1))
                 .expect("fetcher"),
-            filesystem,
+            ResolverPorts {
+                filesystem,
+                after_store: Arc::new(NothingAfterStore),
+                held_leases: HeldLeases::none(),
+            },
         )
     }
 
@@ -172,14 +178,17 @@ impl Harness {
 
     fn dispatch_resolver(&self, start: &StartUp) -> FetchVerifyCacheResolver {
         start
-            .dispatch_resolver(DispatchConfig {
-                base_url: self.server.base_url(),
-                keys: self.keys(),
-                fetcher: Fetcher::with_backoff(
-                    std::time::Duration::from_millis(1),
-                )
-                .expect("fetcher"),
-            })
+            .dispatch_resolver(
+                DispatchConfig {
+                    base_url: self.server.base_url(),
+                    keys: self.keys(),
+                    fetcher: Fetcher::with_backoff(
+                        std::time::Duration::from_millis(1),
+                    )
+                    .expect("fetcher"),
+                },
+                &[],
+            )
             .expect("dispatch resolver")
     }
 

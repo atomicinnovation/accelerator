@@ -11,10 +11,18 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use lease::lease_beside;
 use tempfile::TempDir;
 
+use std::ffi::OsString;
+
 use accelerator::launch::cache;
-use accelerator::launch::core::tree::{Clock, TreeError};
+use accelerator::launch::core::tree::{
+    AcquiredTree, Clock, HeldLease, MaterialiseTree as _, SealedTree, TreeError,
+};
+use accelerator::launch::core::{
+    acquire_trees, run_external, ExecBinary, ExternalCommand, ResolutionError,
+};
 use accelerator::launch::inbound::cli::CacheAction;
 use accelerator::launch::outbound::resolve::cache::store;
 use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
@@ -62,13 +70,16 @@ use accelerator::launch::outbound::resolve::tree::{
     TreePruneReport,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
-use accelerator::launch::start_up::{start_up, StartUp, TreeConfig};
+use accelerator::launch::start_up::{
+    start_up, DispatchConfig, StartUp, TreeConfig,
+};
 use common::recording_filesystem::{
     in_root, FilesystemCall, RecordedPath, RecordingFilesystem, ScriptedEvent,
     TimelineEvent,
 };
 use common::recording_locks::{LockCall, RecordingLocks};
 use common::scripted_filesystem::ScriptedFilesystem;
+use common::signed_release::{SignedRelease, BINARY};
 use common::trees::{
     another_platform, digest, exists, on_host, set_mode, set_mtime,
     FailingLockAt, FixedClock, FixedLiveness, Trees,
@@ -318,6 +329,12 @@ fn prune_through(start: &StartUp, older_than: Option<u64>) -> Verb {
 
 #[test]
 fn foreign_names_survive_every_trigger() {
+    for trigger in EVERY_TRIGGER {
+        foreign_names_survive(trigger);
+    }
+}
+
+fn foreign_names_survive(trigger: Trigger) {
     let harness = RootHarness::new();
     let foreign = [
         ".tmp-foreign".to_owned(),
@@ -351,20 +368,34 @@ fn foreign_names_survive_every_trigger() {
     let unclaimed_tree =
         trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
 
-    let verb = harness.prune(harness.ports());
+    let fired = harness.fire(trigger, harness.ports());
 
-    verb.succeeded();
+    if let Fired::Verb(verb) = &fired {
+        verb.succeeded();
+        assert!(verb.out.contains("reclaimed 2 entries"), "{}", verb.out);
+    }
+    if !fired.ran() {
+        return;
+    }
     assert!(foreign.iter().all(|name| harness.has(name)));
     assert!(foreign_claim.exists());
     assert!(foreign_in_trees.iter().all(|path| exists(path)));
     assert!(foreign_directories.iter().all(|path| exists(path)));
-    assert!(!harness.has(&unclaimed), "the positive control survived");
+    assert!(
+        !harness.has(&unclaimed),
+        "{trigger:?}: the positive control survived"
+    );
     unclaimed_tree.assert_reclaimed();
-    assert!(verb.out.contains("reclaimed 2 entries"), "{}", verb.out);
 }
 
 #[test]
 fn the_kept_names_survive_beside_an_unclaimed_version() {
+    for trigger in EVERY_TRIGGER {
+        kept_names_survive(trigger);
+    }
+}
+
+fn kept_names_survive(trigger: Trigger) {
     let harness = RootHarness::new();
     let lock = harness.join(&format!(".accelerator-lock-{HOST_PLATFORM}"));
     std::fs::create_dir(&lock).expect("lock");
@@ -385,17 +416,25 @@ fn the_kept_names_survive_beside_an_unclaimed_version() {
     std::fs::create_dir(harness.join("trees")).expect("trees");
     let unclaimed = harness.entry(OLD, harness.aged());
 
-    harness
-        .prune(Ports {
+    let fired = harness.fire(
+        trigger,
+        Ports {
             bootstrap_holders: Arc::new(LiveHolders(vec![4242])),
             ..harness.ports()
-        })
-        .succeeded();
+        },
+    );
+
+    if let Fired::Verb(verb) = &fired {
+        verb.succeeded();
+    }
+    if !fired.ran() {
+        return;
+    }
 
     assert!(lock.join("pid").exists());
     assert!(kept.iter().all(|name| harness.has(name)));
     assert!(harness.has("trees"));
-    assert!(!harness.has(&unclaimed));
+    assert!(!harness.has(&unclaimed), "{trigger:?}");
 }
 
 #[test]
@@ -2174,6 +2213,12 @@ fn no_production_path_unlinks_a_tree_lock_it_does_not_hold() {
 
 #[test]
 fn no_prune_path_probes_or_takes_a_lock_it_holds() {
+    for trigger in EVERY_TRIGGER {
+        no_lock_held_is_probed_or_taken(trigger);
+    }
+}
+
+fn no_lock_held_is_probed_or_taken(trigger: Trigger) {
     let harness = RootHarness::new();
     let trees = harness.trees();
     trees.plant_tree(&on_host("aardvark"), &digest('a'), harness.aged());
@@ -2198,20 +2243,31 @@ fn no_prune_path_probes_or_takes_a_lock_it_holds() {
     harness.entry(OLD, harness.aged());
     let locks = RecordingLocks::default();
 
-    harness
-        .prune(Ports {
+    let fired = harness.fire(
+        trigger,
+        Ports {
             locks: Arc::new(locks.clone()),
             ..harness.ports()
-        })
-        .succeeded();
+        },
+    );
 
+    if let Fired::Verb(verb) = &fired {
+        verb.succeeded();
+    }
+    if !fired.ran() {
+        return;
+    }
     let calls = locks.calls();
     assert!(
         calls.iter().any(|(call, _)| *call == LockCall::Probe),
-        "the reap probed no other artifact's lock: {calls:#?}"
+        "{trigger:?}: the reap probed no other artifact's lock: {calls:#?}"
     );
-    assert!(calls.len() >= 5, "{calls:#?}");
-    assert_eq!(locks.calls_on_held_locks(), Vec::new(), "{calls:#?}");
+    assert!(calls.len() >= 5, "{trigger:?}: {calls:#?}");
+    assert_eq!(
+        locks.calls_on_held_locks(),
+        Vec::new(),
+        "{trigger:?}: {calls:#?}"
+    );
 }
 
 #[test]
@@ -2314,17 +2370,24 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
             _ => PathBuf::from(format!("{}/", bin.display())),
         };
 
-        let verb = prune_through(
-            &harness.start_over(
-                &cache_dir,
-                TrustedOwners::none(),
-                Ports {
-                    pins: pinning("driver", &digest('a')),
-                    ..harness.ports()
-                },
-            ),
-            None,
+        let start = harness.start_over(
+            &cache_dir,
+            TrustedOwners::none(),
+            Ports {
+                pins: pinning("driver", &digest('a')),
+                ..harness.ports()
+            },
         );
+        if let Some(release) = harness.release() {
+            cold_dispatch_through(
+                &start,
+                &release,
+                &[],
+                &SnapshotAtExec::watching(bin.clone()),
+            );
+            superseded.assert_survives();
+        }
+        let verb = prune_through(&start, None);
 
         verb.succeeded();
         assert!(!bin.join(VERSION_CLAIMS_DIR).exists(), "{spelling}");
@@ -2336,5 +2399,558 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
             );
         }
         superseded.assert_reclaimed();
+    }
+}
+
+/// Records whether a seeded name was still present at the moment `exec`
+/// was reached, and the program it was asked to run.
+struct SnapshotAtExec {
+    watched: PathBuf,
+    present_at_exec: Mutex<Option<bool>>,
+    program: Mutex<Option<PathBuf>>,
+}
+
+impl SnapshotAtExec {
+    const fn watching(watched: PathBuf) -> Self {
+        Self {
+            watched,
+            present_at_exec: Mutex::new(None),
+            program: Mutex::new(None),
+        }
+    }
+
+    fn present_at_exec(&self) -> Option<bool> {
+        *self.present_at_exec.lock().expect("snapshot")
+    }
+
+    fn program(&self) -> Option<PathBuf> {
+        self.program.lock().expect("program").clone()
+    }
+}
+
+impl ExecBinary for SnapshotAtExec {
+    fn exec(&self, program: &Path, _args: &[OsString]) -> ResolutionError {
+        *self.present_at_exec.lock().expect("snapshot") =
+            Some(self.watched.symlink_metadata().is_ok());
+        *self.program.lock().expect("program") = Some(program.to_path_buf());
+        ResolutionError::Exec {
+            program: program.to_path_buf(),
+            source: std::io::Error::other("executed"),
+        }
+    }
+}
+
+/// A dispatch whose sub-binary is not cached, holding `consumed` as `run`
+/// holds the trees it acquired.
+fn cold_dispatch_through(
+    start: &StartUp,
+    release: &SignedRelease,
+    consumed: &[AcquiredTree],
+    executor: &impl ExecBinary,
+) -> ResolutionError {
+    let resolver = start
+        .dispatch_resolver(
+            DispatchConfig {
+                base_url: release.server.base_url(),
+                keys: release.keys(),
+                fetcher: Fetcher::with_backoff(Duration::from_millis(1))
+                    .expect("fetcher"),
+            },
+            consumed,
+        )
+        .expect("dispatch resolver");
+    run_external(&resolver, executor, &visualiser())
+}
+
+fn visualiser() -> ExternalCommand {
+    ExternalCommand {
+        name: OsString::from(BINARY),
+        args: vec![],
+    }
+}
+
+impl RootHarness {
+    fn release(&self) -> Option<SignedRelease> {
+        self.release_with_trees(&[])
+    }
+
+    fn release_with_trees(&self, artifacts: &[&str]) -> Option<SignedRelease> {
+        SignedRelease::serve_or_skip_with_trees(self.anchor.path(), artifacts)
+    }
+
+    fn cold_dispatch(
+        &self,
+        release: &SignedRelease,
+        ports: Ports,
+        executor: &impl ExecBinary,
+    ) -> ResolutionError {
+        let start = self.start_over(&self.root, TrustedOwners::none(), ports);
+        cold_dispatch_through(&start, release, &[], executor)
+    }
+
+    fn dispatched(&self, release: &SignedRelease, ports: Ports) {
+        let executor = SnapshotAtExec::watching(self.root.clone());
+        let failure = self.cold_dispatch(release, ports, &executor);
+        assert!(
+            executor.program().is_some(),
+            "the dispatch never reached exec: {failure}"
+        );
+    }
+}
+
+#[test]
+fn a_cold_dispatch_prunes_before_exec() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let executor = SnapshotAtExec::watching(harness.join(&unclaimed));
+
+    harness.cold_dispatch(&release, harness.ports(), &executor);
+
+    assert_eq!(executor.present_at_exec(), Some(false));
+    let program = executor.program().expect("exec reached");
+    assert_eq!(
+        std::fs::read(program).expect("stored"),
+        release.fixture_bytes
+    );
+}
+
+#[test]
+fn a_held_root_lock_does_not_delay_a_cold_dispatch() {
+    let harness = Arc::new(RootHarness::new());
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let held = FlockLocks.take(&harness.join(ROOT_LOCK)).expect("held");
+    let (done, finished) = mpsc::channel();
+    let dispatcher = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            harness.dispatched(&release, harness.ports());
+            done.send(()).expect("announced");
+        })
+    };
+
+    let reached = finished.recv_timeout(BOUND);
+
+    drop(held);
+    dispatcher.join().expect("dispatcher");
+    assert!(reached.is_ok(), "the dispatch waited for the root lock");
+    assert!(harness.has(&unclaimed));
+}
+
+#[test]
+fn a_cold_dispatch_skips_a_held_tree_lock_and_prunes_the_rest() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let trees = harness.trees();
+    let held_artifact = on_host("retired-x");
+    let kept = trees.plant_tree(&held_artifact, &digest('a'), harness.aged());
+    let removed =
+        trees.plant_tree(&on_host("retired-y"), &digest('b'), harness.aged());
+    let held = FlockLocks
+        .take(&trees.paths().single_flight_lock(&held_artifact))
+        .expect("held");
+
+    harness.dispatched(&release, harness.ports());
+
+    drop(held);
+    kept.assert_survives();
+    removed.assert_reclaimed();
+}
+
+struct HeldByTest;
+
+impl HeldLease for HeldByTest {}
+
+/// Answers `Free` for every lease and remembers each it was asked about, so
+/// a test can see whether a lease this process holds was probed.
+#[derive(Default)]
+struct ProbedLeases(Mutex<Vec<PathBuf>>);
+
+impl ProbedLeases {
+    fn of_generations(&self, generations: &[PathBuf]) -> Vec<PathBuf> {
+        self.0
+            .lock()
+            .expect("probed")
+            .iter()
+            .filter(|lease| {
+                generations
+                    .iter()
+                    .any(|generation| lease_beside(generation) == **lease)
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+impl LivenessProbe for ProbedLeases {
+    fn probe(&self, lease: &Path) -> Liveness {
+        self.0.lock().expect("probed").push(lease.to_path_buf());
+        Liveness::Free
+    }
+}
+
+fn acquired(tree: &common::trees::PlantedTree) -> AcquiredTree {
+    AcquiredTree {
+        tree: SealedTree {
+            artifact: "retired".to_owned(),
+            path: tree.generation.clone(),
+            lease_path: lease_beside(&tree.generation),
+            digest: digest('a'),
+        },
+        lease: Box::new(HeldByTest),
+    }
+}
+
+#[test]
+fn a_cold_store_never_probes_its_own_held_leases() {
+    for consumed in [true, false] {
+        let harness = RootHarness::new();
+        let Some(release) = harness.release() else {
+            return;
+        };
+        let tree = harness.trees().plant_tree(
+            &on_host("retired"),
+            &digest('a'),
+            harness.aged(),
+        );
+        let liveness = Arc::new(ProbedLeases::default());
+        let start = harness.start_over(
+            &harness.root,
+            TrustedOwners::none(),
+            Ports {
+                lease_liveness: Arc::clone(&liveness)
+                    as Arc<dyn LivenessProbe + Send + Sync>,
+                ..harness.ports()
+            },
+        );
+        let held: Vec<AcquiredTree> = if consumed {
+            vec![acquired(&tree)]
+        } else {
+            Vec::new()
+        };
+
+        cold_dispatch_through(
+            &start,
+            &release,
+            &held,
+            &SnapshotAtExec::watching(harness.root.clone()),
+        );
+
+        let probed =
+            liveness.of_generations(std::slice::from_ref(&tree.generation));
+        if consumed {
+            assert_eq!(probed, Vec::<PathBuf>::new());
+            tree.assert_survives();
+        } else {
+            assert!(!probed.is_empty(), "the control never fired");
+        }
+    }
+}
+
+/// A clock a test moves on between two steps of one launcher's run.
+struct SettableClock(std::sync::atomic::AtomicU64);
+
+impl SettableClock {
+    fn set(&self, seconds: u64) {
+        self.0.store(seconds, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl Clock for SettableClock {
+    fn now_seconds(&self) -> u64 {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn sleep_poll_interval(&self) {}
+}
+
+fn tree_config<'a>(
+    release: &SignedRelease,
+    keys: &'a TrustedKeys,
+    fetcher: &'a Fetcher,
+) -> TreeConfig<'a> {
+    TreeConfig {
+        base_url: release.server.base_url(),
+        keys,
+        fetcher,
+        expected_digests: ExpectedDigests::Fixed(release.tree_digests()),
+        waiter_bound: Duration::from_secs(5),
+        steps: &NoSteps,
+    }
+}
+
+#[test]
+fn acquired_trees_are_never_probed_by_the_cold_store_prune() {
+    for consumed in [true, false] {
+        let harness = RootHarness::new();
+        let artifacts = ["driver", "browser"];
+        let Some(release) = harness.release_with_trees(&artifacts) else {
+            return;
+        };
+        let clock = Arc::new(SettableClock(harness.now.into()));
+        let liveness = Arc::new(ProbedLeases::default());
+        let start = harness.start_over(
+            &harness.root,
+            TrustedOwners::none(),
+            Ports {
+                clock: Arc::clone(&clock) as Arc<dyn Clock + Send + Sync>,
+                lease_liveness: Arc::clone(&liveness)
+                    as Arc<dyn LivenessProbe + Send + Sync>,
+                pins: ExpectedDigests::Fixed(BTreeMap::new()),
+                ..harness.ports()
+            },
+        );
+        let keys = release.keys();
+        let fetcher =
+            Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+        let trees = start
+            .tree_resolver(tree_config(&release, &keys, &fetcher))
+            .expect("tree resolver");
+        for artifact in artifacts {
+            trees.materialise(artifact).expect("materialised");
+        }
+        let held = acquire_trees(&trees, &artifacts).expect("acquired");
+        let generations: Vec<PathBuf> =
+            held.iter().map(|tree| tree.tree.path.clone()).collect();
+        assert_eq!(generations.len(), artifacts.len());
+        clock.set(harness.now + 2 * CLAIM_WINDOW.as_secs());
+        let consumed_trees: &[AcquiredTree] =
+            if consumed { &held } else { &[] };
+
+        cold_dispatch_through(
+            &start,
+            &release,
+            consumed_trees,
+            &SnapshotAtExec::watching(harness.root.clone()),
+        );
+
+        let probed = liveness.of_generations(&generations);
+        if consumed {
+            assert_eq!(probed, Vec::<PathBuf>::new());
+            assert!(generations.iter().all(|generation| generation.exists()));
+        } else {
+            assert!(!probed.is_empty(), "the control never fired");
+        }
+    }
+}
+
+#[test]
+fn a_cold_prune_behind_a_paused_prune_returns_without_touching_anything() {
+    let harness = Arc::new(RootHarness::new());
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let (announce, announced) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    let pause = Arc::new(Pause {
+        at: PruneStep::RootLockHeld,
+        reached: Mutex::new(Some(announce)),
+        resume: Mutex::new(resumed),
+    });
+    let first = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            harness
+                .prune(Ports {
+                    steps: pause,
+                    ..harness.ports()
+                })
+                .outcome
+                .is_ok()
+        })
+    };
+    announced
+        .recv_timeout(BOUND)
+        .expect("the first prune paused");
+
+    harness.dispatched(&release, harness.ports());
+
+    assert!(harness.has(&unclaimed), "the cold prune did not skip");
+    let (done, finished) = mpsc::channel();
+    let second = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            let succeeded = harness.prune(harness.ports()).outcome.is_ok();
+            done.send(()).expect("announced");
+            succeeded
+        })
+    };
+    assert!(
+        finished.recv_timeout(Duration::from_millis(300)).is_err(),
+        "the verb did not wait behind the paused prune"
+    );
+    resume.send(()).expect("resumed");
+    assert!(first.join().expect("first prune"));
+    finished.recv_timeout(BOUND).expect("the verb finished");
+    assert!(second.join().expect("second prune"));
+    assert!(!harness.has(&unclaimed));
+}
+
+#[test]
+fn an_enolck_root_lock_skips_single_file_work_on_the_cold_path() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+
+    harness.dispatched(
+        &release,
+        Ports {
+            locks: Arc::new(FailingLockAt(harness.join(ROOT_LOCK))),
+            ..harness.ports()
+        },
+    );
+
+    assert!(harness.has(&unclaimed));
+    tree.assert_reclaimed();
+}
+
+#[test]
+fn an_enolck_tree_lock_skips_only_that_artifact_on_cold_paths() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let trees = harness.trees();
+    let failing = on_host("retired-x");
+    let kept = trees.plant_tree(&failing, &digest('a'), harness.aged());
+    let removed =
+        trees.plant_tree(&on_host("retired-y"), &digest('b'), harness.aged());
+
+    harness.dispatched(
+        &release,
+        Ports {
+            locks: Arc::new(FailingLockAt(
+                trees.paths().single_flight_lock(&failing),
+            )),
+            ..harness.ports()
+        },
+    );
+
+    kept.assert_survives();
+    removed.assert_reclaimed();
+}
+
+#[test]
+fn a_development_checkout_relocated_elsewhere_prunes_on_its_cold_path() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release() else {
+        return;
+    };
+    let checkout = harness.anchor.path().join("checkout");
+    std::fs::create_dir_all(checkout.join("bin")).expect("checkout bin");
+    std::fs::write(checkout.join("bin/accelerator"), b"#!/bin/sh\n")
+        .expect("checkout launcher");
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let start = start_up(
+        &CacheRootConfig {
+            cache_dir_override: Some(harness.root.clone()),
+            plugin_root: Some(checkout),
+        },
+        TrustedOwners::none(),
+        harness.ports().build(),
+    );
+
+    cold_dispatch_through(
+        &start,
+        &release,
+        &[],
+        &SnapshotAtExec::watching(harness.root.clone()),
+    );
+
+    assert!(!harness.has(&unclaimed));
+}
+
+fn owned_by_another_uid(path: &Path) -> EntryMetadata {
+    EntryMetadata {
+        owner: ProcessOwnership::default().effective_uid() + 1,
+        ..SystemFilesystem.entry(path).expect("metadata")
+    }
+}
+
+#[test]
+fn an_unsafe_root_is_not_pruned_from_any_trigger() {
+    for unsafe_metadata in [shared_group_writable, owned_by_another_uid] {
+        for trigger in COLD_TRIGGERS {
+            let harness = RootHarness::new();
+            let unclaimed = harness.entry(OLD, harness.aged());
+            let tree = harness.trees().plant_tree(
+                &on_host("retired"),
+                &digest('a'),
+                harness.aged(),
+            );
+            let filesystem = ReportingFilesystem::over_system()
+                .reporting(&harness.root, unsafe_metadata(&harness.root));
+
+            if !harness
+                .fire(
+                    trigger,
+                    Ports {
+                        filesystem: Arc::new(filesystem),
+                        ..harness.ports()
+                    },
+                )
+                .ran()
+            {
+                return;
+            }
+
+            assert!(harness.has(&unclaimed), "{trigger:?}");
+            tree.assert_survives();
+        }
+    }
+}
+
+/// What can set a root prune off: the verb, or a cold path of a dispatch.
+#[derive(Debug, Clone, Copy)]
+enum Trigger {
+    Verb,
+    ColdStore,
+}
+
+const COLD_TRIGGERS: [Trigger; 1] = [Trigger::ColdStore];
+
+const EVERY_TRIGGER: [Trigger; 2] = [Trigger::Verb, Trigger::ColdStore];
+
+enum Fired {
+    Verb(Verb),
+    Dispatch,
+    /// This host cannot fire the trigger, as when `minisign` is absent
+    /// outside CI.
+    Skipped,
+}
+
+impl Fired {
+    const fn ran(&self) -> bool {
+        !matches!(self, Self::Skipped)
+    }
+}
+
+impl RootHarness {
+    fn fire(&self, trigger: Trigger, ports: Ports) -> Fired {
+        match trigger {
+            Trigger::Verb => Fired::Verb(self.prune(ports)),
+            Trigger::ColdStore => {
+                let Some(release) = self.release() else {
+                    return Fired::Skipped;
+                };
+                self.dispatched(&release, ports);
+                Fired::Dispatch
+            }
+        }
     }
 }
