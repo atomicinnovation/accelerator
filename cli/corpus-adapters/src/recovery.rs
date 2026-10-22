@@ -38,20 +38,40 @@ impl FileRecoveryCopies {
         }
     }
 
+    /// `dir` on disk, refused when it would reach outside the state root
+    /// or pass through a link on the way, the root itself included: a
+    /// cloned repository can ship its state directory, so containment is
+    /// never trusted lexically alone.
     fn contained(&self, dir: &Path) -> Result<PathBuf, StoreError> {
-        if dir
+        let location = self.contained_up_to(dir)?;
+        refuse_link(&location)?;
+        Ok(location)
+    }
+
+    /// As [`Self::contained`], letting `dir` itself be a link, so the link
+    /// alone can be removed.
+    fn contained_up_to(&self, dir: &Path) -> Result<PathBuf, StoreError> {
+        if !dir
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
         {
-            Ok(self.location(dir))
-        } else {
-            Err(StoreError::Validation {
+            return Err(StoreError::Validation {
                 detail: format!(
                     "{} would reach outside the recovery state directory",
                     dir.display()
                 ),
-            })
+            });
         }
+        refuse_link(&self.state_root)?;
+        let mut walked = self.state_root.clone();
+        let mut components = dir.components().peekable();
+        while let Some(component) = components.next() {
+            walked.push(component);
+            if components.peek().is_some() {
+                refuse_link(&walked)?;
+            }
+        }
+        Ok(walked)
     }
 
     fn mirrored(&self, dir: &Path, original: &Path) -> PathBuf {
@@ -79,6 +99,17 @@ impl FileRecoveryCopies {
             .is_ok_and(|metadata| metadata.is_dir())
             .then_some(location)
     }
+}
+
+fn refuse_link(path: &Path) -> Result<(), StoreError> {
+    if fs::symlink_metadata(path)
+        .is_ok_and(|metadata| metadata.file_type().is_symlink())
+    {
+        return Err(StoreError::UnsafePath {
+            path: path.display().to_string(),
+        });
+    }
+    Ok(())
 }
 
 fn only_normal_components(path: &Path) -> bool {
@@ -223,7 +254,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     }
 
     fn remove_dir(&self, dir: &Path) -> Result<(), StoreError> {
-        let location = self.contained(dir)?;
+        let location = self.contained_up_to(dir)?;
         if fs::symlink_metadata(&location)
             .is_ok_and(|metadata| metadata.file_type().is_symlink())
         {
@@ -239,7 +270,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     }
 
     fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
-        let location = self.location(parent);
+        let location = self.contained(parent)?;
         let entries = match fs::read_dir(&location) {
             Ok(entries) => entries,
             Err(error) if error.kind() == ErrorKind::NotFound => {
@@ -781,5 +812,69 @@ mod tests {
         assert!(outcome.is_err());
         assert_eq!(fs::read_to_string(&record)?, "the previous record\n");
         Ok(())
+    }
+
+    #[cfg(unix)]
+    fn linked_parent(parent: &str) -> Result<(TempDir, TempDir), TestError> {
+        let state = TempDir::new()?;
+        let outside = TempDir::new()?;
+        std::os::unix::fs::symlink(outside.path(), state.path().join(parent))?;
+        Ok((state, outside))
+    }
+
+    #[cfg(unix)]
+    fn assert_refused(
+        store: &FileRecoveryCopies,
+        parent: &str,
+        outside: &Path,
+    ) -> Result<(), TestError> {
+        let dir = Path::new(parent).join("1700000000-k7mq3x-0001");
+        assert!(matches!(
+            store.prepare(&dir),
+            Err(StoreError::UnsafePath { .. })
+        ));
+        assert!(matches!(
+            store.all_entries(Path::new(parent)),
+            Err(StoreError::UnsafePath { .. })
+        ));
+        assert!(matches!(
+            store.remove_dir(&dir),
+            Err(StoreError::UnsafePath { .. })
+        ));
+        assert!(matches!(
+            store.kept(Path::new(parent)),
+            Err(StoreError::UnsafePath { .. })
+        ));
+        assert_eq!(fs::read_dir(outside)?.count(), 0, "nothing lands outside");
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_sync_recovery_directory_is_refused() -> Result<(), TestError>
+    {
+        let (state, outside) = linked_parent("sync-recovery")?;
+        assert_refused(&copies(&state), "sync-recovery", outside.path())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_retirement_recovery_directory_is_refused(
+    ) -> Result<(), TestError> {
+        let (state, outside) = linked_parent("retirement-recovery")?;
+        assert_refused(&copies(&state), "retirement-recovery", outside.path())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_recovery_root_symlinked_out_of_the_repository_is_refused(
+    ) -> Result<(), TestError> {
+        let repository = TempDir::new()?;
+        let outside = TempDir::new()?;
+        let state = repository.path().join("state");
+        std::os::unix::fs::symlink(outside.path(), &state)?;
+        let store = FileRecoveryCopies::new(&state, repository.path());
+
+        assert_refused(&store, "sync-recovery", outside.path())
     }
 }
