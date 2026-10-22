@@ -2,7 +2,6 @@
 //! change the run's outcome.
 
 use std::io::Write;
-use std::path::Path;
 use std::sync::Arc;
 
 use linear_client::cache::CacheError;
@@ -13,40 +12,10 @@ use linear_client::healing::CatalogueHealing;
 use linear_client::healing::FetchUnavailable;
 use linear_client::healing::HealOutcome;
 use linear_client::healing::SyncedTeams;
-use tracker::ExternalId;
 use work_adapters::sync::run::DiscoveryStatus;
-use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunMode;
-use work_adapters::sync::run::RunReport;
 
-pub struct FinishedRun<'a> {
-    pub report: &'a RunReport,
-    pub mode: RunMode,
-    /// The `external_id` of every tracked work item in the corpus.
-    pub corpus_external_ids: Vec<ExternalId>,
-    pub integrations_root: &'a Path,
-    pub repo_root: &'a Path,
-}
-
-impl FinishedRun<'_> {
-    /// The remote issues this run imported as new work items. A
-    /// create-from-remote item is planned under its external id, having no
-    /// local id until it is authored.
-    #[must_use]
-    pub fn applied_imports(&self) -> Vec<ExternalId> {
-        self.report
-            .reported
-            .iter()
-            .filter(|item| {
-                matches!(
-                    item.planned.action,
-                    work::sync::Action::CreateFromRemote
-                ) && matches!(item.outcome, ItemOutcome::Applied)
-            })
-            .map(|item| ExternalId::new(item.planned.id.clone()))
-            .collect()
-    }
-}
+pub use crate::finished_run::FinishedRun;
 
 pub trait RunFinaliser {
     /// Runs after the report is rendered, writing anything worth saying to
@@ -169,6 +138,12 @@ mod tests {
     use work::sync::{Action, PlannedAction, SyncState};
     use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ReportedItem;
+
+    use std::path::Path;
+
+    use tracker::ExternalId;
+    use work_adapters::sync::run::ItemOutcome;
+    use work_adapters::sync::run::RunReport;
 
     use super::*;
 
@@ -310,6 +285,10 @@ mod tests {
                         .collect(),
                     integrations_root: &integrations,
                     repo_root: self.root.path(),
+                    kept_edits:
+                        work_adapters::sync::kept_edits::KeptEditsReview {
+                            entries: Vec::new(),
+                        },
                 },
                 &mut diagnostics,
             );
@@ -523,6 +502,9 @@ mod tests {
             corpus_external_ids: Vec::new(),
             integrations_root: integrations,
             repo_root: integrations,
+            kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
+                entries: Vec::new(),
+            },
         };
 
         assert_eq!(
@@ -554,6 +536,9 @@ mod tests {
                 corpus_external_ids: vec![ExternalId::new("ENG-1".to_owned())],
                 integrations_root: &integrations,
                 repo_root: repo.root.path(),
+                kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
+                    entries: Vec::new(),
+                },
             },
             &mut Vec::new(),
         );
