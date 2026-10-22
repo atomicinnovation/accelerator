@@ -11,6 +11,7 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::CopyComparison;
 use corpus::store::KeptRecovery;
 use corpus::store::RecordedCopy;
@@ -71,34 +72,73 @@ impl Tracker {
     }
 }
 
-/// The baseline in memory and the work items on disk, recording every write.
+/// The work items on disk, recording every write.
 #[derive(Default)]
-struct Store {
-    baseline: RefCell<Option<String>>,
+struct WorkItems {
     writes: RefCell<Vec<PathBuf>>,
 }
 
-impl FileReader for Store {
-    fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
-        if path == Path::new(BASELINE_PATH) {
-            return Ok(self.baseline.borrow().clone());
-        }
-        Ok(std::fs::read_to_string(path).ok())
+impl AtomicWrite for WorkItems {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        self.writes.borrow_mut().push(path.to_path_buf());
+        std::fs::write(path, bytes).map_err(|error| io(path, &error))
     }
 }
 
-impl AtomicWrite for Store {
-    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-        self.writes.borrow_mut().push(path.to_path_buf());
+impl FileRemove for WorkItems {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        std::fs::remove_file(path).map_err(|error| io(path, &error))
+    }
+}
+
+/// The integration state, of which a run here writes only the baseline,
+/// held in memory.
+#[derive(Default)]
+struct IntegrationState {
+    baseline: RefCell<Option<String>>,
+}
+
+impl IntegrationState {
+    fn refuse_other_than_the_baseline(path: &Path) -> Result<(), StoreError> {
         if path == Path::new(BASELINE_PATH) {
-            *self.baseline.borrow_mut() =
-                Some(String::from_utf8_lossy(bytes).into_owned());
-            return Ok(());
+            Ok(())
+        } else {
+            Err(StoreError::UnsafePath {
+                path: path.display().to_string(),
+            })
         }
-        std::fs::write(path, bytes).map_err(|error| StoreError::Io {
-            path: path.display().to_string(),
-            detail: error.to_string(),
-        })
+    }
+}
+
+impl FileReader for IntegrationState {
+    fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+        Self::refuse_other_than_the_baseline(path)
+            .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+        Ok(self.baseline.borrow().clone())
+    }
+}
+
+impl AtomicWrite for IntegrationState {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        Self::refuse_other_than_the_baseline(path)?;
+        *self.baseline.borrow_mut() =
+            Some(String::from_utf8_lossy(bytes).into_owned());
+        Ok(())
+    }
+}
+
+impl FileRemove for IntegrationState {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        Self::refuse_other_than_the_baseline(path)?;
+        *self.baseline.borrow_mut() = None;
+        Ok(())
+    }
+}
+
+fn io(path: &Path, error: &std::io::Error) -> StoreError {
+    StoreError::Io {
+        path: path.display().to_string(),
+        detail: error.to_string(),
     }
 }
 
@@ -335,7 +375,8 @@ pub struct Repo {
     tracker_kind: Tracker,
     pub items: Vec<LocalItem>,
     pub tracker: RecordingTracker,
-    store: Store,
+    work_items: WorkItems,
+    integration_state: IntegrationState,
     events: FileEvents,
     tracking: Option<Box<dyn RepositoryTracking>>,
 }
@@ -466,8 +507,8 @@ impl Repo {
         paths: Vec<(usize, PathBuf)>,
         entries: &[String],
     ) -> Self {
-        let store = Store::default();
-        *store.baseline.borrow_mut() = Some(format!(
+        let integration_state = IntegrationState::default();
+        *integration_state.baseline.borrow_mut() = Some(format!(
             "{{\"timestamp\":0,\"items\":{{{}}}}}\n",
             entries.join(",")
         ));
@@ -483,7 +524,8 @@ impl Repo {
                 })
                 .collect(),
             tracker,
-            store,
+            work_items: WorkItems::default(),
+            integration_state,
             events: FileEvents::default(),
             tracking: None,
         }
@@ -501,13 +543,14 @@ impl Repo {
             parser: &CommonMarkBody,
             status: &Clean,
             files: SyncFiles {
+                work_items: &self.work_items,
+                integration_state: &self.integration_state,
                 file_locks: &self.events,
                 recovery: &self.events,
                 tracking: self
                     .tracking
                     .as_deref()
                     .unwrap_or(&super::AllTracked),
-                ..super::sync_files(&self.store)
             },
             clock: &FixedClock,
             author: &author,
@@ -515,8 +558,8 @@ impl Repo {
         };
         let mut store = BaselineStore::new(
             PathBuf::from(BASELINE_PATH),
-            &self.store,
-            &self.store,
+            &self.integration_state,
+            &self.integration_state,
         );
         run(
             &ports,
@@ -615,7 +658,7 @@ impl Repo {
     }
 
     pub fn baseline_text(&self) -> Option<String> {
-        self.store.baseline.borrow().clone()
+        self.integration_state.baseline.borrow().clone()
     }
 
     pub fn entry(&self, index: usize) -> Option<Entry> {
@@ -627,15 +670,11 @@ impl Repo {
 
     /// Whether the run wrote any work-item file.
     pub fn wrote_an_item(&self) -> bool {
-        self.store
-            .writes
-            .borrow()
-            .iter()
-            .any(|path| path != Path::new(BASELINE_PATH))
+        !self.work_items.writes.borrow().is_empty()
     }
 
     pub fn forget_writes(&self) {
-        self.store.writes.borrow_mut().clear();
+        self.work_items.writes.borrow_mut().clear();
     }
 
     pub fn dialect(&self) -> Box<dyn BodyDialect + Send> {

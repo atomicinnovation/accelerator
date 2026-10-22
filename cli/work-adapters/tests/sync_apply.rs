@@ -25,6 +25,7 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::CopyComparison;
 use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
@@ -181,6 +182,14 @@ impl AtomicWrite for Fake {
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+}
+
+impl FileRemove for Fake {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.record(format!("remove:{}", path.display()));
+        self.files.borrow_mut().remove(path);
         Ok(())
     }
 }

@@ -16,6 +16,7 @@ use work_adapters::sync::baseline::Baseline;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
@@ -56,6 +57,7 @@ const BASELINE_PATH: &str = "/baseline/last-sync.json";
 struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
+    removals: RefCell<Vec<PathBuf>>,
 }
 
 impl Spy {
@@ -93,6 +95,14 @@ impl AtomicWrite for Spy {
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+}
+
+impl FileRemove for Spy {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.removals.borrow_mut().push(path.to_path_buf());
+        self.files.borrow_mut().remove(path);
         Ok(())
     }
 }
@@ -2247,6 +2257,20 @@ impl AtomicWrite for FailingWrite {
     }
 }
 
+impl FileRemove for FailingWrite {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        match std::fs::remove_file(path) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                Err(StoreError::Io {
+                    path: path.display().to_string(),
+                    detail: error.to_string(),
+                })
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
 struct RealWrite;
 
 impl AtomicWrite for RealWrite {
@@ -2263,6 +2287,20 @@ impl AtomicWrite for RealWrite {
             path: path.display().to_string(),
             detail: error.to_string(),
         })
+    }
+}
+
+impl FileRemove for RealWrite {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        match std::fs::remove_file(path) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                Err(StoreError::Io {
+                    path: path.display().to_string(),
+                    detail: error.to_string(),
+                })
+            }
+            _ => Ok(()),
+        }
     }
 }
 

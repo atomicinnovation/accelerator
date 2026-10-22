@@ -17,6 +17,7 @@ use std::path::PathBuf;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::StoreError;
 use jira_client::JiraBodyDialect;
 use tracker::ExternalId;
@@ -60,6 +61,7 @@ const MOVED_STAMP: &str = "2026-07-01T00:00:00Z";
 struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
+    removals: RefCell<Vec<PathBuf>>,
 }
 
 impl Spy {
@@ -101,6 +103,14 @@ impl AtomicWrite for Spy {
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+}
+
+impl FileRemove for Spy {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.removals.borrow_mut().push(path.to_path_buf());
+        self.files.borrow_mut().remove(path);
         Ok(())
     }
 }

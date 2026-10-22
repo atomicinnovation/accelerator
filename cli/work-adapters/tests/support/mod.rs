@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use corpus::lock::ExclusiveLock;
 use corpus::lock::HeldLock;
 use corpus::lock::LockName;
-use corpus::store::AtomicWrite;
 use corpus::store::CopyComparison;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
@@ -83,6 +82,7 @@ use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::files::SyncStore;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 use work_adapters::sync::recovery_label::RecoveryLabels;
 
@@ -799,7 +799,7 @@ pub fn identity_run() -> Result<IdentityRunGuard, NotRekeyed> {
 }
 
 /// The file ports of a run whose every write goes through `writer`.
-pub fn sync_files(writer: &dyn AtomicWrite) -> SyncFiles<'_> {
+pub fn sync_files(writer: &dyn SyncStore) -> SyncFiles<'_> {
     SyncFiles {
         work_items: writer,
         integration_state: writer,

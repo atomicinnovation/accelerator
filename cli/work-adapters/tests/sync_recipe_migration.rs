@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::StoreError;
 use corpus_adapters::CommonMarkBody;
 use jira_client::JiraBodyDialect;
@@ -79,6 +80,7 @@ const JIRA_MENTION: &str = "{\"content\":[{\"content\":[{\
 struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
+    removals: RefCell<Vec<PathBuf>>,
 }
 
 impl Spy {
@@ -116,6 +118,14 @@ impl AtomicWrite for Spy {
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+}
+
+impl FileRemove for Spy {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.removals.borrow_mut().push(path.to_path_buf());
+        self.files.borrow_mut().remove(path);
         Ok(())
     }
 }
