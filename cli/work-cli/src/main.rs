@@ -323,6 +323,9 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
         for line in &report.lines {
             println!("{line}");
         }
+        for warning in &report.warnings {
+            eprintln!("{warning}");
+        }
         for cause in &report.causes {
             eprintln!("Error: {cause}");
         }
