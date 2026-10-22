@@ -111,8 +111,8 @@ Strategy), and `mise run` exits 0.
   embeds cache directory, version and platform.
 - `_assert_no_test_loopback` (`tasks/build.py:354-371`) byte-scans every
   binary in `_CLI_RELEASE_BINARIES`, which includes `accelerator`, for
-  `TEST_LOOPBACK_MARKER`. Today's markers are `#[no_mangle]` statics, which
-  the release profile's `strip` and thin LTO likely remove, so Phase 6 moves
+  `TEST_LOOPBACK_MARKER`. The markers were `#[no_mangle]` statics, which
+  the release profile's `strip` and thin LTO removed, so Phase 6 moved
   them to string literals read at start-up. `tasks/shared/dev_builds.py:31`
   already shows how the feature reaches debug builds.
 - The entrypoint harness's downloader stub resolves every URL by basename
@@ -2706,13 +2706,13 @@ materialise.
 `#[no_mangle] static … : u8`, and `_assert_no_test_loopback` scans each staged
 release binary for the bytes `TEST_LOOPBACK_MARKER`. The release profile sets
 `strip = true` and `lto = "thin"` (`cli/Cargo.toml:260-261`), so the symbol
-name is stripped and the unused static can be dropped, and the scan likely
-finds nothing. The compile guard keys on `debug_assertions`, which
-`CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true` turns back on in a release
-build, leaving the blind scan as the only backstop. This phase gives the three
-existing binaries a marker that survives and proves the guard on real release
-artefacts. It is independent of the cache work, and Phase 7 uses the same
-pattern for the launcher.
+name is stripped and the unused static can be dropped: against a release
+build carrying the feature, the scan found nothing. The compile guard keys on
+`debug_assertions`, which `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true` turns
+back on in a release build, leaving the blind scan as the only backstop. This
+phase gives the three existing binaries a marker that survives and proves the
+guard on real release artefacts. It is independent of the cache work, and
+Phase 7 uses the same pattern for the launcher.
 
 ### Changes Required:
 
@@ -2747,9 +2747,12 @@ read at start-up rather than a symbol.
 #### 2. Tests (red first)
 
 **File**: `tests/integration/release_guard/test_release_guard.py` (new),
-behind a new `test:integration:release-guard` leaf. The leaf depends on the
-Rust toolchain, as `build:cli:fixture-size` does, and is registered following
-`tasks/README.md`'s checklist. `test:integration:tasks` stays Python-only.
+behind a new `test:integration:release-guard` leaf (`tasks/test/integration.py`,
+`mise.toml`). The leaf depends on `deps:install:python` and the mise-pinned
+Rust toolchain, as `build:cli:fixture-size` does. It joins the
+`test:integration` roll-up and `_NO_LAUNCHER_NEEDED` in
+`tests/unit/tasks/test_mise.py`, since it builds its own release binaries.
+`test:integration:tasks` stays Python-only.
 
 - `test_a_release_binary_built_with_test_loopback_is_rejected`, parametrised
   over `accelerator-jira`, `accelerator-linear` and `accelerator-research`.
@@ -2759,10 +2762,12 @@ Both parametrise over every `DevBinary` in `tasks/shared/dev_builds.py` whose
 `loopback_seam` is set, rather than a list of their own, so a binary gains the
 guard when it gains the seam.
 
-A module-scoped fixture builds both variants with the same profile
-environment, `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true`, so the second
-build reuses the first build's dependency graph and only the binary crates
-and their LTO link rebuild. `CARGO_TARGET_DIR` is the stable
+A module-scoped fixture builds both variants, one `--bin` per seamed binary,
+with the same profile environment,
+`CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true`, so the second build reuses the
+first build's dependency graph and only the binary crates and their LTO link
+rebuild. The second build overwrites the first's binaries, so the fixture
+copies each variant into pytest's temp area. `CARGO_TARGET_DIR` is the stable
 `cli/target/release-guard`, which nothing else reads, so a binary that trusts
 a test key never lands in `cli/target/release/` for another task to measure
 or run. Being stable, it persists locally between runs instead of piling up
@@ -2771,14 +2776,20 @@ in pytest's temp area.
 **File**: `.github/workflows/main.yml`
 **Changes**: the integration job's rust-cache step lists
 `cli -> target/release-guard` beside `cli` under `workspaces`, so CI keeps
-the release-guard dependency graph between runs and only the four binaries
-relink. Against today's
-static marker, the first test is red. The leaf runs on both CI legs, which
-covers both linker families the shipped artefacts use.
+the release-guard dependency graph between runs and only the seamed
+binaries relink. The leaf runs on both CI legs, which covers both linker
+families the shipped artefacts use.
+
+**File**: `tasks/README.md`
+**Changes**: a "The test-loopback release guard" subsection beside the
+link-ratio guard says what the leaf proves and why its builds live apart.
+
+Against the static marker, the first test was red: all three rejection cases
+failed with `DID NOT RAISE`, and the controls passed.
 
 ⏱️ The leaf's first run on a cache miss costs one thin-LTO release build of
-the dependency graph, a few minutes per CI leg. Later runs relink only the
-four binaries.
+the dependency graph, a few minutes per CI leg. A warm local run took about
+3 minutes.
 
 ### Success Criteria:
 
@@ -3023,7 +3034,9 @@ In `cli/launcher/src/main.rs` (unit tests, under the feature):
 
 `tests/integration/release_guard/`'s
 `test_a_release_binary_built_with_test_loopback_is_rejected` and its control
-gain `accelerator` as a fourth parameter, built in the same invocation.
+gain `accelerator` as a fourth parameter, built in the same invocation. They
+parametrise over every seamed `DevBinary`, so `LAUNCHER`'s `loopback_seam=True`
+adds it with no edit to the test.
 
 `tests/integration/entrypoint/`: `assert_hermetic` still rejects a release
 host that is neither `.invalid` nor loopback.
