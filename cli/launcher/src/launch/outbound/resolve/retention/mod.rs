@@ -6,6 +6,9 @@ pub mod root_entries;
 pub mod root_lock;
 pub mod root_retention;
 pub mod single_file;
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+pub(crate) mod testing;
 pub mod version_claims;
 
 /// A per-install identity for a retention claim.

@@ -32,6 +32,7 @@ use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
 use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::launcher_id;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
+use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention_windows::{
     CLAIM_WINDOW, REFRESH_FRACTION,
 };
@@ -315,6 +316,7 @@ fn start_up_over(
             clock: Arc::new(SystemClock),
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),
+            bootstrap_holders: Arc::new(KillZeroProbe),
         }),
     )
 }
