@@ -1893,3 +1893,151 @@ fn a_tree_whose_lease_this_process_holds_is_kept_unprobed() {
         "a lease this process holds was probed"
     );
 }
+
+/// An unclaimed tree a prune must reclaim, showing it ran far enough to have
+/// removed whatever a test expects it to keep.
+fn reclaimable_control(harness: &RootHarness) -> common::trees::PlantedTree {
+    harness.trees().plant_tree(
+        &on_host("control"),
+        &digest('c'),
+        harness.aged(),
+    )
+}
+
+#[test]
+fn a_pointer_naming_an_absolute_path_deletes_nothing_outside_the_root() {
+    let harness = RootHarness::new();
+    let control = reclaimable_control(&harness);
+    let victim = harness.anchor.path().join("victim");
+    std::fs::create_dir(&victim).expect("victim");
+    harness.trees().plant_pointer(
+        &on_host("retired"),
+        &digest('a'),
+        victim.to_str().expect("utf-8"),
+    );
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(victim.exists(), "a directory outside the root was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_pointer_escaping_with_dot_dot_deletes_nothing() {
+    let harness = RootHarness::new();
+    let control = reclaimable_control(&harness);
+    let victim = harness.join("victim");
+    std::fs::create_dir(&victim).expect("victim");
+    harness.trees().plant_pointer(
+        &on_host("retired"),
+        &digest('a'),
+        "../victim",
+    );
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(victim.exists(), "a directory above trees/ was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_pointer_naming_another_artifacts_generation_is_kept() {
+    let harness = RootHarness::new();
+    let control = reclaimable_control(&harness);
+    let trees = harness.trees();
+    let generation = Trees::generation_of(&on_host("other"), &digest('e'));
+    let victim = trees.plant_generation(&generation, harness.aged());
+    let pointer =
+        trees.plant_pointer(&on_host("retired"), &digest('e'), &generation);
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(victim.exists(), "another artifact's generation was removed");
+    assert!(pointer.exists(), "the mismatched pointer was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_malformed_pointer_is_kept() {
+    let harness = RootHarness::new();
+    let control = reclaimable_control(&harness);
+    let trees = harness.trees();
+    let named = format!("retired-{HOST_PLATFORM}-{}-1-short", digest('e'));
+    let victim = trees.plant_generation(&named, harness.aged());
+    let pointer =
+        trees.plant_pointer(&on_host("retired"), &digest('e'), &named);
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(victim.exists(), "a malformed pointer's target was removed");
+    assert!(pointer.exists(), "the malformed pointer was removed");
+    control.assert_reclaimed();
+}
+
+#[test]
+fn a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept() {
+    let harness = Arc::new(RootHarness::new());
+    let control = reclaimable_control(&harness);
+    let trees = harness.trees();
+    let retired = on_host("retired");
+
+    let target = harness.anchor.path().join("pointer-target");
+    std::fs::write(&target, Trees::generation_of(&retired, &digest('1')))
+        .expect("target");
+    let linked =
+        trees
+            .paths()
+            .pointer(retired.name(), retired.platform(), &digest('1'));
+    std::os::unix::fs::symlink(&target, &linked).expect("symlink");
+
+    let fifo =
+        trees
+            .paths()
+            .pointer(retired.name(), retired.platform(), &digest('2'));
+    let made = std::process::Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("mkfifo");
+    assert!(made.success(), "mkfifo failed");
+
+    let oversized = trees.plant_pointer(
+        &retired,
+        &digest('3'),
+        format!(
+            "{}{}",
+            Trees::generation_of(&retired, &digest('3')),
+            " ".repeat(300)
+        ),
+    );
+
+    let pruning = Arc::clone(&harness);
+    common::within(BOUND, "the prune", move || {
+        pruning.prune(pruning.ports()).outcome.is_ok()
+    });
+
+    for pointer in [&linked, &fifo, &oversized] {
+        assert!(exists(pointer), "{} was removed", pointer.display());
+    }
+    assert!(
+        target.exists(),
+        "the symlinked pointer's target was removed"
+    );
+    control.assert_reclaimed();
+}
+
+#[test]
+fn another_layouts_tree_is_kept_and_this_layouts_twin_is_removed() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let twin = trees.plant_tree(&retired, &digest('a'), harness.aged());
+    let generation = Trees::generation_at_layout(&retired, &digest('e'), 2);
+    let other_layout = trees.plant_generation(&generation, harness.aged());
+    let pointer = trees.plant_pointer(&retired, &digest('e'), &generation);
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(other_layout.exists(), "another layout's tree was removed");
+    assert!(pointer.exists(), "another layout's pointer was removed");
+    twin.assert_reclaimed();
+}
