@@ -4,6 +4,7 @@ pub mod ports;
 pub mod residue;
 pub mod root_entries;
 pub mod root_lock;
+pub mod root_prune;
 pub mod root_retention;
 pub mod single_file;
 #[cfg(test)]

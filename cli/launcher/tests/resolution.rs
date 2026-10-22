@@ -28,6 +28,7 @@ use accelerator::launch::outbound::resolve::filesystem::{
     CacheFilesystem, SystemFilesystem,
 };
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
 use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
 use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::launcher_id;
@@ -36,8 +37,11 @@ use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention_windows::{
     CLAIM_WINDOW, REFRESH_FRACTION,
 };
+use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
 use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
-use accelerator::launch::outbound::resolve::tree::SystemClock;
+use accelerator::launch::outbound::resolve::tree::{
+    ExpectedDigests, SystemClock,
+};
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
     cache, FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
@@ -310,6 +314,7 @@ fn start_up_over(
 ) -> StartUp {
     start_up(
         config,
+        TrustedOwners::none(),
         Arc::new(CachePorts {
             filesystem,
             ownership: Arc::new(ProcessOwnership::default()),
@@ -317,6 +322,8 @@ fn start_up_over(
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),
             bootstrap_holders: Arc::new(KillZeroProbe),
+            lease_liveness: Arc::new(FlockProbe),
+            pins: Arc::new(ExpectedDigests::Compiled),
         }),
     )
 }

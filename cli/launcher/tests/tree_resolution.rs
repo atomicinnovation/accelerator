@@ -25,11 +25,18 @@ use accelerator::launch::core::tree::{
 };
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
+use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
+use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
+use accelerator::launch::outbound::resolve::retention::root_retention::PluginBinRetention;
 use accelerator::launch::outbound::resolve::retention_windows;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, Liveness, LivenessProbe,
 };
+use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
 };
@@ -318,6 +325,30 @@ impl Harness {
             clock,
             &FlockProbe,
             &NoSteps,
+        )
+    }
+
+    /// The plugin-bin retention of this cache, pinning what `resolver` pins.
+    fn retention_with(
+        &self,
+        clock: Arc<dyn Clock + Send + Sync>,
+        lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
+    ) -> PluginBinRetention {
+        PluginBinRetention::new(
+            self.cache.clone(),
+            Arc::new(CachePorts {
+                filesystem: Arc::new(SystemFilesystem),
+                ownership: Arc::new(ProcessOwnership::default()),
+                clock,
+                locks: Arc::new(FlockLocks),
+                steps: Arc::new(NoPruneSteps),
+                bootstrap_holders: Arc::new(KillZeroProbe),
+                lease_liveness,
+                pins: Arc::new(ExpectedDigests::Fixed(pinning(
+                    ARTIFACT,
+                    &self.archive_sha,
+                ))),
+            }),
         )
     }
 
@@ -774,7 +805,13 @@ fn run_cache(
     action: &CacheAction,
 ) -> Result<Vec<u8>, kernel::Error> {
     let mut out = Vec::new();
-    cache::run(action, &harness.resolver(), &mut out)?;
+    cache::run(
+        action,
+        &harness.resolver(),
+        &harness.retention_with(Arc::new(StoppedClock), Arc::new(FlockProbe)),
+        &mut out,
+        &mut std::io::sink(),
+    )?;
     Ok(out)
 }
 
@@ -1523,7 +1560,9 @@ fn prune_once_everything_has_aged(harness: &Harness) {
     cache::run(
         &CacheAction::Prune { older_than: None },
         &resolver,
+        &harness.retention_with(Arc::new(aged()), Arc::new(FlockProbe)),
         &mut out,
+        &mut std::io::sink(),
     )
     .expect("prune");
 }

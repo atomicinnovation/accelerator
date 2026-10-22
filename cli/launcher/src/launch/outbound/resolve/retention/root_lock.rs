@@ -77,7 +77,7 @@ mod tests {
     use std::path::Path;
     use std::sync::{Arc, Mutex};
 
-    use crate::launch::core::tree::{Clock, TreeError};
+    use crate::launch::core::tree::TreeError;
 
     use super::super::super::filesystem::testing::ReportingFilesystem;
     use super::super::super::filesystem::{
@@ -89,18 +89,8 @@ mod tests {
     use super::super::super::tree::locks::FlockLocks;
     use super::super::super::tree::testing::{within, BLOCKING_BOUND};
     use super::super::ports::CachePorts;
-    use super::super::residue::KillZeroProbe;
+    use super::super::testing::Ports;
     use super::{HeldRootLock, ROOT_LOCK};
-
-    struct AtClock;
-
-    impl Clock for AtClock {
-        fn now_seconds(&self) -> u64 {
-            0
-        }
-
-        fn sleep_poll_interval(&self) {}
-    }
 
     #[derive(Default)]
     struct SeenSteps(Mutex<Vec<PruneStep>>);
@@ -115,14 +105,14 @@ mod tests {
         filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
         steps: Arc<SeenSteps>,
     ) -> Arc<CachePorts> {
-        Arc::new(CachePorts {
-            filesystem,
-            ownership: Arc::new(ProcessOwnership::default()),
-            clock: Arc::new(AtClock),
-            locks: Arc::new(FlockLocks),
-            steps,
-            bootstrap_holders: Arc::new(KillZeroProbe),
-        })
+        Arc::new(
+            Ports {
+                filesystem,
+                steps,
+                ..Ports::at(0)
+            }
+            .build(),
+        )
     }
 
     fn ports() -> Arc<CachePorts> {

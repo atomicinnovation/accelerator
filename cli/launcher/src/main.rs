@@ -33,6 +33,7 @@ use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
+use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
 use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
 use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
@@ -126,6 +127,8 @@ fn production_ports() -> Arc<CachePorts> {
         locks: Arc::new(FlockLocks),
         steps: Arc::new(NoPruneSteps),
         bootstrap_holders: Arc::new(KillZeroProbe),
+        lease_liveness: Arc::new(FlockProbe),
+        pins: Arc::new(ExpectedDigests::Compiled),
     })
 }
 
@@ -371,7 +374,8 @@ fn run_cache(
     let resolver =
         start.tree_resolver(production_tree_config(&keys, &fetcher))?;
     let mut out = std::io::stdout().lock();
-    cache::run(action, &resolver, &mut out)
+    let mut err = std::io::stderr().lock();
+    cache::run(action, &resolver, start.retention(), &mut out, &mut err)
 }
 
 fn production_tree_config<'a>(
@@ -382,7 +386,6 @@ fn production_tree_config<'a>(
         base_url: release_base_url(),
         keys,
         fetcher,
-        liveness: &FlockProbe,
         expected_digests: ExpectedDigests::Compiled,
         waiter_bound: WAITER_BOUND,
         steps: &NoSteps,
@@ -454,6 +457,7 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
     let start = start_up(
         &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+        TrustedOwners::from_env(),
         production_ports(),
     );
     // Held until `dispatch` execs the consumer: on success the process image is
@@ -552,6 +556,7 @@ mod tests {
     };
     use accelerator::launch::inbound::cli::Command;
     use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
+    use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
     use accelerator::launch::start_up::{start_up, StartUp};
     use clap::error::ErrorKind;
 
@@ -801,6 +806,7 @@ mod tests {
     fn production_start_up() -> StartUp {
         start_up(
             &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+            TrustedOwners::none(),
             super::production_ports(),
         )
     }

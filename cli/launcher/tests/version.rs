@@ -22,6 +22,7 @@ fn run(args: &[&str], env: &[(&str, &str)]) -> Result<Output, Box<dyn Error>> {
     command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    command.env_remove("ACCELERATOR_CACHE_TRUSTED_OWNERS");
     command.args(args);
     for (key, value) in env {
         command.env(key, value);
@@ -233,5 +234,22 @@ fn a_built_in_command_in_a_relocated_root_writes_nothing_to_stderr(
     let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
 
     assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+    Ok(())
+}
+
+#[test]
+fn a_built_launcher_warns_on_a_malformed_trusted_owners_value(
+) -> Result<(), Box<dyn Error>> {
+    let output = run(
+        &["version"],
+        &[("ACCELERATOR_CACHE_TRUSTED_OWNERS", "1001,")],
+    )?;
+
+    assert!(output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ignoring ACCELERATOR_CACHE_TRUSTED_OWNERS"),
+        "{stderr}"
+    );
     Ok(())
 }
