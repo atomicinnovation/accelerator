@@ -77,6 +77,7 @@ fn a_relative_integrations_root_is_resolved_against_the_project_root(
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );
@@ -109,6 +110,7 @@ fn an_absolute_integrations_root_is_used_as_configured() -> Result<(), TestError
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );
@@ -128,6 +130,7 @@ fn an_absent_integrations_root_realigns_nothing() -> Result<(), TestError> {
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );

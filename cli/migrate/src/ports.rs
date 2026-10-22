@@ -67,6 +67,31 @@ pub trait CorpusIndex {
 /// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
 /// `engine.rs`), which never exercise a real migration, do not need updating
 /// every time a migration's own needs grow this trait.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VersionControl {
+    Git,
+    Jj,
+}
+
+impl VersionControl {
+    /// The command that stops tracking `path` while leaving it on disk.
+    #[must_use]
+    pub fn untrack_command(self, path: &Path) -> String {
+        match self {
+            Self::Git => format!("git rm --cached -r {}", path.display()),
+            Self::Jj => format!("jj file untrack {}", path.display()),
+        }
+    }
+}
+
+/// Which version control encloses a directory, and which files under it
+/// that version control tracks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrackedState {
+    pub kind: VersionControl,
+    pub tracked: Vec<PathBuf>,
+}
+
 pub trait MigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
     fn corpus_index(&self) -> &dyn CorpusIndex;
@@ -136,6 +161,13 @@ pub trait MigrationContext {
         _key: &str,
     ) -> Result<Option<String>, MigrationError> {
         Ok(None)
+    }
+
+    /// The version control enclosing `under`, and every file beneath it
+    /// that version control tracks; `None` when no repository encloses it
+    /// or it cannot be asked.
+    fn version_control(&self, _under: &Path) -> Option<TrackedState> {
+        None
     }
 
     /// `Ok(None)` when `path` does not exist.

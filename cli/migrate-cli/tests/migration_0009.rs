@@ -22,7 +22,8 @@ const LEDGER_THROUGH_0008: &str = "0001-rename-tickets-to-work\n\
      0006-canonicalise-work-item-id-and-author\n\
      0007-unify-meta-corpus-frontmatter\n\
      0008-canonical-frontmatter-quoting\n\
-     0010-strip-research-title-prefix\n";
+     0010-strip-research-title-prefix\n\
+     0011-ignore-machine-local-sync-state\n";
 
 fn write(dir: &Path, relative: &str, content: &str) -> Result<(), TestError> {
     let path = dir.join(relative);
