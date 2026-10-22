@@ -23,8 +23,8 @@ use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::draft_id::is_token_safe;
-use work::identity_run::IdentityRunGuard;
 use work::identity::IdentityField;
+use work::identity_run::IdentityRunGuard;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
@@ -73,6 +73,8 @@ use crate::identity_workspace::IdentityWorkspace;
 use crate::promotion_report::detail_lines;
 use crate::promotion_report::promotion_exit;
 use crate::promotion_report::promotion_line;
+use crate::report_records::single_line;
+use crate::report_records::TsvRecord;
 use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
@@ -347,12 +349,6 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
     }
 }
 
-/// Collapses tab, newline and carriage return to a space, so a transport
-/// `detail` cannot break the single-record TSV format.
-fn single_line(text: &str) -> String {
-    text.replace(['\t', '\n', '\r'], " ")
-}
-
 fn discovery_line(discovery: &DiscoveryStatus) -> String {
     match discovery {
         DiscoveryStatus::Ran { found } => {
@@ -405,10 +401,17 @@ pub fn standalone_identity_line(row: &IdentityRow) -> String {
 fn identity_line_in_state(row: &IdentityRow, state: &str) -> String {
     match &row.outcome {
         IdentityOutcome::Refused(reason) | IdentityOutcome::Failed(reason) => {
-            format!("{}\tfailed\t{state}\t{}", row.id, single_line(reason))
+            TsvRecord::of([row.id.as_str(), "failed", state, reason])
+                .to_string()
         }
         IdentityOutcome::Applied | IdentityOutcome::NotApplied => {
-            format!("{}\t{}\t{state}\t{}", row.id, row.action, row.detail)
+            TsvRecord::of([
+                row.id.clone(),
+                row.action.to_string(),
+                state.to_owned(),
+                row.detail.clone(),
+            ])
+            .to_string()
         }
     }
 }
@@ -491,17 +494,20 @@ fn render_report(report: &RunReport) -> String {
                 (action_keyword(item.planned.action), "-")
             }
         };
-        lines.push(format!(
-            "{}\t{}\t{}\t{}",
-            item.planned.id, action_field, item.planned.state, detail
-        ));
+        lines.push(
+            TsvRecord::of([
+                item.planned.id.clone(),
+                action_field.to_owned(),
+                item.planned.state.to_string(),
+                detail.to_owned(),
+            ])
+            .to_string(),
+        );
     }
-    lines.extend(
-        report
-            .unclassifiable
-            .iter()
-            .map(|item| format!("{}\tfailed\t-\tretryable", item.id)),
-    );
+    lines.extend(report.unclassifiable.iter().map(|item| {
+        TsvRecord::of([item.id.as_str(), "failed", "-", "retryable"])
+            .to_string()
+    }));
     // Capture before appending the always-present discovery line, which would
     // otherwise make `is_empty()` false and drop the empty-run summary.
     let summary_needed = synced_count > 0 || lines.is_empty();

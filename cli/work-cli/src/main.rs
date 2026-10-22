@@ -18,6 +18,7 @@ mod next_number;
 mod promote;
 mod promotion_report;
 mod rekey;
+mod report_records;
 mod resolve;
 mod show;
 mod sync;

@@ -4,6 +4,8 @@
 use std::fmt::Display;
 use std::io::Write;
 
+use crate::report_records::printable;
+
 /// Console writes are best-effort, as `println!` is: a closed stream must
 /// not turn a finished sync into a failed one.
 pub struct Console<'a> {
@@ -29,22 +31,6 @@ impl<'a> Console<'a> {
     pub fn warnings(&mut self) -> impl Write + '_ {
         PrintableLines::new(&mut *self.err)
     }
-}
-
-/// Escapes every control character but the newline, so text from paths,
-/// filenames or a tracker cannot move the cursor, clear the screen or
-/// overwrite a line, while a deliberately multi-line warning keeps its
-/// layout.
-fn printable(text: &str) -> String {
-    text.chars()
-        .map(|character| {
-            if character.is_control() && character != '\n' {
-                character.escape_default().collect()
-            } else {
-                character.to_string()
-            }
-        })
-        .collect()
 }
 
 struct PrintableLines<'a> {
