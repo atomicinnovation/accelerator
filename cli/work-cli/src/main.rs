@@ -11,6 +11,7 @@ mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod finished_run;
 mod identity_run;
 mod identity_workspace;
 mod list;

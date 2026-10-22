@@ -48,6 +48,11 @@ use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
+use work_adapters::sync::kept_edits::KeptCopy;
+use work_adapters::sync::kept_edits::KeptEdits;
+use work_adapters::sync::kept_edits::KeptEditsRetention;
+use work_adapters::sync::kept_edits::KeptEditsReview;
+use work_adapters::sync::kept_edits::Provenance;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -434,7 +439,8 @@ fn stopped_run_lines(failure: &SettledRunFailure) -> Vec<String> {
     lines
 }
 
-fn render_report(report: &RunReport) -> String {
+fn render_report(finished: &FinishedRun<'_>) -> String {
+    let report = finished.report;
     let settled_ids: BTreeSet<&str> = report
         .identity
         .iter()
@@ -522,10 +528,144 @@ fn render_report(report: &RunReport) -> String {
             report.deferred
         ));
     }
+    lines.extend(kept_edits_records(&finished.kept_edits));
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
     lines.join("\n")
+}
+
+/// One `#\tkept-edits` record per copy a person may need: kept this run,
+/// kept earlier, or in a directory this tool does not trust.
+fn kept_edits_records(review: &KeptEditsReview) -> Vec<String> {
+    let copy_record = |kept: &KeptCopy, when: &str| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "kept-edits".to_owned(),
+            kept.id.clone(),
+            when.to_owned(),
+            kept.item.display().to_string(),
+            kept.copy.display().to_string(),
+        ])
+        .to_string()
+    };
+    review
+        .entries
+        .iter()
+        .filter_map(|entry| match entry {
+            KeptEdits::KeptThisRun(kept) => Some(copy_record(kept, "this-run")),
+            KeptEdits::KeptEarlier(kept)
+            | KeptEdits::NotRemoved { kept, .. } => {
+                Some(copy_record(kept, "earlier"))
+            }
+            KeptEdits::Unrecorded { id, directory, .. } => Some(
+                TsvRecord::of([
+                    "#".to_owned(),
+                    "kept-edits".to_owned(),
+                    id.clone().unwrap_or_else(|| "-".to_owned()),
+                    "unrecorded".to_owned(),
+                    "-".to_owned(),
+                    directory.display().to_string(),
+                ])
+                .to_string(),
+            ),
+            KeptEdits::Settled { .. } => None,
+        })
+        .collect()
+}
+
+/// The stderr notes for kept copies: one per copy kept this run, one
+/// summary of every earlier copy, and one per directory that needs a
+/// person's attention.
+fn kept_edits_notes(review: &KeptEditsReview) -> Vec<String> {
+    let mut notes = Vec::new();
+    let mut earlier: Vec<&KeptCopy> = Vec::new();
+    for entry in &review.entries {
+        match entry {
+            KeptEdits::KeptThisRun(kept) => notes.push(format!(
+                "note: {id}: kept-edits: local edits kept at {copy}; merge \
+                 them, then run accelerator work sync --target {id} \
+                 --discard-kept-edits {id}",
+                id = single_line(&kept.id),
+                copy = single_line(&kept.copy.display().to_string()),
+            )),
+            KeptEdits::KeptEarlier(kept) => earlier.push(kept),
+            KeptEdits::NotRemoved { kept, reason } => {
+                earlier.push(kept);
+                notes.push(format!(
+                    "note: {}: kept-edits: settled copy at {} could not be \
+                     removed: {}",
+                    single_line(&kept.id),
+                    single_line(&kept.directory.display().to_string()),
+                    single_line(reason)
+                ));
+            }
+            KeptEdits::Unrecorded {
+                id,
+                directory,
+                provenance,
+            } => notes.extend(unrecorded_note(
+                id.as_deref(),
+                directory,
+                *provenance,
+            )),
+            KeptEdits::Settled { .. } => {}
+        }
+    }
+    if !earlier.is_empty() {
+        notes.push(earlier_copies_note(&earlier));
+    }
+    notes
+}
+
+fn unrecorded_note(
+    id: Option<&str>,
+    directory: &Path,
+    provenance: Provenance,
+) -> Option<String> {
+    let id = single_line(id.unwrap_or("-"));
+    let directory = single_line(&directory.display().to_string());
+    match provenance {
+        Provenance::Unknown => None,
+        Provenance::Tracked => Some(format!(
+            "note: {id}: kept-edits: {directory} is tracked by version \
+             control and was not made by this tool; untrack it (git rm \
+             --cached -r {directory} or jj file untrack {directory}), then \
+             sync"
+        )),
+        Provenance::TrackingUnknown => Some(format!(
+            "note: {id}: kept-edits: could not confirm {directory} is \
+             untracked; it is kept but not compared"
+        )),
+    }
+}
+
+fn earlier_copies_note(earlier: &[&KeptCopy]) -> String {
+    let oldest = earlier
+        .iter()
+        .filter_map(|kept| kept.kept_since)
+        .min()
+        .and_then(utc_date)
+        .unwrap_or_else(|| "an unknown date".to_owned());
+    let mut ids: Vec<String> =
+        earlier.iter().map(|kept| single_line(&kept.id)).collect();
+    ids.dedup();
+    format!(
+        "note: -: kept-edits-earlier: {} earlier copies still kept (oldest \
+         since {oldest}) for {}; discard each with accelerator work sync \
+         --target <id> --discard-kept-edits <id>",
+        earlier.len(),
+        ids.join(", ")
+    )
+}
+
+/// `epoch` as an RFC 3339 instant in UTC.
+fn utc_date(epoch: u64) -> Option<String> {
+    let seconds = i64::try_from(epoch).ok()?;
+    let instant = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
+    instant
+        .format(&time::format_description::well_known::Rfc3339)
+        .ok()
 }
 
 /// Where one run yields several outcomes, the most severe wins:
@@ -1738,7 +1878,9 @@ pub fn run_sync_with(
                 repo_root: &repo_root,
                 mode,
                 corpus: &items,
-                recovery,
+                workspace: &workspace,
+                work_dir: &work_dir,
+                scheme: &scheme,
                 finaliser: *finaliser,
             },
             &report,
@@ -1848,8 +1990,52 @@ struct FinishedRunContext<'a> {
     repo_root: &'a Path,
     mode: RunMode,
     corpus: &'a [LocalItem],
-    recovery: &'a FileRecoveryCopies,
+    workspace: &'a IdentityWorkspace,
+    work_dir: &'a Path,
+    scheme: &'a WorkItemIdScheme,
     finaliser: &'a dyn RunFinaliser,
+}
+
+impl FinishedRunContext<'_> {
+    fn kept_edits_retention(&self) -> KeptEditsRetention<'_> {
+        KeptEditsRetention {
+            recovery: self.workspace.recovery(),
+            tracking: self.workspace.tracking(),
+            locks: self.workspace.locks(),
+            work_root: self.work_dir.to_path_buf(),
+            scheme: self.scheme,
+            corpus: self.corpus,
+        }
+    }
+}
+
+/// The review of every kept copy, and on an apply run the sweep of those
+/// that settled; a review that cannot list the copies is warned about and
+/// reports none.
+fn review_kept_edits(
+    console: &mut Console<'_>,
+    context: &FinishedRunContext<'_>,
+    report: &RunReport,
+) -> KeptEditsReview {
+    let retention = context.kept_edits_retention();
+    let this_run: BTreeSet<PathBuf> = report
+        .reported
+        .iter()
+        .filter_map(|item| item.kept_edits.clone())
+        .collect();
+    match retention.review(&this_run) {
+        Ok(review) if context.mode == RunMode::Apply => retention.sweep(review),
+        Ok(review) => review,
+        Err(error) => {
+            console.warn(format_args!(
+                "warning: kept edits could not be checked: {}",
+                single_line(&error.to_string())
+            ));
+            KeptEditsReview {
+                entries: Vec::new(),
+            }
+        }
+    }
 }
 
 fn report_finished_run(
@@ -1905,33 +2091,37 @@ fn report_finished_run(
             single_line(&error.to_string())
         )),
     }
-    console.report(render_report(report));
+    let finished = FinishedRun {
+        report,
+        mode: context.mode,
+        corpus_external_ids: context
+            .corpus
+            .iter()
+            .filter_map(|item| item.external_id.clone())
+            .collect(),
+        integrations_root: context.integrations_root,
+        repo_root: context.repo_root,
+        kept_edits: review_kept_edits(console, context, report),
+    };
+    console.report(render_report(&finished));
     for failure in classification_failures(report) {
         console.warn(failure);
+    }
+    for note in kept_edits_notes(&finished.kept_edits) {
+        console.warn(note);
     }
     if let Some(warning) = unsupported_recipe_warning(report) {
         console.warn(warning);
     }
-    context.finaliser.finalise(
-        &FinishedRun {
-            report,
-            mode: context.mode,
-            corpus_external_ids: context
-                .corpus
-                .iter()
-                .filter_map(|item| item.external_id.clone())
-                .collect(),
-            integrations_root: context.integrations_root,
-            repo_root: context.repo_root,
-        },
-        &mut console.warnings(),
-    );
+    context
+        .finaliser
+        .finalise(&finished, &mut console.warnings());
     warn_outstanding_pushes(
         console,
         context.integrations_root,
         context.integration,
     );
-    report_kept_recoveries(console, context.recovery);
+    report_kept_recoveries(console, context.workspace.recovery());
     ExitCode::from(exit_code_for_report(report))
 }
 
@@ -2616,7 +2806,12 @@ mod tests {
         ))
         .expect("golden readable");
 
-        assert_eq!(render_report(&report), golden);
+        assert_eq!(
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report
+            )),
+            golden
+        );
     }
 
     #[test]
@@ -2636,7 +2831,9 @@ mod tests {
         };
 
         assert_eq!(
-            render_report(&report),
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report
+            )),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
     }
@@ -2728,7 +2925,9 @@ mod tests {
             )],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.lines().any(|line| line
@@ -2753,7 +2952,9 @@ mod tests {
             vec![reported("PP-76", SyncState::RemoteAbsent, Action::Noop)],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         let line = rendered
             .lines()
@@ -2783,7 +2984,9 @@ mod tests {
             )],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert_eq!(
             rendered
@@ -2811,7 +3014,9 @@ mod tests {
             vec![reported("0230", SyncState::Synced, Action::Noop)],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains("0230\tkey-changed\tsynced\tPP-760->ENG-42"),
@@ -2839,7 +3044,9 @@ mod tests {
             Vec::new(),
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains(
@@ -2879,9 +3086,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(
-            render_report(&report).contains("#\tnote\tdeferred-to-next-run\t2"),
-        );
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("#\tnote\tdeferred-to-next-run\t2"),);
     }
 
     #[test]
@@ -2979,7 +3187,9 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered
@@ -3001,6 +3211,144 @@ mod tests {
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
+        );
+    }
+
+    fn kept(id: &str, kept_since: Option<u64>) -> super::KeptCopy {
+        super::KeptCopy {
+            id: id.to_owned(),
+            item: PathBuf::from(format!("/repo/meta/work/{id}.md")),
+            copy: PathBuf::from(format!(
+                "/repo/.accelerator/state/sync-recovery/1-k7mq3x-{id}/\
+                 meta/work/{id}.md"
+            )),
+            directory: PathBuf::from(format!(
+                "/repo/.accelerator/state/sync-recovery/1-k7mq3x-{id}"
+            )),
+            kept_since,
+        }
+    }
+
+    fn review_of(entries: Vec<super::KeptEdits>) -> super::KeptEditsReview {
+        super::KeptEditsReview { entries }
+    }
+
+    #[test]
+    fn every_kept_copy_but_a_settled_one_gets_a_record_before_the_summary() {
+        use super::KeptEdits;
+        use super::Provenance;
+
+        let report = report_with(DiscoveryStatus::Ran { found: 0 });
+        let finished = crate::finished_run::FinishedRun {
+            kept_edits: review_of(vec![
+                KeptEdits::KeptThisRun(kept("0001", Some(1))),
+                KeptEdits::KeptEarlier(kept("0002", Some(1))),
+                KeptEdits::Settled {
+                    kept: kept("0003", Some(1)),
+                    recorded: corpus::store::RecordedCopy {
+                        dir: PathBuf::from("sync-recovery/1-k7mq3x-0003"),
+                        original: PathBuf::from("/repo/meta/work/0003.md"),
+                        copy: PathBuf::from("meta/work/0003.md"),
+                    },
+                },
+                KeptEdits::Unrecorded {
+                    id: Some("0004".to_owned()),
+                    directory: PathBuf::from("/state/sync-recovery/x-0004"),
+                    provenance: Provenance::Unknown,
+                },
+                KeptEdits::Unrecorded {
+                    id: None,
+                    directory: PathBuf::from("/state/sync-recovery/stray"),
+                    provenance: Provenance::Unknown,
+                },
+            ]),
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        };
+
+        let rendered = render_report(&finished);
+
+        let kept_lines: Vec<&str> = rendered
+            .lines()
+            .filter(|line| line.starts_with("#\tkept-edits"))
+            .collect();
+        assert_eq!(
+            kept_lines,
+            vec![
+                "#\tkept-edits\t0001\tthis-run\t/repo/meta/work/0001.md\t\
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0001/meta/\
+                 work/0001.md",
+                "#\tkept-edits\t0002\tearlier\t/repo/meta/work/0002.md\t\
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0002/meta/\
+                 work/0002.md",
+                "#\tkept-edits\t0004\tunrecorded\t-\t\
+                 /state/sync-recovery/x-0004",
+                "#\tkept-edits\t-\tunrecorded\t-\t/state/sync-recovery/stray",
+            ]
+        );
+        assert!(
+            rendered.ends_with("#\tsummary\tsynced\t0"),
+            "the records precede the summary: {rendered}"
+        );
+    }
+
+    #[test]
+    fn each_kept_copy_note_names_what_to_do() {
+        use super::KeptEdits;
+        use super::Provenance;
+
+        let notes = super::kept_edits_notes(&review_of(vec![
+            KeptEdits::KeptThisRun(kept("0001", Some(1_700_000_000))),
+            KeptEdits::KeptEarlier(kept("0002", Some(1_700_000_000))),
+            KeptEdits::NotRemoved {
+                kept: kept("0003", Some(1_600_000_000)),
+                reason: "Permission denied".to_owned(),
+            },
+            KeptEdits::Unrecorded {
+                id: Some("0004".to_owned()),
+                directory: PathBuf::from("/state/sync-recovery/d4"),
+                provenance: Provenance::Tracked,
+            },
+            KeptEdits::Unrecorded {
+                id: Some("0005".to_owned()),
+                directory: PathBuf::from("/state/sync-recovery/d5"),
+                provenance: Provenance::TrackingUnknown,
+            },
+        ]));
+
+        assert_eq!(
+            notes,
+            vec![
+                "note: 0001: kept-edits: local edits kept at \
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0001/meta/\
+                 work/0001.md; merge them, then run accelerator work sync \
+                 --target 0001 --discard-kept-edits 0001",
+                "note: 0003: kept-edits: settled copy at \
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0003 could \
+                 not be removed: Permission denied",
+                "note: 0004: kept-edits: /state/sync-recovery/d4 is tracked by \
+                 version control and was not made by this tool; untrack it \
+                 (git rm --cached -r /state/sync-recovery/d4 or jj file \
+                 untrack /state/sync-recovery/d4), then sync",
+                "note: 0005: kept-edits: could not confirm \
+                 /state/sync-recovery/d5 is untracked; it is kept but not \
+                 compared",
+                "note: -: kept-edits-earlier: 2 earlier copies still kept \
+                 (oldest since 2020-09-13T12:26:40Z) for 0002, 0003; discard \
+                 each with accelerator work sync --target <id> \
+                 --discard-kept-edits <id>",
+            ]
+        );
+    }
+
+    #[test]
+    fn earlier_copies_of_unknown_age_are_kept_since_an_unknown_date() {
+        let notes = super::kept_edits_notes(&review_of(vec![
+            super::KeptEdits::KeptEarlier(kept("0002", None)),
+        ]));
+
+        assert!(
+            notes[0].contains("(oldest since an unknown date) for 0002"),
+            "{notes:?}"
         );
     }
 
@@ -3088,7 +3436,10 @@ mod tests {
         }
 
         fn lines(report: &RunReport) -> Vec<String> {
-            render_report(report).lines().map(str::to_owned).collect()
+            render_report(&crate::finished_run::FinishedRun::for_report(report))
+                .lines()
+                .map(str::to_owned)
+                .collect()
         }
 
         #[test]
@@ -3423,25 +3774,28 @@ mod tests {
 
     #[test]
     fn render_report_emits_each_discovery_status_line() {
-        assert!(
-            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
-                .contains("#\tdiscovery\tran\tfound=3")
-        );
-        assert!(
-            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
-                .contains("#\tdiscovery\tskipped\tpush-only")
-        );
-        assert!(
-            render_report(&report_with(DiscoveryStatus::SkippedTargeted))
-                .contains("#\tdiscovery\tskipped\ttargeted")
-        );
-        assert!(render_report(&report_with(DiscoveryStatus::TargetedPull {
-            attempted: 2
-        }))
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::Ran { found: 3 })
+        ))
+        .contains("#\tdiscovery\tran\tfound=3"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedPushOnly)
+        ))
+        .contains("#\tdiscovery\tskipped\tpush-only"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedTargeted)
+        ))
+        .contains("#\tdiscovery\tskipped\ttargeted"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::TargetedPull { attempted: 2 })
+        ))
         .contains("#\tdiscovery\ttargeted-pull\t2"));
-        let failed = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "connection refused".to_owned(),
-        }));
+        let failed =
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report_with(DiscoveryStatus::Failed {
+                    detail: "connection refused".to_owned(),
+                }),
+            ));
         assert!(
             failed.contains("#\tdiscovery\tfailed\tconnection refused"),
             "{failed}"
@@ -3450,9 +3804,12 @@ mod tests {
 
     #[test]
     fn a_failed_discovery_detail_is_flattened_to_one_record() {
-        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "line one\tsplit\nline two\r".to_owned(),
-        }));
+        let rendered =
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report_with(DiscoveryStatus::Failed {
+                    detail: "line one\tsplit\nline two\r".to_owned(),
+                }),
+            ));
         let discovery = rendered
             .lines()
             .find(|line| line.starts_with("#\tdiscovery\tfailed"))
@@ -3488,8 +3845,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tlocally-modified\tunconfigured"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tlocally-modified\tunconfigured"));
     }
 
     fn rejected(detail: &str) -> TrackerError {
@@ -3512,9 +3871,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(
-            render_report(&report).contains("0001\tfailed\tunsynced\trejected")
-        );
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tunsynced\trejected"));
     }
 
     #[test]
@@ -3638,7 +3998,9 @@ mod tests {
             }),
         )]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
         assert!(
             rendered.contains("0001\tfailed\tsynced\tretryable"),
             "{rendered}"
@@ -3663,7 +4025,9 @@ mod tests {
             kept_edits: None,
         }]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains("0001\trecord-baseline\tlocally-modified\t-"),
@@ -3676,7 +4040,9 @@ mod tests {
     fn a_recorded_baseline_counts_as_synced_with_no_row() {
         let report = report_of(vec![record("0001", ItemOutcome::Applied)]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
         assert!(!rendered.contains("0001\t"), "{rendered}");
         assert!(rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
         assert_eq!(
@@ -3696,8 +4062,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tterminal"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tterminal"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::TERMINAL
@@ -3713,8 +4081,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tretryable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
@@ -3731,8 +4101,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tlocal-write-refused"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tlocal-write-refused"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3772,8 +4144,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tunparseable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tunparseable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3790,8 +4164,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tpull-residue"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tpull-residue"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3810,8 +4186,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tunrenderable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tunrenderable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
