@@ -44,15 +44,14 @@ use crate::context::ContextError;
 use crate::context::Intent;
 use crate::resolve_fields::ResolveError;
 
-// The test-only loopback feature must never reach a release binary: the compile
-// guard rests on `[profile.release]` keeping debug-assertions off, and a
-// build-system byte scan of the staged binary greps for the marker below.
+// A release build that turns debug assertions back on slips past this guard, so
+// `main` reads the marker below: stripping and LTO then keep its bytes in the
+// binary, where a scan can find them.
 #[cfg(all(feature = "test-loopback", not(debug_assertions)))]
 compile_error!("test-loopback must never be enabled in a release build");
 
 #[cfg(feature = "test-loopback")]
-#[no_mangle]
-pub static ACCELERATOR_JIRA_TEST_LOOPBACK_MARKER: u8 = 0;
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_JIRA_TEST_LOOPBACK_MARKER";
 
 fn id_of(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
@@ -1045,6 +1044,8 @@ fn run_resolve_fields(args: &cli::ResolveFieldsArgs) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    #[cfg(feature = "test-loopback")]
+    std::hint::black_box(TEST_LOOPBACK_MARKER);
     let cli = Cli::parse();
     match cli.command {
         Command::Create(args) => run_create(&args),

@@ -76,15 +76,14 @@ use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
 use crate::web_command::WebAdapters;
 
-// The test-only loopback feature must never reach a release binary: the compile
-// guard rests on `[profile.release]` keeping debug-assertions off, and a
-// build-system byte scan of the staged binary greps for the marker below.
+// A release build that turns debug assertions back on slips past this guard, so
+// `main` reads the marker below: stripping and LTO then keep its bytes in the
+// binary, where a scan can find them.
 #[cfg(all(feature = "test-loopback", not(debug_assertions)))]
 compile_error!("test-loopback must never be enabled in a release build");
 
 #[cfg(feature = "test-loopback")]
-#[no_mangle]
-pub static ACCELERATOR_RESEARCH_TEST_LOOPBACK_MARKER: u8 = 0;
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_RESEARCH_TEST_LOOPBACK_MARKER";
 
 /// Below Claude Code's default Bash timeout, so a call that cannot finish in
 /// time prints its outcome, unavailable or waiting, rather than being killed.
@@ -96,6 +95,8 @@ const REQUEST_BUDGET: Duration = Duration::from_secs(30);
 const USAGE: u8 = 2;
 
 fn main() -> ExitCode {
+    #[cfg(feature = "test-loopback")]
+    std::hint::black_box(TEST_LOOPBACK_MARKER);
     let clock = selected_clock();
     let deadline =
         Deadline::starting(clock.now(), selected_call_budget(), REQUEST_BUDGET);
