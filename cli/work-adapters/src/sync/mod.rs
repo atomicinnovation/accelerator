@@ -21,6 +21,7 @@ mod ordering;
 pub mod pending_push;
 pub mod realign;
 pub mod recovery_label;
+pub mod report;
 pub mod run;
 pub mod scope;
 pub mod send_refusal;
