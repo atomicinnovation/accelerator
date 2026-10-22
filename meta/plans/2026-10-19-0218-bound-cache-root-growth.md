@@ -1024,8 +1024,8 @@ impl StartUp {
 
 `ResolutionError` is not `Clone`, so `StartUp` keeps an identification
 error's detail and rebuilds `CacheRootUnavailable` from it for each caller.
-`dispatch_resolver` gains its `HeldLeases` argument in Phase 7, which first
-needs it. `TreeConfig<'a>` borrows the keys, fetcher, liveness probe and step
+`dispatch_resolver` gains its `consumed: &[AcquiredTree]` argument in Phase
+7, which first needs it. `TreeConfig<'a>` borrows the keys, fetcher, liveness probe and step
 observer the caller builds lazily, as `run_cache` and `acquire_consumed_trees`
 do; `main.rs` builds it in `production_tree_config`. The tree resolver's
 clock comes from `CachePorts`, and lease liveness moves there in Phase 4,
@@ -1038,7 +1038,8 @@ walk included, uses a path with no symlink in it. It then calls `for_root`,
 then `claim_running_version`,
 all through `ports.filesystem`. It builds nothing else: the resolvers are
 still built lazily, when a command first needs one, but only through
-`StartUp`'s constructors. `run`, `LazyProductionResolver<'a>(&'a StartUp)`,
+`StartUp`'s constructors. `run`, `LazyProductionResolver<'a>` (which holds
+`&'a StartUp`, and from Phase 7 the trees `run` acquired),
 `run_cache(action, &start)` and `acquire_consumed_trees(&start)` all use them,
 and so do the recorded tests, so the recorded sequence is production's
 sequence. `load_help_manifest` still builds its resolver directly: it reads
@@ -2267,9 +2268,9 @@ built from a bare path.
 `tests/tree_resolution.rs` moves with it in Phase 5's tests-only commit: the
 `Harness` cache becomes `<tempdir>/bin`, and the harness mints its
 `PluginBinRoot` through `identify` with plugin root `<tempdir>` and no
-override. `prune_plugin_bin` takes that `PluginBinRoot`, and Phase 7 routes
-`Harness::resolver_*`, today a struct literal (`tree_resolution.rs:351-376`),
-through `StartUp::tree_resolver` when `RootTrust` arrives.
+override. `prune_plugin_bin` takes that `PluginBinRoot`. `Harness::resolver_*`
+stays a struct literal (`tree_resolution.rs:351-376`); Phase 7 gives it the
+harness's own `PluginBinRetention` as its post-materialise hook.
 
 `TreePruneReport` is `tree`'s own type; `RootPrune` aggregates it into
 `PruneReport` with `absorb_trees`, so `tree` never imports `retention`.
@@ -2867,7 +2868,7 @@ pub enum RootTrust<'a> {
     Relocated(&'a SafePruneRoot),
 }
 
-impl ReapPermit<'_> {
+impl ReapPermit {
     pub fn for_root(trust: RootTrust<'_>,
         filesystem: &dyn CacheFilesystem, ownership: &dyn Ownership)
         -> Option<ReapPermit>;
@@ -3080,16 +3081,17 @@ key that `tests/resolution.rs` now shares and that can also publish trees:
   recorder shows its `RemoveTree` before the `TreeLocks` guard drops, so the
   test fails if `prune_held` does nothing and `run` removes it later
 - `a_cold_store_never_probes_its_own_held_leases` and
-  `acquired_trees_are_never_probed_by_the_cold_store_prune`: the second goes
-  through `StartUp::acquire_and_resolve`, the path `run` uses, acquiring two
-  trees, then cold-stores a sub-binary. A lease probe is only reached for a
+  `acquired_trees_are_never_probed_by_the_cold_store_prune`: the second
+  materialises and acquires two trees through `StartUp::tree_resolver`, then
+  hands them to `StartUp::dispatch_resolver`, as `run` does, and cold-stores a
+  sub-binary. A lease probe is only reached for a
   generation step 1 would otherwise reclaim, so both seed it: `CachePorts`
   pins no digest for the acquired artifacts, and an advancing clock moves
   past `CLAIM_WINDOW` after `acquire` refreshes their claims. A
   `LivenessProbe` wrapper fails on any probe of a leased generation and
   answers `Free` for every other, and the leased generations survive. A
-  control builds the resolver with `HeldLeases::none()` and shows the
-  wrapper fires, so the test can fail. This pins the `HeldLeases::of`
+  control builds the resolver with no consumed trees and shows the wrapper
+  fires, so the test can fail. This pins the `HeldLeases::of`
   wiring
 - `an_unsafe_root_is_not_pruned_from_any_trigger`: the group-writable and
   foreign-uid roots of Phase 4, now through a cold store and a materialise.
