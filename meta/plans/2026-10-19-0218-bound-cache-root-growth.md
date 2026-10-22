@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-21T20:49:09+00:00"
+last_updated: "2026-10-22T03:29:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -761,7 +761,9 @@ when their identities are equal, which also holds across a bind mount or a
 macOS firmlink alias, where canonical path strings differ. `FileKind` is
 named apart from `launch/core/tree_entry.rs`'s archive `EntryKind`.
 `create_private_dir` is a `mkdir` with mode
-`0700` that returns `AlreadyExists` unchanged. Every rule that reads
+`0700` that returns `AlreadyExists` unchanged. `set_modified` opens the file
+for writing with `O_NOFOLLOW|O_NONBLOCK` and sets its mtime with
+`File::set_modified`. `EntryMetadata::mode` is the full `st_mode`. Every rule that reads
 `modified_seconds` treats `None` as not aged for a removal and as fresh for
 protection, and treats a future mtime as age zero, so an unreadable or skewed
 mtime can only keep. `FilesystemCall` gains
@@ -799,15 +801,21 @@ pub fn identify(
 | set | resolves | resolves, equal | `PluginBin` |
 | set | resolves | resolves, different | `Relocated` |
 
-The second row's doc comment is one sentence of why: claiming and pruning
+The second row's comment is one sentence of why: claiming and pruning
 are skipped until the cold path's `create_dir_all` makes the override
-resolvable.
+resolvable. In the first two rows the root is `candidate`'s path verbatim; in
+the last three it is the override's canonical path, whatever the kind.
 
-`main.rs::run` calls `identify` once per process, before `dispatch`, and
-passes the result to the three sites that call `candidate` today (`:81`,
-`:323`, `:417`). An identification error is carried, not raised, and is
-surfaced only by a path that needs the root, so built-ins that never touch
-the cache behave as today.
+`identify` runs once per process, through `start_up`, before `dispatch`, and
+its result replaces the three `candidate` calls in `main.rs`
+(`production_resolver`, `run_cache`, `acquire_consumed_trees`). An
+identification error is carried, not raised, and is surfaced only by a path
+that needs the root, so built-ins that never touch the cache behave as today.
+
+`candidate` no longer logs the override. `StartUp` logs
+"using ACCELERATOR_CACHE_DIR override for the cache root" when a resolver
+asks for the root, so the line fires where it did before and a built-in's
+stderr stays empty.
 
 #### 3. Version claims
 
@@ -893,13 +901,42 @@ pub fn list(
   by the effective uid. `FreshVersions::within(window, clock)` is computed
   from the valid claims.
 
+`list` reads `claims/` with `entry` before listing it, so a missing directory
+is `Read(vec![])`, an `entry` error other than `NotFound` is `Unreadable` with
+its kind, and an untrusted directory is `Unreadable(PermissionDenied)`; a
+listing error after that is `Unreadable` too. Each name that parses becomes a
+`ListedClaim`, and one whose `entry` fails is skipped:
+
+```rust
+pub struct ListedClaim {
+    pub version: String,
+    pub launcher_id: String,
+    pub path: PathBuf,
+    pub valid: bool,
+    pub modified_seconds: Option<u64>,
+}
+
+impl FreshVersions {
+    pub fn within(claims: &[ListedClaim], window: Duration, clock: &dyn Clock)
+        -> Self;
+    pub fn contains(&self, version: &str) -> bool;
+}
+
+pub fn parse_claim_name(name: &str) -> Option<(&str, &str)>
+```
+
+`FreshVersions::within` counts a valid claim with an unknown or future mtime
+as fresh. `refresh` treats an unknown mtime as not young and rewrites the
+claim, since the rewrite only sets a readable mtime.
+
 **File**: `cli/launcher/src/launch/outbound/resolve/tree/claims.rs`
 **Changes**: in every root, `write_private` adds `custom_flags(O_NOFOLLOW)`, and
-`refresh` writes only when `trees/claims/` passes
+`refresh` creates `trees/claims/` with `SystemFilesystem.create_private_dir`,
+accepting `AlreadyExists`, then writes only when it passes
 `ownership::is_trusted_directory(dir, &SystemFilesystem, &ProcessOwnership)`,
-the same predicate every other trust check uses. Tree-claim refresh stays on
-`std::fs`: it is on the dispatch path, and nothing records it. After the write,
-`refresh` sets the claim's mtime to `clock.now_seconds()` with
+the same predicate every other trust check uses. Tree-claim refresh stays off
+the recorded port: it is on the dispatch path, and nothing records it. After
+the write, `refresh` sets the claim's mtime to `clock.now_seconds()` with
 `File::set_modified`.
 
 **File**: `retention/root_retention.rs` (new)
@@ -917,12 +954,11 @@ pub struct CachePorts {
     pub clock: Arc<dyn Clock + Send + Sync>,
 }
 
-pub struct PluginBinRetention { root: Option<PathBuf>, ports: Arc<CachePorts> }
+pub struct PluginBinRetention;
 
 pub struct RelocatedRetention {
     root: PathBuf,
     running_version: String,
-    plugin_root: Option<PathBuf>,
     ports: Arc<CachePorts>,
 }
 
@@ -930,13 +966,17 @@ pub fn for_root(root: Option<&CacheRoot>, ports: Arc<CachePorts>)
     -> Arc<dyn RootRetention + Send + Sync>
 ```
 
-`CachePorts` is the one bundle of ports `main.rs` builds; the resolvers and
-both retentions borrow from it. It holds only what this phase needs; Phases
-4, 5 and 7 add fields as their tests demand, and those are the retentions'
-final fields. An identification error selects
+`CachePorts` is the one bundle of ports `main.rs` builds, in
+`production_ports()`; the resolvers and both retentions borrow from it. It
+holds only what this phase needs; Phases 4, 5 and 7 add fields as their tests
+demand. The retentions likewise hold only what this phase reads:
+`PluginBinRetention` gains its root and ports, and `RelocatedRetention` its
+`plugin_root`, in the phase whose prune first reads them.
+`running_version` is `env!("CARGO_PKG_VERSION")`. An identification error selects
 `PluginBinRetention`, so a root that cannot be identified is never claimed
 or pruned. `PluginBinRetention::claim_running_version` makes no call.
-`RelocatedRetention` computes the launcher id and calls `refresh`. Computing
+`RelocatedRetention` computes the launcher id with `retention::launcher_id()`
+(in `retention/mod.rs`) and calls `refresh`. Computing
 the id only there keeps its `current_exe` and hash off the default root's
 path. Later phases add `prune`, `after_store` and `after_materialise`.
 
@@ -944,29 +984,47 @@ path. Later phases add `prune`, `after_store` and `after_materialise`.
 
 ```rust
 pub struct StartUp {
-    cache_root: Result<CacheRoot, ResolutionError>,
+    cache_root: Result<CacheRoot, String>,
+    overridden: bool,
     retention: Arc<dyn RootRetention + Send + Sync>,
     ports: Arc<CachePorts>,
+}
+
+pub struct DispatchConfig {
+    pub base_url: String,
+    pub keys: TrustedKeys,
+    pub fetcher: Fetcher,
+}
+
+pub struct TreeConfig<'a> {
+    pub base_url: String,
+    pub keys: &'a TrustedKeys,
+    pub fetcher: &'a Fetcher,
+    pub liveness: &'a dyn LivenessProbe,
+    pub expected_digests: ExpectedDigests,
+    pub waiter_bound: Duration,
+    pub steps: &'a dyn StepObserver,
 }
 
 pub fn start_up(config: &CacheRootConfig, ports: Arc<CachePorts>)
     -> StartUp
 
 impl StartUp {
-    pub fn dispatch_resolver(
-        &self,
-        config: DispatchConfig,
-        held_leases: HeldLeases,
-    ) -> Result<FetchVerifyCacheResolver, ResolutionError>;
+    pub fn dispatch_resolver(&self, config: DispatchConfig)
+        -> Result<FetchVerifyCacheResolver, ResolutionError>;
     pub fn tree_resolver<'a>(&'a self, config: TreeConfig<'a>)
         -> Result<TreeResolver<'a>, ResolutionError>;
     pub fn retention(&self) -> &dyn RootRetention;
 }
 ```
 
-`TreeConfig<'a>` borrows the keys, fetcher and step observer the caller
-builds lazily, as `run_cache` and `acquire_consumed_trees` do today; lease
-liveness comes only from `CachePorts`, from Phase 4 on.
+`ResolutionError` is not `Clone`, so `StartUp` keeps an identification
+error's detail and rebuilds `CacheRootUnavailable` from it for each caller.
+`dispatch_resolver` gains its `HeldLeases` argument in Phase 7, which first
+needs it. `TreeConfig<'a>` borrows the keys, fetcher, liveness probe and step
+observer the caller builds lazily, as `run_cache` and `acquire_consumed_trees`
+do; `main.rs` builds it in `production_tree_config`. The tree resolver's
+clock comes from `CachePorts`, and lease liveness moves there in Phase 4.
 
 `start_up` calls `identify`, which resolves both roots once; a relocated
 root is then carried as its canonical path, so every later step, the safety
@@ -974,9 +1032,11 @@ walk included, uses a path with no symlink in it. It then calls `for_root`,
 then `claim_running_version`,
 all through `ports.filesystem`. It builds nothing else: the resolvers are
 still built lazily, when a command first needs one, but only through
-`StartUp`'s constructors. `run`, `LazyProductionResolver` (which now holds
-`&StartUp`), `run_cache` and `acquire_consumed_trees` all use them, and so do
-the recorded tests, so the recorded sequence is production's sequence.
+`StartUp`'s constructors. `run`, `LazyProductionResolver<'a>(&'a StartUp)`,
+`run_cache(action, &start)` and `acquire_consumed_trees(&start)` all use them,
+and so do the recorded tests, so the recorded sequence is production's
+sequence. `load_help_manifest` still builds its resolver directly: it reads
+only the manifest, never the cache root.
 
 **File**: `cli/launcher/src/main.rs`
 **Changes**: `run` calls `start_up` before `dispatch`, for every command,
@@ -992,10 +1052,22 @@ from `StartUp::cache_root`. The kind never reaches resolver logic.
 #### 4. Tests (red first)
 
 **File**: `cli/launcher/src/launch/outbound/resolve/cache_root.rs`
-(unit tests): one test per row of the identity table. Two more show a
-symlink and a trailing slash naming the plugin `bin` both resolving to
-`PluginBin`. A third gives the two paths equal `DirectoryIdentity` through a
-fake port, standing in for a bind mount, and expects `PluginBin`.
+(unit tests): one test per row of the identity table, with the third row
+split in two:
+
+- `an_unset_override_is_the_plugin_bin_and_resolves_nothing`
+- `an_override_that_does_not_resolve_is_treated_as_the_plugin_bin`
+- `an_override_with_an_unresolvable_plugin_bin_is_relocated`
+- `an_override_with_no_plugin_root_is_relocated`
+- `an_override_naming_the_plugin_bin_is_the_plugin_bin`
+- `an_override_naming_another_directory_is_relocated`
+
+Two more, `a_symlink_naming_the_plugin_bin_is_the_plugin_bin` and
+`a_trailing_slash_naming_the_plugin_bin_is_the_plugin_bin`, expect
+`PluginBin`. `two_spellings_with_one_directory_identity_are_the_plugin_bin`
+gives the two paths equal `DirectoryIdentity` through `ReportingFilesystem`,
+standing in for a bind mount. `no_override_and_no_plugin_root_cannot_be_identified`
+keeps `candidate`'s error.
 
 **File**: `cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs`
 (unit tests):
@@ -1009,10 +1081,14 @@ fake port, standing in for a bind mount, and expects `PluginBin`.
   `claims.rs:208-235`)
 - `a_read_only_root_never_fails_the_refresh`
 - `a_symlink_or_foreign_owned_claim_is_not_valid`
-- `a_young_foreign_owned_claim_does_not_suppress_the_refresh`: the
-  `WritePrivate` attempt is recorded
+- `a_young_foreign_owned_claim_does_not_suppress_the_refresh`: the claim's
+  sentinel bytes are truncated, which only the write does; a unit test cannot
+  reach the integration tests' recorder
+- `a_claim_outside_the_window_does_not_make_its_version_fresh`
+- `a_missing_claims_directory_lists_no_claims`
 
-- `is_trusted_entry` table (unit, `ownership.rs`): `0700` and `0755` pass;
+- `only_an_owned_directory_nobody_else_can_write_is_trusted`, the
+  `is_trusted_entry` table (unit, `ownership.rs`): `0700` and `0755` pass;
   `0775` and `0777` fail; a foreign owner, a symlink and a non-directory
   fail
 
@@ -1022,8 +1098,11 @@ only the one claim file foreign. They use `ReportingFilesystem`, a
 always-compiled `#[doc(hidden)] pub mod`, since integration tests link the
 library without `cfg(test)` and features are not used as seams. It is inert
 unless a test constructs it, and the launcher is outside `public-api:check`.
-Its `reporting(path, EntryMetadata)` reports synthetic metadata for one
-path, and from Phase 4 `reporting_acl(path, AccessAcl)` scripts the ACL
+It is generic over its inner filesystem, built with `over(inner)` or
+`over_system()`. Its builder `reporting(path, EntryMetadata)` reports
+synthetic metadata for one path, `resolving(path, ResolvedDirectory)` a
+synthetic resolution, and `resolved_paths()` lists every path `resolve` was
+given; from Phase 4 `reporting_acl(path, AccessAcl)` scripts the ACL
 answer. Being always compiled, it is held to the workspace's production
 lints: it recovers a poisoned lock with `into_inner` rather than
 `unwrap`, documents its errors, and carries no blanket `#[allow]`. Phase
@@ -1051,7 +1130,10 @@ process's effective uid.
 
 **File**: `cli/launcher/tests/resolution.rs` (recorded). Each test calls
 `start_up` with a recorder, then `StartUp::dispatch_resolver`, the same
-constructor `run` uses:
+constructor `run` uses. The harness cache moves to `<tempdir>/bin`, so an
+unset override with plugin root `<tempdir>` names it; a relocated root is the
+same cache with plugin root `<workdir>/plugin`, whose `bin/` exists. The
+Phase 1 test stays as it was, beside its `identify`-composed twin:
 
 - `an_override_root_dispatch_writes_its_claim_before_find`: covers a missing
   claim and one older than `CLAIM_WINDOW/10`. The `WritePrivate(claims/…)`
@@ -1074,10 +1156,12 @@ constructor `run` uses:
 - `a_development_checkout_relocated_elsewhere_claims_its_version`: the plugin
   root is a temp "checkout" whose `bin/` differs from the override.
 
-**File**: `cli/launcher/tests/` (built-launcher test):
+**File**: `cli/launcher/tests/version.rs` (built-launcher tests):
 
 - `a_built_in_command_refreshes_the_version_claim`: `accelerator version`
   with a scratch `ACCELERATOR_CACHE_DIR` leaves `claims/<version>.<16hex>`.
+- `a_built_in_command_in_a_relocated_root_writes_nothing_to_stderr`: pins the
+  override log's move out of `candidate`.
 
 ### Success Criteria:
 
@@ -1090,7 +1174,9 @@ constructor `run` uses:
 #### Manual Verification:
 
 - [ ] A dispatch with `ACCELERATOR_CACHE_DIR` set in a scratch directory
-      leaves `claims/<version>.<16hex>` and nothing else new
+      leaves `claims/<version>.<16hex>` and nothing else new. So far only
+      `accelerator version` has been checked this way; a real external
+      dispatch needs a published release or a seeded signed entry.
 
 ---
 
