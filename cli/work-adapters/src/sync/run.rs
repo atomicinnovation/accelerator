@@ -29,16 +29,13 @@ use work::sync::RunClock;
 use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
-use work::sync::Unclassifiable;
 
 use crate::create_request_fields;
-use crate::promotion::PromotionRow;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::KeyCarrier;
-use crate::sync::apply::LeftoverMarker;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
@@ -60,13 +57,15 @@ use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
-use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::item_snapshot::UnreadContent;
 use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
+pub use crate::sync::report::ItemOutcome;
+pub use crate::sync::report::ReportedItem;
+pub use crate::sync::report::RunReport;
 use crate::sync::scope;
 use crate::sync::send_refusal::legacy_unrenderable;
 use crate::sync::send_refusal::send_refusal;
@@ -211,32 +210,6 @@ impl<'a> SyncRequest<'a> {
     }
 }
 
-pub enum ItemOutcome {
-    Applied,
-    NotApplied,
-    /// Nothing was read or written: the item's baseline entry was recorded
-    /// under a digest recipe newer than this binary knows.
-    UnsupportedRecipe,
-    Failed(ApplyError),
-}
-
-pub struct ReportedItem {
-    pub planned: PlannedAction,
-    pub outcome: ItemOutcome,
-    /// The local payload-composition check attached to a `Push` entry during
-    /// a preview. `None` outside preview, and for every non-`Push` action.
-    ///
-    /// A `Rejected` outcome surfaces a locally-detectable missing required
-    /// field before any mutation. It does not reproduce a live-tracker field
-    /// check — a `Valid` preview does not guarantee the tracker accepts the
-    /// push.
-    pub validation: Option<tracker::ValidationOutcome>,
-    /// Where this run kept the item's local edits before pulling over them.
-    pub kept_edits: Option<PathBuf>,
-    /// A local create's marker this run linked yet could not remove.
-    pub leftover_marker: Option<LeftoverMarker>,
-}
-
 /// What untracked-remote discovery did on a run that got past the pre-flight
 /// scope check, so a skip is never mistaken for a search that found nothing.
 ///
@@ -309,49 +282,6 @@ impl SettledView {
 
     fn follows(&self, key: &ExternalId) -> bool {
         self.followed_keys.contains(&canonical_external_key(key))
-    }
-}
-
-pub struct RunReport {
-    /// The identity pass's rows, each keyed by the item's id when the run
-    /// started. The engine's row for the same item is not rendered.
-    pub identity: Vec<IdentityRow>,
-    /// Every draft the run set out to promote, in id order.
-    pub promotions: Vec<PromotionRow>,
-    /// Items that appeared after the identity pass read the remote, left
-    /// for the next run.
-    pub deferred: usize,
-    pub reported: Vec<ReportedItem>,
-    /// Items whose classification failed, so they were neither planned nor
-    /// applied.
-    pub unclassifiable: Vec<Unclassifiable>,
-    pub read_failure: Option<TrackerError>,
-    pub baseline_degradation: Degradation,
-    pub finalised: bool,
-    pub dossiers: Vec<ConflictDossier>,
-    pub discovery: DiscoveryStatus,
-    /// The bulk keyed read was cut short by a transient condition (a deadline,
-    /// rate limit, or wire failure), so the affected items degraded to
-    /// indeterminate and the run proceeded. A soft signal, not the fatal
-    /// [`RunError::KeyedReadCapped`]: the operator sees the read was
-    /// budget-limited rather than the incompleteness passing silently.
-    pub keyed_read_budget_limited: bool,
-}
-
-impl RunReport {
-    /// Items this run left for a human. Derived, never stored: a stored
-    /// field could disagree with the report, yielding a run that prints
-    /// conflicts and exits 0.
-    pub fn awaiting_human(&self) -> impl Iterator<Item = &ReportedItem> {
-        self.reported.iter().filter(|item| {
-            matches!(
-                item.planned.action,
-                Action::Prompt | Action::SkipConflict | Action::SkipDirty
-            ) || matches!(
-                item.planned.state,
-                SyncState::RemoteAbsent | SyncState::Indeterminate
-            )
-        })
     }
 }
 
