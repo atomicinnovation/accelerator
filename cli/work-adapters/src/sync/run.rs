@@ -35,6 +35,7 @@ use crate::create_request_fields;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
+use crate::sync::apply::IncompleteCorpusDeferral;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::KeyCarrier;
 use crate::sync::apply::PullRequest;
@@ -65,6 +66,7 @@ use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
 use crate::sync::report::CorpusScope;
+use crate::sync::report::DiscoveryDeferral;
 use crate::sync::report::Finalisation;
 pub use crate::sync::report::ItemOutcome;
 pub use crate::sync::report::ReportedItem;
@@ -249,6 +251,9 @@ pub enum DiscoveryStatus {
     /// The search failed transiently (network). Maps to `RETRYABLE` (70), the
     /// fate a failed read carries.
     Failed { detail: String },
+    /// The corpus held a work file the run could not use, so its
+    /// `external_id`s are not all known and nothing was imported.
+    SkippedIncompleteCorpus,
 }
 
 /// What the identity pass settled before the engine planned, so the engine
@@ -1509,6 +1514,7 @@ fn apply_local_create(
             marker_path: &marker_path,
             author,
             carrier_of,
+            corpus_blocked_by: request.inventory.blocking_fault(),
             attempted_at,
         })
         .result
@@ -1541,6 +1547,7 @@ struct PreparedRun<'a> {
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
     discovery: DiscoveryStatus,
+    discovery_deferral: Option<DiscoveryDeferral>,
     creates_from_local: Vec<&'a LocalItem>,
     dossiers: Vec<ConflictDossier>,
 }
@@ -1574,11 +1581,30 @@ const fn classify_keyed_read(
 /// [`RunError::DiscoveryUnconfigured`] when a full run's scope names no valid
 /// target; [`RunError::DiscoveryIncomplete`] when the untracked search is cut
 /// short.
+/// The remote issues a run imports, how discovery found them, and why it
+/// imported none it would otherwise have.
+struct Imports {
+    ids: Vec<ExternalId>,
+    discovery: DiscoveryStatus,
+    deferral: Option<DiscoveryDeferral>,
+}
+
+impl Imports {
+    const fn none(discovery: DiscoveryStatus) -> Self {
+        Self {
+            ids: Vec::new(),
+            discovery,
+            deferral: None,
+        }
+    }
+}
+
 fn untracked_to_import(
     ports: &SyncPorts<'_>,
     request: &SyncRequest<'_>,
     settled: &SettledView,
-) -> Result<(Vec<ExternalId>, DiscoveryStatus), RunError> {
+) -> Result<Imports, RunError> {
+    let blocked_by = request.inventory.blocking_fault();
     Ok(match &request.selection {
         ItemSelection::Targeted { pull_ids, .. } => {
             let confirmed: Vec<ExternalId> = pull_ids
@@ -1586,17 +1612,42 @@ fn untracked_to_import(
                 .filter(|id| carrier_of(request.corpus, settled, id).is_none())
                 .cloned()
                 .collect();
-            if confirmed.is_empty() {
-                (Vec::new(), DiscoveryStatus::SkippedTargeted)
-            } else {
-                let attempted = confirmed.len();
-                (confirmed, DiscoveryStatus::TargetedPull { attempted })
+            match blocked_by {
+                _ if confirmed.is_empty() => {
+                    Imports::none(DiscoveryStatus::SkippedTargeted)
+                }
+                Some(blocking) => Imports {
+                    ids: Vec::new(),
+                    discovery: DiscoveryStatus::SkippedIncompleteCorpus,
+                    deferral: Some(DiscoveryDeferral::CorpusIncomplete(
+                        ApplyError::CorpusIncomplete {
+                            subject: "-".to_owned(),
+                            deferred: IncompleteCorpusDeferral::Import(
+                                confirmed,
+                            ),
+                            blocking,
+                        },
+                    )),
+                },
+                None => {
+                    let attempted = confirmed.len();
+                    Imports {
+                        ids: confirmed,
+                        discovery: DiscoveryStatus::TargetedPull { attempted },
+                        deferral: None,
+                    }
+                }
             }
         }
         ItemSelection::All | ItemSelection::Settled { .. }
             if matches!(request.direction, SyncDirection::PushOnly) =>
         {
-            (Vec::new(), DiscoveryStatus::SkippedPushOnly)
+            Imports::none(DiscoveryStatus::SkippedPushOnly)
+        }
+        ItemSelection::All | ItemSelection::Settled { .. }
+            if blocked_by.is_some() =>
+        {
+            Imports::none(DiscoveryStatus::SkippedIncompleteCorpus)
         }
         ItemSelection::All | ItemSelection::Settled { .. } => {
             let prepared = resolve_discovery_scope(ports, request)?;
@@ -1609,12 +1660,9 @@ fn untracked_to_import(
                         });
                     }
                     Err(scope::EntityResolution::Transient(error)) => {
-                        return Ok((
-                            Vec::new(),
-                            DiscoveryStatus::Failed {
-                                detail: error.into_detail(),
-                            },
-                        ));
+                        return Ok(Imports::none(DiscoveryStatus::Failed {
+                            detail: error.into_detail(),
+                        }));
                     }
                 }
             } else {
@@ -1634,17 +1682,18 @@ fn untracked_to_import(
                 }
                 Ok(discovered) => {
                     let found = discovered.ids.len();
-                    (discovered.ids, DiscoveryStatus::Ran { found })
+                    Imports {
+                        ids: discovered.ids,
+                        discovery: DiscoveryStatus::Ran { found },
+                        deferral: None,
+                    }
                 }
                 Err(TrackerError::Unconfigured { detail }) => {
                     return Err(RunError::DiscoveryUnconfigured { detail });
                 }
-                Err(error) => (
-                    Vec::new(),
-                    DiscoveryStatus::Failed {
-                        detail: error.into_detail(),
-                    },
-                ),
+                Err(error) => Imports::none(DiscoveryStatus::Failed {
+                    detail: error.into_detail(),
+                }),
             }
         }
     })
@@ -1743,7 +1792,11 @@ fn prepare_run<'a>(
         .map(|item| item.id.clone())
         .collect();
 
-    let (untracked, discovery) = untracked_to_import(ports, request, settled)?;
+    let Imports {
+        ids: untracked,
+        discovery,
+        deferral: discovery_deferral,
+    } = untracked_to_import(ports, request, settled)?;
     let creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
 
@@ -1775,6 +1828,7 @@ fn prepare_run<'a>(
         plan,
         untracked,
         discovery,
+        discovery_deferral,
         creates_from_local,
         dossiers,
     })
@@ -1836,6 +1890,7 @@ fn execute<'a>(
         plan,
         untracked,
         discovery,
+        discovery_deferral,
         creates_from_local,
         dossiers,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
@@ -1877,6 +1932,7 @@ fn execute<'a>(
             finalisation: Finalisation::NotAttempted,
             dossiers,
             discovery,
+            discovery_deferral,
             keyed_read_budget_limited,
         });
     }
@@ -1959,6 +2015,7 @@ fn execute<'a>(
         finalisation,
         dossiers,
         discovery,
+        discovery_deferral,
         keyed_read_budget_limited,
     })
 }

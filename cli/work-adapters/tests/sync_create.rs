@@ -2377,6 +2377,7 @@ fn run_create_from_local_with(
     run_create_from_local_in(
         fixture,
         std::slice::from_ref(item),
+        &work_adapters::sync::fetch::inventory_of(std::slice::from_ref(item)),
         tracker,
         stores,
         fault,
@@ -2386,6 +2387,7 @@ fn run_create_from_local_with(
 fn run_create_from_local_in(
     fixture: &Fixture,
     corpus: &[LocalItem],
+    inventory: &work::inventory::CorpusInventory,
     tracker: &RecordingTracker,
     (work_items, integration_state): (&Spy, &Spy),
     fault: AuthorFault,
@@ -2415,7 +2417,7 @@ fn run_create_from_local_in(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
-        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
+        inventory,
         selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -3255,6 +3257,7 @@ fn each_pending_push_refusal_is_terminal_and_names_its_reason(
         let report = run_create_from_local_in(
             &fixture,
             &corpus,
+            &work_adapters::sync::fetch::inventory_of(&corpus),
             &tracker,
             (&Spy::default(), &Spy::default()),
             AuthorFault::None,
@@ -3315,6 +3318,57 @@ fn a_local_create_over_wrong_content_is_unparseable_at_the_step_that_saw_it(
         let error = create_from_local_failure(&report);
         assert_eq!(error.class(), FailureClass::Unparseable, "{error}");
         assert_eq!(error.operation(), operation, "{error}");
+    }
+    Ok(())
+}
+
+#[test]
+fn reuse_id_is_deferred_while_the_corpus_is_incomplete() -> Result<(), TestError>
+{
+    for (reason, class) in [
+        (
+            work::inventory::UnidentifiedReason::Malformed(
+                work::inventory::MalformedCause::UnclosedFence,
+            ),
+            FailureClass::Unparseable,
+        ),
+        (
+            work::inventory::UnidentifiedReason::Unreadable(
+                "Permission denied".to_owned(),
+            ),
+            FailureClass::Retryable,
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        seed_created_marker(&fixture, &item, "ENG-42");
+        let mut inventory = work_adapters::sync::fetch::inventory_of(
+            std::slice::from_ref(&item),
+        );
+        inventory.unidentified.push(work::inventory::Unidentified {
+            path: fixture.dir.path().join("0002-broken.md"),
+            reason,
+        });
+        let author_spy = Spy::default();
+
+        let report = run_create_from_local_in(
+            &fixture,
+            std::slice::from_ref(&item),
+            &inventory,
+            &RecordingTracker::holding(Vec::new()),
+            (&author_spy, &Spy::default()),
+            AuthorFault::None,
+        );
+
+        let error = create_from_local_failure(&report);
+        assert!(
+            matches!(error, ApplyError::CorpusIncomplete { .. }),
+            "{error:?}"
+        );
+        assert_eq!(error.class(), class);
+        assert_eq!(error.operation(), SyncOperation::LinkExternalId);
+        assert!(error.cause().contains("ENG-42"), "{error}");
+        assert!(marker_of(&fixture, "0001").exists());
     }
     Ok(())
 }

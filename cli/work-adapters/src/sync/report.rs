@@ -93,6 +93,13 @@ pub enum CorpusScope {
     Targeted,
 }
 
+/// Why untracked discovery imported nothing it would otherwise have
+/// imported.
+#[derive(Debug)]
+pub enum DiscoveryDeferral {
+    CorpusIncomplete(ApplyError),
+}
+
 /// Whether a run recorded its baseline bookkeeping: a preview does not
 /// try, and a failed write keeps the store's reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,6 +132,7 @@ pub struct RunReport {
     pub finalisation: Finalisation,
     pub dossiers: Vec<ConflictDossier>,
     pub discovery: DiscoveryStatus,
+    pub discovery_deferral: Option<DiscoveryDeferral>,
     /// The bulk keyed read was cut short by a transient condition (a deadline,
     /// rate limit, or wire failure), so the affected items degraded to
     /// indeterminate and the run proceeded. A soft signal, not the fatal
@@ -158,6 +166,19 @@ impl RunReport {
                 FailureClass::Retryable,
             )
         });
+        let deferral =
+            self.discovery_deferral
+                .iter()
+                .map(|deferral| match deferral {
+                    DiscoveryDeferral::CorpusIncomplete(error) => {
+                        RunFailure::error(
+                            error.item_id(),
+                            error.operation(),
+                            error.cause(),
+                            error.class(),
+                        )
+                    }
+                });
         let files = self
             .inventory
             .unidentified
@@ -172,7 +193,10 @@ impl RunReport {
             )),
             Finalisation::NotAttempted | Finalisation::Finalised => None,
         };
-        rows.chain(unclassifiable).chain(files).chain(finalise)
+        rows.chain(unclassifiable)
+            .chain(files)
+            .chain(deferral)
+            .chain(finalise)
     }
 
     fn unusable_file(&self, entry: &Unidentified) -> Option<RunFailure> {

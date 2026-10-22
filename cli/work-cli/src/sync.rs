@@ -410,6 +410,9 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
         }
+        DiscoveryStatus::SkippedIncompleteCorpus => {
+            "#\tdiscovery\tskipped\tincomplete-corpus".to_owned()
+        }
     }
 }
 
@@ -7017,6 +7020,155 @@ mod tests {
         assert!(mutations(&tracker).is_empty());
         assert!(!run.out.contains("0001\t"), "{}", run.out);
         assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    fn discovering_remote(keys: &[&str]) -> Rc<RecordingTracker> {
+        Rc::new(
+            RecordingTracker::holding(
+                keys.iter()
+                    .map(|key| {
+                        (
+                            ExternalId::new((*key).to_owned()),
+                            issue("Imported\nRemote body"),
+                        )
+                    })
+                    .collect(),
+            )
+            .discovering(
+                keys.iter()
+                    .map(|key| {
+                        (
+                            ExternalId::new((*key).to_owned()),
+                            tracker::RemoteTimestamp::Reported(
+                                "2026-01-01T00:00:00Z".to_owned(),
+                            ),
+                        )
+                    })
+                    .collect(),
+                true,
+            ),
+        )
+    }
+
+    const CONFLICTED_ITEM: &str = "<<<<<<< Conflict 1 of 1\n%%%%%%% Changes \
+                                   from base to side #1\n-title: a\n+title: \
+                                   b\n+++++++ Contents of side #2\ntitle: \
+                                   c\n>>>>>>> Conflict 1 of 1 ends\n---\nid: \
+                                   \"0042\"\nexternal_id: \"PP-42\"\n---\n";
+
+    #[test]
+    fn a_conflicted_tracked_item_is_not_re_imported() {
+        let dir = sync_repo();
+        let conflicted = dir.path().join("meta/work/0042-tracked.md");
+        std::fs::write(&conflicted, CONFLICTED_ITEM).expect("write the item");
+        let tracker = discovering_remote(&["PP-42"]);
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(new_work_files(dir.path()), vec!["0042-tracked.md"]);
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tdiscovery\tskipped\tincomplete-corpus"),
+            "{}",
+            run.out
+        );
+        assert!(
+            unidentified_record(&run.out, &conflicted, "malformed"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.contains("identify-local failed")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_pull_is_deferred_while_the_corpus_is_incomplete() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join("meta/work/0002-broken.md"),
+            "---\nid: \"0002\"\n",
+        )
+        .expect("write the broken item");
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-9".to_owned()),
+            issue("Imported\nRemote body"),
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["PP-9".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(dir.path()), vec!["0002-broken.md"]);
+        assert_eq!(
+            error_lines(&run.err),
+            vec![
+                "error: -: discover failed: the work directory holds \
+                 unreadable or malformed files, so PP-9 cannot be shown to be \
+                 untracked"
+            ]
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_pull_deferred_by_an_unreadable_file_is_retryable() {
+        let dir = sync_repo();
+        let sealed = dir.path().join("meta/work/0002-sealed.md");
+        std::fs::write(&sealed, "---\nid: \"0002\"\n---\n").expect("write");
+        let Some(_guard) =
+            store::test_support::UnreadableFile::new(&sealed).expect("seal")
+        else {
+            return;
+        };
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-9".to_owned()),
+            issue("Imported\nRemote body"),
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["PP-9".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(dir.path()), vec!["0002-sealed.md"]);
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.starts_with("error: -: discover failed: ")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn an_empty_healthy_corpus_imports_remote_issues() {
+        let full = sync_repo();
+        let targeted = sync_repo();
+
+        drive_sync(
+            full.path(),
+            &discovering_remote(&["PP-7"]),
+            &sync_args(vec![]),
+        );
+        drive_sync(
+            targeted.path(),
+            &discovering_remote(&["PP-7"]),
+            &sync_args(vec!["PP-7".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(full.path()).len(), 1);
+        assert_eq!(new_work_files(targeted.path()).len(), 1);
     }
 
     fn team_config(dir: &Path, extra: &str) {
