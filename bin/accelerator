@@ -453,5 +453,14 @@ for ${platform}"
 fi
 
 # argv list (no shell-string interpolation); the exported root stays in the env
-# so the launcher resolves the same cache root for its sub-binaries.
+# so the launcher resolves the same cache root for its sub-binaries. The file,
+# not the status, tells a vanished launcher apart: bash 3.2 reports 126 for a
+# missing file and an unexecutable one alike. Every other failure keeps bash's
+# own status, so a launcher that can never run stays visible under --fail-safe.
+shopt -s execfail
 exec "${launcher}" "$@"
+exec_status=$?
+if [[ ! -e "${launcher}" ]]; then
+	fail "the launcher ${launcher} vanished before it could run"
+fi
+exit "${exec_status}"
