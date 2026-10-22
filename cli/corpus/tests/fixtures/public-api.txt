@@ -796,6 +796,34 @@ pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
 pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
 pub fn corpus::slug::title_case_segment(segment: &str) -> alloc::string::String
 pub mod corpus::store
+pub enum corpus::store::CopyComparison
+pub corpus::store::CopyComparison::CopyMissing
+pub corpus::store::CopyComparison::CopyUnreadable
+pub corpus::store::CopyComparison::Different
+pub corpus::store::CopyComparison::Equal
+pub corpus::store::CopyComparison::OriginalUnreadable
+impl core::clone::Clone for corpus::store::CopyComparison
+pub fn corpus::store::CopyComparison::clone(&self) -> corpus::store::CopyComparison
+impl core::cmp::Eq for corpus::store::CopyComparison
+impl core::cmp::PartialEq for corpus::store::CopyComparison
+pub fn corpus::store::CopyComparison::eq(&self, other: &corpus::store::CopyComparison) -> bool
+impl core::fmt::Debug for corpus::store::CopyComparison
+pub fn corpus::store::CopyComparison::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::store::CopyComparison
+impl core::marker::StructuralPartialEq for corpus::store::CopyComparison
+pub enum corpus::store::EntryKind
+pub corpus::store::EntryKind::Directory
+pub corpus::store::EntryKind::File
+pub corpus::store::EntryKind::Symlink
+impl core::clone::Clone for corpus::store::EntryKind
+pub fn corpus::store::EntryKind::clone(&self) -> corpus::store::EntryKind
+impl core::cmp::Eq for corpus::store::EntryKind
+impl core::cmp::PartialEq for corpus::store::EntryKind
+pub fn corpus::store::EntryKind::eq(&self, other: &corpus::store::EntryKind) -> bool
+impl core::fmt::Debug for corpus::store::EntryKind
+pub fn corpus::store::EntryKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::store::EntryKind
+impl core::marker::StructuralPartialEq for corpus::store::EntryKind
 pub enum corpus::store::KeptState
 pub corpus::store::KeptState::Completed
 pub corpus::store::KeptState::RestorePending(alloc::vec::Vec<std::path::PathBuf>)
@@ -851,6 +879,31 @@ pub fn corpus::store::KeptRecovery::eq(&self, other: &corpus::store::KeptRecover
 impl core::fmt::Debug for corpus::store::KeptRecovery
 pub fn corpus::store::KeptRecovery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::store::KeptRecovery
+pub struct corpus::store::RecordedCopy
+pub corpus::store::RecordedCopy::copy: std::path::PathBuf
+pub corpus::store::RecordedCopy::dir: std::path::PathBuf
+pub corpus::store::RecordedCopy::original: std::path::PathBuf
+impl corpus::store::RecordedCopy
+pub fn corpus::store::RecordedCopy::copy_path(&self) -> std::path::PathBuf
+impl core::clone::Clone for corpus::store::RecordedCopy
+pub fn corpus::store::RecordedCopy::clone(&self) -> corpus::store::RecordedCopy
+impl core::cmp::Eq for corpus::store::RecordedCopy
+impl core::cmp::PartialEq for corpus::store::RecordedCopy
+pub fn corpus::store::RecordedCopy::eq(&self, other: &corpus::store::RecordedCopy) -> bool
+impl core::fmt::Debug for corpus::store::RecordedCopy
+pub fn corpus::store::RecordedCopy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::RecordedCopy
+pub struct corpus::store::RecoveryEntry
+pub corpus::store::RecoveryEntry::kind: corpus::store::EntryKind
+pub corpus::store::RecoveryEntry::path: std::path::PathBuf
+impl core::clone::Clone for corpus::store::RecoveryEntry
+pub fn corpus::store::RecoveryEntry::clone(&self) -> corpus::store::RecoveryEntry
+impl core::cmp::Eq for corpus::store::RecoveryEntry
+impl core::cmp::PartialEq for corpus::store::RecoveryEntry
+pub fn corpus::store::RecoveryEntry::eq(&self, other: &corpus::store::RecoveryEntry) -> bool
+impl core::fmt::Debug for corpus::store::RecoveryEntry
+pub fn corpus::store::RecoveryEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::RecoveryEntry
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::ExclusiveCreate
@@ -862,13 +915,18 @@ pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, 
 pub fn corpus::store::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecoveryCopies
-pub fn corpus::store::RecoveryCopies::copy_settled(&self, dir: &std::path::Path, original: &std::path::Path) -> bool
+pub fn corpus::store::RecoveryCopies::all_entries(&self, parent: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::store::RecoveryEntry>, corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::compare_copy(&self, copy: &corpus::store::RecordedCopy) -> corpus::store::CopyComparison
 pub fn corpus::store::RecoveryCopies::exists(&self, dir: &std::path::Path) -> bool
 pub fn corpus::store::RecoveryCopies::is_restore_pending(&self, dir: &std::path::Path) -> bool
 pub fn corpus::store::RecoveryCopies::kept(&self, parent: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::store::KeptRecovery>, corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::location(&self, path: &std::path::Path) -> std::path::PathBuf
 pub fn corpus::store::RecoveryCopies::mark_completed(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::mark_copy_pending(&self, copy: &corpus::store::RecordedCopy) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::mark_restore_pending(&self, dir: &std::path::Path, unrestored: &[std::path::PathBuf]) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::mirrored_copy(&self, dir: &std::path::Path, original: &std::path::Path) -> corpus::store::RecordedCopy
 pub fn corpus::store::RecoveryCopies::prepare(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::recorded_copy(&self, dir: &std::path::Path) -> core::option::Option<corpus::store::RecordedCopy>
 pub fn corpus::store::RecoveryCopies::remove_dir(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::write_once(&self, dir: &std::path::Path, original: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::typed_ref

@@ -111,6 +111,48 @@ pub struct KeptRecovery {
     pub state: KeptState,
 }
 
+/// One copy a record names: the original it was taken from, and where in
+/// its directory it was written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordedCopy {
+    pub dir: PathBuf,
+    pub original: PathBuf,
+    pub copy: PathBuf,
+}
+
+impl RecordedCopy {
+    /// The copy's path under the recovery-state root.
+    #[must_use]
+    pub fn copy_path(&self) -> PathBuf {
+        self.dir.join(&self.copy)
+    }
+}
+
+/// How a copy compares with its original. The copy is read first, so a
+/// copy that cannot be read is reported whatever the original holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CopyComparison {
+    Equal,
+    Different,
+    CopyMissing,
+    CopyUnreadable,
+    OriginalUnreadable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryKind {
+    Directory,
+    File,
+    Symlink,
+}
+
+/// One entry of a recovery directory, never followed if it is a link.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecoveryEntry {
+    pub path: PathBuf,
+    pub kind: EntryKind,
+}
+
 /// Write-once copies of files a change is about to overwrite, kept in a
 /// named directory outside the corpus until the change has landed.
 ///
@@ -167,9 +209,35 @@ pub trait RecoveryCopies {
     /// [`StoreError`] when `parent` exists but cannot be listed.
     fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError>;
 
-    /// Whether a person has dealt with `original`'s copy in `dir`: the
-    /// original matches it again, or the copy has been deleted.
-    fn copy_settled(&self, dir: &Path, original: &Path) -> bool;
+    /// Every entry directly under `parent`, recorded or not, in name order;
+    /// none when `parent` does not exist.
+    ///
+    /// # Errors
+    /// [`StoreError`] when `parent` would reach outside the recovery-state
+    /// root or cannot be listed.
+    fn all_entries(
+        &self,
+        parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError>;
+
+    /// Where `path`, relative to the recovery-state root, is on disk.
+    fn location(&self, path: &Path) -> PathBuf;
+
+    /// Where [`Self::write_once`] puts `original`'s copy in `dir`.
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy;
+
+    /// Records in `copy.dir` that `copy` still holds what its original held
+    /// before a change overwrote it.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the record cannot be written.
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError>;
+
+    /// The one copy `dir`'s record names; `None` when there is no such
+    /// record, or the directory or its record is a link.
+    fn recorded_copy(&self, dir: &Path) -> Option<RecordedCopy>;
+
+    fn compare_copy(&self, copy: &RecordedCopy) -> CopyComparison;
 }
 
 /// Canonical-order JSONL append, anchored-prefix remove-by-key, and read.

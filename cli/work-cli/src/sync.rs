@@ -215,6 +215,8 @@ fn sweep_kept_recoveries(
     console: &mut Console<'_>,
     recovery: &FileRecoveryCopies,
 ) {
+    use corpus::store::RecoveryCopies as _;
+
     let notices = match sweep_recoveries(recovery) {
         Ok(notices) => notices,
         Err(error) => {

@@ -484,9 +484,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 recovery.write_once(&dir, request.file_path, current.as_bytes())
             })
             .and_then(|()| {
-                recovery.mark_restore_pending(
-                    &dir,
-                    &[request.file_path.to_path_buf()],
+                recovery.mark_copy_pending(
+                    &recovery.mirrored_copy(&dir, request.file_path),
                 )
             })
             .map_err(|error| {
