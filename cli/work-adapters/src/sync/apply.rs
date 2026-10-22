@@ -373,10 +373,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.record(id, sent_content, remote.as_ref())
     }
 
-    /// Both baseline hashes come from what was actually written. Deriving
-    /// either from pre-pull content self-corrupts the baseline into a
-    /// phantom `locally-modified` on the next run.
-    ///
     /// A file already holding what the pull writes is written again, so a
     /// re-run after an interrupted baseline write still records it.
     ///
@@ -391,22 +387,47 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &PullRequest<'_>,
     ) -> Result<(), ApplyError> {
         let _held = self.lock_item(request)?;
+        Self::ensure_unchanged_since_classified(request)?;
+        let fingerprints = self.pulled_fingerprints(request)?;
+        self.write_item(request)?;
+        self.set_pulled_baseline(request, fingerprints)
+    }
+
+    fn ensure_unchanged_since_classified(
+        request: &PullRequest<'_>,
+    ) -> Result<(), ApplyError> {
         let current = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.id, "read-local", error))?;
-        if current != request.classified_content && current != request.content {
-            return Err(ApplyError::LocalChangedSinceClassified {
+        if current == request.classified_content || current == request.content {
+            Ok(())
+        } else {
+            Err(ApplyError::LocalChangedSinceClassified {
                 item_id: request.id.to_owned(),
-            });
+            })
         }
+    }
+
+    fn pulled_fingerprints(
+        &self,
+        request: &PullRequest<'_>,
+    ) -> Result<DualRecipeFingerprints, ApplyError> {
+        self.digester()
+            .digests(request.content, Some(request.projected_body))
+            .map_err(|error| io_error(request.id, "hash-local", error))
+    }
+
+    fn write_item(&self, request: &PullRequest<'_>) -> Result<(), ApplyError> {
         self.files
             .work_items
             .write(request.file_path, request.content.as_bytes())
-            .map_err(|error| local_write_error(request.id, error))?;
+            .map_err(|error| local_write_error(request.id, error))
+    }
 
-        let fingerprints = self
-            .digester()
-            .digests(request.content, Some(request.projected_body))
-            .map_err(|error| io_error(request.id, "hash-local", error))?;
+    fn set_pulled_baseline(
+        &self,
+        request: &PullRequest<'_>,
+        fingerprints: DualRecipeFingerprints,
+    ) -> Result<(), ApplyError> {
         self.baseline
             .set(
                 request.id,

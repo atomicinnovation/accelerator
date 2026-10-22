@@ -788,3 +788,33 @@ fn pull_request(item_path: &Path) -> PullRequest<'_> {
         ),
     }
 }
+
+#[test]
+fn a_pull_hashes_before_it_writes() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+
+    let error = ItemApplier::new(ports(&fake), &mut store, 1_700_000_000)
+        .pull(&PullRequest {
+            content: "---\nstatus: ready\nno closing fence\n",
+            ..pull_request(&item_path)
+        })
+        .expect_err("the pulled content cannot be fingerprinted");
+
+    assert!(
+        matches!(
+            error,
+            ApplyError::Io {
+                operation: "hash-local",
+                ..
+            }
+        ),
+        "{error}"
+    );
+    assert!(fake.calls().iter().all(|call| !call.starts_with("write:")));
+    assert_eq!(std::fs::read_to_string(&item_path)?, CLASSIFIED);
+    Ok(())
+}
