@@ -12,10 +12,12 @@ use corpus::store::KeptState;
 use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
 use corpus::store::RecoveryEntry;
+use corpus::store::RECOVERY_BOOKKEEPING;
 use corpus::StoreError;
 
 const IGNORE_EVERYTHING: &str = "*\n";
-const RESTORE_PENDING: &str = "RESTORE-PENDING";
+const IGNORE_RULE: &str = RECOVERY_BOOKKEEPING[0];
+const RESTORE_PENDING: &str = RECOVERY_BOOKKEEPING[1];
 const COMPLETED: &str = "COMPLETED";
 const RECORD_STAGING: &str = ".RESTORE-PENDING.staged";
 
@@ -161,7 +163,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     fn prepare(&self, dir: &Path) -> Result<(), StoreError> {
         let location = self.contained(dir)?;
         fs::create_dir_all(&location).map_err(|error| io(&location, &error))?;
-        let ignore = location.join(".gitignore");
+        let ignore = location.join(IGNORE_RULE);
         fs::write(&ignore, IGNORE_EVERYTHING)
             .map_err(|error| io(&ignore, &error))?;
         let verified =
