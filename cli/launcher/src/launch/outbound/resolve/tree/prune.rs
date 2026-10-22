@@ -20,10 +20,10 @@ use crate::launch::core::tree::{Clock, TreeError};
 
 use super::super::filesystem::{CacheFilesystem, EntryMetadata};
 use super::super::ownership::safe_root::SafePruneRoot;
-use super::super::ownership::Ownership;
+use super::super::ownership::{is_trusted_directory, Ownership};
 use super::super::prune_report::{
     Count, LockFailure, PruneStep, PruneSteps, Removal, RemovalFailure,
-    Removals,
+    Removals, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::retention_windows::is_aged;
 use super::super::single_flight::LockPatience;
@@ -71,6 +71,8 @@ pub struct TreePrune<'a> {
 pub struct TreePruneReport {
     pub removals: Removals,
     pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Option<UnreadableClaims>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
 }
 
 enum ArtifactLock {
@@ -92,14 +94,17 @@ impl TreePrune<'_> {
         {
             return report;
         }
-        let claims = match claims::list(
-            &paths,
+        if !is_trusted_directory(
+            paths.root(),
             self.ports.filesystem,
             self.ports.ownership,
         ) {
-            claims::TreeClaimsListing::Read(claims) => claims,
-            claims::TreeClaimsListing::Unreadable(_) => return report,
-        };
+            report.untrusted_directories.push(UntrustedDirectory {
+                path: paths.root().to_path_buf(),
+            });
+            return report;
+        }
+        let claims = self.read_claims(&paths, &mut report);
         let index = match TreesIndex::read(&paths, self.ports.filesystem) {
             Ok(index) => index,
             Err(error) => {
@@ -119,12 +124,14 @@ impl TreePrune<'_> {
                         self.reap_orphans_under(&held, &index, &mut report);
                         reaped = true;
                     }
-                    self.reclaim_unclaimed_trees(
-                        &held,
-                        &index,
-                        &claims,
-                        &mut report,
-                    );
+                    if let Some(claims) = &claims {
+                        self.reclaim_unclaimed_trees(
+                            &held,
+                            &index,
+                            claims,
+                            &mut report,
+                        );
+                    }
                     self.reclaim_orphan_sidecars(
                         &paths,
                         &artifact,
@@ -145,8 +152,35 @@ impl TreePrune<'_> {
                 }
             }
         }
-        self.sweep_stale_tree_claims(&claims, &mut report);
+        if let Some(claims) = &claims {
+            self.sweep_stale_tree_claims(claims, &mut report);
+        }
         report
+    }
+
+    /// Claims that cannot be read or trusted protect nothing and are swept
+    /// by nothing, so every step that depends on them is skipped.
+    fn read_claims(
+        &self,
+        paths: &TreePaths,
+        report: &mut TreePruneReport,
+    ) -> Option<TreeClaimIndex> {
+        match claims::list(paths, self.ports.filesystem, self.ports.ownership) {
+            claims::TreeClaimsListing::Read(claims) => Some(claims),
+            claims::TreeClaimsListing::Unreadable(kind) => {
+                report.unreadable_claims = Some(UnreadableClaims {
+                    directory: paths.claims(),
+                    kind,
+                });
+                None
+            }
+            claims::TreeClaimsListing::Untrusted => {
+                report.untrusted_directories.push(UntrustedDirectory {
+                    path: paths.claims(),
+                });
+                None
+            }
+        }
     }
 
     fn lock(
