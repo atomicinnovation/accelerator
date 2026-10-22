@@ -1520,11 +1520,23 @@ pub work::sync::plan::RemoteFacts::presence: work::sync::classify::RemotePresenc
 pub work::sync::plan::RemoteFacts::remote_updated: &'a tracker::RemoteTimestamp
 pub struct work::sync::plan::SyncPlan
 pub work::sync::plan::SyncPlan::actions: alloc::vec::Vec<work::sync::plan::PlannedAction>
+pub work::sync::plan::SyncPlan::unclassifiable: alloc::vec::Vec<work::sync::plan::Unclassifiable>
 impl work::sync::plan::SyncPlan
 pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
+pub struct work::sync::plan::Unclassifiable
+pub work::sync::plan::Unclassifiable::id: alloc::string::String
+pub work::sync::plan::Unclassifiable::reason: alloc::string::String
+impl core::clone::Clone for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::clone(&self) -> work::sync::plan::Unclassifiable
+impl core::cmp::Eq for work::sync::plan::Unclassifiable
+impl core::cmp::PartialEq for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::eq(&self, other: &work::sync::plan::Unclassifiable) -> bool
+impl core::fmt::Debug for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::Unclassifiable
 pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
-pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> work::sync::plan::SyncPlan
 pub mod work::sync::pull_residue
 pub enum work::sync::pull_residue::PullResidue
 pub work::sync::pull_residue::PullResidue::TrackerWireDocument
@@ -2148,6 +2160,7 @@ pub work::sync::Subject::presence: work::sync::classify::RemotePresence
 pub work::sync::Subject::remote_updated: &'a tracker::RemoteTimestamp
 pub struct work::sync::SyncPlan
 pub work::sync::SyncPlan::actions: alloc::vec::Vec<work::sync::plan::PlannedAction>
+pub work::sync::SyncPlan::unclassifiable: alloc::vec::Vec<work::sync::plan::Unclassifiable>
 impl work::sync::plan::SyncPlan
 pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
@@ -2163,6 +2176,17 @@ pub fn work::sync::synced_fields::SyncedTrackerFields::eq(&self, other: &work::s
 impl core::fmt::Debug for work::sync::synced_fields::SyncedTrackerFields
 pub fn work::sync::synced_fields::SyncedTrackerFields::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::synced_fields::SyncedTrackerFields
+pub struct work::sync::Unclassifiable
+pub work::sync::Unclassifiable::id: alloc::string::String
+pub work::sync::Unclassifiable::reason: alloc::string::String
+impl core::clone::Clone for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::clone(&self) -> work::sync::plan::Unclassifiable
+impl core::cmp::Eq for work::sync::plan::Unclassifiable
+impl core::cmp::PartialEq for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::eq(&self, other: &work::sync::plan::Unclassifiable) -> bool
+impl core::fmt::Debug for work::sync::plan::Unclassifiable
+pub fn work::sync::plan::Unclassifiable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::Unclassifiable
 pub trait work::sync::ItemComparison
 pub fn work::sync::ItemComparison::body_equivalence(&self) -> work::sync::classify::BodyEquivalence
 pub fn work::sync::ItemComparison::fields_comparison(&self) -> work::sync::classify::FieldsComparison
@@ -2183,7 +2207,7 @@ pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
-pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> work::sync::plan::SyncPlan
 pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome
 pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>

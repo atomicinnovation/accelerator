@@ -323,6 +323,7 @@ mod tests {
             promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
+            unclassifiable: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,

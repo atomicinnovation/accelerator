@@ -180,9 +180,8 @@ pub fn apply_filter<'a>(
 
 /// Classifies every item's sync state through the sync engine, keyed by id.
 ///
-/// A classifier read failure leaves an item out of the map; the caller then
-/// falls back to the presence-only label. Returns an empty map when the
-/// plan cannot be built at all.
+/// An item whose classification fails is left out of the map; the caller
+/// then falls back to the presence-only label for it alone.
 #[must_use]
 pub fn classify(
     items: &[LocalItem],
@@ -210,14 +209,11 @@ pub fn classify(
         })
         .collect();
     let inputs = facts.plan_inputs(items, &snapshots, baseline);
-    match plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new()) {
-        Ok(computed) => computed
-            .actions
-            .into_iter()
-            .map(|action| (action.id, action.state))
-            .collect(),
-        Err(_) => BTreeMap::new(),
-    }
+    plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new())
+        .actions
+        .into_iter()
+        .map(|action| (action.id, action.state))
+        .collect()
 }
 
 /// The rendered `<glyph> <text>` label for one item, mapping a classified
@@ -1168,6 +1164,48 @@ mod tests {
         assert_eq!(states.get("0001"), Some(&SyncState::Synced));
         assert_eq!(states.get("0002"), Some(&SyncState::LocallyModified));
         assert_eq!(states.get("0003"), Some(&SyncState::Unsynced));
+    }
+
+    #[test]
+    fn an_unclassifiable_item_keeps_every_other_label() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stamp = RemoteTimestamp::Reported("2026-06-01".to_owned());
+        let key = ExternalId::new("ENG-1".to_owned());
+        let tracker = RecordingTracker::holding(vec![(
+            key.clone(),
+            RemoteIssue {
+                key: key.clone(),
+                updated: stamp.clone(),
+                body: "Item\nbody\n".to_owned(),
+            },
+        )]);
+        let mut baseline = Baseline::read(None).0;
+        baseline.set(
+            "0001",
+            Entry::persisted_legacy(
+                stamp,
+                "unused".to_owned(),
+                "unused".to_owned(),
+                0,
+            ),
+        );
+        let items = vec![
+            LocalItem {
+                id: "0001".to_owned(),
+                path: dir.path().join("0001-vanished.md"),
+                external_id: Some(key),
+            },
+            LocalItem {
+                id: "0002".to_owned(),
+                path: write_item(dir.path(), "0002", "body"),
+                external_id: None,
+            },
+        ];
+
+        let states = classify(&items, &tracker, &baseline, &AlwaysClean);
+
+        assert_eq!(states.get("0001"), None);
+        assert_eq!(states.get("0002"), Some(&SyncState::Unsynced));
     }
 
     struct UnusedAuthor;
