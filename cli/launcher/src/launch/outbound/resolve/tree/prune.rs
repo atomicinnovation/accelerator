@@ -13,7 +13,7 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::launch::core::tree::{Clock, TreeError};
@@ -32,7 +32,9 @@ use super::layout::{
     classify_trees_entry, read_pointer, validated_generation, Artifact,
     TreePaths, TreesEntry, LAYOUT_VERSION,
 };
-use super::lease::LivenessProbe;
+use super::lease::{
+    try_exclusive_lease, HeldLeases, HeldLeasesFirst, LivenessProbe,
+};
 use super::locks::{TreeLockProbe, TreeLocks};
 use super::reap::{self, PinnedDigests, Reaper, RemovalObserver};
 use super::tree_lock::HeldTreeLock;
@@ -52,6 +54,7 @@ impl TreePruneRegime<'_> {
 }
 
 pub struct TreePrunePorts<'a> {
+    pub held_leases: &'a HeldLeases,
     pub filesystem: &'a dyn CacheFilesystem,
     pub ownership: &'a dyn Ownership,
     pub clock: &'a dyn Clock,
@@ -263,11 +266,12 @@ impl TreePrune<'_> {
         index: &TreesIndex,
         report: &mut TreePruneReport,
     ) {
+        let liveness = self.liveness();
         match Reaper::new(
             held,
             self.ports.locks,
             self.ports.clock,
-            self.ports.lease_liveness,
+            &liveness,
             self.ports.pins,
         )
         .observed_by(index)
@@ -306,7 +310,7 @@ impl TreePrune<'_> {
             if pinned.as_deref() == Some(digest)
                 || self.is_protected(claims, digest)
                 || !reap::unclaimed_is_reclaimable(
-                    self.ports.lease_liveness.probe(&paths.lease(&generation)),
+                    self.liveness().probe(&paths.lease(&generation)),
                     self.is_aged(&paths.generation(&generation)),
                 )
             {
@@ -324,17 +328,17 @@ impl TreePrune<'_> {
                 }
                 _ => continue,
             };
-            if self.remove_tree(
-                paths,
-                &pointer,
-                &generation,
+            self.remove_tree(
+                &UnclaimedTree {
+                    paths,
+                    pointer,
+                    generation,
+                    digest,
+                },
                 &claimed_since,
-                digest,
+                index,
                 report,
-            ) {
-                index.forget(&pointer);
-                index.forget(&paths.generation(&generation));
-            }
+            );
         }
     }
 
@@ -352,7 +356,7 @@ impl TreePrune<'_> {
             }
             let sidecar = paths.root().join(&name);
             if reap::orphan_is_reclaimable(
-                self.ports.lease_liveness.probe(&paths.lease(&generation)),
+                self.liveness().probe(&paths.lease(&generation)),
                 self.is_aged(&sidecar),
             ) && report
                 .removals
@@ -402,35 +406,44 @@ impl TreePrune<'_> {
     }
 
     /// The pointer goes first, so a concurrent `locate` misses and
-    /// re-materialises rather than leasing a generation about to go; the
-    /// generation goes only once its pointer has.
+    /// re-materialises rather than leasing a generation about to go. The
+    /// generation then goes under an exclusive lock on its lease; when a
+    /// dispatch leased it after the probe, it is left for a later reap.
+    /// Where `flock` fails outright the probe already answered `Unknown`, and
+    /// only the age backstop let the removal this far.
     fn remove_tree(
         &self,
-        paths: &TreePaths,
-        pointer: &Path,
-        generation: &str,
+        tree: &UnclaimedTree<'_>,
         claims: &TreeClaimIndex,
-        digest: &str,
+        index: &TreesIndex,
         report: &mut TreePruneReport,
-    ) -> bool {
+    ) {
         let removals = &mut report.removals;
         let filesystem = self.ports.filesystem;
+        let paths = tree.paths;
         if removals.remove_file(
             filesystem,
-            pointer,
+            &tree.pointer,
             "unclaimed tree",
             Count::WithItsEntry,
         ) == Removal::Failed
         {
-            return false;
+            return;
         }
+        index.forget(&tree.pointer);
+        let exclusive =
+            match try_exclusive_lease(&paths.lease(&tree.generation)) {
+                Ok(Some(exclusive)) => Some(exclusive),
+                Ok(None) => return,
+                Err(_) => None,
+            };
         removals.remove_tree(
             filesystem,
-            &paths.generation(generation),
+            &paths.generation(&tree.generation),
             "unclaimed tree",
             Count::Once,
         );
-        for sidecar in reap::sidecars_of(paths, generation) {
+        for sidecar in reap::sidecars_of(paths, &tree.generation) {
             removals.remove_file(
                 filesystem,
                 &sidecar,
@@ -438,7 +451,7 @@ impl TreePrune<'_> {
                 Count::WithItsEntry,
             );
         }
-        for claim in claims.on(digest) {
+        for claim in claims.on(tree.digest) {
             removals.remove_file(
                 filesystem,
                 &claim.path,
@@ -446,7 +459,8 @@ impl TreePrune<'_> {
                 Count::WithItsEntry,
             );
         }
-        true
+        index.forget(&paths.generation(&tree.generation));
+        drop(exclusive);
     }
 
     /// Each stale claim is re-read immediately before its unlink, so one
@@ -491,6 +505,10 @@ impl TreePrune<'_> {
         )
     }
 
+    fn liveness(&self) -> HeldLeasesFirst<'_> {
+        self.ports.held_leases.before(self.ports.lease_liveness)
+    }
+
     fn is_aged(&self, path: &Path) -> bool {
         is_aged(
             self.ports
@@ -501,6 +519,14 @@ impl TreePrune<'_> {
             self.ports.clock.now_seconds(),
         )
     }
+}
+
+/// A pointer nothing protects and the current generation it names.
+struct UnclaimedTree<'a> {
+    paths: &'a TreePaths,
+    pointer: PathBuf,
+    generation: String,
+    digest: &'a str,
 }
 
 fn lock_failure(

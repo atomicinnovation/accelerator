@@ -9,6 +9,7 @@ use super::super::ownership::safe_root::{SafePruneRoot, TrustedOwners};
 use super::super::prune_report::LockFailure;
 use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::single_flight::LockPatience;
+use super::super::tree::lease::HeldLeases;
 use super::super::tree::locks::TreeLocks;
 use super::super::tree::{prune_pinned_on_host, PinnedPruneCollaborators};
 use super::launcher_id;
@@ -107,7 +108,7 @@ impl RootRetention for RelocatedRetention {
                 claim_window: older_than.unwrap_or(CLAIM_WINDOW),
                 ports: &self.ports,
             }
-            .run(LockPatience::Wait),
+            .run(LockPatience::Wait, &HeldLeases::none()),
         )
     }
 }

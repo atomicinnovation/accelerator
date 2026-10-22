@@ -47,7 +47,7 @@ use accelerator::launch::outbound::resolve::single_flight::{
 };
 use accelerator::launch::outbound::resolve::tree::layout::Artifact;
 use accelerator::launch::outbound::resolve::tree::lease::{
-    Liveness, LivenessProbe,
+    HeldLeases, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::locks::{
     FlockLocks, TreeLocks,
@@ -1494,6 +1494,7 @@ fn a_residue_only_artifact_is_locked_and_reaped() {
 fn prune_trees_directly(
     harness: &RootHarness,
     ports: &CachePorts,
+    held_leases: &HeldLeases,
     patience: LockPatience,
 ) {
     let safe = SafePruneRoot::check(
@@ -1507,6 +1508,7 @@ fn prune_trees_directly(
         regime: TreePruneRegime::WholeTree(&safe),
         claim_window: CLAIM_WINDOW,
         ports: TreePrunePorts {
+            held_leases,
             filesystem: ports.filesystem.as_ref(),
             ownership: ports.ownership.as_ref(),
             clock: ports.clock.as_ref(),
@@ -1527,7 +1529,12 @@ fn a_lock_only_artifact_reaches_the_orphan_lock_step() {
             .trees()
             .plant_lock(&on_host("retired"), harness.aged());
 
-        prune_trees_directly(&harness, &harness.ports().build(), patience);
+        prune_trees_directly(
+            &harness,
+            &harness.ports().build(),
+            &HeldLeases::none(),
+            patience,
+        );
 
         assert!(!exists(&lock), "{patience:?}");
     }
@@ -1692,4 +1699,197 @@ fn a_user_private_group_root_prunes_its_group_writable_trees() {
 
         assert_eq!(!exists(&tree.generation), reclaimed, "group {group}");
     }
+}
+
+#[test]
+fn a_tree_claimed_after_the_index_was_read_is_kept() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    trees.plant_claim(&digest('b'), OTHER_ID, harness.now);
+    let recorder = harness.recorder();
+    let claims = trees.claims();
+    let late_claim = claims.join(format!("{}.{OTHER_ID}", digest('a')));
+    let filesystem =
+        Arc::new(ScriptedFilesystem::over(recorder.clone()).before(
+            FilesystemCall::List(in_root("")).kind(),
+            &claims,
+            2,
+            move || std::fs::write(&late_claim, b"").expect("late claim"),
+        ));
+
+    harness
+        .prune(Ports {
+            filesystem: Arc::clone(&filesystem)
+                as Arc<dyn CacheFilesystem + Send + Sync>,
+            lease_liveness: Arc::new(FixedLiveness(Liveness::Unknown)),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    tree.assert_survives();
+    assert_eq!(filesystem.fired().len(), 1, "the script never ran");
+    let timeline = recorder.timeline();
+    let ran = timeline
+        .iter()
+        .position(|event| matches!(event, TimelineEvent::Scripted(_)))
+        .expect("scripted");
+    assert_eq!(
+        timeline.get(ran + 1),
+        Some(&TimelineEvent::Call(FilesystemCall::List(
+            recorder.recorded(&claims)
+        )))
+    );
+}
+
+#[test]
+fn a_tree_claim_refreshed_before_unlink_is_kept() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let claim = trees.plant_claim(
+        &digest('a'),
+        OTHER_ID,
+        harness.now - CLAIM_WINDOW.as_secs(),
+    );
+    let recorder = harness.recorder();
+    let refreshed = claim.clone();
+    let now = harness.now;
+    let filesystem =
+        Arc::new(ScriptedFilesystem::over(recorder.clone()).before(
+            FilesystemCall::Entry(in_root("")).kind(),
+            &claim,
+            2,
+            move || set_mtime(&refreshed, now),
+        ));
+
+    harness
+        .prune(Ports {
+            filesystem: Arc::clone(&filesystem)
+                as Arc<dyn CacheFilesystem + Send + Sync>,
+            ..harness.ports()
+        })
+        .succeeded();
+
+    assert!(claim.exists());
+    assert_eq!(filesystem.fired().len(), 1, "the script never ran");
+    let timeline = recorder.timeline();
+    let ran = timeline
+        .iter()
+        .position(|event| matches!(event, TimelineEvent::Scripted(_)))
+        .expect("scripted");
+    assert_eq!(
+        timeline.get(ran + 1),
+        Some(&TimelineEvent::Call(FilesystemCall::Entry(
+            recorder.recorded(&claim)
+        )))
+    );
+}
+
+#[test]
+fn a_tree_leased_during_removal_is_kept() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    let lease = trees
+        .sidecars_of(&Trees::generation_of(&on_host("retired"), &digest('a')))
+        [2]
+    .clone();
+    let held = Arc::new(Mutex::new(None));
+    let leased = Arc::clone(&held);
+    let filesystem = ScriptedFilesystem::over(harness.recorder()).before(
+        FilesystemCall::RemoveFile(in_root("")).kind(),
+        &tree.pointer,
+        1,
+        move || {
+            *leased.lock().expect("leased") =
+                Some(lease::hold_shared_lease(&lease).expect("lease"));
+        },
+    );
+
+    harness
+        .prune(Ports {
+            filesystem: Arc::new(filesystem),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    assert!(
+        held.lock().expect("held").is_some(),
+        "the lease was never held"
+    );
+    assert!(!exists(&tree.pointer), "the pointer survived");
+    assert!(exists(&tree.generation), "a leased generation was removed");
+}
+
+#[test]
+fn a_tree_removal_failure_is_reported() {
+    let harness = RootHarness::new();
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+    let filesystem = ScriptedFilesystem::over(harness.recorder()).failing(
+        FilesystemCall::RemoveTree(in_root("")).kind(),
+        &tree.generation,
+        1,
+        std::io::ErrorKind::PermissionDenied,
+    );
+
+    let verb = harness.prune(Ports {
+        filesystem: Arc::new(filesystem),
+        ..harness.ports()
+    });
+
+    verb.failed();
+    assert!(exists(&tree.generation));
+    assert!(
+        verb.err.contains(&format!(
+            "could not remove {}: permission denied",
+            tree.generation.display()
+        )),
+        "{}",
+        verb.err
+    );
+}
+
+/// Answers `Free` for every lease, remembering each it was asked about.
+#[derive(Default)]
+struct RecordingLiveness(Mutex<Vec<PathBuf>>);
+
+impl LivenessProbe for RecordingLiveness {
+    fn probe(&self, lease: &Path) -> Liveness {
+        self.0.lock().expect("probed").push(lease.to_path_buf());
+        Liveness::Free
+    }
+}
+
+#[test]
+fn a_tree_whose_lease_this_process_holds_is_kept_unprobed() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    let liveness = Arc::new(RecordingLiveness::default());
+
+    prune_trees_directly(
+        &harness,
+        &Ports {
+            lease_liveness: Arc::clone(&liveness)
+                as Arc<dyn LivenessProbe + Send + Sync>,
+            ..harness.ports()
+        }
+        .build(),
+        &HeldLeases::holding([tree.generation.clone()]),
+        LockPatience::Wait,
+    );
+
+    tree.assert_survives();
+    let lease = lease::lease_beside(&tree.generation);
+    assert!(
+        !liveness.0.lock().expect("probed").contains(&lease),
+        "a lease this process holds was probed"
+    );
 }
