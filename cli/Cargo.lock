@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-collaboration"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "collaboration",
@@ -56,7 +56,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-corpus"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config",
@@ -73,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-design"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config",
@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-migrate"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config-adapters",
@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-research"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config",
@@ -135,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-vcs"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "kernel",
@@ -150,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "minisign-verify",
  "tempfile",
@@ -158,7 +158,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-work"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "config",
@@ -235,7 +235,7 @@ dependencies = [
 
 [[package]]
 name = "adf"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "hex",
  "serde_json",
@@ -776,7 +776,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cli-test-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "graphql-test-support",
  "http-test-support",
@@ -804,7 +804,7 @@ dependencies = [
 
 [[package]]
 name = "collaboration"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "kernel",
 ]
@@ -835,7 +835,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "config"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "kernel",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "config-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "document",
@@ -882,14 +882,14 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "corpus-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "corpus",
  "document",
@@ -1119,7 +1119,7 @@ dependencies = [
 
 [[package]]
 name = "design"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "base64",
  "kernel",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "design-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "design",
  "kernel",
@@ -1185,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "document"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "github"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "collaboration",
  "http",
@@ -2304,7 +2304,7 @@ dependencies = [
 
 [[package]]
 name = "graphql-test-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "http-test-support",
  "serde_json",
@@ -2466,7 +2466,7 @@ dependencies = [
 
 [[package]]
 name = "http-test-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 
 [[package]]
 name = "httparse"
@@ -2882,7 +2882,7 @@ dependencies = [
 
 [[package]]
 name = "jira-cli"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "adf",
  "clap",
@@ -2902,7 +2902,7 @@ dependencies = [
 
 [[package]]
 name = "jira-client"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "adf",
  "config",
@@ -3021,7 +3021,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -3064,7 +3064,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lease"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "rustix",
  "tempfile",
@@ -3111,7 +3111,7 @@ dependencies = [
 
 [[package]]
 name = "linear-cli"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "clap",
  "cli-test-support",
@@ -3131,7 +3131,7 @@ dependencies = [
 
 [[package]]
 name = "linear-client"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "config-adapters",
@@ -3226,7 +3226,7 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "markdown"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "pulldown-cmark",
 ]
@@ -3274,7 +3274,7 @@ dependencies = [
 
 [[package]]
 name = "migrate"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "corpus",
  "kernel",
@@ -3282,7 +3282,7 @@ dependencies = [
 
 [[package]]
 name = "migrate-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "config-adapters",
@@ -3783,7 +3783,7 @@ dependencies = [
 
 [[package]]
 name = "process"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "libc",
  "rustix",
@@ -4063,7 +4063,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "remote-projection"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "serde_json",
  "sha2",
@@ -4114,11 +4114,11 @@ dependencies = [
 
 [[package]]
 name = "research"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 
 [[package]]
 name = "research-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "corpus",
  "corpus-adapters",
@@ -4634,7 +4634,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "kernel",
  "rand 0.9.5",
@@ -5130,11 +5130,11 @@ dependencies = [
 
 [[package]]
 name = "tracker"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 
 [[package]]
 name = "tracker-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "corpus",
@@ -5143,7 +5143,7 @@ dependencies = [
 
 [[package]]
 name = "tracker-test-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "tracker",
 ]
@@ -5264,14 +5264,14 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vcs"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "vcs-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "dunce",
  "etcetera",
@@ -5290,7 +5290,7 @@ dependencies = [
 
 [[package]]
 name = "vcs-test-support"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "regex",
  "serde",
@@ -5772,7 +5772,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "work"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "corpus",
  "kernel",
@@ -5782,7 +5782,7 @@ dependencies = [
 
 [[package]]
 name = "work-adapters"
-version = "1.24.0-pre.85"
+version = "1.24.0-pre.86"
 dependencies = [
  "config",
  "corpus",
