@@ -57,6 +57,9 @@ rustix = { workspace = true }
 # cache paths.
 rand = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+exacl = { workspace = true }
+
 [build-dependencies]
 vergen = { workspace = true }
 vergen-gitcl = { workspace = true }

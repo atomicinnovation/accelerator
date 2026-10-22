@@ -49,6 +49,12 @@ jobs:
           # cli workspace.
           workspaces: cli
 
+      # The launcher's ACL test sets a POSIX ACL with setfacl, which the
+      # runner image does not promise to ship.
+      - name: Install acl
+        if: runner.os == 'Linux'
+        run: sudo apt-get install --yes acl
+
       - name: Run unit tests
         run: mise run test:unit
 
