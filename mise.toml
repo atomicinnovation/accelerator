@@ -366,6 +366,11 @@ description = "Run unified dev task integration tests (real circusd + Python fak
 depends = ["deps:install:python"]
 run = "invoke test.integration.dev"
 
+[tasks."test:integration:release-guard"]
+description = "Build the loopback-seamed CLIs as release binaries, with and without test-loopback, and run the release guard over them"
+depends = ["deps:install:python"]
+run = "invoke test.integration.release-guard"
+
 [tasks."test:integration:entrypoint"]
 description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
 depends = ["deps:install:python"]
@@ -480,6 +485,7 @@ depends = [
     "test:integration:hooks",
     "test:integration:research",
     "test:integration:fixture-size",
+    "test:integration:release-guard",
 ]
 
 [tasks."test:e2e:visualiser"]

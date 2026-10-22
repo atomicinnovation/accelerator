@@ -89,6 +89,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
+    "test:integration:release-guard": "cargo builds its own release "
+    "binaries apart from the dev builds",
     # A build-linkage guard rehomed into the roll-up, not an integration test:
     # it depends only on build:cli:fixture-size and reaches no launcher.
     "test:integration:fixture-size": "depends-only shim for the gix/jj-lib "

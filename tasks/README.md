@@ -237,6 +237,21 @@ every triple is stripped, so gating darwin would put a 9%-margin heuristic on
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
+### The test-loopback release guard
+
+`build:cli:cross-compile` refuses to stage a binary carrying a
+`*_TEST_LOOPBACK_MARKER`. `test:integration:release-guard` proves the scan
+still sees the marker after `strip` and thin LTO: it builds the
+loopback-seamed binaries as release binaries, with and without the feature,
+and runs the guard over both. Each build turns debug assertions back on,
+which is the one way a release build slips past the feature's
+`compile_error!`.
+
+The builds go to `cli/target/release-guard`, so a binary that trusts a test
+seam never lands in `cli/target/release/`. The directory persists between
+runs, and CI caches it, so a warm run relinks only the binaries. A cold run
+costs one thin-LTO release build of the dependency graph.
+
 ### Debug builds for the test lanes
 
 `tasks/shared/dev_builds.py` models the debug binaries the integration lanes

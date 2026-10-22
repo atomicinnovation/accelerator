@@ -92,7 +92,11 @@ jobs:
           # build) and fetches its own locked closure through
           # deps:install:cargo-sources, since a restored registry misses any
           # crate the lockfile gained since the cache was saved.
-          workspaces: cli
+          # test:integration:release-guard builds into its own target dir, so
+          # only its loopback-seamed binaries relink on a warm run.
+          workspaces: |
+            cli
+            cli -> target/release-guard
 
       # test:integration:research runs the research guard's verdicts under
       # zsh as well as bash; macOS ships zsh, ubuntu does not.
