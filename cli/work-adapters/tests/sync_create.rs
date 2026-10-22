@@ -2360,6 +2360,22 @@ fn run_create_from_local_with(
     fixture: &Fixture,
     item: &LocalItem,
     tracker: &RecordingTracker,
+    stores: (&Spy, &Spy),
+    fault: AuthorFault,
+) -> RunReport {
+    run_create_from_local_in(
+        fixture,
+        std::slice::from_ref(item),
+        tracker,
+        stores,
+        fault,
+    )
+}
+
+fn run_create_from_local_in(
+    fixture: &Fixture,
+    corpus: &[LocalItem],
+    tracker: &RecordingTracker,
     (work_items, integration_state): (&Spy, &Spy),
     fault: AuthorFault,
 ) -> RunReport {
@@ -2387,7 +2403,7 @@ fn run_create_from_local_with(
     );
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
-        corpus: std::slice::from_ref(item),
+        corpus,
         selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -3142,5 +3158,122 @@ fn a_local_create_whose_file_went_missing_is_retryable() -> Result<(), TestError
         .calls()
         .iter()
         .all(|call| !matches!(call, Call::Create { .. })));
+    Ok(())
+}
+
+fn seed_marker(fixture: &Fixture, id: &str, content: &str) {
+    let path = marker_of(fixture, id);
+    std::fs::create_dir_all(path.parent().expect("a marker directory"))
+        .expect("the marker directory is created");
+    std::fs::write(&path, content).expect("the marker is seeded");
+}
+
+fn attempted_marker() -> String {
+    work_adapters::sync::pending_push::render(
+        &work::sync::PendingPush::Attempted {
+            request: work::sync::RequestFingerprint {
+                title: "Draft one".to_owned(),
+                digest: "an earlier digest".to_owned(),
+                attempted_at: 1_600_000_000,
+                failure: Some("timed out".to_owned()),
+            },
+        },
+    )
+}
+
+fn mismatched_created_marker() -> String {
+    work_adapters::sync::pending_push::render(
+        &work::sync::PendingPush::Created {
+            request: work::sync::RequestFingerprint {
+                title: "Draft one".to_owned(),
+                digest: "a different request".to_owned(),
+                attempted_at: 1_600_000_000,
+                failure: None,
+            },
+            external_id: ExternalId::new("ENG-42".to_owned()),
+        },
+    )
+}
+
+#[test]
+fn each_pending_push_refusal_is_terminal_and_names_its_reason(
+) -> Result<(), TestError> {
+    for (token, seed, carried_by_another, state) in [
+        (
+            "marker-unreadable",
+            Some("{ not a marker".to_owned()),
+            false,
+            "could not be parsed",
+        ),
+        (
+            "prior-attempt-unknown",
+            Some(attempted_marker()),
+            false,
+            "unknown outcome",
+        ),
+        (
+            "fingerprint-mismatch",
+            Some(mismatched_created_marker()),
+            false,
+            "ENG-42",
+        ),
+        (
+            "already-written",
+            None,
+            true,
+            "already carried by work item 0002",
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        match seed {
+            Some(content) => seed_marker(&fixture, "0001", &content),
+            None => seed_created_marker(&fixture, &item, "ENG-42"),
+        }
+        let mut corpus = vec![item];
+        if carried_by_another {
+            corpus.push(LocalItem {
+                id: "0002".to_owned(),
+                path: fixture.dir.path().join("0002.md"),
+                external_id: Some(ExternalId::new("ENG-42".to_owned())),
+            });
+        }
+        let tracker = RecordingTracker::holding(Vec::new());
+
+        let report = run_create_from_local_in(
+            &fixture,
+            &corpus,
+            &tracker,
+            (&Spy::default(), &Spy::default()),
+            AuthorFault::None,
+        );
+
+        let error = create_from_local_failure(&report);
+        assert!(
+            matches!(error, ApplyError::PendingPushRefused { .. }),
+            "{token}: {error:?}"
+        );
+        assert_eq!(error.class(), FailureClass::Terminal, "{token}");
+        let shown = error.to_string();
+        assert!(
+            shown.starts_with(&format!(
+                "0001: create failed: pending push refused ({token}): "
+            )),
+            "{shown}"
+        );
+        assert!(shown.contains(state), "{token}: {shown}");
+        assert!(
+            shown.contains(&format!(
+                "(marker {})",
+                marker_of(&fixture, "0001").display()
+            )),
+            "{shown}"
+        );
+        assert!(!shown.contains("remove"), "{shown}");
+        assert!(tracker
+            .calls()
+            .iter()
+            .all(|call| !matches!(call, Call::Create { .. })));
+    }
     Ok(())
 }
