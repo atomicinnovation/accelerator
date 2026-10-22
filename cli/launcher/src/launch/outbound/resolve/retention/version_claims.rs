@@ -155,7 +155,7 @@ pub fn list(
 }
 
 /// The versions some valid claim protects.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FreshVersions {
     versions: BTreeSet<String>,
 }
