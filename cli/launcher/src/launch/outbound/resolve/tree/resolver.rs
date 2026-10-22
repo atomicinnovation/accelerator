@@ -27,7 +27,6 @@ use super::layout::{
 };
 use super::lease::LivenessProbe;
 use super::locks::TreeLocks;
-use super::pinned_prune::{prune_pinned_artifact, PinnedPruneCollaborators};
 use super::table::{FileTable, TABLE_NAME};
 use super::tree_lock::HeldTreeLock;
 use super::{claims, download, extract, pins, reap, seal};
@@ -753,31 +752,6 @@ impl TreeResolver<'_> {
             }
             reap::SupersededDisposition::Keep => {}
         }
-    }
-
-    /// Reclaim residue for one artifact under its single-flight lock; see
-    /// [`prune_pinned_artifact`].
-    ///
-    /// # Errors
-    ///
-    /// [`TreeError`] if the lock cannot be taken or the directory cannot be
-    /// read.
-    pub fn prune(
-        &self,
-        artifact: &str,
-        older_than: Option<Duration>,
-    ) -> Result<reap::Reclaimed, TreeError> {
-        prune_pinned_artifact(
-            &self.paths(),
-            &self.on_this_platform(artifact),
-            &PinnedPruneCollaborators {
-                clock: self.clock,
-                liveness: self.liveness,
-                pins: &self.expected_digests,
-                locks: self.locks,
-            },
-            older_than,
-        )
     }
 }
 
