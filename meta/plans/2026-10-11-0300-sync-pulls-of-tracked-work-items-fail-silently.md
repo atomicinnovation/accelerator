@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-22T03:04:22+00:00"
+last_updated: "2026-10-22T04:19:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -719,9 +719,9 @@ console; existing tests keep asserting files and `ExitCode`.
 #### Automated Verification
 
 - [x] The captured-run tests pass:
-      `cargo test -p work-cli --manifest-path cli/Cargo.toml captured`
+      `cargo test -p accelerator-work --manifest-path cli/Cargo.toml captured`
 - [x] Subprocess golden tests are unchanged and pass:
-      `cargo test -p work-cli --manifest-path cli/Cargo.toml --test cli_sync`
+      `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test cli_sync`
 - [x] `mise run cli:check` exits 0
 - [x] `mise run` exits 0
 
@@ -735,8 +735,8 @@ console; existing tests keep asserting files and `ExitCode`.
 Landed as one code commit plus this progress record. Departures from the
 steps above:
 
-- The crate is `accelerator-work`, so the criteria's commands run as
-  `cargo test -p accelerator-work --manifest-path cli/Cargo.toml …`.
+- The `work-cli` crate's package is `accelerator-work`; every `cargo test
+  -p` command in this plan now names it.
 - `printable` escapes each control character with `char::escape_default`
   (`\x1b` prints as `\u{1b}`), so the escaped text stays legible.
 - `assemble_run` hands the ports to a closure rather than returning them,
@@ -1359,7 +1359,7 @@ unsafe id, and a suffix over the draft-id alphabet.
 #### Automated Verification
 
 - [ ] Planning, safeguard, run and recovery tests pass:
-      `cargo test -p work -p work-adapters -p work-cli -p corpus-adapters --manifest-path cli/Cargo.toml`
+      `cargo test -p work -p work-adapters -p accelerator-work -p corpus-adapters --manifest-path cli/Cargo.toml`
 - [ ] `mise run public-api:check` exits 0 after the reviewed update
       (`migrate` gains `migrations::m0011::Migration0011` and the
       `MigrationContext` tracking query, in 3b; `work` gains `SyncPlan.unclassifiable`, `Unclassifiable` and
@@ -1746,7 +1746,7 @@ the removal so tests can assert it; none is a silent no-op.
 #### Automated Verification
 
 - [ ] Production-wiring, confinement and routing tests pass:
-      `cargo test -p work-cli -p work-adapters -p corpus-adapters --manifest-path cli/Cargo.toml`
+      `cargo test -p accelerator-work -p work-adapters -p corpus-adapters --manifest-path cli/Cargo.toml`
 - [ ] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
 
@@ -2906,7 +2906,7 @@ the call-site updates and the compiler, not by a snapshot.
 
 - [ ] Tracker-mapping pin commits green before the type change
 - [ ] Classification, inventory, rendering, exit and end-to-end tests pass:
-      `cargo test -p work -p work-cli -p work-adapters --manifest-path cli/Cargo.toml`
+      `cargo test -p work -p accelerator-work -p work-adapters --manifest-path cli/Cargo.toml`
 - [ ] The `work` public-API diff also shows `PlannedAction`'s three `pub`
       fields removed (`work/tests/fixtures/public-api.txt:1078-1080`),
       `PlannedAction::new`, its getters, `Instruction`, `PlannedAction::ordered`
@@ -2916,9 +2916,9 @@ the call-site updates and the compiler, not by a snapshot.
       changed in the consent catalogue (`work-adapters`, unpinned, gains
       `OrderRefusal`, `ApplyError::CorpusIncomplete`)
 - [ ] Golden report fixture unchanged (only the test's `RunReport` literal
-      changes): `cargo test -p work-cli --manifest-path cli/Cargo.toml render_report_sorts_fixed_width_ids_numerically`
+      changes): `cargo test -p accelerator-work --manifest-path cli/Cargo.toml render_report_sorts_fixed_width_ids_numerically`
 - [ ] CLI surface golden regenerated and reviewed:
-      `cargo test -p work-cli --manifest-path cli/Cargo.toml --test cli_surface`
+      `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test cli_surface`
 - [ ] `mise run public-api:check` exits 0 after the reviewed update
 - [ ] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
@@ -3211,13 +3211,13 @@ Run `mise run public-api:update` and review: `work` gains
 #### Automated Verification
 
 - [ ] Resolution, status and dossier tests pass:
-      `cargo test -p work -p work-cli -p work-adapters --manifest-path cli/Cargo.toml`
+      `cargo test -p work -p accelerator-work -p work-adapters --manifest-path cli/Cargo.toml`
 - [ ] 0296's classification fixture and dossier presentation tests are
       unchanged and pass:
       `cargo test -p work --manifest-path cli/Cargo.toml --test sync_classify`
       and `cargo test -p work-adapters --manifest-path cli/Cargo.toml --test sync_dossiers`
 - [ ] `sync_resolves_argv` still passes:
-      `cargo test -p work-cli --manifest-path cli/Cargo.toml --test sync_resolves_argv`
+      `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test sync_resolves_argv`
 - [ ] `mise run public-api:check` exits 0 after the reviewed update
 - [ ] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
