@@ -14,12 +14,13 @@ use corpus::store::RecoveryCopies;
 use corpus::store::RecoveryEntry;
 use corpus::store::RECOVERY_BOOKKEEPING;
 use corpus::StoreError;
+use store::NewFileMode;
+use store::WriteBounds;
 
 const IGNORE_EVERYTHING: &str = "*\n";
 const IGNORE_RULE: &str = RECOVERY_BOOKKEEPING[0];
 const RESTORE_PENDING: &str = RECOVERY_BOOKKEEPING[1];
 const COMPLETED: &str = "COMPLETED";
-const RECORD_STAGING: &str = ".RESTORE-PENDING.staged";
 
 pub struct FileRecoveryCopies {
     state_root: PathBuf,
@@ -92,6 +93,25 @@ impl FileRecoveryCopies {
         )
     }
 
+    /// Replaces a whole record, so a crash leaves the previous record or the
+    /// new one, never a truncated one.
+    fn write_record(
+        &self,
+        record: &Path,
+        contents: &str,
+    ) -> Result<(), StoreError> {
+        store::atomic_write(
+            record,
+            contents.as_bytes(),
+            &WriteBounds {
+                permitted_root: &self.state_root,
+                project_root: &self.state_root,
+            },
+            NewFileMode::PreserveOr(0o666 & !store::current_umask()),
+        )
+        .map_err(crate::store::to_store_error)
+    }
+
     /// `dir` on disk, when it is a real directory rather than a link.
     fn real_directory(&self, dir: &Path) -> Option<PathBuf> {
         let location = self.contained(dir).ok()?;
@@ -115,28 +135,6 @@ fn refuse_link(path: &Path) -> Result<(), StoreError> {
 fn only_normal_components(path: &Path) -> bool {
     path.components()
         .all(|component| matches!(component, Component::Normal(_)))
-}
-
-type RecordRename = fn(&Path, &Path) -> std::io::Result<()>;
-
-/// Stages the whole record and renames it into place, so a crash leaves the
-/// previous record or the new one, never a truncated one.
-fn write_record(
-    record: &Path,
-    contents: &str,
-    rename: RecordRename,
-) -> Result<(), StoreError> {
-    let staged = record.with_file_name(RECORD_STAGING);
-    let written = fs::File::create(&staged).and_then(|mut file| {
-        file.write_all(contents.as_bytes())
-            .and_then(|()| file.sync_all())
-    });
-    written
-        .and_then(|()| rename(&staged, record))
-        .map_err(|error| {
-            let _ = fs::remove_file(&staged);
-            io(record, &error)
-        })
 }
 
 fn parse_copy_record(dir: &Path, record: &str) -> Option<RecordedCopy> {
@@ -232,7 +230,7 @@ impl RecoveryCopies for FileRecoveryCopies {
         let listing = unrestored.iter().fold(String::new(), |listing, path| {
             listing + &path.display().to_string() + "\n"
         });
-        write_record(&marker, &listing, |from, to| fs::rename(from, to))
+        self.write_record(&marker, &listing)
     }
 
     fn is_restore_pending(&self, dir: &Path) -> bool {
@@ -351,10 +349,9 @@ impl RecoveryCopies for FileRecoveryCopies {
 
     fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
         let record = self.contained(&copy.dir)?.join(RESTORE_PENDING);
-        write_record(
+        self.write_record(
             &record,
             &format!("{}\t{}\n", copy.original.display(), copy.copy.display()),
-            |from, to| fs::rename(from, to),
         )
     }
 
@@ -397,9 +394,7 @@ mod tests {
     use corpus::StoreError;
     use tempfile::TempDir;
 
-    use super::write_record;
     use super::FileRecoveryCopies;
-    use super::RecordRename;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -701,7 +696,8 @@ mod tests {
         kept.store.mark_copy_pending(&kept.copy())?;
         let record = kept.state.path().join(pull_dir()).join("RESTORE-PENDING");
         let elsewhere = kept.state.path().join("elsewhere");
-        fs::rename(&record, &elsewhere)?;
+        fs::copy(&record, &elsewhere)?;
+        fs::remove_file(&record)?;
         std::os::unix::fs::symlink(&elsewhere, &record)?;
 
         assert_eq!(kept.store.recorded_copy(pull_dir()), None);
@@ -715,7 +711,12 @@ mod tests {
         kept.store.mark_copy_pending(&kept.copy())?;
         let dir = kept.state.path().join(pull_dir());
         let elsewhere = kept.state.path().join("elsewhere");
-        fs::rename(&dir, &elsewhere)?;
+        fs::create_dir(&elsewhere)?;
+        fs::copy(
+            dir.join("RESTORE-PENDING"),
+            elsewhere.join("RESTORE-PENDING"),
+        )?;
+        fs::remove_dir_all(&dir)?;
         std::os::unix::fs::symlink(&elsewhere, &dir)?;
 
         assert_eq!(kept.store.recorded_copy(pull_dir()), None);
@@ -795,22 +796,6 @@ mod tests {
         assert!(copies(&state)
             .all_entries(Path::new("sync-recovery/../.."))
             .is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn a_restore_pending_record_survives_a_fault_after_the_temp_write(
-    ) -> Result<(), TestError> {
-        let state = TempDir::new()?;
-        let record = state.path().join("RESTORE-PENDING");
-        fs::write(&record, "the previous record\n")?;
-        let failing_rename: RecordRename =
-            |_, _| Err(std::io::Error::other("injected rename failure"));
-
-        let outcome = write_record(&record, "the new record\n", failing_rename);
-
-        assert!(outcome.is_err());
-        assert_eq!(fs::read_to_string(&record)?, "the previous record\n");
         Ok(())
     }
 

@@ -109,7 +109,7 @@ pub(crate) fn io(path: &Path, error: &IoError) -> StoreError {
     }
 }
 
-fn to_store_error(error: WriteError) -> StoreError {
+pub(crate) fn to_store_error(error: WriteError) -> StoreError {
     match error {
         WriteError::NotWritable { path, detail } => {
             StoreError::NotWritable { path, detail }
