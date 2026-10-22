@@ -26,6 +26,7 @@ use accelerator::launch::core::tree::{
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::retention_windows;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, Liveness, LivenessProbe,
 };
@@ -1389,7 +1390,7 @@ impl LivenessProbe for FixedLiveness {
     }
 }
 
-const BACKSTOP_SECONDS: u64 = 3600;
+const BACKSTOP_SECONDS: u64 = retention_windows::AGE_BACKSTOP.as_secs();
 const ZERO: std::time::Duration = std::time::Duration::from_secs(0);
 
 fn wall_clock_now() -> u64 {
