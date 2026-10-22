@@ -95,6 +95,7 @@ use crate::identity_workspace::IdentityWorkspace;
 use crate::promotion_report::detail_lines;
 use crate::promotion_report::promotion_exit;
 use crate::promotion_report::promotion_line;
+use crate::report_records::failure_line;
 use crate::report_records::single_line;
 use crate::report_records::TsvRecord;
 use crate::resolve::IdentityCandidate;
@@ -785,18 +786,7 @@ fn failure_lines(report: &RunReport) -> Vec<String> {
     };
     report
         .failures()
-        .map(|failure| {
-            let label = match failure.severity {
-                FailureSeverity::Error => "error",
-                FailureSeverity::Warning => "warning",
-            };
-            format!(
-                "{label}: {}: {} {failed}: {}",
-                single_line(&failure.subject),
-                failure.operation,
-                single_line(&failure.cause)
-            )
-        })
+        .map(|failure| failure_line(&failure, failed))
         .collect()
 }
 

@@ -11,9 +11,13 @@ use std::path::PathBuf;
 use ::config::consent::Tracking;
 use ::config::provenance::PathSource;
 use work::retirement::RECOVERY_PARENT;
+use work_adapters::sync::apply::FailureClass;
+use work_adapters::sync::operation::SyncOperation;
 use work_adapters::sync::recovery_label::PARENT as SYNC_RECOVERY_PARENT;
+use work_adapters::sync::report::FailureSeverity;
+use work_adapters::sync::report::RunFailure;
 
-use crate::report_records::single_line;
+use crate::report_records::failure_line;
 use crate::sync::STATE_DIR;
 
 /// The configured directories a sync run writes under.
@@ -214,19 +218,26 @@ impl fmt::Display for RootRefusal {
 /// The stderr line a refused root prints: a run-level failure, so its
 /// subject is `-`.
 pub fn configure_failure(refusal: &RootRefusal) -> String {
-    format!(
-        "error: -: configure failed: {}",
-        single_line(&refusal.to_string())
-    )
+    failure_line(&refused_root(refusal, FailureSeverity::Error), "failed")
 }
 
 /// As [`configure_failure`], for a command that still saves what it can
 /// and only cannot send it.
 pub fn configure_warning(refusal: &RootRefusal) -> String {
-    format!(
-        "warning: -: configure failed: {}",
-        single_line(&refusal.to_string())
-    )
+    failure_line(&refused_root(refusal, FailureSeverity::Warning), "failed")
+}
+
+fn refused_root(
+    refusal: &RootRefusal,
+    severity: FailureSeverity,
+) -> RunFailure {
+    RunFailure {
+        subject: "-".to_owned(),
+        operation: SyncOperation::Configure,
+        cause: refusal.to_string(),
+        class: FailureClass::Unconfigured,
+        severity,
+    }
 }
 
 /// The state root, whose recovery copies a retirement or promotion keeps,
