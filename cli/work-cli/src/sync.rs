@@ -65,6 +65,7 @@ use work_adapters::sync::kept_edits::KeptEditsRetention;
 use work_adapters::sync::kept_edits::KeptEditsReview;
 use work_adapters::sync::kept_edits::Provenance;
 use work_adapters::sync::report::CorpusScope;
+use work_adapters::sync::report::FailureSeverity;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -499,7 +500,8 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         .collect();
     let mut synced_count = 0usize;
     for item in &report.reported {
-        if settled_ids.contains(item.planned.id.as_str()) {
+        let failed = matches!(item.outcome, ItemOutcome::Failed(_));
+        if settled_ids.contains(item.planned.id.as_str()) && !failed {
             continue;
         }
         if matches!(item.planned.state, work::sync::SyncState::Synced)
@@ -774,17 +776,25 @@ pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
     })
 }
 
-/// The stderr line for each item whose classification failed. Hashing or
-/// comparing can fail as well as reading, so the line claims no read.
-fn classification_failures(report: &RunReport) -> Vec<String> {
+/// One stderr line per failure the run reports, built from its parts so a
+/// cause can never forge a second line.
+fn failure_lines(report: &RunReport) -> Vec<String> {
+    let failed = match report.mode {
+        RunMode::Preview => "would fail",
+        RunMode::Apply => "failed",
+    };
     report
-        .unclassifiable
-        .iter()
-        .map(|item| {
+        .failures()
+        .map(|failure| {
+            let label = match failure.severity {
+                FailureSeverity::Error => "error",
+                FailureSeverity::Warning => "warning",
+            };
             format!(
-                "error: {}: classify-local failed: {}",
-                single_line(&item.id),
-                single_line(&item.reason)
+                "{label}: {}: {} {failed}: {}",
+                single_line(&failure.subject),
+                failure.operation,
+                single_line(&failure.cause)
             )
         })
         .collect()
@@ -811,28 +821,19 @@ fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
 }
 
 fn exit_code_for_report(report: &RunReport) -> u8 {
-    let failures =
-        report
-            .reported
-            .iter()
-            .filter_map(|item| match &item.outcome {
-                ItemOutcome::Failed(error) => Some(failure_code(error.class())),
-                ItemOutcome::Applied
-                | ItemOutcome::NotApplied
-                | ItemOutcome::UnsupportedRecipe => None,
-            });
+    let failures = report
+        .failures()
+        .filter(|failure| failure.severity == FailureSeverity::Error)
+        .map(|failure| failure_code(failure.class));
     let awaiting_human = (report.awaiting_human().next().is_some()
         || report.identity.iter().any(IdentityRow::awaits_human))
     .then_some(exit_codes::UNRESOLVED);
     let read_failed = (report.read_failure.is_some()
         || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
     .then_some(exit_codes::RETRYABLE);
-    let unclassified =
-        (!report.unclassifiable.is_empty()).then_some(exit_codes::RETRYABLE);
     failures
         .chain(awaiting_human)
         .chain(read_failed)
-        .chain(unclassified)
         .chain(report.promotions.iter().map(promotion_exit))
         .max_by_key(|&code| severity(code))
         .unwrap_or(exit_codes::CLEAN)
@@ -2221,7 +2222,7 @@ fn report_finished_run(
         kept_edits: review_kept_edits(console, context, report),
     };
     console.report(render_report(&finished));
-    for failure in classification_failures(report) {
+    for failure in failure_lines(report) {
         console.warn(failure);
     }
     for warning in leftover_marker_warnings(report) {
@@ -2281,10 +2282,13 @@ mod tests {
     use work_adapters::sync::apply::ItemProgress;
     use work_adapters::sync::apply::LeftoverMarker;
     use work_adapters::sync::operation::SyncOperation;
+    use work_adapters::sync::report::FailureSeverity;
+    use work_adapters::sync::report::Finalisation;
     use work_adapters::sync::run::ConflictDossier;
     use work_adapters::sync::run::DiscoveryStatus;
     use work_adapters::sync::run::ItemOutcome;
     use work_adapters::sync::run::ReportedItem;
+    use work_adapters::sync::run::RunMode;
     use work_adapters::sync::run::RunReport;
     use work_adapters::sync::run::UnrenderableReason;
 
@@ -3335,7 +3339,7 @@ mod tests {
         );
         assert!(!rendered.contains("could not"), "{rendered}");
         assert_eq!(
-            super::classification_failures(&report),
+            super::failure_lines(&report),
             vec!["error: 0001: classify-local failed: could not read it"]
         );
         assert_eq!(
@@ -4117,6 +4121,221 @@ mod tests {
         ] {
             assert_eq!(exit_for(items), expected);
         }
+    }
+
+    #[test]
+    fn exit_code_for_report_ranks_local_failures_by_landing() {
+        let conflict = || reported("0002", SyncState::Conflict, Action::Prompt);
+        let exit_for = |items: Vec<ReportedItem>| {
+            super::exit_code_for_report(&report_of(items))
+        };
+
+        for (items, expected) in [
+            (
+                vec![io_failed("0001", ItemProgress::NothingLanded)],
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                vec![io_failed("0001", ItemProgress::MayHaveLanded)],
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                vec![
+                    conflict(),
+                    io_failed("0001", ItemProgress::MayHaveLanded),
+                ],
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                vec![
+                    conflict(),
+                    io_failed("0001", ItemProgress::NothingLanded),
+                ],
+                super::exit_codes::UNRESOLVED,
+            ),
+        ] {
+            assert_eq!(exit_for(items), expected);
+        }
+    }
+
+    fn unclassifiable(id: &str) -> work::sync::Unclassifiable {
+        work::sync::Unclassifiable {
+            id: id.to_owned(),
+            reason: "could not read it".to_owned(),
+        }
+    }
+
+    #[test]
+    fn an_unclassifiable_item_fails_a_targeted_run_and_yields_to_a_conflict() {
+        let targeted = RunReport {
+            scope: CorpusScope::Targeted,
+            unclassifiable: vec![unclassifiable("0001")],
+            ..crate::test_support::run_report()
+        };
+        let beside_a_conflict = RunReport {
+            reported: vec![reported(
+                "0002",
+                SyncState::Conflict,
+                Action::Prompt,
+            )],
+            unclassifiable: vec![unclassifiable("0001")],
+            ..crate::test_support::run_report()
+        };
+
+        let failures: Vec<_> = targeted.failures().collect();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].severity, FailureSeverity::Error);
+        assert_eq!(
+            super::exit_code_for_report(&targeted),
+            super::exit_codes::RETRYABLE
+        );
+        assert_eq!(
+            super::exit_code_for_report(&beside_a_conflict),
+            super::exit_codes::UNRESOLVED
+        );
+    }
+
+    #[test]
+    fn a_failed_finalise_is_a_retryable_run_level_failure() {
+        let failed = RunReport {
+            finalisation: Finalisation::Failed("disk full".to_owned()),
+            ..crate::test_support::run_report()
+        };
+        let preview = RunReport {
+            mode: RunMode::Preview,
+            finalisation: Finalisation::NotAttempted,
+            ..crate::test_support::run_report()
+        };
+
+        assert_eq!(
+            super::failure_lines(&failed),
+            vec!["error: -: baseline-set failed: disk full"]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&failed),
+            super::exit_codes::RETRYABLE
+        );
+        assert!(super::failure_lines(&preview).is_empty());
+        assert_eq!(
+            super::exit_code_for_report(&preview),
+            super::exit_codes::CLEAN
+        );
+    }
+
+    #[test]
+    fn every_failed_row_gets_an_error_line_naming_its_operation() {
+        let report = report_of(vec![
+            io_failed("0001", ItemProgress::NothingLanded),
+            failed_with(
+                "0002",
+                ApplyError::RemoteBodyUnavailable {
+                    item_id: "0002".to_owned(),
+                    operation: SyncOperation::Pull,
+                },
+            ),
+            failed(
+                "0003",
+                SyncState::LocallyModified,
+                TrackerError::Retryable {
+                    detail: "offline".to_owned(),
+                },
+            ),
+            ReportedItem {
+                outcome: ItemOutcome::UnsupportedRecipe,
+                ..reported("0004", SyncState::Synced, Action::Noop)
+            },
+        ]);
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert_eq!(lines[0], "error: 0001: write-local failed: disk full");
+        assert!(
+            lines[1].starts_with(
+                "error: 0002: pull failed: the remote description was not \
+                 fetched"
+            ),
+            "{lines:?}"
+        );
+        assert!(
+            lines[2].starts_with("error: 0003: update failed: "),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_preview_says_would_fail() {
+        let report = RunReport {
+            mode: RunMode::Preview,
+            finalisation: Finalisation::NotAttempted,
+            ..report_of(vec![failed_with(
+                "0002",
+                ApplyError::RemoteBodyUnavailable {
+                    item_id: "0002".to_owned(),
+                    operation: SyncOperation::Pull,
+                },
+            )])
+        };
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].starts_with("error: 0002: pull would fail: "),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_newline_in_a_tracker_cause_cannot_forge_an_error_line() {
+        let report = report_of(vec![failed(
+            "0001",
+            SyncState::LocallyModified,
+            TrackerError::Retryable {
+                detail: "offline\nerror: -: baseline-set failed:\rforged"
+                    .to_owned(),
+            },
+        )]);
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].lines().count(), 1, "{lines:?}");
+        assert!(!lines[0].contains('\r'), "{lines:?}");
+    }
+
+    #[test]
+    fn a_failed_item_with_an_identity_row_keeps_its_failed_row() {
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = RunReport {
+            identity: vec![identity_row(
+                "0001",
+                "0001",
+                work::sync::IdentityAction::KeyChanged,
+                "ENG-1->ENG-2",
+                IdentityOutcome::Applied,
+            )],
+            reported: vec![io_failed("0001", ItemProgress::NothingLanded)],
+            ..crate::test_support::run_report()
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line.starts_with("0001\tkey-changed")),
+            "{rendered}"
+        );
+        assert!(
+            rendered.lines().any(
+                |line| line == "0001\tfailed\tremotely-modified\tretryable"
+            ),
+            "{rendered}"
+        );
     }
 
     fn failed_with(id: &str, error: ApplyError) -> ReportedItem {

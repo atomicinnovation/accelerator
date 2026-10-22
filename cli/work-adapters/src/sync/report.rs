@@ -11,9 +11,11 @@ use work::sync::Unclassifiable;
 
 use crate::promotion::PromotionRow;
 use crate::sync::apply::ApplyError;
+use crate::sync::apply::FailureClass;
 use crate::sync::apply::LeftoverMarker;
 use crate::sync::baseline::Degradation;
 use crate::sync::identity_settlement::IdentityRow;
+use crate::sync::operation::SyncOperation;
 use crate::sync::run::ConflictDossier;
 use crate::sync::run::DiscoveryStatus;
 use crate::sync::run::RunMode;
@@ -42,6 +44,41 @@ pub struct ReportedItem {
     pub kept_edits: Option<PathBuf>,
     /// A local create's marker this run linked yet could not remove.
     pub leftover_marker: Option<LeftoverMarker>,
+}
+
+/// Whether a failure counts against the run's exit code or is only noted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureSeverity {
+    Error,
+    Warning,
+}
+
+/// One failure a run reports: what it concerned (an item id, a path, or
+/// `-` for the run itself), the operation that failed, why, and its class.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunFailure {
+    pub subject: String,
+    pub operation: SyncOperation,
+    pub cause: String,
+    pub class: FailureClass,
+    pub severity: FailureSeverity,
+}
+
+impl RunFailure {
+    fn error(
+        subject: &str,
+        operation: SyncOperation,
+        cause: String,
+        class: FailureClass,
+    ) -> Self {
+        Self {
+            subject: subject.to_owned(),
+            operation,
+            cause,
+            class,
+            severity: FailureSeverity::Error,
+        }
+    }
 }
 
 /// How much of the corpus a run looked at, which decides what it may judge
@@ -90,6 +127,40 @@ pub struct RunReport {
 }
 
 impl RunReport {
+    /// Every failure this run reports, in report order: failed rows
+    /// (a preview's included), unclassifiable items, then a failed
+    /// baseline finalise.
+    pub fn failures(&self) -> impl Iterator<Item = RunFailure> + '_ {
+        let rows =
+            self.reported.iter().filter_map(|item| match &item.outcome {
+                ItemOutcome::Failed(error) => Some(RunFailure::error(
+                    error.item_id(),
+                    error.operation(),
+                    error.cause(),
+                    error.class(),
+                )),
+                _ => None,
+            });
+        let unclassifiable = self.unclassifiable.iter().map(|item| {
+            RunFailure::error(
+                &item.id,
+                SyncOperation::ClassifyLocal,
+                item.reason.clone(),
+                FailureClass::Retryable,
+            )
+        });
+        let finalise = match &self.finalisation {
+            Finalisation::Failed(reason) => Some(RunFailure::error(
+                "-",
+                SyncOperation::BaselineSet,
+                reason.clone(),
+                FailureClass::Retryable,
+            )),
+            Finalisation::NotAttempted | Finalisation::Finalised => None,
+        };
+        rows.chain(unclassifiable).chain(finalise)
+    }
+
     /// Items this run left for a human. Derived, never stored: a stored
     /// field could disagree with the report, yielding a run that prints
     /// conflicts and exits 0.
