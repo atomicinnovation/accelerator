@@ -249,6 +249,11 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
         "corrupt run ledger, a clamped concurrency, an unhonoured search "
         "cap, or search budgets that cannot fit the cap"
     ) in conduct
+    assert (
+        "Proceed even when the budgets cannot fit: the run's other researchers "
+        "and composers still make progress, and a halt, if it comes, reports "
+        "its own recovery."
+    ) in conduct
 
 
 REPORT_START = "**Report a run that did not end.**"

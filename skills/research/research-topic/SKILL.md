@@ -282,7 +282,9 @@ allocate a finding or note path yourself.
    spawns yourself. Keep `run` for the whole of `conduct`, and report the
    first plan's `warnings` as soon as it returns — a corrupt run ledger, a
    clamped concurrency, an unhonoured search cap, or search budgets that
-   cannot fit the cap — then proceed. Any non-zero exit, including
+   cannot fit the cap — then proceed. Proceed even when the budgets cannot
+   fit: the run's other researchers and composers still make progress, and a
+   halt, if it comes, reports its own recovery. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
