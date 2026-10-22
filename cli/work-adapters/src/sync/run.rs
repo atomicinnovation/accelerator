@@ -37,6 +37,7 @@ use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
+use crate::sync::apply::LeftoverMarker;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
@@ -227,6 +228,8 @@ pub struct ReportedItem {
     pub validation: Option<tracker::ValidationOutcome>,
     /// Where this run kept the item's local edits before pulling over them.
     pub kept_edits: Option<PathBuf>,
+    /// A local create's marker this run linked yet could not remove.
+    pub leftover_marker: Option<LeftoverMarker>,
 }
 
 /// What untracked-remote discovery did on a run that got past the pre-flight
@@ -983,12 +986,14 @@ fn validate_pushes(
                     outcome: ItemOutcome::Failed(refused),
                     validation: None,
                     kept_edits: None,
+                    leftover_marker: None,
                 },
                 validated => ReportedItem {
                     planned: planned.clone(),
                     outcome: ItemOutcome::NotApplied,
                     validation: validated.and_then(Result::ok),
                     kept_edits: None,
+                    leftover_marker: None,
                 },
             }
         })
@@ -1217,6 +1222,7 @@ const fn create_report(
         outcome,
         validation: None,
         kept_edits: None,
+        leftover_marker: None,
     }
 }
 
@@ -1386,6 +1392,7 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
         outcome: ItemOutcome::NotApplied,
         validation: None,
         kept_edits: None,
+        leftover_marker: None,
     }
 }
 
@@ -1448,6 +1455,7 @@ fn apply_planned_action(
         outcome,
         validation: None,
         kept_edits,
+        leftover_marker: None,
     }
 }
 
@@ -1475,7 +1483,7 @@ fn apply_local_create(
         request.integration,
         &item.id,
     );
-    let outcome = match applier.create_from_local(&CreateFromLocalRequest {
+    match applier.create_from_local(&CreateFromLocalRequest {
         item_id: &item.id,
         file_path: &item.path,
         title: &title,
@@ -1486,10 +1494,20 @@ fn apply_local_create(
         corpus_carries,
         attempted_at,
     }) {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
-    };
-    create_report(item.id.clone(), Action::CreateFromLocal, outcome)
+        Ok(leftover_marker) => ReportedItem {
+            leftover_marker,
+            ..create_report(
+                item.id.clone(),
+                Action::CreateFromLocal,
+                ItemOutcome::Applied,
+            )
+        },
+        Err(error) => create_report(
+            item.id.clone(),
+            Action::CreateFromLocal,
+            ItemOutcome::Failed(error),
+        ),
+    }
 }
 
 /// The gathered facts and bounded plan a run acts on, shared verbatim by the

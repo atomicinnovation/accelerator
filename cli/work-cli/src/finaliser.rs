@@ -322,6 +322,7 @@ mod tests {
             outcome,
             validation: None,
             kept_edits: None,
+            leftover_marker: None,
         }
     }
 

@@ -30,7 +30,9 @@ use work::sync::Action;
 use work::sync::Dirtiness;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
+use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
@@ -58,9 +60,14 @@ struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
     removals: RefCell<Vec<PathBuf>>,
+    refuse_removals: RefCell<bool>,
 }
 
 impl Spy {
+    fn refuse_removals(&self) {
+        *self.refuse_removals.borrow_mut() = true;
+    }
+
     fn seed(&self, path: &str, content: &str) {
         self.files
             .borrow_mut()
@@ -102,6 +109,12 @@ impl AtomicWrite for Spy {
 impl FileRemove for Spy {
     fn remove(&self, path: &Path) -> Result<(), StoreError> {
         self.removals.borrow_mut().push(path.to_path_buf());
+        if *self.refuse_removals.borrow() {
+            return Err(StoreError::NotWritable {
+                path: path.display().to_string(),
+                detail: "injected removal refusal".to_owned(),
+            });
+        }
         self.files.borrow_mut().remove(path);
         Ok(())
     }
@@ -2240,6 +2253,172 @@ fn a_rejected_create_leaves_no_marker_and_reports_its_cause(
         "{failure}"
     );
     Ok(())
+}
+
+/// A create-from-local run whose work items and integration state go
+/// through separate stores, the baseline seeded in `integration_state`.
+fn run_create_from_local_over(
+    fixture: &Fixture,
+    item: &LocalItem,
+    tracker: &RecordingTracker,
+    work_items: &Spy,
+    integration_state: &Spy,
+) -> RunReport {
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker,
+        parser: &CommonMarkBody,
+        status: &status,
+        files: SyncFiles {
+            work_items,
+            integration_state,
+            ..support::sync_files(integration_state)
+        },
+        clock: &clock,
+        author: &author,
+        recovery_labels: &support::LabelsEveryId,
+    };
+    integration_state.seed(BASELINE_PATH, &baseline_document(&[]));
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        integration_state,
+        integration_state,
+    );
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus: std::slice::from_ref(item),
+        selection: ItemSelection::All,
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode: RunMode::Apply,
+        integrations_root: fixture.dir.path(),
+        integration: "jira",
+        promote: true,
+        scope: SearchScope::default(),
+    };
+    run(&sync_ports, &mut store, &request).expect("the run proceeds")
+}
+
+fn marker_of(fixture: &Fixture, id: &str) -> PathBuf {
+    work_adapters::sync::pending_push::path(fixture.dir.path(), "jira", id)
+}
+
+#[test]
+fn markers_write_and_clear_through_the_integration_state_store(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let (work_items, integration_state) = (Spy::default(), Spy::default());
+
+    let report = run_create_from_local_over(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        &work_items,
+        &integration_state,
+    );
+
+    assert!(matches!(
+        create_from_local_outcome(&report),
+        ItemOutcome::Applied
+    ));
+    let marker = marker_of(&fixture, "0001");
+    assert!(integration_state.writes.borrow().contains(&marker));
+    assert_eq!(*integration_state.removals.borrow(), vec![marker]);
+    assert!(work_items.writes.borrow().is_empty());
+    assert!(work_items.removals.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn an_unremovable_marker_after_a_refused_create_fails_the_item(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let (work_items, integration_state) = (Spy::default(), Spy::default());
+    integration_state.refuse_removals();
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Retryable {
+            detail: "jira create: could not connect".to_owned(),
+        },
+    );
+
+    let report = run_create_from_local_over(
+        &fixture,
+        &item,
+        &tracker,
+        &work_items,
+        &integration_state,
+    );
+
+    let ApplyError::Io {
+        operation, detail, ..
+    } = create_from_local_failure(&report)
+    else {
+        panic!("an unremovable marker is a local failure");
+    };
+    assert_eq!(*operation, "marker-write");
+    let marker = marker_of(&fixture, "0001");
+    assert!(
+        detail.starts_with(&format!(
+            "could not clear marker {}: ",
+            marker.display()
+        )),
+        "{detail}"
+    );
+    assert!(detail.contains("injected removal refusal"), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn a_leftover_marker_after_a_link_is_a_warning() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let (work_items, integration_state) = (Spy::default(), Spy::default());
+    integration_state.refuse_removals();
+
+    let report = run_create_from_local_over(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        &work_items,
+        &integration_state,
+    );
+
+    assert!(matches!(
+        create_from_local_outcome(&report),
+        ItemOutcome::Applied
+    ));
+    let created = report
+        .reported
+        .iter()
+        .find(|reported| reported.planned.action == Action::CreateFromLocal)
+        .expect("the create-from-local is reported");
+    let leftover = created
+        .leftover_marker
+        .as_ref()
+        .expect("the marker that could not be cleared is reported");
+    assert_eq!(leftover.path, marker_of(&fixture, "0001"));
+    assert!(
+        leftover.reason.contains("injected removal refusal"),
+        "{}",
+        leftover.reason
+    );
+    Ok(())
+}
+
+fn create_from_local_outcome(report: &RunReport) -> &ItemOutcome {
+    &report
+        .reported
+        .iter()
+        .find(|item| item.planned.action == Action::CreateFromLocal)
+        .expect("the create-from-local is reported")
+        .outcome
 }
 
 // --- Small real-fs doubles for the marker-ordering test ---------------------

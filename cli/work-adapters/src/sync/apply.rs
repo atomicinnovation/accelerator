@@ -271,6 +271,14 @@ pub struct PullAttempt {
     pub kept_edits: Option<PathBuf>,
 }
 
+/// A pending-push marker left behind after its item was linked, which
+/// never creates again, so the marker is harmless but should be removed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LeftoverMarker {
+    pub path: PathBuf,
+    pub reason: String,
+}
+
 /// A store that refuses before writing leaves the file as it was; any other
 /// failure, including one this crate does not know, may have landed part-way,
 /// so its outcome is unknown.
@@ -624,7 +632,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn create_from_local(
         &mut self,
         request: &CreateFromLocalRequest<'_>,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
         let digest = pending_push::request_digest(
             request.title,
             request.body,
@@ -664,7 +672,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         digest: String,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
         let fingerprint = RequestFingerprint {
             title: request.title.to_owned(),
             digest,
@@ -689,7 +697,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 source @ (TrackerError::Retryable { .. }
                 | TrackerError::Unconfigured { .. }
                 | TrackerError::Rejected { .. }),
-            ) => Self::abandon_attempt(request, source),
+            ) => Err(self.abandon_attempt(request, source)),
             Err(TrackerError::Terminal { detail }) => {
                 self.record_terminal_failure(request, fingerprint, detail)
             }
@@ -701,7 +709,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         fingerprint: &RequestFingerprint,
         external_id: &ExternalId,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
         self.write_marker(
             request.marker_path,
             &PendingPush::Created {
@@ -712,15 +720,38 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.link_and_baseline(request, external_id)
     }
 
+    /// A marker left behind here would refuse the next run's create as a
+    /// prior attempt of unknown outcome, so failing to clear it is the
+    /// item's failure.
     fn abandon_attempt(
+        &self,
         request: &CreateFromLocalRequest<'_>,
         source: TrackerError,
-    ) -> Result<(), ApplyError> {
-        std::fs::remove_file(request.marker_path).ok();
-        Err(ApplyError::Tracker {
-            item_id: request.item_id.to_owned(),
-            operation: "create",
-            source,
+    ) -> ApplyError {
+        match self.clear_marker(request.marker_path) {
+            Ok(()) => ApplyError::Tracker {
+                item_id: request.item_id.to_owned(),
+                operation: "create",
+                source,
+            },
+            Err(leftover) => io_error(
+                request.item_id,
+                "marker-write",
+                format!(
+                    "could not clear marker {}: {}",
+                    leftover.path.display(),
+                    leftover.reason
+                ),
+            ),
+        }
+    }
+
+    fn clear_marker(&self, path: &Path) -> Result<(), LeftoverMarker> {
+        self.files.integration_state.remove(path).map_err(|error| {
+            LeftoverMarker {
+                path: path.to_path_buf(),
+                reason: error.to_string(),
+            }
         })
     }
 
@@ -729,7 +760,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         fingerprint: RequestFingerprint,
         detail: String,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
         self.write_marker(
             request.marker_path,
             &PendingPush::Attempted {
@@ -761,7 +792,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         external_id: &ExternalId,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
         request
             .author
             .link_external_id(request.file_path, external_id)
@@ -773,8 +804,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let local_content = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.item_id, "read-local", error))?;
         self.record(request.item_id, &local_content, remote.as_ref())?;
-        std::fs::remove_file(request.marker_path).ok();
-        Ok(())
+        Ok(self.clear_marker(request.marker_path).err())
     }
 
     /// Records `request`'s fingerprints, writing no file and calling no
