@@ -13,6 +13,8 @@ use std::time::Duration;
 
 use crate::launch::core::tree::Clock;
 
+use super::super::filesystem::{CacheFilesystem as _, SystemFilesystem};
+use super::super::ownership::{is_trusted_directory, ProcessOwnership};
 pub use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::retention_windows::REFRESH_FRACTION;
 use super::layout::TreePaths;
@@ -22,21 +24,28 @@ use super::layout::TreePaths;
 /// Never fails a resolution: a populated cache root may be read-only on a warm
 /// start, so `EROFS`/`EACCES` are ignored. The write is skipped when a claim
 /// already exists with a recent mtime, which is what turns per-invocation writes
-/// into at most one per crawl.
+/// into at most one per crawl. Nothing is written through a symlink, nor into a
+/// claims directory another user could rename into.
 pub fn refresh(
     paths: &TreePaths,
     digest: &str,
     launcher_id: &str,
     clock: &dyn Clock,
 ) {
-    let claim = paths.claims().join(format!("{digest}.{launcher_id}"));
+    let claims = paths.claims();
+    let claim = claims.join(format!("{digest}.{launcher_id}"));
     if is_fresh_enough(&claim, clock) {
         return;
     }
-    if std::fs::create_dir_all(paths.claims()).is_err() {
+    match SystemFilesystem.create_private_dir(&claims) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(_) => return,
+    }
+    if !is_trusted_directory(&claims, &SystemFilesystem, &ProcessOwnership) {
         return;
     }
-    write_private(&claim);
+    write_private(&claim, clock);
 }
 
 /// Whether any valid claim on `digest` was refreshed within `window`.
@@ -123,19 +132,28 @@ fn modified_seconds(path: &Path) -> Option<u64> {
         .map(|since| since.as_secs())
 }
 
+/// Sets the mtime explicitly rather than relying on `O_TRUNC` of an empty
+/// claim to advance it.
 #[cfg(unix)]
-fn write_private(path: &Path) {
+fn write_private(path: &Path, clock: &dyn Clock) {
     use std::os::unix::fs::OpenOptionsExt as _;
-    let _ = std::fs::OpenOptions::new()
+    let Ok(file) = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .mode(0o600)
-        .open(path);
+        .custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
+        .open(path)
+    else {
+        return;
+    };
+    let _ = file.set_modified(
+        std::time::UNIX_EPOCH + Duration::from_secs(clock.now_seconds()),
+    );
 }
 
 #[cfg(not(unix))]
-fn write_private(path: &Path) {
+fn write_private(path: &Path, _clock: &dyn Clock) {
     let _ = std::fs::File::create(path);
 }
 
@@ -247,5 +265,81 @@ mod tests {
             Duration::from_secs(60),
             &clock
         ));
+    }
+
+    fn back_date(path: &std::path::Path, seconds: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open claim")
+            .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds))
+            .expect("back-date claim");
+    }
+
+    fn modified(path: &std::path::Path) -> u64 {
+        std::fs::metadata(path)
+            .expect("claim metadata")
+            .modified()
+            .expect("mtime")
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("after epoch")
+            .as_secs()
+    }
+
+    fn due() -> AtClock {
+        AtClock(now() + CLAIM_WINDOW.as_secs() / super::REFRESH_FRACTION + 60)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_tree_claim_leaves_its_target_unmodified() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        std::fs::create_dir_all(paths.claims()).expect("claims dir");
+        let target = dir.path().join("target");
+        std::fs::write(&target, b"untouched").expect("target");
+        std::os::unix::fs::symlink(
+            &target,
+            paths.claims().join(format!("{DIGEST}.install-a")),
+        )
+        .expect("symlink");
+
+        refresh(&paths, DIGEST, "install-a", &due());
+
+        assert_eq!(std::fs::read(&target).expect("target"), b"untouched");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refreshing_an_empty_back_dated_tree_claim_moves_its_mtime_to_now() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        std::fs::create_dir_all(paths.claims()).expect("claims dir");
+        let claim = paths.claims().join(format!("{DIGEST}.install-a"));
+        std::fs::write(&claim, b"").expect("empty claim");
+        back_date(&claim, now());
+        let clock = due();
+
+        refresh(&paths, DIGEST, "install-a", &clock);
+
+        assert_eq!(modified(&claim), clock.now_seconds());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_tree_claims_directory_is_not_written_through() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir(&elsewhere).expect("elsewhere");
+        std::os::unix::fs::symlink(&elsewhere, paths.claims())
+            .expect("symlink");
+
+        refresh(&paths, DIGEST, "install-a", &AtClock(now()));
+
+        assert_eq!(
+            std::fs::read_dir(&elsewhere).expect("elsewhere").count(),
+            0
+        );
     }
 }
