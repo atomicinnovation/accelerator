@@ -17,6 +17,7 @@ pub mod item_snapshot;
 mod ordering;
 pub mod pending_push;
 pub mod realign;
+pub mod recovery_label;
 pub mod run;
 pub mod scope;
 pub mod send_refusal;
