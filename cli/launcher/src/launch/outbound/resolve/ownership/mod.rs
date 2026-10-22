@@ -2,6 +2,7 @@
 //! process may trust not to be renamed into by another user.
 
 pub mod accounts;
+pub mod safe_root;
 
 use std::path::Path;
 use std::sync::OnceLock;

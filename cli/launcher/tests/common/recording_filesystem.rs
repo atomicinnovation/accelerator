@@ -39,6 +39,7 @@ pub enum FilesystemCall {
     CreatePrivateDir(RecordedPath),
     SetModified(RecordedPath),
     AccessAcl(RecordedPath),
+    IgnoresOwnership(RecordedPath),
 }
 
 impl FilesystemCall {
@@ -71,7 +72,8 @@ impl FilesystemCall {
             | Self::Resolve(touched)
             | Self::CreatePrivateDir(touched)
             | Self::SetModified(touched)
-            | Self::AccessAcl(touched) => touched == path,
+            | Self::AccessAcl(touched)
+            | Self::IgnoresOwnership(touched) => touched == path,
         }
     }
 }
@@ -233,6 +235,11 @@ impl CacheFilesystem for RecordingFilesystem {
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
         self.record(FilesystemCall::AccessAcl(self.recorded(path)));
         SystemFilesystem.access_acl(path)
+    }
+
+    fn ignores_ownership(&self, path: &Path) -> io::Result<bool> {
+        self.record(FilesystemCall::IgnoresOwnership(self.recorded(path)));
+        SystemFilesystem.ignores_ownership(path)
     }
 }
 
