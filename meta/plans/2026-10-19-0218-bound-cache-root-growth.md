@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T06:41:13+00:00"
+last_updated: "2026-10-22T07:04:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1182,7 +1182,10 @@ Phase 1 test stays as it was, beside its `identify`-composed twin:
 - [ ] A dispatch with `ACCELERATOR_CACHE_DIR` set in a scratch directory
       leaves `claims/<version>.<16hex>` and nothing else new. So far only
       `accelerator version` has been checked this way; a real external
-      dispatch needs a published release or a seeded signed entry.
+      dispatch needs a published release or a seeded signed entry. A debug
+      launcher trusts a locally signed entry only once Phase 7's
+      `test-loopback` trust path lands, so this check is run with Phase 7's
+      manual checks.
 
 ---
 
@@ -1840,7 +1843,7 @@ impl SafePruneRoot {
 
 `check` takes only the two leaf ports it uses, so the `ownership` leaf depends
 on nothing in `retention/`. `RootPrune`, `TreePruneRegime::WholeTree` and, in
-Phase 7, `TreePrune::prune_held` and a relocated root's `ReapPermit` each
+Phase 7, a relocated root's `ReapPermit` each
 require a `&SafePruneRoot`, so none can be built without the check.
 `RelocatedRetention` obtains it once per prune; an unsafe root yields
 `PruneOutcome::Refused` and removes nothing. Claims are still written, so a root
@@ -2140,8 +2143,8 @@ impl ScriptedFilesystem {
 or the timeline that its script ran, and that the scripted event sits
 immediately before the guarded call, so it can pass neither because the
 script never ran nor because it ran before the decision. The recording
-`SingleFlightLocks` and its `LockReleased` timeline entry arrive in Phase 5,
-whose `no_prune_path_probes_or_takes_a_lock_it_holds` first needs them.
+`SingleFlightLocks` arrives in Phase 5, whose
+`no_prune_path_probes_or_takes_a_lock_it_holds` first needs it.
 
 ### Success Criteria:
 
@@ -2231,7 +2234,6 @@ pub struct TreePrunePorts<'a> {
 }
 
 pub struct TreePrune<'a> {
-    pub paths: TreePaths,
     pub regime: TreePruneRegime<'a>,
     pub claim_window: Duration,
     pub ports: TreePrunePorts<'a>,
@@ -2239,8 +2241,14 @@ pub struct TreePrune<'a> {
 
 impl TreePrune<'_> {
     pub fn run(&self, patience: LockPatience) -> TreePruneReport;
-    pub fn prune_held(&self, held: &HeldTreeLock, safe: &SafePruneRoot)
-        -> TreePruneReport;
+    pub fn prune_held(&self, held: &HeldTreeLock) -> TreePruneReport;
+}
+
+pub struct TreePruneReport {
+    pub removals: Removals,
+    pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Option<UnreadableClaims>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
 }
 ```
 
@@ -2252,10 +2260,11 @@ its only switch:
 | `PinnedOnHost` (default root) | pinned artifacts on `HOST_PLATFORM`, today's scope | none |
 | `WholeTree` (relocated root) | every artifact and platform under `trees/` | all three |
 
-`PluginBinRoot` (in the `ownership` leaf, beside `SafePruneRoot`) is introduced
-here: it has a private field, only `identify` mints one, for
-`CacheRootKind::PluginBin`, and its `trees_paths()` is the only source of a
-default root's `TreePaths`. So neither regime can be built from a bare path.
+`PluginBinRoot` (in `cache_root.rs`) is introduced here. `CacheRoot`'s fields
+are now private, so only `identify` builds one, and `CacheRoot::plugin_bin()`
+mints a `PluginBinRoot` only for a root identified as `CacheRootKind::PluginBin`.
+`for_root` chooses the retention from `plugin_bin()`. So neither regime can be
+built from a bare path.
 
 `tests/tree_resolution.rs` moves with it in Phase 5's tests-only commit: the
 `Harness` cache becomes `<tempdir>/bin`, and the harness mints its
@@ -2265,17 +2274,20 @@ override. `prune_plugin_bin` takes that `PluginBinRoot`, and Phase 7 routes
 through `StartUp::tree_resolver` when `RootTrust` arrives.
 
 `TreePruneReport` is `tree`'s own type; `RootPrune` aggregates it into
-`PruneReport`, so `tree` never imports `retention`. `WholeTree` carries the
-`SafePruneRoot`, so a whole-tree prune cannot be built without the check,
-and under `WholeTree` the prune's `TreePaths` come from
-`SafePruneRoot::trees_paths()`, so it prunes the root that was checked;
-`PinnedOnHost` needs none, because the plugin `bin` is outside the gate.
+`PruneReport` with `absorb_trees`, so `tree` never imports `retention`.
+`PruneReport` gains `untrusted_directories`. `WholeTree` carries the
+`SafePruneRoot`, so a whole-tree prune cannot be built without the check.
+`TreePrune` has no paths of its own: the regime derives `TreePaths` from the
+root it carries, so it prunes the root that was checked, and the `ownership`
+leaf stays free of `tree/`. `PinnedOnHost` needs no check, because the plugin
+`bin` is outside the gate.
 
 `HeldLeases` (in `tree/lease.rs`) is the set of generation directories this
-process holds shared leases on. Every lease probe `TreePrune` and its
-`Reaper` make goes through it first: a held generation is `Held` without a
-probe, since probing a lease the process holds would release it under
-emulated `flock`.
+process holds shared leases on, built with `none()` or `holding(dirs)`. Every
+lease probe `TreePrune` and its `Reaper` make goes through
+`held_leases.before(lease_liveness)`, a `LivenessProbe` that answers `Held`
+for a held generation without a probe, since probing a lease the process holds
+would release it under emulated `flock`.
 
 `TreePrune`'s listings, metadata reads, pointer reads and removals all go
 through `ports.filesystem`, so the recorder and `ScriptedFilesystem` see tree
@@ -2284,9 +2296,12 @@ prune as they see single-file prune. `CacheFilesystem` gains
 `RemoveTree`. `removals` is notified before each removal, as the `Reaper`
 already does. The `Reaper` keeps its own `std::fs` reads, as today.
 
-`CachePorts` gains `removals` in this phase; `lease_liveness`, `pins` and
-`locks` arrived in Phase 4. Both retentions build `TreePrunePorts` by
-borrowing from it, with `TreeLocks` constructed over `CachePorts::locks`.
+`CachePorts` gains `removals` in this phase, which production fills with
+`UnobservedRemovals`; `lease_liveness`, `pins` and `locks` arrived in Phase 4.
+Both retentions build `TreePrunePorts` by borrowing from it, with
+`TreeLocks::over(CachePorts::locks)`. The `Reaper` is observed by a wrapper
+that tells `removals` and makes the shared index forget each entry, so steps
+after the reap judge what is left.
 
 A process holds at most one tree lock at a time. `run` takes each artifact's
 lock inside that artifact's own iteration, so its guard drops before the next
@@ -2303,6 +2318,7 @@ claims once:
 pub enum TreeClaimsListing {
     Read(TreeClaimIndex),
     Unreadable(io::ErrorKind),
+    Untrusted,
 }
 
 pub fn list(
@@ -2312,10 +2328,14 @@ pub fn list(
 ) -> TreeClaimsListing
 ```
 
-`NotFound` is `Read` of an empty index, and an untrusted `trees/claims/` is
-`Unreadable(PermissionDenied)`. On `Unreadable`, `run` skips step 1 and the
-stale tree-claim sweep, records an `UnreadableClaims` in the report, and still
-runs the orphan, sidecar and lock steps, which do not depend on claims.
+`NotFound` is `Read` of an empty index. A claim is listed when its name is
+`<64hex>.<launcher-id>` with any non-empty id, and protects its digest when it
+is a regular file owned by the effective uid with an mtime inside the window
+(an unknown mtime protects); only a claim whose id is sixteen lowercase hex is
+ever swept, so another launcher's differently named claim can only keep. On
+`Unreadable` or `Untrusted`, `run` skips step 1 and the stale tree-claim sweep,
+records an `UnreadableClaims` or an `UntrustedDirectory` in the report, and
+still runs the orphan, sidecar and lock steps, which do not depend on claims.
 
 It then lists `trees/` once into an index the per-artifact steps share, and
 discovers artifacts from it in sorted order. For each artifact it takes a lock
@@ -2331,9 +2351,11 @@ according to this table:
 | `Err` from any of the above | record `LockFailure`, skip | record, skip |
 
 An untrusted `trees/` or `trees/claims/` is recorded as an
-`UntrustedDirectory` in the report, which the verb prints and cold paths
-`warn!`, so a refused prune is never indistinguishable from "nothing to
-reclaim".
+`UntrustedDirectory` in the report, which the verb prints as `not pruning
+through <path>: another user could write to it` and cold paths `warn!`, so a
+refused prune is never indistinguishable from "nothing to reclaim". Like
+unreadable claims, it alone exits 0, and the unreadable-claims line now ends
+"kept everything they could protect", since it covers tree claims too.
 
 Every row that yields a lock yields a `HeldTreeLock`, so a lock-only
 artifact reaches the orphan-lock step like any other.
@@ -2375,17 +2397,20 @@ needs. Under the lock, it does the following for each artifact:
    keeps the tree if a fresh valid claim has appeared since the index was
    read, or if the re-read is `Unreadable`. The index decides every keep; the
    re-read guards every removal, at one listing per tree removed. After
-   unlinking the pointer it tries a non-blocking exclusive lock on the
-   generation's `.lease` and holds it across `remove_tree`; when that lock is
-   contended, a dispatch leased the tree after the probe, so the generation
-   is left for a later reap. It then removes the pointer first, so a
-   concurrent `locate` misses and re-materialises rather than leasing a
-   generation about to go, and only then the generation and its sidecars.
+   unlinking the pointer, so a concurrent `locate` misses and re-materialises
+   rather than leasing a generation about to go, it takes a non-blocking
+   exclusive lock on the generation's `.lease` (`lease::try_exclusive_lease`,
+   creating the file if missing) and holds it across `remove_tree`, the
+   sidecars and the digest's claims. When that lock is contended, a dispatch
+   leased the tree after the probe, so the generation is left for a later
+   reap. When `flock` fails outright the probe has already answered
+   `Unknown`, and only the age backstop let the removal this far, so it
+   proceeds. A pointer that cannot be removed keeps its generation.
 2. **Orphan sidecars** (`WholeTree` only). A `.sealed`, `.sealed.sig` or
    `.lease` whose generation is absent is removed when the lease probe reports
-   `Free` or `Unknown` and the sidecar is older than `AGE_BACKSTOP`. A new
-   `reap::orphan_sidecar_is_reclaimable(liveness, aged)` holds that rule as a
-   `const fn` beside the existing tables.
+   `Free` or `Unknown` and the sidecar is older than `AGE_BACKSTOP`. That is
+   the rule `reap::orphan_is_reclaimable(liveness, aged)` already holds for
+   an unreferenced generation, so it is reused, now `pub(super)`.
 3. **Orphan tree lock** (`WholeTree` only, `run` only, never `prune_held`).
    The shared index decides first. Only when it shows nothing of the artifact's
    left and the lock file aged does the step re-list the artifact's names under
@@ -2397,12 +2422,14 @@ needs. Under the lock, it does the following for each artifact:
 The orphan reap is root-wide, so it is a separate stage of `run`, not a
 per-artifact step: `reap_orphans_under(&HeldTreeLock)` runs once,
 immediately after the loop produces its first `ArtifactLock::Taken` and
-before that artifact's step 1. When `run` takes no lock but the index holds
-temp residue or a generation no pointer names, of any artifact, `run` takes
-the first pinned artifact's lock with `take_tree` and reaps under it, as
-today's verb does by creating each pinned artifact's lock. When there is
-neither, nothing is reaped and no lock is created.
+before that artifact's step 1. When the loop took no lock but the index holds
+temp residue or a generation no pointer names, of any artifact, `run` then
+takes the first pinned artifact's lock, `take_tree` when waiting and
+`try_take_tree` when trying, and reaps under it, as today's verb does by
+creating each pinned artifact's lock. When there is neither, nothing is reaped
+and no lock is created.
 `prune_held` does not reap; `materialise` already has, under the same lock.
+A lock from another root makes `prune_held` a no-op.
 
 After the artifacts, under `WholeTree`, it removes each regular file in
 `trees/claims/` whose name parses as `<64hex>.<16hex>` and whose mtime is
@@ -2431,9 +2458,9 @@ impl TreeLocks<'_> {
 pub enum TreeLockProbe { Taken(HeldTreeLock), Held, Absent }
 ```
 
-`TreeLocks` derives the lock path from the artifact, so a guard and its
-artifact can never disagree, and it is the only constructor of
-`HeldTreeLock`. `HeldTreeLock` holds a `LockGuard`. Nothing outside `tree/`
+`TreeLocks::over(primitive)` builds one. It derives the lock path from the
+artifact, so a guard and its artifact can never disagree, and it is the only
+constructor of `HeldTreeLock`. `HeldTreeLock` holds a `LockGuard`. Nothing outside `tree/`
 takes a tree lock by path. `tree_lock.rs`'s static `HeldTreeLock::take` and
 `try_take` are deleted, so the compiler moves every caller, `repair`
 included, onto `TreeLocks`.
@@ -2460,7 +2487,8 @@ is released as soon as its entries are removed, as main does today.
 
 **File**: `retention/root_prune.rs`
 **Changes**: `RootPrune::run` gains its `held_leases: &HeldLeases` argument,
-and the verb passes `HeldLeases::none()`, since it consumes no trees. `run`
+and the verb passes `HeldLeases::none()`, since it consumes no trees. Tree
+prune runs with the patience the root prune was given. `run`
 builds a `TreePrune` with `WholeTree(self.safe)` and those leases, and runs it
 after the root-locked work, in place of Phase 4's call to
 `tree::prune_pinned_on_host`. A held root lock never blocks
@@ -2479,7 +2507,9 @@ tree prune.
 a generation or temp residue, so the verb no longer creates tree locks for
 artifacts it never materialised. A missing `trees/` stopped being an
 `ENOENT` in Phase 4, and `TreePrune` keeps that. It also inherits the fail-closed tree-claims listing.
-`claims::claimed_within` loses its last caller and is deleted.
+`claims::claimed_within`, `claims::drop_all` and `tree/pinned_prune.rs` lose
+their last callers and are deleted; `PointerTarget` moves into
+`tree/prune.rs`.
 
 The swap is two commits, so the default-root regression tests guard it:
 
@@ -2506,7 +2536,8 @@ The swap is two commits, so the default-root regression tests guard it:
    `artifact` each call site names today, so its scope is unchanged and every
    assertion is unchanged.
 2. **The swap.** The helper drops its `artifact` parameter and calls
-   `TreePrune { regime: PinnedOnHost(&plugin_bin_root) }` with the seams, which
+   `TreePrune { regime: PinnedOnHost(&plugin_bin_root) }` with the seams and
+   returns its `TreePruneReport`, which
    visits every pinned host artifact, as the verb's loop always has, and
    `TreeResolver::prune` is deleted. `PluginBinSeams` gains `patience`, read for
    the first time here; it is `Wait` everywhere except the bystander tests.
@@ -2514,8 +2545,8 @@ The swap is two commits, so the default-root regression tests guard it:
    unchanged, because residue takes the lock. Assertions are unchanged except
    one: `another_artifacts_materialise_survives_this_ones_prune` holds
    BYSTANDER's lock while BYSTANDER is pinned and has residue, so its seams use
-   `Try` and it asserts BYSTANDER is skipped and survives, where today it was
-   never visited. `another_artifacts_pinned_archive_survives_a_prune` (`:1045`)
+   `Try` and it asserts BYSTANDER survives and the report is empty, where
+   today it was never visited. `another_artifacts_pinned_archive_survives_a_prune` (`:1045`)
    leaves BYSTANDER's lock free: BYSTANDER sorts first and has residue, so
    `TreePrune` takes its lock and the reap judges its archive as `HeldByCaller`,
    where only `is_resumable`, the pin rule, spares it. The test adds an unpinned
@@ -2523,17 +2554,19 @@ The swap is two commits, so the default-root regression tests guard it:
    goes, so it still fails if the pin rule is dropped. Those are the two changed
    tests; the others seed only `ARTIFACT` and are unaffected. The verb's own
    `run_cache` calls already pass a `PluginBinRetention` from Phase 4
-   (`Harness::retention_with`) and keep their assertions.
+   (`Harness::retention_with`, now over `retention_over(clock, liveness,
+   locks)`) and keep their assertions.
 
 The verb leg of `the_plugin_bin_root_is_never_claimed_or_pruned` moves into
-this phase, so the default-root criterion is checked when the default-root
-verb changes.
+this phase, in `tests/root_prune.rs`, so the default-root criterion is checked
+when the default-root verb changes.
 
 #### 4. Tests (red first)
 
-In `tests/root_prune.rs` (relocated root), with the tree harness helpers
-from `tests/tree_resolution.rs` moved into `tests/common/trees.rs` so both
-files share them:
+In `tests/root_prune.rs` (relocated root), over a new `tests/common/trees.rs`
+that plants trees, pointers, sidecars, locks, residue and claims, and holds
+the shared `FixedClock`, `FixedLiveness` and `FailingLockAt` (which fails
+every lock call on one path):
 
 - `only_aged_unknown_and_free_unpinned_trees_are_reclaimed`: held, young
   unknown, old unknown, free and pinned-free, through `FixedLiveness`
@@ -2564,15 +2597,9 @@ files share them:
 - `a_symlinked_trees_or_tree_claims_directory_is_not_pruned_through`: the
   verb prints the `UntrustedDirectory` line, and a sibling single-file entry
   of an unclaimed version is removed as the positive control
-- `a_residue_only_default_root_is_still_reaped`: under `PinnedOnHost`, an
-  orphan temp generation of an unpinned artifact is reaped under the first
-  pinned artifact's lock
 - `a_tree_leased_during_removal_is_kept`: a second open file description
   takes the shared lease after the probe; the contended exclusive lock keeps
   the generation
-- `the_plugin_bin_verb_reports_a_failed_tree_lock_and_prunes_the_rest`:
-  `FailingLocks` fails one pinned artifact; the verb prunes the others,
-  prints the failure and exits non-zero, as the CHANGELOG states
 - the Phase 2 pointer-containment tests, including
   `a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept`, re-run
   against a relocated root so `TreePrune`'s pointer path is held to the same
@@ -2603,20 +2630,28 @@ files share them:
 - `a_tree_claimed_after_the_index_was_read_is_kept`: `ScriptedFilesystem`
   writes a fresh claim after the index read and before the re-read, with
   `FixedLiveness` at `Unknown` and an aged generation
+- `a_tree_whose_lease_this_process_holds_is_kept_unprobed`: a `TreePrune`
+  built directly with `HeldLeases::holding` keeps the tree and never asks the
+  probe about its lease
 - `the_pointer_goes_before_its_generation`: the recorder shows the pointer's
   `RemoveFile` before the generation's `RemoveTree`
+- `the_verb_creates_no_lock_for_an_artifact_it_never_materialised`, the
+  relocated twin of the default-root test below
 
 Unit tests in `tree/layout.rs` cover `classify_trees_entry` for every recognised
 shape, an unknown platform, a malformed digest and another layout.
 
 In `tests/tree_resolution.rs` (every root):
 
-- `the_verb_creates_no_lock_for_an_artifact_it_never_materialised`, run in
-  both root kinds
+- `the_verb_creates_no_lock_for_an_artifact_it_never_materialised`, with its
+  relocated twin in `tests/root_prune.rs`
 - `the_verb_tolerates_a_missing_trees_directory`
 - `an_unreadable_tree_claims_directory_reclaims_nothing_in_the_plugin_bin`
 - `the_plugin_bin_verb_still_reclaims_an_unclaimed_superseded_tree`
   (existing behaviour, pinned)
+- `a_residue_only_default_root_is_still_reaped` and
+  `the_plugin_bin_verb_reports_a_failed_tree_lock_and_prunes_the_rest`, here
+  rather than in `tests/root_prune.rs`, since both run the default root
 
 Every unlink `TreePrune` makes goes through `removals`, which it shares with
 its `Reaper`: pointers, generations, sidecars, tree claims and lock files.
@@ -2627,17 +2662,22 @@ moment of each lock-file removal, the observer tries the lock without
 blocking from a separate open file description, as `ProbingLockOf` in
 `reap.rs` does, and asserts contention. This follows the PR #167 review
 suggestion. `a_claim_refreshed_before_unlink_is_kept` also runs against the
-tree-claim sweep, now that tree prune reads through the port. That variant
-puts the claim on a digest with no tree, so step 1 never reads it and the
-scripted call is the sweep's own re-check, the claim's second `entry`.
+tree-claim sweep, as `a_tree_claim_refreshed_before_unlink_is_kept`, now
+that tree prune reads through the port. That variant puts the claim on a
+digest with no tree, so step 1 never reads it and the scripted call is the
+sweep's own re-check, the claim's second `entry`.
 `a_tree_claimed_after_the_index_was_read_is_kept` scripts the second
 `List(trees/claims)`, the re-read after the index.
 
-A second guard, `no_prune_path_probes_or_takes_a_lock_it_holds`, uses a
-recording `SingleFlightLocks` that wraps each `LockGuard` it hands out, so it
-tracks which paths are held until each guard drops. It fails on any `take`,
-`try_take`, `wait_existing` or `probe` of a held path. Phase 5 runs it over the
-verb; Phase 7 extends it to a cold store and a materialise.
+A second guard, `no_prune_path_probes_or_takes_a_lock_it_holds`, uses
+`RecordingLocks` (`tests/common/recording_locks.rs`), a `SingleFlightLocks`
+that wraps each `LockGuard` it hands out, so it tracks which paths are held
+until each guard drops. It fails on any `take`, `try_take`, `wait_existing` or
+`probe` of a held path; its seed gives the first-locked artifact residue of
+its own, so a reap probing its own lock would be caught. The same seam's
+`calls_on(path)` drives `each_artifact_state_and_patience_uses_the_tables_lock_call`.
+Phase 5 runs the guard over the verb; Phase 7 extends it to a cold store and a
+materialise.
 
 ### Success Criteria:
 
@@ -2822,10 +2862,10 @@ impl ReapPermit<'_> {
 
 There is one constructor. `RootTrust::PluginBin` carries Phase 5's
 `PluginBinRoot`, not a bare `TreePaths`, as `TreePruneRegime::PinnedOnHost`
-already does. A relocated root's `TreePaths`
-come only from `SafePruneRoot::trees_paths()`, so the paths a permit reaps are
-the paths of the root that was checked, and no caller can pair a relocated root
-with the plugin-bin arm. `TreeResolver` holds the `RootTrust` it was built with,
+already does. A permit derives its `TreePaths` from the root its `RootTrust`
+carries, as `TreePruneRegime` does, so the paths a permit reaps are the paths
+of the root that was checked, and no caller can pair a relocated root with the
+plugin-bin arm. `TreeResolver` holds the `RootTrust` it was built with,
 from `StartUp::tree_resolver`.
 
 `tree` owns this port and `retention` implements it, so the dependency still
@@ -2863,7 +2903,7 @@ an unsafe root removes anything" true of the reap too.
 | Retention | `after_materialise(held)` |
 |---|---|
 | `PluginBinRetention` | `drop(held)`; the reap has already run |
-| `RelocatedRetention` | with a `SafePruneRoot`, `prune_held(&held, &safe)`; then `drop(held)` and `RootPrune::run(LockPatience::Try, &HeldLeases::none())` |
+| `RelocatedRetention` | with a `SafePruneRoot`, `prune_held(&held)` on a `TreePrune` whose regime is `WholeTree(&safe)`; then `drop(held)` and `RootPrune::run(LockPatience::Try, &HeldLeases::none())` |
 
 A materialise holds no leases: dispatch's `acquire` never materialises, and
 returns `None` for an absent tree (`resolver.rs:557-558`); materialising runs
@@ -3230,7 +3270,8 @@ commit message says it is a record, not evidence of this change's cost.
 ### Unit Tests:
 
 - Pure rules: the name grammar, `parse_generation_name`, `protection`,
-  `disposition`, `orphan_sidecar_is_reclaimable`, claim-name parsing and the
+  `disposition`, `orphan_is_reclaimable`, `classify_trees_entry`, claim-name
+  parsing and the
   identity table. Each is tested exhaustively without a filesystem.
 - Seams: `Ownership`, `BootstrapHolderLiveness`, `SingleFlightLocks` (a
   `FailingLocks` returning `ENOLCK` for a chosen path), `PruneSteps` (a
