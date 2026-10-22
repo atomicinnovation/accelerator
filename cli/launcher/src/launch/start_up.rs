@@ -133,6 +133,7 @@ impl StartUp {
             expected_digests: config.expected_digests,
             waiter_bound: config.waiter_bound,
             steps: config.steps,
+            after_materialise: self.retention.as_ref(),
         })
     }
 

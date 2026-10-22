@@ -11,16 +11,19 @@ use super::super::ownership::safe_root::{
 };
 use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::single_flight::LockPatience;
+use super::super::tree::after_materialise::{
+    AfterMaterialise, ReapPermit, RootTrust,
+};
 use super::super::tree::lease::HeldLeases;
-use super::super::tree::locks::TreeLocks;
-use super::super::tree::{TreePrune, TreePrunePorts, TreePruneRegime};
+use super::super::tree::tree_lock::HeldTreeLock;
+use super::super::tree::{TreePrune, TreePruneRegime};
 use super::super::AfterStore;
 use super::launcher_id;
 use super::ports::CachePorts;
 use super::root_prune::{PruneOutcome, PruneReport, RootPrune};
 use super::version_claims::{self, VersionClaim};
 
-pub trait RootRetention: AfterStore {
+pub trait RootRetention: AfterStore + AfterMaterialise {
     /// Declare that the running version still uses this root.
     fn claim_running_version(&self);
 
@@ -47,6 +50,22 @@ impl AfterStore for PluginBinRetention {
     fn after_store(&self, _held_leases: &HeldLeases) {}
 }
 
+/// The materialise has already reaped under its lock, as the plugin's own
+/// `bin` always has been, wherever the user owns its `trees/`.
+impl AfterMaterialise for PluginBinRetention {
+    fn reap_permit(&self) -> Option<ReapPermit> {
+        ReapPermit::for_root(
+            RootTrust::PluginBin(&self.root),
+            self.ports.filesystem.as_ref(),
+            self.ports.ownership.as_ref(),
+        )
+    }
+
+    fn after_materialise(&self, held: HeldTreeLock) {
+        drop(held);
+    }
+}
+
 impl RootRetention for PluginBinRetention {
     fn claim_running_version(&self) {}
 
@@ -56,17 +75,7 @@ impl RootRetention for PluginBinRetention {
             TreePrune {
                 regime: TreePruneRegime::PinnedOnHost(&self.root),
                 claim_window: older_than.unwrap_or(CLAIM_WINDOW),
-                ports: TreePrunePorts {
-                    held_leases: &HeldLeases::none(),
-                    filesystem: self.ports.filesystem.as_ref(),
-                    ownership: self.ports.ownership.as_ref(),
-                    clock: self.ports.clock.as_ref(),
-                    lease_liveness: self.ports.lease_liveness.as_ref(),
-                    pins: self.ports.pins.as_ref(),
-                    locks: TreeLocks::over(self.ports.locks.as_ref()),
-                    steps: self.ports.steps.as_ref(),
-                    removals: self.ports.removals.as_ref(),
-                },
+                ports: self.ports.tree_prune_ports(&HeldLeases::none()),
             }
             .run(LockPatience::Wait),
         );
@@ -109,25 +118,20 @@ impl RelocatedRetention {
         }
     }
 
-    /// A cold path skips what it cannot lock and reports nothing to the user,
-    /// so what it could not do is logged instead, and an unsafe root only
-    /// once per process.
-    fn prune_without_waiting(&self, held_leases: &HeldLeases) {
-        match self.safe_root() {
-            Ok(safe) => warn_of(
-                &self
-                    .root_prune(&safe, CLAIM_WINDOW)
-                    .run(LockPatience::Try, held_leases),
-            ),
-            Err(unsafe_root) => {
+    /// A cold path reports nothing to the user, so an unsafe root is logged
+    /// instead, once per process.
+    fn safe_for_cold_path(&self) -> Option<SafePruneRoot> {
+        self.safe_root()
+            .inspect_err(|unsafe_root| {
                 if !self.refusal_logged.swap(true, Ordering::Relaxed) {
                     tracing::warn!(%unsafe_root, "not pruning the cache root");
                 }
-            }
-        }
+            })
+            .ok()
     }
 }
 
+/// A cold path skips what it cannot lock, so what it could not do is logged.
 fn warn_of(report: &PruneReport) {
     for problem in report.problems() {
         tracing::warn!("{problem}");
@@ -136,7 +140,35 @@ fn warn_of(report: &PruneReport) {
 
 impl AfterStore for RelocatedRetention {
     fn after_store(&self, held_leases: &HeldLeases) {
-        self.prune_without_waiting(held_leases);
+        if let Some(safe) = self.safe_for_cold_path() {
+            warn_of(
+                &self
+                    .root_prune(&safe, CLAIM_WINDOW)
+                    .run(LockPatience::Try, held_leases),
+            );
+        }
+    }
+}
+
+/// Only a root checked safe to prune is reaped, so no prune path in an
+/// unsafe root removes anything.
+impl AfterMaterialise for RelocatedRetention {
+    fn reap_permit(&self) -> Option<ReapPermit> {
+        let safe = self.safe_root().ok()?;
+        ReapPermit::for_root(
+            RootTrust::Relocated(&safe),
+            self.ports.filesystem.as_ref(),
+            self.ports.ownership.as_ref(),
+        )
+    }
+
+    fn after_materialise(&self, held: HeldTreeLock) {
+        match self.safe_for_cold_path() {
+            Some(safe) => warn_of(
+                &self.root_prune(&safe, CLAIM_WINDOW).after_materialise(held),
+            ),
+            None => drop(held),
+        }
     }
 }
 
@@ -176,6 +208,16 @@ pub struct UnidentifiedRetention {
 
 impl AfterStore for UnidentifiedRetention {
     fn after_store(&self, _held_leases: &HeldLeases) {}
+}
+
+impl AfterMaterialise for UnidentifiedRetention {
+    fn reap_permit(&self) -> Option<ReapPermit> {
+        None
+    }
+
+    fn after_materialise(&self, held: HeldTreeLock) {
+        drop(held);
+    }
 }
 
 impl RootRetention for UnidentifiedRetention {

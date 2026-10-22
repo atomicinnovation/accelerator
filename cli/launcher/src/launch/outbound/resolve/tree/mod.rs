@@ -5,6 +5,7 @@
 //! deliberately not routed through `ResolveBinary::resolve`, whose per-exec
 //! re-verify is precisely what they are exempt from.
 
+pub mod after_materialise;
 pub mod attestation;
 pub mod claims;
 pub mod download;

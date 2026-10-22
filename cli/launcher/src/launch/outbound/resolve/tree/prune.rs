@@ -29,6 +29,7 @@ use super::super::prune_report::{
 use super::super::retention_windows::is_aged;
 use super::super::single_flight::LockPatience;
 use super::super::HOST_PLATFORM;
+use super::after_materialise::{ReapPermit, RootTrust};
 use super::claims::{self, is_stale_claim_entry, TreeClaimIndex};
 use super::layout::{
     classify_trees_entry, read_pointer, validated_generation, Artifact,
@@ -65,6 +66,13 @@ impl TreePruneRegime<'_> {
         match self {
             Self::PinnedOnHost(_) => pinned_on_host().collect(),
             Self::WholeTree(_) => index.artifacts(),
+        }
+    }
+
+    const fn trust(&self) -> RootTrust<'_> {
+        match self {
+            Self::PinnedOnHost(root) => RootTrust::PluginBin(root),
+            Self::WholeTree(safe) => RootTrust::Relocated(safe),
         }
     }
 
@@ -368,6 +376,13 @@ impl TreePrune<'_> {
         index: &TreesIndex,
         report: &mut TreePruneReport,
     ) {
+        let Some(permit) = ReapPermit::for_root(
+            self.regime.trust(),
+            self.ports.filesystem,
+            self.ports.ownership,
+        ) else {
+            return;
+        };
         let liveness = self.liveness();
         match Reaper::new(
             held,
@@ -380,7 +395,7 @@ impl TreePrune<'_> {
             index,
             observer: self.ports.removals,
         })
-        .reap_orphans()
+        .reap_orphans(&permit)
         {
             Ok(reaped) => report.removals.reclaimed += reaped.entries,
             Err(_) => report.removals.failures.push(RemovalFailure {

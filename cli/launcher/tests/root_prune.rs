@@ -2378,13 +2378,15 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
                 ..harness.ports()
             },
         );
-        if let Some(release) = harness.release() {
+        if let Some(release) = harness.release_with_trees(&[MATERIALISED]) {
             cold_dispatch_through(
                 &start,
                 &release,
                 &[],
                 &SnapshotAtExec::watching(bin.clone()),
             );
+            materialise_through(&start, &release, MATERIALISED)
+                .expect("materialised");
             superseded.assert_survives();
         }
         let verb = prune_through(&start, None);
@@ -2821,28 +2823,33 @@ fn an_enolck_root_lock_skips_single_file_work_on_the_cold_path() {
 
 #[test]
 fn an_enolck_tree_lock_skips_only_that_artifact_on_cold_paths() {
-    let harness = RootHarness::new();
-    let Some(release) = harness.release() else {
-        return;
-    };
-    let trees = harness.trees();
-    let failing = on_host("retired-x");
-    let kept = trees.plant_tree(&failing, &digest('a'), harness.aged());
-    let removed =
-        trees.plant_tree(&on_host("retired-y"), &digest('b'), harness.aged());
+    for trigger in COLD_TRIGGERS {
+        let harness = RootHarness::new();
+        let trees = harness.trees();
+        let failing = on_host("retired-x");
+        let kept = trees.plant_tree(&failing, &digest('a'), harness.aged());
+        let superseded = trees.plant_tree(
+            &on_host(MATERIALISED),
+            &digest('b'),
+            harness.aged(),
+        );
 
-    harness.dispatched(
-        &release,
-        Ports {
-            locks: Arc::new(FailingLockAt(
-                trees.paths().single_flight_lock(&failing),
-            )),
-            ..harness.ports()
-        },
-    );
+        let fired = harness.fire(
+            trigger,
+            Ports {
+                locks: Arc::new(FailingLockAt(
+                    trees.paths().single_flight_lock(&failing),
+                )),
+                ..harness.ports()
+            },
+        );
 
-    kept.assert_survives();
-    removed.assert_reclaimed();
+        if !fired.ran() {
+            return;
+        }
+        kept.assert_survives();
+        superseded.assert_reclaimed();
+    }
 }
 
 #[test]
@@ -2920,11 +2927,17 @@ fn an_unsafe_root_is_not_pruned_from_any_trigger() {
 enum Trigger {
     Verb,
     ColdStore,
+    Materialise,
 }
 
-const COLD_TRIGGERS: [Trigger; 1] = [Trigger::ColdStore];
+const COLD_TRIGGERS: [Trigger; 2] = [Trigger::ColdStore, Trigger::Materialise];
 
-const EVERY_TRIGGER: [Trigger; 2] = [Trigger::Verb, Trigger::ColdStore];
+const EVERY_TRIGGER: [Trigger; 3] =
+    [Trigger::Verb, Trigger::ColdStore, Trigger::Materialise];
+
+/// The tree every materialise trigger fetches, sorting after the trees the
+/// tests plant so a whole-tree prune reaches them first.
+const MATERIALISED: &str = "zz-materialised";
 
 enum Fired {
     Verb(Verb),
@@ -2951,6 +2964,423 @@ impl RootHarness {
                 self.dispatched(&release, ports);
                 Fired::Dispatch
             }
+            Trigger::Materialise => {
+                let Some(release) = self.release_with_trees(&[MATERIALISED])
+                else {
+                    return Fired::Skipped;
+                };
+                let start =
+                    self.start_over(&self.root, TrustedOwners::none(), ports);
+                materialise_through(&start, &release, MATERIALISED)
+                    .expect("materialised");
+                Fired::Dispatch
+            }
         }
     }
+}
+
+fn materialise_through(
+    start: &StartUp,
+    release: &SignedRelease,
+    artifact: &str,
+) -> Result<SealedTree, TreeError> {
+    let keys = release.keys();
+    let fetcher =
+        Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+    start
+        .tree_resolver(tree_config(release, &keys, &fetcher))
+        .expect("tree resolver")
+        .materialise(artifact)
+}
+
+fn repair_through(
+    start: &StartUp,
+    release: &SignedRelease,
+    artifact: &str,
+) -> SealedTree {
+    let keys = release.keys();
+    let fetcher =
+        Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+    start
+        .tree_resolver(tree_config(release, &keys, &fetcher))
+        .expect("tree resolver")
+        .repair(artifact, true)
+        .expect("repaired")
+}
+
+#[test]
+fn a_materialise_with_the_root_lock_held_still_prunes_other_trees() {
+    let harness = RootHarness::new();
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+    let held = FlockLocks.take(&harness.join(ROOT_LOCK)).expect("held");
+
+    let fired = harness.fire(Trigger::Materialise, harness.ports());
+
+    drop(held);
+    if !fired.ran() {
+        return;
+    }
+    assert!(harness.has(&unclaimed));
+    tree.assert_reclaimed();
+}
+
+#[test]
+fn a_materialise_releases_its_lock_before_pruning_other_artifacts() {
+    let harness = Arc::new(RootHarness::new());
+    let Some(release) = harness.release_with_trees(&[MATERIALISED]) else {
+        return;
+    };
+    harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+    let (announce, announced) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    let pause = Arc::new(Pause {
+        at: PruneStep::TreeLockHeld,
+        reached: Mutex::new(Some(announce)),
+        resume: Mutex::new(resumed),
+    });
+    let materialiser = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            let start = harness.start_over(
+                &harness.root,
+                TrustedOwners::none(),
+                Ports {
+                    steps: pause,
+                    ..harness.ports()
+                },
+            );
+            materialise_through(&start, &release, MATERIALISED).is_ok()
+        })
+    };
+    announced.recv_timeout(BOUND).expect("the prune paused");
+
+    let taken = FlockLocks.try_take(
+        &harness
+            .trees()
+            .paths()
+            .single_flight_lock(&on_host(MATERIALISED)),
+    );
+
+    let taken = taken.expect("lock call").is_some();
+    resume.send(()).expect("resumed");
+    assert!(materialiser.join().expect("materialiser"));
+    assert!(taken, "the materialise still held its lock");
+}
+
+#[test]
+fn a_materialise_prunes_the_superseded_tree_single_files_and_probes() {
+    let harness = RootHarness::new();
+    let unclaimed = harness.entry(OLD, harness.aged());
+    let probe = ".accelerator-probe-77";
+    harness.file(probe, harness.aged());
+    let superseded = harness.trees().plant_tree(
+        &on_host(MATERIALISED),
+        &digest('b'),
+        harness.aged(),
+    );
+
+    if !harness.fire(Trigger::Materialise, harness.ports()).ran() {
+        return;
+    }
+
+    assert!(!harness.has(&unclaimed));
+    assert!(!harness.has(probe));
+    superseded.assert_reclaimed();
+}
+
+/// An orphan temp generation and an unreferenced generation of the
+/// materialised artifact, both old enough for any reap.
+struct ReapableResidue {
+    temp: PathBuf,
+    unreferenced: PathBuf,
+}
+
+impl ReapableResidue {
+    fn plant(trees: &Trees, modified: u64) -> Self {
+        let artifact = on_host(MATERIALISED);
+        Self {
+            temp: trees.plant_temp_generation(
+                &artifact,
+                &digest('c'),
+                modified,
+            ),
+            unreferenced: trees.plant_generation(
+                &Trees::generation_of(&artifact, &digest('d')),
+                modified,
+            ),
+        }
+    }
+
+    #[track_caller]
+    fn assert_survives(&self) {
+        assert!(exists(&self.temp), "the temp generation was reaped");
+        assert!(exists(&self.unreferenced), "the generation was reaped");
+    }
+
+    #[track_caller]
+    fn assert_reaped(&self) {
+        assert!(!exists(&self.temp), "the temp generation survived");
+        assert!(!exists(&self.unreferenced), "the generation survived");
+    }
+}
+
+#[test]
+fn a_materialise_in_an_unsafe_root_reaps_nothing() {
+    let harness = RootHarness::new();
+    let residue =
+        ReapableResidue::plant(&harness.trees(), harness.now - 86_400);
+    let filesystem = ReportingFilesystem::over_system()
+        .reporting(&harness.root, shared_group_writable(&harness.root));
+
+    let fired = harness.fire(
+        Trigger::Materialise,
+        Ports {
+            filesystem: Arc::new(filesystem),
+            ..harness.ports()
+        },
+    );
+
+    if !fired.ran() {
+        return;
+    }
+    residue.assert_survives();
+}
+
+#[test]
+fn a_materialise_with_an_untrusted_trees_directory_reaps_nothing() {
+    for (relocated, trusted) in
+        [(true, false), (true, true), (false, false), (false, true)]
+    {
+        let harness = RootHarness::new();
+        let Some(release) = harness.release_with_trees(&[MATERIALISED]) else {
+            return;
+        };
+        let root = if relocated {
+            harness.root.clone()
+        } else {
+            harness.plugin.join("bin")
+        };
+        let trees = Trees::under(&root);
+        let residue = ReapableResidue::plant(&trees, harness.now - 86_400);
+        let reporting = ReportingFilesystem::over_system();
+        let filesystem = if trusted {
+            reporting
+        } else {
+            reporting
+                .reporting(trees.root(), shared_group_writable(trees.root()))
+        };
+        let start = start_up(
+            &CacheRootConfig {
+                cache_dir_override: relocated.then(|| root.clone()),
+                plugin_root: Some(harness.plugin.clone()),
+            },
+            TrustedOwners::none(),
+            Ports {
+                filesystem: Arc::new(filesystem),
+                ..harness.ports()
+            }
+            .build(),
+        );
+
+        materialise_through(&start, &release, MATERIALISED)
+            .expect("materialised");
+
+        if trusted {
+            residue.assert_reaped();
+        } else {
+            residue.assert_survives();
+        }
+    }
+}
+
+#[test]
+fn a_forced_repair_in_an_unsafe_root_reaps_nothing() {
+    for safe in [false, true] {
+        let harness = RootHarness::new();
+        let Some(release) = harness.release_with_trees(&[MATERIALISED]) else {
+            return;
+        };
+        let filesystem = if safe {
+            ReportingFilesystem::over_system()
+        } else {
+            ReportingFilesystem::over_system()
+                .reporting(&harness.root, shared_group_writable(&harness.root))
+        };
+        let start = harness.start_over(
+            &harness.root,
+            TrustedOwners::none(),
+            Ports {
+                filesystem: Arc::new(filesystem),
+                ..harness.ports()
+            },
+        );
+        let superseded = materialise_through(&start, &release, MATERIALISED)
+            .expect("materialised");
+
+        let repaired = repair_through(&start, &release, MATERIALISED);
+
+        assert_ne!(repaired.path, superseded.path);
+        assert_eq!(exists(&superseded.path), !safe, "safe: {safe}");
+    }
+}
+
+/// One sequence of the lock releases and removals a prune makes, so a test
+/// can see which came first.
+#[derive(Clone, Default)]
+struct Sequence(Arc<Mutex<Vec<Sequenced>>>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Sequenced {
+    Removing(PathBuf),
+    Released(PathBuf),
+}
+
+impl Sequence {
+    fn events(&self) -> Vec<Sequenced> {
+        self.0.lock().expect("sequence").clone()
+    }
+
+    fn push(&self, event: Sequenced) {
+        self.0.lock().expect("sequence").push(event);
+    }
+}
+
+impl RemovalObserver for Sequence {
+    fn removing(&self, entry: &Path) {
+        self.push(Sequenced::Removing(entry.to_path_buf()));
+    }
+}
+
+struct ReleasedInSequence {
+    path: PathBuf,
+    sequence: Sequence,
+    _guard: LockGuard,
+}
+
+impl Drop for ReleasedInSequence {
+    fn drop(&mut self) {
+        self.sequence.push(Sequenced::Released(self.path.clone()));
+    }
+}
+
+impl Sequence {
+    fn guarding(&self, path: &Path, guard: LockGuard) -> LockGuard {
+        LockGuard::holding(ReleasedInSequence {
+            path: path.to_path_buf(),
+            sequence: self.clone(),
+            _guard: guard,
+        })
+    }
+}
+
+impl SingleFlightLocks for Sequence {
+    fn take(&self, path: &Path) -> Result<LockGuard, TreeError> {
+        FlockLocks
+            .take(path)
+            .map(|guard| self.guarding(path, guard))
+    }
+
+    fn try_take(&self, path: &Path) -> Result<Option<LockGuard>, TreeError> {
+        Ok(FlockLocks
+            .try_take(path)?
+            .map(|guard| self.guarding(path, guard)))
+    }
+
+    fn wait_existing(
+        &self,
+        path: &Path,
+    ) -> Result<Option<LockGuard>, TreeError> {
+        Ok(FlockLocks
+            .wait_existing(path)?
+            .map(|guard| self.guarding(path, guard)))
+    }
+
+    fn probe(&self, path: &Path) -> Result<LockProbe, TreeError> {
+        Ok(match FlockLocks.probe(path)? {
+            LockProbe::Taken(guard) => {
+                LockProbe::Taken(self.guarding(path, guard))
+            }
+            probed => probed,
+        })
+    }
+}
+
+#[test]
+fn prune_held_removes_the_superseded_tree_before_the_lock_is_released() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let artifact = on_host(MATERIALISED);
+    let superseded = trees.plant_tree(&artifact, &digest('b'), harness.aged());
+    let sequence = Sequence::default();
+
+    let fired = harness.fire(
+        Trigger::Materialise,
+        Ports {
+            locks: Arc::new(sequence.clone()),
+            removals: Arc::new(sequence.clone()),
+            ..harness.ports()
+        },
+    );
+
+    if !fired.ran() {
+        return;
+    }
+    let events = sequence.events();
+    let removed = events
+        .iter()
+        .position(|event| {
+            *event == Sequenced::Removing(superseded.generation.clone())
+        })
+        .expect("the superseded generation was removed");
+    let released = events
+        .iter()
+        .position(|event| {
+            *event
+                == Sequenced::Released(
+                    trees.paths().single_flight_lock(&artifact),
+                )
+        })
+        .expect("the materialise's lock was released");
+    assert!(removed < released, "{events:#?}");
+}
+
+#[test]
+fn the_plugin_bin_orphan_reap_is_unchanged() {
+    let harness = RootHarness::new();
+    let Some(release) = harness.release_with_trees(&[MATERIALISED]) else {
+        return;
+    };
+    let bin = harness.plugin.join("bin");
+    let trees = Trees::under(&bin);
+    let artifact = on_host(MATERIALISED);
+    let old = trees.plant_generation(
+        &Trees::generation_of(&artifact, &digest('c')),
+        harness.aged(),
+    );
+    let young = trees.plant_generation(
+        &Trees::generation_of(&artifact, &digest('d')),
+        harness.young(),
+    );
+    let start = start_up(
+        &CacheRootConfig {
+            cache_dir_override: None,
+            plugin_root: Some(harness.plugin.clone()),
+        },
+        TrustedOwners::none(),
+        harness.ports().build(),
+    );
+
+    materialise_through(&start, &release, MATERIALISED).expect("materialised");
+
+    assert!(!exists(&old));
+    assert!(exists(&young));
 }

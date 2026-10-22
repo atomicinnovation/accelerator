@@ -10,10 +10,8 @@ use super::super::prune_report::{
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
-use super::super::tree::locks::TreeLocks;
-use super::super::tree::{
-    TreePrune, TreePrunePorts, TreePruneRegime, TreePruneReport,
-};
+use super::super::tree::tree_lock::HeldTreeLock;
+use super::super::tree::{TreePrune, TreePruneRegime, TreePruneReport};
 use super::ports::CachePorts;
 use super::residue::ResidueSweep;
 use super::root_entries::RootListing;
@@ -117,9 +115,18 @@ impl RootPrune<'_> {
         held_leases: &HeldLeases,
     ) -> PruneReport {
         let mut report = PruneReport::default();
-        self.prune_single_files(patience, &mut report);
-        report.absorb_trees(self.prune_trees(patience, held_leases));
+        self.prune_into(patience, held_leases, &mut report);
         report
+    }
+
+    fn prune_into(
+        &self,
+        patience: LockPatience,
+        held_leases: &HeldLeases,
+        report: &mut PruneReport,
+    ) {
+        self.prune_single_files(patience, report);
+        report.absorb_trees(self.prune_trees(patience, held_leases));
     }
 
     /// The root lock is released when this returns, before any tree lock is
@@ -175,21 +182,26 @@ impl RootPrune<'_> {
         patience: LockPatience,
         held_leases: &HeldLeases,
     ) -> TreePruneReport {
+        self.whole_tree(held_leases).run(patience)
+    }
+
+    fn whole_tree<'a>(&'a self, held_leases: &'a HeldLeases) -> TreePrune<'a> {
         TreePrune {
             regime: TreePruneRegime::WholeTree(self.safe),
             claim_window: self.claim_window,
-            ports: TreePrunePorts {
-                held_leases,
-                filesystem: self.ports.filesystem.as_ref(),
-                ownership: self.ports.ownership.as_ref(),
-                clock: self.ports.clock.as_ref(),
-                lease_liveness: self.ports.lease_liveness.as_ref(),
-                pins: self.ports.pins.as_ref(),
-                locks: TreeLocks::over(self.ports.locks.as_ref()),
-                steps: self.ports.steps.as_ref(),
-                removals: self.ports.removals.as_ref(),
-            },
+            ports: self.ports.tree_prune_ports(held_leases),
         }
-        .run(patience)
+    }
+
+    /// The materialised artifact is pruned under the lock its materialise
+    /// still holds; the lock is released before the rest of the root is
+    /// pruned, so no other artifact's trees go while it is held.
+    pub fn after_materialise(&self, held: HeldTreeLock) -> PruneReport {
+        let none = HeldLeases::none();
+        let mut report = PruneReport::default();
+        report.absorb_trees(self.whole_tree(&none).prune_held(&held));
+        drop(held);
+        self.prune_into(LockPatience::Try, &none, &mut report);
+        report
     }
 }
