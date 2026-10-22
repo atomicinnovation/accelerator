@@ -15,6 +15,7 @@ use tracker::RemoteTracker;
 use tracker::TrackerError;
 use tracker::Unrenderable;
 use vcs::tracking::FileTracking;
+use work::inventory::Fault;
 use work::sync::push_precondition;
 use work::sync::Dirtiness;
 use work::sync::DualRecipeFingerprints;
@@ -122,6 +123,20 @@ pub enum ApplyError {
         reason: RefusalReason,
         detail: String,
     },
+    /// Deferred because an unreadable or malformed work file may carry the
+    /// key the step needs to know is carried nowhere else.
+    CorpusIncomplete {
+        subject: String,
+        deferred: IncompleteCorpusDeferral,
+        blocking: Fault,
+    },
+}
+
+/// What a run defers while its corpus is incomplete.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IncompleteCorpusDeferral {
+    Import(Vec<ExternalId>),
+    ReuseId(ExternalId),
 }
 
 impl ApplyError {
@@ -143,9 +158,11 @@ impl ApplyError {
                 ..
             }
             | Self::RemoteBodyUnavailable { .. }
-            | Self::LocalChangedSinceClassified { .. } => {
-                FailureClass::Retryable
-            }
+            | Self::LocalChangedSinceClassified { .. }
+            | Self::CorpusIncomplete {
+                blocking: Fault::Environment,
+                ..
+            } => FailureClass::Retryable,
             Self::Io {
                 progress: ItemProgress::MayHaveLanded,
                 ..
@@ -153,7 +170,11 @@ impl ApplyError {
             | Self::PendingPushRefused { .. } => FailureClass::Terminal,
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
-            Self::LocalUnparseable { .. } => FailureClass::Unparseable,
+            Self::LocalUnparseable { .. }
+            | Self::CorpusIncomplete {
+                blocking: Fault::Content,
+                ..
+            } => FailureClass::Unparseable,
             Self::LocalWriteRefused { .. } => FailureClass::WriteRefused,
         }
     }
@@ -171,7 +192,10 @@ impl ApplyError {
             | Self::LocalUnparseable { item_id, .. }
             | Self::LocalWriteRefused { item_id, .. }
             | Self::LocalChangedSinceClassified { item_id }
-            | Self::PendingPushRefused { item_id, .. } => item_id,
+            | Self::PendingPushRefused { item_id, .. }
+            | Self::CorpusIncomplete {
+                subject: item_id, ..
+            } => item_id,
         }
     }
 
@@ -189,6 +213,12 @@ impl ApplyError {
                 SyncOperation::RecheckLocal
             }
             Self::PendingPushRefused { .. } => SyncOperation::Create,
+            Self::CorpusIncomplete { deferred, .. } => match deferred {
+                IncompleteCorpusDeferral::Import(_) => SyncOperation::Discover,
+                IncompleteCorpusDeferral::ReuseId(_) => {
+                    SyncOperation::LinkExternalId
+                }
+            },
         }
     }
 
@@ -238,6 +268,26 @@ impl ApplyError {
             }
             Self::PendingPushRefused { reason, detail, .. } => {
                 format!("pending push refused ({}): {detail}", reason.token())
+            }
+            Self::CorpusIncomplete { deferred, .. } => {
+                let unknown = match deferred {
+                    IncompleteCorpusDeferral::Import(keys) => format!(
+                        "{} cannot be shown to be untracked",
+                        keys.iter()
+                            .map(ExternalId::as_str)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    IncompleteCorpusDeferral::ReuseId(key) => format!(
+                        "{}, which the pending-push marker records, cannot \
+                         be shown to be carried by no other work item",
+                        key.as_str()
+                    ),
+                };
+                format!(
+                    "the work directory holds unreadable or malformed files, \
+                     so {unknown}"
+                )
             }
         }
     }
@@ -300,6 +350,9 @@ pub struct CreateFromLocalRequest<'a> {
     pub marker_path: &'a Path,
     pub author: &'a dyn LocalAuthor,
     pub carrier_of: &'a dyn Fn(&ExternalId) -> Option<KeyCarrier>,
+    /// What keeps the corpus incomplete, if anything: a marker's key cannot
+    /// be linked while an unusable file may already carry it.
+    pub corpus_blocked_by: Option<Fault>,
     pub attempted_at: u64,
 }
 
@@ -821,6 +874,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 })
             }
             PushPrecondition::ReuseId(external_id) => {
+                if let Some(blocking) = request.corpus_blocked_by {
+                    return Err(ApplyError::CorpusIncomplete {
+                        subject: request.item_id.to_owned(),
+                        deferred: IncompleteCorpusDeferral::ReuseId(
+                            external_id,
+                        ),
+                        blocking,
+                    });
+                }
                 self.link_and_baseline(request, attempt, &external_id)
             }
             PushPrecondition::Proceed => {
