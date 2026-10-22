@@ -258,7 +258,8 @@
   its summary with the halt, the web pairs left unfinished, and the recovery
   of `/clear` and a re-run. `--withhold-profile P`, with `--run`, withholds
   researcher spawns of profile `P` for the rest of the run, which its ledger
-  remembers; run plans report them as `withheld`.
+  remembers; run plans report them as `withheld`. A profile with no skill
+  under `--profiles-dir` exits 1 with `E_TOPIC_RESEARCH_WITHHOLD_PROFILE`.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.

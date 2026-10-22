@@ -117,7 +117,8 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         spawned: Option<String>,
         /// Withhold researcher spawns of this profile for the rest of the
-        /// run; repeatable. Needs `--run`.
+        /// run; repeatable. Needs `--run`, and a profile under
+        /// `--profiles-dir`.
         #[arg(long, allow_hyphen_values = true)]
         withhold_profile: Vec<String>,
     },

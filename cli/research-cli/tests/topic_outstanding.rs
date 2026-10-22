@@ -3342,6 +3342,25 @@ fn withholding_needs_a_run_and_a_profile() -> Result<(), TestError> {
 }
 
 #[test]
+fn withholding_an_unknown_profile_exits_1_and_leaves_the_ledger(
+) -> Result<(), TestError> {
+    let project = halting_set("withheld-unknown", OPENALEX_THEN_TWO_WEB)?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    let ledger = fs::read(project.ledger())?;
+
+    let output = project
+        .outstanding_with(&["--run", &run, "--depth", "2", WITHHOLD, "Web"])?;
+
+    assert_exits_1(
+        &output,
+        "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: unknown profile 'Web'; known: \
+         arxiv, openalex, web",
+    );
+    assert_eq!(fs::read(project.ledger())?, ledger);
+    Ok(())
+}
+
+#[test]
 fn a_run_plan_withholds_nothing_until_told_to() -> Result<(), TestError> {
     let project = a_set()?;
 

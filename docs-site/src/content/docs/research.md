@@ -534,14 +534,14 @@ The run flags exist for `conduct`. `--start` begins a run and returns its
 as spawned. `--withhold-profile P`, which needs `--run` and may be repeated,
 withholds researcher spawns of profile `P` for the rest of the run; the run
 ledger keeps each withheld profile until `end-run`, so a later `--run` need
-not repeat the flag. Compositions are still offered. During a run the JSON
-also carries `run`, `batch` (the number the next `--spawned` must pass),
-`withheld` (the profiles the run withholds, sorted) and `unexpected` (the
+not repeat the flag. A profile with no skill under `--profiles-dir` exits 1 with
+`E_TOPIC_RESEARCH_WITHHOLD_PROFILE`. Compositions are still offered. During a
+run the JSON also carries `run`, `batch` (the number the next `--spawned` must
+pass), `withheld` (the profiles the run withholds, sorted) and `unexpected` (the
 spawn refs of notes or findings nobody was asked to write, or whose content
-changed). When the run
-has web pairs, it also carries `search_budgets` (each `level` with its
-`budget`) and `search_demand` (the searches the worst-case tree would make
-spending every budget).
+changed). When the run has web pairs, it also carries `search_budgets` (each
+`level` with its `budget`) and `search_demand` (the searches the worst-case tree
+would make spending every budget).
 `--start` over another run's readable ledger also carries `replaced_run`: that
 run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
 and `unasked`, each entry a `spawn` ref with the outline `question` and

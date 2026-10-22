@@ -385,7 +385,10 @@ enum OpenedRun {
         run: RunId,
         replaced: ReplacedLedger,
     },
-    Continuing(Box<RunLedger>),
+    Continuing {
+        ledger: Box<RunLedger>,
+        withholding: Withheld,
+    },
 }
 
 struct PlannedRound {
@@ -398,7 +401,7 @@ struct PlannedRound {
 impl OpenedRun {
     fn claims(&self) -> ClaimedIndexes {
         match self {
-            Self::Continuing(ledger) => ledger.claims().clone(),
+            Self::Continuing { ledger, .. } => ledger.claims().clone(),
             Self::Query | Self::Starting { .. } => ClaimedIndexes::default(),
         }
     }
@@ -409,8 +412,17 @@ impl OpenedRun {
         set_root: &Path,
     ) -> Result<Self, String> {
         match self {
-            Self::Continuing(ledger) => settled(*ledger, inputs, set_root)
-                .map(|ledger| Self::Continuing(Box::new(ledger))),
+            Self::Continuing {
+                ledger,
+                withholding,
+            } => {
+                known_profiles(&withholding, &inputs.available_profiles)?;
+                let ledger = settled(*ledger, inputs, set_root)?;
+                Ok(Self::Continuing {
+                    ledger: Box::new(ledger),
+                    withholding,
+                })
+            }
             unsettled @ (Self::Query | Self::Starting { .. }) => Ok(unsettled),
         }
     }
@@ -453,9 +465,25 @@ impl OpenedRun {
                 RunLedger::start(run, observed)
                     .owing_quarantine(owed_quarantine),
             ),
-            Self::Continuing(ledger) => Some(*ledger),
+            Self::Continuing { ledger, .. } => Some(*ledger),
         }
     }
+}
+
+fn known_profiles(
+    withholding: &Withheld,
+    available: &[String],
+) -> Result<(), String> {
+    let unknown = withholding
+        .profiles()
+        .find(|profile| !available.iter().any(|known| known == profile));
+    unknown.map_or(Ok(()), |profile| {
+        Err(failed(format!(
+            "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: unknown profile '{profile}'; \
+             known: {}",
+            available.join(", ")
+        )))
+    })
 }
 
 fn opened<F: FileReader>(
@@ -472,7 +500,11 @@ fn opened<F: FileReader>(
         } => {
             let ledger = continued_ledger(set_root, run, *spawned, fs)?
                 .withholding(withheld);
-            Ok((OpenedRun::Continuing(Box::new(ledger)), Vec::new()))
+            let continuing = OpenedRun::Continuing {
+                ledger: Box::new(ledger),
+                withholding: withheld.clone(),
+            };
+            Ok((continuing, Vec::new()))
         }
         RunMode::Start(run) => {
             let mut notices = start_notices(&request.concurrency);
