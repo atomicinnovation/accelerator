@@ -9,6 +9,7 @@ use super::super::prune_report::{
     LockFailure, RemovalFailure, Removals, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::single_flight::LockPatience;
+use super::super::tree::lease::HeldLeases;
 use super::super::tree::locks::TreeLocks;
 use super::super::tree::{
     TreePrune, TreePrunePorts, TreePruneRegime, TreePruneReport,
@@ -63,10 +64,16 @@ pub enum PruneOutcome {
 }
 
 impl RootPrune<'_> {
-    pub fn run(&self, patience: LockPatience) -> PruneReport {
+    /// `held_leases` are the generations this process holds leases on, which
+    /// tree prune keeps without probing.
+    pub fn run(
+        &self,
+        patience: LockPatience,
+        held_leases: &HeldLeases,
+    ) -> PruneReport {
         let mut report = PruneReport::default();
         self.prune_single_files(patience, &mut report);
-        report.absorb_trees(self.prune_trees(patience));
+        report.absorb_trees(self.prune_trees(patience, held_leases));
         report
     }
 
@@ -118,11 +125,16 @@ impl RootPrune<'_> {
         report.absorb(ResidueSweep::new(root, self.ports).run(&listing));
     }
 
-    fn prune_trees(&self, patience: LockPatience) -> TreePruneReport {
+    fn prune_trees(
+        &self,
+        patience: LockPatience,
+        held_leases: &HeldLeases,
+    ) -> TreePruneReport {
         TreePrune {
             regime: TreePruneRegime::WholeTree(self.safe),
             claim_window: self.claim_window,
             ports: TreePrunePorts {
+                held_leases,
                 filesystem: self.ports.filesystem.as_ref(),
                 ownership: self.ports.ownership.as_ref(),
                 clock: self.ports.clock.as_ref(),
