@@ -1358,9 +1358,9 @@ unsafe id, and a suffix over the draft-id alphabet.
 
 #### Automated Verification
 
-- [ ] Planning, safeguard, run and recovery tests pass:
+- [x] Planning, safeguard, run and recovery tests pass:
       `cargo test -p work -p work-adapters -p accelerator-work -p corpus-adapters --manifest-path cli/Cargo.toml`
-- [ ] `mise run public-api:check` exits 0 after the reviewed update
+- [x] `mise run public-api:check` exits 0 after the reviewed update
       (`migrate` gains `migrations::m0011::Migration0011` and the
       `MigrationContext` tracking query, in 3b; `work` gains `SyncPlan.unclassifiable`, `Unclassifiable` and
       `draft_id::is_token_safe`; `corpus` gains
@@ -1370,12 +1370,75 @@ unsafe id, and a suffix over the draft-id alphabet.
       only implementors live in this repository; `vcs` is unchanged (tracking and conflict status use its
       existing `RepositoryTracking` and `VcsReporter` ports); the unpinned `work-adapters` gains `RecoveryLabels` and
       `SyncFiles`, `SyncPorts.files`, `SyncPorts.recovery_labels`)
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
 - [ ] None in this phase (pulls are still refused in production).
+
+### As Implemented
+
+Landed as seventeen commits plus this progress record: 3a as the
+unclassifiable reporting, the `SyncFiles` grouping, the pull's lock,
+hashing before the write, the `is_token_safe` move, `RecoveryLabel`, and
+the kept copy; 3b as the port extension, the label's unknown epoch, the
+retention policy, `TsvRecord`, the CLI review and sweep, the discard
+flag, the link refusal, the init ignore rules and migration 0011.
+Departures from the steps above:
+
+- `ApplierPorts` has no `clock`: nothing in the applier reads it.
+- A pull records its copy with a new `RecoveryCopies::mark_copy_pending`
+  (one `<original>\t<copy>` line in `RESTORE-PENDING`) rather than
+  `mark_restore_pending`, read back by `recorded_copy`. Every record now
+  goes through `store::atomic_write` bounded by the recovery-state root
+  rather than a private `RecordRename` seam (the store-duplication lint
+  forbids a second temp-and-rename write), so
+  `a_restore_pending_record_survives_a_fault_after_the_temp_write` was
+  dropped in favour of the store crate's own crash tests. The port's additions are `all_entries` (returning
+  `RecoveryEntry { path, kind }`, so a link is reported, never followed),
+  `location`, `mirrored_copy` (returning a `RecordedCopy`),
+  `mark_copy_pending`, `recorded_copy` and `compare_copy`; there is no
+  `copy_path` method — `RecordedCopy::copy_path()` and `location` give the
+  printed path. `corpus::store::RECOVERY_BOOKKEEPING` names the files a
+  directory holds about its copies, which the settled rule ignores.
+- `KeptEditsRetention::sweep` returns a `KeptEditsReview` rather than a
+  separate `SweepOutcome`; entries are `KeptThisRun`, `KeptEarlier`,
+  `Settled`, `Unrecorded { provenance }`, `NotRemoved` and, for the
+  discard flag, `Discarding`, `Discarded`, `NotDiscarded` and
+  `NothingToDiscard`. A record-less copy matched by its mirrored path is
+  `KeptEarlier` and never swept.
+- `RecoveryLabel` keeps its epoch as text, so a name whose epoch does not
+  parse still names its item and is kept since an unknown date; the
+  suffix must be six characters of the draft alphabet.
+- `RepositoryTracking` does not say which VCS answered, so the tracked
+  directory note names both `git rm --cached -r` and `jj file untrack`.
+- Discard notes read `discarded <directory>`, `<directory> would be
+  discarded`, `<directory> could not be discarded: <reason>` and `no kept
+  copy to discard`.
+- `render_report` is not split into per-family renderers; every engine,
+  identity, unclassifiable, kept-edits and promotion detail record goes
+  through `TsvRecord`. `FinishedRun` gains `kept_edits` only;
+  `stale_dossiers` waits for Phase 6. `work-cli` gains a `time`
+  dependency for the earlier-copies date.
+- The run-level safeguard tests live in a new
+  `work-adapters/tests/sync_pull_safeguards.rs` over the shared `Repo`
+  harness, which gained a recording lock and recovery double with
+  mid-pull edit hooks and real tracking; the applier-level blanked-hash
+  and missing-entry cases are covered there instead. The applier's
+  second-check test is `a_file_edited_while_its_copy_was_kept_is_not_pulled_over`.
+- `the_tracking_double_answers_by_root` was not added: the shared default
+  double answers `Tracked` everywhere, and `kept_edits.rs` uses its own
+  double defaulting to `Untracked`.
+  `two_runs_in_one_second_get_distinct_directories` was not added (the
+  suffix is a random draw), and
+  `a_refused_pulls_copy_is_settled_by_the_next_sweep` is
+  `a_settled_copy_is_swept_whatever_its_age`.
+- `kept` also refuses a symlinked parent. The pre-flight refusal of a
+  symlinked recovery parent remains Phase 4's.
+- Migration 0011's suites are its unit tests and
+  `migrate-cli/tests/migration_0011.rs` over real git; every other
+  migrate-cli suite seeding the ledger gained the new id.
 
 ---
 
