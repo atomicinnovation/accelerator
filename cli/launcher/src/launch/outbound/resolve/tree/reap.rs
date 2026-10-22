@@ -353,7 +353,10 @@ pub(super) const fn superseded_disposition(
 /// Unlike an unclaimed generation, an unreferenced one is reclaimed only once
 /// aged even when free, since a young one may sit between its rename and its
 /// pointer write.
-const fn orphan_is_reclaimable(liveness: Liveness, aged: bool) -> bool {
+pub(super) const fn orphan_is_reclaimable(
+    liveness: Liveness,
+    aged: bool,
+) -> bool {
     !matches!(liveness, Liveness::Held) && aged
 }
 
