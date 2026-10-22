@@ -28,7 +28,7 @@ use accelerator::launch::outbound::resolve::ownership::safe_root::{
     SafePruneRoot, TrustedOwners,
 };
 use accelerator::launch::outbound::resolve::ownership::{
-    Ownership, ProcessOwnership,
+    Ownership, PrimaryGroup, ProcessOwnership,
 };
 use accelerator::launch::outbound::resolve::prune_report::{
     NoPruneSteps, PruneStep, PruneSteps,
@@ -1530,5 +1530,166 @@ fn a_lock_only_artifact_reaches_the_orphan_lock_step() {
         prune_trees_directly(&harness, &harness.ports().build(), patience);
 
         assert!(!exists(&lock), "{patience:?}");
+    }
+}
+
+fn is_running_as_root() -> bool {
+    ProcessOwnership::default().effective_uid() == 0
+}
+
+#[test]
+fn a_symlinked_trees_or_tree_claims_directory_is_not_pruned_through() {
+    let symlinked_trees = RootHarness::new();
+    let elsewhere = symlinked_trees.anchor.path().join("elsewhere");
+    let outside = Trees::under(&elsewhere_root(&elsewhere));
+    let outside_tree = outside.plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        symlinked_trees.aged(),
+    );
+    std::os::unix::fs::symlink(outside.root(), symlinked_trees.join("trees"))
+        .expect("symlinked trees");
+    let entry = symlinked_trees.entry(OLD, symlinked_trees.aged());
+
+    let verb = symlinked_trees.prune(symlinked_trees.ports());
+
+    verb.succeeded();
+    outside_tree.assert_survives();
+    assert!(
+        !symlinked_trees.has(&entry),
+        "the positive control survived"
+    );
+    assert!(
+        verb.err.contains(&format!(
+            "not pruning through {}",
+            symlinked_trees.join("trees").display()
+        )),
+        "{}",
+        verb.err
+    );
+
+    let symlinked_claims = RootHarness::new();
+    let trees = symlinked_claims.trees();
+    let tree = trees.plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        symlinked_claims.aged(),
+    );
+    let outside_claims = symlinked_claims.anchor.path().join("claims");
+    std::fs::create_dir(&outside_claims).expect("outside claims");
+    let stale_claim =
+        outside_claims.join(format!("{}.{OTHER_ID}", digest('b')));
+    std::fs::write(&stale_claim, b"").expect("stale claim");
+    set_mtime(
+        &stale_claim,
+        symlinked_claims.now - 2 * CLAIM_WINDOW.as_secs(),
+    );
+    std::os::unix::fs::symlink(&outside_claims, trees.claims())
+        .expect("symlinked claims");
+    let entry = symlinked_claims.entry(OLD, symlinked_claims.aged());
+
+    let verb = symlinked_claims.prune(symlinked_claims.ports());
+
+    verb.succeeded();
+    tree.assert_survives();
+    assert!(
+        stale_claim.exists(),
+        "a claim was swept through the symlink"
+    );
+    assert!(
+        !symlinked_claims.has(&entry),
+        "the positive control survived"
+    );
+    assert!(
+        verb.err.contains(&format!(
+            "not pruning through {}",
+            trees.claims().display()
+        )),
+        "{}",
+        verb.err
+    );
+}
+
+fn elsewhere_root(elsewhere: &Path) -> PathBuf {
+    std::fs::create_dir(elsewhere).expect("elsewhere");
+    elsewhere.to_path_buf()
+}
+
+#[test]
+fn an_unreadable_tree_claims_directory_reclaims_no_claimed_tree() {
+    if is_running_as_root() {
+        return;
+    }
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let claimed =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    trees.plant_claim(&digest('a'), OTHER_ID, harness.now);
+    let residue = trees.plant_temp_generation(
+        &on_host("retired"),
+        &digest('b'),
+        harness.aged(),
+    );
+    set_mode(&trees.claims(), 0o000);
+
+    let verb = harness.prune(harness.ports());
+
+    set_mode(&trees.claims(), 0o700);
+    verb.succeeded();
+    claimed.assert_survives();
+    assert!(!exists(&residue), "the orphan residue was not reaped");
+    assert!(
+        verb.err.contains(&format!(
+            "claims unreadable (permission denied) in {}",
+            trees.claims().display()
+        )),
+        "{}",
+        verb.err
+    );
+}
+
+/// The process's own identity, with its primary group taken to be private.
+struct PrivatePrimaryGroup;
+
+impl Ownership for PrivatePrimaryGroup {
+    fn effective_uid(&self) -> u32 {
+        ProcessOwnership::default().effective_uid()
+    }
+
+    fn effective_gid(&self) -> u32 {
+        ProcessOwnership::default().effective_gid()
+    }
+
+    fn primary_group(&self) -> PrimaryGroup {
+        PrimaryGroup::Private
+    }
+}
+
+#[test]
+fn a_user_private_group_root_prunes_its_group_writable_trees() {
+    let gid = ProcessOwnership::default().effective_gid();
+    for (group, reclaimed) in [(gid, true), (gid + 1, false)] {
+        let harness = RootHarness::new();
+        let trees = harness.trees();
+        let tree =
+            trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+        let filesystem = ReportingFilesystem::over_system().reporting(
+            trees.root(),
+            EntryMetadata {
+                mode: 0o040_770,
+                group,
+                ..SystemFilesystem.entry(trees.root()).expect("metadata")
+            },
+        );
+
+        harness
+            .prune(Ports {
+                filesystem: Arc::new(filesystem),
+                ownership: Arc::new(PrivatePrimaryGroup),
+                ..harness.ports()
+            })
+            .succeeded();
+
+        assert_eq!(!exists(&tree.generation), reclaimed, "group {group}");
     }
 }

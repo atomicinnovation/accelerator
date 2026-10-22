@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
 use super::super::prune_report::{
-    LockFailure, RemovalFailure, Removals, UnreadableClaims,
+    LockFailure, RemovalFailure, Removals, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::locks::TreeLocks;
@@ -34,6 +34,7 @@ pub struct PruneReport {
     pub lock_failures: Vec<LockFailure>,
     pub unreadable_claims: Vec<UnreadableClaims>,
     pub removal_failures: Vec<RemovalFailure>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
 }
 
 impl PruneReport {
@@ -45,6 +46,9 @@ impl PruneReport {
     pub fn absorb_trees(&mut self, trees: TreePruneReport) {
         self.absorb(trees.removals);
         self.lock_failures.extend(trees.lock_failures);
+        self.unreadable_claims.extend(trees.unreadable_claims);
+        self.untrusted_directories
+            .extend(trees.untrusted_directories);
     }
 }
 
