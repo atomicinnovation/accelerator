@@ -718,17 +718,37 @@ console; existing tests keep asserting files and `ExitCode`.
 
 #### Automated Verification
 
-- [ ] The captured-run tests pass:
+- [x] The captured-run tests pass:
       `cargo test -p work-cli --manifest-path cli/Cargo.toml captured`
-- [ ] Subprocess golden tests are unchanged and pass:
+- [x] Subprocess golden tests are unchanged and pass:
       `cargo test -p work-cli --manifest-path cli/Cargo.toml --test cli_sync`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
 - [ ] `accelerator work sync --preview` in a configured repo prints the same
       report and warnings as before.
+
+### As Implemented
+
+Landed as one code commit plus this progress record. Departures from the
+steps above:
+
+- The crate is `accelerator-work`, so the criteria's commands run as
+  `cargo test -p accelerator-work --manifest-path cli/Cargo.toml …`.
+- `printable` escapes each control character with `char::escape_default`
+  (`\x1b` prints as `\u{1b}`), so the escaped text stays legible.
+- `assemble_run` hands the ports to a closure rather than returning them,
+  because the stores and ports borrow one another.
+- `report_stopped_run` was extracted beside `report_finished_run`.
+- `run_sync_with` keeps `#[allow(clippy::too_many_lines)]`: at 248 lines
+  the pre-run resolution alone exceeds the limit.
+- The control-character tests are
+  `a_warning_with_control_characters_is_printed_safely` (a `--resolve`
+  token) and `a_finaliser_warning_is_printed_safely`; the
+  retirement-incomplete pin is
+  `a_still_pending_restore_warning_keeps_its_layout`.
 
 ---
 
