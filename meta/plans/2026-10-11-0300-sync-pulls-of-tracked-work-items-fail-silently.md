@@ -727,7 +727,7 @@ console; existing tests keep asserting files and `ExitCode`.
 
 #### Manual Verification
 
-- [ ] `accelerator work sync --preview` in a configured repo prints the same
+- [x] `accelerator work sync --preview` in a configured repo prints the same
       report and warnings as before.
 
 ### As Implemented
