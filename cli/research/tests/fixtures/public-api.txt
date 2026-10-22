@@ -344,12 +344,12 @@ impl core::fmt::Debug for research::conduct::window::UnfinishedSpawn
 pub fn research::conduct::window::UnfinishedSpawn::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::window::UnfinishedSpawn
 pub struct research::conduct::window::Window
-pub research::conduct::window::Window::held_back: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::offered: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::pairs: alloc::vec::Vec<research::topic::plan::OutstandingPair>
 pub research::conduct::window::Window::remaining: usize
 pub research::conduct::window::Window::unexpected: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::unfinished: alloc::vec::Vec<research::conduct::window::UnfinishedSpawn>
+pub research::conduct::window::Window::withheld_spawns: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
 impl core::clone::Clone for research::conduct::window::Window
 pub fn research::conduct::window::Window::clone(&self) -> research::conduct::window::Window
 impl core::cmp::Eq for research::conduct::window::Window

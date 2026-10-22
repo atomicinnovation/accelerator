@@ -116,7 +116,7 @@ pub enum TopicAction {
         /// Acknowledge this batch of the run as spawned.
         #[arg(long, allow_hyphen_values = true)]
         spawned: Option<String>,
-        /// Hold back researcher spawns of this profile for the rest of the
+        /// Withhold researcher spawns of this profile for the rest of the
         /// run; repeatable. Needs `--run`.
         #[arg(long, allow_hyphen_values = true)]
         withhold_profile: Vec<String>,

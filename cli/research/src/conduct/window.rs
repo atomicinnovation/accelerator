@@ -31,7 +31,7 @@ pub struct Window {
     pub offered: Vec<SpawnRef>,
     /// Fresh spawns of a withheld profile: dropped from the offer without
     /// having been attempted.
-    pub held_back: BTreeSet<SpawnRef>,
+    pub withheld_spawns: BTreeSet<SpawnRef>,
     pub remaining: usize,
     pub unfinished: Vec<UnfinishedSpawn>,
     pub unexpected: Vec<SpawnRef>,
@@ -54,9 +54,9 @@ pub fn window(
         spawns.into_iter().partition(|spawn| {
             memory.is_some_and(|m| m.attempted.contains(&spawn.spawn))
         });
-    let (held, fresh): (Vec<RankedSpawn>, Vec<RankedSpawn>) =
+    let (withheld, fresh): (Vec<RankedSpawn>, Vec<RankedSpawn>) =
         fresh.into_iter().partition(|spawn| {
-            memory.is_some_and(|m| held_back(spawn, &m.withheld))
+            memory.is_some_and(|m| is_withheld(spawn, &m.withheld))
         });
     let offered_count = concurrency.admits(fresh.len());
     let remaining = fresh.len() - offered_count;
@@ -68,7 +68,10 @@ pub fn window(
     Window {
         pairs: narrowed(&plan.pairs, &offered.iter().cloned().collect()),
         offered,
-        held_back: held.into_iter().map(|spawn| spawn.spawn).collect(),
+        withheld_spawns: withheld
+            .into_iter()
+            .map(|spawn| spawn.spawn)
+            .collect(),
         remaining,
         unfinished: repeated
             .into_iter()
@@ -99,7 +102,7 @@ struct RankedSpawn {
     rejected: Option<NoteRejection>,
 }
 
-fn held_back(spawn: &RankedSpawn, withheld: &Withheld) -> bool {
+fn is_withheld(spawn: &RankedSpawn, withheld: &Withheld) -> bool {
     !spawn.rank.composes && withheld.contains(&spawn.profile)
 }
 

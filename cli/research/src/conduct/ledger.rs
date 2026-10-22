@@ -177,7 +177,7 @@ impl RunLedger {
         self.memory.attempted.extend(
             displaced
                 .into_iter()
-                .filter(|spawn| !window.held_back.contains(spawn)),
+                .filter(|spawn| !window.withheld_spawns.contains(spawn)),
         );
         self.memory.just_acknowledged.clear();
         self

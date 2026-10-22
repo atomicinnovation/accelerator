@@ -532,7 +532,7 @@ the depth.
 The run flags exist for `conduct`. `--start` begins a run and returns its
 `run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
 as spawned. `--withhold-profile P`, which needs `--run` and may be repeated,
-holds back researcher spawns of profile `P` for the rest of the run; the run
+withholds researcher spawns of profile `P` for the rest of the run; the run
 ledger keeps each withheld profile until `end-run`, so a later `--run` need
 not repeat the flag. Compositions are still offered. During a run the JSON
 also carries `run`, `batch` (the number the next `--spawned` must pass),

@@ -229,7 +229,7 @@
   calls, and web level notes record it as `search_budget`, an optional
   level-note field. A project that overrides `topic-research-level-note.md`
   should add the `search_budget` line. `--withhold-profile P`, with `--run`,
-  holds back researcher spawns of profile `P` for the rest of the run, which
+  withholds researcher spawns of profile `P` for the rest of the run, which
   its ledger remembers; run plans report them as `withheld`. Every plan lists
   its full outstanding set as `unanswered`, which `pairs` narrows to the
   spawns offered now.
