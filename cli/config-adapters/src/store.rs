@@ -590,6 +590,17 @@ impl TemplateOverride for FileConfigStore {
     }
 }
 
+/// State one machine's syncs leave behind that must never be committed:
+/// recovery copies, pending-push markers, conflict dossiers and adoption
+/// records. The shared baseline and catalogue stay committed.
+const MACHINE_LOCAL_SYNC_STATE: [&str; 5] = [
+    "state/retirement-recovery/",
+    "state/sync-recovery/",
+    "state/integrations/*/pending-push/",
+    "state/integrations/*/conflicts/",
+    "state/integrations/*/adopted/",
+];
+
 impl Scaffold for FileConfigStore {
     fn init(
         &self,
@@ -604,6 +615,9 @@ impl Scaffold for FileConfigStore {
         let inner = accelerator.join(".gitignore");
         ensure_line(&inner, "config.local.md")?;
         ensure_line(&inner, &format!("{TEMP_PREFIX}*"))?;
+        for machine_local in MACHINE_LOCAL_SYNC_STATE {
+            ensure_line(&inner, machine_local)?;
+        }
         ensure_keepable_dir(&accelerator.join("state"))?;
         for extension in ["skills", "lenses", "templates"] {
             ensure_keepable_dir(&accelerator.join(extension))?;
@@ -1183,6 +1197,34 @@ mod tests {
             0o664,
             "a team write must preserve the shared mode"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn init_ignores_machine_local_sync_state() -> Result<(), TestError> {
+        use config::Scaffold as _;
+
+        let root = tempdir()?;
+        let store = FileConfigStore::at(root.path());
+
+        store.init(&[], "meta/tmp")?;
+        store.init(&[], "meta/tmp")?;
+
+        let gitignore =
+            fs::read_to_string(root.path().join(".accelerator/.gitignore"))?;
+        for rule in [
+            "state/retirement-recovery/",
+            "state/sync-recovery/",
+            "state/integrations/*/pending-push/",
+            "state/integrations/*/conflicts/",
+            "state/integrations/*/adopted/",
+        ] {
+            assert_eq!(
+                gitignore.lines().filter(|line| *line == rule).count(),
+                1,
+                "{rule}: {gitignore}"
+            );
+        }
         Ok(())
     }
 
