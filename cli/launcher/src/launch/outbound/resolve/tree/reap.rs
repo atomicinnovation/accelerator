@@ -35,6 +35,7 @@ use crate::launch::core::tree::{Clock, TreeError};
 
 use super::super::filesystem::SystemFilesystem;
 use super::super::retention_windows::AGE_BACKSTOP;
+use super::after_materialise::ReapPermit;
 use super::layout::{
     parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
 };
@@ -118,7 +119,7 @@ impl<'a> Reaper<'a> {
     }
 
     /// Reclaim orphan temp residue and unreferenced generations under
-    /// `trees/`.
+    /// `trees/`, when `permit` was granted for this root.
     ///
     /// A partial archive whose digest is pinned for its own artifact is
     /// spared, so a resumable download is not reclaimed before the next run
@@ -133,7 +134,13 @@ impl<'a> Reaper<'a> {
     /// # Errors
     ///
     /// [`TreeError::Pointer`] if `trees/` cannot be read.
-    pub fn reap_orphans(&self) -> Result<Reclaimed, TreeError> {
+    pub fn reap_orphans(
+        &self,
+        permit: &ReapPermit,
+    ) -> Result<Reclaimed, TreeError> {
+        if permit.paths().root() != self.paths().root() {
+            return Ok(Reclaimed::default());
+        }
         let names = entry_names(self.paths().root())?;
         let referenced = referenced_generations(self.paths().root());
         let mut reclaimed = Reclaimed::default();
@@ -452,6 +459,7 @@ mod tests {
 
     use crate::launch::core::tree::{Clock, TreeError};
 
+    use super::super::after_materialise::ReapPermit;
     use super::super::layout::{
         generation_name, Artifact, TreePaths, LAYOUT_VERSION,
     };
@@ -550,6 +558,7 @@ mod tests {
         let locks = TreeLocks::over(&FlockLocks);
         let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
         let locks_before = lock_files(&paths);
+        let permit = ReapPermit::trusting(paths.clone());
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
             Reaper::new(
                 &caller_holds,
@@ -559,7 +568,7 @@ mod tests {
                 &pins,
             )
             .observed_by(&observer)
-            .reap_orphans()
+            .reap_orphans(&permit)
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome
