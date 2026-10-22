@@ -31,6 +31,7 @@ use work::sync::Dirtiness;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work_adapters::sync::apply::ApplyError;
+use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
@@ -62,9 +63,32 @@ struct Spy {
     writes: RefCell<Vec<PathBuf>>,
     removals: RefCell<Vec<PathBuf>>,
     refuse_removals: RefCell<bool>,
+    write_faults: RefCell<Vec<(PathBuf, usize, StoreError)>>,
 }
 
 impl Spy {
+    fn fail_nth_write_to(&self, path: &Path, nth: usize) {
+        self.write_faults.borrow_mut().push((
+            path.to_path_buf(),
+            nth,
+            StoreError::Io {
+                path: path.display().to_string(),
+                detail: "injected write failure".to_owned(),
+            },
+        ));
+    }
+
+    fn publish_without_durability_to(&self, path: &Path) {
+        self.write_faults.borrow_mut().push((
+            path.to_path_buf(),
+            1,
+            StoreError::NotDurable {
+                path: path.display().to_string(),
+                detail: "fsync failed".to_owned(),
+            },
+        ));
+    }
+
     fn refuse_removals(&self) {
         *self.refuse_removals.borrow_mut() = true;
     }
@@ -100,6 +124,26 @@ impl FileReader for Spy {
 impl AtomicWrite for Spy {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
         self.writes.borrow_mut().push(path.to_path_buf());
+        let nth = self
+            .writes
+            .borrow()
+            .iter()
+            .filter(|written| written.as_path() == path)
+            .count();
+        let fault = self
+            .write_faults
+            .borrow()
+            .iter()
+            .find(|(faulty, at, _)| faulty == path && *at == nth)
+            .map(|(_, _, error)| error.clone());
+        if let Some(error) = fault {
+            if matches!(error, StoreError::NotDurable { .. }) {
+                self.files
+                    .borrow_mut()
+                    .insert(path.to_path_buf(), bytes.to_vec());
+            }
+            return Err(error);
+        }
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
@@ -145,15 +189,31 @@ struct RecordingAuthor {
     authored: RefCell<Vec<ExternalId>>,
     linked: RefCell<Vec<(PathBuf, ExternalId)>>,
     next: RefCell<u32>,
+    fault: AuthorFault,
+}
+
+/// How a [`RecordingAuthor`] misbehaves.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AuthorFault {
+    None,
+    AuthorFails,
+    AuthorsInvalidUtf8,
+    LinkFails,
+    LinkWritesInvalidUtf8,
 }
 
 impl RecordingAuthor {
     fn new(dir: &Path) -> Self {
+        Self::faulty(dir, AuthorFault::None)
+    }
+
+    fn faulty(dir: &Path, fault: AuthorFault) -> Self {
         Self {
             dir: dir.to_path_buf(),
             authored: RefCell::new(Vec::new()),
             linked: RefCell::new(Vec::new()),
             next: RefCell::new(9000),
+            fault,
         }
     }
 }
@@ -164,6 +224,11 @@ impl LocalAuthor for RecordingAuthor {
         issue: &DiscoveredIssue,
     ) -> Result<AuthoredLocal, kernel::Error> {
         self.authored.borrow_mut().push(issue.external_id.clone());
+        if self.fault == AuthorFault::AuthorFails {
+            return Err(kernel::Error::Failed(
+                "injected author failure".to_owned(),
+            ));
+        }
         let mut next = self.next.borrow_mut();
         let id = format!("{next}");
         *next += 1;
@@ -177,6 +242,10 @@ impl LocalAuthor for RecordingAuthor {
             ),
         )
         .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+        if self.fault == AuthorFault::AuthorsInvalidUtf8 {
+            std::fs::write(&path, [0xff, 0xfe])
+                .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+        }
         Ok(AuthoredLocal { id, path })
     }
 
@@ -185,6 +254,19 @@ impl LocalAuthor for RecordingAuthor {
         path: &Path,
         external_id: &ExternalId,
     ) -> Result<(), kernel::Error> {
+        match self.fault {
+            AuthorFault::LinkFails => {
+                return Err(kernel::Error::Failed(
+                    "injected link failure".to_owned(),
+                ))
+            }
+            AuthorFault::LinkWritesInvalidUtf8 => {
+                std::fs::write(path, [0xff, 0xfe]).map_err(|error| {
+                    kernel::Error::Failed(error.to_string())
+                })?;
+            }
+            _ => {}
+        }
         self.linked
             .borrow_mut()
             .push((path.to_path_buf(), external_id.clone()));
@@ -2265,7 +2347,23 @@ fn run_create_from_local_over(
     work_items: &Spy,
     integration_state: &Spy,
 ) -> RunReport {
-    let author = RecordingAuthor::new(fixture.dir.path());
+    run_create_from_local_with(
+        fixture,
+        item,
+        tracker,
+        (work_items, integration_state),
+        AuthorFault::None,
+    )
+}
+
+fn run_create_from_local_with(
+    fixture: &Fixture,
+    item: &LocalItem,
+    tracker: &RecordingTracker,
+    (work_items, integration_state): (&Spy, &Spy),
+    fault: AuthorFault,
+) -> RunReport {
+    let author = RecordingAuthor::faulty(fixture.dir.path(), fault);
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
@@ -2364,6 +2462,10 @@ fn an_unremovable_marker_after_a_refused_create_fails_the_item(
         panic!("an unremovable marker is a local failure");
     };
     assert_eq!(*operation, SyncOperation::MarkerWrite);
+    assert_eq!(
+        create_from_local_failure(&report).class(),
+        FailureClass::Terminal
+    );
     let marker = marker_of(&fixture, "0001");
     assert!(
         detail.starts_with(&format!(
@@ -2649,4 +2751,396 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     ) -> tracker::ValidationOutcome {
         tracker::ValidationOutcome::Valid
     }
+}
+
+fn io_failure_of(error: &ApplyError) -> (SyncOperation, &str) {
+    match error {
+        ApplyError::Io {
+            operation, detail, ..
+        } => (*operation, detail.as_str()),
+        other => panic!("expected an Io failure, got {other:?}"),
+    }
+}
+
+fn local_create_failing(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    integration_state: &Spy,
+    fault: AuthorFault,
+) -> (ApplyError, FailureClass) {
+    let item = fixture
+        .unsynced_item("0001", "Draft one")
+        .expect("the draft is written");
+    let report = run_create_from_local_with(
+        fixture,
+        &item,
+        tracker,
+        (&Spy::default(), integration_state),
+        fault,
+    );
+    let ItemOutcome::Failed(error) = report
+        .reported
+        .into_iter()
+        .find(|reported| reported.planned.action == Action::CreateFromLocal)
+        .expect("the create-from-local is reported")
+        .outcome
+    else {
+        panic!("the create-from-local failed");
+    };
+    let class = error.class();
+    (error, class)
+}
+
+#[test]
+fn a_failed_attempted_marker_write_is_retryable() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let state = Spy::default();
+    state.fail_nth_write_to(&marker_of(&fixture, "0001"), 1);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let (error, class) =
+        local_create_failing(&fixture, &tracker, &state, AuthorFault::None);
+
+    assert_eq!(class, FailureClass::Retryable);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::MarkerWrite);
+    assert!(
+        detail.contains(&marker_of(&fixture, "0001").display().to_string()),
+        "{detail}"
+    );
+    assert!(tracker
+        .calls()
+        .iter()
+        .all(|call| !matches!(call, Call::Create { .. })));
+    Ok(())
+}
+
+#[test]
+fn an_attempted_marker_written_but_not_durable_is_terminal(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let state = Spy::default();
+    state.publish_without_durability_to(&marker_of(&fixture, "0001"));
+
+    let (error, class) = local_create_failing(
+        &fixture,
+        &RecordingTracker::holding(Vec::new()),
+        &state,
+        AuthorFault::None,
+    );
+
+    assert_eq!(class, FailureClass::Terminal);
+    assert_eq!(io_failure_of(&error).0, SyncOperation::MarkerWrite);
+    Ok(())
+}
+
+#[test]
+fn a_failed_created_marker_write_names_the_created_key_and_is_terminal(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let state = Spy::default();
+    state.fail_nth_write_to(&marker_of(&fixture, "0001"), 2);
+
+    let (error, class) = local_create_failing(
+        &fixture,
+        &RecordingTracker::holding(Vec::new()),
+        &state,
+        AuthorFault::None,
+    );
+
+    assert_eq!(class, FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::MarkerWrite);
+    assert!(detail.starts_with("created "), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn a_failed_marker_write_after_a_terminal_create_is_terminal(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let state = Spy::default();
+    state.fail_nth_write_to(&marker_of(&fixture, "0001"), 2);
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Terminal {
+            detail: "timed out after sending".to_owned(),
+        },
+    );
+
+    let (error, class) =
+        local_create_failing(&fixture, &tracker, &state, AuthorFault::None);
+
+    assert_eq!(class, FailureClass::Terminal);
+    assert_eq!(io_failure_of(&error).0, SyncOperation::MarkerWrite);
+    Ok(())
+}
+
+#[test]
+fn a_failed_link_after_a_create_names_the_key_and_marker_and_is_terminal(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+
+    let (error, class) = local_create_failing(
+        &fixture,
+        &RecordingTracker::holding(Vec::new()),
+        &Spy::default(),
+        AuthorFault::LinkFails,
+    );
+
+    assert_eq!(class, FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::LinkExternalId);
+    assert!(detail.starts_with("created "), "{detail}");
+    assert!(detail.contains("injected link failure"), "{detail}");
+    assert!(
+        detail.ends_with(&format!(
+            "(marker {})",
+            marker_of(&fixture, "0001").display()
+        )),
+        "{detail}"
+    );
+    Ok(())
+}
+
+#[test]
+fn each_failure_after_a_link_reads_created_then_after_link(
+) -> Result<(), TestError> {
+    let unreadable = Fixture::new()?;
+    let (error, class) = local_create_failing(
+        &unreadable,
+        &RecordingTracker::holding(Vec::new()),
+        &Spy::default(),
+        AuthorFault::LinkWritesInvalidUtf8,
+    );
+    assert_eq!(class, FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::ReadLocal);
+    assert!(detail.starts_with("created "), "{detail}");
+    assert!(detail.contains("; after link: "), "{detail}");
+
+    let unrecorded = Fixture::new()?;
+    let state = Spy::default();
+    state.fail_nth_write_to(Path::new(BASELINE_PATH), 1);
+    let (error, class) = local_create_failing(
+        &unrecorded,
+        &RecordingTracker::holding(Vec::new()),
+        &state,
+        AuthorFault::None,
+    );
+    assert_eq!(class, FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::BaselineSet);
+    assert!(detail.contains("; after link: "), "{detail}");
+    assert!(
+        detail.ends_with(&format!(
+            "(marker {})",
+            marker_of(&unrecorded, "0001").display()
+        )),
+        "{detail}"
+    );
+    Ok(())
+}
+
+fn seed_created_marker(fixture: &Fixture, item: &LocalItem, key: &str) {
+    let content =
+        std::fs::read_to_string(&item.path).expect("the draft is readable");
+    let (_, body) =
+        work_adapters::sync::digest::split_frontmatter_and_body(&content)
+            .expect("the draft splits");
+    let fields = work_adapters::create_request_fields::read(&content)
+        .expect("the draft has create fields");
+    let marker = work::sync::PendingPush::Created {
+        request: work::sync::RequestFingerprint {
+            title: fields.title.clone(),
+            digest: work_adapters::sync::pending_push::request_digest(
+                &fields.title,
+                &body,
+                &fields.kind,
+            ),
+            attempted_at: 1,
+            failure: None,
+        },
+        external_id: ExternalId::new(key.to_owned()),
+    };
+    let path = marker_of(fixture, &item.id);
+    std::fs::create_dir_all(path.parent().expect("a marker directory"))
+        .expect("the marker directory is created");
+    std::fs::write(&path, work_adapters::sync::pending_push::render(&marker))
+        .expect("the marker is seeded");
+}
+
+#[test]
+fn a_failed_link_of_a_reused_id_is_retryable_and_names_the_marker(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-42");
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-42".to_owned()),
+        issue("Draft one\nBody"),
+    )]);
+
+    let report = run_create_from_local_with(
+        &fixture,
+        &item,
+        &tracker,
+        (&Spy::default(), &Spy::default()),
+        AuthorFault::LinkFails,
+    );
+
+    let error = create_from_local_failure(&report);
+    assert_eq!(error.class(), FailureClass::Retryable);
+    let (operation, detail) = io_failure_of(error);
+    assert_eq!(operation, SyncOperation::LinkExternalId);
+    assert!(!detail.starts_with("created "), "{detail}");
+    assert!(
+        detail.contains(&marker_of(&fixture, "0001").display().to_string()),
+        "{detail}"
+    );
+    Ok(())
+}
+
+fn create_from_remote_failure(
+    fault: AuthorFault,
+    baseline_fails: bool,
+) -> Result<ApplyError, TestError> {
+    let fixture = Fixture::new()?;
+    if baseline_fails {
+        fixture.spy.fail_nth_write_to(Path::new(BASELINE_PATH), 1);
+    }
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-9".to_owned()),
+        issue("Nine\nbody"),
+    )]);
+    let author = RecordingAuthor::faulty(fixture.dir.path(), fault);
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[ExternalId::new("ENG-9".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "the run proceeds")?;
+    report
+        .reported
+        .into_iter()
+        .find_map(|item| match item.outcome {
+            ItemOutcome::Failed(error) => Some(error),
+            _ => None,
+        })
+        .ok_or_else(|| "the create-from-remote failed".into())
+}
+
+#[test]
+fn a_failed_authoring_after_a_show_is_retryable() -> Result<(), TestError> {
+    let error = create_from_remote_failure(AuthorFault::AuthorFails, false)?;
+
+    assert_eq!(error.class(), FailureClass::Retryable);
+    assert_eq!(io_failure_of(&error).0, SyncOperation::AuthorLocal);
+    Ok(())
+}
+
+#[test]
+fn each_failure_after_authoring_is_terminal_and_after_author(
+) -> Result<(), TestError> {
+    for (fault, baseline_fails, operation) in [
+        (
+            AuthorFault::AuthorsInvalidUtf8,
+            false,
+            SyncOperation::ReadLocal,
+        ),
+        (AuthorFault::None, true, SyncOperation::BaselineSet),
+    ] {
+        let error = create_from_remote_failure(fault, baseline_fails)?;
+
+        assert_eq!(error.class(), FailureClass::Terminal);
+        let (failed, detail) = io_failure_of(&error);
+        assert_eq!(failed, operation);
+        assert!(detail.starts_with("after author: "), "{detail}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_failed_show_before_authoring_keeps_the_trackers_class(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_show(
+        ExternalId::new("ENG-9".to_owned()),
+        TrackerError::Retryable {
+            detail: "connection reset".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[ExternalId::new("ENG-9".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "the run proceeds")?;
+
+    let failed = report
+        .reported
+        .iter()
+        .find_map(|item| match &item.outcome {
+            ItemOutcome::Failed(error) => Some(error),
+            _ => None,
+        })
+        .expect("the import failed");
+    assert_eq!(failed.class(), FailureClass::Retryable);
+    assert!(matches!(
+        failed,
+        ApplyError::Tracker {
+            operation: SyncOperation::Show,
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn a_local_create_whose_file_went_missing_is_retryable() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    std::fs::remove_file(&item.path)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let report = run_create_from_local_over(
+        &fixture,
+        &item,
+        &tracker,
+        &Spy::default(),
+        &Spy::default(),
+    );
+
+    let error = create_from_local_failure(&report);
+    assert_eq!(error.class(), FailureClass::Retryable);
+    assert_eq!(io_failure_of(error).0, SyncOperation::ReadLocal);
+    assert!(tracker
+        .calls()
+        .iter()
+        .all(|call| !matches!(call, Call::Create { .. })));
+    Ok(())
 }
