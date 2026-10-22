@@ -11,6 +11,7 @@
 pub mod recording_filesystem;
 pub mod recording_locks;
 pub mod scripted_filesystem;
+pub mod signed_release;
 pub mod trees;
 
 use std::collections::HashMap;

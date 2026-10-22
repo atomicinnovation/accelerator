@@ -51,79 +51,17 @@ use accelerator::launch::start_up::{start_up, DispatchConfig, StartUp};
 use common::recording_filesystem::{
     in_root, outside, FilesystemCall, RecordingFilesystem,
 };
+use common::signed_release::{
+    asset_path, generate_keypair, manifest_json, sign, SignedRelease, BINARY,
+    VERSION,
+};
 
-const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
-// Matches the launcher's own version (anti-rollback) regardless of version bump.
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-// The visualiser is the first real dispatched sub-binary, so it keys the whole
-// fetch → verify → cache suite (happy path plus every rejection case) end to end.
-const BINARY: &str = "visualiser";
 
 fn tempdir(tag: &str) -> TempDir {
     tempfile::Builder::new()
         .prefix(&format!("res-{tag}-"))
         .tempdir()
         .expect("mkdir temp")
-}
-
-fn minisign_bin() -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|dir| dir.join("minisign"))
-        .find(|candidate| candidate.is_file())
-}
-
-/// Generate an unencrypted keypair; return (public-key file contents, secret
-/// key path).
-fn generate_keypair(
-    minisign: &Path,
-    dir: &Path,
-    name: &str,
-) -> (String, PathBuf) {
-    let public = dir.join(format!("{name}.pub"));
-    let secret = dir.join(format!("{name}.key"));
-    let status = Command::new(minisign)
-        .args(["-G", "-W", "-f", "-p"])
-        .arg(&public)
-        .arg("-s")
-        .arg(&secret)
-        .output()
-        .expect("run minisign -G");
-    assert!(status.status.success(), "keygen failed");
-    (std::fs::read_to_string(&public).expect("read pub"), secret)
-}
-
-/// Sign `bytes` with `secret`, returning the `.minisig` contents.
-fn sign(minisign: &Path, secret: &Path, dir: &Path, bytes: &[u8]) -> String {
-    let payload = tempfile::Builder::new()
-        .prefix("payload-")
-        .tempfile_in(dir)
-        .expect("payload tempfile");
-    std::fs::write(payload.path(), bytes).expect("write payload");
-    let signature = payload.path().with_extension("minisig");
-    let status = Command::new(minisign)
-        .arg("-S")
-        .arg("-s")
-        .arg(secret)
-        .arg("-x")
-        .arg(&signature)
-        .arg("-m")
-        .arg(payload.path())
-        .output()
-        .expect("run minisign -S");
-    assert!(status.status.success(), "signing failed");
-    std::fs::read_to_string(&signature).expect("read sig")
-}
-
-fn manifest_json(version: &str, sha256: &str, signature: &str) -> String {
-    // The .minisig contents carry newlines and tabs; JSON-escape both.
-    let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
-    format!(
-        "{{\"schema_version\":1,\"version\":\"{version}\",\"binaries\":{{\
-         \"{BINARY}\":{{\"description\":\"Visualiser\",\"platforms\":{{\
-         \"{HOST_PLATFORM}\":{{\"sha256\":\"{sha256}\",\"signature\":\"{escaped}\"\
-         }}}}}}}}}}"
-    )
 }
 
 struct Harness {
@@ -346,62 +284,27 @@ fn probes_during<T>(
     result
 }
 
-fn asset_path() -> String {
-    format!("/accelerator-{BINARY}-{HOST_PLATFORM}")
-}
-
 /// Build a harness with a correctly-signed release the resolver will accept.
 fn happy_harness() -> Option<Harness> {
-    let minisign = minisign_bin()?;
     let workdir_guard = tempdir("work");
     let workdir = workdir_guard.path().to_path_buf();
+    let release = SignedRelease::serve(&workdir)?;
     let cache_guard = tempdir("cache");
     let plugin_root_of_cache = cache_guard.path().to_path_buf();
     let cache = plugin_root_of_cache.join("bin");
     std::fs::create_dir(&cache).expect("mkdir cache");
-    let (trusted_pub, trusted_secret) =
-        generate_keypair(&minisign, &workdir, "release");
-    let fixture_bytes = std::fs::read(FIXTURE).expect("read fixture");
-    let sha = sha256_hex(&fixture_bytes);
-    let asset_sig = sign(&minisign, &trusted_secret, &workdir, &fixture_bytes);
-    let manifest = manifest_json(VERSION, &sha, &asset_sig);
-    let manifest_sig =
-        sign(&minisign, &trusted_secret, &workdir, manifest.as_bytes());
-
-    let server = MockHTTPServer::start();
-    server.route(
-        RequestKey::get("/manifest.json"),
-        Route::Bytes {
-            status: 200,
-            body: manifest.into_bytes(),
-        },
-    );
-    server.route(
-        RequestKey::get("/manifest.minisig"),
-        Route::Bytes {
-            status: 200,
-            body: manifest_sig.into_bytes(),
-        },
-    );
-    server.route(
-        RequestKey::get(&asset_path()),
-        Route::Bytes {
-            status: 200,
-            body: fixture_bytes.clone(),
-        },
-    );
 
     Some(Harness {
-        server,
+        server: release.server,
         cache,
-        trusted: vec![trusted_pub],
-        fixture_bytes,
-        sha,
-        asset_sig,
+        trusted: release.trusted,
+        fixture_bytes: release.fixture_bytes,
+        sha: release.sha,
+        asset_sig: release.asset_sig,
         workdir,
         plugin_root_of_cache,
-        minisign,
-        trusted_secret,
+        minisign: release.minisign,
+        trusted_secret: release.trusted_secret,
         _workdir_guard: workdir_guard,
         _cache_guard: cache_guard,
     })
