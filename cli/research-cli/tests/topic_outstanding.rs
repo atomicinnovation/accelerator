@@ -3426,6 +3426,31 @@ fn the_tick_plan_lists_every_web_pair_left_unfinished() -> Result<(), TestError>
 }
 
 #[test]
+fn acknowledging_the_exhausting_batch_leaves_its_web_spawn_unfinished(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (first, run) = started(&project, &["--depth", "2"])?;
+    assert_eq!(spawns_of(&first)?, ["01-a-web:1"]);
+
+    let halted = continued(
+        &project,
+        &run,
+        &["--depth", "2", "--spawned", "0", WITHHOLD, "web"],
+    )?;
+
+    assert_eq!(
+        halted["unfinished"],
+        json!([{"spawn": "01-a-web:1", "rejected": null}]),
+        "{halted}"
+    );
+    assert!(spawns_of(&halted)?.is_empty(), "{halted}");
+    assert_eq!(halted["remaining"], json!(0));
+    assert_eq!(halted["withheld"], json!(["web"]));
+    assert_eq!(attempted(&project)?, ["01-a-web:1"]);
+    Ok(())
+}
+
+#[test]
 fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
 ) -> Result<(), TestError> {
     let project = a_set()?;
