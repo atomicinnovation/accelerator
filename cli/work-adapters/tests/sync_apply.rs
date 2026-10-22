@@ -3,7 +3,12 @@
 //! One double plays tracker, reader and writer at once, so every call lands
 //! in a single ordered log, and retains written bytes so a second run can
 //! read back what the first wrote.
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::unimplemented)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unimplemented,
+    clippy::panic
+)]
 
 mod support;
 
@@ -12,7 +17,12 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
@@ -32,6 +42,7 @@ use work_adapters::sync::apply::PushRequest;
 use work_adapters::sync::apply::RecordRequest;
 use work_adapters::sync::apply::RetitleRequest;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::files::SyncFiles;
 
 use crate::support::assert_recipe_one_entry;
 
@@ -39,7 +50,8 @@ type TestError = Box<dyn std::error::Error>;
 
 #[derive(Default)]
 struct Fake {
-    calls: RefCell<Vec<String>>,
+    calls: Arc<Mutex<Vec<String>>>,
+    refuse_lock: RefCell<bool>,
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     fail_write_to: RefCell<Option<PathBuf>>,
     refuse_write_to: RefCell<Option<PathBuf>>,
@@ -50,7 +62,15 @@ struct Fake {
 
 impl Fake {
     fn calls(&self) -> Vec<String> {
-        self.calls.borrow().clone()
+        self.calls.lock().expect("the call log").clone()
+    }
+
+    fn record(&self, call: String) {
+        self.calls.lock().expect("the call log").push(call);
+    }
+
+    fn refuse_locks(&self) {
+        *self.refuse_lock.borrow_mut() = true;
     }
 
     fn content(&self, path: &Path) -> Option<String> {
@@ -83,18 +103,14 @@ impl Fake {
 
 impl FileReader for Fake {
     fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
-        self.calls
-            .borrow_mut()
-            .push(format!("read:{}", path.display()));
+        self.record(format!("read:{}", path.display()));
         Ok(self.content(path))
     }
 }
 
 impl AtomicWrite for Fake {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-        self.calls
-            .borrow_mut()
-            .push(format!("write:{}", path.display()));
+        self.record(format!("write:{}", path.display()));
         if self.refuse_write_to.borrow().as_deref() == Some(path) {
             *self.refuse_write_to.borrow_mut() = None;
             return Err(StoreError::UnsafePath {
@@ -113,6 +129,41 @@ impl AtomicWrite for Fake {
             .insert(path.to_path_buf(), bytes.to_vec());
         Ok(())
     }
+}
+
+struct Release {
+    calls: Arc<Mutex<Vec<String>>>,
+    name: String,
+}
+
+impl Drop for Release {
+    fn drop(&mut self) {
+        self.calls
+            .lock()
+            .expect("the call log")
+            .push(format!("released:{}", self.name));
+    }
+}
+
+impl ExclusiveLock for Fake {
+    fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError> {
+        let LockName::ForFile(path) = name else {
+            unimplemented!("a pull takes only its file's lock")
+        };
+        if *self.refuse_lock.borrow() {
+            return Err(StoreError::LockTimeout {
+                path: format!("{}.lockdir", path.display()),
+            });
+        }
+        let name = path.display().to_string();
+        self.record(format!("acquired:{name}"));
+        Ok(HeldLock::new(Release {
+            calls: Arc::clone(&self.calls),
+            name,
+        }))
+    }
+
+    fn clear_abandoned(&self, _name: &LockName) {}
 }
 
 impl tracker::BodyDialect for Fake {
@@ -137,7 +188,7 @@ impl RemoteTracker for Fake {
         _title: Option<&str>,
         _body: &str,
     ) -> Result<(), TrackerError> {
-        self.calls.borrow_mut().push(format!("update:{id}"));
+        self.record(format!("update:{id}"));
         self.update_fails.borrow().clone().map_or(Ok(()), Err)
     }
 
@@ -146,14 +197,12 @@ impl RemoteTracker for Fake {
         id: &ExternalId,
         title: &str,
     ) -> Result<(), TrackerError> {
-        self.calls
-            .borrow_mut()
-            .push(format!("retitle:{id}:{title}"));
+        self.record(format!("retitle:{id}:{title}"));
         self.update_fails.borrow().clone().map_or(Ok(()), Err)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
-        self.calls.borrow_mut().push(format!("show:{id}"));
+        self.record(format!("show:{id}"));
         if *self.show_fails.borrow() {
             return Err(TrackerError::Retryable {
                 detail: "injected show failure".to_owned(),
@@ -221,7 +270,10 @@ fn ports(fake: &Fake) -> ApplierPorts<'_> {
     ApplierPorts {
         tracker: fake,
         parser: &CommonMarkBody,
-        files: support::sync_files(fake),
+        files: SyncFiles {
+            file_locks: fake,
+            ..support::sync_files(fake)
+        },
     }
 }
 
@@ -665,4 +717,74 @@ fn a_pull_whose_write_fails_in_flight_stays_terminal() -> Result<(), TestError>
 
     assert_eq!(error.class(), FailureClass::Terminal);
     Ok(())
+}
+
+#[test]
+fn a_pull_holds_its_lock_while_it_writes() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+
+    ItemApplier::new(ports(&fake), &mut store, 1_700_000_000)
+        .pull(&pull_request(&item_path))?;
+
+    let item = item_path.display();
+    let calls = fake.calls();
+    let around_the_write: Vec<&String> = calls
+        .iter()
+        .filter(|call| call.ends_with(&item.to_string()))
+        .collect();
+    assert_eq!(
+        around_the_write,
+        [
+            &format!("acquired:{item}"),
+            &format!("write:{item}"),
+            &format!("released:{item}"),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pull_whose_lock_cannot_be_taken_writes_nothing() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.refuse_locks();
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+
+    let error = ItemApplier::new(ports(&fake), &mut store, 1_700_000_000)
+        .pull(&pull_request(&item_path))
+        .expect_err("the lock is refused");
+
+    let ApplyError::Io {
+        operation, detail, ..
+    } = &error
+    else {
+        panic!("a refused lock is a local failure: {error}");
+    };
+    assert_eq!(*operation, "lock-local");
+    assert!(
+        detail.contains(&format!("{}.lockdir", item_path.display())),
+        "{detail}"
+    );
+    assert!(fake.calls().iter().all(|call| !call.starts_with("write:")));
+    assert_eq!(std::fs::read_to_string(&item_path)?, CLASSIFIED);
+    Ok(())
+}
+
+fn pull_request(item_path: &Path) -> PullRequest<'_> {
+    PullRequest {
+        id: "0001",
+        file_path: item_path,
+        classified_content: CLASSIFIED,
+        content: item_content(),
+        projected_body: "Title\nProjected body\n",
+        remote_updated: RemoteTimestamp::Reported(
+            "2026-06-01T00:00:00Z".to_owned(),
+        ),
+    }
 }

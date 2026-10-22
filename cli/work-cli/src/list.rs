@@ -1306,6 +1306,7 @@ mod tests {
                 files: work_adapters::sync::files::SyncFiles {
                     work_items: &writer,
                     integration_state: &writer,
+                    file_locks: &corpus_adapters::LockdirLock::new(dir.path()),
                 },
                 clock: &FixedClock,
                 author: &UnusedAuthor,

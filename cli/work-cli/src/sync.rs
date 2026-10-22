@@ -1823,6 +1823,7 @@ fn assemble_run<T>(
         files: SyncFiles {
             work_items: &corpus_store,
             integration_state: &corpus_store,
+            file_locks: workspace.locks(),
         },
         clock: &clock,
         author: &author,
