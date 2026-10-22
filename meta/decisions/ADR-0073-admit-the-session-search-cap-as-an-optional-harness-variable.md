@@ -9,7 +9,7 @@ status: "accepted"
 parent: "work-item:0304"
 relates_to: ["adr:ADR-0071"]
 tags: ["cli", "harness", "coupling", "research", "web-profile"]
-last_updated: "2026-10-16T15:54:05+00:00"
+last_updated: "2026-10-22T09:31:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -30,7 +30,11 @@ that takes precedence.
 
 Claude Code caps `WebSearch` calls per interactive terminal session at 200,
 shared by the main conversation and every subagent. The cap is read from
-`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`. At the cap Claude Code raises no
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`. `/clear` resets it, and from
+v2.1.290 it also refills, by default at about 100 calls an hour
+(`CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR`). Budgets are sized once against
+the full cap, so the refill rate never enters the sizing and its variable is
+not admitted. At the cap Claude Code raises no
 error: each further search returns a notice telling the model to continue
 with what it has. A `conduct` run that spends the cap leaves later web
 researchers writing notes from `WebFetch` or memory. Sizing per-level search
