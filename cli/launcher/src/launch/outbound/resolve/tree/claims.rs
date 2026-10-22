@@ -180,8 +180,10 @@ impl TreeClaimIndex {
 pub enum TreeClaimsListing {
     Read(TreeClaimIndex),
     /// Distinct from an empty listing, so a prune never reads "no claims"
-    /// into a directory it could not read or does not trust.
+    /// into a directory it could not read.
     Unreadable(io::ErrorKind),
+    /// A directory another user could rename claims into.
+    Untrusted,
 }
 
 /// Every tree claim whose name parses; a missing `trees/claims/` is an empty
@@ -202,9 +204,7 @@ pub fn list(
                 &directory, &entry, filesystem, ownership,
             ) =>
         {
-            return TreeClaimsListing::Unreadable(
-                io::ErrorKind::PermissionDenied,
-            );
+            return TreeClaimsListing::Untrusted;
         }
         Ok(_) => {}
     }

@@ -37,6 +37,13 @@ pub struct UnreadableClaims {
     pub kind: io::ErrorKind,
 }
 
+/// A directory another user could rename into, so a prune went no further
+/// through it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UntrustedDirectory {
+    pub path: PathBuf,
+}
+
 /// A removal that failed for any reason but the entry already being gone.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemovalFailure {

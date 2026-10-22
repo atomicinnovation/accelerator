@@ -169,7 +169,8 @@ fn prune(
     }
 }
 
-/// An unreadable claims directory alone succeeds: it only kept entries.
+/// An unreadable claims directory or an untrusted directory alone succeeds:
+/// each only kept entries.
 fn render_prune_report(
     report: &PruneReport,
     out: &mut dyn Write,
@@ -187,9 +188,16 @@ fn render_prune_report(
     for unreadable in &report.unreadable_claims {
         let _ = writeln!(
             err,
-            "claims unreadable ({}) in {}; kept every versioned entry",
+            "claims unreadable ({}) in {}; kept everything they could protect",
             unreadable.kind,
             unreadable.directory.display()
+        );
+    }
+    for untrusted in &report.untrusted_directories {
+        let _ = writeln!(
+            err,
+            "not pruning through {}: another user could write to it",
+            untrusted.path.display()
         );
     }
     for failure in &report.removal_failures {
