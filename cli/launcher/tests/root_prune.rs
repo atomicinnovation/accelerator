@@ -63,8 +63,8 @@ use common::recording_filesystem::{
 };
 use common::scripted_filesystem::ScriptedFilesystem;
 use common::trees::{
-    another_platform, digest, exists, on_host, set_mode, set_mtime, FixedClock,
-    FixedLiveness, Trees,
+    another_platform, digest, exists, on_host, set_mode, set_mtime,
+    FailingLockAt, FixedClock, FixedLiveness, Trees,
 };
 
 const OLD: &str = "1.0.0";
@@ -1251,45 +1251,6 @@ fn the_verb_waits_for_a_held_tree_lock() {
     tree.assert_reclaimed();
 }
 
-/// Fails every lock call on one path and takes every other for real.
-struct FailingLockAt(PathBuf);
-
-impl FailingLockAt {
-    fn fails(&self, path: &Path) -> Result<(), TreeError> {
-        if path == self.0 {
-            return Err(TreeError::Lease {
-                detail: "No locks available (os error 77)".to_owned(),
-            });
-        }
-        Ok(())
-    }
-}
-
-impl SingleFlightLocks for FailingLockAt {
-    fn take(&self, path: &Path) -> Result<LockGuard, TreeError> {
-        self.fails(path)?;
-        FlockLocks.take(path)
-    }
-
-    fn try_take(&self, path: &Path) -> Result<Option<LockGuard>, TreeError> {
-        self.fails(path)?;
-        FlockLocks.try_take(path)
-    }
-
-    fn wait_existing(
-        &self,
-        path: &Path,
-    ) -> Result<Option<LockGuard>, TreeError> {
-        self.fails(path)?;
-        FlockLocks.wait_existing(path)
-    }
-
-    fn probe(&self, path: &Path) -> Result<LockProbe, TreeError> {
-        self.fails(path)?;
-        FlockLocks.probe(path)
-    }
-}
-
 #[test]
 fn the_verb_reports_a_failed_tree_lock_and_exits_non_zero() {
     let harness = RootHarness::new();
@@ -2040,4 +2001,21 @@ fn another_layouts_tree_is_kept_and_this_layouts_twin_is_removed() {
     assert!(other_layout.exists(), "another layout's tree was removed");
     assert!(pointer.exists(), "another layout's pointer was removed");
     twin.assert_reclaimed();
+}
+
+#[test]
+fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    trees.plant_claim(&digest('a'), OTHER_ID, harness.now);
+
+    harness.prune(harness.ports()).succeeded();
+
+    let locks: Vec<_> = std::fs::read_dir(trees.root())
+        .expect("trees")
+        .flatten()
+        .map(|entry| entry.file_name())
+        .filter(|name| name.to_string_lossy().ends_with(".lock"))
+        .collect();
+    assert!(locks.is_empty(), "{locks:?}");
 }
