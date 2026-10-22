@@ -25,7 +25,8 @@ pub struct PinnedPruneCollaborators<'a> {
     pub pins: &'a dyn PinnedDigests,
 }
 
-/// [`prune_pinned_artifact`] for every pinned artifact on the host platform.
+/// [`prune_pinned_artifact`] for every pinned artifact on the host platform;
+/// a root with no `trees/` has nothing to prune, and no lock is created there.
 ///
 /// # Errors
 ///
@@ -37,6 +38,13 @@ pub fn prune_pinned_on_host(
 ) -> Result<reap::Reclaimed, TreeError> {
     let paths = TreePaths::under(cache_root);
     let mut reclaimed = reap::Reclaimed::default();
+    if paths
+        .root()
+        .symlink_metadata()
+        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+    {
+        return Ok(reclaimed);
+    }
     for artifact in pins::artifact_names() {
         reclaimed.entries += prune_pinned_artifact(
             &paths,
@@ -176,5 +184,47 @@ impl PointerTarget {
             Err(TreeError::LayoutUnsupported { .. }) => Self::OtherLayout,
             Err(_) => Self::Malformed,
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::super::lease::FlockProbe;
+    use super::super::resolver::ExpectedDigests;
+    use super::super::testing::{within, BLOCKING_BOUND};
+    use super::{prune_pinned_on_host, PinnedPruneCollaborators};
+    use crate::launch::core::tree::Clock;
+
+    struct StoppedClock;
+
+    impl Clock for StoppedClock {
+        fn now_seconds(&self) -> u64 {
+            0
+        }
+
+        fn sleep_poll_interval(&self) {}
+    }
+
+    #[test]
+    fn a_root_that_never_materialised_a_tree_has_nothing_to_prune() {
+        let root = tempfile::tempdir().expect("root");
+        let cache_root = root.path().to_path_buf();
+
+        let reclaimed = within(BLOCKING_BOUND, "the prune", move || {
+            prune_pinned_on_host(
+                &cache_root,
+                &PinnedPruneCollaborators {
+                    clock: &StoppedClock,
+                    liveness: &FlockProbe,
+                    pins: &ExpectedDigests::Compiled,
+                },
+                None,
+            )
+            .map(|reclaimed| reclaimed.entries)
+        });
+
+        assert_eq!(reclaimed.expect("pruned"), 0);
+        assert!(!root.path().join("trees").exists());
     }
 }
