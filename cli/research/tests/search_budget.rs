@@ -137,6 +137,14 @@ fn an_empty_tree_sizes_no_budgets_and_no_demand() {
 }
 
 #[test]
+fn budgets_are_empty_only_over_an_empty_tree() {
+    assert!(
+        SearchBudgets::sized(&WorstCaseTree::default(), cap(200)).is_empty()
+    );
+    assert!(!SearchBudgets::sized(&tree(&[(1, 1)]), cap(200)).is_empty());
+}
+
+#[test]
 fn a_level_without_a_budget_has_none() {
     let sized = SearchBudgets::sized(&tree(&[(2, 2), (3, 7)]), cap(200));
     assert_eq!(sized.at(1), None);

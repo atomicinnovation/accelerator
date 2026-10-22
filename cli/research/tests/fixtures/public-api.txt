@@ -282,6 +282,7 @@ pub fn research::conduct::search_budget::SearchBudgets::at(&self, level: u32) ->
 pub const fn research::conduct::search_budget::SearchBudgets::demand(&self) -> u64
 pub fn research::conduct::search_budget::SearchBudgets::floor(tree: &research::topic::tree::WorstCaseTree, cap: research::conduct::search_budget::SearchCap) -> Self
 pub const fn research::conduct::search_budget::SearchBudgets::from_parts(budgets: alloc::collections::btree::map::BTreeMap<u32, core::num::nonzero::NonZeroU32>, demand: u64, sized_against: research::conduct::search_budget::SearchCap) -> Self
+pub fn research::conduct::search_budget::SearchBudgets::is_empty(&self) -> bool
 pub fn research::conduct::search_budget::SearchBudgets::levels(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u32, core::num::nonzero::NonZeroU32)> + '_
 pub fn research::conduct::search_budget::SearchBudgets::overruns(&self, cap: research::conduct::search_budget::SearchCap) -> bool
 pub fn research::conduct::search_budget::SearchBudgets::sized(tree: &research::topic::tree::WorstCaseTree, cap: research::conduct::search_budget::SearchCap) -> Self

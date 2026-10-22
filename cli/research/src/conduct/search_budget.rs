@@ -117,6 +117,11 @@ impl SearchBudgets {
     }
 
     #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.budgets.is_empty()
+    }
+
+    #[must_use]
     pub const fn demand(&self) -> u64 {
         self.demand
     }

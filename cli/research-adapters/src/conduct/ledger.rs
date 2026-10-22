@@ -143,12 +143,10 @@ fn ledger_to(ledger: &RunLedger) -> Value {
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>(),
+        "withheld": memory.withheld.profiles().collect::<Vec<_>>(),
     });
     if let Some(budgets) = ledger.search_budgets() {
         stored["search_budgets"] = search_budgets_to(budgets);
-    }
-    if !memory.withheld.is_empty() {
-        stored["withheld"] = memory.withheld.profiles().collect();
     }
     stored
 }
@@ -631,6 +629,21 @@ mod tests {
     ) -> Result<(), TestError> {
         let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
         assert!(ledger.memory().withheld.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_ledger_withholding_nothing_writes_an_empty_withheld(
+    ) -> Result<(), TestError> {
+        let store = StubStore::default();
+        let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
+
+        write_run_ledger(Path::new(SET), &ledger, &store)?;
+
+        let written: serde_json::Value = serde_json::from_str(
+            &store.read(Path::new(LEDGER))?.ok_or("no ledger")?,
+        )?;
+        assert_eq!(written["withheld"], json!([]));
         Ok(())
     }
 

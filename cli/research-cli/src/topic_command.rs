@@ -854,7 +854,7 @@ impl PlanOutput<'_> {
                 .collect();
             if let Some(budgets) = ledger
                 .search_budgets()
-                .filter(|budgets| budgets.levels().next().is_some())
+                .filter(|budgets| !budgets.is_empty())
             {
                 rendered["search_budgets"] = search_budgets(budgets);
             }

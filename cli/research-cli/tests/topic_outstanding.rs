@@ -3423,7 +3423,7 @@ fn a_run_plan_withholds_nothing_until_told_to() -> Result<(), TestError> {
     assert_eq!(plan["withheld"], json!([]));
     assert_eq!(continued["withheld"], json!([]));
     assert_eq!(query.get("withheld"), None);
-    assert_eq!(stored_ledger(&project)?.get("withheld"), None);
+    assert_eq!(stored_ledger(&project)?["withheld"], json!([]));
     Ok(())
 }
 
