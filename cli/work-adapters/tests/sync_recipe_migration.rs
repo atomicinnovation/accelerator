@@ -356,6 +356,9 @@ fn sync(harness: &Harness, settings: &Run<'_>) -> RunReport {
         &mut store,
         &SyncRequest {
             corpus: &harness.items,
+            inventory: &work_adapters::sync::fetch::inventory_of(
+                &harness.items,
+            ),
             selection: ItemSelection::All,
             direction: settings.direction,
             strategy: RetrievalStrategy::Bulk,

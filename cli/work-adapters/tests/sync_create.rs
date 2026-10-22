@@ -355,6 +355,7 @@ fn run_sync(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
         selection: ItemSelection::All,
         direction,
         strategy: RetrievalStrategy::Bulk,
@@ -401,6 +402,7 @@ fn run_sync_targeted(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection: ItemSelection::Targeted {
             items: targeted,
             pull_ids: &[],
@@ -449,6 +451,7 @@ fn run_sync_targeted_pull(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection: ItemSelection::Targeted {
             items: targeted,
             pull_ids,
@@ -499,6 +502,7 @@ fn run_at(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection: ItemSelection::Targeted {
             items: targeted,
             pull_ids,
@@ -1757,6 +1761,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
         let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
         let request = SyncRequest {
             corpus: &[],
+            inventory: &work_adapters::sync::fetch::inventory_of(&[]),
             selection: ItemSelection::Targeted {
                 items: &[],
                 pull_ids: std::slice::from_ref(&external),
@@ -1982,6 +1987,9 @@ fn create_from_local_writes_the_marker_before_the_create(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus: std::slice::from_ref(&item),
+        inventory: &work_adapters::sync::fetch::inventory_of(
+            std::slice::from_ref(&item),
+        ),
         selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -2243,6 +2251,9 @@ fn run_create_from_local_on_disk(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus: std::slice::from_ref(item),
+        inventory: &work_adapters::sync::fetch::inventory_of(
+            std::slice::from_ref(item),
+        ),
         selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -2404,6 +2415,7 @@ fn run_create_from_local_in(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,

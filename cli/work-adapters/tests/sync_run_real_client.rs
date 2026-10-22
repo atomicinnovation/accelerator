@@ -296,6 +296,7 @@ fn execute(
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
         selection: ItemSelection::All,
         direction,
         strategy: RetrievalStrategy::Bulk,
@@ -1371,6 +1372,7 @@ fn execute_targeted_pulling(
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
         selection: ItemSelection::Targeted { items, pull_ids },
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,

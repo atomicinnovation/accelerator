@@ -3,9 +3,13 @@
 mod console;
 mod recovery_labels;
 mod stores;
+mod work_files;
 
 use stores::StoreFactories;
 use stores::SyncStores;
+use work_files::discover_corpus;
+use work_files::ConfiguredNames;
+use work_files::VcsConflicts;
 
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
@@ -41,10 +45,7 @@ use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
-use work::work_item_files::identity_of;
-use work::work_item_files::WorkItemFiles;
 use work_adapters::draft_id::RandomSuffixDraws;
-use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::retirement::sweep_recoveries;
 use work_adapters::retirement::RecoveryNotice;
@@ -215,21 +216,6 @@ fn warn_outstanding_pushes(
     }
 }
 
-fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
-    let files = FilesystemWorkItemFiles::new(work_dir).files()?;
-    let mut items: Vec<LocalItem> = files
-        .iter()
-        .filter_map(identity_of)
-        .map(|identity| LocalItem {
-            id: identity.id,
-            path: identity.path,
-            external_id: identity.external_id.map(ExternalId::new),
-        })
-        .collect();
-    items.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(items)
-}
-
 /// Where retirement records and recovery copies live, relative to the
 /// repository root.
 pub const STATE_DIR: &str = ".accelerator/state";
@@ -249,12 +235,18 @@ pub fn corpus_roots(
 struct WorkDirDiscovery<'a> {
     work_dir: &'a Path,
     root: &'a Path,
+    names: &'a ConfiguredNames,
+    conflicts: &'a VcsConflicts,
 }
 
 impl CorpusDiscovery for WorkDirDiscovery<'_> {
     fn discover(&self) -> Result<DiscoveredCorpus, RunError> {
+        let (items, inventory) =
+            discover_corpus(self.work_dir, self.names, self.conflicts)
+                .map_err(RunError::Internal)?;
         Ok(DiscoveredCorpus {
-            items: discover_items(self.work_dir).map_err(RunError::Internal)?,
+            items,
+            inventory,
             status: Box::new(VcsWorkingCopyStatus::probed_from(
                 self.root,
                 &InProcessProbe,
@@ -539,6 +531,15 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    lines.extend(report.inventory.unidentified.iter().map(|entry| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "unidentified".to_owned(),
+            entry.path.display().to_string(),
+            entry.reason.keyword().to_owned(),
+        ])
+        .to_string()
+    }));
     let mut promotions: Vec<_> = report.promotions.iter().collect();
     promotions.sort_by(|left, right| left.draft.cmp(&right.draft));
     lines.extend(promotions.into_iter().flat_map(detail_lines));
@@ -1777,13 +1778,26 @@ pub fn run_sync_with(
     let work_dir = roots.work_items.root().to_path_buf();
     let integrations_root = roots.integrations.root().to_path_buf();
 
-    let items = match discover_items(&work_dir) {
-        Ok(items) => items,
+    let names = match ConfiguredNames::for_scheme(&scheme) {
+        Ok(names) => names,
         Err(error) => {
             console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
+    let (conflicts, conflicts_unread) =
+        VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
+    if let Some(warning) = conflicts_unread {
+        console.warn(warning);
+    }
+    let (items, inventory) =
+        match discover_corpus(&work_dir, &names, &conflicts) {
+            Ok(corpus) => corpus,
+            Err(error) => {
+                console.warn(error);
+                return ExitCode::from(exit_codes::ERROR);
+            }
+        };
 
     let canonical_work_dir = match work_dir.canonicalize() {
         Ok(dir) => dir,
@@ -1862,6 +1876,8 @@ pub fn run_sync_with(
     let discovery = WorkDirDiscovery {
         work_dir: &work_dir,
         root: &repo_root,
+        names: &names,
+        conflicts: &conflicts,
     };
     let mode = if args.preview {
         RunMode::Preview
@@ -1912,6 +1928,7 @@ pub fn run_sync_with(
     }
     let request = SyncRequest {
         corpus: &items,
+        inventory: &inventory,
         selection,
         direction,
         strategy,
@@ -2300,6 +2317,7 @@ mod tests {
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
+    use work::inventory::UnidentifiedReason;
     use work_adapters::sync::report::CorpusScope;
 
     #[test]
@@ -2361,7 +2379,19 @@ mod tests {
         }
 
         fn items(&self) -> Vec<LocalItem> {
-            super::discover_items(&self.work_dir).expect("discover items")
+            let (conflicts, _) = super::work_files::VcsConflicts::read(
+                &self.work_dir,
+                &vcs_adapters::library::InProcessProbe,
+                &vcs_adapters::library::InProcessProbe,
+            );
+            super::work_files::discover_corpus(
+                &self.work_dir,
+                &super::work_files::ConfiguredNames::for_scheme(&scheme())
+                    .expect("the scheme compiles"),
+                &conflicts,
+            )
+            .expect("discover items")
+            .0
         }
 
         fn resolve(&self, targets: &[&str]) -> ResolveResult {
@@ -4325,6 +4355,154 @@ mod tests {
                 |line| line == "0001\tfailed\tremotely-modified\tretryable"
             ),
             "{rendered}"
+        );
+    }
+
+    fn inventory_holding(
+        reasons: Vec<UnidentifiedReason>,
+    ) -> work::inventory::CorpusInventory {
+        work::inventory::CorpusInventory {
+            ids: std::iter::once("0001".to_owned()).collect(),
+            unidentified: reasons
+                .into_iter()
+                .enumerate()
+                .map(|(index, reason)| work::inventory::Unidentified {
+                    path: PathBuf::from(format!(
+                        "meta/work/000{}-x.md",
+                        index + 2
+                    )),
+                    reason,
+                })
+                .collect(),
+        }
+    }
+
+    fn reporting(
+        scope: CorpusScope,
+        reasons: Vec<UnidentifiedReason>,
+    ) -> RunReport {
+        RunReport {
+            scope,
+            inventory: inventory_holding(reasons),
+            ..crate::test_support::run_report()
+        }
+    }
+
+    fn unreadable() -> UnidentifiedReason {
+        UnidentifiedReason::Unreadable("Permission denied".to_owned())
+    }
+
+    fn malformed() -> UnidentifiedReason {
+        UnidentifiedReason::Malformed(
+            work::inventory::MalformedCause::UnclosedFence,
+        )
+    }
+
+    #[test]
+    fn every_unidentified_file_gets_a_record() {
+        let report = reporting(
+            CorpusScope::WholeCorpus,
+            vec![
+                unreadable(),
+                UnidentifiedReason::Undecodable,
+                malformed(),
+                UnidentifiedReason::NoFrontmatter,
+                UnidentifiedReason::NoId,
+            ],
+        );
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        for (index, kind) in [
+            "unreadable",
+            "undecodable",
+            "malformed",
+            "no-frontmatter",
+            "no-id",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(
+                rendered.lines().any(|line| line
+                    == format!(
+                        "#\tunidentified\tmeta/work/000{}-x.md\t{kind}",
+                        index + 2
+                    )),
+                "{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn unusable_files_fail_a_whole_corpus_run_by_what_is_wrong() {
+        let report = reporting(
+            CorpusScope::WholeCorpus,
+            vec![
+                unreadable(),
+                UnidentifiedReason::Undecodable,
+                malformed(),
+                UnidentifiedReason::NoId,
+            ],
+        );
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec![
+                "error: meta/work/0002-x.md: read-local failed: Permission denied",
+                "error: meta/work/0003-x.md: read-local failed: not UTF-8",
+                "error: meta/work/0004-x.md: identify-local failed: frontmatter \
+                 opened but never closed",
+            ]
+        );
+    }
+
+    #[test]
+    fn exit_code_for_report_ranks_unusable_files() {
+        for (scope, reasons, expected) in [
+            (
+                CorpusScope::WholeCorpus,
+                vec![UnidentifiedReason::NoId],
+                super::exit_codes::CLEAN,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![unreadable()],
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![UnidentifiedReason::Undecodable],
+                super::exit_codes::REJECTED,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![malformed()],
+                super::exit_codes::REJECTED,
+            ),
+            (
+                CorpusScope::Targeted,
+                vec![unreadable(), malformed()],
+                super::exit_codes::CLEAN,
+            ),
+        ] {
+            assert_eq!(
+                super::exit_code_for_report(&reporting(scope, reasons.clone())),
+                expected,
+                "{scope:?} {reasons:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_targeted_run_only_warns_about_unusable_files() {
+        let report = reporting(CorpusScope::Targeted, vec![unreadable()]);
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec!["warning: meta/work/0002-x.md: read-local failed: Permission denied"]
         );
     }
 
@@ -6642,6 +6820,203 @@ mod tests {
             run.err
         );
         assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    fn unidentified_record(out: &str, path: &Path, kind: &str) -> bool {
+        out.lines().any(|line| {
+            line == format!("#\tunidentified\t{}\t{kind}", path.display())
+        })
+    }
+
+    #[test]
+    fn an_undecodable_work_file_is_reported_by_path() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let garbled = dir.path().join("meta/work/0002-garbled.md");
+        std::fs::write(&garbled, [0xff, 0xfe, b'\n']).expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &garbled, "undecodable"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert_eq!(
+            error_lines(&run.err),
+            vec![format!(
+                "error: {}: read-local failed: not UTF-8",
+                garbled.display()
+            )]
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn an_unreadable_work_file_is_reported_by_path() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let sealed = dir.path().join("meta/work/0002-sealed.md");
+        std::fs::write(&sealed, "---\nid: \"0002\"\n---\n").expect("write");
+        let Some(_guard) =
+            store::test_support::UnreadableFile::new(&sealed).expect("seal")
+        else {
+            return;
+        };
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &sealed, "unreadable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(
+            errors[0].starts_with(&format!(
+                "error: {}: read-local failed: ",
+                sealed.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_readme_in_the_work_directory_does_not_fail_sync() {
+        for (content, kind) in [
+            ("---\ntitle: About\n---\n\n# About\n", "no-id"),
+            ("# About\n", "no-frontmatter"),
+        ] {
+            let dir = sync_repo();
+            let tracker =
+                edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+            let readme = dir.path().join("meta/work/README.md");
+            std::fs::write(&readme, content).expect("write the readme");
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(
+                unidentified_record(&run.out, &readme, kind),
+                "{}",
+                run.out
+            );
+            assert!(!run.err.contains("README"), "{}", run.err);
+            assert_eq!(run.code, ExitCode::SUCCESS, "{kind}: {}", run.err);
+        }
+    }
+
+    #[test]
+    fn a_conflicted_work_item_file_fails_the_run() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let conflicted = dir.path().join("meta/work/0002-two.md");
+        std::fs::write(
+            &conflicted,
+            "<<<<<<< Conflict 1 of 1\n%%%%%%% Changes from base to side #1\n\
+             -id: \"0002\"\n+id: \"0002\"\n+++++++ Contents of side #2\n\
+             id: \"0002\"\n>>>>>>> Conflict 1 of 1 ends\n---\n\nBody\n",
+        )
+        .expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &conflicted, "malformed"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                &format!(
+                    "error: {}: identify-local failed: ",
+                    conflicted.display()
+                )
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_run_reports_but_does_not_fail_on_an_unrelated_unreadable_file(
+    ) {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let garbled = dir.path().join("meta/work/0002-garbled.md");
+        std::fs::write(&garbled, [0xff, 0xfe, b'\n']).expect("write the file");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["0001".to_owned()]),
+        );
+
+        assert!(
+            unidentified_record(&run.out, &garbled, "undecodable"),
+            "{}",
+            run.out
+        );
+        assert!(error_lines(&run.err).is_empty(), "{}", run.err);
+        assert!(
+            run.err.contains(&format!(
+                "warning: {}: read-local failed: not UTF-8",
+                garbled.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn a_newline_in_a_filename_cannot_forge_an_error_line() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        std::fs::write(
+            dir.path()
+                .join("meta/work/0002-\nerror: -: baseline-set failed:.md"),
+            "# no frontmatter\n",
+        )
+        .expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(error_lines(&run.err).len(), 1, "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_body_with_conflict_markers_is_neither_pushed_nor_pulled() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let conflicted = numbered_item(
+            "0001",
+            "PP-1",
+            "<<<<<<< HEAD\nOld body\n=======\nOther body\n>>>>>>> side\n",
+        );
+        std::fs::write(numbered_path(dir.path(), "0001"), &conflicted)
+            .expect("write the item");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(
+            std::fs::read_to_string(numbered_path(dir.path(), "0001"))
+                .expect("read the item"),
+            conflicted
+        );
+        assert!(mutations(&tracker).is_empty());
+        assert!(!run.out.contains("0001\t"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
     }
 
     fn team_config(dir: &Path, extra: &str) {

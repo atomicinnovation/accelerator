@@ -393,8 +393,10 @@ impl CorpusDiscovery for FileDiscovery<'_> {
         if let Some(before) = &self.before {
             before();
         }
+        let items = self.repo.items();
         Ok(DiscoveredCorpus {
-            items: self.repo.items(),
+            inventory: work_adapters::sync::fetch::inventory_of(&items),
+            items,
             status: Box::new(EveryPath(self.dirtiness)),
         })
     }
@@ -503,6 +505,7 @@ fn targeted(items: &[LocalItem], targets: Option<&[&str]>) -> Vec<LocalItem> {
 
 fn request<'a>(
     items: &'a [LocalItem],
+    inventory: &'a work::inventory::CorpusInventory,
     targeted: Option<&'a [LocalItem]>,
     options: &Options,
     resolutions: &'a BTreeMap<String, work::sync::Resolution>,
@@ -510,6 +513,7 @@ fn request<'a>(
 ) -> SyncRequest<'a> {
     SyncRequest {
         corpus: items,
+        inventory,
         selection: targeted.map_or(ItemSelection::All, |targeted| {
             ItemSelection::Targeted {
                 items: targeted,
@@ -529,6 +533,7 @@ fn request<'a>(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let root = repo.root();
     let work_dir = repo.work_dir();
@@ -611,8 +616,10 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let targeted = targeted(&items, options.targets.as_deref());
     let resolutions = BTreeMap::new();
     let integrations_root = repo.path(".accelerator/state/integrations");
+    let inventory = work_adapters::sync::fetch::inventory_of(&items);
     let request = request(
         &items,
+        &inventory,
         options.targets.is_some().then_some(targeted.as_slice()),
         &options,
         &resolutions,
@@ -2235,4 +2242,16 @@ fn the_report_records_the_runs_scope_and_mode() {
         assert_eq!(outcome.report().scope, scope);
         assert_eq!(outcome.report().mode, mode);
     }
+}
+
+#[test]
+fn the_report_carries_the_inventory_of_the_last_discovery() {
+    let repo = Repo::new();
+    moved_tracker_owned_item(&repo);
+
+    let outcome = sync(&repo, &moved("PP-760", "ENG-42"), Options::default());
+
+    let ids = &outcome.report().inventory.ids;
+    assert!(ids.contains("ENG-42"), "{ids:?}");
+    assert!(!ids.contains("PP-760"), "{ids:?}");
 }

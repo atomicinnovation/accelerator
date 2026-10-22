@@ -4,6 +4,10 @@
 use std::path::PathBuf;
 
 use tracker::TrackerError;
+use work::inventory::CorpusInventory;
+use work::inventory::Fault;
+use work::inventory::Unidentified;
+use work::inventory::UnidentifiedReason;
 use work::sync::Action;
 use work::sync::PlannedAction;
 use work::sync::SyncState;
@@ -101,6 +105,9 @@ pub enum Finalisation {
 pub struct RunReport {
     pub scope: CorpusScope,
     pub mode: RunMode,
+    /// The work files discovery could not use, judged against the corpus
+    /// the engine planned over.
+    pub inventory: CorpusInventory,
     /// The identity pass's rows, each keyed by the item's id when the run
     /// started. The engine's row for the same item is not rendered.
     pub identity: Vec<IdentityRow>,
@@ -128,8 +135,10 @@ pub struct RunReport {
 
 impl RunReport {
     /// Every failure this run reports, in report order: failed rows
-    /// (a preview's included), unclassifiable items, then a failed
-    /// baseline finalise.
+    /// (a preview's included), unclassifiable items, work files the run
+    /// could not use, then a failed baseline finalise. Only a whole-corpus
+    /// run may judge the corpus, so on a targeted run an unusable file is
+    /// a warning.
     pub fn failures(&self) -> impl Iterator<Item = RunFailure> + '_ {
         let rows =
             self.reported.iter().filter_map(|item| match &item.outcome {
@@ -149,6 +158,11 @@ impl RunReport {
                 FailureClass::Retryable,
             )
         });
+        let files = self
+            .inventory
+            .unidentified
+            .iter()
+            .filter_map(|entry| self.unusable_file(entry));
         let finalise = match &self.finalisation {
             Finalisation::Failed(reason) => Some(RunFailure::error(
                 "-",
@@ -158,7 +172,28 @@ impl RunReport {
             )),
             Finalisation::NotAttempted | Finalisation::Finalised => None,
         };
-        rows.chain(unclassifiable).chain(finalise)
+        rows.chain(unclassifiable).chain(files).chain(finalise)
+    }
+
+    fn unusable_file(&self, entry: &Unidentified) -> Option<RunFailure> {
+        let fault = entry.reason.fault()?;
+        let operation = match entry.reason {
+            UnidentifiedReason::Malformed(_) => SyncOperation::IdentifyLocal,
+            _ => SyncOperation::ReadLocal,
+        };
+        Some(RunFailure {
+            subject: entry.path.display().to_string(),
+            operation,
+            cause: entry.reason.to_string(),
+            class: match fault {
+                Fault::Environment => FailureClass::Retryable,
+                Fault::Content => FailureClass::Unparseable,
+            },
+            severity: match self.scope {
+                CorpusScope::WholeCorpus => FailureSeverity::Error,
+                CorpusScope::Targeted => FailureSeverity::Warning,
+            },
+        })
     }
 
     /// Items this run left for a human. Derived, never stored: a stored
