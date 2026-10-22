@@ -224,6 +224,12 @@ impl RecoveryCopies for FileRecoveryCopies {
 
     fn remove_dir(&self, dir: &Path) -> Result<(), StoreError> {
         let location = self.contained(dir)?;
+        if fs::symlink_metadata(&location)
+            .is_ok_and(|metadata| metadata.file_type().is_symlink())
+        {
+            return fs::remove_file(&location)
+                .map_err(|error| io(&location, &error));
+        }
         match fs::remove_dir_all(&location) {
             Err(error) if error.kind() != ErrorKind::NotFound => {
                 Err(io(&location, &error))

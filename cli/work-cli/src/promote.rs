@@ -542,6 +542,7 @@ mod tests {
                 allow_unbounded: false,
                 no_promote: false,
                 targets: Vec::new(),
+                discard_kept_edits: Vec::new(),
             },
             &StubRegistry(fresh()),
             &NoFinaliser,

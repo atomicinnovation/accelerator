@@ -239,6 +239,9 @@ Options:
       --target <TARGETS>
           Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
 
+      --discard-kept-edits <ID>
+          Remove the local edits an earlier pull kept for this work item; repeatable. A discard happens on an apply run, so the narrow form is `--target <id> --discard-kept-edits <id>`
+
   -h, --help
           Print help (see a summary with '-h')
 

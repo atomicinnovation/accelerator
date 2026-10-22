@@ -1399,6 +1399,7 @@ mod tests {
                 max_pushes: None,
                 allow_unbounded: false,
                 no_promote: false,
+                discard_kept_edits: Vec::new(),
                 targets: Vec::new(),
             },
             &crate::test_support::StubRegistry(Rc::new(

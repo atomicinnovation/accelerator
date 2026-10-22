@@ -538,6 +538,14 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
 /// One `#\tkept-edits` record per copy a person may need: kept this run,
 /// kept earlier, or in a directory this tool does not trust.
 fn kept_edits_records(review: &KeptEditsReview) -> Vec<String> {
+    review
+        .entries
+        .iter()
+        .filter_map(kept_edits_record)
+        .collect()
+}
+
+fn kept_edits_record(entry: &KeptEdits) -> Option<String> {
     let copy_record = |kept: &KeptCopy, when: &str| {
         TsvRecord::of([
             "#".to_owned(),
@@ -549,29 +557,28 @@ fn kept_edits_records(review: &KeptEditsReview) -> Vec<String> {
         ])
         .to_string()
     };
-    review
-        .entries
-        .iter()
-        .filter_map(|entry| match entry {
-            KeptEdits::KeptThisRun(kept) => Some(copy_record(kept, "this-run")),
-            KeptEdits::KeptEarlier(kept)
-            | KeptEdits::NotRemoved { kept, .. } => {
-                Some(copy_record(kept, "earlier"))
-            }
-            KeptEdits::Unrecorded { id, directory, .. } => Some(
-                TsvRecord::of([
-                    "#".to_owned(),
-                    "kept-edits".to_owned(),
-                    id.clone().unwrap_or_else(|| "-".to_owned()),
-                    "unrecorded".to_owned(),
-                    "-".to_owned(),
-                    directory.display().to_string(),
-                ])
-                .to_string(),
-            ),
-            KeptEdits::Settled { .. } => None,
-        })
-        .collect()
+    match entry {
+        KeptEdits::KeptThisRun(kept) => Some(copy_record(kept, "this-run")),
+        KeptEdits::KeptEarlier(kept) | KeptEdits::NotRemoved { kept, .. } => {
+            Some(copy_record(kept, "earlier"))
+        }
+        KeptEdits::Unrecorded { id, directory, .. } => Some(
+            TsvRecord::of([
+                "#".to_owned(),
+                "kept-edits".to_owned(),
+                id.clone().unwrap_or_else(|| "-".to_owned()),
+                "unrecorded".to_owned(),
+                "-".to_owned(),
+                directory.display().to_string(),
+            ])
+            .to_string(),
+        ),
+        KeptEdits::Discarding { entry, .. }
+        | KeptEdits::NotDiscarded { entry, .. } => kept_edits_record(entry),
+        KeptEdits::Settled { .. }
+        | KeptEdits::Discarded { .. }
+        | KeptEdits::NothingToDiscard { .. } => None,
+    }
 }
 
 /// The stderr notes for kept copies: one per copy kept this run, one
@@ -610,12 +617,39 @@ fn kept_edits_notes(review: &KeptEditsReview) -> Vec<String> {
                 *provenance,
             )),
             KeptEdits::Settled { .. } => {}
+            KeptEdits::Discarding { .. }
+            | KeptEdits::Discarded { .. }
+            | KeptEdits::NotDiscarded { .. }
+            | KeptEdits::NothingToDiscard { .. } => {
+                notes.push(discard_note(entry));
+            }
         }
     }
     if !earlier.is_empty() {
         notes.push(earlier_copies_note(&earlier));
     }
     notes
+}
+
+fn discard_note(entry: &KeptEdits) -> String {
+    let id = single_line(entry.id().unwrap_or("-"));
+    let directory = entry
+        .directory()
+        .map(|directory| single_line(&directory.display().to_string()))
+        .unwrap_or_default();
+    match entry {
+        KeptEdits::Discarding { .. } => {
+            format!("note: {id}: kept-edits: {directory} would be discarded")
+        }
+        KeptEdits::Discarded { .. } => {
+            format!("note: {id}: kept-edits: discarded {directory}")
+        }
+        KeptEdits::NotDiscarded { reason, .. } => format!(
+            "note: {id}: kept-edits: {directory} could not be discarded: {}",
+            single_line(reason)
+        ),
+        _ => format!("note: {id}: kept-edits: no kept copy to discard"),
+    }
 }
 
 fn unrecorded_note(
@@ -1667,6 +1701,20 @@ pub fn run_sync_with(
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
+    let scheme = match crate::config::resolve_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => {
+            console.warn(error);
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let discarding = match ids_to_discard(&scheme, &args.discard_kept_edits) {
+        Ok(ids) => ids,
+        Err(message) => {
+            console.warn(message);
+            return ExitCode::from(exit_codes::USAGE);
+        }
+    };
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
@@ -1699,13 +1747,6 @@ pub fn run_sync_with(
         }
     };
 
-    let scheme = match crate::config::resolve_scheme(config) {
-        Ok(scheme) => scheme,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
     let canonical_work_dir = match work_dir.canonicalize() {
         Ok(dir) => dir,
         Err(error) => {
@@ -1881,6 +1922,7 @@ pub fn run_sync_with(
                 workspace: &workspace,
                 work_dir: &work_dir,
                 scheme: &scheme,
+                discarding: &discarding,
                 finaliser: *finaliser,
             },
             &report,
@@ -1897,6 +1939,27 @@ pub fn run_sync_with(
             recovery,
         ),
     }
+}
+
+/// The items whose kept edits `--discard-kept-edits` names, each one an id
+/// that can name a directory.
+fn ids_to_discard(
+    scheme: &WorkItemIdScheme,
+    named: &[String],
+) -> Result<BTreeSet<String>, String> {
+    named
+        .iter()
+        .map(|id| {
+            if is_token_safe(scheme, id) {
+                Ok(id.clone())
+            } else {
+                Err(format!(
+                    "--discard-kept-edits '{}' is not a work-item id",
+                    single_line(id)
+                ))
+            }
+        })
+        .collect()
 }
 
 /// What a run's stores and ports are built from.
@@ -1993,6 +2056,7 @@ struct FinishedRunContext<'a> {
     workspace: &'a IdentityWorkspace,
     work_dir: &'a Path,
     scheme: &'a WorkItemIdScheme,
+    discarding: &'a BTreeSet<String>,
     finaliser: &'a dyn RunFinaliser,
 }
 
@@ -2005,6 +2069,7 @@ impl FinishedRunContext<'_> {
             work_root: self.work_dir.to_path_buf(),
             scheme: self.scheme,
             corpus: self.corpus,
+            discarding: self.discarding,
         }
     }
 }
@@ -3337,6 +3402,60 @@ mod tests {
                  each with accelerator work sync --target <id> \
                  --discard-kept-edits <id>",
             ]
+        );
+    }
+
+    #[test]
+    fn each_discard_says_what_became_of_it() {
+        use super::KeptEdits;
+
+        let earlier = || KeptEdits::KeptEarlier(kept("0001", Some(1)));
+        let directory = "/repo/.accelerator/state/sync-recovery/1-k7mq3x-0001";
+        let review = review_of(vec![
+            KeptEdits::Discarding {
+                entry: Box::new(earlier()),
+                dir: PathBuf::from("sync-recovery/1-k7mq3x-0001"),
+                item: None,
+            },
+            KeptEdits::Discarded {
+                id: "0001".to_owned(),
+                directory: PathBuf::from(directory),
+            },
+            KeptEdits::NotDiscarded {
+                entry: Box::new(earlier()),
+                reason: "Permission denied".to_owned(),
+            },
+            KeptEdits::NothingToDiscard {
+                id: "0009".to_owned(),
+            },
+        ]);
+
+        assert_eq!(
+            super::kept_edits_notes(&review),
+            vec![
+                format!(
+                    "note: 0001: kept-edits: {directory} would be discarded"
+                ),
+                format!("note: 0001: kept-edits: discarded {directory}"),
+                format!(
+                    "note: 0001: kept-edits: {directory} could not be \
+                     discarded: Permission denied"
+                ),
+                "note: 0009: kept-edits: no kept copy to discard".to_owned(),
+            ]
+        );
+        let report = report_with(DiscoveryStatus::Ran { found: 0 });
+        let rendered = render_report(&crate::finished_run::FinishedRun {
+            kept_edits: review,
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        });
+        assert_eq!(
+            rendered
+                .lines()
+                .filter(|line| line.starts_with("#\tkept-edits\t0001\tearlier"))
+                .count(),
+            2,
+            "a copy still kept is still recorded: {rendered}"
         );
     }
 
@@ -4830,6 +4949,7 @@ mod tests {
             allow_unbounded: false,
             no_promote: false,
             targets,
+            discard_kept_edits: Vec::new(),
         }
     }
 
@@ -5257,6 +5377,23 @@ mod tests {
 
         assert!(run.out.contains("#\tsummary\tsynced\t0"), "{}", run.out);
         assert_eq!(run.code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn an_unsafe_discard_id_exits_2_before_any_write() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let args = SyncArgs {
+            discard_kept_edits: vec!["../0001".to_owned()],
+            ..sync_args(vec![])
+        };
+
+        let run = drive_sync_captured(dir.path(), &tracker, &args);
+
+        assert_eq!(run.code, ExitCode::from(exit_codes::USAGE));
+        assert!(run.err.contains("../0001"), "{}", run.err);
+        assert!(tracker.calls().is_empty());
+        assert!(!dir.path().join(".accelerator/state").exists());
     }
 
     #[test]
