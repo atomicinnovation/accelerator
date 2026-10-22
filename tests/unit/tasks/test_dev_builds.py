@@ -101,10 +101,11 @@ def test_one_cargo_build_covers_every_binary_and_feature():
 
 
 def test_a_build_without_seams_passes_no_feature_flag():
-    command = cargo_build_command((LAUNCHER,))
+    unseamed = DevBinary("accelerator-vcs", package="accelerator-vcs")
+    command = cargo_build_command((unseamed,))
     assert command == (
         f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        "--bin accelerator"
+        "--bin accelerator-vcs"
     )
 
 

@@ -62,6 +62,100 @@ use config_adapters::credentials::{
 use config_adapters::{FileConfigStore, LegacyPolicy, TrackedConfigFile};
 use vcs_adapters::InProcessTracking;
 
+// A release build that turns debug assertions back on slips past this guard, so
+// `main` reads the marker below: stripping and LTO then keep its bytes in the
+// binary, where a scan can find them.
+#[cfg(all(feature = "test-loopback", not(debug_assertions)))]
+compile_error!("test-loopback must never be enabled in a release build");
+
+#[cfg(feature = "test-loopback")]
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_LAUNCHER_TEST_LOOPBACK_MARKER";
+
+/// Which key a release is trusted under.
+#[derive(Debug, PartialEq, Eq)]
+enum ReleaseTrust {
+    Embedded,
+    #[cfg(feature = "test-loopback")]
+    TestKey {
+        path: PathBuf,
+        contents: String,
+    },
+}
+
+/// Only a plain-`http` release on `127.0.0.1` may be a test release, so no
+/// host a user could name, and no lookalike of loopback, is ever admitted.
+#[cfg(feature = "test-loopback")]
+fn admits_test_release(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url).is_ok_and(|url| {
+        url.scheme() == "http" && url.host_str() == Some("127.0.0.1")
+    })
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_trust_for(base_url: &str, key: Option<&Path>) -> ReleaseTrust {
+    let Some(key) = key else {
+        return ReleaseTrust::Embedded;
+    };
+    if admits_test_release(base_url) {
+        if let Ok(contents) = std::fs::read_to_string(key) {
+            return ReleaseTrust::TestKey {
+                path: key.to_path_buf(),
+                contents,
+            };
+        }
+    }
+    tracing::warn!(
+        key = %key.display(),
+        "ignoring ACCELERATOR_TEST_RELEASE_PUBLIC_KEY"
+    );
+    ReleaseTrust::Embedded
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_trust() -> ReleaseTrust {
+    let key = std::env::var_os("ACCELERATOR_TEST_RELEASE_PUBLIC_KEY")
+        .map(PathBuf::from);
+    release_trust_for(&release_base_url(), key.as_deref())
+}
+
+#[cfg(not(feature = "test-loopback"))]
+const fn release_trust() -> ReleaseTrust {
+    ReleaseTrust::Embedded
+}
+
+fn release_keys() -> Result<TrustedKeys, ResolutionError> {
+    match release_trust() {
+        ReleaseTrust::Embedded => TrustedKeys::embedded(),
+        #[cfg(feature = "test-loopback")]
+        ReleaseTrust::TestKey { path, contents } => {
+            tracing::warn!(
+                "{TEST_LOOPBACK_MARKER}: trusting the test release key at {}",
+                path.display()
+            );
+            TrustedKeys::from_public_key_files(&[contents.as_str()])
+        }
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_fetcher_for(base_url: &str) -> Result<Fetcher, String> {
+    if admits_test_release(base_url) {
+        Fetcher::admitting_loopback_http()
+    } else {
+        Fetcher::new()
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_fetcher() -> Result<Fetcher, String> {
+    release_fetcher_for(&release_base_url())
+}
+
+#[cfg(not(feature = "test-loopback"))]
+fn release_fetcher() -> Result<Fetcher, String> {
+    Fetcher::new()
+}
+
 /// The release-download base URL, pinned to the `v{version}` tag and overridable
 /// by `ACCELERATOR_RELEASE_BASE_URL`.
 fn release_base_url() -> String {
@@ -116,8 +210,8 @@ fn production_resolver(
     consumed: &[AcquiredTree],
 ) -> Result<FetchVerifyCacheResolver, ResolutionError> {
     let _ = install_crypto_provider();
-    let keys = TrustedKeys::embedded()?;
-    let fetcher = Fetcher::new()
+    let keys = release_keys()?;
+    let fetcher = release_fetcher()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
     start.dispatch_resolver(
         DispatchConfig {
@@ -383,8 +477,8 @@ fn run_cache(
     start: &StartUp,
 ) -> Result<(), kernel::Error> {
     let _ = install_crypto_provider();
-    let keys = TrustedKeys::embedded()?;
-    let fetcher = Fetcher::new()
+    let keys = release_keys()?;
+    let fetcher = release_fetcher()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
     let resolver =
         start.tree_resolver(production_tree_config(&keys, &fetcher))?;
@@ -459,8 +553,8 @@ fn export_consumed_trees(
 /// caller mutates the environment, so the mutation is single-threaded.
 fn acquire_consumed_trees(start: &StartUp) -> Option<Vec<AcquiredTree>> {
     let _ = install_crypto_provider();
-    let keys = TrustedKeys::embedded().ok()?;
-    let fetcher = Fetcher::new().ok()?;
+    let keys = release_keys().ok()?;
+    let fetcher = release_fetcher().ok()?;
     let resolver = start
         .tree_resolver(production_tree_config(&keys, &fetcher))
         .ok()?;
@@ -545,6 +639,8 @@ fn parse_cli() -> Result<Cli, clap::Error> {
 }
 
 fn main() -> ExitCode {
+    #[cfg(feature = "test-loopback")]
+    std::hint::black_box(TEST_LOOPBACK_MARKER);
     // A fallible parse so the top-level `--help` can be intercepted and
     // augmented, and a usage error re-mapped from clap's exit 2 to 1; a
     // `foo --help` routes to External and is delegated to the child. The root
@@ -890,6 +986,123 @@ mod tests {
             "{outcome:?}"
         );
         Ok(())
+    }
+
+    #[cfg(feature = "test-loopback")]
+    #[allow(clippy::expect_used)]
+    mod test_release {
+        use std::path::{Path, PathBuf};
+
+        use accelerator::launch::outbound::resolve::fetcher::FetchError;
+
+        use super::super::{
+            release_fetcher_for, release_trust_for, ReleaseTrust,
+        };
+
+        const LOOPBACK: &str = "http://127.0.0.1:8123/releases";
+
+        struct KeyFile {
+            _directory: tempfile::TempDir,
+            path: PathBuf,
+        }
+
+        impl KeyFile {
+            fn path(&self) -> &Path {
+                &self.path
+            }
+        }
+
+        fn key_file() -> KeyFile {
+            let directory = tempfile::tempdir().expect("key directory");
+            let path = directory.path().join("release.pub");
+            std::fs::write(&path, "untrusted comment: test\nKEY\n")
+                .expect("key contents");
+            KeyFile {
+                _directory: directory,
+                path,
+            }
+        }
+
+        #[test]
+        fn a_loopback_base_url_trusts_the_test_key() {
+            let key = key_file();
+
+            assert_eq!(
+                release_trust_for(LOOPBACK, Some(key.path())),
+                ReleaseTrust::TestKey {
+                    path: key.path().to_path_buf(),
+                    contents: "untrusted comment: test\nKEY\n".to_owned(),
+                }
+            );
+        }
+
+        #[test]
+        fn a_non_loopback_base_url_ignores_the_test_key() {
+            let key = key_file();
+
+            for base_url in [
+                "https://github.com/atomicinnovation/accelerator/releases",
+                "https://127.0.0.1:8123",
+                "http://localhost:8123",
+                "http://10.0.0.1:8123",
+            ] {
+                assert_eq!(
+                    release_trust_for(base_url, Some(key.path())),
+                    ReleaseTrust::Embedded,
+                    "{base_url}"
+                );
+            }
+        }
+
+        #[test]
+        fn a_lookalike_host_is_not_loopback() {
+            let key = key_file();
+
+            for base_url in
+                ["http://127.0.0.1.example", "http://127.0.0.1@example"]
+            {
+                assert_eq!(
+                    release_trust_for(base_url, Some(key.path())),
+                    ReleaseTrust::Embedded,
+                    "{base_url}"
+                );
+            }
+        }
+
+        #[test]
+        fn a_missing_key_file_falls_back_to_the_embedded_key() {
+            assert_eq!(
+                release_trust_for(LOOPBACK, Some(Path::new("/absent/key.pub"))),
+                ReleaseTrust::Embedded
+            );
+            assert_eq!(
+                release_trust_for(LOOPBACK, None),
+                ReleaseTrust::Embedded
+            );
+        }
+
+        #[test]
+        fn a_non_loopback_base_url_keeps_https_only() {
+            for base_url in [
+                "https://github.com/atomicinnovation/accelerator/releases",
+                "http://127.0.0.1.example",
+                "http://127.0.0.1@example",
+            ] {
+                let refused = release_fetcher_for(base_url)
+                    .expect("fetcher")
+                    .get("http://127.0.0.1:1/manifest.json")
+                    .expect_err("an http fetch");
+
+                assert!(
+                    matches!(
+                        &refused,
+                        FetchError::Unreachable(detail)
+                            if detail.contains("refusing non-https")
+                    ),
+                    "{base_url}: {refused:?}"
+                );
+            }
+        }
     }
 
     #[cfg(unix)]

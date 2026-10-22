@@ -266,8 +266,8 @@ run. Each named build is one `invoke build.cli-dev --group <name>` and so one
 A lane depends on exactly the leaves for the binaries it runs, and
 `_CLI_DEV_BUILDS` in `tests/unit/tasks/test_mise.py` pins each lane's set.
 
-A binary whose package declares `test-loopback` (`jira`, `linear`,
-`research`) is built with it in every debug build. Two builds of one
+A binary whose package declares `test-loopback` (the launcher, `jira`,
+`linear`, `research`) is built with it in every debug build. Two builds of one
 `target/debug/<bin>` with different features overwrite each other, so a lane
 would otherwise run whichever ran last. The feature's compile guard refuses a
 release build that carries it.

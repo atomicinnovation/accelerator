@@ -29,6 +29,9 @@ path = "tests/fixtures/accelerator_fixture.rs"
 name = "launcher-fixture-lease-holder"
 path = "tests/fixtures/launcher_fixture_lease_holder.rs"
 
+[features]
+test-loopback = []
+
 [dependencies]
 kernel = { path = "../kernel" }
 config = { path = "../config" }
