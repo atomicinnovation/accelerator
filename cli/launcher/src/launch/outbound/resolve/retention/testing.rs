@@ -14,7 +14,10 @@ use super::super::ownership::{Ownership, ProcessOwnership};
 use super::super::prune_report::{NoPruneSteps, PruneSteps};
 use super::super::retention_windows::AGE_BACKSTOP;
 use super::super::single_flight::SingleFlightLocks;
+use super::super::tree::lease::{FlockProbe, LivenessProbe};
 use super::super::tree::locks::FlockLocks;
+use super::super::tree::reap::PinnedDigests;
+use super::super::tree::ExpectedDigests;
 use super::ports::CachePorts;
 use super::residue::BootstrapHolderLiveness;
 
@@ -117,6 +120,8 @@ pub struct Ports {
     pub locks: Arc<dyn SingleFlightLocks + Send + Sync>,
     pub steps: Arc<dyn PruneSteps + Send + Sync>,
     pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
+    pub lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
+    pub pins: Arc<dyn PinnedDigests + Send + Sync>,
 }
 
 impl Ports {
@@ -128,6 +133,8 @@ impl Ports {
             locks: Arc::new(FlockLocks),
             steps: Arc::new(NoPruneSteps),
             bootstrap_holders: Arc::new(LiveHolders::default()),
+            lease_liveness: Arc::new(FlockProbe),
+            pins: Arc::new(ExpectedDigests::Compiled),
         }
     }
 
@@ -139,6 +146,8 @@ impl Ports {
             locks: self.locks,
             steps: self.steps,
             bootstrap_holders: self.bootstrap_holders,
+            lease_liveness: self.lease_liveness,
+            pins: self.pins,
         }
     }
 }

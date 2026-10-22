@@ -9,6 +9,8 @@ use super::super::filesystem::CacheFilesystem;
 use super::super::ownership::Ownership;
 use super::super::prune_report::PruneSteps;
 use super::super::single_flight::SingleFlightLocks;
+use super::super::tree::lease::LivenessProbe;
+use super::super::tree::reap::PinnedDigests;
 use super::residue::BootstrapHolderLiveness;
 
 pub struct CachePorts {
@@ -18,4 +20,6 @@ pub struct CachePorts {
     pub locks: Arc<dyn SingleFlightLocks + Send + Sync>,
     pub steps: Arc<dyn PruneSteps + Send + Sync>,
     pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
+    pub lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
+    pub pins: Arc<dyn PinnedDigests + Send + Sync>,
 }
