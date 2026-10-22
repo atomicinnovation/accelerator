@@ -221,3 +221,17 @@ fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>
     );
     Ok(())
 }
+
+#[test]
+fn a_built_in_command_in_a_relocated_root_writes_nothing_to_stderr(
+) -> Result<(), Box<dyn Error>> {
+    let cache = tempfile::Builder::new()
+        .prefix("version-quiet-")
+        .tempdir()?;
+    let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+
+    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+    Ok(())
+}

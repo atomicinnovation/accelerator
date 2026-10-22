@@ -60,10 +60,6 @@ impl CacheRootConfig {
 /// fallback).
 pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     if let Some(override_dir) = &config.cache_dir_override {
-        tracing::info!(
-            path = %override_dir.display(),
-            "using ACCELERATOR_CACHE_DIR override for the cache root"
-        );
         return Ok(override_dir.clone());
     }
     let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
