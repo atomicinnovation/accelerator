@@ -1,5 +1,7 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
+mod console;
+
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -21,6 +23,7 @@ use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::draft_id::DraftId;
+use work::identity_run::IdentityRunGuard;
 use work::identity::IdentityField;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
@@ -35,6 +38,7 @@ use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::retirement::sweep_recoveries;
 use work_adapters::retirement::RecoveryNotice;
 use work_adapters::sync::baseline;
+use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
@@ -71,6 +75,7 @@ use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
+pub use console::Console;
 
 struct SystemClock;
 
@@ -97,7 +102,11 @@ pub fn integrations_dir(
     })
 }
 
-fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
+fn warn_outstanding_pushes(
+    console: &mut Console<'_>,
+    integrations_root: &Path,
+    integration: &str,
+) {
     let Ok(markers) = work_adapters::sync::pending_push::outstanding(
         integrations_root,
         integration,
@@ -108,12 +117,12 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
         let (path, marker) = match entry {
             Ok(readable) => readable,
             Err(unreadable) => {
-                eprintln!(
+                console.warn(format_args!(
                     "warning: {} could not be read ({}); a create or \
                      promotion it recorded may have partially applied",
-                    unreadable.path.display(),
-                    unreadable.detail
-                );
+                    single_line(&unreadable.path.display().to_string()),
+                    single_line(&unreadable.detail)
+                ));
                 continue;
             }
         };
@@ -133,20 +142,20 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
                     .map(work::tracker_key::TrackerKey::as_str),
             ),
         };
-        eprintln!(
+        console.warn(format_args!(
             "warning: {} names a pending push for '{}' attempted at {}{}{}",
-            path.display(),
-            request.title,
-            request.attempted_at,
+            single_line(&path.display().to_string()),
+            single_line(&request.title),
+            single_line(&request.attempted_at.to_string()),
             request
                 .failure
                 .as_deref()
-                .map(|detail| format!(", failure: {detail}"))
+                .map(|detail| format!(", failure: {}", single_line(detail)))
                 .unwrap_or_default(),
             external_id
-                .map(|id| format!(", external_id: {id}"))
+                .map(|id| format!(", external_id: {}", single_line(id)))
                 .unwrap_or_default()
-        );
+        ));
     }
 }
 
@@ -200,11 +209,17 @@ impl CorpusDiscovery for WorkDirDiscovery<'_> {
 
 /// Clears recovery copies nobody needs any more and warns about every
 /// restore still waiting for a person.
-fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
+fn sweep_kept_recoveries(
+    console: &mut Console<'_>,
+    recovery: &FileRecoveryCopies,
+) {
     let notices = match sweep_recoveries(recovery) {
         Ok(notices) => notices,
         Err(error) => {
-            eprintln!("warning: recovery copies could not be checked: {error}");
+            console.warn(format_args!(
+                "warning: recovery copies could not be checked: {}",
+                single_line(&error.to_string())
+            ));
             return;
         }
     };
@@ -213,20 +228,22 @@ fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
             RecoveryNotice::StillPending { dir, unrestored } => {
                 let paths =
                     unrestored.iter().fold(String::new(), |listing, path| {
-                        listing + "\n  " + &path.display().to_string()
+                        listing
+                            + "\n  "
+                            + &single_line(&path.display().to_string())
                     });
-                eprintln!(
+                console.warn(format_args!(
                     "warning: {RETIREMENT_INCOMPLETE}: these paths still differ \
                      from their recovery copies in {}:{paths}\ncompare each path \
                      with its recovery copy and merge, then delete the copy",
-                    recovery.location(&dir).display()
-                );
+                    single_line(&recovery.location(&dir).display().to_string())
+                ));
             }
-            RecoveryNotice::Cleared { dir } => eprintln!(
+            RecoveryNotice::Cleared { dir } => console.warn(format_args!(
                 "note: every path an incomplete restore left has been dealt \
                  with; removed {}",
-                recovery.location(&dir).display()
-            ),
+                single_line(&recovery.location(&dir).display().to_string())
+            )),
         }
     }
 }
@@ -246,20 +263,24 @@ pub fn unreadable_promotion_record_warnings(
                     "warning: the promotion record at {} could not be read \
                      ({}); its draft is treated as mid-promotion until the \
                      file is fixed or removed",
-                    unreadable.path.display(),
-                    unreadable.detail
+                    single_line(&unreadable.path.display().to_string()),
+                    single_line(&unreadable.detail)
                 )
             })
             .collect(),
         Err(error) => vec![format!(
-            "warning: the promotion records could not be listed: {error}"
+            "warning: the promotion records could not be listed: {}",
+            single_line(&error.to_string())
         )],
     }
 }
 
 /// Notes each retirement that completed after an incomplete restore; its
 /// copies stay for reference until the next run removes them.
-fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
+fn report_kept_recoveries(
+    console: &mut Console<'_>,
+    recovery: &FileRecoveryCopies,
+) {
     use corpus::store::RecoveryCopies as _;
 
     let Ok(kept) = recovery.kept(Path::new(RECOVERY_PARENT)) else {
@@ -267,17 +288,20 @@ fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
     };
     for kept in kept {
         if kept.state == corpus::store::KeptState::Completed {
-            eprintln!(
+            console.warn(format_args!(
                 "note: the retirement whose restore was incomplete has since \
                  completed; its recovery copies remain in {} for reference \
                  and are removed on the next sync",
-                recovery.location(&kept.dir).display()
-            );
+                single_line(
+                    &recovery.location(&kept.dir).display().to_string()
+                )
+            ));
         }
     }
 }
 
 fn parse_resolutions(
+    console: &mut Console<'_>,
     raw: &[(String, String)],
 ) -> Result<BTreeMap<String, Resolution>, String> {
     let mut resolutions = BTreeMap::new();
@@ -290,11 +314,12 @@ fn parse_resolutions(
         }
         let resolution = work::sync::resolve_conflict_token(token)
             .unwrap_or_else(|| {
-                eprintln!(
+                let (id, token) = (single_line(id), single_line(token));
+                console.warn(format_args!(
                     "warning: --resolve {id}={token} — '{token}' is not a \
                      recognised order (accepted: remote, local, skip); \
                      treating as skip"
-                );
+                ));
                 Resolution::Skip
             });
         resolutions.insert(id.clone(), resolution);
@@ -616,6 +641,7 @@ fn prepare_conflicts_dir(
 }
 
 fn persist_dossiers(
+    console: &mut Console<'_>,
     dossiers: &[ConflictDossier],
     dir: &Path,
     scheme: &WorkItemIdScheme,
@@ -624,10 +650,10 @@ fn persist_dossiers(
     let store = FileCorpusStore::new(dir);
     for dossier in dossiers {
         if !id_is_token_safe(scheme, &dossier.id) {
-            eprintln!(
+            console.warn(format_args!(
                 "warning: skipping dossier for unsafe id {:?}",
                 dossier.id
-            );
+            ));
             continue;
         }
         let body = match render_dossier(dossier, render) {
@@ -636,10 +662,11 @@ fn persist_dossiers(
         };
         let path = dir.join(format!("{}.md", dossier.id));
         if let Err(error) = store.write(&path, body.as_bytes()) {
-            eprintln!(
-                "warning: could not write conflict dossier {}: {error}",
-                path.display()
-            );
+            console.warn(format_args!(
+                "warning: could not write conflict dossier {}: {}",
+                single_line(&path.display().to_string()),
+                single_line(&error.to_string())
+            ));
         }
     }
 }
@@ -649,18 +676,20 @@ fn persist_dossiers(
 /// the two-invocation shape is sequential, so a stale file from a racing run
 /// is overwritten before it is read.
 fn persist_conflict_dossiers(
+    console: &mut Console<'_>,
     dir: &Path,
     dossiers: &[ConflictDossier],
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) {
     match prepare_conflicts_dir(dir, scheme) {
-        Ok(()) => persist_dossiers(dossiers, dir, scheme, render),
-        Err(error) => eprintln!(
+        Ok(()) => persist_dossiers(console, dossiers, dir, scheme, render),
+        Err(error) => console.warn(format_args!(
             "warning: conflict dossiers not written — could not guarantee an \
-             ignored {} ({error})",
-            dir.display()
-        ),
+             ignored {} ({})",
+            single_line(&dir.display().to_string()),
+            single_line(&error.to_string())
+        )),
     }
 }
 
@@ -894,6 +923,7 @@ fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
 /// candidate under `--push-only` is contradictory and fails here, before any
 /// tracker contact, so the abort stays credential-free.
 fn build_selection(
+    console: &mut Console<'_>,
     corpus: &[LocalItem],
     targets: &[String],
     direction: SyncDirection,
@@ -912,7 +942,7 @@ fn build_selection(
                 && !found.remote_candidates.is_empty()
             {
                 for candidate in &found.remote_candidates {
-                    eprintln!("{}", push_only_remote_only(candidate).message());
+                    console.warn(push_only_remote_only(candidate).message());
                 }
                 return Err(ExitCode::from(exit_codes::USAGE));
             }
@@ -924,7 +954,7 @@ fn build_selection(
         }
         Err(failures) => {
             for failure in &failures {
-                eprintln!("{}", failure.message());
+                console.warn(failure.message());
             }
             Err(ExitCode::from(highest_precedence_code(&failures)))
         }
@@ -1384,11 +1414,18 @@ fn run_error_outcome(
     }
 }
 
+/// What `run_sync_with` takes from its caller beyond the request: the
+/// tracker, what runs once the report is out, and where the run prints.
+pub struct SyncSeams<'a> {
+    pub registry: &'a dyn TrackerRegistry,
+    pub finaliser: &'a dyn RunFinaliser,
+    pub console: Console<'a>,
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn run_sync(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -1396,6 +1433,33 @@ pub fn run_sync(
     registry: &dyn TrackerRegistry,
     finaliser: &dyn RunFinaliser,
 ) -> ExitCode {
+    let (mut out, mut err) =
+        (std::io::stdout().lock(), std::io::stderr().lock());
+    run_sync_with(
+        start,
+        config,
+        args,
+        &mut SyncSeams {
+            registry,
+            finaliser,
+            console: Console::new(&mut out, &mut err),
+        },
+    )
+}
+
+#[must_use]
+#[allow(clippy::too_many_lines)]
+pub fn run_sync_with(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    args: &SyncArgs,
+    seams: &mut SyncSeams<'_>,
+) -> ExitCode {
+    let SyncSeams {
+        registry,
+        finaliser,
+        console,
+    } = seams;
     let direction = if args.push_only {
         SyncDirection::PushOnly
     } else if args.pull_only {
@@ -1404,10 +1468,10 @@ pub fn run_sync(
         SyncDirection::Bidirectional
     };
 
-    let resolutions = match parse_resolutions(&args.resolutions) {
+    let resolutions = match parse_resolutions(console, &args.resolutions) {
         Ok(resolutions) => resolutions,
         Err(message) => {
-            eprintln!("{message}");
+            console.warn(message);
             return ExitCode::from(exit_codes::USAGE);
         }
     };
@@ -1416,45 +1480,44 @@ pub fn run_sync(
         match crate::config::effective_nonempty(config, "work.integration") {
             Ok(value) => value,
             Err(error) => {
-                eprintln!("{error}");
+                console.warn(error);
                 return ExitCode::from(exit_codes::ERROR);
             }
         };
 
     if let Err(message) = validate_pull_config(config, &integration) {
-        eprintln!("{message}");
+        console.warn(message);
         return ExitCode::from(exit_codes::ERROR);
     }
 
     if let Err(message) = validate_push_config(config, &integration) {
-        eprintln!("{message}");
+        console.warn(message);
         return ExitCode::from(exit_codes::ERROR);
     }
 
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
-    let root = config_adapters::FileConfigStore::discover_root(start);
-    let repo_root = root.clone();
+    let repo_root = config_adapters::FileConfigStore::discover_root(start);
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
             let (message, code) =
                 crate::identity_run::refused(refusal, &repo_root);
-            eprintln!("{message}");
+            console.warn(message);
             return ExitCode::from(code);
         }
     };
-    let work_dir = match crate::config::resolve_work_dir(config, &root) {
+    let work_dir = match crate::config::resolve_work_dir(config, &repo_root) {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!("{error}");
+            console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
-    let integrations_root = match integrations_dir(config, &root) {
+    let integrations_root = match integrations_dir(config, &repo_root) {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!("{error}");
+            console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
@@ -1462,7 +1525,7 @@ pub fn run_sync(
     let items = match discover_items(&work_dir) {
         Ok(items) => items,
         Err(error) => {
-            eprintln!("{error}");
+            console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
@@ -1470,28 +1533,34 @@ pub fn run_sync(
     let scheme = match crate::config::resolve_scheme(config) {
         Ok(scheme) => scheme,
         Err(error) => {
-            eprintln!("{error}");
+            console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
     let canonical_work_dir = match work_dir.canonicalize() {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!(
-                "could not resolve the work directory {}: {error}",
-                work_dir.display()
-            );
+            console.warn(format_args!(
+                "could not resolve the work directory {}: {}",
+                single_line(&work_dir.display().to_string()),
+                single_line(&error.to_string())
+            ));
             return ExitCode::from(exit_codes::ERROR);
         }
     };
     let resolver = |token: &str| {
         crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
     };
-    let selected =
-        match build_selection(&items, &args.targets, direction, &resolver) {
-            Ok(selected) => selected,
-            Err(code) => return code,
-        };
+    let selected = match build_selection(
+        console,
+        &items,
+        &args.targets,
+        direction,
+        &resolver,
+    ) {
+        Ok(selected) => selected,
+        Err(code) => return code,
+    };
 
     let tracker = match registry.resolve(&integration) {
         Ok(tracker) => tracker,
@@ -1499,15 +1568,15 @@ pub fn run_sync(
             error @ (SelectionError::Unset
             | SelectionError::Unrecognised { .. }),
         ) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::UNRECOGNISED);
         }
         Err(error @ SelectionError::NotAvailable { .. }) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::NOT_AVAILABLE);
         }
         Err(error @ SelectionError::Unconfigured { .. }) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::UNCONFIGURED);
         }
     };
@@ -1522,7 +1591,7 @@ pub fn run_sync(
             Ok(found) => found,
             Err(failures) => {
                 for failure in &failures {
-                    eprintln!("{}", failure.message());
+                    console.warn(failure.message());
                 }
                 return ExitCode::from(highest_precedence_code(&failures));
             }
@@ -1538,61 +1607,14 @@ pub fn run_sync(
     ) {
         Ok(workspace) => workspace,
         Err(message) => {
-            eprintln!("{message}");
+            console.warn(message);
             return ExitCode::from(exit_codes::ERROR);
         }
-    };
-    let baseline_path = workspace.baseline_path();
-    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
-    let corpus_store = FileCorpusStore::new(baseline_dir);
-    let project_store = FileCorpusStore::new(&repo_root);
-    let state_store = FileCorpusStore::new(workspace.state_dir());
-    let integrations_store = FileCorpusStore::new(&integrations_root);
-    let mut baseline_store = workspace.baseline(&corpus_store);
-    let retirement_baseline = workspace.baseline(&corpus_store);
-    let retirement =
-        workspace.retirement_ports(&project_store, &retirement_baseline);
-    let records = workspace.retirement_records(&state_store);
-    let promotions = workspace.promotion_records(&integrations_store);
-    let probe_status = || -> Box<dyn WorkingCopyStatus> {
-        Box::new(VcsWorkingCopyStatus::probed_from(
-            &repo_root,
-            &InProcessProbe,
-        ))
-    };
-    let settlement = SettlementPorts {
-        retirement: &retirement,
-        records: &records,
-        promotions: &promotions,
-        ownership: scheme.ownership(),
-        state_dir: workspace.state_dir(),
-        probe_status: &probe_status,
-        remote: work_adapters::promotion::RemoteReading {
-            tracker: tracker.as_ref(),
-            parser: &CommonMarkBody,
-        },
-        identity_run: &identity_run,
     };
     let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {
         work_dir: &work_dir,
         root: &repo_root,
-    };
-    let clock = SystemClock;
-    let author = crate::sync_author::ConfiguredLocalAuthor::new(
-        config,
-        root,
-        work_dir.clone(),
-        &identity_run,
-    );
-
-    let ports = SyncPorts {
-        tracker: tracker.as_ref(),
-        parser: &CommonMarkBody,
-        status: workspace.status(),
-        writer: &corpus_store,
-        clock: &clock,
-        author: &author,
     };
     let mode = if args.preview {
         RunMode::Preview
@@ -1638,7 +1660,7 @@ pub fn run_sync(
         work_adapters::sync::scope::is_broadened(&scope),
         args.allow_unbounded,
     ) {
-        eprintln!("{}", unbounded_gate_message(&integration));
+        console.warn(unbounded_gate_message(&integration));
         return ExitCode::from(exit_codes::REFUSED_UNBOUNDED);
     }
     let request = SyncRequest {
@@ -1656,98 +1678,234 @@ pub fn run_sync(
         promote: !args.no_promote,
     };
 
-    sweep_kept_recoveries(recovery);
-    for warning in unreadable_promotion_record_warnings(&promotions) {
-        eprintln!("{warning}");
-    }
-    match run_settled(
-        &request,
-        &ports,
-        &settlement,
-        &mut baseline_store,
-        &discovery,
-    ) {
-        Ok(report) => {
-            if let work_adapters::sync::baseline::Degradation::Unparseable {
-                detail,
-            } = &report.baseline_degradation
+    sweep_kept_recoveries(console, recovery);
+    let outcome = assemble_run(
+        &RunAssembly {
+            config,
+            workspace: &workspace,
+            repo_root: &repo_root,
+            work_dir: &work_dir,
+            integrations_root: &integrations_root,
+            tracker: tracker.as_ref(),
+            ownership: scheme.ownership(),
+            identity_run: &identity_run,
+        },
+        |ports, settlement, baseline| {
+            for warning in
+                unreadable_promotion_record_warnings(settlement.promotions)
             {
-                eprintln!(
-                    "warning: {} could not be parsed ({detail}); treating \
-                     as empty",
-                    baseline::path(&integrations_root, &integration).display()
-                );
+                console.warn(warning);
             }
-            if let work_adapters::sync::baseline::Degradation::EntriesDiscarded {
-                ids,
-            } = &report.baseline_degradation
-            {
-                eprintln!(
-                    "warning: baseline entries discarded (malformed): {}",
-                    ids.join(", ")
-                );
-            }
-            if report.keyed_read_budget_limited {
-                eprintln!(
-                    "warning: the keyed reconcile read was cut short by a \
-                     transient budget limit (a deadline or wire failure); the \
-                     affected items are indeterminate this run and will \
-                     reconcile on a retry."
-                );
-            }
-            let conflicts_dir =
-                integrations_root.join(&integration).join("conflicts");
-            match crate::config::resolve_scheme(config) {
-                Ok(scheme) => persist_conflict_dossiers(
-                    &conflicts_dir,
-                    &report.dossiers,
-                    &scheme,
-                    &work_adapters::diff::render,
-                ),
-                Err(error) => eprintln!(
-                    "warning: conflict dossiers not written — could not \
-                     resolve the work-item id scheme ({error})"
-                ),
-            }
-            println!("{}", render_report(&report));
-            if let Some(warning) = unsupported_recipe_warning(&report) {
-                eprintln!("{warning}");
-            }
-            finaliser.finalise(
-                &FinishedRun {
-                    report: &report,
-                    mode,
-                    corpus_external_ids: items
-                        .iter()
-                        .filter_map(|item| item.external_id.clone())
-                        .collect(),
-                    integrations_root: &integrations_root,
-                    repo_root: &repo_root,
-                },
-                &mut std::io::stderr(),
-            );
-            warn_outstanding_pushes(&integrations_root, &integration);
-            report_kept_recoveries(recovery);
-            ExitCode::from(exit_code_for_report(&report))
-        }
-        Err(failure) => {
-            for line in stopped_run_lines(&failure) {
-                println!("{line}");
-            }
-            let (message, code) = run_error_outcome(
-                &failure.error,
-                &RunErrorContext {
-                    config,
-                    integration: &integration,
-                    max_pulls_source,
-                    max_pushes_source,
-                },
-            );
-            eprintln!("{message}");
-            report_kept_recoveries(recovery);
-            ExitCode::from(code)
-        }
+            run_settled(&request, ports, settlement, baseline, &discovery)
+        },
+    );
+    match outcome {
+        Ok(report) => report_finished_run(
+            console,
+            &FinishedRunContext {
+                config,
+                integration: &integration,
+                integrations_root: &integrations_root,
+                repo_root: &repo_root,
+                mode,
+                corpus: &items,
+                recovery,
+                finaliser: *finaliser,
+            },
+            &report,
+        ),
+        Err(failure) => report_stopped_run(
+            console,
+            &failure,
+            &RunErrorContext {
+                config,
+                integration: &integration,
+                max_pulls_source,
+                max_pushes_source,
+            },
+            recovery,
+        ),
     }
+}
+
+/// What a run's stores and ports are built from.
+struct RunAssembly<'a> {
+    config: &'a dyn ConfigAccess,
+    workspace: &'a IdentityWorkspace,
+    repo_root: &'a Path,
+    work_dir: &'a Path,
+    integrations_root: &'a Path,
+    tracker: &'a dyn tracker::RemoteTracker,
+    ownership: IdOwnership,
+    identity_run: &'a IdentityRunGuard,
+}
+
+/// Builds the stores and ports a run writes through and hands them to
+/// `run`. They borrow one another, so they live only as long as it does.
+fn assemble_run<T>(
+    assembly: &RunAssembly<'_>,
+    run: impl for<'p> FnOnce(
+        &SyncPorts<'p>,
+        &SettlementPorts<'_>,
+        &mut BaselineStore<'p>,
+    ) -> T,
+) -> T {
+    let workspace = assembly.workspace;
+    let baseline_path = workspace.baseline_path();
+    let baseline_dir =
+        baseline_path.parent().unwrap_or(assembly.integrations_root);
+    let corpus_store = FileCorpusStore::new(baseline_dir);
+    let project_store = FileCorpusStore::new(assembly.repo_root);
+    let state_store = FileCorpusStore::new(workspace.state_dir());
+    let integrations_store = FileCorpusStore::new(assembly.integrations_root);
+    let mut baseline_store = workspace.baseline(&corpus_store);
+    let retirement_baseline = workspace.baseline(&corpus_store);
+    let retirement =
+        workspace.retirement_ports(&project_store, &retirement_baseline);
+    let records = workspace.retirement_records(&state_store);
+    let promotions = workspace.promotion_records(&integrations_store);
+    let probe_status = || -> Box<dyn WorkingCopyStatus> {
+        Box::new(VcsWorkingCopyStatus::probed_from(
+            assembly.repo_root,
+            &InProcessProbe,
+        ))
+    };
+    let settlement = SettlementPorts {
+        retirement: &retirement,
+        records: &records,
+        promotions: &promotions,
+        ownership: assembly.ownership,
+        state_dir: workspace.state_dir(),
+        probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker: assembly.tracker,
+            parser: &CommonMarkBody,
+        },
+        identity_run: assembly.identity_run,
+    };
+    let clock = SystemClock;
+    let author = crate::sync_author::ConfiguredLocalAuthor::new(
+        assembly.config,
+        assembly.repo_root.to_path_buf(),
+        assembly.work_dir.to_path_buf(),
+        assembly.identity_run,
+    );
+    let ports = SyncPorts {
+        tracker: assembly.tracker,
+        parser: &CommonMarkBody,
+        status: workspace.status(),
+        writer: &corpus_store,
+        clock: &clock,
+        author: &author,
+    };
+    run(&ports, &settlement, &mut baseline_store)
+}
+
+/// What reporting a finished run needs beside its report.
+struct FinishedRunContext<'a> {
+    config: &'a dyn ConfigAccess,
+    integration: &'a str,
+    integrations_root: &'a Path,
+    repo_root: &'a Path,
+    mode: RunMode,
+    corpus: &'a [LocalItem],
+    recovery: &'a FileRecoveryCopies,
+    finaliser: &'a dyn RunFinaliser,
+}
+
+fn report_finished_run(
+    console: &mut Console<'_>,
+    context: &FinishedRunContext<'_>,
+    report: &RunReport,
+) -> ExitCode {
+    match &report.baseline_degradation {
+        baseline::Degradation::Unparseable { detail } => {
+            console.warn(format_args!(
+                "warning: {} could not be parsed ({}); treating as empty",
+                single_line(
+                    &baseline::path(
+                        context.integrations_root,
+                        context.integration
+                    )
+                    .display()
+                    .to_string()
+                ),
+                single_line(detail)
+            ));
+        }
+        baseline::Degradation::EntriesDiscarded { ids } => {
+            console.warn(format_args!(
+                "warning: baseline entries discarded (malformed): {}",
+                single_line(&ids.join(", "))
+            ));
+        }
+        baseline::Degradation::None => {}
+    }
+    if report.keyed_read_budget_limited {
+        console.warn(
+            "warning: the keyed reconcile read was cut short by a transient \
+             budget limit (a deadline or wire failure); the affected items \
+             are indeterminate this run and will reconcile on a retry.",
+        );
+    }
+    let conflicts_dir = context
+        .integrations_root
+        .join(context.integration)
+        .join("conflicts");
+    match crate::config::resolve_scheme(context.config) {
+        Ok(scheme) => persist_conflict_dossiers(
+            console,
+            &conflicts_dir,
+            &report.dossiers,
+            &scheme,
+            &work_adapters::diff::render,
+        ),
+        Err(error) => console.warn(format_args!(
+            "warning: conflict dossiers not written — could not resolve the \
+             work-item id scheme ({})",
+            single_line(&error.to_string())
+        )),
+    }
+    console.report(render_report(report));
+    if let Some(warning) = unsupported_recipe_warning(report) {
+        console.warn(warning);
+    }
+    context.finaliser.finalise(
+        &FinishedRun {
+            report,
+            mode: context.mode,
+            corpus_external_ids: context
+                .corpus
+                .iter()
+                .filter_map(|item| item.external_id.clone())
+                .collect(),
+            integrations_root: context.integrations_root,
+            repo_root: context.repo_root,
+        },
+        &mut console.warnings(),
+    );
+    warn_outstanding_pushes(
+        console,
+        context.integrations_root,
+        context.integration,
+    );
+    report_kept_recoveries(console, context.recovery);
+    ExitCode::from(exit_code_for_report(report))
+}
+
+fn report_stopped_run(
+    console: &mut Console<'_>,
+    failure: &SettledRunFailure,
+    context: &RunErrorContext<'_>,
+    recovery: &FileRecoveryCopies,
+) -> ExitCode {
+    for line in stopped_run_lines(failure) {
+        console.report(line);
+    }
+    let (message, code) = run_error_outcome(&failure.error, context);
+    console.warn(message);
+    report_kept_recoveries(console, recovery);
+    ExitCode::from(code)
 }
 
 #[cfg(test)]
@@ -2224,7 +2382,10 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
         let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         let outcome = build_selection(
+            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &["PP-999".to_owned()],
             SyncDirection::PushOnly,
@@ -2257,7 +2418,10 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", None)];
         let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         let selected = build_selection(
+            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &[],
             SyncDirection::Bidirectional,
@@ -3613,7 +3777,10 @@ mod tests {
             conflict_dossier("../ENG-1", false),
         ];
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
             &dossiers,
             dir.path(),
             &tracker_scheme(),
@@ -3630,7 +3797,10 @@ mod tests {
     fn a_conflict_dossier_is_written_for_a_draft() {
         let dir = tempfile::tempdir().expect("tempdir");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
             &[conflict_dossier("draft-k7mq3x", false)],
             dir.path(),
             &tracker_scheme(),
@@ -3670,7 +3840,15 @@ mod tests {
             conflict_dossier("../evil", false),
         ];
 
-        super::persist_dossiers(&dossiers, dir.path(), &scheme(), &ok_render);
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
+        super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &dossiers,
+            dir.path(),
+            &scheme(),
+            &ok_render,
+        );
 
         assert_eq!(md_files(dir.path()), vec!["0001.md", "0002.md"]);
         let renderable =
@@ -3689,7 +3867,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let conflicts = dir.path().join("somewhere").join("conflicts");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_conflict_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
             &conflicts,
             &[conflict_dossier("0001", false)],
             &scheme(),
@@ -3715,7 +3896,10 @@ mod tests {
         )
         .expect("seed");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_conflict_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
             &conflicts,
             &[conflict_dossier("0002", false)],
             &scheme(),
@@ -3779,7 +3963,10 @@ mod tests {
         )
         .expect("chmod");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_conflict_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
             &conflicts,
             &[conflict_dossier("0002", false)],
             &scheme(),
@@ -3806,9 +3993,10 @@ mod tests {
     //
     // `accelerator-work` is bin-only, so these in-crate tests are the only seam
     // that can exercise the post-credential `fetch_all` gate without live
-    // Linear/Jira. `run_sync` returns an opaque `ExitCode`, so they assert the
-    // observable effects — files written or not, the fetch_all call made or not
-    // — while the exit-code chain is proven by the pure-logic tests above.
+    // Linear/Jira. `run_sync_with` returns an opaque `ExitCode`, so they assert
+    // the observable effects — files written, tracker calls made, and what the
+    // captured console printed — while the exit-code chain is proven by the
+    // pure-logic tests above.
 
     use std::cell::RefCell;
     use std::process::ExitCode;
@@ -4130,25 +4318,28 @@ mod tests {
 
     fn sync_repo() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
+        init_sync_repo(dir.path());
+        dir
+    }
+
+    fn init_sync_repo(root: &Path) {
         let git = |args: &[&str]| {
             std::process::Command::new("git")
                 .args(args)
-                .current_dir(dir.path())
+                .current_dir(root)
                 .status()
                 .expect("git invocation");
         };
         git(&["init", "-q"]);
         git(&["config", "user.name", "Test User"]);
         git(&["config", "user.email", "test@example.com"]);
-        std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
-        std::fs::create_dir_all(dir.path().join(".accelerator"))
-            .expect("mkdir");
+        std::fs::create_dir_all(root.join("meta/work")).expect("mkdir");
+        std::fs::create_dir_all(root.join(".accelerator")).expect("mkdir");
         std::fs::write(
-            dir.path().join(".accelerator/config.md"),
+            root.join(".accelerator/config.md"),
             "---\nwork:\n  integration: jira\n---\n",
         )
         .expect("write config");
-        dir
     }
 
     /// Whether the run persisted a baseline for the integration — proof the
@@ -4201,13 +4392,51 @@ mod tests {
         args: &SyncArgs,
         finaliser: &dyn RunFinaliser,
     ) -> ExitCode {
+        capture_sync_finalising(dir, tracker, args, finaliser).code
+    }
+
+    struct CapturedRun {
+        out: String,
+        err: String,
+        code: ExitCode,
+    }
+
+    fn drive_sync_captured(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+    ) -> CapturedRun {
+        capture_sync_finalising(dir, tracker, args, &NoFinaliser)
+    }
+
+    fn capture_sync_finalising(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        finaliser: &dyn RunFinaliser,
+    ) -> CapturedRun {
         let composed = config_adapters::compose(
             dir,
             config_adapters::LegacyPolicy::Reject,
         )
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
-        super::run_sync(dir, &composed.service, args, &registry, finaliser)
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::run_sync_with(
+            dir,
+            &composed.service,
+            args,
+            &mut super::SyncSeams {
+                registry: &registry,
+                finaliser,
+                console: super::Console::new(&mut out, &mut err),
+            },
+        );
+        CapturedRun {
+            out: String::from_utf8(out).expect("stdout is UTF-8"),
+            err: String::from_utf8(err).expect("stderr is UTF-8"),
+            code,
+        }
     }
 
     fn tracker_sync_repo_with_a_draft() -> tempfile::TempDir {
@@ -4428,7 +4657,7 @@ mod tests {
     struct RecordingFinaliser {
         corpus: RefCell<Vec<String>>,
         imports: RefCell<Vec<String>>,
-        complains: bool,
+        complaint: Option<&'static str>,
     }
 
     impl RunFinaliser for RecordingFinaliser {
@@ -4447,8 +4676,8 @@ mod tests {
                     .iter()
                     .map(|id| id.as_str().to_owned()),
             );
-            if self.complains {
-                let _ = writeln!(diagnostics, "warning: finaliser failed");
+            if let Some(complaint) = self.complaint {
+                let _ = writeln!(diagnostics, "{complaint}");
             }
         }
     }
@@ -4548,12 +4777,147 @@ mod tests {
             &tracker(),
             &sync_args(Vec::new()),
             &RecordingFinaliser {
-                complains: true,
+                complaint: Some("warning: finaliser failed"),
                 ..RecordingFinaliser::default()
             },
         );
 
         assert_eq!(observed, expected);
+    }
+
+    fn unparseable_baseline(root: &Path) {
+        let baseline =
+            root.join(".accelerator/state/integrations/jira/last-sync.json");
+        std::fs::create_dir_all(baseline.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(baseline, "not json").expect("seed the baseline");
+    }
+
+    #[test]
+    fn a_captured_run_prints_its_report_to_the_console() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(run.out.contains("#\tsummary\tsynced\t0"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn a_warning_reaches_err_and_not_out() {
+        let dir = sync_repo();
+        unparseable_baseline(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(run.err.contains("could not be parsed"), "{}", run.err);
+        assert!(!run.out.contains("could not be parsed"), "{}", run.out);
+    }
+
+    #[test]
+    fn a_warning_with_control_characters_is_printed_safely() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                resolutions: vec![(
+                    "0001".to_owned(),
+                    "\x1b[2J\rremote".to_owned(),
+                )],
+                ..sync_args(vec![])
+            },
+        );
+
+        assert!(run.err.contains("is not a recognised order"), "{}", run.err);
+        assert!(!run.err.contains(['\x1b', '\r']), "{:?}", run.err);
+    }
+
+    #[test]
+    fn a_newline_in_a_warning_path_is_collapsed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().join("forged\nwarning: injected");
+        std::fs::create_dir_all(&root).expect("mkdir");
+        init_sync_repo(&root);
+        unparseable_baseline(&root);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(&root, &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.err.contains(
+                "forged warning: injected/.accelerator/state/integrations/\
+                 jira/last-sync.json could not be parsed"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(
+            !run.err
+                .lines()
+                .any(|line| line.starts_with("warning: injected")),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
+    fn a_still_pending_restore_warning_keeps_its_layout() {
+        use corpus::store::RecoveryCopies as _;
+
+        let dir = sync_repo();
+        let root = config_adapters::FileConfigStore::discover_root(dir.path());
+        let recovery = corpus_adapters::FileRecoveryCopies::new(
+            root.join(super::STATE_DIR),
+            &root,
+        );
+        let kept = Path::new(work::retirement::RECOVERY_PARENT).join("0001");
+        let child = root.join("meta/notes/child.md");
+        std::fs::create_dir_all(child.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(&child, "edited after the retirement").expect("write");
+        recovery.prepare(&kept).expect("prepare");
+        recovery
+            .write_once(&kept, &child, b"as the retirement left it")
+            .expect("copy");
+        recovery
+            .mark_restore_pending(&kept, std::slice::from_ref(&child))
+            .expect("mark");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(&root, &tracker, &sync_args(vec![]));
+
+        let expected = format!(
+            "warning: retirement-incomplete: these paths still differ from \
+             their recovery copies in {}:\n  {}\ncompare each path with its \
+             recovery copy and merge, then delete the copy\n",
+            recovery.location(&kept).display(),
+            child.display()
+        );
+        assert!(run.err.contains(&expected), "{}", run.err);
+    }
+
+    #[test]
+    fn a_finaliser_warning_is_printed_safely() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = capture_sync_finalising(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &RecordingFinaliser {
+                complaint: Some("warning: \x1b[31mred\rover"),
+                ..RecordingFinaliser::default()
+            },
+        );
+
+        assert!(run.err.contains("red"), "{}", run.err);
+        assert!(!run.err.contains(['\x1b', '\r']), "{:?}", run.err);
     }
 
     fn issue(body: &str) -> RemoteIssue {
