@@ -43,6 +43,8 @@ use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
 use crate::sync::apply::RetitleRequest;
 use crate::sync::apply::UnchangedSinceSync;
+use crate::sync::attempt::ItemAttempt;
+use crate::sync::attempt::StepError;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
@@ -832,17 +834,19 @@ impl<'a> RunKnowledge<'a> {
 
     /// `item`'s file as the run read it, before classifying it.
     fn local_content(&self, item: &LocalItem) -> Result<&str, ApplyError> {
-        let snapshot =
-            self.snapshot(&item.id).ok_or_else(|| ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: SyncOperation::ReadLocal,
-                detail: "the run took no snapshot of the file".to_owned(),
-            })?;
-        snapshot.content().map_err(|error| ApplyError::Io {
-            item_id: item.id.clone(),
-            operation: SyncOperation::ReadLocal,
-            detail: error.to_string(),
-        })
+        ItemAttempt::begin(&item.id).observe_local(
+            SyncOperation::ReadLocal,
+            || {
+                self.snapshot(&item.id)
+                    .ok_or_else(|| {
+                        StepError::Failed(
+                            "the run took no snapshot of the file".to_owned(),
+                        )
+                    })?
+                    .content()
+                    .map_err(|error| StepError::Failed(error.to_string()))
+            },
+        )
     }
 
     fn remote_updated(&self, id: &str) -> RemoteTimestamp {
@@ -1260,8 +1264,12 @@ fn send_outcome(
         }),
         _ => return ItemOutcome::NotApplied,
     };
-    match sent {
-        Ok(()) => ItemOutcome::Applied,
+    outcome_of(sent.result)
+}
+
+fn outcome_of<T>(result: Result<T, ApplyError>) -> ItemOutcome {
+    match result {
+        Ok(_) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
     }
 }
@@ -1323,11 +1331,7 @@ fn pull_outcome(
         unchanged_since_sync: knowledge.unchanged_since_sync(&item.id),
         recovery_label: labels.label_for(&item.id),
     });
-    let outcome = match attempt.result {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
-    };
-    (outcome, attempt.kept_edits)
+    (outcome_of(attempt.result), attempt.kept_edits)
 }
 
 /// This run's way of naming the directory a pull keeps an item's edits in.
@@ -1343,30 +1347,32 @@ impl RunLabels<'_> {
 }
 
 fn record_outcome(
-    applier: &ItemApplier<'_, '_>,
+    applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     snapshot: &ItemSnapshot<'_>,
     knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let fingerprints = match snapshot.recorded() {
+    let fingerprints = match ItemAttempt::begin(&item.id).observe_local(
+        SyncOperation::HashLocal,
+        || {
+            snapshot
+                .recorded()
+                .map_err(|error| StepError::Failed(error.to_string()))
+        },
+    ) {
         Ok(fingerprints) => fingerprints,
-        Err(error) => {
-            return ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: SyncOperation::HashLocal,
-                detail: error.to_string(),
-            })
-        }
+        Err(error) => return ItemOutcome::Failed(error),
     };
-    match applier.record_baseline(&RecordRequest {
-        id: &item.id,
-        file_path: &item.path,
-        fingerprints,
-        remote_updated: knowledge.remote_updated(&item.id),
-    }) {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
-    }
+    outcome_of(
+        applier
+            .record_baseline(&RecordRequest {
+                id: &item.id,
+                file_path: &item.path,
+                fingerprints,
+                remote_updated: knowledge.remote_updated(&item.id),
+            })
+            .result,
+    )
 }
 
 /// `item` reported as untouched for want of a known digest recipe, when its
@@ -1472,11 +1478,10 @@ fn apply_local_create(
         return create_report(
             item.id.clone(),
             Action::CreateFromLocal,
-            ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: SyncOperation::ReadLocal,
-                detail: "unreadable or malformed frontmatter".to_owned(),
-            }),
+            ItemOutcome::Failed(ItemAttempt::begin(&item.id).io_failure(
+                SyncOperation::ReadLocal,
+                "unreadable or malformed frontmatter",
+            )),
         );
     };
     let Some(marker_path) = crate::sync::pending_push::for_item(
@@ -1487,24 +1492,26 @@ fn apply_local_create(
         return create_report(
             item.id.clone(),
             Action::CreateFromLocal,
-            ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: SyncOperation::MarkerWrite,
-                detail: "id cannot name a pending-push marker".to_owned(),
-            }),
+            ItemOutcome::Failed(ItemAttempt::begin(&item.id).io_failure(
+                SyncOperation::MarkerWrite,
+                "id cannot name a pending-push marker",
+            )),
         );
     };
-    match applier.create_from_local(&CreateFromLocalRequest {
-        item_id: &item.id,
-        file_path: &item.path,
-        title: &title,
-        body: &body,
-        kind: &kind,
-        marker_path: &marker_path,
-        author,
-        corpus_carries,
-        attempted_at,
-    }) {
+    match applier
+        .create_from_local(&CreateFromLocalRequest {
+            item_id: &item.id,
+            file_path: &item.path,
+            title: &title,
+            body: &body,
+            kind: &kind,
+            marker_path: &marker_path,
+            author,
+            corpus_carries,
+            attempted_at,
+        })
+        .result
+    {
         Ok(leftover_marker) => ReportedItem {
             leftover_marker,
             ..create_report(
@@ -1891,11 +1898,9 @@ fn execute<'a>(
         );
 
         for external_id in &untracked {
-            let outcome =
-                match applier.create_from_remote(external_id, ports.author) {
-                    Ok(_) => ItemOutcome::Applied,
-                    Err(error) => ItemOutcome::Failed(error),
-                };
+            let outcome = outcome_of(
+                applier.create_from_remote(external_id, ports.author).result,
+            );
             reported.push(create_report(
                 external_id.as_str().to_owned(),
                 Action::CreateFromRemote,

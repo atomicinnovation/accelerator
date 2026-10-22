@@ -3,6 +3,7 @@
 //! `tracker::RemoteTracker`.
 
 pub mod apply;
+mod attempt;
 pub mod baseline;
 pub mod baseline_digester;
 pub mod baseline_store;
