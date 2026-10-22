@@ -34,8 +34,10 @@ use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
 use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
+use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::tree::{
     pins, ExpectedDigests, NoSteps, SystemClock,
 };
@@ -120,6 +122,8 @@ fn production_ports() -> Arc<CachePorts> {
         filesystem: Arc::new(SystemFilesystem),
         ownership: Arc::new(ProcessOwnership),
         clock: Arc::new(SystemClock),
+        locks: Arc::new(FlockLocks),
+        steps: Arc::new(NoPruneSteps),
     })
 }
 

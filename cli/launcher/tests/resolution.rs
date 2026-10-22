@@ -29,11 +29,13 @@ use accelerator::launch::outbound::resolve::filesystem::{
 };
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::launcher_id;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention_windows::{
     CLAIM_WINDOW, REFRESH_FRACTION,
 };
+use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::tree::SystemClock;
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
@@ -311,6 +313,8 @@ fn start_up_over(
             filesystem,
             ownership: Arc::new(ProcessOwnership),
             clock: Arc::new(SystemClock),
+            locks: Arc::new(FlockLocks),
+            steps: Arc::new(NoPruneSteps),
         }),
     )
 }
