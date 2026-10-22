@@ -1285,6 +1285,7 @@ mod tests {
             &mut store,
             &work_adapters::sync::run::SyncRequest {
                 corpus: items,
+                inventory: &work_adapters::sync::fetch::inventory_of(items),
                 selection: work_adapters::sync::run::ItemSelection::All,
                 direction: SyncDirection::Bidirectional,
                 strategy: RetrievalStrategy::Bulk,

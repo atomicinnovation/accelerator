@@ -566,6 +566,9 @@ impl Repo {
             &mut store,
             &SyncRequest {
                 corpus: &self.items,
+                inventory: &work_adapters::sync::fetch::inventory_of(
+                    &self.items,
+                ),
                 selection: ItemSelection::All,
                 direction,
                 strategy: RetrievalStrategy::Bulk,

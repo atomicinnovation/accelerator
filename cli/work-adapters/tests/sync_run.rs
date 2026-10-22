@@ -291,8 +291,10 @@ fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn request<'a>(
     corpus: &'a [LocalItem],
+    inventory: &'a work::inventory::CorpusInventory,
     selection: ItemSelection<'a>,
     resolutions: &'a BTreeMap<String, Resolution>,
     integrations_root: &'a Path,
@@ -302,6 +304,7 @@ fn request<'a>(
 ) -> SyncRequest<'a> {
     SyncRequest {
         corpus,
+        inventory,
         selection,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -340,11 +343,13 @@ fn execute(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     run(
         &ports,
         &mut store,
         &request(
             &scenario.items,
+            &inventory,
             ItemSelection::All,
             &resolutions,
             scenario.dir.path(),
@@ -381,8 +386,10 @@ fn execute_ceilings(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),
@@ -421,8 +428,10 @@ fn execute_targeted(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::Targeted {
             items: targeted,
             pull_ids: &[],
@@ -488,6 +497,7 @@ fn run_with<'a>(
     let resolutions = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
@@ -1434,11 +1444,13 @@ fn execute_resolving_in(
         &scenario.spy,
         &scenario.spy,
     );
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     run(
         &ports,
         &mut store,
         &request(
             &scenario.items,
+            &inventory,
             ItemSelection::All,
             resolutions,
             scenario.dir.path(),
@@ -1853,12 +1865,15 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &spy, &spy);
     let resolutions = BTreeMap::new();
     let integrations_root = dir.path().to_path_buf();
+    let inventory =
+        work_adapters::sync::fetch::inventory_of(std::slice::from_ref(&item));
 
     let report = run(
         &ports,
         &mut store,
         &request(
             std::slice::from_ref(&item),
+            &inventory,
             ItemSelection::All,
             &resolutions,
             &integrations_root,
@@ -1906,8 +1921,10 @@ fn execute_with_scope(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),
@@ -2193,8 +2210,10 @@ fn execute_with_scope_bounded(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),

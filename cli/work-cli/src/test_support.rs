@@ -253,6 +253,7 @@ pub fn run_report() -> work_adapters::sync::run::RunReport {
     work_adapters::sync::run::RunReport {
         scope: work_adapters::sync::report::CorpusScope::WholeCorpus,
         mode: work_adapters::sync::run::RunMode::Apply,
+        inventory: work::inventory::CorpusInventory::default(),
         identity: Vec::new(),
         promotions: Vec::new(),
         deferred: 0,

@@ -32,12 +32,20 @@ use crate::sync::baseline::Baseline;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::item_snapshot::ItemSnapshot;
+use work::inventory::CorpusInventory;
 
 #[derive(Clone, Debug)]
 pub struct LocalItem {
     pub id: String,
     pub path: PathBuf,
     pub external_id: Option<ExternalId>,
+}
+
+/// The inventory of a corpus of `items` with nothing unidentified, for a
+/// caller that discovered its corpus some other way.
+#[must_use]
+pub fn inventory_of(items: &[LocalItem]) -> CorpusInventory {
+    CorpusInventory::complete(items.iter().map(|item| item.id.clone()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

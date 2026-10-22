@@ -17,6 +17,7 @@ use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::Unrenderable;
 use work::draft_id::DraftId;
+use work::inventory::CorpusInventory;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
@@ -172,6 +173,8 @@ pub struct SyncRequest<'a> {
     /// selection, or a narrowed run would misjudge what the corpus already
     /// carries.
     pub corpus: &'a [LocalItem],
+    /// What discovery found beside `corpus`: the files it could not use.
+    pub inventory: &'a CorpusInventory,
     /// The reconciliation scope. Reconciliation reads go through
     /// [`SyncRequest::reconciled`].
     pub selection: ItemSelection<'a>,
@@ -1863,6 +1866,7 @@ fn execute<'a>(
         return Ok(RunReport {
             scope: request.selection.corpus_scope(),
             mode: request.mode,
+            inventory: request.inventory.clone(),
             identity: Vec::new(),
             promotions: Vec::new(),
             deferred: 0,
@@ -1944,6 +1948,7 @@ fn execute<'a>(
     Ok(RunReport {
         scope: request.selection.corpus_scope(),
         mode: request.mode,
+        inventory: request.inventory.clone(),
         identity: Vec::new(),
         promotions: Vec::new(),
         deferred: 0,

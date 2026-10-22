@@ -1742,6 +1742,7 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
         &mut baseline,
         &SyncRequest {
             corpus: &items,
+            inventory: &work_adapters::sync::fetch::inventory_of(&items),
             selection: ItemSelection::All,
             direction: work::sync::SyncDirection::Bidirectional,
             strategy: RetrievalStrategy::Bulk,
