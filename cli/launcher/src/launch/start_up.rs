@@ -141,10 +141,10 @@ impl StartUp {
         })?;
         if self.overridden {
             tracing::info!(
-                path = %root.path.display(),
+                path = %root.path().display(),
                 "using ACCELERATOR_CACHE_DIR override for the cache root"
             );
         }
-        Ok(root.path.clone())
+        Ok(root.path().to_path_buf())
     }
 }

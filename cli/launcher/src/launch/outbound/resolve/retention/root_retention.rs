@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::super::cache_root::{CacheRoot, CacheRootKind};
+use super::super::cache_root::{CacheRoot, PluginBinRoot};
 use super::super::ownership::safe_root::{SafePruneRoot, TrustedOwners};
 use super::super::prune_report::LockFailure;
 use super::super::retention_windows::CLAIM_WINDOW;
@@ -28,13 +28,13 @@ pub trait RootRetention {
 /// The plugin's own `bin`, which ADR-0063 governs: nothing is claimed, and
 /// prune visits only the pinned artifacts' trees on this host.
 pub struct PluginBinRetention {
-    root: PathBuf,
+    root: PluginBinRoot,
     ports: Arc<CachePorts>,
 }
 
 impl PluginBinRetention {
     #[must_use]
-    pub const fn new(root: PathBuf, ports: Arc<CachePorts>) -> Self {
+    pub const fn new(root: PluginBinRoot, ports: Arc<CachePorts>) -> Self {
         Self { root, ports }
     }
 }
@@ -50,10 +50,11 @@ impl RootRetention for PluginBinRetention {
             locks: TreeLocks::over(self.ports.locks.as_ref()),
         };
         let mut report = PruneReport::default();
-        match prune_pinned_on_host(&self.root, &collaborators, older_than) {
+        match prune_pinned_on_host(self.root.path(), &collaborators, older_than)
+        {
             Ok(reclaimed) => report.reclaimed = reclaimed.entries,
             Err(error) => report.lock_failures.push(LockFailure {
-                lock: self.root.join("trees"),
+                lock: self.root.path().join("trees"),
                 detail: error.to_string(),
             }),
         }
@@ -134,23 +135,24 @@ pub fn for_root(
     trusted_owners: TrustedOwners,
     ports: Arc<CachePorts>,
 ) -> Arc<dyn RootRetention + Send + Sync> {
-    match root {
-        Ok(CacheRoot {
-            path,
-            kind: CacheRootKind::Relocated,
-        }) => Arc::new(RelocatedRetention {
-            root: path.clone(),
+    let root = match root {
+        Ok(root) => root,
+        Err(detail) => {
+            return Arc::new(UnidentifiedRetention {
+                detail: detail.to_owned(),
+            })
+        }
+    };
+    match root.plugin_bin() {
+        Some(plugin_bin) => {
+            Arc::new(PluginBinRetention::new(plugin_bin, ports))
+        }
+        None => Arc::new(RelocatedRetention {
+            root: root.path().to_path_buf(),
             running_version: env!("CARGO_PKG_VERSION").to_owned(),
             plugin_root: plugin_root.map(Path::to_path_buf),
             trusted_owners,
             ports,
-        }),
-        Ok(CacheRoot {
-            path,
-            kind: CacheRootKind::PluginBin,
-        }) => Arc::new(PluginBinRetention::new(path.clone(), ports)),
-        Err(detail) => Arc::new(UnidentifiedRetention {
-            detail: detail.to_owned(),
         }),
     }
 }
@@ -161,7 +163,10 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    use super::super::super::cache_root::{CacheRoot, CacheRootKind};
+    use super::super::super::cache_root::{
+        identify, CacheRoot, CacheRootConfig,
+    };
+    use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::safe_root::TrustedOwners;
     use super::super::launcher_id;
     use super::super::ports::CachePorts;
@@ -174,17 +179,35 @@ mod tests {
         Arc::new(Ports::at(now()).build())
     }
 
-    fn root_of(kind: CacheRootKind) -> (tempfile::TempDir, CacheRoot) {
+    fn plugin_bin() -> (tempfile::TempDir, CacheRoot) {
+        let plugin = tempfile::tempdir().expect("plugin root");
+        std::fs::create_dir(plugin.path().join("bin")).expect("plugin bin");
+        let root = identify(
+            &CacheRootConfig {
+                cache_dir_override: None,
+                plugin_root: Some(plugin.path().to_path_buf()),
+            },
+            &SystemFilesystem,
+        )
+        .expect("identified");
+        (plugin, root)
+    }
+
+    fn relocated() -> (tempfile::TempDir, CacheRoot) {
         let temp = tempfile::tempdir().expect("tempdir");
-        let root = CacheRoot {
-            path: temp.path().to_path_buf(),
-            kind,
-        };
+        let root = identify(
+            &CacheRootConfig {
+                cache_dir_override: Some(temp.path().to_path_buf()),
+                plugin_root: None,
+            },
+            &SystemFilesystem,
+        )
+        .expect("identified");
         (temp, root)
     }
 
     fn claims(root: &CacheRoot) -> PathBuf {
-        root.path.join(VERSION_CLAIMS_DIR)
+        root.path().join(VERSION_CLAIMS_DIR)
     }
 
     fn retention_for(
@@ -195,17 +218,20 @@ mod tests {
 
     #[test]
     fn the_plugin_bin_retention_claims_nothing() {
-        let (_temp, root) = root_of(CacheRootKind::PluginBin);
+        let (_temp, root) = plugin_bin();
 
-        PluginBinRetention::new(root.path.clone(), ports())
-            .claim_running_version();
+        PluginBinRetention::new(
+            root.plugin_bin().expect("plugin bin"),
+            ports(),
+        )
+        .claim_running_version();
 
         assert!(!claims(&root).exists());
     }
 
     #[test]
     fn an_unidentifiable_root_is_never_claimed() {
-        let (_temp, relocated) = root_of(CacheRootKind::Relocated);
+        let (_temp, relocated) = relocated();
 
         retention_for(Err("unidentified")).claim_running_version();
         retention_for(Ok(&relocated)).claim_running_version();
@@ -231,8 +257,8 @@ mod tests {
 
     #[test]
     fn for_root_chooses_the_retention_from_the_root_kind() {
-        let (_plugin_temp, plugin_bin) = root_of(CacheRootKind::PluginBin);
-        let (_relocated_temp, relocated) = root_of(CacheRootKind::Relocated);
+        let (_plugin_temp, plugin_bin) = plugin_bin();
+        let (_relocated_temp, relocated) = relocated();
 
         retention_for(Ok(&plugin_bin)).claim_running_version();
         retention_for(Ok(&relocated)).claim_running_version();
