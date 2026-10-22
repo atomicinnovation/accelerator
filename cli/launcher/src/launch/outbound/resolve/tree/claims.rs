@@ -13,15 +13,9 @@ use std::time::Duration;
 
 use crate::launch::core::tree::Clock;
 
+pub use super::super::retention_windows::CLAIM_WINDOW;
+use super::super::retention_windows::REFRESH_FRACTION;
 use super::layout::TreePaths;
-
-/// A digest with no claim refreshed inside this window is reclaimable. Sized to
-/// a ~14-day orphan sweep, so a merely-idle install is not evicted.
-pub const CLAIM_WINDOW: Duration = Duration::from_secs(14 * 24 * 60 * 60);
-
-/// Below this fraction of the window, a fresh claim is not rewritten, so a crawl
-/// of 100-200 invocations does at most one claim write rather than one each.
-const REFRESH_FRACTION: u64 = 10;
 
 /// Refresh this install's claim on `digest`, best-effort.
 ///
