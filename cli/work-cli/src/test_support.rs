@@ -222,3 +222,21 @@ pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
     collect(root, &root.join("meta"), &mut tree);
     tree
 }
+
+/// An applied run's report with nothing in it, for a test to fill in the
+/// fields it is about.
+pub fn run_report() -> work_adapters::sync::run::RunReport {
+    work_adapters::sync::run::RunReport {
+        identity: Vec::new(),
+        promotions: Vec::new(),
+        deferred: 0,
+        reported: Vec::new(),
+        unclassifiable: Vec::new(),
+        read_failure: None,
+        baseline_degradation: work_adapters::sync::baseline::Degradation::None,
+        finalised: true,
+        dossiers: Vec::new(),
+        discovery: work_adapters::sync::run::DiscoveryStatus::Ran { found: 0 },
+        keyed_read_budget_limited: false,
+    }
+}
