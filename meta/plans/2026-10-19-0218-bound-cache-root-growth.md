@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T10:40:00+00:00"
+last_updated: "2026-10-22T15:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1179,13 +1179,11 @@ Phase 1 test stays as it was, beside its `identify`-composed twin:
 
 #### Manual Verification:
 
-- [ ] A dispatch with `ACCELERATOR_CACHE_DIR` set in a scratch directory
-      leaves `claims/<version>.<16hex>` and nothing else new. So far only
-      `accelerator version` has been checked this way; a real external
-      dispatch needs a published release or a seeded signed entry. A debug
-      launcher trusts a locally signed entry only once Phase 7's
-      `test-loopback` trust path lands, so this check is run with Phase 7's
-      manual checks.
+- [x] A dispatch with `ACCELERATOR_CACHE_DIR` set in a scratch directory
+      leaves `claims/<version>.<16hex>` and nothing else new. Run with Phase
+      7's manual checks: a first `visualiser` dispatch through a
+      `test-loopback` launcher left its claim beside the launcher entry, the
+      staged shim, the sub-binary entry and Phase 7's root lock.
 
 ---
 
@@ -3155,23 +3153,27 @@ already covers the launcher once its `DevBinary` changes.
 
 #### Automated Verification:
 
-- [ ] All Phase 7 Rust tests pass: `mise run test:unit:cli`
-- [ ] The scenario passes: `mise run test:integration:entrypoint`
-- [ ] A release launcher built with `test-loopback` is rejected by the
+- [x] All Phase 7 Rust tests pass: `mise run test:unit:cli`
+- [x] The scenario passes: `mise run test:integration:entrypoint`
+- [x] A release launcher built with `test-loopback` is rejected by the
       guard, and a default one passes:
       `mise run test:integration:release-guard`
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] `cargo build --release -p accelerator --features test-loopback` fails
+- [x] `cargo build --release -p accelerator --features test-loopback` fails
       with the `compile_error!` message
-- [ ] In a scratch relocated root shared by two installed plugin versions, a
+- [x] In a scratch relocated root shared by two installed plugin versions, a
       first-use dispatch on the newer one leaves the older one's entries
       intact while its claim is fresh
-- [ ] Time a cold dispatch against a scratch relocated root seeded with two
+- [x] Time a cold dispatch against a scratch relocated root seeded with two
       unclaimed `browser` trees, both from an interactive dispatch and from a
-      SessionStart hook, and record the figures in the PR description
+      SessionStart hook, and record the figures in the PR description. On an
+      Apple-silicon Mac with debug builds and two trees of 2,000 files and
+      256 MiB each, `visualiser` took 1.62 s against 1.31 s with no trees,
+      and `vcs detect --format=hook --fail-safe --descriptive` 1.48 s
+      against 1.29 s; both removed the trees.
 
 ---
 
