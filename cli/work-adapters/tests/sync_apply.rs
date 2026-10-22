@@ -44,14 +44,15 @@ use vcs::tracking::RootsAnswer;
 use work::sync::Dirtiness;
 use work_adapters::sync::apply::ApplierPorts;
 use work_adapters::sync::apply::ApplyError;
+use work_adapters::sync::apply::Attempted;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
-use work_adapters::sync::apply::PullAttempt;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
 use work_adapters::sync::apply::RecordRequest;
 use work_adapters::sync::apply::RetitleRequest;
 use work_adapters::sync::apply::UnchangedSinceSync;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
@@ -76,6 +77,17 @@ struct Fake {
     show_result: RefCell<Option<RemoteIssue>>,
     show_fails: RefCell<bool>,
     update_fails: RefCell<Option<TrackerError>>,
+    write_faults: RefCell<Vec<WriteFault>>,
+    writes_seen: RefCell<BTreeMap<PathBuf, usize>>,
+}
+
+/// The `nth` write to `path` fails with `error`, after publishing the
+/// bytes when `publishes`.
+struct WriteFault {
+    path: PathBuf,
+    nth: usize,
+    error: StoreError,
+    publishes: bool,
 }
 
 impl Fake {
@@ -144,6 +156,56 @@ impl Fake {
         *self.fail_write_to.borrow_mut() = Some(path.to_path_buf());
     }
 
+    fn fail_nth_write_to(&self, path: &Path, nth: usize) {
+        self.write_faults.borrow_mut().push(WriteFault {
+            path: path.to_path_buf(),
+            nth,
+            error: StoreError::Io {
+                path: path.display().to_string(),
+                detail: "injected failure".to_owned(),
+            },
+            publishes: false,
+        });
+    }
+
+    fn refuse_writes_for_permission_to(&self, path: &Path) {
+        self.write_faults.borrow_mut().push(WriteFault {
+            path: path.to_path_buf(),
+            nth: 1,
+            error: StoreError::NotWritable {
+                path: path.display().to_string(),
+                detail: "Permission denied (os error 13)".to_owned(),
+            },
+            publishes: false,
+        });
+    }
+
+    fn publish_without_durability_to(&self, path: &Path) {
+        self.write_faults.borrow_mut().push(WriteFault {
+            path: path.to_path_buf(),
+            nth: 1,
+            error: StoreError::NotDurable {
+                path: path.display().to_string(),
+                detail: "fsync failed".to_owned(),
+            },
+            publishes: true,
+        });
+    }
+
+    fn injected_fault(&self, path: &Path) -> Option<(StoreError, bool)> {
+        let seen = {
+            let mut writes = self.writes_seen.borrow_mut();
+            let count = writes.entry(path.to_path_buf()).or_insert(0);
+            *count += 1;
+            *count
+        };
+        self.write_faults
+            .borrow()
+            .iter()
+            .find(|fault| fault.path == path && fault.nth == seen)
+            .map(|fault| (fault.error.clone(), fault.publishes))
+    }
+
     fn set_show_result(&self, issue: RemoteIssue) {
         *self.show_result.borrow_mut() = Some(issue);
     }
@@ -172,6 +234,14 @@ impl AtomicWrite for Fake {
             return Err(StoreError::UnsafePath {
                 path: path.display().to_string(),
             });
+        }
+        if let Some((error, publishes)) = self.injected_fault(path) {
+            if publishes {
+                self.files
+                    .borrow_mut()
+                    .insert(path.to_path_buf(), bytes.to_vec());
+            }
+            return Err(error);
         }
         if self.fail_write_to.borrow().as_deref() == Some(path) {
             *self.fail_write_to.borrow_mut() = None;
@@ -486,13 +556,15 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
     {
         let mut applier =
             ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
-        applier.push(&PushRequest {
-            id: "0001",
-            external_id: &external_id,
-            title: Some("Title"),
-            body: "Body text\n",
-            sent_content: item_content(),
-        })?;
+        applier
+            .push(&PushRequest {
+                id: "0001",
+                external_id: &external_id,
+                title: Some("Title"),
+                body: "Body text\n",
+                sent_content: item_content(),
+            })
+            .result?;
     }
 
     let calls = fake.calls();
@@ -539,12 +611,14 @@ fn a_retitle_sends_the_title_alone_and_records_the_read_back(
     {
         let mut applier =
             ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
-        applier.retitle(&RetitleRequest {
-            id: "0001",
-            external_id: &external_id,
-            title: "Retitled",
-            sent_content: item_content(),
-        })?;
+        applier
+            .retitle(&RetitleRequest {
+                id: "0001",
+                external_id: &external_id,
+                title: "Retitled",
+                sent_content: item_content(),
+            })
+            .result?;
     }
 
     let calls = fake.calls();
@@ -583,7 +657,7 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         })
     };
 
-    assert!(result.is_err());
+    assert!(result.result.is_err());
     let (baseline, _) = store.load()?;
     assert!(baseline.get("0001").is_none());
     assert!(!fake
@@ -614,6 +688,7 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
                 body: "Body text\n",
                 sent_content: item_content(),
             })
+            .result
             .expect_err("the tracker refused the push")
     };
 
@@ -636,13 +711,15 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
     {
         let mut applier =
             ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
-        applier.push(&PushRequest {
-            id: "0001",
-            external_id: &external_id,
-            title: Some("Title"),
-            body: "Body text\n",
-            sent_content: item_content(),
-        })?;
+        applier
+            .push(&PushRequest {
+                id: "0001",
+                external_id: &external_id,
+                title: Some("Title"),
+                body: "Body text\n",
+                sent_content: item_content(),
+            })
+            .result?;
     }
 
     let (baseline, _) = store.load()?;
@@ -770,9 +847,7 @@ fn finalise_advances_the_global_timestamp() -> Result<(), TestError> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier =
-            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
-        applier.finalise(1_700_000_000)?;
+        store.finalise_run(&[], &[], 1_700_000_000, true)?;
     }
     let (baseline, _) = store.load()?;
     assert_eq!(baseline.timestamp(), 1_700_000_000);
@@ -804,6 +879,7 @@ fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseli
                 "2026-06-01T00:00:00Z".to_owned(),
             ),
         })
+        .result
         .expect_err("the edit is never recorded as synced");
 
     assert_eq!(error.class(), FailureClass::Retryable);
@@ -863,17 +939,149 @@ fn a_pull_the_store_refuses_before_writing_is_known_unapplied(
     Ok(())
 }
 
+fn io_failure_of(error: &ApplyError) -> (SyncOperation, &str) {
+    match error {
+        ApplyError::Io {
+            operation, detail, ..
+        } => (*operation, detail.as_str()),
+        other => panic!("expected an Io failure, got {other:?}"),
+    }
+}
+
 #[test]
-fn a_pull_whose_write_fails_in_flight_stays_terminal() -> Result<(), TestError>
-{
+fn a_pull_whose_write_fails_is_retryable() -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
     let item_path = real_item_file(&dir, CLASSIFIED);
     let fake = Fake::default();
-    fake.fail_next_write_to(&item_path);
+    fake.fail_nth_write_to(&item_path, 1);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::Retryable);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::WriteLocal);
+    assert!(detail.contains("injected failure"), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn a_pull_write_refused_for_permission_is_retryable_and_names_the_os_cause(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.refuse_writes_for_permission_to(&item_path);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::Retryable);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::WriteLocal);
+    assert!(detail.contains("Permission denied"), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn a_pull_write_failing_after_a_recovery_copy_is_retryable(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.report_status(Dirtiness::Dirty);
+    fake.fail_nth_write_to(&item_path, 1);
+
+    let attempt = pull_with(&fake, &pull_request(&item_path));
+
+    let error = attempt.result.expect_err("the write fails");
+    assert_eq!(error.class(), FailureClass::Retryable);
+    assert_eq!(attempt.kept_edits, Some(PathBuf::from(KEPT_DIR)));
+    Ok(())
+}
+
+#[test]
+fn a_pull_write_that_published_but_was_not_durable_is_terminal(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.publish_without_durability_to(&item_path);
 
     let error = pull_through(&fake, &item_path);
 
     assert_eq!(error.class(), FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::WriteLocal);
+    assert!(!detail.contains("after pull"), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn a_failed_baseline_write_after_a_pull_is_terminal() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.fail_nth_write_to(Path::new(BASELINE_PATH), 1);
+
+    let error = pull_through(&fake, &item_path);
+
+    assert_eq!(error.class(), FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::BaselineSet);
+    assert!(detail.starts_with("after pull: "), "{detail}");
+    Ok(())
+}
+
+#[test]
+fn each_failing_step_before_a_pull_writes_is_retryable() -> Result<(), TestError>
+{
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+
+    let locked = Fake::default();
+    locked.refuse_locks();
+    let unreadable = Fake::default();
+    let copy_failed = Fake::default();
+    copy_failed.report_status(Dirtiness::Dirty);
+    copy_failed.fail_recovery_at("prepare");
+    let missing = dir.path().join("0001-missing.md");
+
+    for (step, fake, path, operation) in [
+        (
+            "lock",
+            &locked,
+            item_path.as_path(),
+            SyncOperation::LockLocal,
+        ),
+        (
+            "read",
+            &unreadable,
+            missing.as_path(),
+            SyncOperation::ReadLocal,
+        ),
+        (
+            "copy",
+            &copy_failed,
+            item_path.as_path(),
+            SyncOperation::KeepEdits,
+        ),
+    ] {
+        let error = pull_with(fake, &pull_request(path))
+            .result
+            .expect_err("the step fails");
+        assert_eq!(error.class(), FailureClass::Retryable, "{step}");
+        assert_eq!(io_failure_of(&error).0, operation, "{step}");
+    }
+    let unhashable = Fake::default();
+    let error = pull_with(
+        &unhashable,
+        &PullRequest {
+            content: "---\nstatus: ready\nno closing fence\n",
+            ..pull_request(&item_path)
+        },
+    )
+    .result
+    .expect_err("the hash fails");
+    assert_eq!(error.class(), FailureClass::Retryable, "hash");
     Ok(())
 }
 
@@ -988,7 +1196,7 @@ fn a_pull_hashes_before_it_writes() -> Result<(), TestError> {
 
 const KEPT_DIR: &str = "sync-recovery/1700000000-k7mq3x-0001";
 
-fn pull_with(fake: &Fake, request: &PullRequest<'_>) -> PullAttempt {
+fn pull_with(fake: &Fake, request: &PullRequest<'_>) -> Attempted<()> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
     ItemApplier::new(ports(fake), &mut store, 1_700_000_000).pull(request)
@@ -1180,7 +1388,7 @@ fn a_failed_recovery_copy_stops_the_pull() -> Result<(), TestError> {
         else {
             panic!("{step}: a failed copy is a local failure");
         };
-        assert_eq!(*operation, SyncOperation::KeepEdits, "{step}");
+        assert_eq!(operation, &SyncOperation::KeepEdits, "{step}");
         assert!(detail.contains(KEPT_DIR), "{step}: {detail}");
         assert!(detail.contains("injected recovery failure"), "{detail}");
         assert!(
@@ -1396,4 +1604,107 @@ fn each_failure_class_has_its_report_keyword() {
     for (class, keyword) in keywords {
         assert_eq!(class.keyword(), keyword);
     }
+}
+
+fn push_through(fake: &Fake) -> Result<(), ApplyError> {
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
+    let external_id = ExternalId::new("ENG-1".to_owned());
+    ItemApplier::new(ports(fake), &mut store, 1_700_000_000)
+        .push(&PushRequest {
+            id: "0001",
+            external_id: &external_id,
+            title: Some("Title"),
+            body: "Body text\n",
+            sent_content: item_content(),
+        })
+        .result
+}
+
+#[test]
+fn a_failed_baseline_write_after_a_push_is_terminal() {
+    let fake = Fake::default();
+    fake.fail_nth_write_to(Path::new(BASELINE_PATH), 1);
+
+    let error = push_through(&fake).expect_err("the baseline write fails");
+
+    assert_eq!(error.class(), FailureClass::Terminal);
+    let (operation, detail) = io_failure_of(&error);
+    assert_eq!(operation, SyncOperation::BaselineSet);
+    assert!(detail.starts_with("after push: "), "{detail}");
+}
+
+#[test]
+fn a_failed_push_mutation_keeps_the_trackers_class() {
+    for (source, class) in [
+        (
+            TrackerError::Retryable {
+                detail: "offline".to_owned(),
+            },
+            FailureClass::Retryable,
+        ),
+        (
+            TrackerError::Terminal {
+                detail: "timed out mid-write".to_owned(),
+            },
+            FailureClass::Terminal,
+        ),
+    ] {
+        let fake = Fake::default();
+        fake.fail_update(source);
+
+        let error = push_through(&fake).expect_err("the update fails");
+
+        assert_eq!(error.class(), class);
+        assert!(matches!(
+            error,
+            ApplyError::Tracker {
+                operation: SyncOperation::Update,
+                ..
+            }
+        ));
+    }
+}
+
+#[test]
+fn each_failing_step_of_a_record_only_apply_is_retryable(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, item_content());
+    let classified = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+        .digests(item_content(), Some("Title\nBody text\n"))?;
+    let missing = dir.path().join("0001-missing.md");
+
+    let unwritable = Fake::default();
+    unwritable.fail_nth_write_to(Path::new(BASELINE_PATH), 1);
+    let readable = Fake::default();
+    for (step, fake, path, operation) in [
+        (
+            "baseline",
+            &unwritable,
+            item_path.as_path(),
+            SyncOperation::BaselineSet,
+        ),
+        (
+            "read",
+            &readable,
+            missing.as_path(),
+            SyncOperation::ReadLocal,
+        ),
+    ] {
+        let mut store =
+            BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
+        let error = ItemApplier::new(ports(fake), &mut store, 1_700_000_000)
+            .record_baseline(&RecordRequest {
+                id: "0001",
+                file_path: path,
+                fingerprints: classified.clone(),
+                remote_updated: RemoteTimestamp::NotRead,
+            })
+            .result
+            .expect_err("the step fails");
+        assert_eq!(error.class(), FailureClass::Retryable, "{step}");
+        assert_eq!(io_failure_of(&error).0, operation, "{step}");
+    }
+    Ok(())
 }

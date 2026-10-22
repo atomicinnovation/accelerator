@@ -24,6 +24,13 @@ use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
 
+pub use crate::sync::attempt::Attempted;
+pub use crate::sync::attempt::ItemProgress;
+pub use crate::sync::attempt::Landing;
+
+use crate::sync::attempt::ItemAttempt;
+use crate::sync::attempt::PublishError;
+use crate::sync::attempt::StepError;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline::SyncStamps;
 use crate::sync::baseline_digester::BaselineDigester;
@@ -77,6 +84,7 @@ pub enum ApplyError {
     Io {
         item_id: String,
         operation: SyncOperation,
+        progress: ItemProgress,
         detail: String,
     },
     RemoteBodyUnavailable {
@@ -104,8 +112,10 @@ pub enum ApplyError {
 }
 
 impl ApplyError {
-    /// A local read or write failure is terminal: whether a write landed is
-    /// unknown, so a blind retry is unsafe.
+    /// A local failure is retryable when nothing for the item had landed,
+    /// since a re-run cannot double-apply, and terminal once something may
+    /// have. A tracker failure keeps the tracker's class: a terminal one
+    /// already means its mutation may have landed.
     #[must_use]
     pub const fn class(&self) -> FailureClass {
         match self {
@@ -115,11 +125,18 @@ impl ApplyError {
                 TrackerError::Unconfigured { .. } => FailureClass::Unconfigured,
                 TrackerError::Rejected { .. } => FailureClass::Rejected,
             },
-            Self::Io { .. } => FailureClass::Terminal,
-            Self::RemoteBodyUnavailable { .. }
+            Self::Io {
+                progress: ItemProgress::NothingLanded,
+                ..
+            }
+            | Self::RemoteBodyUnavailable { .. }
             | Self::LocalChangedSinceClassified { .. } => {
                 FailureClass::Retryable
             }
+            Self::Io {
+                progress: ItemProgress::MayHaveLanded,
+                ..
+            } => FailureClass::Terminal,
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
             Self::LocalUnparseable { .. } => FailureClass::Unparseable,
@@ -140,6 +157,7 @@ impl std::fmt::Display for ApplyError {
                 item_id,
                 operation,
                 detail,
+                ..
             } => write!(formatter, "{item_id}: {operation} failed: {detail}"),
             Self::RemoteBodyUnavailable { item_id } => write!(
                 formatter,
@@ -281,14 +299,6 @@ pub enum UnchangedSinceSync {
     No,
 }
 
-/// A pull's result, and where it kept the local file's edits, which a
-/// failure after the copy does not undo.
-#[derive(Debug)]
-pub struct PullAttempt {
-    pub result: Result<(), ApplyError>,
-    pub kept_edits: Option<PathBuf>,
-}
-
 /// A pending-push marker left behind after its item was linked, which
 /// never creates again, so the marker is harmless but should be removed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -297,31 +307,32 @@ pub struct LeftoverMarker {
     pub reason: String,
 }
 
-/// A store that refuses before writing leaves the file as it was; any other
-/// failure, including one this crate does not know, may have landed part-way,
-/// so its outcome is unknown.
-fn local_write_error(id: &str, error: StoreError) -> ApplyError {
+/// A store refusal a retry would repeat leaves the file as it was and keeps
+/// its own class; a write that published before failing may have landed.
+fn item_write_error(id: &str, error: StoreError) -> PublishError<StoreError> {
     match error {
         StoreError::UnsafePath { .. }
-        | StoreError::NotWritable { .. }
         | StoreError::AlreadyExists { .. }
-        | StoreError::Validation { .. } => ApplyError::LocalWriteRefused {
-            item_id: id.to_owned(),
-            detail: error.to_string(),
-        },
-        _ => io_error(id, SyncOperation::WriteLocal, error),
+        | StoreError::Validation { .. } => PublishError::Step(
+            StepError::Refused(ApplyError::LocalWriteRefused {
+                item_id: id.to_owned(),
+                detail: error.to_string(),
+            }),
+        ),
+        StoreError::NotDurable { .. } => {
+            PublishError::FailedAfterPublish(error)
+        }
+        _ => PublishError::Step(StepError::Failed(error)),
     }
 }
 
-fn io_error(
-    id: &str,
-    operation: SyncOperation,
-    detail: impl std::fmt::Display,
-) -> ApplyError {
-    ApplyError::Io {
-        item_id: id.to_owned(),
-        operation,
-        detail: detail.to_string(),
+fn marker_write_error(path: &Path, error: &StoreError) -> PublishError<String> {
+    let cause = format!("marker {}: {error}", path.display());
+    match error {
+        StoreError::NotDurable { .. } => {
+            PublishError::FailedAfterPublish(cause)
+        }
+        _ => PublishError::Step(StepError::Failed(cause)),
     }
 }
 
@@ -340,6 +351,10 @@ pub struct ApplierPorts<'a> {
 /// (`'ctx`) because a single lifetime is invariant: `&'a mut
 /// BaselineStore<'a>` would borrow the store for the whole of the applier's
 /// own lifetime, leaving the baseline unreadable afterwards.
+///
+/// Each public apply method begins an [`ItemAttempt`] and finishes it
+/// around a private `*_steps` body, so an early return can never drop what
+/// the attempt learnt.
 pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
     parser: &'ctx dyn BodyParser,
@@ -372,23 +387,30 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// `show` still writes the entry, with both remote fields empty and
     /// [`RemoteTimestamp::NotRead`] — the only place that variant is
     /// written.
-    ///
-    /// # Errors
-    ///
-    /// [`ApplyError`] naming `request.id` and the operation attempted.
-    pub fn push(
-        &mut self,
+    pub fn push(&mut self, request: &PushRequest<'_>) -> Attempted<()> {
+        let mut attempt = ItemAttempt::begin(request.id);
+        let result = self.push_steps(request, &mut attempt);
+        attempt.finish(result)
+    }
+
+    fn push_steps(
+        &self,
         request: &PushRequest<'_>,
+        attempt: &mut ItemAttempt,
     ) -> Result<(), ApplyError> {
-        self.tracker
-            .update(request.external_id, request.title, request.body)
-            .map_err(|source| ApplyError::Tracker {
-                item_id: request.id.to_owned(),
-                operation: SyncOperation::Update,
-                source,
-            })?;
+        attempt.land_tracker(
+            SyncOperation::Update,
+            Some(Landing::Push),
+            || {
+                self.tracker.update(
+                    request.external_id,
+                    request.title,
+                    request.body,
+                )
+            },
+        )?;
         self.record_read_back(
-            request.id,
+            attempt,
             request.external_id,
             request.sent_content,
         )
@@ -396,23 +418,24 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
     /// As [`Self::push`], sending the title alone; the local file is left
     /// as it is.
-    ///
-    /// # Errors
-    ///
-    /// [`ApplyError`] naming `request.id` and the operation attempted.
-    pub fn retitle(
-        &mut self,
+    pub fn retitle(&mut self, request: &RetitleRequest<'_>) -> Attempted<()> {
+        let mut attempt = ItemAttempt::begin(request.id);
+        let result = self.retitle_steps(request, &mut attempt);
+        attempt.finish(result)
+    }
+
+    fn retitle_steps(
+        &self,
         request: &RetitleRequest<'_>,
+        attempt: &mut ItemAttempt,
     ) -> Result<(), ApplyError> {
-        self.tracker
-            .retitle(request.external_id, request.title)
-            .map_err(|source| ApplyError::Tracker {
-                item_id: request.id.to_owned(),
-                operation: SyncOperation::Retitle,
-                source,
-            })?;
+        attempt.land_tracker(
+            SyncOperation::Retitle,
+            Some(Landing::Push),
+            || self.tracker.retitle(request.external_id, request.title),
+        )?;
         self.record_read_back(
-            request.id,
+            attempt,
             request.external_id,
             request.sent_content,
         )
@@ -420,12 +443,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
     fn record_read_back(
         &self,
-        id: &str,
+        attempt: &ItemAttempt,
         external_id: &ExternalId,
         sent_content: &str,
     ) -> Result<(), ApplyError> {
         let remote = self.tracker.show(external_id).ok();
-        self.record(id, sent_content, remote.as_ref())
+        self.record(attempt, sent_content, remote.as_ref())
     }
 
     /// A file already holding what the pull writes is written again, so a
@@ -439,47 +462,42 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// when the file holds neither the classified content nor what the pull
     /// writes, so an edit is never overwritten; otherwise with an
     /// [`ApplyError`] naming `request.id` and the operation attempted.
-    pub fn pull(&mut self, request: &PullRequest<'_>) -> PullAttempt {
-        let mut kept_edits = None;
-        let result = self.pull_steps(request, &mut kept_edits);
-        PullAttempt { result, kept_edits }
+    pub fn pull(&mut self, request: &PullRequest<'_>) -> Attempted<()> {
+        let mut attempt = ItemAttempt::begin(request.id);
+        let result = self.pull_steps(request, &mut attempt);
+        attempt.finish(result)
     }
 
     fn pull_steps(
         &self,
         request: &PullRequest<'_>,
-        kept_edits: &mut Option<PathBuf>,
+        attempt: &mut ItemAttempt,
     ) -> Result<(), ApplyError> {
-        let _held = self.lock_item(request)?;
-        let current = Self::read_local(request)?;
-        Self::ensure_unchanged_since_classified(request, &current)?;
-        *kept_edits = self.keep_edits_unless_synced(request, &current)?;
-        let fingerprints = self.pulled_fingerprints(request)?;
-        Self::ensure_unchanged_since_classified(
-            request,
-            &Self::read_local(request)?,
+        let _held = attempt.observe_local(SyncOperation::LockLocal, || {
+            self.lock_item(request)
+        })?;
+        let current = attempt
+            .observe_local(SyncOperation::ReadLocal, || read_local(request))?;
+        ensure_unchanged_since_classified(request, &current)?;
+        let kept = attempt.observe_local(SyncOperation::KeepEdits, || {
+            self.keep_edits_unless_synced(request, &current)
+        })?;
+        attempt.record_kept_edits(kept);
+        let fingerprints = attempt
+            .observe_local(SyncOperation::HashLocal, || {
+                self.pulled_fingerprints(request)
+            })?;
+        let current = attempt
+            .observe_local(SyncOperation::ReadLocal, || read_local(request))?;
+        ensure_unchanged_since_classified(request, &current)?;
+        attempt.land_local(
+            SyncOperation::WriteLocal,
+            Some(Landing::Pull),
+            || self.write_item(request),
         )?;
-        self.write_item(request)?;
-        self.set_pulled_baseline(request, fingerprints)
-    }
-
-    fn read_local(request: &PullRequest<'_>) -> Result<String, ApplyError> {
-        std::fs::read_to_string(request.file_path).map_err(|error| {
-            io_error(request.id, SyncOperation::ReadLocal, error)
+        attempt.observe_local(SyncOperation::BaselineSet, || {
+            self.set_pulled_baseline(request, fingerprints)
         })
-    }
-
-    fn ensure_unchanged_since_classified(
-        request: &PullRequest<'_>,
-        current: &str,
-    ) -> Result<(), ApplyError> {
-        if current == request.classified_content || current == request.content {
-            Ok(())
-        } else {
-            Err(ApplyError::LocalChangedSinceClassified {
-                item_id: request.id.to_owned(),
-            })
-        }
     }
 
     /// Keeps a copy of `current` unless the last sync already captured it.
@@ -492,15 +510,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &PullRequest<'_>,
         current: &str,
-    ) -> Result<Option<PathBuf>, ApplyError> {
+    ) -> Result<Option<PathBuf>, StepError<String>> {
         if current == request.content || self.captured_by_last_sync(request) {
             return Ok(None);
         }
         let label = request.recovery_label.as_ref().ok_or_else(|| {
-            io_error(
-                request.id,
-                SyncOperation::KeepEdits,
-                "the id cannot name a recovery directory",
+            StepError::Failed(
+                "the id cannot name a recovery directory".to_owned(),
             )
         })?;
         let dir = label.dir();
@@ -516,11 +532,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 )
             })
             .map_err(|error| {
-                io_error(
-                    request.id,
-                    SyncOperation::KeepEdits,
-                    format!("{}: {error}", dir.display()),
-                )
+                StepError::Failed(format!("{}: {error}", dir.display()))
             })?;
         Ok(Some(dir))
     }
@@ -543,52 +555,58 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     fn pulled_fingerprints(
         &self,
         request: &PullRequest<'_>,
-    ) -> Result<DualRecipeFingerprints, ApplyError> {
+    ) -> Result<DualRecipeFingerprints, StepError<String>> {
         self.digester()
             .digests(request.content, Some(request.projected_body))
-            .map_err(|error| {
-                io_error(request.id, SyncOperation::HashLocal, error)
-            })
+            .map_err(|error| StepError::Failed(error.to_string()))
     }
 
-    fn write_item(&self, request: &PullRequest<'_>) -> Result<(), ApplyError> {
+    fn write_item(
+        &self,
+        request: &PullRequest<'_>,
+    ) -> Result<(), PublishError<StoreError>> {
         self.files
             .work_items
             .write(request.file_path, request.content.as_bytes())
-            .map_err(|error| local_write_error(request.id, error))
+            .map_err(|error| item_write_error(request.id, error))
     }
 
     fn set_pulled_baseline(
         &self,
         request: &PullRequest<'_>,
         fingerprints: DualRecipeFingerprints,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<(), StepError<String>> {
+        self.set_baseline(request.id, &request.remote_updated, fingerprints)
+    }
+
+    fn set_baseline(
+        &self,
+        id: &str,
+        remote_updated: &RemoteTimestamp,
+        fingerprints: DualRecipeFingerprints,
+    ) -> Result<(), StepError<String>> {
         self.baseline
             .set(
-                request.id,
+                id,
                 Entry::recorded(
                     SyncStamps {
-                        remote_updated_at: request.remote_updated.clone(),
+                        remote_updated_at: remote_updated.clone(),
                         local_synced_at: self.run_start_epoch,
                     },
                     fingerprints,
                 ),
             )
-            .map_err(|error| {
-                io_error(request.id, SyncOperation::BaselineSet, error)
-            })
+            .map_err(|error| StepError::Failed(error.to_string()))
     }
 
     fn lock_item(
         &self,
         request: &PullRequest<'_>,
-    ) -> Result<HeldLock, ApplyError> {
+    ) -> Result<HeldLock, StepError<StoreError>> {
         self.files
             .file_locks
             .acquire(&LockName::ForFile(request.file_path.to_path_buf()))
-            .map_err(|error| {
-                io_error(request.id, SyncOperation::LockLocal, error)
-            })
+            .map_err(StepError::Failed)
     }
 
     /// Authors a discovered remote issue as a new local file and records its
@@ -599,22 +617,25 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// both need — `Discovery` carries only ids and stamps. The exclusive
     /// authoring write lives behind [`LocalAuthor`], so an id collision
     /// surfaces as an error here rather than a silent clobber.
-    ///
-    /// # Errors
-    ///
-    /// [`ApplyError`] when the `show`, the authoring write, or the baseline
-    /// write fails.
     pub fn create_from_remote(
         &mut self,
         external_id: &ExternalId,
         author: &dyn LocalAuthor,
+    ) -> Attempted<String> {
+        let mut attempt = ItemAttempt::begin(external_id.as_str());
+        let result =
+            self.create_from_remote_steps(external_id, author, &mut attempt);
+        attempt.finish(result)
+    }
+
+    fn create_from_remote_steps(
+        &self,
+        external_id: &ExternalId,
+        author: &dyn LocalAuthor,
+        attempt: &mut ItemAttempt,
     ) -> Result<String, ApplyError> {
-        let issue = self.tracker.show(external_id).map_err(|source| {
-            ApplyError::Tracker {
-                item_id: external_id.as_str().to_owned(),
-                operation: SyncOperation::Show,
-                source,
-            }
+        let issue = attempt.observe_tracker(SyncOperation::Show, || {
+            self.tracker.show(external_id)
         })?;
         let body = BodyComparison::new(self.tracker, self.parser)
             .local_body(&issue.body)
@@ -625,26 +646,28 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let title = remote_projection::split_projected(&issue.body)
             .title
             .to_owned();
-        let authored = author
-            .author_from_remote(&DiscoveredIssue {
-                external_id: external_id.clone(),
-                title,
-                body,
-                issue: issue.clone(),
-            })
-            .map_err(|error| {
-                io_error(
-                    external_id.as_str(),
-                    SyncOperation::AuthorLocal,
-                    error,
-                )
+        let authored = attempt.land_local(
+            SyncOperation::AuthorLocal,
+            Some(Landing::Author),
+            || {
+                author
+                    .author_from_remote(&DiscoveredIssue {
+                        external_id: external_id.clone(),
+                        title,
+                        body,
+                        issue: issue.clone(),
+                    })
+                    .map_err(|error| {
+                        PublishError::Step(StepError::Failed(error))
+                    })
+            },
+        )?;
+        attempt.known_as(&authored.id);
+        let local_content = attempt
+            .observe_local(SyncOperation::ReadLocal, || {
+                read_file(&authored.path)
             })?;
-
-        let local_content =
-            std::fs::read_to_string(&authored.path).map_err(|error| {
-                io_error(&authored.id, SyncOperation::ReadLocal, error)
-            })?;
-        self.record(&authored.id, &local_content, Some(&issue))?;
+        self.record(attempt, &local_content, Some(&issue))?;
         Ok(authored.id)
     }
 
@@ -655,14 +678,20 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// the non-idempotent `create`, so a crash in the window between a
     /// successful remote create and the local link is recoverable: the next
     /// run reads the marker and reuses the id rather than creating a duplicate.
-    ///
-    /// # Errors
-    ///
-    /// [`ApplyError`] when the marker refuses the attempt, the `create` fails,
-    /// or a filesystem/baseline write fails.
     pub fn create_from_local(
         &mut self,
         request: &CreateFromLocalRequest<'_>,
+    ) -> Attempted<Option<LeftoverMarker>> {
+        let mut attempt = ItemAttempt::begin(request.item_id);
+        attempt.keeping_marker(request.marker_path);
+        let result = self.create_from_local_steps(request, &mut attempt);
+        attempt.finish(result)
+    }
+
+    fn create_from_local_steps(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         let digest = pending_push::request_digest(
             request.title,
@@ -671,16 +700,17 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         );
 
         match Self::push_decision(request, &digest) {
-            PushPrecondition::Refuse(reason) => Err(io_error(
-                request.item_id,
-                SyncOperation::Create,
-                refusal_detail(reason, request.marker_path),
-            )),
+            PushPrecondition::Refuse(reason) => Err(ApplyError::Io {
+                item_id: request.item_id.to_owned(),
+                operation: SyncOperation::Create,
+                progress: ItemProgress::MayHaveLanded,
+                detail: refusal_detail(reason, request.marker_path),
+            }),
             PushPrecondition::ReuseId(external_id) => {
-                self.link_and_baseline(request, &external_id)
+                self.link_and_baseline(request, attempt, &external_id)
             }
             PushPrecondition::Proceed => {
-                self.create_marking_progress(request, digest)
+                self.create_marking_progress(request, attempt, digest)
             }
         }
     }
@@ -702,6 +732,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     fn create_marking_progress(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
         digest: String,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         let fingerprint = RequestFingerprint {
@@ -711,44 +742,45 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             failure: None,
         };
         self.write_marker(
+            attempt,
             request.marker_path,
             &PendingPush::Attempted {
                 request: fingerprint.clone(),
             },
         )?;
 
-        match self
-            .tracker
-            .create(request.title, request.body, request.kind)
-        {
-            Ok(external_id) => {
-                self.record_created(request, &fingerprint, &external_id)
-            }
-            Err(
-                source @ (TrackerError::Retryable { .. }
-                | TrackerError::Unconfigured { .. }
-                | TrackerError::Rejected { .. }),
-            ) => Err(self.abandon_attempt(request, source)),
-            Err(TrackerError::Terminal { detail }) => {
-                self.record_terminal_failure(request, fingerprint, detail)
-            }
+        match attempt.land_created(|| {
+            self.tracker
+                .create(request.title, request.body, request.kind)
+        }) {
+            Ok(external_id) => self.record_created(
+                request,
+                attempt,
+                &fingerprint,
+                &external_id,
+            ),
+            Err(TrackerError::Terminal { detail }) => self
+                .record_terminal_failure(request, attempt, fingerprint, detail),
+            Err(source) => Err(self.abandon_attempt(request, attempt, source)),
         }
     }
 
     fn record_created(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
         fingerprint: &RequestFingerprint,
         external_id: &ExternalId,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         self.write_marker(
+            attempt,
             request.marker_path,
             &PendingPush::Created {
                 request: fingerprint.clone(),
                 external_id: external_id.clone(),
             },
         )?;
-        self.link_and_baseline(request, external_id)
+        self.link_and_baseline(request, attempt, external_id)
     }
 
     /// A marker left behind here would refuse the next run's create as a
@@ -757,16 +789,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     fn abandon_attempt(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        attempt: &ItemAttempt,
         source: TrackerError,
     ) -> ApplyError {
         match self.clear_marker(request.marker_path) {
-            Ok(()) => ApplyError::Tracker {
-                item_id: request.item_id.to_owned(),
-                operation: SyncOperation::Create,
-                source,
-            },
-            Err(leftover) => io_error(
-                request.item_id,
+            Ok(()) => attempt.tracker_failure(SyncOperation::Create, source),
+            Err(leftover) => attempt.io_failure(
                 SyncOperation::MarkerWrite,
                 format!(
                     "could not clear marker {}: {}",
@@ -789,10 +817,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     fn record_terminal_failure(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
         fingerprint: RequestFingerprint,
         detail: String,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         self.write_marker(
+            attempt,
             request.marker_path,
             &PendingPush::Attempted {
                 request: RequestFingerprint {
@@ -801,129 +831,146 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 },
             },
         )?;
-        Err(ApplyError::Tracker {
-            item_id: request.item_id.to_owned(),
-            operation: SyncOperation::Create,
-            source: TrackerError::Terminal { detail },
-        })
+        Err(attempt.tracker_failure(
+            SyncOperation::Create,
+            TrackerError::Terminal { detail },
+        ))
     }
 
     fn write_marker(
         &self,
+        attempt: &mut ItemAttempt,
         path: &Path,
         marker: &PendingPush,
     ) -> Result<(), ApplyError> {
-        self.files
-            .integration_state
-            .write(path, pending_push::render(marker).as_bytes())
-            .map_err(|error| {
-                io_error("<marker>", SyncOperation::MarkerWrite, error)
-            })
+        attempt.land_local(SyncOperation::MarkerWrite, None, || {
+            self.files
+                .integration_state
+                .write(path, pending_push::render(marker).as_bytes())
+                .map_err(|error| marker_write_error(path, &error))
+        })
     }
 
     fn link_and_baseline(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
         external_id: &ExternalId,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
-        request
-            .author
-            .link_external_id(request.file_path, external_id)
-            .map_err(|error| {
-                io_error(request.item_id, SyncOperation::LinkExternalId, error)
-            })?;
+        attempt.land_local(
+            SyncOperation::LinkExternalId,
+            Some(Landing::Link),
+            || {
+                request
+                    .author
+                    .link_external_id(request.file_path, external_id)
+                    .map_err(|error| {
+                        PublishError::Step(StepError::Failed(error))
+                    })
+            },
+        )?;
 
         let remote = self.tracker.show(external_id).ok();
-        let local_content = std::fs::read_to_string(request.file_path)
-            .map_err(|error| {
-                io_error(request.item_id, SyncOperation::ReadLocal, error)
+        let local_content = attempt
+            .observe_local(SyncOperation::ReadLocal, || {
+                read_file(request.file_path)
             })?;
-        self.record(request.item_id, &local_content, remote.as_ref())?;
+        self.record(attempt, &local_content, remote.as_ref())?;
         Ok(self.clear_marker(request.marker_path).err())
     }
 
     /// Records `request`'s fingerprints, writing no file and calling no
     /// tracker, once the local file still digests to what was classified.
     ///
-    /// # Errors
-    ///
-    /// [`ApplyError::LocalChangedSinceClassified`] when the file moved
-    /// since the run read it, so an edit is never absorbed into the
-    /// baseline; [`ApplyError::Io`] when it cannot be read or the baseline
-    /// cannot be written.
+    /// The result fails with [`ApplyError::LocalChangedSinceClassified`]
+    /// when the file moved since the run read it, so an edit is never
+    /// absorbed into the baseline; with [`ApplyError::Io`] when it cannot
+    /// be read or the baseline cannot be written.
     pub fn record_baseline(
+        &mut self,
+        request: &RecordRequest<'_>,
+    ) -> Attempted<()> {
+        let attempt = ItemAttempt::begin(request.id);
+        let result = self.record_baseline_steps(request, &attempt);
+        attempt.finish(result)
+    }
+
+    fn record_baseline_steps(
         &self,
         request: &RecordRequest<'_>,
+        attempt: &ItemAttempt,
     ) -> Result<(), ApplyError> {
-        let content =
-            std::fs::read_to_string(request.file_path).map_err(|error| {
-                io_error(request.id, SyncOperation::ReadLocal, error)
+        let content = attempt
+            .observe_local(SyncOperation::ReadLocal, || {
+                read_file(request.file_path)
             })?;
-        let current = digest::local(&content).map_err(|error| {
-            io_error(request.id, SyncOperation::HashLocal, error)
-        })?;
+        let current = attempt
+            .observe_local(SyncOperation::HashLocal, || {
+                digest::local(&content).map_err(StepError::Failed)
+            })?;
         if request.fingerprints.legacy.local.as_ref() != Some(&current) {
             return Err(ApplyError::LocalChangedSinceClassified {
                 item_id: request.id.to_owned(),
             });
         }
-        self.baseline
-            .set(
+        attempt.observe_local(SyncOperation::BaselineSet, || {
+            self.set_baseline(
                 request.id,
-                Entry::recorded(
-                    SyncStamps {
-                        remote_updated_at: request.remote_updated.clone(),
-                        local_synced_at: self.run_start_epoch,
-                    },
-                    request.fingerprints.clone(),
-                ),
+                &request.remote_updated,
+                request.fingerprints.clone(),
             )
-            .map_err(|error| {
-                io_error(request.id, SyncOperation::BaselineSet, error)
-            })
+        })
     }
 
     fn digester(&self) -> BaselineDigester<'ctx> {
         BaselineDigester::new(self.tracker, self.parser)
     }
 
-    /// Records `id`'s entry from what was just written locally and read
-    /// back remotely; an unread remote records no remote fingerprints, so
-    /// the next run reads that side as changed.
+    /// Records the attempt's item from what was just written locally and
+    /// read back remotely; an unread remote records no remote fingerprints,
+    /// so the next run reads that side as changed.
     fn record(
         &self,
-        id: &str,
+        attempt: &ItemAttempt,
         local_content: &str,
         remote: Option<&RemoteIssue>,
     ) -> Result<(), ApplyError> {
-        let fingerprints = self
-            .digester()
-            .digests(local_content, remote.map(|issue| issue.body.as_str()))
-            .map_err(|error| io_error(id, SyncOperation::HashLocal, error))?;
-        let stamps = SyncStamps {
-            remote_updated_at: remote
-                .map_or(RemoteTimestamp::NotRead, |issue| {
-                    issue.updated.clone()
-                }),
-            local_synced_at: self.run_start_epoch,
-        };
-        self.baseline
-            .set(id, Entry::recorded(stamps, fingerprints))
-            .map_err(|error| io_error(id, SyncOperation::BaselineSet, error))
+        let fingerprints =
+            attempt.observe_local(SyncOperation::HashLocal, || {
+                self.digester()
+                    .digests(
+                        local_content,
+                        remote.map(|issue| issue.body.as_str()),
+                    )
+                    .map_err(|error| StepError::Failed(error.to_string()))
+            })?;
+        let remote_updated = remote
+            .map_or(RemoteTimestamp::NotRead, |issue| issue.updated.clone());
+        attempt.observe_local(SyncOperation::BaselineSet, || {
+            self.set_baseline(attempt.item_id(), &remote_updated, fingerprints)
+        })
     }
+}
 
-    /// Advances the baseline's global timestamp, blanking nothing: the run
-    /// blanks its own unreconciled items through its `BaselineStore` before
-    /// calling this.
-    ///
-    /// # Errors
-    ///
-    /// [`ApplyError`] when the underlying store operation fails.
-    pub fn finalise(&mut self, run_start_epoch: u64) -> Result<(), ApplyError> {
-        self.baseline
-            .finalise_run(&[], &[], run_start_epoch, true)
-            .map_err(|error| {
-                io_error("<run>", SyncOperation::BaselineSet, error)
-            })
+fn read_local(
+    request: &PullRequest<'_>,
+) -> Result<String, StepError<std::io::Error>> {
+    read_file(request.file_path)
+}
+
+fn read_file(path: &Path) -> Result<String, StepError<std::io::Error>> {
+    std::fs::read_to_string(path).map_err(StepError::Failed)
+}
+
+fn ensure_unchanged_since_classified(
+    request: &PullRequest<'_>,
+    current: &str,
+) -> Result<(), ApplyError> {
+    if current == request.classified_content || current == request.content {
+        Ok(())
+    } else {
+        Err(ApplyError::LocalChangedSinceClassified {
+            item_id: request.id.to_owned(),
+        })
     }
 }

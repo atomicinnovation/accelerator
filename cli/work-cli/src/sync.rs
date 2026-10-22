@@ -2285,6 +2285,7 @@ mod tests {
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
+    use work_adapters::sync::apply::ItemProgress;
     use work_adapters::sync::apply::LeftoverMarker;
     use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ConflictDossier;
@@ -4260,17 +4261,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_local_io_failure_reports_terminal_and_exits_71() {
-        let report = report_of(vec![failed_with(
-            "0001",
+    fn io_failed(id: &str, progress: ItemProgress) -> ReportedItem {
+        failed_with(
+            id,
             ApplyError::Io {
-                item_id: "0001".to_owned(),
+                item_id: id.to_owned(),
                 operation:
                     work_adapters::sync::operation::SyncOperation::WriteLocal,
+                progress,
                 detail: "disk full".to_owned(),
             },
-        )]);
+        )
+    }
+
+    #[test]
+    fn a_local_io_failure_after_a_landing_reports_terminal_and_exits_71() {
+        let report =
+            report_of(vec![io_failed("0001", ItemProgress::MayHaveLanded)]);
 
         assert!(render_report(&crate::finished_run::FinishedRun::for_report(
             &report
@@ -4279,6 +4286,22 @@ mod tests {
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::TERMINAL
+        );
+    }
+
+    #[test]
+    fn a_local_io_failure_before_anything_landed_reports_retryable_and_exits_70(
+    ) {
+        let report =
+            report_of(vec![io_failed("0001", ItemProgress::NothingLanded)]);
+
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
         );
     }
 
