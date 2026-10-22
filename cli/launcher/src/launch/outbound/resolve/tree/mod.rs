@@ -22,7 +22,13 @@ pub(crate) mod testing;
 pub mod tree_lock;
 
 #[cfg(unix)]
+mod pinned_prune;
+#[cfg(unix)]
 mod resolver;
+#[cfg(unix)]
+pub use pinned_prune::{
+    prune_pinned_artifact, prune_pinned_on_host, PinnedPruneCollaborators,
+};
 #[cfg(unix)]
 pub use resolver::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
