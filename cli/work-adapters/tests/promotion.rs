@@ -1734,7 +1734,7 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
             tracker,
             parser: &CommonMarkBody,
             status: &Clean,
-            writer: &writer,
+            files: support::sync_files(&writer),
             clock: &Clock,
             author: &NoAuthor,
         },

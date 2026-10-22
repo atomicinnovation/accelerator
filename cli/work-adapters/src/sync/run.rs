@@ -5,7 +5,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use corpus::body::BodyParser;
-use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracker::Ceiling;
@@ -31,6 +30,7 @@ use work::sync::Unclassifiable;
 
 use crate::create_request_fields;
 use crate::promotion::PromotionRow;
+use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
@@ -51,6 +51,7 @@ use crate::sync::fetch::GatheredRemote;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::files::SyncFiles;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::ordering;
@@ -117,7 +118,7 @@ pub struct SyncPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
     pub parser: &'a dyn BodyParser,
     pub status: &'a dyn WorkingCopyStatus,
-    pub writer: &'a dyn AtomicWrite,
+    pub files: SyncFiles<'a>,
     pub clock: &'a dyn RunClock,
     /// Authors the local files the two create paths need: a work-item file
     /// for a discovered remote issue, and the `external_id` write-back for an
@@ -1745,9 +1746,11 @@ fn execute<'a>(
 
     {
         let mut applier = ItemApplier::new(
-            ports.tracker,
-            ports.parser,
-            ports.writer,
+            ApplierPorts {
+                tracker: ports.tracker,
+                parser: ports.parser,
+                files: ports.files,
+            },
             baseline,
             run_start_epoch,
         );

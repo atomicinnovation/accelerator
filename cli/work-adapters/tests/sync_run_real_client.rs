@@ -276,7 +276,7 @@ fn execute(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author: &author,
     };
@@ -1351,7 +1351,7 @@ fn execute_targeted_pulling(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author,
     };

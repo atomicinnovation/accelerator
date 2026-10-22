@@ -307,7 +307,7 @@ fn execute(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };
@@ -347,7 +347,7 @@ fn execute_ceilings(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };
@@ -386,7 +386,7 @@ fn execute_targeted(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };
@@ -454,7 +454,7 @@ fn run_with<'a>(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author: &author,
     };
@@ -1393,7 +1393,7 @@ fn execute_resolving_in(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };
@@ -1803,7 +1803,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         tracker: &tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &spy,
+        files: support::sync_files(&spy),
         clock: &clock,
         author: &author,
     };
@@ -1853,7 +1853,7 @@ fn execute_with_scope(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };
@@ -2139,7 +2139,7 @@ fn execute_with_scope_bounded(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
     };

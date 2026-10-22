@@ -377,7 +377,7 @@ impl Repo {
             tracker: &self.tracker,
             parser: &CommonMarkBody,
             status: &Clean,
-            writer: &self.store,
+            files: super::sync_files(&self.store),
             clock: &FixedClock,
             author: &author,
         };

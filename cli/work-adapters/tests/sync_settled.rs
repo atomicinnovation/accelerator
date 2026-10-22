@@ -600,7 +600,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &plain,
+        files: support::sync_files(&plain),
         clock: &FixedClock,
         author: &author,
     };
