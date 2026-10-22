@@ -54,6 +54,25 @@ pub fn printable(text: &str) -> String {
         .collect()
 }
 
+/// A failure's stderr line, built from its parts so no cause can forge a
+/// second line; `failed` is `failed`, or `would fail` on a preview.
+#[must_use]
+pub fn failure_line(
+    failure: &work_adapters::sync::report::RunFailure,
+    failed: &str,
+) -> String {
+    let label = match failure.severity {
+        work_adapters::sync::report::FailureSeverity::Error => "error",
+        work_adapters::sync::report::FailureSeverity::Warning => "warning",
+    };
+    format!(
+        "{label}: {}: {} {failed}: {}",
+        single_line(&failure.subject),
+        failure.operation,
+        single_line(&failure.cause)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::TsvRecord;
