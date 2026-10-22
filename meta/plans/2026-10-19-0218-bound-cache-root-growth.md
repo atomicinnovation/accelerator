@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T07:04:30+00:00"
+last_updated: "2026-10-22T10:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2755,6 +2755,10 @@ Rust toolchain, as `build:cli:fixture-size` does, and is registered following
   over `accelerator-jira`, `accelerator-linear` and `accelerator-research`.
 - `test_a_default_release_binary_passes_the_loopback_guard`: the control.
 
+Both parametrise over every `DevBinary` in `tasks/shared/dev_builds.py` whose
+`loopback_seam` is set, rather than a list of their own, so a binary gains the
+guard when it gains the seam.
+
 A module-scoped fixture builds both variants with the same profile
 environment, `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true`, so the second
 build reuses the first build's dependency graph and only the binary crates
@@ -2780,19 +2784,20 @@ four binaries.
 
 #### Automated Verification:
 
-- [ ] The rejection test fails against the static marker and passes after
+- [x] The rejection test fails against the static marker and passes after
       the change; the default-build control passes throughout:
       `mise run test:integration:release-guard`
-- [ ] The existing `test_build.py` guard unit tests pass unchanged:
+- [x] The existing `test_build.py` guard unit tests pass unchanged:
       `mise run test:unit:tasks`
-- [ ] The `test-loopback` integration suites of the three CLIs pass:
+- [x] The `test-loopback` integration suites of the three CLIs pass:
       `mise run test:unit:cli`
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] `strings` on a stripped release build with the feature shows the
-      marker for each of the three binaries
+- [x] `strings` on a stripped release build with the feature shows the
+      marker for each of the three binaries. Each feature build carried its
+      marker once; each default build carried none.
 
 ---
 
