@@ -35,6 +35,7 @@ use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
+use accelerator::launch::outbound::resolve::retention::launcher_id;
 use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
 use accelerator::launch::outbound::resolve::tree::{
     pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
@@ -373,24 +374,6 @@ fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
     };
     let mut out = std::io::stdout().lock();
     cache::run(action, &resolver, &mut out)
-}
-
-/// A per-install identity for the retention claim, derived from the launcher's
-/// own content-addressed path so two installs sharing a cache root write
-/// distinct claim files. Falls back to the version when the path is unavailable.
-fn launcher_id() -> String {
-    use std::fmt::Write as _;
-
-    use sha2::{Digest as _, Sha256};
-    let seed = std::env::current_exe().map_or_else(
-        |_| env!("CARGO_PKG_VERSION").to_owned(),
-        |path| path.to_string_lossy().into_owned(),
-    );
-    let digest = Sha256::digest(seed.as_bytes());
-    digest.iter().take(8).fold(String::new(), |mut acc, byte| {
-        let _ = write!(acc, "{byte:02x}");
-        acc
-    })
 }
 
 /// The single-flight waiter's deadline: a loser gives up after this rather than
