@@ -31,7 +31,7 @@ use accelerator::launch::outbound::resolve::ownership::{
     Ownership, PrimaryGroup, ProcessOwnership,
 };
 use accelerator::launch::outbound::resolve::prune_report::{
-    NoPruneSteps, PruneStep, PruneSteps,
+    NoPruneSteps, PruneStep, PruneSteps, UntrustedDirectory,
 };
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::BootstrapHolderLiveness;
@@ -45,7 +45,9 @@ use accelerator::launch::outbound::resolve::retention_windows::{
 use accelerator::launch::outbound::resolve::single_flight::{
     LockGuard, LockPatience, LockProbe, SingleFlightLocks,
 };
-use accelerator::launch::outbound::resolve::tree::layout::Artifact;
+use accelerator::launch::outbound::resolve::tree::layout::{
+    Artifact, TreePaths,
+};
 use accelerator::launch::outbound::resolve::tree::lease::{
     HeldLeases, Liveness, LivenessProbe,
 };
@@ -54,6 +56,7 @@ use accelerator::launch::outbound::resolve::tree::locks::{
 };
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, NoSteps, TreePrune, TreePrunePorts, TreePruneRegime,
+    TreePruneReport,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use accelerator::launch::start_up::{start_up, StartUp, TreeConfig};
@@ -2018,4 +2021,72 @@ fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
         .filter(|name| name.to_string_lossy().ends_with(".lock"))
         .collect();
     assert!(locks.is_empty(), "{locks:?}");
+}
+
+fn prune_held_tree(
+    harness: &RootHarness,
+    artifact: &Artifact,
+) -> TreePruneReport {
+    let ports = harness.ports().build();
+    let safe = SafePruneRoot::check(
+        &harness.root,
+        ports.filesystem.as_ref(),
+        ports.ownership.as_ref(),
+        &TrustedOwners::none(),
+    )
+    .expect("safe");
+    let locks = TreeLocks::over(ports.locks.as_ref());
+    let held = locks
+        .take_tree(&TreePaths::under(&harness.root), artifact)
+        .expect("held");
+    TreePrune {
+        regime: TreePruneRegime::WholeTree(&safe),
+        claim_window: CLAIM_WINDOW,
+        ports: TreePrunePorts {
+            held_leases: &HeldLeases::none(),
+            filesystem: ports.filesystem.as_ref(),
+            ownership: ports.ownership.as_ref(),
+            clock: ports.clock.as_ref(),
+            lease_liveness: ports.lease_liveness.as_ref(),
+            pins: ports.pins.as_ref(),
+            locks,
+            steps: ports.steps.as_ref(),
+        },
+    }
+    .prune_held(&held)
+}
+
+#[test]
+fn a_symlinked_trees_directory_is_not_pruned_by_prune_held() {
+    let retired = on_host("retired");
+    let harness = RootHarness::new();
+    let outside =
+        Trees::under(&elsewhere_root(&harness.anchor.path().join("elsewhere")));
+    let tree = outside.plant_tree(&retired, &digest('a'), harness.aged());
+    std::os::unix::fs::symlink(outside.root(), harness.join("trees"))
+        .expect("symlinked trees");
+
+    let report = prune_held_tree(&harness, &retired);
+
+    tree.assert_survives();
+    assert_eq!(
+        report.untrusted_directories,
+        [UntrustedDirectory {
+            path: harness.join("trees")
+        }]
+    );
+
+    let real = RootHarness::new();
+    let tree = real.trees().plant_tree(&retired, &digest('a'), real.aged());
+    let bystander =
+        real.trees()
+            .plant_tree(&on_host("other"), &digest('b'), real.aged());
+    let orphaned = Trees::generation_of(&retired, &digest('c'));
+    let sidecars = real.trees().plant_sidecars(&orphaned, real.aged());
+
+    prune_held_tree(&real, &retired);
+
+    tree.assert_reclaimed();
+    bystander.assert_survives();
+    assert!(sidecars.iter().all(|sidecar| !exists(sidecar)));
 }
