@@ -17,6 +17,7 @@ pub mod level;
 pub mod node;
 pub mod paths;
 pub mod precedence;
+pub mod provenance;
 pub mod render;
 pub mod service;
 pub mod tracker_block;
