@@ -28,13 +28,13 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
 use super::super::filesystem::SystemFilesystem;
+use super::super::retention_windows::AGE_BACKSTOP;
 use super::layout::{
     parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
 };
@@ -43,11 +43,6 @@ use super::lease::{
     SingleFlightProbe,
 };
 use super::tree_lock::HeldTreeLock;
-
-/// Generations younger than this with no live lease are spared, so a generation
-/// briefly between its rename and its pointer write is never mistaken for
-/// crash residue. Sized well beyond a fetch-plus-extract.
-const AGE_BACKSTOP: Duration = Duration::from_secs(60 * 60);
 
 /// Which digest each artifact pins, so a partial archive is judged against
 /// its own artifact's pin rather than the reaping caller's.
