@@ -178,9 +178,21 @@ impl FreshVersions {
         Self { versions }
     }
 
+    /// The same versions and `version` besides, as the running version is
+    /// protected whatever its claims say.
+    #[must_use]
+    pub fn including(mut self, version: &str) -> Self {
+        self.versions.insert(version.to_owned());
+        self
+    }
+
     #[must_use]
     pub fn contains(&self, version: &str) -> bool {
         self.versions.contains(version)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &str> {
+        self.versions.iter().map(String::as_str)
     }
 }
 
