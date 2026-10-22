@@ -3,6 +3,7 @@
 
 mod batch_journal;
 mod batch_manifest;
+mod bounded_roots;
 mod canonicalise_id;
 mod cli;
 mod config;
@@ -269,6 +270,9 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
                 report.outcome.keyword(),
                 report.external_id.as_deref().unwrap_or("")
             );
+            if let Some(warning) = &report.warning {
+                eprintln!("{warning}");
+            }
             if let Some(cause) = &report.cause {
                 eprintln!("Error: {cause}");
             }

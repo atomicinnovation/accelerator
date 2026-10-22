@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use corpus::lock::ExclusiveLock;
 use corpus::lock::HeldLock;
 use corpus::lock::LockName;
+use corpus::store::AtomicWrite;
 use corpus::store::CopyComparison;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;

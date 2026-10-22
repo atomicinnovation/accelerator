@@ -24,6 +24,7 @@ use document::Scalar;
 use document::Yaml;
 use tracker::CreatePreview;
 use tracker::FieldResolution;
+use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
@@ -48,6 +49,7 @@ use work_adapters::creation::CreateLockGuard;
 use work_adapters::creation::Creation;
 pub use work_adapters::creation::CreationOutcome;
 pub use work_adapters::creation::CreationStore;
+use work_adapters::creation::DraftPromotionOutcome;
 pub use work_adapters::creation::Drafted;
 use work_adapters::creation::IntegrationState;
 use work_adapters::creation::LegacyPushing;
@@ -59,6 +61,7 @@ use work_adapters::promotion::promote;
 use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
 
+use crate::bounded_roots::configure_warning;
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
 use crate::config::resolve_scheme;
@@ -67,8 +70,10 @@ use crate::config::templates_dir;
 use crate::exit_codes;
 use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
+use crate::identity_workspace::OpenFailure;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
+use work_adapters::promotion_records::PromotionRecords;
 
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
@@ -557,38 +562,33 @@ pub fn create_item(
             let store_at = seams.store_at;
             let mut promotion = |draft: &DraftId, draft_path: PathBuf| {
                 let Ok(tracker) = registry.resolve(&state.name) else {
-                    return Ok(None);
+                    return Ok(DraftPromotionOutcome::NoTracker);
                 };
-                let workspace = IdentityWorkspace::open(
+                let workspace = match IdentityWorkspace::for_identity_change(
                     config,
                     &context.root,
                     &context.work_dir,
                     &state.root,
                     &state.name,
-                )?;
-                let store = store_at(&context.root);
-                let baseline = workspace.baseline(store.as_ref());
-                let retirement =
-                    workspace.retirement_ports(store.as_ref(), &baseline);
-                let ports = PromotionPorts {
-                    tracker: tracker.as_ref(),
-                    parser: &CommonMarkBody,
-                    retirement: &retirement,
-                    records: &records,
+                ) {
+                    Ok((workspace, _)) => workspace,
+                    Err(OpenFailure::Refused(refusal)) => {
+                        return Ok(DraftPromotionOutcome::Refused {
+                            warning: configure_warning(&refusal),
+                        })
+                    }
+                    Err(OpenFailure::Failed(message)) => return Err(message),
                 };
-                let result = promote(
-                    draft,
-                    &PromotionMode::Standard,
-                    &ports,
-                    identity_run,
-                );
-                Ok(Some(PromotionRow::of(
+                let store = store_at(&context.root);
+                Ok(attempt_promotion(
                     draft,
                     draft_path,
-                    result,
-                    &ports,
-                    workspace.state_dir(),
-                )))
+                    &workspace,
+                    store.as_ref(),
+                    tracker.as_ref(),
+                    &records,
+                    identity_run,
+                ))
             };
             create_tracker_keyed_item(
                 &creation,
@@ -601,6 +601,34 @@ pub fn create_item(
             )
         }
     }
+}
+
+/// Promotes the draft `create --push` just saved, through `workspace`.
+fn attempt_promotion(
+    draft: &DraftId,
+    draft_path: PathBuf,
+    workspace: &IdentityWorkspace,
+    store: &dyn CreationStore,
+    tracker: &dyn RemoteTracker,
+    records: &dyn PromotionRecords,
+    identity_run: &IdentityRunGuard,
+) -> DraftPromotionOutcome {
+    let baseline = workspace.baseline(store);
+    let retirement = workspace.retirement_ports(store, &baseline);
+    let ports = PromotionPorts {
+        tracker,
+        parser: &CommonMarkBody,
+        retirement: &retirement,
+        records,
+    };
+    let result = promote(draft, &PromotionMode::Standard, &ports, identity_run);
+    DraftPromotionOutcome::Attempted(PromotionRow::of(
+        draft,
+        draft_path,
+        result,
+        &ports,
+        workspace.state_dir(),
+    ))
 }
 
 /// What `run` takes from its caller beyond the request: the tracker, the
@@ -898,6 +926,46 @@ mod tests {
                 "a-tabled-idea",
             )
         }
+    }
+
+    #[test]
+    fn a_create_push_with_a_symlinked_retirement_recovery_saves_locally_before_any_tracker_call(
+    ) {
+        let repo = PushingRepo::tracker_owned();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let state = repo.root.path().join(".accelerator/state");
+        std::fs::create_dir_all(&state).expect("mkdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            state.join("retirement-recovery"),
+        )
+        .expect("symlink");
+        let tracker = RecordingTracker::holding(Vec::new());
+
+        let outcome = repo.create(tracker);
+
+        let RunOutcome::Created {
+            path: Some(draft),
+            push: Some(report),
+        } = outcome
+        else {
+            panic!("a refused root still saves the draft");
+        };
+        assert!(draft.exists(), "the draft is saved");
+        assert_eq!(report.outcome, PushOutcome::LocalSave);
+        assert_eq!(report.outcome.exit_code(), exit_codes::CLEAN);
+        let warning = report.warning.expect("the refusal is named");
+        assert!(
+            warning.starts_with(
+                "warning: -: configure failed: .accelerator/state/\
+                 retirement-recovery is a symlink to "
+            ),
+            "{warning}"
+        );
+        assert!(std::fs::read_dir(elsewhere.path())
+            .expect("readable")
+            .next()
+            .is_none());
     }
 
     #[test]

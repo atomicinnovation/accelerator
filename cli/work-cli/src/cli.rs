@@ -135,7 +135,10 @@ pub enum Command {
     /// tracker is recognised but has no client built yet; 73
     /// work.integration is unset or names an unrecognised tracker; 74 the
     /// configured tracker is wired but its configuration or credentials are
-    /// missing (nothing was sent). The report on stdout is
+    /// missing, or a configured work, integrations or state root it refuses:
+    /// a symlink out of the repository, an outside root not set in an
+    /// untracked `config.local.md`, or overlapping roots (nothing was sent).
+    /// The report on stdout is
     /// authoritative: check it for `unresolved` lines regardless of exit
     /// code, since a 71 run may also carry conflicts.
     Sync(Box<SyncArgs>),

@@ -58,9 +58,11 @@
 //! the precedence `71 > 4 > 75 > 74 > 70`.
 //!
 //! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
-//! configure* a tracker. `72`/`73` and the credential branch of `74` come from
-//! `SelectionError`; `74` is also emitted pre-flight when a run's discovery
-//! scope names no valid target (`RunError::DiscoveryUnconfigured`), and for a
+//! configure* a tracker, or a configured root a run refuses to write under.
+//! `72`/`73` and the credential branch of `74` come from `SelectionError`;
+//! `74` is also emitted pre-flight when a run's discovery scope names no valid
+//! target (`RunError::DiscoveryUnconfigured`), for a configured work,
+//! integrations or state root the run refuses, and for a
 //! [`TrackerError::Unconfigured`] — a tracker call refused on configuration
 //! before anything was sent:
 //!
@@ -72,7 +74,9 @@
 //!   configuration: its credentials are missing or refused, or a non-push-only
 //!   run's discovery scope names no valid target (an unset or unresolvable
 //!   key, or a configured `additional_*`/`all_*` entity the credential cannot
-//!   see). A run-level refusal is pre-flight, before the apply/push phase, so
+//!   see), or a configured work, integrations or state root it refuses: a
+//!   symlink out of the repository, an outside root not set in an untracked
+//!   `config.local.md`, or overlapping roots. A run-level refusal is pre-flight, before the apply/push phase, so
 //!   **no write was made**. A broadened scope is confirmed against a live
 //!   entity-enumeration read, so a read may have gone out, but nothing was
 //!   mutated — so save locally and fix the config; never reconcile against a
@@ -117,11 +121,12 @@
 //!   draft.
 //! - `record-unwritable` — `71` once an issue exists, otherwise `1`.
 //!
-//! Three reasons exit differently from `work create --push`, whose job is to
+//! Four reasons exit differently from `work create --push`, whose job is to
 //! save the user's intent rather than to reconcile: an unreachable tracker is
 //! `0` there (`local-save`, the draft is saved), an earlier unconfirmed
-//! create is `71` there (`loud-terminal`), and an unwritable first record is
-//! `0` there (`local-save`).
+//! create is `71` there (`loud-terminal`), an unwritable first record is
+//! `0` there (`local-save`), and a refused state root is `0` there
+//! (`local-save`, with a `warning: -: configure failed:` line naming it).
 //!
 //! `work rekey` prints `Error: <code>: <what>. <remedy>.` for every refusal.
 //! Nothing remote is mutated, so a local failure is `4`, never `70`/`71`:
