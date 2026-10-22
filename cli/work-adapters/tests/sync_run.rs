@@ -36,6 +36,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::report::Finalisation;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -62,9 +63,14 @@ struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
     removals: RefCell<Vec<PathBuf>>,
+    refuse_writes_to: RefCell<Option<PathBuf>>,
 }
 
 impl Spy {
+    fn refuse_writes_to(&self, path: &str) {
+        *self.refuse_writes_to.borrow_mut() = Some(PathBuf::from(path));
+    }
+
     fn seed(&self, path: &str, content: &str) {
         self.files
             .borrow_mut()
@@ -99,6 +105,12 @@ impl FileReader for Spy {
 
 impl AtomicWrite for Spy {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        if self.refuse_writes_to.borrow().as_deref() == Some(path) {
+            return Err(StoreError::Io {
+                path: path.display().to_string(),
+                detail: "injected finalise failure".to_owned(),
+            });
+        }
         self.writes.borrow_mut().push(path.to_path_buf());
         self.files
             .borrow_mut()
@@ -942,8 +954,9 @@ fn preview_reports_the_plan_without_writing_anything() -> Result<(), TestError>
         0,
         "preview must perform no write at all, baseline included"
     );
-    assert!(
-        !report.finalised,
+    assert_eq!(
+        report.finalisation,
+        Finalisation::NotAttempted,
         "preview must not advance the baseline timestamp"
     );
     assert_eq!(
@@ -962,7 +975,7 @@ fn a_plan_exactly_on_the_pull_bound_proceeds() -> Result<(), TestError> {
         .map_err(|_| "three pulls against a bound of three must proceed")?;
 
     assert_eq!(report.reported.len(), 3);
-    assert!(report.finalised);
+    assert_eq!(report.finalisation, Finalisation::Finalised);
     Ok(())
 }
 
@@ -1151,7 +1164,11 @@ fn an_applied_pull_writes_the_item_and_advances_the_baseline(
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a single pull within bounds must proceed")?;
 
-    assert!(report.finalised, "the run must finalise");
+    assert_eq!(
+        report.finalisation,
+        Finalisation::Finalised,
+        "the run must finalise"
+    );
     assert!(
         scenario.spy.write_count() >= 1,
         "an applied pull must write the baseline"
@@ -1254,7 +1271,7 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
         1,
         "an unresolved conflict must be reported as awaiting a human"
     );
-    assert!(report.finalised);
+    assert_eq!(report.finalisation, Finalisation::Finalised);
 
     let baseline = scenario
         .spy
@@ -2628,5 +2645,20 @@ fn an_unclassifiable_item_is_reported_as_a_failed_row() -> Result<(), TestError>
         .find(|item| item.planned.id == "0002")
         .expect("the neighbour is planned");
     assert!(matches!(neighbour.outcome, ItemOutcome::Applied));
+    Ok(())
+}
+
+#[test]
+fn a_failed_finalise_is_reported_as_failed() -> Result<(), TestError> {
+    let scenario = scenario(0, 0)?;
+    scenario.spy.refuse_writes_to(BASELINE_PATH);
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "an empty run proceeds")?;
+
+    let Finalisation::Failed(reason) = &report.finalisation else {
+        panic!("the finalise write failed: {:?}", report.finalisation);
+    };
+    assert!(reason.contains("injected finalise failure"), "{reason}");
     Ok(())
 }
