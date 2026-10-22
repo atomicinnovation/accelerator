@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use accelerator::launch::outbound::resolve::filesystem::{
-    CacheFilesystem, SystemFilesystem,
+    CacheFilesystem, EntryMetadata, ResolvedDirectory, SystemFilesystem,
 };
 
 /// A path relative to the cache root, or else to the test's outer anchor, so
@@ -33,6 +33,10 @@ pub enum FilesystemCall {
         to: RecordedPath,
     },
     RemoveFile(RecordedPath),
+    Entry(RecordedPath),
+    Resolve(RecordedPath),
+    CreatePrivateDir(RecordedPath),
+    SetModified(RecordedPath),
 }
 
 impl FilesystemCall {
@@ -44,6 +48,8 @@ impl FilesystemCall {
                 | Self::MakeExecutable(_)
                 | Self::Rename { .. }
                 | Self::RemoveFile(_)
+                | Self::CreatePrivateDir(_)
+                | Self::SetModified(_)
         )
     }
 
@@ -58,7 +64,11 @@ impl FilesystemCall {
             | Self::CreateDirAll(touched)
             | Self::WritePrivate(touched)
             | Self::MakeExecutable(touched)
-            | Self::RemoveFile(touched) => touched == path,
+            | Self::RemoveFile(touched)
+            | Self::Entry(touched)
+            | Self::Resolve(touched)
+            | Self::CreatePrivateDir(touched)
+            | Self::SetModified(touched) => touched == path,
         }
     }
 }
@@ -195,6 +205,26 @@ impl CacheFilesystem for RecordingFilesystem {
     fn remove_file(&self, path: &Path) -> io::Result<()> {
         self.record(FilesystemCall::RemoveFile(self.recorded(path)));
         SystemFilesystem.remove_file(path)
+    }
+
+    fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
+        self.record(FilesystemCall::Entry(self.recorded(path)));
+        SystemFilesystem.entry(path)
+    }
+
+    fn resolve(&self, path: &Path) -> io::Result<ResolvedDirectory> {
+        self.record(FilesystemCall::Resolve(self.recorded(path)));
+        SystemFilesystem.resolve(path)
+    }
+
+    fn create_private_dir(&self, path: &Path) -> io::Result<()> {
+        self.record(FilesystemCall::CreatePrivateDir(self.recorded(path)));
+        SystemFilesystem.create_private_dir(path)
+    }
+
+    fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()> {
+        self.record(FilesystemCall::SetModified(self.recorded(path)));
+        SystemFilesystem.set_modified(path, seconds)
     }
 }
 
