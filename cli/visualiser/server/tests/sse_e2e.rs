@@ -35,15 +35,66 @@ async fn file_mutation_arrives_as_sse_event() {
     };
 
     let info_path = tmp.path().join("server-info.json");
-    let info_path_clone = info_path.clone();
+    let server = start_server(cfg, info_path).await;
 
-    let _handle = tokio::spawn(async move {
-        accelerator_visualiser::server::run(cfg, &info_path_clone)
+    // NOTE: this test requires kernel filesystem notifications (inotify on
+    // Linux, FSEvents on macOS). In containerised CI environments using
+    // overlayfs or with exhausted inotify watch quotas, the test may be
+    // flaky. Ensure `fs.inotify.max_user_watches` is sufficient (≥ 8192
+    // recommended) on Linux CI runners.
+    let mut sse_response = server.watching_events().await;
+
+    let event = write_until_event(
+        &mut sse_response,
+        &plans.join("2026-01-01-test.md"),
+        "---\ntitle: Updated\n---\n",
+        "doc-changed",
+    )
+    .await;
+    assert!(event.is_some(), "expected doc-changed SSE event");
+}
+
+struct StartedServer {
+    port: u16,
+    watching: tokio::sync::oneshot::Receiver<()>,
+}
+
+impl StartedServer {
+    /// The SSE stream, opened once the server's filesystem watches are
+    /// registered, so a write from here on is observed.
+    async fn watching_events(self) -> reqwest::Response {
+        let url = format!("http://127.0.0.1:{}/api/events", self.port);
+        let response = reqwest::Client::new()
+            .get(&url)
+            .send()
             .await
-            .unwrap();
-    });
+            .expect("GET /api/events failed");
+        assert_eq!(response.status(), 200);
+        tokio::time::timeout(WATCH_REGISTRATION_CEILING, self.watching)
+            .await
+            .expect("the server's filesystem watches were never registered")
+            .expect("the server stopped before registering its watches");
+        response
+    }
+}
 
-    // Wait for server-info.json.
+async fn start_server(
+    cfg: accelerator_visualiser::config::Config,
+    info_path: std::path::PathBuf,
+) -> StartedServer {
+    let (watching_tx, watching) = tokio::sync::oneshot::channel();
+    let info_path_clone = info_path.clone();
+    let _handle = tokio::spawn(async move {
+        accelerator_visualiser::server::run_signalling(
+            cfg,
+            &info_path_clone,
+            accelerator_visualiser::server::StartupSignals {
+                watching: Some(watching_tx),
+            },
+        )
+        .await
+        .unwrap();
+    });
     let start = std::time::Instant::now();
     let port = loop {
         if let Ok(bytes) = std::fs::read(&info_path) {
@@ -56,70 +107,28 @@ async fn file_mutation_arrives_as_sse_event() {
         );
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
-
-    // Open SSE stream.
-    // NOTE: this test requires kernel filesystem notifications (inotify on
-    // Linux, FSEvents on macOS). In containerised CI environments using
-    // overlayfs or with exhausted inotify watch quotas, the test may be
-    // flaky. Ensure `fs.inotify.max_user_watches` is sufficient (≥ 8192
-    // recommended) on Linux CI runners.
-    let url = format!("http://127.0.0.1:{port}/api/events");
-    let client = reqwest::Client::new();
-    let mut sse_response = client
-        .get(&url)
-        .send()
-        .await
-        .expect("GET /api/events failed");
-    assert_eq!(sse_response.status(), 200);
-
-    let event = write_until_event(
-        &mut sse_response,
-        &plans.join("2026-01-01-test.md"),
-        "---\ntitle: Updated\n---\n",
-        "doc-changed",
-    )
-    .await;
-    assert!(event.is_some(), "expected doc-changed SSE event");
+    StartedServer { port, watching }
 }
 
-async fn start_server_with_template(
-    cfg: accelerator_visualiser::config::Config,
-    info_path: std::path::PathBuf,
-) -> u16 {
-    let info_path_clone = info_path.clone();
-    let _handle = tokio::spawn(async move {
-        accelerator_visualiser::server::run(cfg, &info_path_clone)
-            .await
-            .unwrap();
-    });
-    let start = std::time::Instant::now();
-    loop {
-        if let Ok(bytes) = std::fs::read(&info_path) {
-            let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-            break v["port"].as_u64().unwrap() as u16;
-        }
-        assert!(
-            start.elapsed().as_secs() <= 5,
-            "server-info.json did not appear in 5s"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
+/// A hang detector, not a latency budget: a saturated `fseventsd` has been
+/// measured taking minutes to register one watch, and registrations from
+/// concurrent tests queue behind one another.
+const WATCH_REGISTRATION_CEILING: Duration = Duration::from_secs(15 * 60);
 
-/// Saturated `FSEvents` has been seen to take minutes to register watches.
-const WATCH_REGISTRATION_BUDGET: Duration = Duration::from_secs(300);
+/// How long an event may take to arrive once the watches are registered.
+const EVENT_DELIVERY_BUDGET: Duration = Duration::from_secs(60);
 
 /// Rewrites `path` with `contents` until an SSE frame containing `needle`
-/// arrives. The server answers HTTP before its filesystem watches are
-/// registered, so a single write can land before anything is listening;
-/// identical rewrites after the first observed one are suppressed server-side.
+/// arrives. A loaded `FSEvents` can coalesce or delay a single write's
+/// notification; identical rewrites after the first observed one are
+/// suppressed server-side.
 async fn write_until_event(
     sse_response: &mut reqwest::Response,
     path: &std::path::Path,
     contents: &str,
     needle: &str,
 ) -> Option<String> {
-    let deadline = tokio::time::Instant::now() + WATCH_REGISTRATION_BUDGET;
+    let deadline = tokio::time::Instant::now() + EVENT_DELIVERY_BUDGET;
     let mut accumulated = String::new();
     while tokio::time::Instant::now() < deadline {
         std::fs::write(path, contents).unwrap();
@@ -187,13 +196,8 @@ async fn template_file_mutation_arrives_as_template_changed_sse_event() {
 
     let cfg = make_template_cfg(tmp.path(), tier_file.clone());
     let info_path = tmp.path().join("server-info.json");
-    let port = start_server_with_template(cfg, info_path).await;
-
-    let url = format!("http://127.0.0.1:{port}/api/events");
-    let client = reqwest::Client::new();
     let mut sse_response =
-        client.get(&url).send().await.expect("GET /api/events");
-    assert_eq!(sse_response.status(), 200);
+        start_server(cfg, info_path).await.watching_events().await;
 
     let chunk = write_until_event(
         &mut sse_response,
@@ -227,13 +231,8 @@ async fn template_file_emptied_arrives_as_template_changed_with_no_sha256() {
 
     let cfg = make_template_cfg(tmp.path(), tier_file.clone());
     let info_path = tmp.path().join("server-info.json");
-    let port = start_server_with_template(cfg, info_path).await;
-
-    let url = format!("http://127.0.0.1:{port}/api/events");
-    let client = reqwest::Client::new();
     let mut sse_response =
-        client.get(&url).send().await.expect("GET /api/events");
-    assert_eq!(sse_response.status(), 200);
+        start_server(cfg, info_path).await.watching_events().await;
 
     let chunk = write_until_event(
         &mut sse_response,
