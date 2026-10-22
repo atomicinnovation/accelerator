@@ -2287,7 +2287,6 @@ mod tests {
     use work_adapters::sync::apply::ApplyError;
     use work_adapters::sync::apply::ItemProgress;
     use work_adapters::sync::apply::LeftoverMarker;
-    use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::operation::SyncOperation;
     use work_adapters::sync::run::ConflictDossier;
     use work_adapters::sync::run::DiscoveryStatus;
@@ -2879,9 +2878,6 @@ mod tests {
     #[test]
     fn render_report_sorts_fixed_width_ids_numerically() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![
                 reported(
                     "0001",
@@ -2947,13 +2943,7 @@ mod tests {
                     Action::RecordBaseline,
                 ),
             ],
-            unclassifiable: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
-            discovery: DiscoveryStatus::Ran { found: 0 },
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -2973,17 +2963,8 @@ mod tests {
     #[test]
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            unclassifiable: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery: DiscoveryStatus::SkippedPushOnly,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         };
 
         assert_eq!(
@@ -3564,17 +3545,8 @@ mod tests {
 
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            unclassifiable: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         }
     }
 
@@ -4044,9 +4016,6 @@ mod tests {
     #[test]
     fn render_report_renders_an_unconfigured_failure() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::LocallyModified,
@@ -4070,9 +4039,6 @@ mod tests {
     #[test]
     fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::Unsynced,
@@ -4096,9 +4062,6 @@ mod tests {
             || failed("0003", SyncState::LocallyModified, unconfigured(""));
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
-                identity: Vec::new(),
-                promotions: Vec::new(),
-                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -4139,9 +4102,6 @@ mod tests {
         };
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
-                identity: Vec::new(),
-                promotions: Vec::new(),
-                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })

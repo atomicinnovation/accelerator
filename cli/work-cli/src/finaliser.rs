@@ -136,7 +136,6 @@ mod tests {
     use linear_client::SurfaceError;
     use serde_json::json;
     use work::sync::{Action, PlannedAction, SyncState};
-    use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ReportedItem;
 
     use std::path::Path;
@@ -298,17 +297,8 @@ mod tests {
 
     fn report(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            unclassifiable: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         }
     }
 
@@ -487,9 +477,6 @@ mod tests {
     #[test]
     fn an_applied_import_names_a_synced_team_and_a_failed_one_does_not() {
         let run_report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![
                 imported("OPS-7", ItemOutcome::Applied),
                 imported("QA-3", ItemOutcome::NotApplied),
