@@ -11,13 +11,14 @@ pub mod download;
 pub mod extract;
 pub mod layout;
 pub mod lease;
+pub mod locks;
 pub mod pins;
 pub mod reap;
 pub mod seal;
 pub mod table;
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
-mod testing;
+pub(crate) mod testing;
 pub mod tree_lock;
 
 #[cfg(unix)]

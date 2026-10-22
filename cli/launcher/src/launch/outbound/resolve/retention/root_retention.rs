@@ -78,6 +78,8 @@ mod tests {
     use super::super::super::cache_root::{CacheRoot, CacheRootKind};
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::ProcessOwnership;
+    use super::super::super::prune_report::NoPruneSteps;
+    use super::super::super::tree::locks::FlockLocks;
     use super::super::launcher_id;
     use super::super::ports::CachePorts;
     use super::super::version_claims::VERSION_CLAIMS_DIR;
@@ -98,6 +100,8 @@ mod tests {
             filesystem: Arc::new(SystemFilesystem),
             ownership: Arc::new(ProcessOwnership),
             clock: Arc::new(AtClock(1_000_000)),
+            locks: Arc::new(FlockLocks),
+            steps: Arc::new(NoPruneSteps),
         })
     }
 
