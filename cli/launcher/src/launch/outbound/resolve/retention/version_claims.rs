@@ -13,7 +13,7 @@ use crate::launch::core::tree::Clock;
 
 use super::super::filesystem::{CacheFilesystem, EntryMetadata, FileKind};
 use super::super::ownership::{
-    is_trusted_directory, is_trusted_entry, Ownership,
+    is_trusted_directory, is_trusted_directory_entry, Ownership,
 };
 use super::super::retention_windows::{CLAIM_WINDOW, REFRESH_FRACTION};
 
@@ -120,7 +120,11 @@ pub fn list(
             return ClaimsListing::Read(Vec::new());
         }
         Err(error) => return ClaimsListing::Unreadable(error.kind()),
-        Ok(entry) if !is_trusted_entry(&entry, ownership.effective_uid()) => {
+        Ok(entry)
+            if !is_trusted_directory_entry(
+                &claims, &entry, filesystem, ownership,
+            ) =>
+        {
             return ClaimsListing::Unreadable(io::ErrorKind::PermissionDenied);
         }
         Ok(_) => {}
@@ -303,7 +307,7 @@ mod tests {
                 self.path(),
                 &claim(),
                 filesystem,
-                &ProcessOwnership,
+                &ProcessOwnership::default(),
                 clock,
             );
         }
@@ -333,7 +337,7 @@ mod tests {
 
     fn foreign(path: &Path) -> EntryMetadata {
         EntryMetadata {
-            owner: ProcessOwnership.effective_uid() + 1,
+            owner: ProcessOwnership::default().effective_uid() + 1,
             ..real(path)
         }
     }
@@ -342,7 +346,7 @@ mod tests {
         root: &Root,
         filesystem: &dyn CacheFilesystem,
     ) -> Vec<super::ListedClaim> {
-        match list(root.path(), filesystem, &ProcessOwnership) {
+        match list(root.path(), filesystem, &ProcessOwnership::default()) {
             ClaimsListing::Read(claims) => claims,
             ClaimsListing::Unreadable(kind) => panic!("unreadable: {kind:?}"),
         }
@@ -557,7 +561,8 @@ mod tests {
         )
         .expect("unreadable");
 
-        let listing = list(root.path(), &SystemFilesystem, &ProcessOwnership);
+        let listing =
+            list(root.path(), &SystemFilesystem, &ProcessOwnership::default());
 
         std::fs::set_permissions(
             root.claims(),
@@ -580,7 +585,8 @@ mod tests {
         let filesystem = ReportingFilesystem::over_system()
             .reporting(&root.claims(), foreign(&root.claims()));
 
-        let listing = list(root.path(), &filesystem, &ProcessOwnership);
+        let listing =
+            list(root.path(), &filesystem, &ProcessOwnership::default());
 
         assert!(
             matches!(
