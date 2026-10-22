@@ -234,7 +234,7 @@ pub fn run_report() -> work_adapters::sync::run::RunReport {
         unclassifiable: Vec::new(),
         read_failure: None,
         baseline_degradation: work_adapters::sync::baseline::Degradation::None,
-        finalised: true,
+        finalisation: work_adapters::sync::report::Finalisation::Finalised,
         dossiers: Vec::new(),
         discovery: work_adapters::sync::run::DiscoveryStatus::Ran { found: 0 },
         keyed_read_budget_limited: false,

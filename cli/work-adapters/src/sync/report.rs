@@ -43,6 +43,15 @@ pub struct ReportedItem {
     pub leftover_marker: Option<LeftoverMarker>,
 }
 
+/// Whether a run recorded its baseline bookkeeping: a preview does not
+/// try, and a failed write keeps the store's reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Finalisation {
+    NotAttempted,
+    Finalised,
+    Failed(String),
+}
+
 pub struct RunReport {
     /// The identity pass's rows, each keyed by the item's id when the run
     /// started. The engine's row for the same item is not rendered.
@@ -58,7 +67,7 @@ pub struct RunReport {
     pub unclassifiable: Vec<Unclassifiable>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
-    pub finalised: bool,
+    pub finalisation: Finalisation,
     pub dossiers: Vec<ConflictDossier>,
     pub discovery: DiscoveryStatus,
     /// The bulk keyed read was cut short by a transient condition (a deadline,

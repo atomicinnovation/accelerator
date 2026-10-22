@@ -63,6 +63,7 @@ use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
+use crate::sync::report::Finalisation;
 pub use crate::sync::report::ItemOutcome;
 pub use crate::sync::report::ReportedItem;
 pub use crate::sync::report::RunReport;
@@ -292,15 +293,14 @@ impl SettledView {
 /// that did reconcile it, so a local edit predating this run is not buried.
 /// Writes the run's baseline bookkeeping: blanks each unreconciled conflict's
 /// local hash, advances the reconciled items' watermarks, and — only for a
-/// whole-corpus run — advances the document-level fallback watermark. Returns
-/// whether the write succeeded.
+/// whole-corpus run — advances the document-level fallback watermark.
 fn finalise_baseline(
     baseline: &mut BaselineStore<'_>,
     reported: &[ReportedItem],
     blank_local_hash: &[String],
     run_start_epoch: u64,
     selection: &ItemSelection<'_>,
-) -> bool {
+) -> Finalisation {
     let blank_refs: Vec<&str> =
         blank_local_hash.iter().map(String::as_str).collect();
     let advance_ids: Vec<&str> = reported
@@ -319,7 +319,10 @@ fn finalise_baseline(
             run_start_epoch,
             advance_document,
         )
-        .is_ok()
+        .map_or_else(
+            |error| Finalisation::Failed(error.to_string()),
+            |()| Finalisation::Finalised,
+        )
 }
 
 /// Whether a run settled `item`, so its watermark may move. A change the run
@@ -1854,7 +1857,7 @@ fn execute<'a>(
             unclassifiable: plan.unclassifiable,
             read_failure,
             baseline_degradation: degradation,
-            finalised: false,
+            finalisation: Finalisation::NotAttempted,
             dossiers,
             discovery,
             keyed_read_budget_limited,
@@ -1917,7 +1920,7 @@ fn execute<'a>(
         }
     }
 
-    let finalised = finalise_baseline(
+    let finalisation = finalise_baseline(
         baseline,
         &reported,
         &blank_local_hash,
@@ -1933,7 +1936,7 @@ fn execute<'a>(
         unclassifiable: plan.unclassifiable,
         read_failure,
         baseline_degradation: degradation,
-        finalised,
+        finalisation,
         dossiers,
         discovery,
         keyed_read_budget_limited,
