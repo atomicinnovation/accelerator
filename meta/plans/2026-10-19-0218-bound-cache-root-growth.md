@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T05:52:31+00:00"
+last_updated: "2026-10-22T06:41:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2643,16 +2643,18 @@ verb; Phase 7 extends it to a cold store and a materialise.
 
 #### Automated Verification:
 
-- [ ] All Phase 5 tests pass: `mise run test:unit:cli`
-- [ ] Existing `tree_resolution.rs` prune tests pass with unchanged
+- [x] All Phase 5 tests pass: `mise run test:unit:cli`
+- [x] Existing `tree_resolution.rs` prune tests pass with unchanged
       assertions after commit 1, and after commit 2 except the cases that
       commit lists
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] In a scratch relocated root, a planted retired-artifact tree with an
-      old lock file is removed by `accelerator cache prune`, lock included
+- [x] In a scratch relocated root, a planted retired-artifact tree with an
+      old lock file is removed by `accelerator cache prune`, lock included.
+      A pointer, generation, three sidecars and a lock, all dated 2020,
+      printed `reclaimed 2 entries` and left `trees/` empty.
 
 ---
 
