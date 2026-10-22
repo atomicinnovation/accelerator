@@ -1809,14 +1809,83 @@ the removal so tests can assert it; none is a silent no-op.
 
 #### Automated Verification
 
-- [ ] Production-wiring, confinement and routing tests pass:
+- [x] Production-wiring, confinement and routing tests pass:
       `cargo test -p accelerator-work -p work-adapters -p corpus-adapters --manifest-path cli/Cargo.toml`
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] None in this phase (Linear check follows Phase 5).
+- [x] None in this phase (Linear check follows Phase 5).
+
+### As Implemented
+
+Landed as seven commits plus this progress record: the project-bounded
+corpus store, `SyncStore` and the split harness, marker removal through the
+integration-state store, the marker id refusal, `config::provenance`, the
+two bounded stores with the pre-flight root check, and the batch push's
+warning. Departures from the steps above:
+
+- `paths.work` is a doc-type key, which `config::paths::doc_type_dirs`
+  already refuses when absolute or holding `..`, and no `paths.*` key has
+  an environment override. So only `paths.integrations` can name a root
+  outside the repository, `PathSource` is `{Default, Team,
+  Personal(Tracking)}`, and `an_absolute_work_root_outside_the_repository_pulls`
+  and `a_dotdot_configured_work_root_pulls` became
+  `an_absolute_integrations_root_outside_the_repository_syncs` and
+  `a_dotdot_configured_integrations_root_pulls`. A work root that is a
+  symlink out reads `work directory <path> is a symlink outside the
+  repository; move it inside the repository`, since `paths.work` cannot
+  name the target.
+- The marker guard is `pending_push::for_item`, which refuses an id that is
+  not one plain file-name component: `run.rs` holds no id scheme, so it
+  cannot apply `is_token_safe`. The stores' non-`Normal` refusal remains
+  the second barrier.
+- `SyncStore` lives in `work-adapters/src/sync/files.rs` beside
+  `SyncFiles`. `BoundedRoot`, `ConfiguredRoot`, `RootKey`, `RootRefusal`,
+  `ValidatedRoots` and `ValidatedStateRoots` live in
+  `work-cli/src/bounded_roots.rs`, since `promote` and `create` use them
+  too; `sync/stores.rs` holds `StoreFactories` (with
+  `StoreFactories::production()`), `SyncStores` and the `rooted_store`
+  that refuses non-`Normal` components. `SyncStores::bounded` takes the
+  work-item and integration-state roots; `ValidatedRoots` carries
+  `integrations` and derives `integration_state(name)`.
+- `ValidatedRoots::check` runs before discovery and the target resolver,
+  and `IdentityWorkspace::for_sync(config, repo_root, &ValidatedRoots,
+  integration)` opens the workspace where `open` did, so a usage error
+  still creates no state directory (`an_unsafe_discard_id_exits_2_before_any_write`).
+  `for_identity_change` returns `OpenFailure::{Refused, Failed}`.
+- Any symlinked recovery parent is refused, whether or not it points
+  outside the repository, matching the recovery adapter's own refusal.
+  Case-insensitivity is probed by finding the repository directory under
+  its name with the case swapped.
+- A leftover marker after a link travels as `ReportedItem.leftover_marker`
+  and prints `warning: <id>: could not clear marker <path>: <reason>; the
+  item is linked, so remove the marker by hand`.
+- `work create --push` learns of the refusal through a new
+  `DraftPromotionOutcome::{NoTracker, Refused { warning }, Attempted}` and
+  `PushReport.warning`, which `main` prints verbatim; `create-batch --push`
+  carries it on `BatchItem.warning` and prints each distinct warning once
+  (`a_batch_push_under_a_refused_state_root_saves_each_draft_and_warns_once`).
+- The shared harness keeps two role doubles, `WorkItems` on disk and an
+  in-memory `IntegrationState` that refuses every path but the baseline,
+  rather than two real stores.
+- In `a_terminal_baseline_set_after_a_pull_records_the_baseline_on_the_next_run`
+  the second run renders no `0001` row: `Synced(RecordOnly)` counts as
+  synced without one (`a_recorded_baseline_counts_as_synced_with_no_row`),
+  so the test asserts `#\tsummary\tsynced\t1`, no write to the item, no
+  tracker mutation and the recorded fingerprints.
+- `a_promote_refusal_exits_74` and
+  `a_create_push_refusal_saves_the_draft_as_local_save` are folded into
+  their symlinked-`retirement-recovery` twins;
+  `an_outside_root_from_a_personal_config_of_unknown_tracking_refuses_the_run`
+  is covered by `bounded_root_for_each_configured_shape` only, since no real
+  repository answers `Unknown`; `an_unsafe_dossier_id_writes_nothing` is
+  covered by the existing `persist_dossiers_writes_safe_ids_and_skips_unsafe_ones`.
+- `the_work_item_store_refuses_a_dotdot_escape` and its twins live in
+  `sync/stores.rs`; `a_work_directory_symlinked_out_of_the_repository_is_refused`
+  there swaps a validated root for a symlink before the write, the
+  backstop the pre-flight check cannot cover.
 
 ---
 
