@@ -1631,12 +1631,21 @@ fn an_unreadable_local_file_fails_the_pull_and_writes_nothing(
     let report = execute_resolving(&scenario, &accepting_remote("0009"))
         .map_err(|_| "a blank baseline local_hash needs no local read")?;
 
+    let failure = only_failure(&report);
     assert!(
         matches!(
-            only_failure(&report),
-            work_adapters::sync::apply::ApplyError::Io { .. }
+            failure,
+            work_adapters::sync::apply::ApplyError::Io {
+                operation:
+                    work_adapters::sync::operation::SyncOperation::ReadLocal,
+                ..
+            }
         ),
         "an unreadable local file must not pull over empty frontmatter"
+    );
+    assert_eq!(
+        failure.class(),
+        work_adapters::sync::apply::FailureClass::Retryable
     );
     assert_eq!(scenario.spy.content_of(&path), None);
     Ok(())
