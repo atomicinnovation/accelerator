@@ -331,7 +331,7 @@ fn sync(harness: &Harness, settings: &Run<'_>) -> RunReport {
         tracker: &harness.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &harness.spy,
+        files: support::sync_files(&harness.spy),
         clock: &FixedClock,
         author: &author,
     };

@@ -43,6 +43,7 @@ use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
@@ -1819,7 +1820,10 @@ fn assemble_run<T>(
         tracker: assembly.tracker,
         parser: &CommonMarkBody,
         status: workspace.status(),
-        writer: &corpus_store,
+        files: SyncFiles {
+            work_items: &corpus_store,
+            integration_state: &corpus_store,
+        },
         clock: &clock,
         author: &author,
     };

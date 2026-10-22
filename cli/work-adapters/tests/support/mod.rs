@@ -73,6 +73,7 @@ use work_adapters::sync::baseline::SyncStamps;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
 
 pub type TestError = Box<dyn std::error::Error>;
 
@@ -760,4 +761,12 @@ impl IdentityRun for Unheld {
 /// A held identity run, for use cases that need proof of one.
 pub fn identity_run() -> Result<IdentityRunGuard, NotRekeyed> {
     begin_rekey_run(&Unheld, &|_| {})
+}
+
+/// The file ports of a run whose every write goes through `writer`.
+pub fn sync_files(writer: &dyn AtomicWrite) -> SyncFiles<'_> {
+    SyncFiles {
+        work_items: writer,
+        integration_state: writer,
+    }
 }

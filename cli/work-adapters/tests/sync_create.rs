@@ -239,7 +239,7 @@ fn run_sync(
         tracker: ports.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: ports.spy,
+        files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
     };
@@ -284,7 +284,7 @@ fn run_sync_targeted(
         tracker: ports.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: ports.spy,
+        files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
     };
@@ -331,7 +331,7 @@ fn run_sync_targeted_pull(
         tracker: ports.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: ports.spy,
+        files: support::sync_files(ports.spy),
         clock: &clock,
         author: ports.author,
     };
@@ -377,7 +377,7 @@ fn run_at(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &fixture.spy,
+        files: support::sync_files(&fixture.spy),
         clock: &clock,
         author,
     };
@@ -1634,7 +1634,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
             tracker: &tracker,
             parser: &CommonMarkBody,
             status: &status,
-            writer: &failing,
+            files: support::sync_files(&failing),
             clock: &clock,
             author: &author,
         };
@@ -1859,7 +1859,7 @@ fn create_from_local_writes_the_marker_before_the_create(
         tracker: &tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &real,
+        files: support::sync_files(&real),
         clock: &clock,
         author: &author,
     };
@@ -2118,7 +2118,7 @@ fn run_create_from_local_on_disk(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &real,
+        files: support::sync_files(&real),
         clock: &clock,
         author: &author,
     };

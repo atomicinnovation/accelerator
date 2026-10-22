@@ -1303,7 +1303,10 @@ mod tests {
                 tracker: &tracker,
                 parser: &CommonMarkBody,
                 status: &AlwaysClean,
-                writer: &writer,
+                files: work_adapters::sync::files::SyncFiles {
+                    work_items: &writer,
+                    integration_state: &writer,
+                },
                 clock: &FixedClock,
                 author: &UnusedAuthor,
             },

@@ -11,6 +11,7 @@ pub mod create;
 pub mod created_baseline;
 pub mod digest;
 pub mod fetch;
+pub mod files;
 pub mod identity_settlement;
 pub mod item_snapshot;
 mod ordering;

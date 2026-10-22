@@ -23,6 +23,7 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work_adapters::sync::apply::ApplierPorts;
 use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
@@ -216,6 +217,14 @@ impl RemoteTracker for Fake {
     }
 }
 
+fn ports(fake: &Fake) -> ApplierPorts<'_> {
+    ApplierPorts {
+        tracker: fake,
+        parser: &CommonMarkBody,
+        files: support::sync_files(fake),
+    }
+}
+
 const BASELINE_PATH: &str = "/baseline/last-sync.json";
 const CLASSIFIED: &str = "---\nstatus: draft\n---\n\nOld body\n";
 
@@ -246,13 +255,8 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -304,13 +308,8 @@ fn a_retitle_sends_the_title_alone_and_records_the_read_back(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.retitle(&RetitleRequest {
             id: "0001",
             external_id: &external_id,
@@ -344,13 +343,8 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     let result = {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -381,13 +375,8 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     let error = {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier
             .push(&PushRequest {
                 id: "0001",
@@ -416,13 +405,8 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -454,13 +438,8 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.pull(&PullRequest {
             id: "0001",
             file_path: &item_path,
@@ -498,13 +477,8 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.pull(&PullRequest {
             id: "0001",
             file_path: &item_path,
@@ -549,13 +523,8 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     };
 
     let first_attempt = {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.pull(&request)
     };
     assert!(first_attempt.is_err(), "the injected failure must surface");
@@ -570,13 +539,8 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     );
 
     let second_attempt = {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.pull(&request)
     };
     assert!(second_attempt.is_ok(), "the re-run must succeed");
@@ -591,13 +555,8 @@ fn finalise_advances_the_global_timestamp() -> Result<(), TestError> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(
-            &fake,
-            &CommonMarkBody,
-            &fake,
-            &mut store,
-            1_700_000_000,
-        );
+        let mut applier =
+            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
         applier.finalise(1_700_000_000)?;
     }
     let (baseline, _) = store.load()?;
@@ -621,22 +580,16 @@ fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseli
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
 
-    let error = ItemApplier::new(
-        &fake,
-        &CommonMarkBody,
-        &fake,
-        &mut store,
-        1_700_000_000,
-    )
-    .record_baseline(&RecordRequest {
-        id: "0001",
-        file_path: &item_path,
-        fingerprints: classified,
-        remote_updated: RemoteTimestamp::Reported(
-            "2026-06-01T00:00:00Z".to_owned(),
-        ),
-    })
-    .expect_err("the edit is never recorded as synced");
+    let error = ItemApplier::new(ports(&fake), &mut store, 1_700_000_000)
+        .record_baseline(&RecordRequest {
+            id: "0001",
+            file_path: &item_path,
+            fingerprints: classified,
+            remote_updated: RemoteTimestamp::Reported(
+                "2026-06-01T00:00:00Z".to_owned(),
+            ),
+        })
+        .expect_err("the edit is never recorded as synced");
 
     assert_eq!(error.class(), FailureClass::Retryable);
     assert!(!fake
@@ -672,7 +625,7 @@ fn a_pull_residue_refusal_names_the_command_for_its_own_key() {
 fn pull_through(fake: &Fake, item_path: &Path) -> ApplyError {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
-    ItemApplier::new(fake, &CommonMarkBody, fake, &mut store, 1_700_000_000)
+    ItemApplier::new(ports(fake), &mut store, 1_700_000_000)
         .pull(&PullRequest {
             id: "0001",
             file_path: item_path,

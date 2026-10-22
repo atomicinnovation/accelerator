@@ -4,7 +4,6 @@
 use std::path::Path;
 
 use corpus::body::BodyParser;
-use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
@@ -28,6 +27,7 @@ use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
+use crate::sync::files::SyncFiles;
 use crate::sync::pending_push;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,6 +271,14 @@ fn io_error(
     }
 }
 
+/// The ports an [`ItemApplier`] applies through.
+#[derive(Clone, Copy)]
+pub struct ApplierPorts<'a> {
+    pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
+    pub files: SyncFiles<'a>,
+}
+
 /// Applies one planned action, over the tracker port and a baseline store.
 ///
 /// The store's borrow (`'store`) stays separate from the collaborators'
@@ -280,23 +288,21 @@ fn io_error(
 pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
     parser: &'ctx dyn BodyParser,
-    writer: &'ctx dyn AtomicWrite,
+    files: SyncFiles<'ctx>,
     baseline: &'store mut BaselineStore<'ctx>,
     run_start_epoch: u64,
 }
 
 impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn new(
-        tracker: &'ctx dyn RemoteTracker,
-        parser: &'ctx dyn BodyParser,
-        writer: &'ctx dyn AtomicWrite,
+        ports: ApplierPorts<'ctx>,
         baseline: &'store mut BaselineStore<'ctx>,
         run_start_epoch: u64,
     ) -> Self {
         Self {
-            tracker,
-            parser,
-            writer,
+            tracker: ports.tracker,
+            parser: ports.parser,
+            files: ports.files,
             baseline,
             run_start_epoch,
         }
@@ -389,7 +395,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 item_id: request.id.to_owned(),
             });
         }
-        self.writer
+        self.files
+            .work_items
             .write(request.file_path, request.content.as_bytes())
             .map_err(|error| local_write_error(request.id, error))?;
 
@@ -604,7 +611,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         path: &Path,
         marker: &PendingPush,
     ) -> Result<(), ApplyError> {
-        self.writer
+        self.files
+            .integration_state
             .write(path, pending_push::render(marker).as_bytes())
             .map_err(|error| io_error("<marker>", "marker-write", error))
     }
