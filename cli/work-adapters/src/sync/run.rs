@@ -37,6 +37,7 @@ use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
+use crate::sync::apply::KeyCarrier;
 use crate::sync::apply::LeftoverMarker;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
@@ -1130,22 +1131,28 @@ struct Discovered {
     completeness: Completeness,
 }
 
-/// Whether any local item in `corpus` already carries `candidate` as its
-/// `external_id`, compared by canonical key so a cosmetic spelling difference
-/// folds equal — the same folding untracked discovery applies. Shared by the
-/// targeted-pull filter (so a `pull_id` already bound locally is never
-/// re-imported) and the create-from-local double-binding guard.
-fn corpus_carries(
+/// Who in `corpus` already carries `candidate` as its `external_id`,
+/// compared by canonical key so a cosmetic spelling difference folds equal —
+/// the same folding untracked discovery applies. Shared by the targeted-pull
+/// filter (so a `pull_id` already bound locally is never re-imported) and
+/// the create-from-local double-binding guard.
+fn carrier_of(
     corpus: &[LocalItem],
     settled: &SettledView,
     candidate: &ExternalId,
-) -> bool {
+) -> Option<KeyCarrier> {
+    if settled.follows(candidate) {
+        return Some(KeyCarrier::FollowedThisRun);
+    }
     let key = canonical_external_key(candidate);
-    settled.follows(candidate)
-        || corpus
-            .iter()
-            .filter_map(|item| item.external_id.as_ref())
-            .any(|external| canonical_external_key(external) == key)
+    corpus
+        .iter()
+        .find(|item| {
+            item.external_id
+                .as_ref()
+                .is_some_and(|external| canonical_external_key(external) == key)
+        })
+        .map(|item| KeyCarrier::WorkItem(item.id.clone()))
 }
 
 /// The untracked remote issues: a `search` over `scope` minus the
@@ -1471,7 +1478,7 @@ fn apply_local_create(
     item: &LocalItem,
     request: &SyncRequest<'_>,
     author: &dyn LocalAuthor,
-    corpus_carries: &dyn Fn(&ExternalId) -> bool,
+    carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ReportedItem {
     let Some((title, body, kind)) = create_inputs(&item.path) else {
@@ -1507,7 +1514,7 @@ fn apply_local_create(
             kind: &kind,
             marker_path: &marker_path,
             author,
-            corpus_carries,
+            carrier_of,
             attempted_at,
         })
         .result
@@ -1582,7 +1589,7 @@ fn untracked_to_import(
         ItemSelection::Targeted { pull_ids, .. } => {
             let confirmed: Vec<ExternalId> = pull_ids
                 .iter()
-                .filter(|id| !corpus_carries(request.corpus, settled, id))
+                .filter(|id| carrier_of(request.corpus, settled, id).is_none())
                 .cloned()
                 .collect();
             if confirmed.is_empty() {
@@ -1881,9 +1888,8 @@ fn execute<'a>(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
-    let carries = |candidate: &ExternalId| {
-        corpus_carries(request.corpus, settled, candidate)
-    };
+    let carrier =
+        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
 
     {
         let mut applier = ItemApplier::new(
@@ -1928,7 +1934,7 @@ fn execute<'a>(
                 item,
                 request,
                 ports.author,
-                &carries,
+                &carrier,
                 run_start_epoch,
             ));
         }

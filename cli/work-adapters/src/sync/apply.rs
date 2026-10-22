@@ -109,6 +109,13 @@ pub enum ApplyError {
     LocalChangedSinceClassified {
         item_id: String,
     },
+    /// A pending-push marker refused the create: an earlier attempt may
+    /// have made an issue, so a person must look before anything is sent.
+    PendingPushRefused {
+        item_id: String,
+        reason: RefusalReason,
+        detail: String,
+    },
 }
 
 impl ApplyError {
@@ -136,7 +143,8 @@ impl ApplyError {
             Self::Io {
                 progress: ItemProgress::MayHaveLanded,
                 ..
-            } => FailureClass::Terminal,
+            }
+            | Self::PendingPushRefused { .. } => FailureClass::Terminal,
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
             Self::LocalUnparseable { .. } => FailureClass::Unparseable,
@@ -194,6 +202,16 @@ impl std::fmt::Display for ApplyError {
                 "{item_id}: the local file changed after the run read it, so \
                  nothing was written or recorded; re-run the sync"
             ),
+            Self::PendingPushRefused {
+                item_id,
+                reason,
+                detail,
+            } => write!(
+                formatter,
+                "{item_id}: create failed: pending push refused ({}): \
+                 {detail}",
+                reason.token()
+            ),
         }
     }
 }
@@ -221,12 +239,19 @@ pub struct RetitleRequest<'a> {
     pub sent_content: &'a str,
 }
 
+/// Who already carries a tracker key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyCarrier {
+    WorkItem(String),
+    FollowedThisRun,
+}
+
 /// The inputs `create_from_local` needs beyond the applier's own ports.
 ///
 /// `marker_path` is precomputed by the run so the applier stays ignorant of
-/// the integrations layout, and `corpus_carries` reports whether any local
-/// item already carries a candidate `external_id` — the guard that stops a
-/// recovered `Created` marker binding two files to one remote issue.
+/// the integrations layout, and `carrier_of` names whoever already carries a
+/// candidate `external_id` — the guard that stops a recovered `Created`
+/// marker binding two files to one remote issue.
 pub struct CreateFromLocalRequest<'a> {
     pub item_id: &'a str,
     pub file_path: &'a Path,
@@ -235,31 +260,59 @@ pub struct CreateFromLocalRequest<'a> {
     pub kind: &'a str,
     pub marker_path: &'a Path,
     pub author: &'a dyn LocalAuthor,
-    pub corpus_carries: &'a dyn Fn(&ExternalId) -> bool,
+    pub carrier_of: &'a dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     pub attempted_at: u64,
 }
 
-fn refusal_detail(reason: RefusalReason, marker_path: &Path) -> String {
-    let marker = marker_path.display();
-    match reason {
-        RefusalReason::MarkerUnreadable => format!(
-            "pending-push marker at {marker} could not be parsed; a previous \
-             create may have partially applied — inspect or remove it"
+/// What a refused marker shows, without a remedy: the person decides what
+/// to do once they have looked.
+fn refused_marker_state(
+    reason: RefusalReason,
+    marker: Option<&PendingPush>,
+    carrier: Option<KeyCarrier>,
+) -> String {
+    let recorded_key = match marker {
+        Some(PendingPush::Created { external_id, .. }) => {
+            Some(external_id.as_str())
+        }
+        _ => None,
+    };
+    match (reason, marker) {
+        (RefusalReason::MarkerUnreadable, _) => {
+            "the marker could not be parsed".to_owned()
+        }
+        (
+            RefusalReason::PriorAttemptUnknownOutcome,
+            Some(PendingPush::Attempted { request }),
+        ) => format!(
+            "an earlier create attempted at {} has an unknown outcome{}",
+            request.attempted_at,
+            request
+                .failure
+                .as_deref()
+                .map(|failure| format!(" (failure: {failure})"))
+                .unwrap_or_default()
         ),
-        RefusalReason::PriorAttemptUnknownOutcome => format!(
-            "a previous create attempt recorded at {marker} has an unknown \
-             outcome — a remote issue may already exist; inspect it, then \
-             remove the marker to retry"
+        (RefusalReason::PriorAttemptUnknownOutcome, _) => {
+            "an earlier create has an unknown outcome".to_owned()
+        }
+        (RefusalReason::FingerprintMismatch, _) => format!(
+            "the marker records {} for a different request",
+            recorded_key.unwrap_or("an issue")
         ),
-        RefusalReason::FingerprintMismatch => format!(
-            "the pending-push marker at {marker} was recorded for a different \
-             request; remove it to force a new create"
-        ),
-        RefusalReason::AlreadyWritten => format!(
-            "the pending-push marker at {marker} names an external_id already \
-             carried by a work item on disk; remove it if this is a genuine \
-             duplicate create"
-        ),
+        (RefusalReason::AlreadyWritten, _) => {
+            let key = recorded_key.unwrap_or("its key");
+            match carrier {
+                Some(KeyCarrier::FollowedThisRun) => format!(
+                    "{key} is already followed by this run's identity \
+                     settlement"
+                ),
+                Some(KeyCarrier::WorkItem(id)) => {
+                    format!("{key} is already carried by work item {id}")
+                }
+                None => format!("{key} is already carried"),
+            }
+        }
     }
 }
 
@@ -699,13 +752,34 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             request.kind,
         );
 
-        match Self::push_decision(request, &digest) {
-            PushPrecondition::Refuse(reason) => Err(ApplyError::Io {
-                item_id: request.item_id.to_owned(),
-                operation: SyncOperation::Create,
-                progress: ItemProgress::MayHaveLanded,
-                detail: refusal_detail(reason, request.marker_path),
-            }),
+        let marker = pending_push::read(
+            std::fs::read_to_string(request.marker_path).ok().as_deref(),
+        );
+        let marker_state = match &marker {
+            Err(_) => MarkerState::Unreadable,
+            Ok(None) => MarkerState::Absent,
+            Ok(Some(marker)) => MarkerState::Present(marker),
+        };
+        let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
+        match push_precondition(&marker_state, &digest, &is_carried) {
+            PushPrecondition::Refuse(reason) => {
+                let marker = marker.ok().flatten();
+                let carrier = match &marker {
+                    Some(PendingPush::Created { external_id, .. }) => {
+                        (request.carrier_of)(external_id)
+                    }
+                    _ => None,
+                };
+                Err(ApplyError::PendingPushRefused {
+                    item_id: request.item_id.to_owned(),
+                    reason,
+                    detail: format!(
+                        "{} (marker {})",
+                        refused_marker_state(reason, marker.as_ref(), carrier),
+                        request.marker_path.display()
+                    ),
+                })
+            }
             PushPrecondition::ReuseId(external_id) => {
                 self.link_and_baseline(request, attempt, &external_id)
             }
@@ -713,20 +787,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 self.create_marking_progress(request, attempt, digest)
             }
         }
-    }
-
-    fn push_decision(
-        request: &CreateFromLocalRequest<'_>,
-        digest: &str,
-    ) -> PushPrecondition {
-        let marker_content = std::fs::read_to_string(request.marker_path).ok();
-        let parsed = pending_push::read(marker_content.as_deref());
-        let marker_state = match &parsed {
-            Err(_) => MarkerState::Unreadable,
-            Ok(None) => MarkerState::Absent,
-            Ok(Some(marker)) => MarkerState::Present(marker),
-        };
-        push_precondition(&marker_state, digest, request.corpus_carries)
     }
 
     fn create_marking_progress(

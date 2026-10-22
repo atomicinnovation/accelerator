@@ -48,6 +48,19 @@ pub enum RefusalReason {
     AlreadyWritten,
 }
 
+impl RefusalReason {
+    /// The single spelling of this reason wherever a refusal is reported.
+    #[must_use]
+    pub const fn token(self) -> &'static str {
+        match self {
+            Self::MarkerUnreadable => "marker-unreadable",
+            Self::PriorAttemptUnknownOutcome => "prior-attempt-unknown",
+            Self::FingerprintMismatch => "fingerprint-mismatch",
+            Self::AlreadyWritten => "already-written",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PushPrecondition {
     Proceed,
@@ -110,6 +123,21 @@ mod tests {
             digest: digest.to_owned(),
             attempted_at: 0,
             failure: None,
+        }
+    }
+
+    #[test]
+    fn each_refusal_reason_has_one_token() {
+        for (reason, token) in [
+            (RefusalReason::MarkerUnreadable, "marker-unreadable"),
+            (
+                RefusalReason::PriorAttemptUnknownOutcome,
+                "prior-attempt-unknown",
+            ),
+            (RefusalReason::FingerprintMismatch, "fingerprint-mismatch"),
+            (RefusalReason::AlreadyWritten, "already-written"),
+        ] {
+            assert_eq!(reason.token(), token);
         }
     }
 
