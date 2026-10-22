@@ -34,8 +34,17 @@ pub struct PlannedAction {
     pub action: Action,
 }
 
+/// An item whose classification failed, so it was left out of the plan
+/// while every other item was planned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unclassifiable {
+    pub id: String,
+    pub reason: String,
+}
+
 pub struct SyncPlan {
     pub actions: Vec<PlannedAction>,
+    pub unclassifiable: Vec<Unclassifiable>,
 }
 
 impl SyncPlan {
@@ -94,22 +103,20 @@ pub fn needs_body_read(items: &[PlanInput<'_>]) -> Vec<ExternalId> {
         .collect()
 }
 
-/// Computes a complete plan: one [`PlannedAction`] per item.
+/// Computes a complete plan: one [`PlannedAction`] per classifiable item,
+/// and one [`Unclassifiable`] per item whose classification failed.
 ///
 /// A resolution naming an id that did not decide `Prompt` is inert; the map
 /// is read, never validated, so a stale or misdirected order finds nothing
 /// to apply to.
-///
-/// # Errors
-///
-/// Propagates any [`ItemDigests`] read failure encountered while
-/// classifying.
+#[must_use]
 pub fn plan(
     items: &[PlanInput<'_>],
     direction: SyncDirection,
     resolutions: &BTreeMap<String, Resolution>,
-) -> Result<SyncPlan, kernel::Error> {
+) -> SyncPlan {
     let mut actions = Vec::with_capacity(items.len());
+    let mut unclassifiable = Vec::new();
     for item in items {
         let subject = Subject {
             external_id: item.external_id,
@@ -117,12 +124,21 @@ pub fn plan(
             remote_updated: item.facts.remote_updated,
             baseline_timestamp: item.baseline_timestamp,
         };
-        let classification = classify::classify(
+        let classification = match classify::classify(
             &subject,
             &item.baseline,
             item.digests,
             item.comparison,
-        )?;
+        ) {
+            Ok(classification) => classification,
+            Err(error) => {
+                unclassifiable.push(Unclassifiable {
+                    id: item.id.clone(),
+                    reason: error.to_string(),
+                });
+                continue;
+            }
+        };
         let mut action = decide::decide(direction, &classification, item.dirty);
         if action == Action::Prompt {
             if let Some(resolution) = resolutions.get(&item.id) {
@@ -139,5 +155,8 @@ pub fn plan(
             action,
         });
     }
-    Ok(SyncPlan { actions })
+    SyncPlan {
+        actions,
+        unclassifiable,
+    }
 }

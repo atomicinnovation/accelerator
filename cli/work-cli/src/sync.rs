@@ -492,6 +492,12 @@ fn render_report(report: &RunReport) -> String {
             item.planned.id, action_field, item.planned.state, detail
         ));
     }
+    lines.extend(
+        report
+            .unclassifiable
+            .iter()
+            .map(|item| format!("{}\tfailed\t-\tretryable", item.id)),
+    );
     // Capture before appending the always-present discovery line, which would
     // otherwise make `is_empty()` false and drop the empty-run summary.
     let summary_needed = synced_count > 0 || lines.is_empty();
@@ -567,6 +573,22 @@ pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
     })
 }
 
+/// The stderr line for each item whose classification failed. Hashing or
+/// comparing can fail as well as reading, so the line claims no read.
+fn classification_failures(report: &RunReport) -> Vec<String> {
+    report
+        .unclassifiable
+        .iter()
+        .map(|item| {
+            format!(
+                "error: {}: classify-local failed: {}",
+                single_line(&item.id),
+                single_line(&item.reason)
+            )
+        })
+        .collect()
+}
+
 fn exit_code_for_report(report: &RunReport) -> u8 {
     let failures =
         report
@@ -584,9 +606,12 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
     let read_failed = (report.read_failure.is_some()
         || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
     .then_some(exit_codes::RETRYABLE);
+    let unclassified =
+        (!report.unclassifiable.is_empty()).then_some(exit_codes::RETRYABLE);
     failures
         .chain(awaiting_human)
         .chain(read_failed)
+        .chain(unclassified)
         .chain(report.promotions.iter().map(promotion_exit))
         .max_by_key(|&code| severity(code))
         .unwrap_or(exit_codes::CLEAN)
@@ -1867,6 +1892,9 @@ fn report_finished_run(
         )),
     }
     console.report(render_report(report));
+    for failure in classification_failures(report) {
+        console.warn(failure);
+    }
     if let Some(warning) = unsupported_recipe_warning(report) {
         console.warn(warning);
     }
@@ -2557,6 +2585,7 @@ mod tests {
                     Action::RecordBaseline,
                 ),
             ],
+            unclassifiable: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,
@@ -2581,6 +2610,7 @@ mod tests {
             promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
+            unclassifiable: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,
@@ -2914,12 +2944,57 @@ mod tests {
         }
     }
 
+    #[test]
+    fn an_unclassifiable_item_renders_a_class_keyword() {
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = RunReport {
+            identity: vec![identity_row(
+                "0001",
+                "0001",
+                work::sync::IdentityAction::KeyChanged,
+                "ENG-1->ENG-2",
+                IdentityOutcome::Applied,
+            )],
+            unclassifiable: vec![work::sync::Unclassifiable {
+                id: "0001".to_owned(),
+                reason: "could not\tread it".to_owned(),
+            }],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line == "0001\tfailed\t-\tretryable"),
+            "{rendered}"
+        );
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line.starts_with("0001\tkey-changed")),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("could not"), "{rendered}");
+        assert_eq!(
+            super::classification_failures(&report),
+            vec!["error: 0001: classify-local failed: could not read it"]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
             identity: Vec::new(),
             promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
+            unclassifiable: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,

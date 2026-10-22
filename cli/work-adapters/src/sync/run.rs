@@ -27,6 +27,7 @@ use work::sync::RunClock;
 use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
+use work::sync::Unclassifiable;
 
 use crate::create_request_fields;
 use crate::promotion::PromotionRow;
@@ -303,6 +304,9 @@ pub struct RunReport {
     /// for the next run.
     pub deferred: usize,
     pub reported: Vec<ReportedItem>,
+    /// Items whose classification failed, so they were neither planned nor
+    /// applied.
+    pub unclassifiable: Vec<Unclassifiable>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
     pub finalised: bool,
@@ -714,12 +718,11 @@ impl<'a> RunKnowledge<'a> {
         &self,
         baseline: &crate::sync::baseline::Baseline,
         request: &SyncRequest<'_>,
-    ) -> Result<SyncPlan, RunError> {
+    ) -> SyncPlan {
         let plan_inputs =
             self.facts
                 .plan_inputs(self.items, &self.snapshots, baseline);
         compute_plan(&plan_inputs, request.direction, request.resolutions)
-            .map_err(RunError::Internal)
     }
 
     fn item(&self, id: &str) -> Option<&'a LocalItem> {
@@ -1582,7 +1585,7 @@ fn prepare_run<'a>(
         &loaded_baseline,
         digester,
     );
-    let plan = knowledge.plan(&loaded_baseline, request)?;
+    let plan = knowledge.plan(&loaded_baseline, request);
 
     let read_failure = knowledge.facts.read_failure.clone();
     let unsupported_recipe = request
@@ -1722,6 +1725,7 @@ fn execute<'a>(
             promotions: Vec::new(),
             deferred: 0,
             reported,
+            unclassifiable: plan.unclassifiable,
             read_failure,
             baseline_degradation: degradation,
             finalised: false,
@@ -1795,6 +1799,7 @@ fn execute<'a>(
         promotions: Vec::new(),
         deferred: 0,
         reported,
+        unclassifiable: plan.unclassifiable,
         read_failure,
         baseline_degradation: degradation,
         finalised,

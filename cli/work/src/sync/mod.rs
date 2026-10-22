@@ -59,6 +59,7 @@ pub use crate::sync::plan::PlanInput;
 pub use crate::sync::plan::PlannedAction;
 pub use crate::sync::plan::RemoteFacts;
 pub use crate::sync::plan::SyncPlan;
+pub use crate::sync::plan::Unclassifiable;
 pub use crate::sync::pull_residue::PullResidue;
 pub use crate::sync::push_decide::push_decide;
 pub use crate::sync::push_decide::PushOutcome;

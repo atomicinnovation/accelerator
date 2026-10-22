@@ -2575,3 +2575,31 @@ fn a_previewed_residue_overwrite_reports_pull_residue() -> Result<(), TestError>
     assert!(sent_nothing(&scenario.tracker));
     Ok(())
 }
+
+#[test]
+fn an_unclassifiable_item_is_reported_as_a_failed_row() -> Result<(), TestError>
+{
+    let scenario = scenario(2, 0)?;
+    std::fs::remove_file(&scenario.items[0].path)?;
+
+    let report = execute(&scenario, 10, 10, RunMode::Apply)
+        .unwrap_or_else(|_| panic!("the run completes"));
+
+    let unclassifiable: Vec<&str> = report
+        .unclassifiable
+        .iter()
+        .map(|item| item.id.as_str())
+        .collect();
+    assert_eq!(unclassifiable, vec!["0001"]);
+    assert!(report.reported.iter().all(|item| item.planned.id != "0001"));
+    assert!(report
+        .awaiting_human()
+        .all(|item| item.planned.id != "0001"));
+    let neighbour = report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == "0002")
+        .expect("the neighbour is planned");
+    assert!(matches!(neighbour.outcome, ItemOutcome::Applied));
+    Ok(())
+}
