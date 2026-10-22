@@ -52,12 +52,13 @@ fn a_pristine_legacy_repo_applies_every_real_migration_in_order(
         "0008-canonical-frontmatter-quoting",
         "0009-split-work-key-from-tracker-scope-key",
         "0010-strip-research-title-prefix",
+        "0011-ignore-machine-local-sync-state",
     ] {
         assert!(applied.contains(id), "missing {id} in {applied}");
     }
     let stdout = String::from_utf8(output.stdout)?;
     assert!(
-        stdout.contains("applied: 9; pending (no-op): 1."),
+        stdout.contains("applied: 10; pending (no-op): 1."),
         "{stdout}"
     );
 

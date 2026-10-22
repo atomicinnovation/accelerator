@@ -169,6 +169,13 @@ pub fn migrate::migrations::m0010::Migration0010::apply(&self, ctx: &dyn migrate
 impl migrate::registry::MigrationMeta for migrate::migrations::m0010::Migration0010
 pub fn migrate::migrations::m0010::Migration0010::description(&self) -> &'static str
 pub fn migrate::migrations::m0010::Migration0010::id(&self) -> &'static str
+pub mod migrate::migrations::m0011
+pub struct migrate::migrations::m0011::Migration0011
+impl migrate::registry::Migration for migrate::migrations::m0011::Migration0011
+pub fn migrate::migrations::m0011::Migration0011::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0011::Migration0011
+pub fn migrate::migrations::m0011::Migration0011::description(&self) -> &'static str
+pub fn migrate::migrations::m0011::Migration0011::id(&self) -> &'static str
 pub mod migrate::migrations::text
 pub fn migrate::migrations::text::filter_lines(content: &str, keep: impl core::ops::function::Fn(&str) -> bool) -> alloc::string::String
 pub fn migrate::migrations::text::flat_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
@@ -189,6 +196,20 @@ pub fn migrate::ports::DecisionError::eq(&self, other: &migrate::ports::Decision
 impl core::fmt::Debug for migrate::ports::DecisionError
 pub fn migrate::ports::DecisionError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for migrate::ports::DecisionError
+pub enum migrate::ports::VersionControl
+pub migrate::ports::VersionControl::Git
+pub migrate::ports::VersionControl::Jj
+impl migrate::ports::VersionControl
+pub fn migrate::ports::VersionControl::untrack_command(self, path: &std::path::Path) -> alloc::string::String
+impl core::clone::Clone for migrate::ports::VersionControl
+pub fn migrate::ports::VersionControl::clone(&self) -> migrate::ports::VersionControl
+impl core::cmp::Eq for migrate::ports::VersionControl
+impl core::cmp::PartialEq for migrate::ports::VersionControl
+pub fn migrate::ports::VersionControl::eq(&self, other: &migrate::ports::VersionControl) -> bool
+impl core::fmt::Debug for migrate::ports::VersionControl
+pub fn migrate::ports::VersionControl::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for migrate::ports::VersionControl
+impl core::marker::StructuralPartialEq for migrate::ports::VersionControl
 pub struct migrate::ports::DocTypeDir
 pub migrate::ports::DocTypeDir::dir: std::path::PathBuf
 pub migrate::ports::DocTypeDir::doc_type: alloc::string::String
@@ -227,6 +248,17 @@ pub migrate::ports::PreviewEntry::id: &'a str
 pub struct migrate::ports::RunLockGuard(_)
 impl migrate::ports::RunLockGuard
 pub fn migrate::ports::RunLockGuard::new(guard: impl core::any::Any) -> Self
+pub struct migrate::ports::TrackedState
+pub migrate::ports::TrackedState::kind: migrate::ports::VersionControl
+pub migrate::ports::TrackedState::tracked: alloc::vec::Vec<std::path::PathBuf>
+impl core::clone::Clone for migrate::ports::TrackedState
+pub fn migrate::ports::TrackedState::clone(&self) -> migrate::ports::TrackedState
+impl core::cmp::Eq for migrate::ports::TrackedState
+impl core::cmp::PartialEq for migrate::ports::TrackedState
+pub fn migrate::ports::TrackedState::eq(&self, other: &migrate::ports::TrackedState) -> bool
+impl core::fmt::Debug for migrate::ports::TrackedState
+pub fn migrate::ports::TrackedState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::ports::TrackedState
 pub struct migrate::ports::WorkingCopyObservation
 pub migrate::ports::WorkingCopyObservation::dirty_paths: alloc::vec::Vec<alloc::string::String>
 pub migrate::ports::WorkingCopyObservation::run_base: core::option::Option<migrate::run_base::RunBase>
@@ -267,6 +299,7 @@ pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::P
 pub fn migrate::ports::MigrationContext::render_canonical(&self, _content: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::root(&self) -> &std::path::Path
 pub fn migrate::ports::MigrationContext::validate_frontmatter(&self, _files: &[std::path::PathBuf]) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::version_control(&self, _under: &std::path::Path) -> core::option::Option<migrate::ports::TrackedState>
 pub fn migrate::ports::MigrationContext::write(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::write_private(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub trait migrate::ports::Reporter
@@ -367,6 +400,8 @@ impl migrate::registry::Migration for migrate::migrations::m0009::Migration0009
 pub fn migrate::migrations::m0009::Migration0009::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 impl migrate::registry::Migration for migrate::migrations::m0010::Migration0010
 pub fn migrate::migrations::m0010::Migration0010::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0011::Migration0011
+pub fn migrate::migrations::m0011::Migration0011::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 pub trait migrate::registry::MigrationMeta
 pub fn migrate::registry::MigrationMeta::description(&self) -> &'static str
 pub fn migrate::registry::MigrationMeta::id(&self) -> &'static str
@@ -400,6 +435,9 @@ pub fn migrate::migrations::m0009::Migration0009::id(&self) -> &'static str
 impl migrate::registry::MigrationMeta for migrate::migrations::m0010::Migration0010
 pub fn migrate::migrations::m0010::Migration0010::description(&self) -> &'static str
 pub fn migrate::migrations::m0010::Migration0010::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0011::Migration0011
+pub fn migrate::migrations::m0011::Migration0011::description(&self) -> &'static str
+pub fn migrate::migrations::m0011::Migration0011::id(&self) -> &'static str
 pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>
 pub mod migrate::run_base
 pub struct migrate::run_base::RunBase(_)

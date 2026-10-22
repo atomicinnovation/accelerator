@@ -34,7 +34,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n",
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n",
     )?;
     Ok(dir)
 }
