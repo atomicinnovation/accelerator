@@ -557,7 +557,7 @@ def test_configure_documents_the_search_cap() -> None:
     research = _configure_research_section()
     for sentence in (
         f"`{SEARCH_CAP_VARIABLE}` when set to a value Claude Code would "
-        "accept, otherwise 200, Claude Code's session limit",
+        "accept, otherwise 200, Claude Code's session limit as of v2.1.301.",
         "It keeps back a twentieth of the cap, rounded up, for the main "
         "conversation, `outline` and searches made earlier in the session.",
         "When even one search per node exceeds what is left, every budget is "

@@ -468,7 +468,7 @@ above the cap warns; the built-in default clamps silently.
 **Web searches and the search cap.** `conduct` gives each web researcher a
 `WebSearch` budget sized from the search cap, which is
 `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` when set to a value Claude Code
-would accept, otherwise 200, Claude Code's session limit.
+would accept, otherwise 200, Claude Code's session limit as of v2.1.301.
 
 - It keeps back a twentieth of the cap, rounded up, for the main
   conversation, `outline` and searches made earlier in the session.
