@@ -259,9 +259,12 @@ def assert_hermetic(env: dict[str, str], entry: Path) -> None:
         "the bootstrap must never reach a real downloader"
     )
     base_url = env.get("ACCELERATOR_RELEASE_BASE_URL", "")
-    host = urllib.parse.urlparse(base_url).hostname or ""
-    assert host.endswith(".invalid"), (
-        f"the release base URL must be unresolvable, got {base_url!r}"
+    parsed = urllib.parse.urlparse(base_url)
+    host = parsed.hostname or ""
+    loopback = parsed.scheme == "http" and host == "127.0.0.1"
+    assert host.endswith(".invalid") or loopback, (
+        "the release base URL must be unresolvable or a loopback test "
+        f"release, got {base_url!r}"
     )
     assert entry.absolute() != REPO_BOOTSTRAP, (
         "running the repo's own bootstrap fetches the real release into bin/"
