@@ -34,6 +34,7 @@ use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
 use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
+use crate::sync::operation::SyncOperation;
 use crate::sync::pending_push;
 use crate::sync::recovery_label::RecoveryLabel;
 
@@ -70,12 +71,12 @@ impl FailureClass {
 pub enum ApplyError {
     Tracker {
         item_id: String,
-        operation: &'static str,
+        operation: SyncOperation,
         source: TrackerError,
     },
     Io {
         item_id: String,
-        operation: &'static str,
+        operation: SyncOperation,
         detail: String,
     },
     RemoteBodyUnavailable {
@@ -308,13 +309,13 @@ fn local_write_error(id: &str, error: StoreError) -> ApplyError {
             item_id: id.to_owned(),
             detail: error.to_string(),
         },
-        _ => io_error(id, "write-local", error),
+        _ => io_error(id, SyncOperation::WriteLocal, error),
     }
 }
 
 fn io_error(
     id: &str,
-    operation: &'static str,
+    operation: SyncOperation,
     detail: impl std::fmt::Display,
 ) -> ApplyError {
     ApplyError::Io {
@@ -383,7 +384,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .update(request.external_id, request.title, request.body)
             .map_err(|source| ApplyError::Tracker {
                 item_id: request.id.to_owned(),
-                operation: "update",
+                operation: SyncOperation::Update,
                 source,
             })?;
         self.record_read_back(
@@ -407,7 +408,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .retitle(request.external_id, request.title)
             .map_err(|source| ApplyError::Tracker {
                 item_id: request.id.to_owned(),
-                operation: "retitle",
+                operation: SyncOperation::Retitle,
                 source,
             })?;
         self.record_read_back(
@@ -463,8 +464,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     fn read_local(request: &PullRequest<'_>) -> Result<String, ApplyError> {
-        std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.id, "read-local", error))
+        std::fs::read_to_string(request.file_path).map_err(|error| {
+            io_error(request.id, SyncOperation::ReadLocal, error)
+        })
     }
 
     fn ensure_unchanged_since_classified(
@@ -497,7 +499,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let label = request.recovery_label.as_ref().ok_or_else(|| {
             io_error(
                 request.id,
-                "keep-edits",
+                SyncOperation::KeepEdits,
                 "the id cannot name a recovery directory",
             )
         })?;
@@ -516,7 +518,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .map_err(|error| {
                 io_error(
                     request.id,
-                    "keep-edits",
+                    SyncOperation::KeepEdits,
                     format!("{}: {error}", dir.display()),
                 )
             })?;
@@ -544,7 +546,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     ) -> Result<DualRecipeFingerprints, ApplyError> {
         self.digester()
             .digests(request.content, Some(request.projected_body))
-            .map_err(|error| io_error(request.id, "hash-local", error))
+            .map_err(|error| {
+                io_error(request.id, SyncOperation::HashLocal, error)
+            })
     }
 
     fn write_item(&self, request: &PullRequest<'_>) -> Result<(), ApplyError> {
@@ -570,7 +574,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     fingerprints,
                 ),
             )
-            .map_err(|error| io_error(request.id, "baseline-set", error))
+            .map_err(|error| {
+                io_error(request.id, SyncOperation::BaselineSet, error)
+            })
     }
 
     fn lock_item(
@@ -580,7 +586,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.files
             .file_locks
             .acquire(&LockName::ForFile(request.file_path.to_path_buf()))
-            .map_err(|error| io_error(request.id, "lock-local", error))
+            .map_err(|error| {
+                io_error(request.id, SyncOperation::LockLocal, error)
+            })
     }
 
     /// Authors a discovered remote issue as a new local file and records its
@@ -604,7 +612,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let issue = self.tracker.show(external_id).map_err(|source| {
             ApplyError::Tracker {
                 item_id: external_id.as_str().to_owned(),
-                operation: "show",
+                operation: SyncOperation::Show,
                 source,
             }
         })?;
@@ -625,11 +633,17 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 issue: issue.clone(),
             })
             .map_err(|error| {
-                io_error(external_id.as_str(), "author-local", error)
+                io_error(
+                    external_id.as_str(),
+                    SyncOperation::AuthorLocal,
+                    error,
+                )
             })?;
 
-        let local_content = std::fs::read_to_string(&authored.path)
-            .map_err(|error| io_error(&authored.id, "read-local", error))?;
+        let local_content =
+            std::fs::read_to_string(&authored.path).map_err(|error| {
+                io_error(&authored.id, SyncOperation::ReadLocal, error)
+            })?;
         self.record(&authored.id, &local_content, Some(&issue))?;
         Ok(authored.id)
     }
@@ -659,7 +673,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         match Self::push_decision(request, &digest) {
             PushPrecondition::Refuse(reason) => Err(io_error(
                 request.item_id,
-                "create",
+                SyncOperation::Create,
                 refusal_detail(reason, request.marker_path),
             )),
             PushPrecondition::ReuseId(external_id) => {
@@ -748,12 +762,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         match self.clear_marker(request.marker_path) {
             Ok(()) => ApplyError::Tracker {
                 item_id: request.item_id.to_owned(),
-                operation: "create",
+                operation: SyncOperation::Create,
                 source,
             },
             Err(leftover) => io_error(
                 request.item_id,
-                "marker-write",
+                SyncOperation::MarkerWrite,
                 format!(
                     "could not clear marker {}: {}",
                     leftover.path.display(),
@@ -789,7 +803,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         )?;
         Err(ApplyError::Tracker {
             item_id: request.item_id.to_owned(),
-            operation: "create",
+            operation: SyncOperation::Create,
             source: TrackerError::Terminal { detail },
         })
     }
@@ -802,7 +816,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.files
             .integration_state
             .write(path, pending_push::render(marker).as_bytes())
-            .map_err(|error| io_error("<marker>", "marker-write", error))
+            .map_err(|error| {
+                io_error("<marker>", SyncOperation::MarkerWrite, error)
+            })
     }
 
     fn link_and_baseline(
@@ -814,12 +830,14 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .author
             .link_external_id(request.file_path, external_id)
             .map_err(|error| {
-                io_error(request.item_id, "link-external-id", error)
+                io_error(request.item_id, SyncOperation::LinkExternalId, error)
             })?;
 
         let remote = self.tracker.show(external_id).ok();
         let local_content = std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.item_id, "read-local", error))?;
+            .map_err(|error| {
+                io_error(request.item_id, SyncOperation::ReadLocal, error)
+            })?;
         self.record(request.item_id, &local_content, remote.as_ref())?;
         Ok(self.clear_marker(request.marker_path).err())
     }
@@ -837,10 +855,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &RecordRequest<'_>,
     ) -> Result<(), ApplyError> {
-        let content = std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.id, "read-local", error))?;
-        let current = digest::local(&content)
-            .map_err(|error| io_error(request.id, "hash-local", error))?;
+        let content =
+            std::fs::read_to_string(request.file_path).map_err(|error| {
+                io_error(request.id, SyncOperation::ReadLocal, error)
+            })?;
+        let current = digest::local(&content).map_err(|error| {
+            io_error(request.id, SyncOperation::HashLocal, error)
+        })?;
         if request.fingerprints.legacy.local.as_ref() != Some(&current) {
             return Err(ApplyError::LocalChangedSinceClassified {
                 item_id: request.id.to_owned(),
@@ -857,7 +878,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     request.fingerprints.clone(),
                 ),
             )
-            .map_err(|error| io_error(request.id, "baseline-set", error))
+            .map_err(|error| {
+                io_error(request.id, SyncOperation::BaselineSet, error)
+            })
     }
 
     fn digester(&self) -> BaselineDigester<'ctx> {
@@ -876,7 +899,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let fingerprints = self
             .digester()
             .digests(local_content, remote.map(|issue| issue.body.as_str()))
-            .map_err(|error| io_error(id, "hash-local", error))?;
+            .map_err(|error| io_error(id, SyncOperation::HashLocal, error))?;
         let stamps = SyncStamps {
             remote_updated_at: remote
                 .map_or(RemoteTimestamp::NotRead, |issue| {
@@ -886,7 +909,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         };
         self.baseline
             .set(id, Entry::recorded(stamps, fingerprints))
-            .map_err(|error| io_error(id, "baseline-set", error))
+            .map_err(|error| io_error(id, SyncOperation::BaselineSet, error))
     }
 
     /// Advances the baseline's global timestamp, blanking nothing: the run
@@ -899,6 +922,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn finalise(&mut self, run_start_epoch: u64) -> Result<(), ApplyError> {
         self.baseline
             .finalise_run(&[], &[], run_start_epoch, true)
-            .map_err(|error| io_error("<run>", "finalise", error))
+            .map_err(|error| {
+                io_error("<run>", SyncOperation::BaselineSet, error)
+            })
     }
 }
