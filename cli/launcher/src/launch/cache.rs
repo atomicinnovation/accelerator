@@ -177,38 +177,10 @@ fn render_prune_report(
     err: &mut dyn Write,
 ) -> Result<(), kernel::Error> {
     let _ = writeln!(out, "reclaimed {} entries", report.reclaimed);
-    for failure in &report.lock_failures {
-        let _ = writeln!(
-            err,
-            "could not lock {}: {}",
-            failure.lock.display(),
-            failure.detail
-        );
+    for problem in report.problems() {
+        let _ = writeln!(err, "{problem}");
     }
-    for unreadable in &report.unreadable_claims {
-        let _ = writeln!(
-            err,
-            "claims unreadable ({}) in {}; kept everything they could protect",
-            unreadable.kind,
-            unreadable.directory.display()
-        );
-    }
-    for untrusted in &report.untrusted_directories {
-        let _ = writeln!(
-            err,
-            "not pruning through {}: another user could write to it",
-            untrusted.path.display()
-        );
-    }
-    for failure in &report.removal_failures {
-        let _ = writeln!(
-            err,
-            "could not remove {}: {}",
-            failure.path.display(),
-            failure.kind
-        );
-    }
-    if report.lock_failures.is_empty() && report.removal_failures.is_empty() {
+    if report.finished() {
         Ok(())
     } else {
         Err(kernel::Error::Failed(

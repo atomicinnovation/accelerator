@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 
 pub use lease::Liveness;
 
+use crate::launch::core::tree::AcquiredTree;
+
 #[cfg(unix)]
 pub use unix::{
     probe_single_flight, take_single_flight, try_exclusive_lease,
@@ -57,6 +59,13 @@ impl HeldLeases {
         Self {
             generations: generations.into_iter().collect(),
         }
+    }
+
+    #[must_use]
+    pub fn of(acquired: &[AcquiredTree]) -> Self {
+        Self::holding(
+            acquired.iter().map(|acquired| acquired.tree.path.clone()),
+        )
     }
 
     /// `probe`, asked only about leases this process does not hold.

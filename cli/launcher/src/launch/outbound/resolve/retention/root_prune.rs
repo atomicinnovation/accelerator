@@ -44,6 +44,51 @@ impl PruneReport {
         self.removal_failures.extend(removals.failures);
     }
 
+    /// Whether every lock was taken and every removal made; an unreadable or
+    /// untrusted directory only kept entries.
+    #[must_use]
+    pub const fn finished(&self) -> bool {
+        self.lock_failures.is_empty() && self.removal_failures.is_empty()
+    }
+
+    /// One line for each thing the prune could not do.
+    #[must_use]
+    pub fn problems(&self) -> Vec<String> {
+        let locks = self.lock_failures.iter().map(|failure| {
+            format!(
+                "could not lock {}: {}",
+                failure.lock.display(),
+                failure.detail
+            )
+        });
+        let claims = self.unreadable_claims.iter().map(|unreadable| {
+            format!(
+                "claims unreadable ({}) in {}; kept everything they could \
+                 protect",
+                unreadable.kind,
+                unreadable.directory.display()
+            )
+        });
+        let untrusted = self.untrusted_directories.iter().map(|untrusted| {
+            format!(
+                "not pruning through {}: another user could write to it",
+                untrusted.path.display()
+            )
+        });
+        let removals = self.removal_failures.iter().map(|failure| {
+            format!(
+                "could not remove {}: {}",
+                failure.path.display(),
+                failure.kind
+            )
+        });
+        locks
+            .chain(claims)
+            .chain(untrusted)
+            .chain(removals)
+            .collect()
+    }
+
     pub fn absorb_trees(&mut self, trees: TreePruneReport) {
         self.absorb(trees.removals);
         self.lock_failures.extend(trees.lock_failures);

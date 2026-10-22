@@ -38,14 +38,16 @@ use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
 use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
-use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
+use accelerator::launch::outbound::resolve::tree::lease::{
+    FlockProbe, HeldLeases,
+};
 use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
 use accelerator::launch::outbound::resolve::tree::reap::UnobservedRemovals;
 use accelerator::launch::outbound::resolve::tree::{
     pins, ExpectedDigests, NoSteps, SystemClock,
 };
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig,
+    FetchVerifyCacheResolver, NothingAfterStore, ResolverConfig, ResolverPorts,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
 use accelerator::launch::start_up::{
@@ -77,7 +79,10 @@ fn release_base_url() -> String {
 /// `start_up` identified, so built-ins never touch TLS or the network. The
 /// rustls crypto provider is installed here rather than in `main`, so a
 /// `version` or `config` built-in never pays for capability it does not use.
-struct LazyProductionResolver<'a>(&'a StartUp);
+struct LazyProductionResolver<'a> {
+    start: &'a StartUp,
+    consumed: &'a [AcquiredTree],
+}
 
 impl ResolveBinary for LazyProductionResolver<'_> {
     fn resolve(
@@ -87,7 +92,7 @@ impl ResolveBinary for LazyProductionResolver<'_> {
         if let Some(path) = override_path(&command.name)? {
             return Ok(path);
         }
-        production_resolver(self.0)?.resolve(command)
+        production_resolver(self.start, self.consumed)?.resolve(command)
     }
 
     fn re_resolve(
@@ -97,7 +102,7 @@ impl ResolveBinary for LazyProductionResolver<'_> {
     ) -> ReResolution {
         match override_path(&command.name) {
             Ok(Some(_)) => ReResolution::Declined,
-            Ok(None) => match production_resolver(self.0) {
+            Ok(None) => match production_resolver(self.start, self.consumed) {
                 Ok(resolver) => resolver.re_resolve(command, missing),
                 Err(error) => ReResolution::Failed(error),
             },
@@ -108,16 +113,20 @@ impl ResolveBinary for LazyProductionResolver<'_> {
 
 fn production_resolver(
     start: &StartUp,
+    consumed: &[AcquiredTree],
 ) -> Result<FetchVerifyCacheResolver, ResolutionError> {
     let _ = install_crypto_provider();
     let keys = TrustedKeys::embedded()?;
     let fetcher = Fetcher::new()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
-    start.dispatch_resolver(DispatchConfig {
-        base_url: release_base_url(),
-        keys,
-        fetcher,
-    })
+    start.dispatch_resolver(
+        DispatchConfig {
+            base_url: release_base_url(),
+            keys,
+            fetcher,
+        },
+        consumed,
+    )
 }
 
 fn production_ports() -> Arc<CachePorts> {
@@ -151,7 +160,11 @@ fn load_help_manifest() -> Option<Manifest> {
         config,
         keys,
         fetcher,
-        Arc::new(SystemFilesystem),
+        ResolverPorts {
+            filesystem: Arc::new(SystemFilesystem),
+            after_store: Arc::new(NothingAfterStore),
+            held_leases: HeldLeases::none(),
+        },
     );
     resolver.load_manifest().ok()
 }
@@ -465,9 +478,12 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     // Held until `dispatch` execs the consumer: on success the process image is
     // replaced and no destructor runs, so the leases pin their trees against
     // reclamation right up to the handover.
-    let _tree_leases = export_consumed_trees(&cli.command, &start);
+    let consumed = export_consumed_trees(&cli.command, &start);
     let reporter = VersionReporter::new(VergenBuildMetadata);
-    let resolver = LazyProductionResolver(&start);
+    let resolver = LazyProductionResolver {
+        start: &start,
+        consumed: &consumed,
+    };
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
     let resolution_root = resolution_start(&cli.command);
@@ -827,8 +843,11 @@ mod tests {
             ScopedVariable::set("ACCELERATOR_FROBNICATE_BIN", "/absent/tool");
 
         let start = production_start_up();
-        let outcome = super::LazyProductionResolver(&start)
-            .re_resolve(&frobnicate(), Path::new("/absent/tool"));
+        let outcome = super::LazyProductionResolver {
+            start: &start,
+            consumed: &[],
+        }
+        .re_resolve(&frobnicate(), Path::new("/absent/tool"));
 
         assert!(matches!(outcome, ReResolution::Declined), "{outcome:?}");
     }
@@ -851,8 +870,11 @@ mod tests {
         let _cache = ScopedVariable::set("ACCELERATOR_CACHE_DIR", &read_only);
 
         let start = production_start_up();
-        let outcome = super::LazyProductionResolver(&start)
-            .re_resolve(&frobnicate(), &read_only.join("frobnicate-entry"));
+        let outcome = super::LazyProductionResolver {
+            start: &start,
+            consumed: &[],
+        }
+        .re_resolve(&frobnicate(), &read_only.join("frobnicate-entry"));
 
         std::fs::set_permissions(
             &read_only,

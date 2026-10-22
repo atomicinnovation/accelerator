@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::launch::core::tree::AcquiredTree;
 use crate::launch::core::ResolutionError;
 use crate::launch::outbound::resolve::cache_root::{
     identify, CacheRoot, CacheRootConfig,
@@ -18,12 +19,13 @@ use crate::launch::outbound::resolve::retention::ports::CachePorts;
 use crate::launch::outbound::resolve::retention::root_retention::{
     for_root, RootRetention,
 };
+use crate::launch::outbound::resolve::tree::lease::HeldLeases;
 use crate::launch::outbound::resolve::tree::locks::TreeLocks;
 use crate::launch::outbound::resolve::tree::{
     ExpectedDigests, StepObserver, TreeResolver,
 };
 use crate::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+    FetchVerifyCacheResolver, ResolverConfig, ResolverPorts, HOST_PLATFORM,
 };
 
 pub struct StartUp {
@@ -85,6 +87,9 @@ pub fn start_up(
 }
 
 impl StartUp {
+    /// `consumed` are the trees this process leased for the dispatch, which
+    /// a prune after a store must keep without probing.
+    ///
     /// # Errors
     ///
     /// [`ResolutionError::CacheRootUnavailable`] when the root could not be
@@ -92,12 +97,17 @@ impl StartUp {
     pub fn dispatch_resolver(
         &self,
         config: DispatchConfig,
+        consumed: &[AcquiredTree],
     ) -> Result<FetchVerifyCacheResolver, ResolutionError> {
         Ok(FetchVerifyCacheResolver::with_fetcher(
             ResolverConfig::production(config.base_url, self.cache_root()?),
             config.keys,
             config.fetcher,
-            Arc::clone(&self.ports.filesystem),
+            ResolverPorts {
+                filesystem: Arc::clone(&self.ports.filesystem),
+                after_store: Arc::clone(&self.retention) as _,
+                held_leases: HeldLeases::of(consumed),
+            },
         ))
     }
 

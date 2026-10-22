@@ -27,6 +27,21 @@ use self::fetcher::{FetchError, Fetcher};
 use self::filesystem::CacheFilesystem;
 use self::keys::TrustedKeys;
 use self::manifest::Manifest;
+use self::tree::lease::HeldLeases;
+
+/// What follows a successful store, before the stored path returns to `exec`.
+pub trait AfterStore {
+    /// `held_leases` are the generations this process leases, which nothing
+    /// that follows may probe.
+    fn after_store(&self, held_leases: &HeldLeases);
+}
+
+/// For a resolver that only ever reads the manifest, and so never stores.
+pub struct NothingAfterStore;
+
+impl AfterStore for NothingAfterStore {
+    fn after_store(&self, _held_leases: &HeldLeases) {}
+}
 
 /// The platform alias this launcher was built for.
 #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
@@ -74,6 +89,15 @@ pub struct FetchVerifyCacheResolver {
     keys: TrustedKeys,
     fetcher: Fetcher,
     filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    after_store: Arc<dyn AfterStore + Send + Sync>,
+    held_leases: HeldLeases,
+}
+
+/// What a resolver consults beyond its configuration, trust and transport.
+pub struct ResolverPorts {
+    pub filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    pub after_store: Arc<dyn AfterStore + Send + Sync>,
+    pub held_leases: HeldLeases,
 }
 
 impl FetchVerifyCacheResolver {
@@ -83,17 +107,12 @@ impl FetchVerifyCacheResolver {
     pub fn new(
         config: ResolverConfig,
         keys: TrustedKeys,
-        filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+        ports: ResolverPorts,
     ) -> Result<Self, ResolutionError> {
         let fetcher = Fetcher::new().map_err(|detail| {
             ResolutionError::CacheRootUnavailable { detail }
         })?;
-        Ok(Self {
-            config,
-            keys,
-            fetcher,
-            filesystem,
-        })
+        Ok(Self::with_fetcher(config, keys, fetcher, ports))
     }
 
     /// Construct with a caller-supplied fetcher.
@@ -102,13 +121,15 @@ impl FetchVerifyCacheResolver {
         config: ResolverConfig,
         keys: TrustedKeys,
         fetcher: Fetcher,
-        filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+        ports: ResolverPorts,
     ) -> Self {
         Self {
             config,
             keys,
             fetcher,
-            filesystem,
+            filesystem: ports.filesystem,
+            after_store: ports.after_store,
+            held_leases: ports.held_leases,
         }
     }
 
@@ -201,6 +222,7 @@ impl FetchVerifyCacheResolver {
             &bytes,
             &entry.signature,
         )?;
+        self.after_store.after_store(&self.held_leases);
         Ok(cached.path)
     }
 }
