@@ -38,10 +38,8 @@ use super::super::retention_windows::AGE_BACKSTOP;
 use super::layout::{
     parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{
-    probe_single_flight, Liveness, LivenessProbe, SingleFlight,
-    SingleFlightProbe,
-};
+use super::lease::{Liveness, LivenessProbe};
+use super::locks::{TreeLockProbe, TreeLocks};
 use super::tree_lock::HeldTreeLock;
 
 /// Which digest each artifact pins, so a partial archive is judged against
@@ -64,7 +62,7 @@ impl RemovalObserver for UnobservedRemovals {
 
 enum OwnerLock {
     HeldByCaller,
-    Taken { _guard: SingleFlight },
+    Taken { _held: HeldTreeLock },
     Absent,
     HeldElsewhere,
     Unprobeable(TreeError),
@@ -88,6 +86,7 @@ impl OwnerLock {
 /// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
     held: &'a HeldTreeLock,
+    locks: TreeLocks<'a>,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
@@ -98,12 +97,14 @@ impl<'a> Reaper<'a> {
     #[must_use]
     pub const fn new(
         held: &'a HeldTreeLock,
+        locks: TreeLocks<'a>,
         clock: &'a dyn Clock,
         liveness: &'a dyn LivenessProbe,
         pins: &'a dyn PinnedDigests,
     ) -> Self {
         Self {
             held,
+            locks,
             clock,
             liveness,
             pins,
@@ -171,12 +172,10 @@ impl<'a> Reaper<'a> {
         if owner == self.held.artifact() {
             return OwnerLock::HeldByCaller;
         }
-        match probe_single_flight(&self.paths().single_flight_lock(owner)) {
-            Ok(SingleFlightProbe::Taken(guard)) => {
-                OwnerLock::Taken { _guard: guard }
-            }
-            Ok(SingleFlightProbe::Absent) => OwnerLock::Absent,
-            Ok(SingleFlightProbe::Held) => OwnerLock::HeldElsewhere,
+        match self.locks.probe_tree(self.paths(), owner) {
+            Ok(TreeLockProbe::Taken(held)) => OwnerLock::Taken { _held: held },
+            Ok(TreeLockProbe::Absent) => OwnerLock::Absent,
+            Ok(TreeLockProbe::Held) => OwnerLock::HeldElsewhere,
             Err(error) => OwnerLock::Unprobeable(error),
         }
     }
@@ -457,8 +456,8 @@ mod tests {
         probe_single_flight, take_single_flight, FlockProbe, Liveness,
         SingleFlight, SingleFlightProbe,
     };
+    use super::super::locks::{FlockLocks, TreeLocks};
     use super::super::testing::{logged, within, BLOCKING_BOUND};
-    use super::super::tree_lock::HeldTreeLock;
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
         sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
@@ -545,12 +544,19 @@ mod tests {
         observer: impl RemovalObserver + Send + 'static,
     ) -> Result<Reclaimed, TreeError> {
         let paths = TreePaths::under(root);
-        let caller_holds = HeldTreeLock::take(&paths, y()).expect("Y's lock");
+        let locks = TreeLocks::over(&FlockLocks);
+        let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
         let locks_before = lock_files(&paths);
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
-            Reaper::new(&caller_holds, &clock, &FlockProbe, &pins)
-                .observed_by(&observer)
-                .reap_orphans()
+            Reaper::new(
+                &caller_holds,
+                TreeLocks::over(&FlockLocks),
+                &clock,
+                &FlockProbe,
+                &pins,
+            )
+            .observed_by(&observer)
+            .reap_orphans()
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome

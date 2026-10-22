@@ -13,9 +13,9 @@ use super::layout::{
     read_pointer, validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
+use super::locks::TreeLocks;
 use super::pins;
 use super::reap::{self, PinnedDigests, Reaper};
-use super::tree_lock::HeldTreeLock;
 
 /// What a pinned prune consults: no resolver, so a retention can run it
 /// without building one.
@@ -23,6 +23,7 @@ pub struct PinnedPruneCollaborators<'a> {
     pub clock: &'a dyn Clock,
     pub liveness: &'a dyn LivenessProbe,
     pub pins: &'a dyn PinnedDigests,
+    pub locks: TreeLocks<'a>,
 }
 
 /// [`prune_pinned_artifact`] for every pinned artifact on the host platform;
@@ -77,11 +78,12 @@ pub fn prune_pinned_artifact(
     collaborators: &PinnedPruneCollaborators<'_>,
     older_than: Option<Duration>,
 ) -> Result<reap::Reclaimed, TreeError> {
-    let held = HeldTreeLock::take(paths, artifact.clone())?;
+    let held = collaborators.locks.take_tree(paths, artifact)?;
     let mut reclaimed =
         reclaim_unclaimed(paths, artifact, collaborators, older_than);
     let orphans = Reaper::new(
         &held,
+        collaborators.locks,
         collaborators.clock,
         collaborators.liveness,
         collaborators.pins,
@@ -191,6 +193,7 @@ impl PointerTarget {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::super::lease::FlockProbe;
+    use super::super::locks::{FlockLocks, TreeLocks};
     use super::super::resolver::ExpectedDigests;
     use super::super::testing::{within, BLOCKING_BOUND};
     use super::{prune_pinned_on_host, PinnedPruneCollaborators};
@@ -218,6 +221,7 @@ mod tests {
                     clock: &StoppedClock,
                     liveness: &FlockProbe,
                     pins: &ExpectedDigests::Compiled,
+                    locks: TreeLocks::over(&FlockLocks),
                 },
                 None,
             )

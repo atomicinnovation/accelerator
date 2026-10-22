@@ -18,6 +18,7 @@ use crate::launch::outbound::resolve::retention::ports::CachePorts;
 use crate::launch::outbound::resolve::retention::root_retention::{
     for_root, RootRetention,
 };
+use crate::launch::outbound::resolve::tree::locks::TreeLocks;
 use crate::launch::outbound::resolve::tree::{
     ExpectedDigests, StepObserver, TreeResolver,
 };
@@ -117,6 +118,7 @@ impl StartUp {
             fetcher: config.fetcher,
             clock: self.ports.clock.as_ref(),
             liveness: self.ports.lease_liveness.as_ref(),
+            locks: TreeLocks::over(self.ports.locks.as_ref()),
             launcher_id: launcher_id(),
             expected_digests: config.expected_digests,
             waiter_bound: config.waiter_bound,
