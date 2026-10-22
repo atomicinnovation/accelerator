@@ -1,6 +1,8 @@
 //! How long the cache root keeps what each plugin version left in it.
 
 pub mod ports;
+pub mod residue;
+pub mod root_entries;
 pub mod root_retention;
 pub mod version_claims;
 
