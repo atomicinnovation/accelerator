@@ -115,34 +115,8 @@ impl TreePrune<'_> {
     pub fn run(&self, patience: LockPatience) -> TreePruneReport {
         let mut report = TreePruneReport::default();
         let paths = self.regime.paths();
-        if self
-            .ports
-            .filesystem
-            .entry(paths.root())
-            .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
-        {
+        let Some((claims, index)) = self.survey(&paths, &mut report) else {
             return report;
-        }
-        if !is_trusted_directory(
-            paths.root(),
-            self.ports.filesystem,
-            self.ports.ownership,
-        ) {
-            report.untrusted_directories.push(UntrustedDirectory {
-                path: paths.root().to_path_buf(),
-            });
-            return report;
-        }
-        let claims = self.read_claims(&paths, &mut report);
-        let index = match TreesIndex::read(&paths, self.ports.filesystem) {
-            Ok(index) => index,
-            Err(error) => {
-                report.removals.failures.push(RemovalFailure {
-                    path: paths.root().to_path_buf(),
-                    kind: error.kind(),
-                });
-                return report;
-            }
         };
         let mut reaped = false;
         for artifact in self.regime.artifacts(&index) {
@@ -218,6 +192,70 @@ impl TreePrune<'_> {
             }
             ArtifactLock::Failed(failure) => report.lock_failures.push(failure),
             ArtifactLock::LockFree | ArtifactLock::Skipped => {}
+        }
+    }
+
+    /// Steps 1 and 2 for the one artifact whose lock the caller holds, after
+    /// it reaped under that lock; no other tree lock is taken, since a
+    /// process must never probe or retake one it holds.
+    pub fn prune_held(&self, held: &HeldTreeLock) -> TreePruneReport {
+        let mut report = TreePruneReport::default();
+        let paths = self.regime.paths();
+        if held.paths().root() != paths.root() {
+            return report;
+        }
+        let Some((claims, index)) = self.survey(&paths, &mut report) else {
+            return report;
+        };
+        if let Some(claims) = &claims {
+            self.reclaim_unclaimed_trees(held, &index, claims, &mut report);
+        }
+        if self.regime.sweeps_bookkeeping() {
+            self.reclaim_orphan_sidecars(
+                &paths,
+                held.artifact(),
+                &index,
+                &mut report,
+            );
+        }
+        report
+    }
+
+    /// The claims and the listing every step judges by, or `None` when there
+    /// is no `trees/` to prune or it must not be pruned through.
+    fn survey(
+        &self,
+        paths: &TreePaths,
+        report: &mut TreePruneReport,
+    ) -> Option<(Option<TreeClaimIndex>, TreesIndex)> {
+        if self
+            .ports
+            .filesystem
+            .entry(paths.root())
+            .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
+        {
+            return None;
+        }
+        if !is_trusted_directory(
+            paths.root(),
+            self.ports.filesystem,
+            self.ports.ownership,
+        ) {
+            report.untrusted_directories.push(UntrustedDirectory {
+                path: paths.root().to_path_buf(),
+            });
+            return None;
+        }
+        let claims = self.read_claims(paths, report);
+        match TreesIndex::read(paths, self.ports.filesystem) {
+            Ok(index) => Some((claims, index)),
+            Err(error) => {
+                report.removals.failures.push(RemovalFailure {
+                    path: paths.root().to_path_buf(),
+                    kind: error.kind(),
+                });
+                None
+            }
         }
     }
 
