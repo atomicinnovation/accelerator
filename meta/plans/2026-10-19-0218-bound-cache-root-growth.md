@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T03:29:59+00:00"
+last_updated: "2026-10-22T04:50:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1958,13 +1958,13 @@ decision. It drives the defensive branches:
 
 #### Automated Verification:
 
-- [ ] All Phase 4 tests pass: `mise run test:unit:cli`
-- [ ] Default-root verb tests in `tests/tree_resolution.rs` pass unchanged
-- [ ] `mise run cli:check` exits 0
+- [x] All Phase 4 tests pass: `mise run test:unit:cli`
+- [x] Default-root verb tests in `tests/tree_resolution.rs` pass unchanged
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] `accelerator cache prune` in a scratch relocated root seeded with an
+- [x] `accelerator cache prune` in a scratch relocated root seeded with an
       old version's entries removes them and prints the count
 
 ---
