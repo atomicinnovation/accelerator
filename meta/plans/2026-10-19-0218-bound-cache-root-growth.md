@@ -2832,20 +2832,21 @@ pub trait AfterStore {
 }
 ```
 
-`StartUp::acquire_and_resolve(config, artifacts)` acquires the consumed trees
-through `StartUp::tree_resolver`, builds `HeldLeases::of(&acquired)` and the
-dispatch resolver from it, and returns both. `run` calls it in place of
-`export_consumed_trees` plus a separate resolver, so the wiring lives in the
-library, where a test can reach it. It hands `HeldLeases` to
-`StartUp::dispatch_resolver`, which hands it to the resolver with the
-`Arc<dyn AfterStore>`. `PluginBinRetention` makes no call;
+`StartUp::dispatch_resolver(config, consumed: &[AcquiredTree])` builds
+`HeldLeases::of(consumed)` itself and hands it to the resolver with the
+retention as its `Arc<dyn AfterStore>`, so the wiring lives in the library,
+where a test can reach it. `run` keeps `export_consumed_trees` and passes the
+trees it acquired to `LazyProductionResolver`, which still builds the dispatch
+resolver only when a command first needs one, so a built-in never touches TLS.
+`PluginBinRetention` and `UnidentifiedRetention` make no call;
 `RelocatedRetention` runs `RootPrune::run(LockPatience::Try, held_leases)`
 and
-logs each `LockFailure`, `UnreadableClaims`, `RemovalFailure` and
-`UnsafeRoot` with
-`tracing::warn!`. `FetchVerifyCacheResolver::new` takes the `AfterStore`
-and the `HeldLeases` as required arguments, so production wiring cannot
-silently omit them. `fetch_verify_store` calls
+logs each line of `PruneReport::problems()`, the lines the verb prints, with
+`tracing::warn!`, and an `UnsafeRoot` once per process.
+`FetchVerifyCacheResolver::new` and `with_fetcher` take a `ResolverPorts`
+whose `filesystem`, `after_store` and `held_leases` are required fields, so
+production wiring cannot silently omit them; the help path, which only reads
+the manifest, passes `NothingAfterStore`. `fetch_verify_store` calls
 `after_store.after_store(&held_leases)` after `cache::store` succeeds and
 still returns the stored path.
 
@@ -2859,7 +2860,7 @@ pub trait AfterMaterialise {
     fn after_materialise(&self, held: HeldTreeLock);
 }
 
-pub struct ReapPermit<'a> { paths: &'a TreePaths }
+pub struct ReapPermit { paths: TreePaths }
 
 pub enum RootTrust<'a> {
     PluginBin(&'a PluginBinRoot),
@@ -2869,7 +2870,7 @@ pub enum RootTrust<'a> {
 impl ReapPermit<'_> {
     pub fn for_root(trust: RootTrust<'_>,
         filesystem: &dyn CacheFilesystem, ownership: &dyn Ownership)
-        -> Option<ReapPermit<'_>>;
+        -> Option<ReapPermit>;
     pub fn paths(&self) -> &TreePaths;
 }
 ```
@@ -2879,8 +2880,9 @@ There is one constructor. `RootTrust::PluginBin` carries Phase 5's
 already does. A permit derives its `TreePaths` from the root its `RootTrust`
 carries, as `TreePruneRegime` does, so the paths a permit reaps are the paths
 of the root that was checked, and no caller can pair a relocated root with the
-plugin-bin arm. `TreeResolver` holds the `RootTrust` it was built with,
-from `StartUp::tree_resolver`.
+plugin-bin arm. `TreeResolver` holds the hook, which `StartUp::tree_resolver`
+sets to the root's retention; the in-crate reap tests build a permit with a
+`#[cfg(test)]` `ReapPermit::trusting`.
 
 `tree` owns this port and `retention` implements it, so the dependency still
 points one way. Taking `held` by value makes releasing it part of the contract.
@@ -2917,7 +2919,7 @@ an unsafe root removes anything" true of the reap too.
 | Retention | `after_materialise(held)` |
 |---|---|
 | `PluginBinRetention` | `drop(held)`; the reap has already run |
-| `RelocatedRetention` | with a `SafePruneRoot`, `prune_held(&held)` on a `TreePrune` whose regime is `WholeTree(&safe)`; then `drop(held)` and `RootPrune::run(LockPatience::Try, &HeldLeases::none())` |
+| `RelocatedRetention` | with a `SafePruneRoot`, `RootPrune::after_materialise(held)`: `prune_held(&held)` on a `TreePrune` whose regime is `WholeTree(&safe)`, then `drop(held)`, then the root prune trying each lock with `HeldLeases::none()` |
 
 A materialise holds no leases: dispatch's `acquire` never materialises, and
 returns `None` for an absent tree (`resolver.rs:557-558`); materialising runs
@@ -3023,6 +3025,12 @@ launcher.
 
 In `cli/launcher/src/main.rs` (unit tests, under the feature):
 
+The key decision is a value, `release_trust_for(base_url, key) ->
+ReleaseTrust::{Embedded, TestKey}`, since `TrustedKeys` cannot say which key
+it holds, and `release_fetcher_for(base_url)` is tested through the fetch it
+refuses.
+
+- `a_loopback_base_url_trusts_the_test_key`
 - `a_non_loopback_base_url_ignores_the_test_key`
 - `a_lookalike_host_is_not_loopback`: `http://127.0.0.1.example` and
   `http://127.0.0.1@example`
@@ -3037,9 +3045,12 @@ parametrise over every seamed `DevBinary`, so `LAUNCHER`'s `loopback_seam=True`
 adds it with no edit to the test.
 
 `tests/integration/entrypoint/`: `assert_hermetic` still rejects a release
-host that is neither `.invalid` nor loopback.
+host that is neither `.invalid` nor loopback
+(`test_the_funnel_refuses_a_release_host_neither_invalid_nor_loopback`).
 
-In `tests/root_prune.rs`, driving the real resolvers in-process:
+In `tests/root_prune.rs`, driving the real resolvers in-process over
+`tests/common/signed_release.rs`, a release signed by a freshly generated
+key that `tests/resolution.rs` now shares and that can also publish trees:
 
 - `a_cold_dispatch_prunes_before_exec`: an `exec` fake snapshots the root,
   and the unclaimed version's entries are already absent.
@@ -3101,6 +3112,9 @@ In `tests/root_prune.rs`, driving the real resolvers in-process:
 - `the_plugin_bin_orphan_reap_is_unchanged`: built through
   `StartUp::tree_resolver`, so a wrongly wired hook fails it; the old
   unreferenced generation goes and the young one stays.
+  `tests/tree_resolution.rs` keeps its `TreeResolver` literals, each given
+  the harness's own `PluginBinRetention` as the hook, or `ReapsNothing` for
+  the one test whose cache is no plugin `bin`.
 - `a_development_checkout_relocated_elsewhere_prunes_on_its_cold_path`
 - `foreign_names_survive_every_trigger` and
   `the_kept_names_survive_beside_an_unclaimed_version` become parameterised
