@@ -422,7 +422,7 @@ fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == row.settled_id)
+        .find(|item| item.planned.id() == row.settled_id)
         .map_or_else(
             || match row.action {
                 work::sync::IdentityAction::NotFound => {
@@ -431,7 +431,7 @@ fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
                 work::sync::IdentityAction::KeyChanged
                 | work::sync::IdentityAction::Resumed => "-".to_owned(),
             },
-            |item| item.planned.state.to_string(),
+            |item| item.planned.state().to_string(),
         )
 }
 
@@ -497,10 +497,10 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
     let mut synced_count = 0usize;
     for item in &report.reported {
         let failed = matches!(item.outcome, ItemOutcome::Failed(_));
-        if settled_ids.contains(item.planned.id.as_str()) && !failed {
+        if settled_ids.contains(item.planned.id()) && !failed {
             continue;
         }
-        if matches!(item.planned.state, work::sync::SyncState::Synced)
+        if matches!(item.planned.state(), work::sync::SyncState::Synced)
             && !matches!(item.outcome, ItemOutcome::Failed(_))
         {
             synced_count += 1;
@@ -509,17 +509,17 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         let (action_field, detail) = match &item.outcome {
             ItemOutcome::Failed(error) => ("failed", error.class().keyword()),
             ItemOutcome::UnsupportedRecipe => {
-                (action_keyword(item.planned.action), "unsupported-recipe")
+                (action_keyword(item.planned.action()), "unsupported-recipe")
             }
             ItemOutcome::Applied | ItemOutcome::NotApplied => {
-                (action_keyword(item.planned.action), "-")
+                (action_keyword(item.planned.action()), "-")
             }
         };
         lines.push(
             TsvRecord::of([
-                item.planned.id.clone(),
+                item.planned.id().to_owned(),
                 action_field.to_owned(),
-                item.planned.state.to_string(),
+                item.planned.state().to_string(),
                 detail.to_owned(),
             ])
             .to_string(),
@@ -768,7 +768,7 @@ pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
         .reported
         .iter()
         .filter(|item| matches!(item.outcome, ItemOutcome::UnsupportedRecipe))
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     (!untouched.is_empty()).then(|| {
         format!(
@@ -805,7 +805,7 @@ fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
                 format!(
                     "warning: {}: could not clear marker {}: {}; the item is \
                      linked, so remove the marker by hand",
-                    single_line(&item.planned.id),
+                    single_line(item.planned.id()),
                     single_line(&leftover.path.display().to_string()),
                     single_line(&leftover.reason)
                 )
@@ -2841,11 +2841,7 @@ mod tests {
 
     fn reported(id: &str, state: SyncState, action: Action) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state,
-                action,
-            },
+            planned: PlannedAction::new(id.to_owned(), state, action),
             outcome: ItemOutcome::NotApplied,
             validation: None,
             kept_edits: None,
@@ -2859,11 +2855,7 @@ mod tests {
         source: TrackerError,
     ) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state,
-                action: Action::Noop,
-            },
+            planned: PlannedAction::new(id.to_owned(), state, Action::Noop),
             outcome: ItemOutcome::Failed(ApplyError::Tracker {
                 item_id: id.to_owned(),
                 operation:
@@ -4511,11 +4503,11 @@ mod tests {
 
     fn failed_with(id: &str, error: ApplyError) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::RemotelyModified,
-                action: Action::Pull,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::RemotelyModified,
+                Action::Pull,
+            ),
             outcome: ItemOutcome::Failed(error),
             validation: None,
             kept_edits: None,
@@ -4532,11 +4524,11 @@ mod tests {
 
     fn record(id: &str, outcome: ItemOutcome) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::Synced,
-                action: Action::RecordBaseline,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::Synced,
+                Action::RecordBaseline,
+            ),
             outcome,
             validation: None,
             kept_edits: None,
@@ -4570,11 +4562,11 @@ mod tests {
     #[test]
     fn a_recorded_locally_modified_item_reports_a_record_baseline_row() {
         let report = report_of(vec![ReportedItem {
-            planned: PlannedAction {
-                id: "0001".to_owned(),
-                state: SyncState::LocallyModified,
-                action: Action::RecordBaseline,
-            },
+            planned: PlannedAction::new(
+                "0001".to_owned(),
+                SyncState::LocallyModified,
+                Action::RecordBaseline,
+            ),
             outcome: ItemOutcome::Applied,
             validation: None,
             kept_edits: None,

@@ -226,10 +226,10 @@ impl RunReport {
     pub fn awaiting_human(&self) -> impl Iterator<Item = &ReportedItem> {
         self.reported.iter().filter(|item| {
             matches!(
-                item.planned.action,
+                item.planned.action(),
                 Action::Prompt | Action::SkipConflict | Action::SkipDirty
             ) || matches!(
-                item.planned.state,
+                item.planned.state(),
                 SyncState::RemoteAbsent | SyncState::Indeterminate
             )
         })

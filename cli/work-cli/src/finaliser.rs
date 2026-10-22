@@ -302,11 +302,11 @@ mod tests {
 
     fn imported(id: &str, outcome: ItemOutcome) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::Unsynced,
-                action: Action::CreateFromRemote,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::Unsynced,
+                Action::CreateFromRemote,
+            ),
             outcome,
             validation: None,
             kept_edits: None,

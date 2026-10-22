@@ -593,7 +593,7 @@ fn discovery_creates_only_untracked_issues_folding_cosmetic_ids(
     let creates = report
         .reported
         .iter()
-        .filter(|item| item.planned.action == Action::CreateFromRemote)
+        .filter(|item| item.planned.action() == Action::CreateFromRemote)
         .count();
     assert_eq!(creates, 1);
     Ok(())
@@ -920,7 +920,7 @@ fn the_happy_path_authors_exactly_one_file_per_untracked_issue(
     let create = report
         .reported
         .iter()
-        .find(|item| item.planned.action == Action::CreateFromRemote)
+        .find(|item| item.planned.action() == Action::CreateFromRemote)
         .expect("one create-from-remote row");
     assert!(matches!(create.outcome, ItemOutcome::Applied));
     let authored = std::fs::read_to_string(fixture.dir.path().join("9000.md"))?;
@@ -1018,7 +1018,7 @@ fn preview_reports_untracked_as_create_rows_without_authoring(
         report
             .reported
             .iter()
-            .filter(|item| item.planned.action == Action::CreateFromRemote)
+            .filter(|item| item.planned.action() == Action::CreateFromRemote)
             .count(),
         1
     );
@@ -1087,7 +1087,7 @@ fn a_show_failure_mid_batch_fails_that_issue_and_continues(
         .reported
         .iter()
         .filter(|item| {
-            item.planned.action == Action::CreateFromRemote
+            item.planned.action() == Action::CreateFromRemote
                 && matches!(item.outcome, ItemOutcome::Failed(_))
         })
         .count();
@@ -1214,7 +1214,7 @@ fn a_targeted_pull_id_creates_the_file_and_counts_as_a_pull(
     let create = report
         .reported
         .iter()
-        .find(|item| item.planned.action == Action::CreateFromRemote)
+        .find(|item| item.planned.action() == Action::CreateFromRemote)
         .expect("one create-from-remote row");
     assert!(matches!(create.outcome, ItemOutcome::Applied));
     Ok(())
@@ -1352,7 +1352,7 @@ fn a_previewed_targeted_pull_reports_a_create_without_writing(
     let create = report
         .reported
         .iter()
-        .find(|item| item.planned.action == Action::CreateFromRemote)
+        .find(|item| item.planned.action() == Action::CreateFromRemote)
         .expect("one create-from-remote row");
     assert!(matches!(create.outcome, ItemOutcome::NotApplied));
     Ok(())
@@ -1456,7 +1456,7 @@ fn of_two_pull_ids_one_show_failure_reports_one_success(
         .reported
         .iter()
         .filter(|item| {
-            item.planned.action == Action::CreateFromRemote
+            item.planned.action() == Action::CreateFromRemote
                 && matches!(item.outcome, ItemOutcome::Applied)
         })
         .count();
@@ -1464,7 +1464,7 @@ fn of_two_pull_ids_one_show_failure_reports_one_success(
         .reported
         .iter()
         .filter(|item| {
-            item.planned.action == Action::CreateFromRemote
+            item.planned.action() == Action::CreateFromRemote
                 && matches!(item.outcome, ItemOutcome::Failed(_))
         })
         .count();
@@ -1783,7 +1783,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
         let create = report
             .reported
             .iter()
-            .find(|item| item.planned.action == Action::CreateFromRemote)
+            .find(|item| item.planned.action() == Action::CreateFromRemote)
             .expect("a create-from-remote row");
         assert!(
             matches!(create.outcome, ItemOutcome::Failed(_)),
@@ -1860,7 +1860,7 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
     assert_eq!(linked.len(), 1);
     assert_eq!(linked[0].1, ExternalId::new("REC-1".to_owned()));
     assert!(report.reported.iter().any(|item| {
-        item.planned.action == Action::CreateFromLocal
+        item.planned.action() == Action::CreateFromLocal
             && matches!(item.outcome, ItemOutcome::Applied)
     }));
     assert_recipe_one_entry(
@@ -1944,7 +1944,7 @@ fn unpromoted_drafts_are_never_created_from_local() -> Result<(), TestError> {
     assert!(!report
         .reported
         .iter()
-        .any(|item| item.planned.action == Action::CreateFromLocal));
+        .any(|item| item.planned.action() == Action::CreateFromLocal));
     Ok(())
 }
 
@@ -2212,8 +2212,8 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
         .reported
         .iter()
         .find(|item| {
-            item.planned.id == "0002"
-                && item.planned.action == Action::CreateFromLocal
+            item.planned.id() == "0002"
+                && item.planned.action() == Action::CreateFromLocal
         })
         .expect("the targeted draft's create-from-local is reported");
     assert!(
@@ -2277,7 +2277,7 @@ fn create_from_local_failure(
         .iter()
         .find_map(|item| match &item.outcome {
             ItemOutcome::Failed(error)
-                if item.planned.action == Action::CreateFromLocal =>
+                if item.planned.action() == Action::CreateFromLocal =>
             {
                 Some(error)
             }
@@ -2530,7 +2530,7 @@ fn a_leftover_marker_after_a_link_is_a_warning() -> Result<(), TestError> {
     let created = report
         .reported
         .iter()
-        .find(|reported| reported.planned.action == Action::CreateFromLocal)
+        .find(|reported| reported.planned.action() == Action::CreateFromLocal)
         .expect("the create-from-local is reported");
     let leftover = created
         .leftover_marker
@@ -2589,7 +2589,7 @@ fn create_from_local_outcome(report: &RunReport) -> &ItemOutcome {
     &report
         .reported
         .iter()
-        .find(|item| item.planned.action == Action::CreateFromLocal)
+        .find(|item| item.planned.action() == Action::CreateFromLocal)
         .expect("the create-from-local is reported")
         .outcome
 }
@@ -2811,7 +2811,7 @@ fn local_create_failing(
     let ItemOutcome::Failed(error) = report
         .reported
         .into_iter()
-        .find(|reported| reported.planned.action == Action::CreateFromLocal)
+        .find(|reported| reported.planned.action() == Action::CreateFromLocal)
         .expect("the create-from-local is reported")
         .outcome
     else {

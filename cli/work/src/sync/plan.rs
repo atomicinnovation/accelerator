@@ -29,9 +29,39 @@ pub struct RemoteFacts<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedAction {
-    pub id: String,
-    pub state: SyncState,
-    pub action: Action,
+    id: String,
+    state: SyncState,
+    action: Action,
+}
+
+impl PlannedAction {
+    #[must_use]
+    pub fn new(
+        id: impl Into<String>,
+        state: SyncState,
+        action: Action,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            state,
+            action,
+        }
+    }
+
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    #[must_use]
+    pub const fn state(&self) -> SyncState {
+        self.state
+    }
+
+    #[must_use]
+    pub const fn action(&self) -> Action {
+        self.action
+    }
 }
 
 /// An item whose classification failed, so it was left out of the plan
@@ -52,7 +82,7 @@ impl SyncPlan {
     pub fn pull_count(&self) -> usize {
         self.actions
             .iter()
-            .filter(|planned| planned.action == Action::Pull)
+            .filter(|planned| planned.action() == Action::Pull)
             .count()
     }
 
@@ -60,7 +90,7 @@ impl SyncPlan {
     pub fn push_count(&self) -> usize {
         self.actions
             .iter()
-            .filter(|planned| planned.action.sends_to_tracker())
+            .filter(|planned| planned.action().sends_to_tracker())
             .count()
     }
 }
@@ -149,11 +179,11 @@ pub fn plan(
                 };
             }
         }
-        actions.push(PlannedAction {
-            id: item.id.clone(),
-            state: classification.state(),
+        actions.push(PlannedAction::new(
+            item.id.clone(),
+            classification.state(),
             action,
-        });
+        ));
     }
     SyncPlan {
         actions,

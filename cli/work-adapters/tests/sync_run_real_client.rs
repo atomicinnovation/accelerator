@@ -386,13 +386,13 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
-        report.reported[0].planned.state,
+        report.reported[0].planned.state(),
         SyncState::LocallyModified,
         "remote unchanged (hash matches) + local changed classifies \
          locally-modified"
     );
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     Ok(())
@@ -528,9 +528,12 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
 
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
-    assert_eq!(report.reported[0].planned.state, SyncState::LocallyModified);
+    assert_eq!(
+        report.reported[0].planned.state(),
+        SyncState::LocallyModified
+    );
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     Ok(())
@@ -779,9 +782,9 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
         .reported
         .iter()
         .filter(|item| {
-            item.planned.action == work::sync::Action::CreateFromRemote
+            item.planned.action() == work::sync::Action::CreateFromRemote
         })
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     assert_eq!(
         created,

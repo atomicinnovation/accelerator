@@ -212,7 +212,7 @@ pub fn classify(
     plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new())
         .actions
         .into_iter()
-        .map(|action| (action.id, action.state))
+        .map(|action| (action.id().to_owned(), action.state()))
         .collect()
 }
 
@@ -1303,7 +1303,7 @@ mod tests {
         previewed
             .reported
             .into_iter()
-            .map(|item| (item.planned.id, item.planned.state))
+            .map(|item| (item.planned.id().to_owned(), item.planned.state()))
             .collect()
     }
 

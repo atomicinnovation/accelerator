@@ -1760,8 +1760,8 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == KEY)
-        .map(|item| item.planned.state)
+        .find(|item| item.planned.id() == KEY)
+        .map(|item| item.planned.state())
         .expect("the promoted item is reported")
 }
 

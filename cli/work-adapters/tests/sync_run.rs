@@ -453,7 +453,7 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == id)
+        .find(|item| item.planned.id() == id)
         .map(|item| {
             let outcome = match &item.outcome {
                 ItemOutcome::Applied => "applied".to_owned(),
@@ -464,7 +464,11 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
                 ItemOutcome::Failed(error) => format!("failed:{error:?}"),
             };
             (
-                format!("{:?}/{:?}", item.planned.action, item.planned.state),
+                format!(
+                    "{:?}/{:?}",
+                    item.planned.action(),
+                    item.planned.state()
+                ),
                 outcome,
             )
         })
@@ -602,10 +606,10 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
     let a = report
         .reported
         .iter()
-        .find(|item| item.planned.id == "0001")
+        .find(|item| item.planned.id() == "0001")
         .expect("A is reconciled by the final full sync");
     assert_eq!(
-        a.planned.state,
+        a.planned.state(),
         SyncState::LocallyModified,
         "the targeted run must not advance A's watermark past its edit, so \
          the later full sync still detects the local change"
@@ -638,7 +642,7 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
     let report = execute(&scenario, 25, 25, RunMode::Apply).map_err(|_| {
         "an indeterminate item is not a write, so bounds cannot refuse it"
     })?;
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
 
     let written = scenario
         .spy
@@ -724,7 +728,7 @@ fn a_transient_keyed_read_degrades_to_indeterminate_and_proceeds(
         "a transient keyed read is not a write, so it must not abort the run"
     })?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
     assert!(
         report.keyed_read_budget_limited,
         "a transient keyed read surfaces a soft budget-limited signal"
@@ -752,7 +756,7 @@ fn a_targeted_run_reconciles_only_the_named_item() -> Result<(), TestError> {
     .map_err(|_| "a single targeted pull within bounds must proceed")?;
 
     assert_eq!(report.reported.len(), 1, "only the named item is reported");
-    assert_eq!(report.reported[0].planned.id, "0002");
+    assert_eq!(report.reported[0].planned.id(), "0002");
     assert!(
         scenario.spy.content_of(&scenario.items[0].path).is_none(),
         "a non-targeted item must not be written"
@@ -914,13 +918,13 @@ fn the_fixtures_classify_as_intended() -> Result<(), TestError> {
     let pulls = report
         .reported
         .iter()
-        .filter(|item| item.planned.action == work::sync::Action::Pull)
+        .filter(|item| item.planned.action() == work::sync::Action::Pull)
         .count();
     let pushes = report
         .reported
         .iter()
         .filter(|item| {
-            matches!(item.planned.action, work::sync::Action::Push(_))
+            matches!(item.planned.action(), work::sync::Action::Push(_))
         })
         .count();
 
@@ -1226,7 +1230,7 @@ fn a_failed_show_after_a_stamp_change_is_indeterminate_and_writes_nothing(
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a single item within bounds must proceed")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
     assert_eq!(
         scenario.spy.content_of(&item.path),
         None,
@@ -1273,7 +1277,7 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
 
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt
     );
     assert_eq!(
@@ -1482,7 +1486,7 @@ fn a_local_resolution_overwrites_the_remote_title_and_description(
         .map_err(|_| "a resolved conflict is within the bounds")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Overwrite
     );
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
@@ -1521,7 +1525,7 @@ fn a_previewed_overwrite_carries_a_payload_check() -> Result<(), TestError> {
     .map_err(|_| "a resolved conflict is within the bounds")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Overwrite
     );
     assert_eq!(
@@ -1731,7 +1735,7 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
         .map_err(|_| "a blank baseline local_hash needs no local read")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt,
         "the item still awaits a human"
     );
@@ -1765,7 +1769,7 @@ fn preview_lists_every_action_and_validates_push_entries_only(
     );
     for item in &report.reported {
         let is_push =
-            matches!(item.planned.action, work::sync::Action::Push(_));
+            matches!(item.planned.action(), work::sync::Action::Push(_));
         assert_eq!(
             item.validation.is_some(),
             is_push,
@@ -1816,7 +1820,9 @@ fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
     let push = report
         .reported
         .iter()
-        .find(|item| matches!(item.planned.action, work::sync::Action::Push(_)))
+        .find(|item| {
+            matches!(item.planned.action(), work::sync::Action::Push(_))
+        })
         .expect("one push entry");
     assert!(
         matches!(
@@ -1885,7 +1891,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
     .map_err(|_| "a dirty conflict is not a write, so bounds cannot refuse")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt,
         "a dirty remotely-modified item must decide Prompt, not Pull"
     );
@@ -2517,9 +2523,9 @@ fn a_local_edit_over_an_unrenderable_jira_description_is_a_conflict_and_sends_no
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a conflict is within the bounds")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Conflict);
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt
     );
     assert!(sent_nothing(&scenario.tracker));
@@ -2542,7 +2548,7 @@ fn resolve_local_overwrites_an_unrenderable_jira_description(
     let report = execute_resolving(&scenario, &pushing_local("0009"))
         .map_err(|_| "a resolved conflict is within the bounds")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Conflict);
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
     assert!(scenario.tracker.calls().iter().any(|call| matches!(
         call,
@@ -2601,7 +2607,7 @@ fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
         .map_err(|_| "a push within bounds must proceed")?;
 
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     assert_eq!(
@@ -2654,14 +2660,17 @@ fn an_unclassifiable_item_is_reported_as_a_failed_row() -> Result<(), TestError>
         .map(|item| item.id.as_str())
         .collect();
     assert_eq!(unclassifiable, vec!["0001"]);
-    assert!(report.reported.iter().all(|item| item.planned.id != "0001"));
+    assert!(report
+        .reported
+        .iter()
+        .all(|item| item.planned.id() != "0001"));
     assert!(report
         .awaiting_human()
-        .all(|item| item.planned.id != "0001"));
+        .all(|item| item.planned.id() != "0001"));
     let neighbour = report
         .reported
         .iter()
-        .find(|item| item.planned.id == "0002")
+        .find(|item| item.planned.id() == "0002")
         .expect("the neighbour is planned");
     assert!(matches!(neighbour.outcome, ItemOutcome::Applied));
     Ok(())

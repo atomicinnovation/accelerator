@@ -753,7 +753,7 @@ fn fragment(
 #[allow(clippy::panic)]
 pub fn outcome_of(report: &RunReport, index: usize) -> (SyncState, Action) {
     let row = row(report, index);
-    (row.planned.state, row.planned.action)
+    (row.planned.state(), row.planned.action())
 }
 
 #[allow(clippy::panic)]
@@ -761,6 +761,6 @@ pub fn row(report: &RunReport, index: usize) -> &ReportedItem {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == id(index))
+        .find(|item| item.planned.id() == id(index))
         .unwrap_or_else(|| panic!("item {index} is reported"))
 }

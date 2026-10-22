@@ -397,7 +397,7 @@ fn row<'a>(
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == id)
+        .find(|item| item.planned.id() == id)
         .unwrap_or_else(|| panic!("{id} is reported"))
 }
 
@@ -451,8 +451,8 @@ fn a_run_rewrites_every_classified_legacy_entry_under_recipe_one(
 
     for seed in &seeds {
         let reported = row(&report, &seed.id());
-        assert_eq!(reported.planned.state, SyncState::Synced);
-        assert_eq!(reported.planned.action, Action::RecordBaseline);
+        assert_eq!(reported.planned.state(), SyncState::Synced);
+        assert_eq!(reported.planned.action(), Action::RecordBaseline);
         assert_recipe_one_entry(
             entry(&harness, &seed.id()).as_ref(),
             &PlainDialect,
@@ -510,6 +510,10 @@ fn assert_legacy(harness: &Harness, id: &str) {
         matches!(entry, Some(Entry::Legacy { .. })),
         "{id} keeps the legacy recipe: {entry:?}"
     );
+}
+
+fn state_of(report: &RunReport, id: &str) -> SyncState {
+    row(report, id).planned.state()
 }
 
 #[test]
@@ -607,9 +611,9 @@ fn entries_this_run_does_not_settle_keep_the_legacy_recipe(
         },
     );
 
-    assert_eq!(row(&report, "0001").planned.state, SyncState::RemoteAbsent);
-    assert_eq!(row(&report, "0002").planned.state, SyncState::Indeterminate);
-    assert_eq!(row(&report, "0003").planned.state, SyncState::Conflict);
+    assert_eq!(state_of(&report, "0001"), SyncState::RemoteAbsent);
+    assert_eq!(state_of(&report, "0002"), SyncState::Indeterminate);
+    assert_eq!(state_of(&report, "0003"), SyncState::Conflict);
     for id in ["0001", "0002", "0003"] {
         assert_legacy(&bidirectional, id);
     }
@@ -657,8 +661,8 @@ fn a_remote_updated_at_change_alone_leaves_the_hashes_unchanged(
 
     let report = sync_once(&harness);
 
-    assert_eq!(row(&report, "0001").planned.state, SyncState::Synced);
-    assert_eq!(row(&report, "0001").planned.action, Action::Noop);
+    assert_eq!(row(&report, "0001").planned.state(), SyncState::Synced);
+    assert_eq!(row(&report, "0001").planned.action(), Action::Noop);
     let (before, after) =
         (seeded_entry(&harness, "0001"), entry(&harness, "0001"));
     assert_eq!(
@@ -765,7 +769,10 @@ fn a_legacy_linear_file_carrying_a_title_line_migrates() -> Result<(), TestError
 
     let report = sync_once(&harness);
 
-    assert_eq!(row(&report, "0001").planned.action, Action::RecordBaseline);
+    assert_eq!(
+        row(&report, "0001").planned.action(),
+        Action::RecordBaseline
+    );
     assert!(files_unchanged(&harness, &seeds));
     assert_recipe_one_entry(
         entry(&harness, "0001").as_ref(),
@@ -799,7 +806,7 @@ fn a_legacy_jira_file_holding_adf_json_is_a_conflict_not_a_migration(
         let report = sync_once(&harness);
 
         assert_eq!(
-            row(&report, "0001").planned.state,
+            row(&report, "0001").planned.state(),
             SyncState::Conflict,
             "{local_body}"
         );
@@ -820,15 +827,15 @@ fn an_untouched_verbatim_jira_pull_migrates_without_a_write(
     let first = sync_once(&harness);
     let second = sync_once(&harness);
 
-    assert_eq!(row(&first, "0001").planned.action, Action::RecordBaseline);
+    assert_eq!(row(&first, "0001").planned.action(), Action::RecordBaseline);
     assert_recipe_one_entry(
         entry(&harness, "0001").as_ref(),
         &JiraBodyDialect,
         &seeds[0].content(),
         Some(&projection),
     );
-    assert_eq!(row(&second, "0001").planned.state, SyncState::Synced);
-    assert_eq!(row(&second, "0001").planned.action, Action::Noop);
+    assert_eq!(row(&second, "0001").planned.state(), SyncState::Synced);
+    assert_eq!(row(&second, "0001").planned.action(), Action::Noop);
     assert!(files_unchanged(&harness, &seeds));
     assert!(!mutated(&harness.tracker));
     Ok(())
@@ -849,7 +856,7 @@ fn a_skipped_residue_conflict_is_still_a_conflict_on_the_next_run(
     let second = sync_once(&harness);
 
     for report in [&first, &second] {
-        assert_eq!(row(report, "0001").planned.state, SyncState::Conflict);
+        assert_eq!(row(report, "0001").planned.state(), SyncState::Conflict);
     }
     assert!(!mutated(&harness.tracker), "the second run sends nothing");
     assert_legacy(&harness, "0001");
@@ -876,7 +883,7 @@ fn a_skipped_verbatim_conflict_with_a_title_edit_is_still_a_conflict(
     let second = sync_once(&harness);
 
     for report in [&first, &second] {
-        assert_eq!(row(report, "0001").planned.state, SyncState::Conflict);
+        assert_eq!(row(report, "0001").planned.state(), SyncState::Conflict);
     }
     assert!(!mutated(&harness.tracker), "the title is never sent");
     assert_legacy(&harness, "0001");
@@ -900,8 +907,8 @@ fn an_item_with_an_unknown_recipe_entry_is_indeterminate_and_untouched(
     let report = sync_once(&harness);
 
     let reported = row(&report, "0001");
-    assert_eq!(reported.planned.state, SyncState::Indeterminate);
-    assert_eq!(reported.planned.action, Action::Noop);
+    assert_eq!(reported.planned.state(), SyncState::Indeterminate);
+    assert_eq!(reported.planned.action(), Action::Noop);
     assert!(matches!(
         reported.outcome,
         work_adapters::sync::run::ItemOutcome::UnsupportedRecipe
