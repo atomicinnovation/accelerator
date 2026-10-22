@@ -19,6 +19,7 @@ use super::super::cache_root;
 use super::super::fetcher::Fetcher;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
+use super::after_materialise::{AfterMaterialise, ReapPermit};
 use super::attestation::Attestation;
 use super::download::Resumption;
 use super::layout::{
@@ -122,6 +123,9 @@ pub struct TreeResolver<'a> {
     pub waiter_bound: Duration,
     /// The crash-injection seam; production is [`NoSteps`].
     pub steps: &'a dyn StepObserver,
+    /// Decides whether this root may be reaped, and prunes after a
+    /// materialise.
+    pub after_materialise: &'a dyn AfterMaterialise,
 }
 
 impl reap::PinnedDigests for ExpectedDigests {
@@ -639,7 +643,10 @@ impl MaterialiseTree for TreeResolver<'_> {
                     ));
                 }
                 let sealed = self.materialise_locked(artifact, digest)?;
-                let _ = self.reaper(&held).reap_orphans();
+                if let Some(permit) = self.after_materialise.reap_permit() {
+                    let _ = self.reaper(&held).reap_orphans(&permit);
+                }
+                self.after_materialise.after_materialise(held);
                 return Ok(sealed);
             }
 
@@ -726,18 +733,26 @@ impl TreeResolver<'_> {
         // reaper would otherwise spare it as too young.
         if let Some(old) = superseded {
             if paths.generation(&old) != sealed.path {
-                Self::reap_superseded(&paths, self.liveness, self.clock, &old);
+                if let Some(permit) = self.after_materialise.reap_permit() {
+                    Self::reap_superseded(
+                        &permit,
+                        self.liveness,
+                        self.clock,
+                        &old,
+                    );
+                }
             }
         }
         Ok(sealed)
     }
 
     fn reap_superseded(
-        paths: &TreePaths,
+        permit: &ReapPermit,
         liveness: &dyn LivenessProbe,
         clock: &dyn Clock,
         generation: &str,
     ) {
+        let paths = permit.paths();
         match reap::superseded_disposition(
             liveness.probe(&paths.lease(generation)),
         ) {

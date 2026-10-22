@@ -39,6 +39,9 @@ use accelerator::launch::outbound::resolve::retention::root_retention::PluginBin
 use accelerator::launch::outbound::resolve::retention_windows;
 use accelerator::launch::outbound::resolve::single_flight::LockPatience;
 use accelerator::launch::outbound::resolve::single_flight::SingleFlightLocks;
+use accelerator::launch::outbound::resolve::tree::after_materialise::{
+    AfterMaterialise, ReapPermit,
+};
 use accelerator::launch::outbound::resolve::tree::lease::HeldLeases;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, Liveness, LivenessProbe,
@@ -49,6 +52,7 @@ use accelerator::launch::outbound::resolve::tree::locks::{
 use accelerator::launch::outbound::resolve::tree::reap::{
     PinnedDigests, UnobservedRemovals,
 };
+use accelerator::launch::outbound::resolve::tree::tree_lock::HeldTreeLock;
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreePrune,
     TreePrunePorts, TreePruneRegime, TreePruneReport, TreeResolver,
@@ -461,7 +465,15 @@ impl Harness {
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
             steps,
+            after_materialise: self.after_materialise(),
         }
+    }
+
+    /// The hook `StartUp` wires for this plugin `bin`.
+    fn after_materialise(&self) -> &'static PluginBinRetention {
+        Box::leak(Box::new(
+            self.retention_with(Arc::new(StoppedClock), Arc::new(FlockProbe)),
+        ))
     }
 
     fn keys(&self) -> TrustedKeys {
@@ -492,6 +504,19 @@ impl Harness {
             .route("/manifest.json", Route::Ok(manifest.into_bytes()));
         self.server
             .route("/manifest.minisig", Route::Ok(signature.into_bytes()));
+    }
+}
+
+/// A hook for a cache no test here reaps.
+struct ReapsNothing;
+
+impl AfterMaterialise for ReapsNothing {
+    fn reap_permit(&self) -> Option<ReapPermit> {
+        None
+    }
+
+    fn after_materialise(&self, held: HeldTreeLock) {
+        drop(held);
     }
 }
 
@@ -2550,6 +2575,7 @@ fn two_launchers_with_the_same_digest_share_one_generation_offline() {
         liveness: &FlockProbe,
         locks: TreeLocks::over(&FlockLocks),
         steps: &NoSteps,
+        after_materialise: harness.after_materialise(),
     };
 
     let hit = launcher_b.query(ARTIFACT).expect("query").expect("a hit");
@@ -2597,6 +2623,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         liveness: &FlockProbe,
         locks: TreeLocks::over(&FlockLocks),
         steps: &NoSteps,
+        after_materialise: harness.after_materialise(),
     };
 
     let outcome = resolver.materialise(ARTIFACT);
@@ -2899,6 +2926,7 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
             liveness: &FlockProbe,
             locks: TreeLocks::over(&FlockLocks),
             steps: &NoSteps,
+            after_materialise: &ReapsNothing,
         };
         resolver.materialise(ARTIFACT).expect("materialise").path
     };
