@@ -5,7 +5,7 @@ title: "Sync Pulls of Tracked Work Items Fail Silently Implementation Plan"
 date: "2026-10-11T00:00:33+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0300"
 parent: "work-item:0300"
 derived_from: ["codebase-research:2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-22T04:19:01+00:00"
+last_updated: "2026-10-22T11:44:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1375,7 +1375,7 @@ unsafe id, and a suffix over the draft-id alphabet.
 
 #### Manual Verification
 
-- [ ] None in this phase (pulls are still refused in production).
+- [x] None in this phase (pulls are still refused in production).
 
 ### As Implemented
 
@@ -1416,10 +1416,11 @@ Departures from the steps above:
 - Discard notes read `discarded <directory>`, `<directory> would be
   discarded`, `<directory> could not be discarded: <reason>` and `no kept
   copy to discard`.
-- `render_report` is not split into per-family renderers; every engine,
-  identity, unclassifiable, kept-edits and promotion detail record goes
-  through `TsvRecord`. `FinishedRun` gains `kept_edits` only;
-  `stale_dossiers` waits for Phase 6. `work-cli` gains a `time`
+- `render_report` is not split into per-family renderers and there is no
+  `RunRecord` enum; every engine, identity, unclassifiable, kept-edits and
+  promotion detail record goes through `TsvRecord`, and Phases 5 and 6
+  now build their `#\tadopt` and `#\tstale-dossier` records the same way.
+  `FinishedRun` gains `kept_edits` only; Phase 6 adds `stale_dossiers`. `work-cli` gains a `time`
   dependency for the earlier-copies date.
 - The run-level safeguard tests live in a new
   `work-adapters/tests/sync_pull_safeguards.rs` over the shared `Repo`
@@ -2828,8 +2829,8 @@ Pure-function tests, extending `failed(..)` (`sync.rs:2296`) with an
   `sync-report-records.golden`, holds at least one record of every new
   family (`#\tunidentified`, `#\tkept-edits`, `#\tstale-dossier`, `#\tadopt`,
   `#\tdiscovery\tskipped\tincomplete-corpus`, `#\tdiscovery\tskipped\tpending-push`)
-  beside rows and `#\tsummary` (with `RunRecord::Adopt`, emitted on preview
-  and apply),
+  beside rows and `#\tsummary` (the `#\tadopt` record built through
+  `TsvRecord` like every other, emitted on preview and apply),
   pinning their order.
 
 End-to-end `run_sync_with` tests over production wiring and captured console:
@@ -3251,8 +3252,9 @@ dossier rather than leaving a stale diff and warns, and when the removal
 fails too it warns that the dossier is stale. For each id in
 `report.stale_dossier_ids` it warns that the dossier predates a partial
 resolution and is stale. Every stale dossier, from either cause, also gets
-`#\tstale-dossier\t<id>\t<dossier-path>` through a
-`RunRecord::StaleDossier { id, dossier }` variant, so the skill keys on stdout.
+`#\tstale-dossier\t<id>\t<dossier-path>`, built through `TsvRecord` from
+the `stale_dossiers` this phase adds to `FinishedRun` (Phase 3 deferred
+the field), so the skill keys on stdout.
 `prepare_conflicts_dir` (`sync.rs:602`) keeps its fail-closed `.gitignore`
 check and calls nothing destructive; the retire step runs after the writes,
 so a refreshed dossier is overwritten in place. `persist_conflict_dossiers`
