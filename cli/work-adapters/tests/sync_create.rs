@@ -32,13 +32,13 @@ use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::baseline_store::BaselineStore;
-use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
@@ -2409,6 +2409,46 @@ fn a_leftover_marker_after_a_link_is_a_warning() -> Result<(), TestError> {
         "{}",
         leftover.reason
     );
+    Ok(())
+}
+
+#[test]
+fn an_unsafe_id_writes_no_marker() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("0001", "Draft one")?;
+    let item = LocalItem {
+        id: "../last-sync".to_owned(),
+        ..draft
+    };
+    let (work_items, integration_state) = (Spy::default(), Spy::default());
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let report = run_create_from_local_over(
+        &fixture,
+        &item,
+        &tracker,
+        &work_items,
+        &integration_state,
+    );
+
+    let ApplyError::Io {
+        operation, detail, ..
+    } = create_from_local_failure(&report)
+    else {
+        panic!("an unsafe id is a local failure");
+    };
+    assert_eq!(*operation, "marker-write");
+    assert_eq!(detail, "id cannot name a pending-push marker");
+    assert_eq!(
+        *integration_state.writes.borrow(),
+        vec![PathBuf::from(BASELINE_PATH)],
+        "only the run's own baseline finalise is written"
+    );
+    assert!(work_items.writes.borrow().is_empty());
+    assert!(tracker
+        .calls()
+        .iter()
+        .all(|call| !matches!(call, Call::Create { .. })));
     Ok(())
 }
 

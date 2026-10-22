@@ -25,8 +25,8 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
-use corpus::store::FileRemove;
 use corpus::store::CopyComparison;
+use corpus::store::FileRemove;
 use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
 use corpus::store::RecoveryEntry;
@@ -1020,7 +1020,10 @@ fn pull_writes_through_the_work_item_store() -> Result<(), TestError> {
         .pull(&pull_request(&item_path))
         .result?;
 
-    assert_eq!(work_items.content(&item_path).as_deref(), Some(item_content()));
+    assert_eq!(
+        work_items.content(&item_path).as_deref(),
+        Some(item_content())
+    );
     assert_eq!(fake.content(&item_path), None);
     Ok(())
 }
