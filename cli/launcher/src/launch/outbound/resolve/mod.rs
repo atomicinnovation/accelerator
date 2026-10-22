@@ -7,6 +7,7 @@ pub mod fetcher;
 pub mod filesystem;
 pub mod keys;
 pub mod manifest;
+pub mod ownership;
 pub mod retention_windows;
 pub mod tree;
 pub mod verifier;
