@@ -10,7 +10,9 @@ use super::super::prune_report::{
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::locks::TreeLocks;
-use super::super::tree::{prune_pinned_on_host, PinnedPruneCollaborators};
+use super::super::tree::{
+    TreePrune, TreePrunePorts, TreePruneRegime, TreePruneReport,
+};
 use super::ports::CachePorts;
 use super::residue::ResidueSweep;
 use super::root_entries::RootListing;
@@ -39,6 +41,11 @@ impl PruneReport {
         self.reclaimed += removals.reclaimed;
         self.removal_failures.extend(removals.failures);
     }
+
+    pub fn absorb_trees(&mut self, trees: TreePruneReport) {
+        self.absorb(trees.removals);
+        self.lock_failures.extend(trees.lock_failures);
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -55,7 +62,7 @@ impl RootPrune<'_> {
     pub fn run(&self, patience: LockPatience) -> PruneReport {
         let mut report = PruneReport::default();
         self.prune_single_files(patience, &mut report);
-        self.prune_trees(&mut report);
+        report.absorb_trees(self.prune_trees(patience));
         report
     }
 
@@ -107,23 +114,20 @@ impl RootPrune<'_> {
         report.absorb(ResidueSweep::new(root, self.ports).run(&listing));
     }
 
-    fn prune_trees(&self, report: &mut PruneReport) {
-        let collaborators = PinnedPruneCollaborators {
-            clock: self.ports.clock.as_ref(),
-            liveness: self.ports.lease_liveness.as_ref(),
-            pins: self.ports.pins.as_ref(),
-            locks: TreeLocks::over(self.ports.locks.as_ref()),
-        };
-        match prune_pinned_on_host(
-            self.safe.path(),
-            &collaborators,
-            Some(self.claim_window),
-        ) {
-            Ok(reclaimed) => report.reclaimed += reclaimed.entries,
-            Err(error) => report.lock_failures.push(LockFailure {
-                lock: self.safe.path().join("trees"),
-                detail: error.to_string(),
-            }),
+    fn prune_trees(&self, patience: LockPatience) -> TreePruneReport {
+        TreePrune {
+            regime: TreePruneRegime::WholeTree(self.safe),
+            claim_window: self.claim_window,
+            ports: TreePrunePorts {
+                filesystem: self.ports.filesystem.as_ref(),
+                ownership: self.ports.ownership.as_ref(),
+                clock: self.ports.clock.as_ref(),
+                lease_liveness: self.ports.lease_liveness.as_ref(),
+                pins: self.ports.pins.as_ref(),
+                locks: TreeLocks::over(self.ports.locks.as_ref()),
+                steps: self.ports.steps.as_ref(),
+            },
         }
+        .run(patience)
     }
 }

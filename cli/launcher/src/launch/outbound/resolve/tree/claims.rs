@@ -8,16 +8,24 @@
 //! instead: `trees/claims/<digest>.<launcher-id>`, refreshed on every resolve,
 //! and `prune` reads only that directory.
 
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::launch::core::tree::Clock;
 
-use super::super::filesystem::{CacheFilesystem as _, SystemFilesystem};
-use super::super::ownership::{is_trusted_directory, ProcessOwnership};
+use super::super::filesystem::{
+    CacheFilesystem, EntryMetadata, FileKind, SystemFilesystem,
+};
+use super::super::ownership::{
+    is_trusted_directory, is_trusted_directory_entry, Ownership,
+    ProcessOwnership,
+};
 pub use super::super::retention_windows::CLAIM_WINDOW;
 use super::super::retention_windows::REFRESH_FRACTION;
-use super::layout::TreePaths;
+use super::layout::{is_wellformed_digest, TreePaths};
+
+const LAUNCHER_ID_LENGTH: usize = 16;
 
 /// Refresh this install's claim on `digest`, best-effort.
 ///
@@ -86,6 +94,150 @@ pub fn claimed_within(
         }
     }
     false
+}
+
+/// One tree claim whose name parses as `<digest>.<launcher-id>`.
+#[derive(Debug, Clone)]
+pub struct ListedTreeClaim {
+    pub digest: String,
+    pub path: PathBuf,
+    /// Only a claim whose launcher id is the launcher's own sixteen-hex shape
+    /// is ever swept; any other id still protects its digest.
+    pub sweepable: bool,
+    pub entry: EntryMetadata,
+}
+
+impl ListedTreeClaim {
+    /// An unreadable or future mtime counts as fresh, so it can only protect.
+    #[must_use]
+    pub fn protects_within(
+        &self,
+        window: Duration,
+        now: u64,
+        uid: u32,
+    ) -> bool {
+        is_valid_claim_entry(&self.entry, uid)
+            && self.entry.modified_seconds.is_none_or(|modified| {
+                now.saturating_sub(modified) < window.as_secs()
+            })
+    }
+}
+
+/// Whether `entry` is a claim this prune may sweep as stale: a valid claim
+/// last refreshed at least `window` ago.
+#[must_use]
+pub fn is_stale_claim_entry(
+    entry: &EntryMetadata,
+    window: Duration,
+    now: u64,
+    uid: u32,
+) -> bool {
+    is_valid_claim_entry(entry, uid)
+        && entry.modified_seconds.is_some_and(|modified| {
+            now.saturating_sub(modified) >= window.as_secs()
+        })
+}
+
+const fn is_valid_claim_entry(entry: &EntryMetadata, uid: u32) -> bool {
+    matches!(entry.kind, FileKind::File) && entry.owner == uid
+}
+
+/// The tree claims read once, so every keep decision shares one view.
+#[derive(Debug, Default)]
+pub struct TreeClaimIndex {
+    claims: Vec<ListedTreeClaim>,
+}
+
+impl TreeClaimIndex {
+    #[must_use]
+    pub fn claims(&self) -> &[ListedTreeClaim] {
+        &self.claims
+    }
+
+    pub fn on<'a>(
+        &'a self,
+        digest: &'a str,
+    ) -> impl Iterator<Item = &'a ListedTreeClaim> {
+        self.claims
+            .iter()
+            .filter(move |claim| claim.digest == digest)
+    }
+
+    #[must_use]
+    pub fn protects(
+        &self,
+        digest: &str,
+        window: Duration,
+        now: u64,
+        uid: u32,
+    ) -> bool {
+        self.on(digest)
+            .any(|claim| claim.protects_within(window, now, uid))
+    }
+}
+
+#[derive(Debug)]
+pub enum TreeClaimsListing {
+    Read(TreeClaimIndex),
+    /// Distinct from an empty listing, so a prune never reads "no claims"
+    /// into a directory it could not read or does not trust.
+    Unreadable(io::ErrorKind),
+}
+
+/// Every tree claim whose name parses; a missing `trees/claims/` is an empty
+/// index.
+pub fn list(
+    paths: &TreePaths,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+) -> TreeClaimsListing {
+    let directory = paths.claims();
+    match filesystem.entry(&directory) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return TreeClaimsListing::Read(TreeClaimIndex::default());
+        }
+        Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
+        Ok(entry)
+            if !is_trusted_directory_entry(
+                &directory, &entry, filesystem, ownership,
+            ) =>
+        {
+            return TreeClaimsListing::Unreadable(
+                io::ErrorKind::PermissionDenied,
+            );
+        }
+        Ok(_) => {}
+    }
+    let names = match filesystem.list(&directory) {
+        Ok(names) => names,
+        Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
+    };
+    let claims = names
+        .iter()
+        .filter_map(|name| name.to_str())
+        .filter_map(|name| {
+            let (digest, launcher_id) = name.split_once('.')?;
+            if !is_wellformed_digest(digest) || launcher_id.is_empty() {
+                return None;
+            }
+            let path = directory.join(name);
+            let entry = filesystem.entry(&path).ok()?;
+            Some(ListedTreeClaim {
+                digest: digest.to_owned(),
+                sweepable: is_launcher_id(launcher_id),
+                entry,
+                path,
+            })
+        })
+        .collect();
+    TreeClaimsListing::Read(TreeClaimIndex { claims })
+}
+
+fn is_launcher_id(candidate: &str) -> bool {
+    candidate.len() == LAUNCHER_ID_LENGTH
+        && candidate
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 /// Remove every claim on `digest` — used when the digest's generation is

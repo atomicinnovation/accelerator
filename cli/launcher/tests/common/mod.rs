@@ -10,6 +10,7 @@
 
 pub mod recording_filesystem;
 pub mod scripted_filesystem;
+pub mod trees;
 
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
