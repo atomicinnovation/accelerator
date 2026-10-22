@@ -142,6 +142,14 @@ pub trait CacheFilesystem {
     ///
     /// If the ACL cannot be read for a reason other than there being none.
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl>;
+
+    /// Whether the volume holding `path` ignores file ownership, so its
+    /// permission bits are not enforced.
+    ///
+    /// # Errors
+    ///
+    /// If the volume cannot be examined.
+    fn ignores_ownership(&self, path: &Path) -> io::Result<bool>;
 }
 
 pub struct SystemFilesystem;
@@ -243,6 +251,21 @@ impl CacheFilesystem for SystemFilesystem {
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
         access_acl_of(path)
     }
+
+    fn ignores_ownership(&self, path: &Path) -> io::Result<bool> {
+        ignores_ownership_of(path)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn ignores_ownership_of(path: &Path) -> io::Result<bool> {
+    let flags = rustix::fs::statfs(path)?.f_flags;
+    Ok(flags & libc::MNT_IGNORE_OWNERSHIP.cast_unsigned() != 0)
+}
+
+#[cfg(not(target_os = "macos"))]
+const fn ignores_ownership_of(_path: &Path) -> io::Result<bool> {
+    Ok(false)
 }
 
 /// An allow entry granting any of these lets its principal create, rename or
@@ -441,6 +464,7 @@ pub mod testing {
         entries: BTreeMap<PathBuf, EntryMetadata>,
         resolutions: BTreeMap<PathBuf, ResolvedDirectory>,
         acls: BTreeMap<PathBuf, AccessAcl>,
+        ownership_ignored: BTreeMap<PathBuf, bool>,
         resolved: Vec<PathBuf>,
     }
 
@@ -480,6 +504,18 @@ pub mod testing {
         #[must_use]
         pub fn reporting_acl(self, path: &Path, acl: AccessAcl) -> Self {
             self.overlay().acls.insert(path.to_path_buf(), acl);
+            self
+        }
+
+        #[must_use]
+        pub fn reporting_ownership_ignored(
+            self,
+            path: &Path,
+            ignored: bool,
+        ) -> Self {
+            self.overlay()
+                .ownership_ignored
+                .insert(path.to_path_buf(), ignored);
             self
         }
 
@@ -562,6 +598,11 @@ pub mod testing {
             let reported = self.overlay().acls.get(path).copied();
             reported.map_or_else(|| self.inner.access_acl(path), Ok)
         }
+
+        fn ignores_ownership(&self, path: &Path) -> io::Result<bool> {
+            let reported = self.overlay().ownership_ignored.get(path).copied();
+            reported.map_or_else(|| self.inner.ignores_ownership(path), Ok)
+        }
     }
 }
 
@@ -585,6 +626,14 @@ mod tests {
             .status()
             .expect("chmod +a");
         assert!(status.success(), "chmod +a {ace}");
+    }
+
+    #[test]
+    fn a_local_temporary_volume_enforces_ownership() {
+        let fresh = tempfile::tempdir().expect("tempdir");
+        assert!(!SystemFilesystem
+            .ignores_ownership(fresh.path())
+            .expect("statfs"));
     }
 
     #[test]
