@@ -11,6 +11,7 @@ use corpus_adapters::FileRecoveryCopies;
 use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use vcs_adapters::library::InProcessProbe;
+use vcs_adapters::InProcessTracking;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RetirementFiles;
@@ -31,6 +32,7 @@ pub struct CorpusWorkspace {
     locks: LockdirLock,
     recovery: FileRecoveryCopies,
     status: VcsWorkingCopyStatus,
+    tracking: InProcessTracking,
 }
 
 impl CorpusWorkspace {
@@ -55,6 +57,7 @@ impl CorpusWorkspace {
                 repo_root,
                 &InProcessProbe,
             ),
+            tracking: InProcessTracking,
             state_dir,
             roots,
         })
@@ -78,6 +81,10 @@ impl CorpusWorkspace {
 
     pub const fn status(&self) -> &VcsWorkingCopyStatus {
         &self.status
+    }
+
+    pub const fn tracking(&self) -> &InProcessTracking {
+        &self.tracking
     }
 
     pub fn retirement_ports<'a>(
@@ -172,6 +179,10 @@ impl IdentityWorkspace {
 
     pub const fn status(&self) -> &VcsWorkingCopyStatus {
         self.corpus.status()
+    }
+
+    pub const fn tracking(&self) -> &InProcessTracking {
+        self.corpus.tracking()
     }
 
     pub fn integrations_root(&self) -> &Path {

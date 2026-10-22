@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::path::PathBuf;
 
 use corpus::body::BodyParser;
 use time::format_description::well_known::Rfc3339;
@@ -20,6 +21,8 @@ use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
 use work::sync::FieldDelivery;
+use work::sync::ItemDigests;
+use work::sync::LocalFingerprints;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -38,6 +41,7 @@ use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
 use crate::sync::apply::RetitleRequest;
+use crate::sync::apply::UnchangedSinceSync;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
@@ -55,6 +59,8 @@ use crate::sync::files::SyncFiles;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::ordering;
+use crate::sync::recovery_label::RecoveryLabel;
+use crate::sync::recovery_label::RecoveryLabels;
 use crate::sync::scope;
 use crate::sync::send_refusal::legacy_unrenderable;
 use crate::sync::send_refusal::send_refusal;
@@ -125,6 +131,7 @@ pub struct SyncPorts<'a> {
     /// unsynced local draft. Behind a port because both need config, an id
     /// scheme, and a frontmatter renderer that live in the binary layer.
     pub author: &'a dyn LocalAuthor,
+    pub recovery_labels: &'a dyn RecoveryLabels,
 }
 
 /// Which of the discovered corpus a run reconciles.
@@ -218,6 +225,8 @@ pub struct ReportedItem {
     /// check — a `Valid` preview does not guarantee the tracker accepts the
     /// push.
     pub validation: Option<tracker::ValidationOutcome>,
+    /// Where this run kept the item's local edits before pulling over them.
+    pub kept_edits: Option<PathBuf>,
 }
 
 /// What untracked-remote discovery did on a run that got past the pre-flight
@@ -652,6 +661,64 @@ impl EntryShapes {
     }
 }
 
+/// What an item's baseline entry recorded of its local file at the last
+/// sync, under the entry's own recipe.
+enum RecordedLocal {
+    RecipeOne(LocalFingerprints),
+    Legacy(String),
+}
+
+/// Each reconciled item's recorded local digest, read once per run; an item
+/// without one has no entry, a blanked local hash, or an unknown recipe.
+struct RecordedLocals(BTreeMap<String, RecordedLocal>);
+
+impl RecordedLocals {
+    fn read(
+        items: &[LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+    ) -> Self {
+        Self(
+            items
+                .iter()
+                .filter_map(|item| {
+                    let recorded = match baseline.get(&item.id)? {
+                        Entry::Split { split, .. } => {
+                            RecordedLocal::RecipeOne(split.local.clone()?)
+                        }
+                        Entry::Legacy { legacy, .. } => {
+                            RecordedLocal::Legacy(legacy.local.clone()?)
+                        }
+                        Entry::Unsupported { .. } => return None,
+                    };
+                    Some((item.id.clone(), recorded))
+                })
+                .collect(),
+        )
+    }
+
+    fn unchanged_since_sync(
+        &self,
+        id: &str,
+        snapshot: &ItemSnapshot<'_>,
+    ) -> UnchangedSinceSync {
+        match self.0.get(id) {
+            Some(RecordedLocal::RecipeOne(recorded))
+                if snapshot.local().is_ok_and(|now| now == *recorded) =>
+            {
+                UnchangedSinceSync::RecipeOne
+            }
+            Some(RecordedLocal::Legacy(recorded))
+                if snapshot
+                    .legacy_local()
+                    .is_ok_and(|now| now == *recorded) =>
+            {
+                UnchangedSinceSync::Legacy
+            }
+            _ => UnchangedSinceSync::No,
+        }
+    }
+}
+
 /// Whether `item` is a conflict that keeps its local hash: one with no safe
 /// local overwrite, whose remedy is to revert a metadata edit so the entry
 /// migrates, which needs the hash it was recorded with.
@@ -680,6 +747,7 @@ struct RunKnowledge<'a> {
     items: &'a [LocalItem],
     snapshots: Vec<ItemSnapshot<'a>>,
     shapes: EntryShapes,
+    recorded_locals: RecordedLocals,
     by_id: BTreeMap<&'a str, usize>,
 }
 
@@ -711,6 +779,7 @@ impl<'a> RunKnowledge<'a> {
             items,
             snapshots,
             shapes: EntryShapes::read(items, baseline),
+            recorded_locals: RecordedLocals::read(items, baseline),
             by_id,
         }
     }
@@ -740,6 +809,13 @@ impl<'a> RunKnowledge<'a> {
 
     fn shape(&self, id: &str) -> EntryShape {
         self.shapes.of(id)
+    }
+
+    fn unchanged_since_sync(&self, id: &str) -> UnchangedSinceSync {
+        self.snapshot(id)
+            .map_or(UnchangedSinceSync::No, |snapshot| {
+                self.recorded_locals.unchanged_since_sync(id, snapshot)
+            })
     }
 
     fn remote(&self, id: &str) -> Option<&GatheredRemote> {
@@ -906,11 +982,13 @@ fn validate_pushes(
                     planned: planned.clone(),
                     outcome: ItemOutcome::Failed(refused),
                     validation: None,
+                    kept_edits: None,
                 },
                 validated => ReportedItem {
                     planned: planned.clone(),
                     outcome: ItemOutcome::NotApplied,
                     validation: validated.and_then(Result::ok),
+                    kept_edits: None,
                 },
             }
         })
@@ -1138,6 +1216,7 @@ const fn create_report(
         },
         outcome,
         validation: None,
+        kept_edits: None,
     }
 }
 
@@ -1221,21 +1300,38 @@ fn pull_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     knowledge: &RunKnowledge<'_>,
-) -> ItemOutcome {
+    labels: &RunLabels<'_>,
+) -> (ItemOutcome, Option<PathBuf>) {
     let pulled = match pulled_file(item, knowledge) {
         Ok(pulled) => pulled,
-        Err(error) => return ItemOutcome::Failed(error),
+        Err(error) => return (ItemOutcome::Failed(error), None),
     };
-    match applier.pull(&PullRequest {
+    let attempt = applier.pull(&PullRequest {
         id: &item.id,
         file_path: &item.path,
         classified_content: pulled.classified_content,
         content: &pulled.content,
         projected_body: pulled.projected_body,
         remote_updated: pulled.remote_updated,
-    }) {
+        unchanged_since_sync: knowledge.unchanged_since_sync(&item.id),
+        recovery_label: labels.label_for(&item.id),
+    });
+    let outcome = match attempt.result {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
+    };
+    (outcome, attempt.kept_edits)
+}
+
+/// This run's way of naming the directory a pull keeps an item's edits in.
+struct RunLabels<'a> {
+    labels: &'a dyn RecoveryLabels,
+    run_start_epoch: u64,
+}
+
+impl RunLabels<'_> {
+    fn label_for(&self, id: &str) -> Option<RecoveryLabel> {
+        self.labels.label_for(id, self.run_start_epoch)
     }
 }
 
@@ -1289,6 +1385,7 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
         planned,
         outcome: ItemOutcome::NotApplied,
         validation: None,
+        kept_edits: None,
     }
 }
 
@@ -1300,9 +1397,11 @@ fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
     knowledge: &RunKnowledge<'_>,
+    labels: &RunLabels<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = knowledge.item(&planned.id);
+    let mut kept_edits = None;
     let outcome = match planned.action {
         Action::RecordBaseline => {
             match item.zip(knowledge.snapshot(&planned.id)) {
@@ -1321,7 +1420,12 @@ fn apply_planned_action(
             None => return not_applied(planned),
         },
         Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, knowledge),
+            Some(item) => {
+                let (outcome, kept) =
+                    pull_outcome(applier, item, knowledge, labels);
+                kept_edits = kept;
+                outcome
+            }
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
@@ -1343,6 +1447,7 @@ fn apply_planned_action(
         planned,
         outcome,
         validation: None,
+        kept_edits,
     }
 }
 
@@ -1749,6 +1854,7 @@ fn execute<'a>(
             ApplierPorts {
                 tracker: ports.tracker,
                 parser: ports.parser,
+                status: ports.status,
                 files: ports.files,
             },
             baseline,
@@ -1768,11 +1874,16 @@ fn execute<'a>(
             ));
         }
 
+        let labels = RunLabels {
+            labels: ports.recovery_labels,
+            run_start_epoch,
+        };
         for planned in plan.actions {
             reported.push(reported_as(apply_planned_action(
                 &mut applier,
                 planned,
                 &knowledge,
+                &labels,
                 &mut blank_local_hash,
             )));
         }

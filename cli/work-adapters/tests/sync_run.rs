@@ -310,6 +310,7 @@ fn execute(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -350,6 +351,7 @@ fn execute_ceilings(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -389,6 +391,7 @@ fn execute_targeted(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -457,6 +460,7 @@ fn run_with<'a>(
         files: support::sync_files(spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let resolutions = BTreeMap::new();
@@ -1396,6 +1400,7 @@ fn execute_resolving_in(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -1806,6 +1811,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         files: support::sync_files(&spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &spy, &spy);
@@ -1856,6 +1862,7 @@ fn execute_with_scope(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -2142,6 +2149,7 @@ fn execute_with_scope_bounded(
         files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),

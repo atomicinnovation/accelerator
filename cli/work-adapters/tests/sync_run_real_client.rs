@@ -279,6 +279,7 @@ fn execute(
         files: support::sync_files(spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
@@ -1354,6 +1355,7 @@ fn execute_targeted_pulling(
         files: support::sync_files(spy),
         clock: &clock,
         author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let integrations_root = std::env::temp_dir();

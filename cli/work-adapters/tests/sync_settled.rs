@@ -603,6 +603,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         files: support::sync_files(&plain),
         clock: &FixedClock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &plain);
     let items = repo.items();

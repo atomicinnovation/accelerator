@@ -38,6 +38,9 @@ use vcs::RepositoryProbe;
 use vcs::VcsKind;
 use vcs::WorkingCopyState;
 use vcs::WorkingCopyStateProbe;
+use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
+use vcs::tracking::RootsAnswer;
 use work::dirtiness::Dirtiness;
 use work::identity_run::begin_rekey_run;
 use work::identity_run::HeldIdentityRun;
@@ -77,6 +80,8 @@ use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::recovery_label::RecoveryLabel;
+use work_adapters::sync::recovery_label::RecoveryLabels;
 
 pub type TestError = Box<dyn std::error::Error>;
 
@@ -772,6 +777,84 @@ pub fn sync_files(writer: &dyn AtomicWrite) -> SyncFiles<'_> {
         work_items: writer,
         integration_state: writer,
         file_locks: &Unlocked,
+        recovery: &DiscardedCopies,
+        tracking: &AllTracked,
+    }
+}
+
+/// Accepts every recovery copy and keeps none, for runs that never read
+/// one back.
+pub struct DiscardedCopies;
+
+impl RecoveryCopies for DiscardedCopies {
+    fn exists(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn prepare(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn write_once(
+        &self,
+        _dir: &Path,
+        _original: &Path,
+        _bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn mark_restore_pending(
+        &self,
+        _dir: &Path,
+        _unrestored: &[PathBuf],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn is_restore_pending(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn mark_completed(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn remove_dir(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn kept(&self, _parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn copy_settled(&self, _dir: &Path, _original: &Path) -> bool {
+        true
+    }
+}
+
+/// Answers that every file is committed.
+pub struct AllTracked;
+
+impl RepositoryTracking for AllTracked {
+    fn file_tracking(&self, _path: &Path) -> FileTracking {
+        FileTracking::Tracked
+    }
+
+    fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
+        RootsAnswer {
+            roots: Vec::new(),
+            complete: true,
+        }
+    }
+}
+
+/// Names a recovery directory for every id.
+pub struct LabelsEveryId;
+
+impl RecoveryLabels for LabelsEveryId {
+    fn label_for(&self, id: &str, epoch: u64) -> Option<RecoveryLabel> {
+        Some(RecoveryLabel::new(epoch, "000000", id))
     }
 }
 

@@ -1228,12 +1228,82 @@ mod tests {
         }
     }
 
+    struct NoRecoveryLabels;
+
+    impl work_adapters::sync::recovery_label::RecoveryLabels for NoRecoveryLabels {
+        fn label_for(
+            &self,
+            _id: &str,
+            _epoch: u64,
+        ) -> Option<work_adapters::sync::recovery_label::RecoveryLabel>
+        {
+            unreachable!("a preview keeps no edits")
+        }
+    }
+
     struct FixedClock;
 
     impl work::sync::RunClock for FixedClock {
         fn run_start_epoch(&self) -> Result<u64, kernel::Error> {
             Ok(1_700_000_000)
         }
+    }
+
+    /// Each item's state as `work sync --preview` reports it.
+    fn previewed_states(
+        dir: &Path,
+        items: &[LocalItem],
+        tracker: &RecordingTracker,
+        baseline: &Baseline,
+    ) -> BTreeMap<String, SyncState> {
+        let baseline_path = dir.join("last-sync.json");
+        std::fs::write(&baseline_path, baseline.render()).unwrap();
+        let writer = corpus_adapters::FileCorpusStore::new(dir);
+        let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
+            baseline_path,
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        let previewed = work_adapters::sync::run::run(
+            &work_adapters::sync::run::SyncPorts {
+                tracker,
+                parser: &CommonMarkBody,
+                status: &AlwaysClean,
+                files: work_adapters::sync::files::SyncFiles {
+                    work_items: &writer,
+                    integration_state: &writer,
+                    file_locks: &corpus_adapters::LockdirLock::new(dir),
+                    recovery: &corpus_adapters::FileRecoveryCopies::new(
+                        dir, dir,
+                    ),
+                    tracking: &vcs_adapters::InProcessTracking,
+                },
+                clock: &FixedClock,
+                author: &UnusedAuthor,
+                recovery_labels: &NoRecoveryLabels,
+            },
+            &mut store,
+            &work_adapters::sync::run::SyncRequest {
+                corpus: items,
+                selection: work_adapters::sync::run::ItemSelection::All,
+                direction: SyncDirection::Bidirectional,
+                strategy: RetrievalStrategy::Bulk,
+                resolutions: &BTreeMap::new(),
+                max_pulls: tracker::Ceiling::Unlimited,
+                max_pushes: tracker::Ceiling::Unlimited,
+                mode: work_adapters::sync::run::RunMode::Preview,
+                integrations_root: dir,
+                integration: "linear",
+                promote: false,
+                scope: tracker::SearchScope::default(),
+            },
+        )
+        .unwrap_or_else(|_| unreachable!("the preview runs"));
+        previewed
+            .reported
+            .into_iter()
+            .map(|item| (item.planned.id, item.planned.state))
+            .collect()
     }
 
     #[test]
@@ -1288,52 +1358,10 @@ mod tests {
                 ),
             );
         }
-        let baseline_path = dir.path().join("last-sync.json");
-        std::fs::write(&baseline_path, baseline.render()).unwrap();
-        let writer = corpus_adapters::FileCorpusStore::new(dir.path());
-        let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
-            baseline_path,
-            &corpus_adapters::RealFs,
-            &writer,
-        );
-
         let listed = classify(&items, &tracker, &baseline, &AlwaysClean);
-        let previewed = work_adapters::sync::run::run(
-            &work_adapters::sync::run::SyncPorts {
-                tracker: &tracker,
-                parser: &CommonMarkBody,
-                status: &AlwaysClean,
-                files: work_adapters::sync::files::SyncFiles {
-                    work_items: &writer,
-                    integration_state: &writer,
-                    file_locks: &corpus_adapters::LockdirLock::new(dir.path()),
-                },
-                clock: &FixedClock,
-                author: &UnusedAuthor,
-            },
-            &mut store,
-            &work_adapters::sync::run::SyncRequest {
-                corpus: &items,
-                selection: work_adapters::sync::run::ItemSelection::All,
-                direction: SyncDirection::Bidirectional,
-                strategy: RetrievalStrategy::Bulk,
-                resolutions: &BTreeMap::new(),
-                max_pulls: tracker::Ceiling::Unlimited,
-                max_pushes: tracker::Ceiling::Unlimited,
-                mode: work_adapters::sync::run::RunMode::Preview,
-                integrations_root: dir.path(),
-                integration: "linear",
-                promote: false,
-                scope: tracker::SearchScope::default(),
-            },
-        )
-        .unwrap_or_else(|_| unreachable!("the preview runs"));
+        let reported =
+            previewed_states(dir.path(), &items, &tracker, &baseline);
 
-        let reported: BTreeMap<String, SyncState> = previewed
-            .reported
-            .into_iter()
-            .map(|item| (item.planned.id, item.planned.state))
-            .collect();
         assert_eq!(listed, reported);
         assert_eq!(listed.get("0001"), Some(&SyncState::Synced));
     }

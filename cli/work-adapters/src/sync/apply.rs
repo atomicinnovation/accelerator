@@ -2,6 +2,7 @@
 //! `tracker::RemoteTracker` port and a `BaselineStore`.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use corpus::body::BodyParser;
 use corpus::lock::HeldLock;
@@ -13,7 +14,9 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
 use tracker::Unrenderable;
+use vcs::tracking::FileTracking;
 use work::sync::push_precondition;
+use work::sync::Dirtiness;
 use work::sync::DualRecipeFingerprints;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
@@ -29,8 +32,10 @@ use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
+use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
 use crate::sync::pending_push;
+use crate::sync::recovery_label::RecoveryLabel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureClass {
@@ -243,6 +248,27 @@ pub struct PullRequest<'a> {
     /// written.
     pub projected_body: &'a str,
     pub remote_updated: RemoteTimestamp,
+    pub unchanged_since_sync: UnchangedSinceSync,
+    /// Where the local file's edits are kept should the pull need to keep
+    /// them; `None` when the id cannot name a directory.
+    pub recovery_label: Option<RecoveryLabel>,
+}
+
+/// Whether the local file still digests to what its baseline entry
+/// recorded at the last sync, and under which recipe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnchangedSinceSync {
+    RecipeOne,
+    Legacy,
+    No,
+}
+
+/// A pull's result, and where it kept the local file's edits, which a
+/// failure after the copy does not undo.
+#[derive(Debug)]
+pub struct PullAttempt {
+    pub result: Result<(), ApplyError>,
+    pub kept_edits: Option<PathBuf>,
 }
 
 /// A store that refuses before writing leaves the file as it was; any other
@@ -278,6 +304,7 @@ fn io_error(
 pub struct ApplierPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
     pub parser: &'a dyn BodyParser,
+    pub status: &'a dyn WorkingCopyStatus,
     pub files: SyncFiles<'a>,
 }
 
@@ -290,6 +317,7 @@ pub struct ApplierPorts<'a> {
 pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
     parser: &'ctx dyn BodyParser,
+    status: &'ctx dyn WorkingCopyStatus,
     files: SyncFiles<'ctx>,
     baseline: &'store mut BaselineStore<'ctx>,
     run_start_epoch: u64,
@@ -304,6 +332,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         Self {
             tracker: ports.tracker,
             parser: ports.parser,
+            status: ports.status,
             files: ports.files,
             baseline,
             run_start_epoch,
@@ -376,34 +405,112 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// A file already holding what the pull writes is written again, so a
     /// re-run after an interrupted baseline write still records it.
     ///
-    /// # Errors
+    /// The file is checked again after its edits are kept, because editors
+    /// take no lock and keeping a durable copy takes long enough for one to
+    /// write.
     ///
-    /// [`ApplyError::LocalChangedSinceClassified`] when the file holds
-    /// neither the classified content nor what the pull writes, so an edit is
-    /// never overwritten; otherwise [`ApplyError`] naming `request.id` and the
-    /// operation attempted.
-    pub fn pull(
-        &mut self,
+    /// The result fails with [`ApplyError::LocalChangedSinceClassified`]
+    /// when the file holds neither the classified content nor what the pull
+    /// writes, so an edit is never overwritten; otherwise with an
+    /// [`ApplyError`] naming `request.id` and the operation attempted.
+    pub fn pull(&mut self, request: &PullRequest<'_>) -> PullAttempt {
+        let mut kept_edits = None;
+        let result = self.pull_steps(request, &mut kept_edits);
+        PullAttempt { result, kept_edits }
+    }
+
+    fn pull_steps(
+        &self,
         request: &PullRequest<'_>,
+        kept_edits: &mut Option<PathBuf>,
     ) -> Result<(), ApplyError> {
         let _held = self.lock_item(request)?;
-        Self::ensure_unchanged_since_classified(request)?;
+        let current = Self::read_local(request)?;
+        Self::ensure_unchanged_since_classified(request, &current)?;
+        *kept_edits = self.keep_edits_unless_synced(request, &current)?;
         let fingerprints = self.pulled_fingerprints(request)?;
+        Self::ensure_unchanged_since_classified(
+            request,
+            &Self::read_local(request)?,
+        )?;
         self.write_item(request)?;
         self.set_pulled_baseline(request, fingerprints)
     }
 
+    fn read_local(request: &PullRequest<'_>) -> Result<String, ApplyError> {
+        std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.id, "read-local", error))
+    }
+
     fn ensure_unchanged_since_classified(
         request: &PullRequest<'_>,
+        current: &str,
     ) -> Result<(), ApplyError> {
-        let current = std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.id, "read-local", error))?;
         if current == request.classified_content || current == request.content {
             Ok(())
         } else {
             Err(ApplyError::LocalChangedSinceClassified {
                 item_id: request.id.to_owned(),
             })
+        }
+    }
+
+    /// Keeps a copy of `current` unless the last sync already captured it.
+    ///
+    /// A tracked file has history only once it is VCS-clean, so it is
+    /// copied whenever it is not, even when the baseline matches. An
+    /// untracked or ignored file reads as clean yet has no history, so only
+    /// a recipe-1 baseline can vouch for it; a legacy entry cannot.
+    fn keep_edits_unless_synced(
+        &self,
+        request: &PullRequest<'_>,
+        current: &str,
+    ) -> Result<Option<PathBuf>, ApplyError> {
+        if current == request.content || self.captured_by_last_sync(request) {
+            return Ok(None);
+        }
+        let label = request.recovery_label.as_ref().ok_or_else(|| {
+            io_error(
+                request.id,
+                "keep-edits",
+                "the id cannot name a recovery directory",
+            )
+        })?;
+        let dir = label.dir();
+        let recovery = self.files.recovery;
+        recovery
+            .prepare(&dir)
+            .and_then(|()| {
+                recovery.write_once(&dir, request.file_path, current.as_bytes())
+            })
+            .and_then(|()| {
+                recovery.mark_restore_pending(
+                    &dir,
+                    &[request.file_path.to_path_buf()],
+                )
+            })
+            .map_err(|error| {
+                io_error(
+                    request.id,
+                    "keep-edits",
+                    format!("{}: {error}", dir.display()),
+                )
+            })?;
+        Ok(Some(dir))
+    }
+
+    fn captured_by_last_sync(&self, request: &PullRequest<'_>) -> bool {
+        let path = request.file_path;
+        match (
+            self.files.tracking.file_tracking(path),
+            request.unchanged_since_sync,
+        ) {
+            (
+                FileTracking::Tracked,
+                UnchangedSinceSync::RecipeOne | UnchangedSinceSync::Legacy,
+            ) => self.status.is_dirty(path) == Dirtiness::Clean,
+            (FileTracking::Untracked, UnchangedSinceSync::RecipeOne) => true,
+            _ => false,
         }
     }
 
