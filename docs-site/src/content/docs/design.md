@@ -212,7 +212,7 @@ The runtime is materialised on demand and cached per plugin version. The
 | `ensure` | Materialise the named trees (`driver`, `browser`), fetching if cold |
 | `verify` | Check a materialised tree against its sealed file table             |
 | `repair` | Re-materialise a tree whose contents no longer verify               |
-| `prune`  | Reclaim the cache roots Claude Code's orphan sweep never reaches    |
+| `prune`  | Reclaim what no fresh claim protects. In a relocated root this covers single-file entries, trees of any artifact or platform, stale claims, orphan sidecars and locks, and crash residue. In the default root it covers unclaimed trees of the current artifacts. Prints how many entries it removed, and exits non-zero when a lock cannot be taken or a removal fails |
 
 When the runtime cannot start, the executor downgrades to the code-only crawler
 and names one of the reasons `notify-downgrade` renders.
@@ -265,7 +265,7 @@ running.
 | Variable                       | Effect                                                                                                                        |
 |--------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
 | `ACCELERATOR_DESIGN_BIN`       | One-shot override pointing `accelerator design …` at a locally-built `accelerator-design` binary, bypassing the normal fetch-and-cache dispatch |
-| `ACCELERATOR_CACHE_DIR`        | Where materialised runtime trees live. **Trust-relevant**: it must be a private, user-owned path and a **local filesystem** — `flock` is unreliable on NFS/SMB/FUSE, and an unresponsive network mount can block a cache hit in the kernel |
+| `ACCELERATOR_CACHE_DIR`        | Where materialised runtime trees live. **Trust-relevant**: it must be a private, user-owned path and a **local filesystem** — `flock` is unreliable on NFS/SMB/FUSE, and an unresponsive network mount can block a cache hit in the kernel. A relocated root is pruned automatically on cold paths: a version idle for 14 days loses its entries and re-fetches, and `--older-than` below ~1.4 days can evict versions other sessions are using, though never the running one. It is pruned only when no other user can write to it or to a directory above it; a shared location such as `/var/cache/accelerator` works but is never pruned, so give each user `<shared>/$USER`. See [A relocated cache root](/accelerator/internals/#a-relocated-cache-root) |
 | `ACCELERATOR_RELEASE_BASE_URL` | Mirror hatch for the release host the runtime is fetched from. The redirect allowlist is derived from this host, so a mirror must serve the bytes inline rather than 3xx-redirecting to another host |
 | `ACCELERATOR_DESIGN_BROWSER_PATH` | Overrides the personal `design.browser_path`. It skips the provenance checks but not the path checks, and a refused value falls through to the personal value with a warning; see [The browser hatch](#the-browser-hatch) |
 
