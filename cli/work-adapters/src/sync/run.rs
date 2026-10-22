@@ -1478,11 +1478,21 @@ fn apply_local_create(
             }),
         );
     };
-    let marker_path = crate::sync::pending_push::path(
+    let Some(marker_path) = crate::sync::pending_push::for_item(
         request.integrations_root,
         request.integration,
         &item.id,
-    );
+    ) else {
+        return create_report(
+            item.id.clone(),
+            Action::CreateFromLocal,
+            ItemOutcome::Failed(ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "marker-write",
+                detail: "id cannot name a pending-push marker".to_owned(),
+            }),
+        );
+    };
     match applier.create_from_local(&CreateFromLocalRequest {
         item_id: &item.id,
         file_path: &item.path,

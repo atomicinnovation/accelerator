@@ -1,6 +1,7 @@
 //! The pending-push marker's JSON encoding and filesystem path — the
 //! adapter half of `work::sync::push_precondition`'s domain types.
 
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -75,6 +76,23 @@ pub fn path(integrations_dir: &Path, integration: &str, slug: &str) -> PathBuf {
         .join(integration)
         .join("pending-push")
         .join(format!("{slug}.json"))
+}
+
+/// `id`'s marker under [`path`], or `None` when the id is not one plain
+/// file-name component and so could name a file outside `pending-push/`.
+#[must_use]
+pub fn for_item(
+    integrations_dir: &Path,
+    integration: &str,
+    id: &str,
+) -> Option<PathBuf> {
+    let mut components = Path::new(id).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(name)), None) if name == id => {
+            Some(path(integrations_dir, integration, id))
+        }
+        _ => None,
+    }
 }
 
 /// Prepares the pending-push directory, fail-closed.
@@ -592,6 +610,7 @@ mod tests {
     use work::tracker_key::TrackerKey;
 
     use super::content_digest;
+    use super::for_item;
     use super::outstanding;
     use super::path;
     use super::prepare_dir;
@@ -625,6 +644,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn only_an_id_that_is_one_plain_file_name_names_a_marker() {
+        let root = std::path::Path::new("/s/integrations");
+        assert_eq!(
+            for_item(root, "jira", "PROJ-1"),
+            Some(PathBuf::from(
+                "/s/integrations/jira/pending-push/PROJ-1.json"
+            ))
+        );
+        for unsafe_id in ["", ".", "..", "../last-sync", "a/b", "/abs", "a/"] {
+            assert_eq!(
+                for_item(root, "jira", unsafe_id),
+                None,
+                "{unsafe_id:?}"
+            );
+        }
+    }
     #[test]
     fn an_attempted_marker_round_trips() {
         let marker = PendingPush::Attempted {
