@@ -36,7 +36,9 @@ use accelerator::launch::outbound::resolve::retention_windows;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, Liveness, LivenessProbe,
 };
-use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
+use accelerator::launch::outbound::resolve::tree::locks::{
+    FlockLocks, TreeLocks,
+};
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
 };
@@ -401,6 +403,7 @@ impl Harness {
             )),
             clock,
             liveness,
+            locks: TreeLocks::over(&FlockLocks),
             launcher_id: launcher_id.to_owned(),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
@@ -2426,6 +2429,7 @@ fn two_launchers_with_the_same_digest_share_one_generation_offline() {
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
         liveness: &FlockProbe,
+        locks: TreeLocks::over(&FlockLocks),
         steps: &NoSteps,
     };
 
@@ -2472,6 +2476,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
         liveness: &FlockProbe,
+        locks: TreeLocks::over(&FlockLocks),
         steps: &NoSteps,
     };
 
@@ -2771,6 +2776,7 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
             liveness: &FlockProbe,
+            locks: TreeLocks::over(&FlockLocks),
             steps: &NoSteps,
         };
         resolver.materialise(ARTIFACT).expect("materialise").path

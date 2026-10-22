@@ -26,6 +26,7 @@ use super::layout::{
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
+use super::locks::TreeLocks;
 use super::pinned_prune::{prune_pinned_artifact, PinnedPruneCollaborators};
 use super::table::{FileTable, TABLE_NAME};
 use super::tree_lock::HeldTreeLock;
@@ -109,6 +110,7 @@ pub struct TreeResolver<'a> {
     pub fetcher: &'a Fetcher,
     pub clock: &'a dyn Clock,
     pub liveness: &'a dyn LivenessProbe,
+    pub locks: TreeLocks<'a>,
     /// A per-install identity for the retention claim, so two installs sharing
     /// a cache root each write their own claim file.
     pub launcher_id: String,
@@ -141,6 +143,7 @@ impl TreeResolver<'_> {
     fn reaper<'r>(&'r self, held: &'r HeldTreeLock) -> reap::Reaper<'r> {
         reap::Reaper::new(
             held,
+            self.locks,
             self.clock,
             self.liveness,
             &self.expected_digests,
@@ -625,7 +628,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                 ));
             }
             if let Some(held) =
-                HeldTreeLock::try_take(&paths, tree_artifact.clone())?
+                self.locks.try_take_tree(&paths, &tree_artifact)?
             {
                 // Won the lock; re-check, then materialise.
                 if let Some(located) = self.locate(artifact, digest) {
@@ -706,8 +709,9 @@ impl TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let _held =
-            HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
+        let _held = self
+            .locks
+            .take_tree(&paths, &self.on_this_platform(artifact))?;
 
         let superseded = self
             .locate(artifact, digest)
@@ -770,6 +774,7 @@ impl TreeResolver<'_> {
                 clock: self.clock,
                 liveness: self.liveness,
                 pins: &self.expected_digests,
+                locks: self.locks,
             },
             older_than,
         )
