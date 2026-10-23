@@ -44,6 +44,7 @@ use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
 use work::sync::NotATrackerKey;
 use work::sync::PendingPushOrder;
+use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
@@ -68,6 +69,7 @@ use work_adapters::sync::kept_edits::KeptEditsRetention;
 use work_adapters::sync::kept_edits::KeptEditsReview;
 use work_adapters::sync::kept_edits::Provenance;
 use work_adapters::sync::report::CorpusScope;
+use work_adapters::sync::report::CreateNotice;
 use work_adapters::sync::report::FailureSeverity;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
@@ -408,7 +410,20 @@ fn parse_orders(
     Ok(orders)
 }
 
-const fn action_keyword(action: work::sync::Action) -> &'static str {
+/// A local create settled by an adopt order links an issue rather than
+/// creating one, so its row says so.
+const fn action_keyword(planned: &PlannedAction) -> &'static str {
+    match planned.action() {
+        work::sync::Action::CreateFromLocal
+            if matches!(planned.order(), Some(PendingPushOrder::Adopt(_))) =>
+        {
+            "adopt"
+        }
+        action => plain_action_keyword(action),
+    }
+}
+
+const fn plain_action_keyword(action: work::sync::Action) -> &'static str {
     match action {
         work::sync::Action::Push(_)
         | work::sync::Action::Retitle
@@ -541,10 +556,10 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         let (action_field, detail) = match &item.outcome {
             ItemOutcome::Failed(error) => ("failed", error.class().keyword()),
             ItemOutcome::UnsupportedRecipe => {
-                (action_keyword(item.planned.action()), "unsupported-recipe")
+                (action_keyword(&item.planned), "unsupported-recipe")
             }
             ItemOutcome::Applied | ItemOutcome::NotApplied => {
-                (action_keyword(item.planned.action()), "-")
+                (action_keyword(&item.planned), "-")
             }
         };
         lines.push(
@@ -846,6 +861,33 @@ fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
                     single_line(&leftover.path.display().to_string()),
                     single_line(&leftover.reason)
                 )
+            })
+        })
+        .collect()
+}
+
+/// What a person should know of a local create an order settled.
+fn create_notices(report: &RunReport) -> Vec<String> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| {
+            let id = single_line(item.planned.id());
+            item.notice.as_ref().map(|notice| match notice {
+                CreateNotice::DifferingAdoption(key) => {
+                    let key = single_line(key.as_str());
+                    format!(
+                        "note: {id}: adopt: linked {key}, whose title or body \
+                         differ from the item; the next sync reports a \
+                         conflict. If {key} is the wrong issue, run --resolve \
+                         {id}=adopt:<RIGHT-KEY>, or --resolve {id}=create if \
+                         none exists"
+                    )
+                }
+                CreateNotice::NothingToSettle => format!(
+                    "warning: {id}: --resolve {id}=create had no pending push \
+                     to settle"
+                ),
             })
         })
         .collect()
@@ -2275,6 +2317,9 @@ fn report_finished_run(
     for warning in leftover_marker_warnings(report) {
         console.warn(warning);
     }
+    for notice in create_notices(report) {
+        console.warn(notice);
+    }
     for note in kept_edits_notes(&finished.kept_edits) {
         console.warn(note);
     }
@@ -2884,6 +2929,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -2903,6 +2949,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -4131,9 +4178,11 @@ mod tests {
         ApplyError::OrderRefused {
             item_id: id.to_owned(),
             order: PendingPushOrder::Create,
-            refusal: work_adapters::sync::apply::OrderRefusal::NoSuchItem {
-                id: id.to_owned(),
-            },
+            refusal: Box::new(
+                work_adapters::sync::apply::OrderRefusal::NoSuchItem {
+                    id: id.to_owned(),
+                },
+            ),
         }
     }
 
@@ -4587,6 +4636,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -4608,6 +4658,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -4646,6 +4697,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }]);
 
         let rendered = render_report(
@@ -7762,6 +7814,97 @@ mod tests {
             ),
             body: body.to_owned(),
         }
+    }
+
+    fn keyed_issue(key: &str, body: &str) -> (ExternalId, RemoteIssue) {
+        let key = ExternalId::new(key.to_owned());
+        (key.clone(), RemoteIssue { key, ..issue(body) })
+    }
+
+    fn unsynced_draft(dir: &Path) {
+        std::fs::write(
+            dir.join("meta/work/0001-draft-one.md"),
+            "---\nid: \"0001\"\ntitle: \"Draft one\"\nkind: task\n---\n\n\
+             Body\n",
+        )
+        .expect("write work item");
+    }
+
+    fn ordering(order: &str) -> SyncArgs {
+        resolving(&[("0001", order)])
+    }
+
+    #[test]
+    fn an_adopt_row_reads_adopt() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Draft one\nBody\n",
+        )]));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "0001\tadopt\tunsynced\t-"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_differing_adopt_says_a_conflict_follows() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        assert!(
+            run.err.contains(
+                "note: 0001: adopt: linked ENG-7, whose title or body differ \
+                 from the item; the next sync reports a conflict. If ENG-7 is \
+                 the wrong issue, run --resolve 0001=adopt:<RIGHT-KEY>, or \
+                 --resolve 0001=create if none exists"
+            ),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_create_order_with_no_marker_warns() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("create"));
+
+        assert!(
+            run.err.contains(
+                "warning: 0001: --resolve 0001=create had no pending push to \
+                 settle"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "0001\tcreate-from-local\tunsynced\t-"),
+            "{}",
+            run.out
+        );
     }
 
     fn new_work_files(dir: &Path) -> Vec<String> {

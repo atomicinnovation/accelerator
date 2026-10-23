@@ -43,11 +43,13 @@ use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::operation::SyncOperation;
+use work_adapters::sync::report::CreateNotice;
 use work_adapters::sync::report::RunFailure;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
+use work_adapters::sync::run::ReportedItem;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
@@ -3388,6 +3390,7 @@ fn reuse_id_is_deferred_while_the_corpus_is_incomplete() -> Result<(), TestError
 /// `selection`.
 struct OrderedRun<'a> {
     corpus: &'a [LocalItem],
+    unusable: Vec<work::inventory::Unidentified>,
     selection: ItemSelection<'a>,
     direction: SyncDirection,
     orders: &'a BTreeMap<String, PendingPushOrder>,
@@ -3401,6 +3404,7 @@ impl<'a> OrderedRun<'a> {
     ) -> Self {
         Self {
             corpus,
+            unusable: Vec::new(),
             selection: ItemSelection::All,
             direction: SyncDirection::Bidirectional,
             orders,
@@ -3431,9 +3435,12 @@ fn run_ordered(
         &fixture.spy,
         &fixture.spy,
     );
+    let mut inventory =
+        work_adapters::sync::fetch::inventory_of(ordered.corpus);
+    inventory.unidentified.extend(ordered.unusable);
     let request = SyncRequest {
         corpus: ordered.corpus,
-        inventory: &work_adapters::sync::fetch::inventory_of(ordered.corpus),
+        inventory: &inventory,
         selection: ordered.selection,
         direction: ordered.direction,
         strategy: RetrievalStrategy::Bulk,
@@ -3690,5 +3697,620 @@ fn a_preview_reports_an_inert_order_without_sending() -> Result<(), TestError> {
         SyncOperation::Create,
         "no work item 0009 in this run",
     );
+    Ok(())
+}
+
+fn keyed(key: &str, body: &str) -> (ExternalId, RemoteIssue) {
+    let key = ExternalId::new(key.to_owned());
+    (
+        key.clone(),
+        RemoteIssue {
+            key,
+            updated: RemoteTimestamp::Reported(
+                "2026-06-01T00:00:00Z".to_owned(),
+            ),
+            body: body.to_owned(),
+        },
+    )
+}
+
+fn seed_attempted_marker(fixture: &Fixture, id: &str) -> PathBuf {
+    let marker = work::sync::PendingPush::Attempted {
+        request: work::sync::RequestFingerprint {
+            title: "Draft one".to_owned(),
+            digest: "an earlier request".to_owned(),
+            attempted_at: 1,
+            failure: None,
+        },
+    };
+    let path = marker_of(fixture, id);
+    std::fs::create_dir_all(path.parent().expect("a marker directory"))
+        .expect("the marker directory is created");
+    std::fs::write(&path, work_adapters::sync::pending_push::render(&marker))
+        .expect("the marker is seeded");
+    path
+}
+
+fn created_count(tracker: &RecordingTracker) -> usize {
+    tracker
+        .calls()
+        .iter()
+        .filter(|call| matches!(call, Call::Create { .. }))
+        .count()
+}
+
+fn local_create_row<'r>(report: &'r RunReport, id: &str) -> &'r ReportedItem {
+    report
+        .reported
+        .iter()
+        .find(|item| {
+            item.planned.id() == id
+                && item.planned.action() == Action::CreateFromLocal
+        })
+        .expect("a local-create row")
+}
+
+fn linked_keys(author: &RecordingAuthor) -> Vec<String> {
+    author
+        .linked
+        .borrow()
+        .iter()
+        .map(|(_, key)| key.as_str().to_owned())
+        .collect()
+}
+
+fn adopting(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    author: &RecordingAuthor,
+    corpus: &[LocalItem],
+    key: &str,
+) -> Result<RunReport, TestError> {
+    let orders = orders(&[("0001", adopt(key))]);
+    run_ordered(fixture, tracker, author, OrderedRun::over(corpus, &orders))
+}
+
+fn creating(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    author: &RecordingAuthor,
+    corpus: &[LocalItem],
+) -> Result<RunReport, TestError> {
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+    run_ordered(fixture, tracker, author, OrderedRun::over(corpus, &orders))
+}
+
+#[test]
+fn adopting_an_existing_issue_links_it_and_clears_the_marker(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let marker = seed_attempted_marker(&fixture, "0001");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.planned.order(), Some(&adopt("ENG-7")));
+    assert_eq!(linked_keys(&author), ["ENG-7"]);
+    assert_eq!(created_count(&tracker), 0);
+    assert!(fixture.spy.removals.borrow().contains(&marker));
+    Ok(())
+}
+
+#[test]
+fn adopting_an_equivalent_issue_records_the_baseline() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert!(local_create_row(&report, "0001").notice.is_none());
+    assert!(fixture.baseline().get("0001").is_some());
+    Ok(())
+}
+
+#[test]
+fn adopting_an_issue_with_a_different_title_links_but_leaves_a_conflict(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(vec![keyed(
+        "ENG-7",
+        "Someone else's issue\nBody\n",
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(
+        row.notice,
+        Some(CreateNotice::DifferingAdoption(ExternalId::new(
+            "ENG-7".to_owned()
+        )))
+    );
+    assert_eq!(linked_keys(&author), ["ENG-7"]);
+    assert!(fixture.baseline().get("0001").is_none());
+    Ok(())
+}
+
+#[test]
+fn adopting_a_missing_issue_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let marker = seed_attempted_marker(&fixture, "0001");
+    let tracker = RecordingTracker::holding(Vec::new())
+        .not_found(&ExternalId::new("ENG-7".to_owned()));
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Adopt,
+        "issue ENG-7 not found; check the key",
+    );
+    assert_nothing_sent(&tracker, &author);
+    assert!(!fixture.spy.removals.borrow().contains(&marker));
+    Ok(())
+}
+
+#[test]
+fn adopt_without_a_marker_never_creates() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new())
+        .not_found(&ExternalId::new("ENG-7".to_owned()));
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert_eq!(
+        failure_for(&report, "0001").class,
+        FailureClass::OrderRefused
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn adopting_a_moved_issue_is_refused_naming_its_new_key(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")])
+            .moving(
+                &ExternalId::new("ENG-7".to_owned()),
+                &ExternalId::new("OPS-3".to_owned()),
+            );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Adopt,
+        "issue ENG-7 moved to OPS-3; run --resolve 0001=adopt:OPS-3",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn a_malformed_moved_to_key_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")])
+            .moving(
+                &ExternalId::new("ENG-7".to_owned()),
+                &ExternalId::new("x; rm -rf".to_owned()),
+            );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let failure = failure_for(&report, "0001");
+    assert_order_refused(
+        &failure,
+        SyncOperation::Adopt,
+        "issue ENG-7 moved to a key this tracker does not use; check the key \
+         in the tracker",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn a_locate_failure_keeps_its_retryable_class() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_locate(
+        &ExternalId::new("ENG-7".to_owned()),
+        TrackerError::Retryable {
+            detail: "connection reset".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert_eq!(failure.operation, SyncOperation::Adopt);
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn adopting_a_key_another_item_carries_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let carrier = LocalItem {
+        external_id: Some(ExternalId::new("ENG-7".to_owned())),
+        ..fixture.unsynced_item("0002", "Draft two")?
+    };
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft two\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        adopting(&fixture, &tracker, &author, &[item, carrier], "ENG-7")?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Adopt,
+        "ENG-7 is already carried by work item 0002",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn adopting_a_key_other_than_the_created_markers_is_refused(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker = RecordingTracker::holding(vec![
+        keyed("ENG-5", "Draft one\nBody\n"),
+        keyed("ENG-7", "Draft one\nBody\n"),
+    ]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Adopt,
+        "marker records ENG-5; run --resolve 0001=adopt:ENG-5",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn adopting_the_new_key_of_a_moved_created_marker_links_it(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")])
+            .moving(
+                &ExternalId::new("ENG-5".to_owned()),
+                &ExternalId::new("OPS-9".to_owned()),
+            );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "OPS-9",
+    )?;
+
+    assert!(matches!(
+        local_create_row(&report, "0001").outcome,
+        ItemOutcome::Applied
+    ));
+    assert_eq!(linked_keys(&author), ["OPS-9"]);
+    Ok(())
+}
+
+#[test]
+fn neither_order_settles_an_already_written_refusal() -> Result<(), TestError> {
+    for order in [adopt("ENG-5"), PendingPushOrder::Create] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        seed_created_marker(&fixture, &item, "ENG-5");
+        let carrier = LocalItem {
+            external_id: Some(ExternalId::new("ENG-5".to_owned())),
+            ..fixture.unsynced_item("0002", "Draft two")?
+        };
+        let tracker = RecordingTracker::holding(vec![keyed(
+            "ENG-5",
+            "Draft two\nBody\n",
+        )]);
+        let author = RecordingAuthor::new(fixture.dir.path());
+        let orders = orders(&[("0001", order)]);
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            OrderedRun::over(&[item, carrier], &orders),
+        )?;
+
+        let failure = failure_for(&report, "0001");
+        assert_eq!(failure.class, FailureClass::OrderRefused);
+        assert_eq!(
+            failure.cause,
+            "already written by work item 0002; decide which item is the \
+             real one"
+        );
+        assert_nothing_sent(&tracker, &author);
+    }
+    Ok(())
+}
+
+#[test]
+fn create_is_refused_while_a_created_marker_names_an_existing_issue(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "marker records ENG-5; run --resolve 0001=adopt:ENG-5",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn create_over_a_created_marker_whose_issue_was_deleted_creates(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker = RecordingTracker::holding(Vec::new())
+        .not_found(&ExternalId::new("ENG-5".to_owned()));
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    assert!(matches!(
+        local_create_row(&report, "0001").outcome,
+        ItemOutcome::Applied
+    ));
+    assert_eq!(created_count(&tracker), 1);
+    assert_eq!(linked_keys(&author), ["REC-1"]);
+    Ok(())
+}
+
+#[test]
+fn a_create_over_a_created_marker_whose_locate_fails_is_retryable(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker = RecordingTracker::holding(Vec::new()).failing_locate(
+        &ExternalId::new("ENG-5".to_owned()),
+        TrackerError::Retryable {
+            detail: "connection reset".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert_eq!(failure.operation, SyncOperation::Create);
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn create_replaces_the_marker_atomically() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let marker = seed_attempted_marker(&fixture, "0001");
+    fixture.spy.fail_nth_write_to(&marker, 1);
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert_eq!(failure.operation, SyncOperation::MarkerWrite);
+    assert!(marker.exists());
+    assert!(!fixture.spy.removals.borrow().contains(&marker));
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn create_over_an_attempted_marker_creates() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_attempted_marker(&fixture, "0001");
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert!(row.notice.is_none());
+    assert_eq!(created_count(&tracker), 1);
+    Ok(())
+}
+
+#[test]
+fn create_without_a_marker_warns_and_creates() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.notice, Some(CreateNotice::NothingToSettle));
+    assert_eq!(created_count(&tracker), 1);
+    Ok(())
+}
+
+#[test]
+fn a_marker_left_after_an_adopt_link_is_a_warning() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_attempted_marker(&fixture, "0001");
+    fixture.spy.refuse_removals();
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert!(row.leftover_marker.is_some());
+    Ok(())
+}
+
+#[test]
+fn adopt_on_an_incomplete_corpus_takes_its_class_from_the_blocker(
+) -> Result<(), TestError> {
+    for (reason, class) in [
+        (
+            work::inventory::UnidentifiedReason::Malformed(
+                work::inventory::MalformedCause::UnclosedFence,
+            ),
+            FailureClass::Unparseable,
+        ),
+        (
+            work::inventory::UnidentifiedReason::Unreadable(
+                "Permission denied".to_owned(),
+            ),
+            FailureClass::Retryable,
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        let tracker = RecordingTracker::holding(vec![keyed(
+            "ENG-7",
+            "Draft one\nBody\n",
+        )]);
+        let author = RecordingAuthor::new(fixture.dir.path());
+        let orders = orders(&[("0001", adopt("ENG-7"))]);
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            OrderedRun {
+                unusable: vec![work::inventory::Unidentified {
+                    path: fixture.dir.path().join("0002-broken.md"),
+                    reason,
+                }],
+                ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+            },
+        )?;
+
+        let failure = failure_for(&report, "0001");
+        assert_eq!(failure.class, class);
+        assert_eq!(failure.operation, SyncOperation::Adopt);
+        assert!(failure.cause.contains("ENG-7"), "{}", failure.cause);
+        assert_nothing_sent(&tracker, &author);
+    }
     Ok(())
 }

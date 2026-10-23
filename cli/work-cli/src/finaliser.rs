@@ -311,6 +311,7 @@ mod tests {
             validation: None,
             kept_edits: None,
             leftover_marker: None,
+            notice: None,
         }
     }
 

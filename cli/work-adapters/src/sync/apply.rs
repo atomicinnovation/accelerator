@@ -9,6 +9,7 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::store::StoreError;
 use tracker::ExternalId;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -16,15 +17,19 @@ use tracker::TrackerError;
 use tracker::Unrenderable;
 use vcs::tracking::FileTracking;
 use work::inventory::Fault;
+use work::sync::order_precondition;
 use work::sync::push_precondition;
+use work::sync::BodyEquivalence;
 use work::sync::Dirtiness;
 use work::sync::DualRecipeFingerprints;
 use work::sync::MarkerState;
+use work::sync::OrderPrecondition;
 use work::sync::PendingPush;
 use work::sync::PendingPushOrder;
 use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
+use work::tracker_key::TrackerKey;
 
 pub use crate::sync::attempt::Attempted;
 pub use crate::sync::attempt::ItemProgress;
@@ -38,6 +43,7 @@ use crate::sync::baseline::SyncStamps;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
+use crate::sync::create::canonical_external_key;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
@@ -46,6 +52,7 @@ use crate::sync::files::SyncFiles;
 use crate::sync::operation::SyncOperation;
 use crate::sync::pending_push;
 use crate::sync::recovery_label::RecoveryLabel;
+use crate::sync::report::CreateNotice;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureClass {
@@ -131,7 +138,7 @@ pub enum ApplyError {
     OrderRefused {
         item_id: String,
         order: PendingPushOrder,
-        refusal: OrderRefusal,
+        refusal: Box<OrderRefusal>,
     },
     /// Deferred because an unreadable or malformed work file may carry the
     /// key the step needs to know is carried nowhere else.
@@ -164,6 +171,28 @@ pub enum OrderRefusal {
     DeferredByIdentity {
         id: String,
     },
+    IssueNotFound {
+        key: ExternalId,
+    },
+    IssueMoved {
+        id: String,
+        key: ExternalId,
+        to: TrackerKey,
+    },
+    MovedToUnknownKey {
+        key: ExternalId,
+    },
+    KeyCarried {
+        key: ExternalId,
+        carrier: KeyCarrier,
+    },
+    MarkerRecords {
+        id: String,
+        key: ExternalId,
+    },
+    AlreadyWritten {
+        carrier: KeyCarrier,
+    },
 }
 
 impl std::fmt::Display for OrderRefusal {
@@ -195,6 +224,30 @@ impl std::fmt::Display for OrderRefusal {
                 "{id} was deferred by identity settlement; settle its \
                  identity row first"
             ),
+            Self::IssueNotFound { key } => {
+                write!(formatter, "issue {key} not found; check the key")
+            }
+            Self::IssueMoved { id, key, to } => write!(
+                formatter,
+                "issue {key} moved to {to}; run --resolve {id}=adopt:{to}"
+            ),
+            Self::MovedToUnknownKey { key } => write!(
+                formatter,
+                "issue {key} moved to a key this tracker does not use; check \
+                 the key in the tracker"
+            ),
+            Self::KeyCarried { key, carrier } => {
+                write!(formatter, "{key} is already carried by {carrier}")
+            }
+            Self::MarkerRecords { id, key } => write!(
+                formatter,
+                "marker records {key}; run --resolve {id}=adopt:{key}"
+            ),
+            Self::AlreadyWritten { carrier } => write!(
+                formatter,
+                "already written by {carrier}; decide which item is the real \
+                 one"
+            ),
         }
     }
 }
@@ -204,6 +257,7 @@ impl std::fmt::Display for OrderRefusal {
 pub enum IncompleteCorpusDeferral {
     Import(Vec<ExternalId>),
     ReuseId(ExternalId),
+    Adopt(ExternalId),
 }
 
 impl ApplyError {
@@ -291,6 +345,7 @@ impl ApplyError {
                 IncompleteCorpusDeferral::ReuseId(_) => {
                     SyncOperation::LinkExternalId
                 }
+                IncompleteCorpusDeferral::Adopt(_) => SyncOperation::Adopt,
             },
         }
     }
@@ -357,6 +412,11 @@ impl ApplyError {
                          be shown to be carried by no other work item",
                         key.as_str()
                     ),
+                    IncompleteCorpusDeferral::Adopt(key) => format!(
+                        "{}, which --resolve adopts, cannot be shown to be \
+                         carried by no other work item",
+                        key.as_str()
+                    ),
                 };
                 format!(
                     "the work directory holds unreadable or malformed files, \
@@ -409,6 +469,17 @@ pub enum KeyCarrier {
     FollowedThisRun,
 }
 
+impl std::fmt::Display for KeyCarrier {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::WorkItem(id) => write!(formatter, "work item {id}"),
+            Self::FollowedThisRun => {
+                formatter.write_str("this run's identity settlement")
+            }
+        }
+    }
+}
+
 /// The inputs `create_from_local` needs beyond the applier's own ports.
 ///
 /// `marker_path` is precomputed by the run so the applier stays ignorant of
@@ -427,7 +498,25 @@ pub struct CreateFromLocalRequest<'a> {
     /// What keeps the corpus incomplete, if anything: a marker's key cannot
     /// be linked while an unusable file may already carry it.
     pub corpus_blocked_by: Option<Fault>,
+    /// How a person settled this item's refused pending push, if they did.
+    pub order: Option<&'a PendingPushOrder>,
     pub attempted_at: u64,
+}
+
+/// A local create that applied, with what a person should know of it.
+#[derive(Debug, Default)]
+pub struct CreatedLocally {
+    pub leftover_marker: Option<LeftoverMarker>,
+    pub notice: Option<CreateNotice>,
+}
+
+impl From<Option<LeftoverMarker>> for CreatedLocally {
+    fn from(leftover_marker: Option<LeftoverMarker>) -> Self {
+        Self {
+            leftover_marker,
+            notice: None,
+        }
+    }
 }
 
 /// What a refused marker shows, without a remedy: the person decides what
@@ -901,7 +990,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn create_from_local(
         &mut self,
         request: &CreateFromLocalRequest<'_>,
-    ) -> Attempted<Option<LeftoverMarker>> {
+    ) -> Attempted<CreatedLocally> {
         let mut attempt = ItemAttempt::begin(request.item_id);
         attempt.keeping_marker(request.marker_path);
         let result = self.create_from_local_steps(request, &mut attempt);
@@ -912,7 +1001,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         let digest = pending_push::request_digest(
             request.title,
             request.body,
@@ -927,6 +1016,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             Ok(None) => MarkerState::Absent,
             Ok(Some(marker)) => MarkerState::Present(marker),
         };
+        if let Some(order) = request.order {
+            return self.settle_order(
+                request,
+                attempt,
+                &marker_state,
+                digest,
+                order,
+            );
+        }
         let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
         match push_precondition(&marker_state, &digest, &is_carried) {
             PushPrecondition::Refuse(reason) => {
@@ -958,11 +1056,189 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     });
                 }
                 self.link_and_baseline(request, attempt, &external_id)
+                    .map(CreatedLocally::from)
             }
-            PushPrecondition::Proceed => {
-                self.create_marking_progress(request, attempt, digest)
+            PushPrecondition::Proceed => self
+                .create_marking_progress(request, attempt, digest)
+                .map(CreatedLocally::from),
+        }
+    }
+
+    /// Carries out a person's settlement of a refused pending push. Adopt
+    /// never falls through to a create, and neither order links or creates
+    /// an issue the tracker has not confirmed.
+    fn settle_order(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
+        marker: &MarkerState<'_>,
+        digest: String,
+        order: &PendingPushOrder,
+    ) -> Result<CreatedLocally, ApplyError> {
+        let refused = |refusal| ApplyError::OrderRefused {
+            item_id: request.item_id.to_owned(),
+            order: order.clone(),
+            refusal: Box::new(refusal),
+        };
+        if let (PendingPushOrder::Adopt(key), Some(blocking)) =
+            (order, request.corpus_blocked_by)
+        {
+            return Err(ApplyError::CorpusIncomplete {
+                subject: request.item_id.to_owned(),
+                deferred: IncompleteCorpusDeferral::Adopt(key.into()),
+                blocking,
+            });
+        }
+        let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
+        let carrier_of = |key: &ExternalId| {
+            (request.carrier_of)(key).unwrap_or_else(|| {
+                unreachable!("the order was refused because {key} is carried")
+            })
+        };
+        let has_marker = !matches!(marker, MarkerState::Absent);
+        match order_precondition(marker, &digest, order, &is_carried) {
+            OrderPrecondition::AlreadyWritten => {
+                let carrier = match marker {
+                    MarkerState::Present(PendingPush::Created {
+                        external_id,
+                        ..
+                    }) => carrier_of(external_id),
+                    _ => unreachable!(
+                        "only a created marker's issue is already written"
+                    ),
+                };
+                Err(refused(OrderRefusal::AlreadyWritten { carrier }))
+            }
+            OrderPrecondition::KeyCarried => {
+                let key = adopted_key(order);
+                let carrier = carrier_of(&key);
+                Err(refused(OrderRefusal::KeyCarried { key, carrier }))
+            }
+            OrderPrecondition::Adopt => self.adopt(
+                request,
+                attempt,
+                &adopted_key(order),
+                has_marker,
+                refused,
+            ),
+            OrderPrecondition::AdoptIfMarkerKeyMovedHere(recorded) => {
+                let key = adopted_key(order);
+                match attempt.observe_tracker(SyncOperation::Adopt, || {
+                    self.tracker.locate(&recorded)
+                })? {
+                    Located::Found(issue) if same_key(&issue.key, &key) => {
+                        self.adopt(request, attempt, &key, has_marker, refused)
+                    }
+                    _ => Err(refused(OrderRefusal::MarkerRecords {
+                        id: request.item_id.to_owned(),
+                        key: recorded,
+                    })),
+                }
+            }
+            OrderPrecondition::Create => self
+                .create_marking_progress(request, attempt, digest)
+                .map(CreatedLocally::from),
+            OrderPrecondition::CreateUnmarked => self
+                .create_marking_progress(request, attempt, digest)
+                .map(|leftover_marker| CreatedLocally {
+                    leftover_marker,
+                    notice: Some(CreateNotice::NothingToSettle),
+                }),
+            OrderPrecondition::CreateUnlessIssueExists(recorded) => {
+                match attempt.observe_tracker(SyncOperation::Create, || {
+                    self.tracker.locate(&recorded)
+                })? {
+                    Located::NotFound => self
+                        .create_marking_progress(request, attempt, digest)
+                        .map(CreatedLocally::from),
+                    Located::Found(issue) => {
+                        Err(refused(OrderRefusal::MarkerRecords {
+                            id: request.item_id.to_owned(),
+                            key: issue.key,
+                        }))
+                    }
+                }
             }
         }
+    }
+
+    /// Links `key` once the tracker confirms it exists under that key, and
+    /// records the baseline only when the issue already says what the item
+    /// does: a mistyped key naming an unrelated issue then shows as an
+    /// obviously wrong conflict before anything is pushed.
+    fn adopt(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
+        key: &ExternalId,
+        has_marker: bool,
+        refused: impl Fn(OrderRefusal) -> ApplyError,
+    ) -> Result<CreatedLocally, ApplyError> {
+        let issue = match attempt
+            .observe_tracker(SyncOperation::Adopt, || {
+                self.tracker.locate(key)
+            })? {
+            Located::NotFound => {
+                return Err(refused(OrderRefusal::IssueNotFound {
+                    key: key.clone(),
+                }));
+            }
+            Located::Found(issue) => issue,
+        };
+        if !same_key(&issue.key, key) {
+            return Err(refused(
+                TrackerKey::parse(issue.key.as_str()).map_or_else(
+                    || OrderRefusal::MovedToUnknownKey { key: key.clone() },
+                    |to| OrderRefusal::IssueMoved {
+                        id: request.item_id.to_owned(),
+                        key: key.clone(),
+                        to,
+                    },
+                ),
+            ));
+        }
+        attempt.land_local(
+            SyncOperation::LinkExternalId,
+            Some(Landing::Link),
+            || {
+                request
+                    .author
+                    .link_external_id(request.file_path, key)
+                    .map_err(|error| {
+                        PublishError::Step(StepError::Failed(error))
+                    })
+            },
+        )?;
+        let differs = !self.says_what_the_item_does(request, &issue);
+        if !differs {
+            let local_content = attempt
+                .observe_local(SyncOperation::ReadLocal, || {
+                    read_file(request.file_path)
+                })?;
+            self.record(attempt, &local_content, Some(&issue))?;
+        }
+        Ok(CreatedLocally {
+            leftover_marker: if has_marker {
+                self.clear_marker(request.marker_path).err()
+            } else {
+                None
+            },
+            notice: differs
+                .then(|| CreateNotice::DifferingAdoption(key.clone())),
+        })
+    }
+
+    fn says_what_the_item_does(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        issue: &RemoteIssue,
+    ) -> bool {
+        let remote_title =
+            remote_projection::split_projected(&issue.body).title;
+        remote_title.trim() == request.title.trim()
+            && BodyComparison::new(self.tracker, self.parser)
+                .equivalence(request.body, &issue.body)
+                == BodyEquivalence::Equivalent
     }
 
     fn create_marking_progress(
@@ -1186,6 +1462,19 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             self.set_baseline(attempt.item_id(), &remote_updated, fingerprints)
         })
     }
+}
+
+fn adopted_key(order: &PendingPushOrder) -> ExternalId {
+    match order {
+        PendingPushOrder::Adopt(key) => key.into(),
+        PendingPushOrder::Create => {
+            unreachable!("only an adopt order names a key to adopt")
+        }
+    }
+}
+
+fn same_key(left: &ExternalId, right: &ExternalId) -> bool {
+    canonical_external_key(left) == canonical_external_key(right)
 }
 
 fn read_local(

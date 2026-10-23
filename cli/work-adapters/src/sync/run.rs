@@ -964,6 +964,7 @@ fn validate_pushes(
                     validation: None,
                     kept_edits: None,
                     leftover_marker: None,
+                    notice: None,
                 },
                 validated => ReportedItem {
                     planned: planned.clone(),
@@ -971,6 +972,7 @@ fn validate_pushes(
                     validation: validated.and_then(Result::ok),
                     kept_edits: None,
                     leftover_marker: None,
+                    notice: None,
                 },
             }
         })
@@ -1180,6 +1182,28 @@ fn discover_untracked(
     })
 }
 
+/// An unsynced item the run creates from local, with the planned action
+/// that carries any order settling its pending push.
+struct LocalCreate<'a> {
+    item: &'a LocalItem,
+    planned: PlannedAction,
+}
+
+impl LocalCreate<'_> {
+    /// The create's report line, carrying the order that settled it.
+    fn report(&self, outcome: ItemOutcome) -> ReportedItem {
+        let row = create_report(
+            self.item.id.clone(),
+            Action::CreateFromLocal,
+            outcome,
+        );
+        ReportedItem {
+            planned: row.planned.with_order_of(&self.planned),
+            ..row
+        }
+    }
+}
+
 /// The unsynced local items eligible for create-from-local: state `Unsynced`
 /// (no `external_id`), under a push-capable direction. A draft is excluded:
 /// it reaches the tracker only through promotion, which retires its ID.
@@ -1187,15 +1211,23 @@ fn unsynced_creates<'a>(
     plan: &work::sync::SyncPlan,
     items: &'a [LocalItem],
     direction: SyncDirection,
-) -> Vec<&'a LocalItem> {
+) -> Vec<LocalCreate<'a>> {
     if matches!(direction, SyncDirection::PullOnly) {
         return Vec::new();
     }
     plan.actions
         .iter()
         .filter(|planned| planned.state() == SyncState::Unsynced)
-        .filter_map(|planned| items.iter().find(|item| item.id == planned.id()))
-        .filter(|item| DraftId::parse(&item.id).is_none())
+        .filter_map(|planned| {
+            items
+                .iter()
+                .find(|item| item.id == planned.id())
+                .map(|item| LocalCreate {
+                    item,
+                    planned: planned.clone(),
+                })
+        })
+        .filter(|create| DraftId::parse(&create.item.id).is_none())
         .collect()
 }
 
@@ -1205,13 +1237,15 @@ fn unsynced_creates<'a>(
 fn refused_orders(
     request: &SyncRequest<'_>,
     plan: &SyncPlan,
-    creates_from_local: &[&LocalItem],
+    creates_from_local: &[LocalCreate<'_>],
 ) -> Vec<ApplyError> {
     request
         .pending_push_orders
         .iter()
         .filter(|(id, _)| {
-            !creates_from_local.iter().any(|item| &item.id == *id)
+            !creates_from_local
+                .iter()
+                .any(|create| &create.item.id == *id)
         })
         .filter(|(id, _)| {
             !plan.unclassifiable.iter().any(|item| &item.id == *id)
@@ -1219,7 +1253,7 @@ fn refused_orders(
         .map(|(id, order)| ApplyError::OrderRefused {
             item_id: id.clone(),
             order: order.clone(),
-            refusal: why_no_create(request, id),
+            refusal: Box::new(why_no_create(request, id)),
         })
         .collect()
 }
@@ -1297,6 +1331,7 @@ fn create_report(
         validation: None,
         kept_edits: None,
         leftover_marker: None,
+        notice: None,
     }
 }
 
@@ -1471,6 +1506,7 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
         validation: None,
         kept_edits: None,
         leftover_marker: None,
+        notice: None,
     }
 }
 
@@ -1536,40 +1572,34 @@ fn apply_planned_action(
         validation: None,
         kept_edits,
         leftover_marker: None,
+        notice: None,
     }
 }
 
 fn apply_local_create(
     applier: &mut ItemApplier<'_, '_>,
-    item: &LocalItem,
+    create: &LocalCreate<'_>,
     request: &SyncRequest<'_>,
     author: &dyn LocalAuthor,
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ReportedItem {
+    let item = create.item;
     let (title, body, kind) = match create_inputs(item) {
         Ok(inputs) => inputs,
-        Err(error) => {
-            return create_report(
-                item.id.clone(),
-                Action::CreateFromLocal,
-                ItemOutcome::Failed(error),
-            );
-        }
+        Err(error) => return create.report(ItemOutcome::Failed(error)),
     };
     let Some(marker_path) = crate::sync::pending_push::for_item(
         request.integrations_root,
         request.integration,
         &item.id,
     ) else {
-        return create_report(
-            item.id.clone(),
-            Action::CreateFromLocal,
-            ItemOutcome::Failed(ItemAttempt::begin(&item.id).io_failure(
+        return create.report(ItemOutcome::Failed(
+            ItemAttempt::begin(&item.id).io_failure(
                 SyncOperation::MarkerWrite,
                 "id cannot name a pending-push marker",
-            )),
-        );
+            ),
+        ));
     };
     match applier
         .create_from_local(&CreateFromLocalRequest {
@@ -1582,23 +1612,17 @@ fn apply_local_create(
             author,
             carrier_of,
             corpus_blocked_by: request.inventory.blocking_fault(),
+            order: create.planned.order(),
             attempted_at,
         })
         .result
     {
-        Ok(leftover_marker) => ReportedItem {
-            leftover_marker,
-            ..create_report(
-                item.id.clone(),
-                Action::CreateFromLocal,
-                ItemOutcome::Applied,
-            )
+        Ok(created) => ReportedItem {
+            leftover_marker: created.leftover_marker,
+            notice: created.notice,
+            ..create.report(ItemOutcome::Applied)
         },
-        Err(error) => create_report(
-            item.id.clone(),
-            Action::CreateFromLocal,
-            ItemOutcome::Failed(error),
-        ),
+        Err(error) => create.report(ItemOutcome::Failed(error)),
     }
 }
 
@@ -1615,7 +1639,7 @@ struct PreparedRun<'a> {
     untracked: Vec<ExternalId>,
     discovery: DiscoveryStatus,
     discovery_deferral: Option<DiscoveryDeferral>,
-    creates_from_local: Vec<&'a LocalItem>,
+    creates_from_local: Vec<LocalCreate<'a>>,
     refused_orders: Vec<ApplyError>,
     dossiers: Vec<ConflictDossier>,
 }
@@ -1982,12 +2006,8 @@ fn execute<'a>(
                 ItemOutcome::NotApplied,
             ));
         }
-        for item in &creates_from_local {
-            reported.push(create_report(
-                item.id.clone(),
-                Action::CreateFromLocal,
-                ItemOutcome::NotApplied,
-            ));
+        for create in &creates_from_local {
+            reported.push(create.report(ItemOutcome::NotApplied));
         }
         return Ok(RunReport {
             scope: request.selection.corpus_scope(),
@@ -2053,10 +2073,10 @@ fn execute<'a>(
             )));
         }
 
-        for item in &creates_from_local {
+        for create in &creates_from_local {
             reported.push(apply_local_create(
                 &mut applier,
-                item,
+                create,
                 request,
                 ports.author,
                 &carrier,
