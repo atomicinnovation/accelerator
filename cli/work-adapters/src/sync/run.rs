@@ -1613,6 +1613,7 @@ fn apply_local_create(
             carrier_of,
             corpus_blocked_by: request.inventory.blocking_fault(),
             order: create.planned.order(),
+            tracker_name: request.integration,
             attempted_at,
         })
         .result

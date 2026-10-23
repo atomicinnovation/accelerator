@@ -806,7 +806,9 @@ pub fn sync_files(writer: &dyn SyncStore) -> SyncFiles<'_> {
         integration_state: writer,
         file_locks: &Unlocked,
         recovery: &DiscardedCopies,
-        tracking: &AllTracked,
+        tracking: &CommittedWorkItems {
+            integration_state: FileTracking::Untracked,
+        },
     }
 }
 
@@ -897,6 +899,34 @@ pub struct AllTracked;
 impl RepositoryTracking for AllTracked {
     fn file_tracking(&self, _path: &Path) -> FileTracking {
         FileTracking::Tracked
+    }
+
+    fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
+        RootsAnswer {
+            roots: Vec::new(),
+            complete: true,
+        }
+    }
+}
+
+/// Answers that every work item is committed, and that the integration
+/// state (pending-push markers and adoption records) is as given.
+pub struct CommittedWorkItems {
+    pub integration_state: FileTracking,
+}
+
+impl RepositoryTracking for CommittedWorkItems {
+    fn file_tracking(&self, path: &Path) -> FileTracking {
+        let is_integration_state = path.components().any(|component| {
+            ["pending-push", "adopted"]
+                .iter()
+                .any(|dir| component.as_os_str() == *dir)
+        });
+        if is_integration_state {
+            self.integration_state
+        } else {
+            FileTracking::Tracked
+        }
     }
 
     fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
