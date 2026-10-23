@@ -1290,6 +1290,7 @@ mod tests {
                 direction: SyncDirection::Bidirectional,
                 strategy: RetrievalStrategy::Bulk,
                 resolutions: &BTreeMap::new(),
+                pending_push_orders: &BTreeMap::new(),
                 max_pulls: tracker::Ceiling::Unlimited,
                 max_pushes: tracker::Ceiling::Unlimited,
                 mode: work_adapters::sync::run::RunMode::Preview,

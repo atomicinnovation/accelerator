@@ -24,6 +24,7 @@ use work::sync::Action;
 use work::sync::FieldDelivery;
 use work::sync::ItemDigests;
 use work::sync::LocalFingerprints;
+use work::sync::PendingPushOrder;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -183,6 +184,8 @@ pub struct SyncRequest<'a> {
     pub direction: SyncDirection,
     pub strategy: RetrievalStrategy,
     pub resolutions: &'a BTreeMap<String, Resolution>,
+    /// How a person settled each refused pending push, by item id.
+    pub pending_push_orders: &'a BTreeMap<String, PendingPushOrder>,
     pub max_pulls: Ceiling,
     pub max_pushes: Ceiling,
     pub mode: RunMode,

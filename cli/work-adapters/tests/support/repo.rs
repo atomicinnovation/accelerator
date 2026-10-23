@@ -573,6 +573,7 @@ impl Repo {
                 direction,
                 strategy: RetrievalStrategy::Bulk,
                 resolutions,
+                pending_push_orders: &BTreeMap::new(),
                 max_pulls: tracker::Ceiling::Bounded(25),
                 max_pushes: tracker::Ceiling::Bounded(25),
                 mode,

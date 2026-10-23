@@ -6,6 +6,8 @@
 
 use tracker::ExternalId;
 
+use crate::tracker_key::TrackerKey;
+
 /// A create attempt's fingerprint: proves two requests are the same before
 /// a marker's id is adopted.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +63,50 @@ impl RefusalReason {
     }
 }
 
+/// How a person settles a refused pending push, having searched the
+/// tracker for the item's issue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingPushOrder {
+    /// The item's issue exists under this key.
+    Adopt(TrackerKey),
+    /// No issue exists for the item, so it is created anew.
+    Create,
+}
+
+impl std::fmt::Display for PendingPushOrder {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Adopt(key) => write!(formatter, "adopt:{key}"),
+            Self::Create => formatter.write_str("create"),
+        }
+    }
+}
+
+/// An `adopt:` order whose key is not shaped like a tracker key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotATrackerKey(pub String);
+
+/// The pending-push order a `--resolve` token names, folded as conflict
+/// orders are; `None` when the token names no pending-push order.
+#[must_use]
+pub fn resolve_pending_push_token(
+    raw: &str,
+) -> Option<Result<PendingPushOrder, NotATrackerKey>> {
+    let trimmed = raw.trim_matches(|c: char| c.is_ascii_whitespace());
+    if trimmed.eq_ignore_ascii_case("create") {
+        return Some(Ok(PendingPushOrder::Create));
+    }
+    let (verb, key) = trimmed.split_once(':')?;
+    if !verb.eq_ignore_ascii_case("adopt") {
+        return None;
+    }
+    Some(
+        TrackerKey::parse(key)
+            .map(PendingPushOrder::Adopt)
+            .ok_or_else(|| NotATrackerKey(key.to_owned())),
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PushPrecondition {
     Proceed,
@@ -110,12 +156,21 @@ pub fn push_precondition(
 #[cfg(test)]
 mod tests {
     use super::push_precondition;
+    use super::resolve_pending_push_token;
     use super::MarkerState;
+    use super::NotATrackerKey;
     use super::PendingPush;
+    use super::PendingPushOrder;
     use super::PushPrecondition;
     use super::RefusalReason;
     use super::RequestFingerprint;
     use tracker::ExternalId;
+
+    use crate::tracker_key::TrackerKey;
+
+    fn key(raw: &str) -> TrackerKey {
+        TrackerKey::parse(raw).unwrap_or_else(|| unreachable!("a tracker key"))
+    }
 
     fn fingerprint(digest: &str) -> RequestFingerprint {
         RequestFingerprint {
@@ -139,6 +194,44 @@ mod tests {
         ] {
             assert_eq!(reason.token(), token);
         }
+    }
+
+    #[test]
+    fn adopt_names_the_key_it_links() {
+        assert_eq!(
+            resolve_pending_push_token(" Adopt:PP-12 "),
+            Some(Ok(PendingPushOrder::Adopt(key("PP-12"))))
+        );
+    }
+
+    #[test]
+    fn create_is_folded_like_a_conflict_order() {
+        assert_eq!(
+            resolve_pending_push_token("CREATE"),
+            Some(Ok(PendingPushOrder::Create))
+        );
+    }
+
+    #[test]
+    fn an_adopt_whose_key_is_not_a_tracker_key_is_malformed() {
+        assert_eq!(
+            resolve_pending_push_token("adopt:../x"),
+            Some(Err(NotATrackerKey("../x".to_owned())))
+        );
+    }
+
+    #[test]
+    fn a_conflict_order_is_not_a_pending_push_order() {
+        assert_eq!(resolve_pending_push_token("remote"), None);
+    }
+
+    #[test]
+    fn an_order_spells_itself_as_its_token() {
+        assert_eq!(
+            PendingPushOrder::Adopt(key("PP-12")).to_string(),
+            "adopt:PP-12"
+        );
+        assert_eq!(PendingPushOrder::Create.to_string(), "create");
     }
 
     #[test]
