@@ -2,6 +2,7 @@
 //! the baseline document, and the per-item apply sequence over
 //! `tracker::RemoteTracker`.
 
+pub mod adoption_records;
 pub mod apply;
 mod attempt;
 pub mod baseline;

@@ -35,6 +35,8 @@ pub use crate::sync::attempt::Attempted;
 pub use crate::sync::attempt::ItemProgress;
 pub use crate::sync::attempt::Landing;
 
+use crate::sync::adoption_records;
+use crate::sync::adoption_records::AdoptionRecord;
 use crate::sync::attempt::ItemAttempt;
 use crate::sync::attempt::PublishError;
 use crate::sync::attempt::StepError;
@@ -510,6 +512,9 @@ pub struct CreateFromLocalRequest<'a> {
     pub body: &'a str,
     pub kind: &'a str,
     pub marker_path: &'a Path,
+    /// Where a differing adopt records the link it made, so the link stays
+    /// replaceable until a sync records the item's baseline.
+    pub adoption_record_path: &'a Path,
     pub author: &'a dyn LocalAuthor,
     pub carrier_of: &'a dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     /// What keeps the corpus incomplete, if anything: a marker's key cannot
@@ -1299,6 +1304,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 ),
             ));
         }
+        let differs = !self.says_what_the_item_does(request, &issue);
+        if differs {
+            attempt.observe_local(SyncOperation::AdoptRecord, || {
+                self.record_adoption(request, key)
+            })?;
+        }
         attempt.land_local(
             SyncOperation::LinkExternalId,
             Some(Landing::Link),
@@ -1311,7 +1322,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     })
             },
         )?;
-        let differs = !self.says_what_the_item_does(request, &issue);
         if !differs {
             let local_content = attempt
                 .observe_local(SyncOperation::ReadLocal, || {
@@ -1333,6 +1343,31 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 title: issue_title(&issue),
             }),
         })
+    }
+
+    /// Records the adoption before the link it describes, after forgetting
+    /// any baseline entry a link cleared by hand left, which would
+    /// otherwise confirm the new key at once.
+    fn record_adoption(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        key: &ExternalId,
+    ) -> Result<(), StepError<StoreError>> {
+        self.baseline
+            .remove(request.item_id)
+            .map_err(StepError::Failed)?;
+        let record = AdoptionRecord {
+            previous_key: None,
+            key: key.clone(),
+            adopted_at: self.run_start_epoch,
+        };
+        self.files
+            .integration_state
+            .write(
+                request.adoption_record_path,
+                adoption_records::render(&record).as_bytes(),
+            )
+            .map_err(StepError::Failed)
     }
 
     fn says_what_the_item_does(

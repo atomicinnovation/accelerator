@@ -879,6 +879,24 @@ fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
         .collect()
 }
 
+/// A confirmed link no longer needs its adoption record, so one that
+/// cannot be removed is harmless; it is named so a person can remove it.
+fn unretired_adoption_warnings(report: &RunReport) -> Vec<String> {
+    report
+        .unretired_adoptions
+        .iter()
+        .map(|unretired| {
+            format!(
+                "warning: {}: could not remove adoption record {}: {}; its \
+                 link is confirmed, so remove the record by hand",
+                single_line(&unretired.id),
+                single_line(&unretired.path.display().to_string()),
+                single_line(&unretired.reason)
+            )
+        })
+        .collect()
+}
+
 /// What a person should know of a local create an order settled.
 fn create_notices(report: &RunReport) -> Vec<String> {
     report
@@ -2333,6 +2351,9 @@ fn report_finished_run(
     for notice in create_notices(report) {
         console.warn(notice);
     }
+    for warning in unretired_adoption_warnings(report) {
+        console.warn(warning);
+    }
     for note in kept_edits_notes(&finished.kept_edits) {
         console.warn(note);
     }
@@ -2413,6 +2434,7 @@ mod tests {
     use super::render_report;
     use super::resolve_targets;
     use super::unbounded_gate_fires;
+    use super::unretired_adoption_warnings;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
@@ -2982,6 +3004,27 @@ mod tests {
                  /s/pending-push/0001.json: not writable; the item is \
                  linked, so remove the marker by hand"
                 .to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_confirmed_records_removal_failure_is_a_warning_naming_it() {
+        let report = RunReport {
+            unretired_adoptions: vec![
+                work_adapters::sync::adoption_records::UnretiredRecord {
+                    id: "0001".to_owned(),
+                    path: PathBuf::from("/s/adopted/0001.json"),
+                    reason: "not writable".to_owned(),
+                },
+            ],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert_eq!(
+            unretired_adoption_warnings(&report),
+            ["warning: 0001: could not remove adoption record \
+              /s/adopted/0001.json: not writable; its link is confirmed, so \
+              remove the record by hand"]
         );
     }
 

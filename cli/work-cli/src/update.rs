@@ -232,13 +232,13 @@ fn push_update(
     let baseline_writer = FileCorpusStore::new(
         baseline_path.parent().unwrap_or(&integrations_root),
     );
-    let mut baseline_store =
+    let baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &baseline_writer);
     let external_id = tracker::ExternalId::new(external_id);
 
     tracker
         .update(&external_id, Some(&title), &body)
-        .map_err(|error| push_failure(error, path, &mut baseline_store, &id))?;
+        .map_err(|error| push_failure(error, path, &baseline_store, &id))?;
 
     let store =
         FileCorpusStore::new(path.parent().unwrap_or_else(|| Path::new(".")));
@@ -273,7 +273,7 @@ fn push_update(
 fn push_failure(
     error: TrackerError,
     path: &Path,
-    baseline_store: &mut BaselineStore<'_>,
+    baseline_store: &BaselineStore<'_>,
     id: &str,
 ) -> TryRunError {
     match error {
