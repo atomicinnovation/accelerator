@@ -410,6 +410,14 @@ fn parse_orders(
     Ok(orders)
 }
 
+/// A relink's row names the order it carries out.
+fn row_detail(planned: &PlannedAction) -> String {
+    match (planned.action(), planned.order()) {
+        (work::sync::Action::Relink, Some(order)) => order.to_string(),
+        _ => "-".to_owned(),
+    }
+}
+
 /// A local create settled by an adopt order links an issue rather than
 /// creating one, so its row says so.
 const fn action_keyword(planned: &PlannedAction) -> &'static str {
@@ -557,12 +565,15 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
             continue;
         }
         let (action_field, detail) = match &item.outcome {
-            ItemOutcome::Failed(error) => ("failed", error.class().keyword()),
-            ItemOutcome::UnsupportedRecipe => {
-                (action_keyword(&item.planned), "unsupported-recipe")
+            ItemOutcome::Failed(error) => {
+                ("failed", error.class().keyword().to_owned())
             }
+            ItemOutcome::UnsupportedRecipe => (
+                action_keyword(&item.planned),
+                "unsupported-recipe".to_owned(),
+            ),
             ItemOutcome::Applied | ItemOutcome::NotApplied => {
-                (action_keyword(&item.planned), "-")
+                (action_keyword(&item.planned), row_detail(&item.planned))
             }
         };
         lines.push(
@@ -570,7 +581,7 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
                 item.planned.id().to_owned(),
                 action_field.to_owned(),
                 item.planned.state().to_string(),
-                detail.to_owned(),
+                detail,
             ])
             .to_string(),
         );
@@ -8024,6 +8035,58 @@ mod tests {
             ["#\tadopt\t0001\tENG-7\tEvil title error: forged"]
         );
         assert!(!rendered.lines().any(|line| line.starts_with("error:")));
+    }
+
+    fn unconfirmed_link_to(dir: &Path, key: &str) {
+        std::fs::write(
+            dir.join("meta/work/0001-draft-one.md"),
+            format!(
+                "---\nid: \"0001\"\ntitle: \"Draft one\"\nkind: task\n\
+                 external_id: \"{key}\"\n---\n\nBody\n"
+            ),
+        )
+        .expect("write work item");
+        let record = dir.join(".accelerator/state/integrations/linear/adopted");
+        std::fs::create_dir_all(&record).expect("mkdir");
+        std::fs::write(
+            record.join("0001.json"),
+            format!(
+                "{{\"previous_key\":null,\"key\":\"{key}\",\
+                 \"adopted_at\":1}}\n"
+            ),
+        )
+        .expect("write the adoption record");
+    }
+
+    #[test]
+    fn a_relink_row_names_its_order_on_preview_and_apply() {
+        for preview in [true, false] {
+            let dir = sync_repo_integrated_with("linear");
+            unconfirmed_link_to(dir.path(), "ENG-7");
+            let tracker = Rc::new(RecordingTracker::holding(vec![
+                keyed_issue("ENG-7", "Someone else's issue\nBody\n"),
+                keyed_issue("ENG-8", "Draft one\nBody\n"),
+            ]));
+
+            let run = drive_sync_captured(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    preview,
+                    ..ordering("adopt:ENG-8")
+                },
+            );
+
+            assert!(
+                run.out
+                    .lines()
+                    .any(|line| line.starts_with("0001\trelink\t")
+                        && line.ends_with("\tadopt:ENG-8")),
+                "{}",
+                run.out
+            );
+            assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        }
     }
 
     #[test]

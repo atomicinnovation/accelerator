@@ -77,6 +77,20 @@ pub trait LocalAuthor {
         path: &Path,
         external_id: &ExternalId,
     ) -> Result<(), kernel::Error>;
+
+    /// Removes the `external_id` from a local item's frontmatter, as one
+    /// atomic write, so the item can be created anew.
+    ///
+    /// # Errors
+    ///
+    /// When the file cannot be read, parsed, or rewritten, or when this
+    /// author cannot clear a link at all.
+    fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
+        Err(kernel::Error::Failed(format!(
+            "cannot clear the external_id of {}",
+            path.display()
+        )))
+    }
 }
 
 /// Writes `bytes` to `path` only when nothing is already there.

@@ -765,6 +765,7 @@ impl<'a> RunKnowledge<'a> {
         &self,
         baseline: &crate::sync::baseline::Baseline,
         request: &SyncRequest<'_>,
+        unconfirmed_links: &BTreeSet<String>,
     ) -> SyncPlan {
         let plan_inputs =
             self.facts
@@ -775,7 +776,7 @@ impl<'a> RunKnowledge<'a> {
             &PlanOrders {
                 resolutions: request.resolutions,
                 pending_push: request.pending_push_orders,
-                unconfirmed_links: &BTreeSet::new(),
+                unconfirmed_links,
             },
         )
     }
@@ -1201,7 +1202,16 @@ struct LocalCreate<'a> {
 }
 
 impl LocalCreate<'_> {
-    /// The create's report line, carrying the order that settled it.
+    const fn relinks(&self) -> bool {
+        matches!(self.planned.action(), Action::Relink)
+    }
+
+    const fn adopts(&self) -> bool {
+        matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
+    }
+
+    /// The create's report line, carrying the order that settled it; a
+    /// relink keeps its planned state.
     fn report(&self, outcome: ItemOutcome) -> ReportedItem {
         let row = create_report(
             self.item.id.clone(),
@@ -1209,10 +1219,41 @@ impl LocalCreate<'_> {
             outcome,
         );
         ReportedItem {
-            planned: row.planned.with_order_of(&self.planned),
+            planned: if self.relinks() {
+                self.planned.clone()
+            } else {
+                row.planned.with_order_of(&self.planned)
+            },
             ..row
         }
     }
+}
+
+/// Takes the planned relinks out of `plan`, since they are applied beside
+/// the creates; under `--pull-only` none is applied, and each order is
+/// refused instead.
+fn relinks<'a>(
+    plan: &mut SyncPlan,
+    items: &'a [LocalItem],
+    direction: SyncDirection,
+) -> Vec<LocalCreate<'a>> {
+    let (relinks, actions): (Vec<PlannedAction>, Vec<PlannedAction>) =
+        std::mem::take(&mut plan.actions)
+            .into_iter()
+            .partition(|planned| planned.action() == Action::Relink);
+    plan.actions = actions;
+    if matches!(direction, SyncDirection::PullOnly) {
+        return Vec::new();
+    }
+    relinks
+        .into_iter()
+        .filter_map(|planned| {
+            items
+                .iter()
+                .find(|item| item.id == planned.id())
+                .map(|item| LocalCreate { item, planned })
+        })
+        .collect()
 }
 
 /// The issues a preview's adopt orders would link, read but not linked.
@@ -1653,24 +1694,28 @@ fn apply_local_create(
     ) else {
         unreachable!("an id that names a marker names an adoption record")
     };
-    match applier
-        .create_from_local(&CreateFromLocalRequest {
-            item_id: &item.id,
-            file_path: &item.path,
-            title: &title,
-            body: &body,
-            kind: &kind,
-            marker_path: &marker_path,
-            adoption_record_path: &adoption_record_path,
-            author,
-            carrier_of,
-            corpus_blocked_by: request.inventory.blocking_fault(),
-            order: create.planned.order(),
-            tracker_name: request.integration,
-            attempted_at,
-        })
-        .result
-    {
+    let local_create = CreateFromLocalRequest {
+        item_id: &item.id,
+        file_path: &item.path,
+        title: &title,
+        body: &body,
+        kind: &kind,
+        marker_path: &marker_path,
+        adoption_record_path: &adoption_record_path,
+        author,
+        carrier_of,
+        corpus_blocked_by: request.inventory.blocking_fault(),
+        order: create.planned.order(),
+        linked: item.external_id.as_ref(),
+        tracker_name: request.integration,
+        attempted_at,
+    };
+    let attempted = if create.relinks() {
+        applier.relink(&local_create)
+    } else {
+        applier.create_from_local(&local_create)
+    };
+    match attempted.result {
         Ok(created) => (
             ReportedItem {
                 leftover_marker: created.leftover_marker,
@@ -2093,7 +2138,15 @@ fn prepare_run<'a>(
         &loaded_baseline,
         digester,
     );
-    let plan = knowledge.plan(&loaded_baseline, request);
+    let unconfirmed_links = AdoptionRecords::new(
+        request.integrations_root,
+        request.integration,
+        ports.files.tracking,
+    )
+    .unconfirmed(request.reconciled(), &loaded_baseline);
+    let mut plan =
+        knowledge.plan(&loaded_baseline, request, &unconfirmed_links);
+    let relinks = relinks(&mut plan, request.reconciled(), request.direction);
 
     let read_failure = knowledge.facts.read_failure.clone();
     let unsupported_recipe = request
@@ -2114,14 +2167,19 @@ fn prepare_run<'a>(
         discovery,
         deferral: discovery_deferral,
     } = untracked_to_import(ports, request, settled, &pending_pushes)?;
-    let creates_from_local =
+    let mut creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
+    creates_from_local.extend(relinks);
 
     // A create-from-remote authors a new local file (pull-direction); a
     // create-from-local issues a new remote issue (push-direction). Each folds
     // into the existing directional bound rather than a third knob.
     let pulls = plan.pull_count() + untracked.len();
-    let pushes = plan.push_count() + creates_from_local.len();
+    let new_remote_issues = creates_from_local
+        .iter()
+        .filter(|create| !create.adopts())
+        .count();
+    let pushes = plan.push_count() + new_remote_issues;
     if request.max_pulls.exceeds(pulls) || request.max_pushes.exceeds(pushes) {
         return Err(RunError::Refused {
             pulls,
@@ -2129,7 +2187,7 @@ fn prepare_run<'a>(
             max_pulls: request.max_pulls,
             max_pushes: request.max_pushes,
             new_local_files: untracked.len(),
-            new_remote_issues: creates_from_local.len(),
+            new_remote_issues,
         });
     }
 

@@ -522,6 +522,8 @@ pub struct CreateFromLocalRequest<'a> {
     pub corpus_blocked_by: Option<Fault>,
     /// How a person settled this item's refused pending push, if they did.
     pub order: Option<&'a PendingPushOrder>,
+    /// The key the item carries now, which a relink replaces.
+    pub linked: Option<&'a ExternalId>,
     /// The active tracker's name, for causes that name its keys.
     pub tracker_name: &'a str,
     pub attempted_at: u64,
@@ -1062,6 +1064,80 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt.finish(result)
     }
 
+    /// Replaces an unconfirmed link as a pending-push order says: adopt
+    /// links another key under the same checks as a first adopt; create
+    /// clears the link and creates the item anew, the clear counting as
+    /// landed so a later failure is terminal.
+    pub fn relink(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+    ) -> Attempted<CreatedLocally> {
+        let mut attempt = ItemAttempt::begin(request.item_id);
+        let result = self.relink_steps(request, &mut attempt);
+        attempt.finish(result)
+    }
+
+    fn relink_steps(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
+    ) -> Result<CreatedLocally, ApplyError> {
+        let Some(order) = request.order else {
+            unreachable!("a relink is planned only for an order")
+        };
+        match order {
+            PendingPushOrder::Adopt(key) => {
+                let refused = |refusal| ApplyError::OrderRefused {
+                    item_id: request.item_id.to_owned(),
+                    order: order.clone(),
+                    refusal: Box::new(refusal),
+                };
+                if let Some(blocking) = request.corpus_blocked_by {
+                    return Err(ApplyError::CorpusIncomplete {
+                        subject: request.item_id.to_owned(),
+                        deferred: IncompleteCorpusDeferral::Adopt(key.into()),
+                        blocking,
+                    });
+                }
+                let key = ExternalId::from(key);
+                match (request.carrier_of)(&key) {
+                    Some(KeyCarrier::WorkItem(carrier))
+                        if carrier == request.item_id => {}
+                    Some(carrier) => {
+                        return Err(refused(OrderRefusal::KeyCarried {
+                            key,
+                            carrier,
+                        }));
+                    }
+                    None => {}
+                }
+                let has_marker =
+                    !matches!(self.read_marker(request), MarkerReading::Absent);
+                self.adopt(request, attempt, &key, has_marker, refused)
+            }
+            PendingPushOrder::Create => {
+                attempt.keeping_marker(request.marker_path);
+                attempt.land_local(
+                    SyncOperation::LinkExternalId,
+                    None,
+                    || {
+                        request
+                            .author
+                            .unlink_external_id(request.file_path)
+                            .map_err(|error| {
+                                PublishError::Step(StepError::Failed(error))
+                            })
+                    },
+                )?;
+                self.create_from_local_steps(request, attempt)
+                    .map(|created| CreatedLocally {
+                        notice: None,
+                        ..created
+                    })
+            }
+        }
+    }
+
     fn create_from_local_steps(
         &self,
         request: &CreateFromLocalRequest<'_>,
@@ -1305,7 +1381,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             ));
         }
         let differs = !self.says_what_the_item_does(request, &issue);
-        if differs {
+        if differs || request.linked.is_some() {
             attempt.observe_local(SyncOperation::AdoptRecord, || {
                 self.record_adoption(request, key)
             })?;
@@ -1357,7 +1433,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .remove(request.item_id)
             .map_err(StepError::Failed)?;
         let record = AdoptionRecord {
-            previous_key: None,
+            previous_key: request.linked.cloned(),
             key: key.clone(),
             adopted_at: self.run_start_epoch,
         };
