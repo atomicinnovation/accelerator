@@ -394,8 +394,24 @@ impl ApplyError {
                  written or recorded; re-run the sync"
                     .to_owned()
             }
-            Self::PendingPushRefused { reason, detail, .. } => {
-                format!("pending push refused ({}): {detail}", reason.token())
+            Self::PendingPushRefused {
+                item_id,
+                reason,
+                detail,
+            } => {
+                let remedy = if *reason == RefusalReason::AlreadyWritten {
+                    String::new()
+                } else {
+                    format!(
+                        "; search the tracker for this item, then settle with \
+                         --resolve {item_id}=adopt:<KEY> if it exists or \
+                         --resolve {item_id}=create if it does not"
+                    )
+                };
+                format!(
+                    "pending push refused ({}): {detail}{remedy}",
+                    reason.token()
+                )
             }
             Self::OrderRefused { refusal, .. } => refusal.to_string(),
             Self::CorpusIncomplete { deferred, .. } => {
