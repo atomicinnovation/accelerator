@@ -303,18 +303,29 @@ pub struct StartupSignals {
 }
 
 pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
-    run_signalling(cfg, info_path, StartupSignals::default()).await
+    run_with(
+        cfg,
+        info_path,
+        StartupSignals::default(),
+        crate::watcher::os_watcher,
+    )
+    .await
 }
 
-/// As [`run`], announcing each [`StartupSignals`] moment as it passes.
+/// As [`run`], announcing each [`StartupSignals`] moment as it passes and
+/// learning of file changes through the watcher `open` returns rather than
+/// necessarily the OS's.
 ///
 /// # Errors
 ///
 /// As [`run`].
-pub async fn run_signalling(
+pub async fn run_with<W: crate::watcher::DirectoryWatcher>(
     cfg: Config,
     info_path: &Path,
     signals: StartupSignals,
+    open: impl FnOnce(crate::watcher::EventSink) -> notify::Result<W>
+        + Send
+        + 'static,
 ) -> Result<(), ServerError> {
     let host: IpAddr = cfg
         .host
@@ -399,7 +410,7 @@ pub async fn run_signalling(
     watch_dirs.sort();
     watch_dirs.dedup();
     let mut watching = crate::watcher::spawn(
-        crate::watcher::os_watcher,
+        open,
         watch_dirs,
         state.indexer.clone(),
         state.clusters.clone(),
