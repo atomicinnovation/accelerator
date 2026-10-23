@@ -421,6 +421,7 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
         work::sync::Action::RecordBaseline => "record-baseline",
         work::sync::Action::CreateFromRemote => "create-from-remote",
         work::sync::Action::CreateFromLocal => "create-from-local",
+        work::sync::Action::Relink => "relink",
     }
 }
 

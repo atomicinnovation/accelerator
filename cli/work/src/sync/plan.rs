@@ -5,6 +5,7 @@
 //! the injected [`ItemDigests`] port whenever `classify` asks for one.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
@@ -20,6 +21,7 @@ use crate::sync::decide::Action;
 use crate::sync::decide::Dirtiness;
 use crate::sync::decide::Resolution;
 use crate::sync::decide::SyncDirection;
+use crate::sync::push_precondition::PendingPushOrder;
 use crate::sync::state::SyncState;
 
 pub struct RemoteFacts<'a> {
@@ -27,11 +29,19 @@ pub struct RemoteFacts<'a> {
     pub remote_updated: &'a RemoteTimestamp,
 }
 
+/// What a person told the run to do with one item, beyond what planning
+/// decided.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Instruction {
+    Order(PendingPushOrder),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedAction {
     id: String,
     state: SyncState,
     action: Action,
+    instruction: Option<Instruction>,
 }
 
 impl PlannedAction {
@@ -45,6 +55,46 @@ impl PlannedAction {
             id: id.into(),
             state,
             action,
+            instruction: None,
+        }
+    }
+
+    /// An unsynced item a pending-push order settles, so its create knows
+    /// whether to adopt an issue or make a new one.
+    pub(crate) fn ordered(
+        id: impl Into<String>,
+        state: SyncState,
+        order: PendingPushOrder,
+    ) -> Self {
+        Self {
+            instruction: Some(Instruction::Order(order)),
+            ..Self::new(id, state, Action::Noop)
+        }
+    }
+
+    /// An item whose link is unconfirmed, re-linked by a pending-push order
+    /// whatever its classified state.
+    pub(crate) fn relink(
+        id: impl Into<String>,
+        state: SyncState,
+        order: PendingPushOrder,
+    ) -> Self {
+        Self {
+            instruction: Some(Instruction::Order(order)),
+            ..Self::new(id, state, Action::Relink)
+        }
+    }
+
+    /// This action carrying `planned`'s pending-push order, when `planned`
+    /// is for the same item; only the planner can give an action an order.
+    #[must_use]
+    pub fn with_order_of(self, planned: &Self) -> Self {
+        match &planned.instruction {
+            Some(Instruction::Order(order)) if planned.id == self.id => Self {
+                instruction: Some(Instruction::Order(order.clone())),
+                ..self
+            },
+            _ => self,
         }
     }
 
@@ -61,6 +111,14 @@ impl PlannedAction {
     #[must_use]
     pub const fn action(&self) -> Action {
         self.action
+    }
+
+    #[must_use]
+    pub const fn order(&self) -> Option<&PendingPushOrder> {
+        match &self.instruction {
+            Some(Instruction::Order(order)) => Some(order),
+            None => None,
+        }
     }
 }
 
@@ -92,6 +150,33 @@ impl SyncPlan {
             .iter()
             .filter(|planned| planned.action().sends_to_tracker())
             .count()
+    }
+}
+
+/// What a person ordered beyond planning: conflict resolutions and
+/// pending-push orders, by item id, and the items whose link a person may
+/// still replace because it is unconfirmed.
+pub struct PlanOrders<'a> {
+    pub resolutions: &'a BTreeMap<String, Resolution>,
+    pub pending_push: &'a BTreeMap<String, PendingPushOrder>,
+    pub unconfirmed_links: &'a BTreeSet<String>,
+}
+
+static NO_PENDING_PUSH_ORDERS: BTreeMap<String, PendingPushOrder> =
+    BTreeMap::new();
+static NO_UNCONFIRMED_LINKS: BTreeSet<String> = BTreeSet::new();
+
+impl<'a> PlanOrders<'a> {
+    /// Conflict resolutions alone.
+    #[must_use]
+    pub const fn resolving(
+        resolutions: &'a BTreeMap<String, Resolution>,
+    ) -> Self {
+        Self {
+            resolutions,
+            pending_push: &NO_PENDING_PUSH_ORDERS,
+            unconfirmed_links: &NO_UNCONFIRMED_LINKS,
+        }
     }
 }
 
@@ -138,12 +223,14 @@ pub fn needs_body_read(items: &[PlanInput<'_>]) -> Vec<ExternalId> {
 ///
 /// A resolution naming an id that did not decide `Prompt` is inert; the map
 /// is read, never validated, so a stale or misdirected order finds nothing
-/// to apply to.
+/// to apply to. A pending-push order is recorded on the unsynced item it
+/// names, or plans a relink of an unconfirmed link; one naming any other
+/// item is left for the run to report.
 #[must_use]
 pub fn plan(
     items: &[PlanInput<'_>],
     direction: SyncDirection,
-    resolutions: &BTreeMap<String, Resolution>,
+    orders: &PlanOrders<'_>,
 ) -> SyncPlan {
     let mut actions = Vec::with_capacity(items.len());
     let mut unclassifiable = Vec::new();
@@ -171,7 +258,7 @@ pub fn plan(
         };
         let mut action = decide::decide(direction, &classification, item.dirty);
         if action == Action::Prompt {
-            if let Some(resolution) = resolutions.get(&item.id) {
+            if let Some(resolution) = orders.resolutions.get(&item.id) {
                 action = match resolution {
                     Resolution::AcceptRemote => Action::Pull,
                     Resolution::PushLocal => Action::Overwrite,
@@ -179,14 +266,50 @@ pub fn plan(
                 };
             }
         }
-        actions.push(PlannedAction::new(
-            item.id.clone(),
-            classification.state(),
-            action,
-        ));
+        let state = classification.state();
+        actions.push(match orders.pending_push.get(&item.id) {
+            Some(order) if orders.unconfirmed_links.contains(&item.id) => {
+                PlannedAction::relink(item.id.clone(), state, order.clone())
+            }
+            Some(order) if state == SyncState::Unsynced => {
+                PlannedAction::ordered(item.id.clone(), state, order.clone())
+            }
+            _ => PlannedAction::new(item.id.clone(), state, action),
+        });
     }
     SyncPlan {
         actions,
         unclassifiable,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PlannedAction;
+    use crate::sync::decide::Action;
+    use crate::sync::push_precondition::PendingPushOrder;
+    use crate::sync::state::SyncState;
+
+    #[test]
+    fn with_order_of_copies_only_an_order_for_the_same_id() {
+        let ordered = PlannedAction::ordered(
+            "0001",
+            SyncState::Unsynced,
+            PendingPushOrder::Create,
+        );
+        let row =
+            || PlannedAction::new("0001", SyncState::Unsynced, Action::Noop);
+
+        assert_eq!(
+            row().with_order_of(&ordered).order(),
+            Some(&PendingPushOrder::Create)
+        );
+        assert_eq!(
+            PlannedAction::new("0002", SyncState::Unsynced, Action::Noop)
+                .with_order_of(&ordered)
+                .order(),
+            None
+        );
+        assert_eq!(row().with_order_of(&row()).order(), None);
     }
 }

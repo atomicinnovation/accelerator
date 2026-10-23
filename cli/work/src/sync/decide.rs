@@ -39,6 +39,9 @@ pub enum Action {
     RecordBaseline,
     CreateFromRemote,
     CreateFromLocal,
+    /// Replaces an unconfirmed link as a pending-push order says; applied
+    /// beside the creates, never returned by [`decide`].
+    Relink,
 }
 
 impl Action {
@@ -63,6 +66,7 @@ impl Action {
             "record-baseline" => Self::RecordBaseline,
             "create-from-remote" => Self::CreateFromRemote,
             "create-from-local" => Self::CreateFromLocal,
+            "relink" => Self::Relink,
             _ => return None,
         })
     }
@@ -82,6 +86,7 @@ impl std::fmt::Display for Action {
             Self::RecordBaseline => "record-baseline",
             Self::CreateFromRemote => "create-from-remote",
             Self::CreateFromLocal => "create-from-local",
+            Self::Relink => "relink",
         })
     }
 }
@@ -186,6 +191,7 @@ mod tests {
             Action::RecordBaseline,
             Action::CreateFromRemote,
             Action::CreateFromLocal,
+            Action::Relink,
         ];
         for variant in variants {
             let keyword = variant.to_string();
@@ -234,7 +240,9 @@ mod tests {
                     assert!(
                         !matches!(
                             action,
-                            Action::CreateFromRemote | Action::CreateFromLocal
+                            Action::CreateFromRemote
+                                | Action::CreateFromLocal
+                                | Action::Relink
                         ),
                         "decide produced a create action for \
                          {direction:?}/{state:?}/{dirty:?}"

@@ -209,11 +209,15 @@ pub fn classify(
         })
         .collect();
     let inputs = facts.plan_inputs(items, &snapshots, baseline);
-    plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new())
-        .actions
-        .into_iter()
-        .map(|action| (action.id().to_owned(), action.state()))
-        .collect()
+    plan::plan(
+        &inputs,
+        SyncDirection::Bidirectional,
+        &work::sync::PlanOrders::resolving(&BTreeMap::new()),
+    )
+    .actions
+    .into_iter()
+    .map(|action| (action.id().to_owned(), action.state()))
+    .collect()
 }
 
 /// The rendered `<glyph> <text>` label for one item, mapping a classified
