@@ -4,6 +4,7 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
@@ -17,7 +18,9 @@ use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
 use work::sync::LocalFingerprints;
+use work::sync::PendingPushOrder;
 use work::sync::PlanInput;
+use work::sync::PlanOrders;
 use work::sync::PullResidue;
 use work::sync::RemoteFacts;
 use work::sync::RemoteFingerprints;
@@ -244,8 +247,11 @@ fn an_absent_item_plans_as_remote_absent_and_noop() {
         comparison: &DifferingBodies,
     };
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new());
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(result.actions.len(), 1);
     assert_eq!(result.actions[0].state(), SyncState::RemoteAbsent);
@@ -271,8 +277,11 @@ fn an_indeterminate_item_plans_as_indeterminate_and_noop() {
         comparison: &DifferingBodies,
     };
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new());
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(result.actions.len(), 1);
     assert_eq!(result.actions[0].state(), SyncState::Indeterminate);
@@ -320,8 +329,11 @@ fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull() {
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0006".to_owned(), Resolution::AcceptRemote);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
     assert_eq!(result.actions[0].state(), SyncState::Conflict);
     assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
@@ -341,7 +353,11 @@ fn resolved_conflict(resolution: Resolution) -> work::sync::SyncPlan {
     );
     let resolutions = BTreeMap::from([("0007".to_owned(), resolution)]);
 
-    plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)
+    plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    )
 }
 
 #[test]
@@ -421,8 +437,11 @@ fn a_resolution_of_skip_leaves_the_prompt_unresolved() {
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0008".to_owned(), Resolution::Skip);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
     assert_eq!(result.actions[0].action(), work::sync::Action::Prompt);
 }
@@ -451,8 +470,11 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert() {
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0009".to_owned(), Resolution::AcceptRemote);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
     assert_eq!(result.actions[0].state(), SyncState::Synced);
     assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
@@ -483,8 +505,11 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert() {
     let resolutions =
         BTreeMap::from([("0011".to_owned(), Resolution::PushLocal)]);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions);
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
     assert_eq!(result.actions[0].state(), SyncState::RemotelyModified);
     assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
@@ -515,7 +540,7 @@ fn pull_and_push_counts_reflect_only_their_own_action() {
     let result = plan::plan(
         &[synced_item],
         SyncDirection::Bidirectional,
-        &BTreeMap::new(),
+        &PlanOrders::resolving(&BTreeMap::new()),
     );
 
     assert_eq!(result.pull_count(), 0);
@@ -549,7 +574,11 @@ fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction() {
             comparison: &DifferingBodies,
         };
 
-        let result = plan::plan(&[item], direction, &BTreeMap::new());
+        let result = plan::plan(
+            &[item],
+            direction,
+            &PlanOrders::resolving(&BTreeMap::new()),
+        );
 
         assert_eq!(result.actions[0].state(), SyncState::Synced);
         assert_eq!(
@@ -624,8 +653,11 @@ fn a_classification_error_fails_only_its_item() {
         },
     ];
 
-    let result =
-        plan::plan(&items, SyncDirection::Bidirectional, &BTreeMap::new());
+    let result = plan::plan(
+        &items,
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(
         result.unclassifiable,
@@ -640,4 +672,99 @@ fn a_classification_error_fails_only_its_item() {
         .map(work::sync::PlannedAction::id)
         .collect();
     assert_eq!(planned, vec!["0002"]);
+}
+
+fn unsynced_item<'a>(
+    id: &str,
+    updated: &'a RemoteTimestamp,
+    digests: &'a NeverCalled,
+) -> PlanInput<'a> {
+    PlanInput {
+        id: id.to_owned(),
+        external_id: None,
+        facts: RemoteFacts {
+            presence: RemotePresence::Absent,
+            remote_updated: updated,
+        },
+        dirty: work::sync::Dirtiness::Clean,
+        baseline: empty_baseline(),
+        baseline_timestamp: 0,
+        digests,
+        comparison: &DifferingBodies,
+    }
+}
+
+fn adopt(key: &str) -> PendingPushOrder {
+    PendingPushOrder::Adopt(
+        work::tracker_key::TrackerKey::parse(key).expect("a tracker key"),
+    )
+}
+
+#[test]
+fn an_order_is_recorded_on_its_planned_action() {
+    let updated = RemoteTimestamp::NotReported;
+    let pending_push = BTreeMap::from([("0007".to_owned(), adopt("PP-12"))]);
+
+    let result = plan::plan(
+        &[unsynced_item("0007", &updated, &NeverCalled)],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::new(),
+        },
+    );
+
+    assert_eq!(result.actions[0].state(), SyncState::Unsynced);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
+    assert_eq!(result.actions[0].order(), Some(&adopt("PP-12")));
+}
+
+#[test]
+fn an_order_on_an_unconfirmed_link_plans_a_relink() {
+    let updated = RemoteTimestamp::NotReported;
+    let key = ExternalId::new("PP-1".to_owned());
+    let pending_push =
+        BTreeMap::from([("0008".to_owned(), PendingPushOrder::Create)]);
+    let item = PlanInput {
+        external_id: Some(&key),
+        ..unsynced_item("0008", &updated, &NeverCalled)
+    };
+
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::from(["0008".to_owned()]),
+        },
+    );
+
+    assert_eq!(result.actions[0].action(), work::sync::Action::Relink);
+    assert_eq!(result.actions[0].order(), Some(&PendingPushOrder::Create));
+}
+
+#[test]
+fn an_order_on_a_confirmed_link_is_not_recorded() {
+    let updated = RemoteTimestamp::NotReported;
+    let key = ExternalId::new("PP-1".to_owned());
+    let pending_push =
+        BTreeMap::from([("0009".to_owned(), PendingPushOrder::Create)]);
+    let item = PlanInput {
+        external_id: Some(&key),
+        ..unsynced_item("0009", &updated, &NeverCalled)
+    };
+
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::new(),
+        },
+    );
+
+    assert_eq!(result.actions[0].order(), None);
 }

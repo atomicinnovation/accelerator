@@ -25,6 +25,7 @@ use work::sync::FieldDelivery;
 use work::sync::ItemDigests;
 use work::sync::LocalFingerprints;
 use work::sync::PendingPushOrder;
+use work::sync::PlanOrders;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -756,7 +757,15 @@ impl<'a> RunKnowledge<'a> {
         let plan_inputs =
             self.facts
                 .plan_inputs(self.items, &self.snapshots, baseline);
-        compute_plan(&plan_inputs, request.direction, request.resolutions)
+        compute_plan(
+            &plan_inputs,
+            request.direction,
+            &PlanOrders {
+                resolutions: request.resolutions,
+                pending_push: request.pending_push_orders,
+                unconfirmed_links: &BTreeSet::new(),
+            },
+        )
     }
 
     fn item(&self, id: &str) -> Option<&'a LocalItem> {
@@ -1456,11 +1465,13 @@ fn apply_planned_action(
             ItemOutcome::NotApplied
         }
         Action::Noop => ItemOutcome::NotApplied,
-        Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
-            "the two create actions are applied out-of-band by the create \
-             paths, never through the id-keyed plan loop, and decide() never \
-             produces them"
-        ),
+        Action::CreateFromRemote | Action::CreateFromLocal | Action::Relink => {
+            unreachable!(
+                "the create and relink actions are applied out-of-band beside \
+             the creates, never through the id-keyed plan loop, and decide() \
+             never produces them"
+            )
+        }
     };
     ReportedItem {
         planned,
