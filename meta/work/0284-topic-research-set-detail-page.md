@@ -9,9 +9,9 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-relates_to: ["work-item:0280", "work-item:0281", "work-item:0306"]
+relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0348"]
 tags: ["research", "visualiser"]
-last_updated: "2026-10-22T19:20:22+00:00"
+last_updated: "2026-10-24T08:35:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -70,7 +70,11 @@ umbrella doc type and nested indexing.
 - Show each report's `coverage` (`answered` or `partial`) and render a
   `partial` report's Gaps section, as 0281 defines them.
 - Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
-  weakest tier with the other tiers marked as a distinct element.
+  weakest tier with the other tiers marked as a distinct element, including
+  the semicolon-joined forms that combine it with `retracted` or
+  `withdrawn`.
+- Treat 0348's optional source metadata block, the nested `key: value` list
+  under a Sources entry, as part of the entry above it.
 
 ## Acceptance Criteria
 
@@ -106,6 +110,12 @@ umbrella doc type and nested indexing.
       shows the coverage and no Gaps.
 - [ ] Given a Sources entry reading `— tier-3 (also tier-1) —`, then it
       renders as `tier-3` with `also tier-1` marked as a distinct element.
+- [ ] Given Sources entries reading `— tier-3 (also tier-2, tier-1) —` and
+      `— tier-3 (retracted; withdrawn; also tier-1) —`, then each renders as
+      `tier-3` with its retraction or withdrawal marker and its `also` tiers
+      as distinct elements.
+- [ ] Given a Sources entry followed by a nested `key: value` metadata list,
+      then the list renders as part of that entry, not as a separate entry.
 
 ## Open Questions
 
@@ -123,6 +133,8 @@ umbrella doc type and nested indexing.
   on 0281's `blocks`), including its `coverage` extra and Gaps section.
 - Related: 0306 adds the `also` tier suffix; this page renders it once 0306
   lands, and until then no Sources entry carries it.
+- Related: 0348 adds the optional source metadata block under Sources
+  entries; until it lands, no entry carries one.
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes this page consumes. If this page is built before 0280 lands,
   0280 owns updating it.

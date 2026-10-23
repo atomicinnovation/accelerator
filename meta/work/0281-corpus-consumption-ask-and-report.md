@@ -11,9 +11,9 @@ priority: "high"
 parent: "work-item:0121"
 blocks: ["work-item:0284"]
 blocked_by: ["work-item:0277", "work-item:0279", "work-item:0280", "work-item:0282", "work-item:0306"]
-relates_to: ["work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0347"]
+relates_to: ["work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0347", "work-item:0348"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-10-23T13:42:23+00:00"
+last_updated: "2026-10-24T08:35:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -363,6 +363,9 @@ from the current findings, with the VCS as its history.
   reachable on disk but not in the visualiser, which indexes one entry per
   set.
 - Related: 0283 adds `.levels/` trees, which these verbs never read.
+- Related: 0348 adds an optional source metadata block under Sources
+  entries. This item inherits it through 0306: `report`'s Sources validation
+  must accept the block, and 0306's identity rule reads its `doi` key.
 - Related: 0305 and 0311 address tier drift (DOI resolver tiering,
   independently tiered web URLs); until they land, coverage judgements
   inherit it. Neither blocks this item.
