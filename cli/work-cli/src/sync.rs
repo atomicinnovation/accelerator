@@ -6951,6 +6951,48 @@ mod tests {
         assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
     }
 
+    #[test]
+    fn a_pending_push_refusal_names_its_remedy() {
+        let dir = sync_repo();
+        unsynced_draft(dir.path());
+        let marker = dir.path().join(
+            ".accelerator/state/integrations/jira/pending-push/0001.json",
+        );
+        std::fs::create_dir_all(marker.parent().expect("a parent"))
+            .expect("mkdir");
+        std::fs::write(&marker, "{ not a marker").expect("seed the marker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        let suffix = format!(
+            "(marker {}); search the tracker for this item, then settle with \
+             --resolve 0001=adopt:<KEY> if it exists or --resolve \
+             0001=create if it does not",
+            marker.display()
+        );
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.ends_with(&suffix)),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
+    fn an_already_written_refusal_offers_no_order() {
+        let refusal = ApplyError::PendingPushRefused {
+            item_id: "0001".to_owned(),
+            reason: work::sync::RefusalReason::AlreadyWritten,
+            detail: "PP-5 is already carried by work item 0002 (marker \
+                     /s/pending-push/0001.json)"
+                .to_owned(),
+        };
+
+        assert!(!refusal.cause().contains("--resolve"), "{refusal}");
+    }
+
     fn unidentified_record(out: &str, path: &Path, kind: &str) -> bool {
         out.lines().any(|line| {
             line == format!("#\tunidentified\t{}\t{kind}", path.display())
