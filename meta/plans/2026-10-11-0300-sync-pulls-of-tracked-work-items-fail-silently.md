@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-22T19:12:05+00:00"
+last_updated: "2026-10-23T05:29:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3043,7 +3043,7 @@ the call-site updates and the compiler, not by a snapshot.
 
 #### Automated Verification
 
-- [ ] Tracker-mapping pin commits green before the type change
+- [x] Tracker-mapping pin commits green before the type change
 - [ ] Classification, inventory, rendering, exit and end-to-end tests pass:
       `cargo test -p work -p accelerator-work -p work-adapters --manifest-path cli/Cargo.toml`
 - [ ] The `work` public-API diff also shows `PlannedAction`'s three `pub`
@@ -3071,6 +3071,88 @@ the call-site updates and the compiler, not by a snapshot.
 - [ ] `chmod 555` the work directory, re-run: row `retryable`, one `error:`
       stderr line naming `lock-local` and `Permission denied`, exit 70;
       restore and re-run pulls.
+
+### Progress So Far
+
+In progress. Twenty-three commits have landed: the tracker-mapping pin,
+`FailureClass::keyword`, `SyncOperation`, landing-based classification
+through `ItemAttempt`, the create-path classification table,
+`PendingPushRefused`, operation-carrying variants, the `sync::report`
+move, the `RunReport` test builder, `Finalisation`, `scope` and `mode` on
+the report, `RunReport::failures` with the stderr lines, the end-to-end
+failure tests, the configure line through `RunFailure`,
+`WorkItemFiles::listing`, `work::inventory`, the VCS conflict parity test,
+the inventory wiring with `#\tunidentified`, the incomplete-corpus import
+gate, and `PlannedAction`'s private fields behind `new` and getters.
+`work`, `work-adapters` and `accelerator-work` test and lint clean after
+each; `mise run` has not been run in this phase yet.
+
+Still to do: the pending-push orders and everything they carry
+(`PendingPushOrder`, `Instruction`, `PlannedAction::ordered`/`relink`/
+`with_order_of`, `PlanOrders`, `Action::Relink`, `--resolve` parsing and
+its exit-2 refusals, `OrderRefusal` with `FailureClass::OrderRefused`,
+adopt and create in the applier, marker distrust, `AdoptionRecords` and
+`retire_confirmed`, relink, refused-order rows, the import exclusions and
+`SkippedPendingPush` deferral, the `#\tadopt` preview record, the
+unconfirmed-link dossier banner, and the pending-push refusal's
+`--resolve` hint); `classification_is_total`; the `exit_codes.rs`, help and
+`cli_surface.golden` wording; `sync-report-records.golden`; the public-API
+update; and the success criteria above.
+
+Departures so far:
+
+- `failure_code` keeps its own class-to-code match: `FailureClass::keyword`
+  is the report spelling and does not decide an exit code.
+- `ItemProgress`, `Landing`, `StepError`, `PublishError`, `ItemAttempt`
+  and `Attempted` live in `work-adapters/src/sync/attempt.rs`, the public
+  three re-exported from `apply`. `ItemAttempt` owns its item id, renamed
+  through `known_as` once an import's id is allocated, and
+  `keeping_marker` makes every failure after a create, and every
+  `link-external-id` failure, end ` (marker <path>)`. `record_baseline`
+  returns `Attempted` like every other apply method.
+- `land_created` returns the raw `TrackerError`, so the local create still
+  chooses between abandoning the attempt and recording a terminal one.
+  `Tracker` carries no `created`/`after` prefix: no apply path reaches a
+  tracker failure after a landing.
+- A store's `NotWritable` on a pull's write is a `write-local` `Io`
+  failure; `NotDurable` from an item or marker write is
+  `FailedAfterPublish`.
+- `ItemSnapshot::read` returns `UnreadContent::{Undecodable, Failed}`, so
+  the run's own read of a non-UTF-8 file is `LocalUnparseable` at
+  `read-local`; the local create's `create_inputs` splits its read failure,
+  undecodable content and unparseable frontmatter the same way. An
+  import's `RemoteUnrenderable` names `create`.
+- The pending-push refusal's `--resolve` hint is left for the orders, since
+  until they land it would name orders that do not exist.
+- `Faults` is generic over its inner store and takes an `error` function
+  (`test_support::injected` by default), so it can wrap a sync store; the
+  CLI builds its test reports from `test_support::run_report()`.
+- `report_records::failure_line` renders every `RunFailure`, the
+  configure refusal included.
+- `identify` sorts its unidentified entries by path; the marker scan also
+  accepts git's diff3 `|||||||` middle run. The production
+  `NamesWorkItem`, `ConflictedPaths` and discovery live in
+  `work-cli/src/sync/work_files.rs` (`ConfiguredNames`, `VcsConflicts`,
+  `discover_corpus`); under `{tracker}` a filename names the key formed by
+  its first two dash-separated parts. The unreadable-status warning is
+  printed directly rather than as a `RunFailure`.
+- The parity test is `vcs-adapters/tests/conflicts.rs`, over the existing
+  `conflict-git` and `conflict-jj` fixtures;
+  `a_vcs_conflicted_file_is_malformed_whatever_its_text` is a unit test of
+  `identify` with a conflicted-paths double.
+- `CreateFromLocalRequest.corpus_blocked_by: Option<Fault>` replaces the
+  planned `corpus_complete: bool`, since the deferral's class needs the
+  fault. `CorpusIncomplete` is `{ subject, deferred:
+  IncompleteCorpusDeferral::{Import, ReuseId}, blocking }` (the orders add
+  `Adopt`), and `RunReport.discovery_deferral` holds
+  `DiscoveryDeferral::CorpusIncomplete(ApplyError)`. A full run skipping
+  discovery adds no failure of its own; the unusable file already fails it.
+- `each_failure_kind_reports_its_class_detail_and_exit` is split into the
+  tracker kinds and `a_pending_push_refusal_reports_terminal_and_names_its_reason`;
+  the conflict-beside-a-failure twins are one test,
+  `a_conflict_beside_a_local_failure_shows_both_rows`; the end-to-end tests
+  compare the item's baseline entry rather than the document, whose
+  timestamp the finalise still advances.
 
 ---
 
