@@ -45,6 +45,7 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementPorts;
 use crate::retirement_records::RetirementRecords;
+use crate::sync::adoption_records::AdoptionRecords;
 use crate::sync::baseline::Baseline;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
@@ -586,14 +587,45 @@ fn apply_key_change(
     ports: &SyncPorts<'_>,
     settlement: &SettlementPorts<'_>,
 ) -> Result<IdentityOutcome, RunError> {
-    match change {
+    let outcome = match change {
         KeyChange::FollowExternalId { item, old, new } => {
             follow_external_id(item, old, new, request, ports, settlement)
         }
         KeyChange::RetireKey { item, new, .. } => {
             retire_key(item, new, settlement)
         }
+    }?;
+    if outcome == IdentityOutcome::Applied {
+        carry_adoption_record(change, request, ports);
     }
+    Ok(outcome)
+}
+
+/// Keeps an unconfirmed link's adoption record with its item through a key
+/// change. Best-effort: a record left under the old key or id no longer
+/// vouches for the link, which then counts as confirmed, the safe side.
+fn carry_adoption_record(
+    change: &KeyChange,
+    request: &SyncRequest<'_>,
+    ports: &SyncPorts<'_>,
+) {
+    let records = AdoptionRecords::new(
+        request.integrations_root,
+        request.integration,
+        ports.files.tracking,
+    );
+    let store = ports.files.integration_state;
+    let _ = match change {
+        KeyChange::FollowExternalId { item, old, new } => {
+            records.follow(store, item, old, new)
+        }
+        KeyChange::RetireKey { item, old, new } => records.rename(
+            store,
+            item,
+            new.as_str(),
+            (old, &ExternalId::from(new)),
+        ),
+    };
 }
 
 /// Moves each applied retirement's fact to the item's new id and drops the

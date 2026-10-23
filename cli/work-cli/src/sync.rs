@@ -8094,6 +8094,36 @@ mod tests {
     }
 
     #[test]
+    fn a_confirmed_link_stays_confirmed_after_its_entry_is_lost() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+        drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+        drive_sync_captured(dir.path(), &tracker, &ordering("remote"));
+        std::fs::remove_file(
+            dir.path()
+                .join(".accelerator/state/integrations/linear/last-sync.json"),
+        )
+        .expect("lose the baseline");
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("create"));
+
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                "error: 0001: create failed: 0001 already carries \
+                 external_id ENG-7"
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::UNRESOLVED));
+    }
+
+    #[test]
     fn a_relink_row_names_its_order_on_preview_and_apply() {
         for preview in [true, false] {
             let dir = sync_repo_integrated_with("linear");
