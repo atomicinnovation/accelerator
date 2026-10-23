@@ -264,6 +264,14 @@ fn push_update(
             ),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    if let Ok((recorded, _)) = baseline_store.load() {
+        work_adapters::sync::adoption_records::retire_confirmed(
+            &integrations_root,
+            &integration,
+            &baseline_writer,
+            &recorded,
+        );
+    }
 
     Ok(())
 }
@@ -716,6 +724,61 @@ mod tests {
         };
         assert_eq!(split, &expected.split);
         assert_eq!(legacy, &expected.legacy);
+    }
+
+    #[test]
+    fn a_pushed_update_retires_the_adoption_record_it_confirms() {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        let item = root.path().join("0001.md");
+        std::fs::write(
+            &item,
+            "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"ENG-1\"\n\
+             ---\n\nBody\n",
+        )
+        .expect("seed the item");
+        let record = root.path().join("integrations/linear/adopted/0001.json");
+        std::fs::create_dir_all(record.parent().expect("parent"))
+            .expect("record dir");
+        std::fs::write(
+            &record,
+            "{\"previous_key\":null,\"key\":\"ENG-1\",\"adopted_at\":1}\n",
+        )
+        .expect("seed the record");
+        let config = FakeConfig(
+            [
+                ("work.integration", "linear"),
+                ("paths.integrations", "integrations"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .collect(),
+        );
+        let external_id = tracker::ExternalId::new("ENG-1".to_owned());
+        let registry = FixedRegistry(RefCell::new(Some(Box::new(
+            RecordingTracker::holding(vec![(
+                external_id.clone(),
+                tracker::RemoteIssue {
+                    key: external_id,
+                    updated: tracker::RemoteTimestamp::NotReported,
+                    body: "Title\nOld body\n".to_owned(),
+                },
+            )]),
+        ))));
+        let args = UpdateArgs {
+            path: item,
+            sets: Vec::new(),
+            add_tags: Vec::new(),
+            remove_tags: Vec::new(),
+            appends: Vec::new(),
+            removes: Vec::new(),
+            push: true,
+        };
+
+        let outcome = run(root.path(), &config, &args, &registry);
+
+        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        assert!(!record.exists(), "the confirmed link's record is retired");
     }
 
     #[test]

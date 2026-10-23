@@ -103,6 +103,43 @@ pub fn read(content: &str) -> Result<AdoptionRecord, String> {
     })
 }
 
+/// Removes every record whose item now has a baseline entry, and returns
+/// those it could not remove.
+///
+/// Every path that records a baseline runs this, so confirmation is
+/// monotonic: a later loss of the entry cannot reopen the link.
+pub fn retire_confirmed(
+    integrations_dir: &Path,
+    integration: &str,
+    store: &dyn SyncStore,
+    baseline: &Baseline,
+) -> Vec<UnretiredRecord> {
+    let dir = directory(integrations_dir, integration);
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension().and_then(std::ffi::OsStr::to_str) == Some("json")
+        })
+        .collect();
+    paths.sort();
+    paths
+        .into_iter()
+        .filter_map(|path| {
+            let id = path.file_stem()?.to_str()?.to_owned();
+            baseline.get(&id)?;
+            store.remove(&path).err().map(|error| UnretiredRecord {
+                id,
+                path,
+                reason: error.to_string(),
+            })
+        })
+        .collect()
+}
+
 /// A record whose item has a baseline entry, which could not be removed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnretiredRecord {
@@ -152,6 +189,85 @@ impl<'a> AdoptionRecords<'a> {
             .filter(|record| record.vouches_for(item.external_id.as_ref()))
     }
 
+    /// Rewrites whichever of `id`'s record keys named `old` to `new`, so a
+    /// followed key keeps the record that vouches for it. A record naming
+    /// neither, or none at all, is left as it is.
+    ///
+    /// # Errors
+    ///
+    /// The cause when the rewritten record cannot be written.
+    pub fn follow(
+        &self,
+        store: &dyn SyncStore,
+        id: &str,
+        old: &ExternalId,
+        new: &ExternalId,
+    ) -> Result<(), String> {
+        let Some((path, record)) = self.read(id) else {
+            return Ok(());
+        };
+        let follows = |key: &ExternalId| {
+            if canonical_external_key(key) == canonical_external_key(old) {
+                new.clone()
+            } else {
+                key.clone()
+            }
+        };
+        let followed = AdoptionRecord {
+            previous_key: record.previous_key.as_ref().map(follows),
+            key: follows(&record.key),
+            ..record
+        };
+        if followed == record {
+            return Ok(());
+        }
+        store
+            .write(&path, render(&followed).as_bytes())
+            .map_err(|error| error.to_string())
+    }
+
+    /// Moves `old_id`'s record to `new_id`, as a retirement renames the
+    /// item it vouches for.
+    ///
+    /// # Errors
+    ///
+    /// The cause when the record cannot be written under its new id or
+    /// removed from its old one.
+    pub fn rename(
+        &self,
+        store: &dyn SyncStore,
+        old_id: &str,
+        new_id: &str,
+        followed: (&ExternalId, &ExternalId),
+    ) -> Result<(), String> {
+        let (Some((old_path, record)), Some(new_path)) =
+            (self.read(old_id), self.path_of(new_id))
+        else {
+            return Ok(());
+        };
+        let (old, new) = followed;
+        let renamed = AdoptionRecord {
+            key: if canonical_external_key(&record.key)
+                == canonical_external_key(old)
+            {
+                new.clone()
+            } else {
+                record.key.clone()
+            },
+            ..record
+        };
+        store
+            .write(&new_path, render(&renamed).as_bytes())
+            .and_then(|()| store.remove(&old_path))
+            .map_err(|error| error.to_string())
+    }
+
+    fn read(&self, id: &str) -> Option<(PathBuf, AdoptionRecord)> {
+        let path = self.path_of(id)?;
+        let record = read(&std::fs::read_to_string(&path).ok()?).ok()?;
+        Some((path, record))
+    }
+
     /// The ids among `items` whose link is unconfirmed: a trusted record
     /// vouches for it and no baseline entry has confirmed it.
     #[must_use]
@@ -168,38 +284,18 @@ impl<'a> AdoptionRecords<'a> {
             .collect()
     }
 
-    /// Removes every record whose item now has a baseline entry, which
-    /// confirmed its link for good, and returns those it could not remove.
+    /// As [`retire_confirmed`], for this integration's records.
     pub fn retire_confirmed(
         &self,
         store: &dyn SyncStore,
         baseline: &Baseline,
     ) -> Vec<UnretiredRecord> {
-        let dir = directory(self.integrations_dir, self.integration);
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            return Vec::new();
-        };
-        let mut paths: Vec<PathBuf> = entries
-            .flatten()
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.extension().and_then(std::ffi::OsStr::to_str)
-                    == Some("json")
-            })
-            .collect();
-        paths.sort();
-        paths
-            .into_iter()
-            .filter_map(|path| {
-                let id = path.file_stem()?.to_str()?.to_owned();
-                baseline.get(&id)?;
-                store.remove(&path).err().map(|error| UnretiredRecord {
-                    id,
-                    path,
-                    reason: error.to_string(),
-                })
-            })
-            .collect()
+        retire_confirmed(
+            self.integrations_dir,
+            self.integration,
+            store,
+            baseline,
+        )
     }
 }
 

@@ -183,6 +183,14 @@ impl Repo {
         baseline.set(id, entry).unwrap();
     }
 
+    /// Forgets `id`'s baseline entry, as a link no sync has recorded.
+    fn baseline_forget(&self, id: &str) {
+        let store = FileCorpusStore::new(self.root());
+        BaselineStore::new(self.path(BASELINE), &RealFs, &store)
+            .remove(id)
+            .unwrap();
+    }
+
     fn baseline_entry(&self, id: &str) -> Option<Entry> {
         let store = FileCorpusStore::new(self.root());
         let baseline = BaselineStore::new(self.path(BASELINE), &RealFs, &store);
@@ -2258,4 +2266,58 @@ fn the_report_carries_the_inventory_of_the_last_discovery() {
     let ids = &outcome.report().inventory.ids;
     assert!(ids.contains("ENG-42"), "{ids:?}");
     assert!(!ids.contains("PP-760"), "{ids:?}");
+}
+
+const ADOPTED: &str = ".accelerator/state/integrations/linear/adopted";
+
+fn adoption_record(repo: &Repo, id: &str, key: &str) {
+    repo.write(
+        &format!("{ADOPTED}/{id}.json"),
+        &work_adapters::sync::adoption_records::render(
+            &work_adapters::sync::adoption_records::AdoptionRecord {
+                previous_key: None,
+                key: ExternalId::new(key.to_owned()),
+                adopted_at: 1,
+            },
+        ),
+    );
+}
+
+fn recorded_key(repo: &Repo, id: &str) -> Option<String> {
+    let content = repo.read(&format!("{ADOPTED}/{id}.json"))?;
+    let record = work_adapters::sync::adoption_records::read(&content)
+        .expect("a readable adoption record");
+    Some(record.key.as_str().to_owned())
+}
+
+#[test]
+fn a_followed_key_carries_its_adoption_record() {
+    let repo = Repo::new();
+    repo.item("0230-add-search.md", "0230", Some("PP-760"));
+    repo.baseline_forget("0230");
+    adoption_record(&repo, "0230", "PP-760");
+
+    sync(
+        &repo,
+        &moved("PP-760", "ENG-42"),
+        Options {
+            ownership: IdOwnership::Local,
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(recorded_key(&repo, "0230").as_deref(), Some("ENG-42"));
+}
+
+#[test]
+fn a_renamed_item_carries_its_adoption_record() {
+    let repo = Repo::new();
+    moved_tracker_owned_item(&repo);
+    repo.baseline_forget("PP-760");
+    adoption_record(&repo, "PP-760", "PP-760");
+
+    sync(&repo, &moved("PP-760", "ENG-42"), Options::default());
+
+    assert_eq!(recorded_key(&repo, "PP-760"), None);
+    assert_eq!(recorded_key(&repo, "ENG-42").as_deref(), Some("ENG-42"));
 }
