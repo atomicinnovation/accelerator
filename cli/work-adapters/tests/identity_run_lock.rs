@@ -9,9 +9,9 @@ use std::time::Instant;
 use corpus_adapters::FileCorpusStore;
 use work::rekey::outcome::Holder;
 use work_adapters::identity_run::HeldIdentityRun;
+use work_adapters::identity_run::IdentityRun as _;
 use work_adapters::identity_run::IdentityRunAttempt;
 use work_adapters::identity_run::IdentityRunLockError;
-use work_adapters::identity_run::IdentityRunPort as _;
 use work_adapters::identity_run_lock::IdentityRunLock;
 
 type TestError = Box<dyn std::error::Error>;

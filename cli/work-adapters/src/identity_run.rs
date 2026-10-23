@@ -61,7 +61,7 @@ pub enum IdentityRunLockError {
     Lock(StoreError),
 }
 
-pub trait IdentityRunPort {
+pub trait IdentityRun {
     /// Takes the lock if it is free, without waiting for it.
     ///
     /// # Errors
@@ -142,7 +142,7 @@ pub fn waiting_line(holder: Option<&Holder>) -> String {
 }
 
 fn acquire(
-    lock: &dyn IdentityRunPort,
+    lock: &dyn IdentityRun,
     command: &str,
     waiting: &dyn Fn(Option<&Holder>),
 ) -> Result<HeldIdentityRun, IdentityRunLockError> {
@@ -189,7 +189,7 @@ fn timed_out(gate: RunPlanGate, holder: Option<Holder>) -> IdentityRunRefusal {
 /// [`IdentityRunRefusal`] when the gate refuses, the wait times out, or the
 /// lock cannot be taken; nothing has been read or written.
 pub fn begin_identity_run(
-    lock: &dyn IdentityRunPort,
+    lock: &dyn IdentityRun,
     plan: &dyn RunPlanStatus,
     command: &str,
     waiting: &dyn Fn(Option<&Holder>),
@@ -213,7 +213,7 @@ pub fn begin_identity_run(
 /// [`NotRekeyed::IdentityRunBusy`] when the wait times out, and
 /// [`NotRekeyed::StateUnwritable`] when the lock cannot be taken.
 pub fn begin_rekey_run(
-    lock: &dyn IdentityRunPort,
+    lock: &dyn IdentityRun,
     waiting: &dyn Fn(Option<&Holder>),
 ) -> Result<IdentityRunGuard, NotRekeyed> {
     acquire(lock, REKEY, waiting)

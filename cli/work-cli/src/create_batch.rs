@@ -705,7 +705,7 @@ mod tests {
         taken: std::cell::Cell<usize>,
     }
 
-    impl work_adapters::identity_run::IdentityRunPort for TakenOnce {
+    impl work_adapters::identity_run::IdentityRun for TakenOnce {
         fn try_acquire(
             &self,
             _command: &str,

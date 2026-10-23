@@ -14,9 +14,9 @@ use store::lock::LockOptions;
 use work::rekey::outcome::Holder;
 
 use crate::identity_run::HeldIdentityRun;
+use crate::identity_run::IdentityRun;
 use crate::identity_run::IdentityRunAttempt;
 use crate::identity_run::IdentityRunLockError;
-use crate::identity_run::IdentityRunPort;
 use crate::ignored_dir::prepare_ignored_dir;
 
 const LOCKDIR: &str = "identity-run.lockdir";
@@ -88,7 +88,7 @@ impl<'a> IdentityRunLock<'a> {
     }
 }
 
-impl IdentityRunPort for IdentityRunLock<'_> {
+impl IdentityRun for IdentityRunLock<'_> {
     fn try_acquire(
         &self,
         command: &str,

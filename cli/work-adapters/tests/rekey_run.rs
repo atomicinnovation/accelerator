@@ -25,9 +25,9 @@ use work::rekey::write_set::Base;
 use work::retirement::Retirement;
 use work::retirement::RetirementRecord;
 use work_adapters::identity_run::HeldIdentityRun;
+use work_adapters::identity_run::IdentityRun;
 use work_adapters::identity_run::IdentityRunAttempt;
 use work_adapters::identity_run::IdentityRunLockError;
-use work_adapters::identity_run::IdentityRunPort;
 use work_adapters::rekey::execute::write_set;
 use work_adapters::rekey::run::Forcing;
 use work_adapters::rekey::run::RekeyAction;
@@ -279,7 +279,7 @@ struct WritesAPlanWhileAcquiring<'p> {
     plan: RunPlan,
 }
 
-impl IdentityRunPort for WritesAPlanWhileAcquiring<'_> {
+impl IdentityRun for WritesAPlanWhileAcquiring<'_> {
     fn try_acquire(
         &self,
         _command: &str,
@@ -530,7 +530,7 @@ fn a_resumed_path_is_listed_under_the_base_of_its_resume(
 fn preview(
     ports: &Ports<'_>,
     repository: &dyn vcs::RepositoryProbe,
-    identity_run: Option<&dyn IdentityRunPort>,
+    identity_run: Option<&dyn IdentityRun>,
 ) -> Result<RekeyReport, NotRekeyed> {
     ports.rekey(
         &request(RekeyAction::Preview, Forcing::Unforced),

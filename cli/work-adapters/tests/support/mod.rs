@@ -46,10 +46,10 @@ use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::identity_run::begin_rekey_run;
 use work_adapters::identity_run::HeldIdentityRun;
+use work_adapters::identity_run::IdentityRun;
 use work_adapters::identity_run::IdentityRunAttempt;
 use work_adapters::identity_run::IdentityRunGuard;
 use work_adapters::identity_run::IdentityRunLockError;
-use work_adapters::identity_run::IdentityRunPort;
 use work_adapters::identity_run_lock::IdentityRunLock;
 use work_adapters::rekey::execute::RekeyCorpus;
 use work_adapters::rekey::guards::PendingPushDir;
@@ -661,7 +661,7 @@ impl Ports<'_> {
         request: &RekeyRequest,
         repository: &dyn RepositoryProbe,
         progress: &dyn RekeyProgress,
-        identity_run: Option<&dyn IdentityRunPort>,
+        identity_run: Option<&dyn IdentityRun>,
     ) -> Result<RekeyReport, NotRekeyed> {
         let baseline = self.baseline();
         let lock = IdentityRunLock::new(&self.state_dir, &self.store);
@@ -730,7 +730,7 @@ pub fn restore(
 /// An identity-run lock nobody else holds.
 pub struct Unheld;
 
-impl IdentityRunPort for Unheld {
+impl IdentityRun for Unheld {
     fn try_acquire(
         &self,
         _command: &str,

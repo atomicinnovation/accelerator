@@ -19,9 +19,9 @@ use work_adapters::identity_run::begin_identity_run;
 use work_adapters::identity_run::begin_rekey_run;
 use work_adapters::identity_run::waiting_line;
 use work_adapters::identity_run::HeldIdentityRun;
+use work_adapters::identity_run::IdentityRun;
 use work_adapters::identity_run::IdentityRunAttempt;
 use work_adapters::identity_run::IdentityRunLockError;
-use work_adapters::identity_run::IdentityRunPort;
 use work_adapters::identity_run::IdentityRunRefusal;
 use work_adapters::identity_run::RunPlanGate;
 use work_adapters::identity_run::RunPlanStatus;
@@ -73,7 +73,7 @@ fn broken() -> StoreError {
     }
 }
 
-impl IdentityRunPort for FakeLock {
+impl IdentityRun for FakeLock {
     fn try_acquire(
         &self,
         command: &str,

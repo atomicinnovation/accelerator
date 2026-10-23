@@ -241,8 +241,8 @@ mod in_a_real_repository {
     use work::rekey::run_plan::RunPlan;
     use work::rekey::write_set::Base;
     use work::rekey::write_set::WriteSet;
+    use work_adapters::identity_run::IdentityRun as _;
     use work_adapters::identity_run::IdentityRunAttempt;
-    use work_adapters::identity_run::IdentityRunPort as _;
     use work_adapters::identity_run_lock::IdentityRunLock;
     use work_adapters::rekey::run_plan_store::FileRunPlanStore;
     use work_adapters::rekey::run_plan_store::RunPlanStore as _;

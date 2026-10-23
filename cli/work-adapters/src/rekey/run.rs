@@ -35,7 +35,7 @@ use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 
 use crate::identity_run::begin_rekey_run;
-use crate::identity_run::IdentityRunPort;
+use crate::identity_run::IdentityRun;
 use crate::rekey::execute::current_states;
 use crate::rekey::execute::execute;
 use crate::rekey::execute::outstanding_entries;
@@ -100,7 +100,7 @@ pub trait KeyRefresh {
 
 #[derive(Clone, Copy)]
 pub struct RekeyPorts<'a> {
-    pub identity_run: &'a dyn IdentityRunPort,
+    pub identity_run: &'a dyn IdentityRun,
     pub store: &'a dyn RunPlanStore,
     pub corpus: RekeyCorpus<'a>,
     pub items: &'a dyn WorkItemFiles,
