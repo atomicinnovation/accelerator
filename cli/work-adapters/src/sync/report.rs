@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use tracker::ExternalId;
 use tracker::TrackerError;
 use work::inventory::CorpusInventory;
 use work::inventory::Fault;
@@ -48,6 +49,19 @@ pub struct ReportedItem {
     pub kept_edits: Option<PathBuf>,
     /// A local create's marker this run linked yet could not remove.
     pub leftover_marker: Option<LeftoverMarker>,
+    /// What a person should know about a local create that applied.
+    pub notice: Option<CreateNotice>,
+}
+
+/// Something a local create settled by an order did that a person should
+/// know, though it applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CreateNotice {
+    /// The adopted issue's title or body differ from the item's, so the
+    /// link stays unrecorded and the next sync reports a conflict.
+    DifferingAdoption(ExternalId),
+    /// A create was ordered with no pending push to settle.
+    NothingToSettle,
 }
 
 /// Whether a failure counts against the run's exit code or is only noted.
