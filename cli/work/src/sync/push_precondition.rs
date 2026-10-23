@@ -153,12 +153,85 @@ pub fn push_precondition(
     }
 }
 
+/// What a pending-push order does over the item's marker, before the
+/// tracker is asked whether the issues it names exist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OrderPrecondition {
+    /// The marker's created issue is already carried, so neither order can
+    /// tell which item is the real one.
+    AlreadyWritten,
+    /// Another item already carries the key to adopt.
+    KeyCarried,
+    /// Adopt the typed key once the tracker confirms it.
+    Adopt,
+    /// The marker records an issue created under another key: adopt only
+    /// if that issue has since moved to the typed key.
+    AdoptIfMarkerKeyMovedHere(ExternalId),
+    /// Create anew; the attempt's marker replaces any marker in place.
+    Create,
+    /// The marker records a created issue: create only once the tracker
+    /// says it no longer exists.
+    CreateUnlessIssueExists(ExternalId),
+    /// There is no pending push to settle, so this is a plain create.
+    CreateUnmarked,
+}
+
+/// Decides what `order` does over `marker`. Adopt never falls through to a
+/// create, and a create never ignores an issue a marker says exists.
+#[must_use]
+pub fn order_precondition(
+    marker: &MarkerState<'_>,
+    request_digest: &str,
+    order: &PendingPushOrder,
+    corpus_carries: &dyn Fn(&ExternalId) -> bool,
+) -> OrderPrecondition {
+    if push_precondition(marker, request_digest, corpus_carries)
+        == PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
+    {
+        return OrderPrecondition::AlreadyWritten;
+    }
+    let recorded = match marker {
+        MarkerState::Present(PendingPush::Created { external_id, .. }) => {
+            Some(external_id)
+        }
+        _ => None,
+    };
+    match order {
+        PendingPushOrder::Adopt(key) => {
+            if corpus_carries(&ExternalId::from(key)) {
+                return OrderPrecondition::KeyCarried;
+            }
+            match recorded {
+                Some(recorded)
+                    if !recorded
+                        .as_str()
+                        .eq_ignore_ascii_case(key.as_str()) =>
+                {
+                    OrderPrecondition::AdoptIfMarkerKeyMovedHere(
+                        recorded.clone(),
+                    )
+                }
+                _ => OrderPrecondition::Adopt,
+            }
+        }
+        PendingPushOrder::Create => match (marker, recorded) {
+            (_, Some(recorded)) => {
+                OrderPrecondition::CreateUnlessIssueExists(recorded.clone())
+            }
+            (MarkerState::Absent, None) => OrderPrecondition::CreateUnmarked,
+            _ => OrderPrecondition::Create,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::order_precondition;
     use super::push_precondition;
     use super::resolve_pending_push_token;
     use super::MarkerState;
     use super::NotATrackerKey;
+    use super::OrderPrecondition;
     use super::PendingPush;
     use super::PendingPushOrder;
     use super::PushPrecondition;
@@ -232,6 +305,147 @@ mod tests {
             "adopt:PP-12"
         );
         assert_eq!(PendingPushOrder::Create.to_string(), "create");
+    }
+
+    fn created(digest: &str, key: &str) -> PendingPush {
+        PendingPush::Created {
+            request: fingerprint(digest),
+            external_id: ExternalId::new(key.to_owned()),
+        }
+    }
+
+    #[test]
+    fn neither_order_settles_an_already_written_marker() {
+        let marker = created("d", "ENG-1");
+        for order in [
+            PendingPushOrder::Create,
+            PendingPushOrder::Adopt(key("ENG-1")),
+        ] {
+            assert_eq!(
+                order_precondition(
+                    &MarkerState::Present(&marker),
+                    "d",
+                    &order,
+                    &|_| true
+                ),
+                OrderPrecondition::AlreadyWritten
+            );
+        }
+    }
+
+    #[test]
+    fn adopting_a_key_another_item_carries_is_refused() {
+        assert_eq!(
+            order_precondition(
+                &MarkerState::Absent,
+                "d",
+                &PendingPushOrder::Adopt(key("ENG-2")),
+                &|carried| carried.as_str() == "ENG-2"
+            ),
+            OrderPrecondition::KeyCarried
+        );
+    }
+
+    #[test]
+    fn adopting_with_or_without_a_marker_adopts() {
+        let attempted = PendingPush::Attempted {
+            request: fingerprint("d"),
+        };
+        for marker in [
+            MarkerState::Absent,
+            MarkerState::Unreadable,
+            MarkerState::Present(&attempted),
+        ] {
+            assert_eq!(
+                order_precondition(
+                    &marker,
+                    "d",
+                    &PendingPushOrder::Adopt(key("ENG-2")),
+                    &|_| false
+                ),
+                OrderPrecondition::Adopt
+            );
+        }
+    }
+
+    #[test]
+    fn adopting_the_created_markers_own_key_adopts() {
+        let marker = created("other", "eng-2");
+        assert_eq!(
+            order_precondition(
+                &MarkerState::Present(&marker),
+                "d",
+                &PendingPushOrder::Adopt(key("ENG-2")),
+                &|_| false
+            ),
+            OrderPrecondition::Adopt
+        );
+    }
+
+    #[test]
+    fn adopting_another_key_than_a_created_marker_records_needs_it_moved_there()
+    {
+        let marker = created("d", "ENG-1");
+        assert_eq!(
+            order_precondition(
+                &MarkerState::Present(&marker),
+                "d",
+                &PendingPushOrder::Adopt(key("ENG-2")),
+                &|_| false
+            ),
+            OrderPrecondition::AdoptIfMarkerKeyMovedHere(ExternalId::new(
+                "ENG-1".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn creating_over_a_created_marker_needs_its_issue_gone() {
+        let marker = created("other", "ENG-1");
+        assert_eq!(
+            order_precondition(
+                &MarkerState::Present(&marker),
+                "d",
+                &PendingPushOrder::Create,
+                &|_| false
+            ),
+            OrderPrecondition::CreateUnlessIssueExists(ExternalId::new(
+                "ENG-1".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn creating_over_an_attempted_or_unreadable_marker_creates() {
+        let attempted = PendingPush::Attempted {
+            request: fingerprint("d"),
+        };
+        for marker in
+            [MarkerState::Unreadable, MarkerState::Present(&attempted)]
+        {
+            assert_eq!(
+                order_precondition(
+                    &marker,
+                    "d",
+                    &PendingPushOrder::Create,
+                    &|_| false
+                ),
+                OrderPrecondition::Create
+            );
+        }
+    }
+
+    #[test]
+    fn creating_with_no_marker_has_nothing_to_settle() {
+        assert_eq!(
+            order_precondition(
+                &MarkerState::Absent,
+                "d",
+                &PendingPushOrder::Create,
+                &|_| false
+            ),
+            OrderPrecondition::CreateUnmarked
+        );
     }
 
     #[test]
