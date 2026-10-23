@@ -460,6 +460,9 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::SkippedIncompleteCorpus => {
             "#\tdiscovery\tskipped\tincomplete-corpus".to_owned()
         }
+        DiscoveryStatus::SkippedPendingPush => {
+            "#\tdiscovery\tskipped\tpending-push".to_owned()
+        }
     }
 }
 
@@ -4069,6 +4072,10 @@ mod tests {
             &report_with(DiscoveryStatus::TargetedPull { attempted: 2 })
         ))
         .contains("#\tdiscovery\ttargeted-pull\t2"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedPendingPush)
+        ))
+        .contains("#\tdiscovery\tskipped\tpending-push"));
         let failed =
             render_report(&crate::finished_run::FinishedRun::for_report(
                 &report_with(DiscoveryStatus::Failed {

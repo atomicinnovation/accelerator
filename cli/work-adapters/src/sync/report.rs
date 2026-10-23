@@ -112,6 +112,47 @@ pub enum CorpusScope {
 #[derive(Debug)]
 pub enum DiscoveryDeferral {
     CorpusIncomplete(ApplyError),
+    PendingPush(PendingPushDeferral),
+}
+
+/// Why an outstanding pending push stopped untracked import: an earlier
+/// create may have made an issue no key yet names, so importing it would
+/// author a second file for the same issue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingPushDeferral {
+    /// Items whose create attempt has an unknown outcome and no order.
+    Unsettled(Vec<String>),
+    /// A marker records a created issue whose whereabouts the tracker did
+    /// not answer.
+    Unchecked {
+        id: String,
+        key: ExternalId,
+        cause: String,
+    },
+    /// The pending pushes could not be listed.
+    Unlisted(String),
+}
+
+impl std::fmt::Display for PendingPushDeferral {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unsettled(ids) => write!(
+                formatter,
+                "a pending push is unresolved; settle {} with --resolve \
+                 (without --pull-only), then sync",
+                ids.join(", ")
+            ),
+            Self::Unchecked { id, key, cause } => write!(
+                formatter,
+                "could not check pending push {id}'s issue {key}: {cause}; \
+                 sync again"
+            ),
+            Self::Unlisted(cause) => write!(
+                formatter,
+                "could not list the pending pushes: {cause}; sync again"
+            ),
+        }
+    }
 }
 
 /// Whether a run recorded its baseline bookkeeping: a preview does not
@@ -200,6 +241,14 @@ impl RunReport {
                             error.operation(),
                             error.cause(),
                             error.class(),
+                        )
+                    }
+                    DiscoveryDeferral::PendingPush(deferral) => {
+                        RunFailure::error(
+                            "-",
+                            SyncOperation::Discover,
+                            deferral.to_string(),
+                            FailureClass::Retryable,
                         )
                     }
                 });

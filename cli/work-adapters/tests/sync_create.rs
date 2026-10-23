@@ -3461,7 +3461,7 @@ fn run_ordered(
         integrations_root: fixture.dir.path(),
         integration: "jira",
         promote: true,
-        scope: SearchScope::default(),
+        scope: scoped(),
     };
     run(&sync_ports, &mut store, &request)
         .map_err(|error| format!("the run stopped: {error:?}").into())
@@ -4464,5 +4464,213 @@ fn create_over_a_tracked_created_marker_is_refused_while_its_issue_exists(
         "marker records ENG-5; run --resolve 0001=adopt:ENG-5",
     );
     assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+fn found(keys: &[&str]) -> Vec<(ExternalId, RemoteTimestamp)> {
+    keys.iter()
+        .map(|key| {
+            (
+                ExternalId::new((*key).to_owned()),
+                RemoteTimestamp::NotReported,
+            )
+        })
+        .collect()
+}
+
+fn imported(report: &RunReport) -> Vec<String> {
+    report
+        .reported
+        .iter()
+        .filter(|item| item.planned.action() == Action::CreateFromRemote)
+        .map(|item| item.planned.id().to_owned())
+        .collect()
+}
+
+#[test]
+fn an_adopted_key_is_not_imported_in_the_same_run() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")])
+            .discovering(found(&["ENG-7"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert!(imported(&report).is_empty(), "{:?}", imported(&report));
+    assert!(author.authored.borrow().is_empty());
+    assert_eq!(linked_keys(&author), ["ENG-7"]);
+    Ok(())
+}
+
+#[test]
+fn a_key_named_by_a_pending_push_marker_is_not_imported(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")])
+            .discovering(found(&["ENG-5"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    assert!(imported(&report).is_empty(), "{:?}", imported(&report));
+    assert!(author.authored.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_moved_created_markers_issue_is_not_imported() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")])
+            .moving(
+                &ExternalId::new("ENG-5".to_owned()),
+                &ExternalId::new("OPS-9".to_owned()),
+            )
+            .discovering(found(&["OPS-9"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &orders),
+    )?;
+
+    assert!(imported(&report).is_empty(), "{:?}", imported(&report));
+    assert!(author.authored.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn an_outstanding_attempted_marker_defers_untracked_import(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_attempted_marker(&fixture, "0001");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-8", "Other\nBody\n")])
+            .discovering(found(&["ENG-8"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    assert!(author.authored.borrow().is_empty());
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedPendingPush);
+    let failure = failure_for(&report, "-");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert_eq!(failure.operation, SyncOperation::Discover);
+    assert_eq!(
+        failure.cause,
+        "a pending push is unresolved; settle 0001 with --resolve (without \
+         --pull-only), then sync"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_import_whose_marker_locate_fails_is_deferred() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-8", "Other\nBody\n")])
+            .failing_locate(
+                &ExternalId::new("ENG-5".to_owned()),
+                TrackerError::Retryable {
+                    detail: "connection reset".to_owned(),
+                },
+            )
+            .discovering(found(&["ENG-8"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &orders),
+    )?;
+
+    assert!(author.authored.borrow().is_empty());
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedPendingPush);
+    let failure = failure_for(&report, "-");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert!(
+        failure
+            .cause
+            .starts_with("could not check pending push 0001's issue ENG-5: "),
+        "{}",
+        failure.cause
+    );
+    assert!(failure.cause.ends_with("; sync again"), "{}", failure.cause);
+    Ok(())
+}
+
+#[test]
+fn settling_the_marker_resumes_untracked_import() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_attempted_marker(&fixture, "0001");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-8", "Other\nBody\n")])
+            .discovering(found(&["ENG-8"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    assert_eq!(imported(&report), ["ENG-8"]);
+    Ok(())
+}
+
+#[test]
+fn a_leftover_attempted_marker_on_a_linked_item_does_not_defer_import(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = LocalItem {
+        external_id: Some(ExternalId::new("ENG-3".to_owned())),
+        ..fixture.unsynced_item("0001", "Draft one")?
+    };
+    let marker = seed_attempted_marker(&fixture, "0001");
+    let tracker = RecordingTracker::holding(vec![
+        keyed("ENG-3", "Draft one\nBody\n"),
+        keyed("ENG-8", "Other\nBody\n"),
+    ])
+    .discovering(found(&["ENG-8"]), true);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    assert_eq!(imported(&report), ["ENG-8"]);
+    assert!(fixture.spy.removals.borrow().contains(&marker));
     Ok(())
 }
