@@ -28,8 +28,10 @@ use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use work::sync::Action;
 use work::sync::Dirtiness;
+use work::sync::PendingPushOrder;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
+use work::tracker_key::TrackerKey;
 use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::baseline_store::BaselineStore;
@@ -41,6 +43,7 @@ use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::operation::SyncOperation;
+use work_adapters::sync::report::RunFailure;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
@@ -3378,5 +3381,314 @@ fn reuse_id_is_deferred_while_the_corpus_is_incomplete() -> Result<(), TestError
         assert!(error.cause().contains("ENG-42"), "{error}");
         assert!(marker_of(&fixture, "0001").exists());
     }
+    Ok(())
+}
+
+/// A run carrying pending-push orders over `corpus`, reconciling
+/// `selection`.
+struct OrderedRun<'a> {
+    corpus: &'a [LocalItem],
+    selection: ItemSelection<'a>,
+    direction: SyncDirection,
+    orders: &'a BTreeMap<String, PendingPushOrder>,
+    mode: RunMode,
+}
+
+impl<'a> OrderedRun<'a> {
+    const fn over(
+        corpus: &'a [LocalItem],
+        orders: &'a BTreeMap<String, PendingPushOrder>,
+    ) -> Self {
+        Self {
+            corpus,
+            selection: ItemSelection::All,
+            direction: SyncDirection::Bidirectional,
+            orders,
+            mode: RunMode::Apply,
+        }
+    }
+}
+
+fn run_ordered(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    author: &RecordingAuthor,
+    ordered: OrderedRun<'_>,
+) -> Result<RunReport, TestError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker,
+        parser: &CommonMarkBody,
+        status: &status,
+        files: support::sync_files(&fixture.spy),
+        clock: &clock,
+        author,
+        recovery_labels: &support::LabelsEveryId,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &fixture.spy,
+        &fixture.spy,
+    );
+    let request = SyncRequest {
+        corpus: ordered.corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(ordered.corpus),
+        selection: ordered.selection,
+        direction: ordered.direction,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &BTreeMap::new(),
+        pending_push_orders: ordered.orders,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode: ordered.mode,
+        integrations_root: fixture.dir.path(),
+        integration: "jira",
+        promote: true,
+        scope: SearchScope::default(),
+    };
+    run(&sync_ports, &mut store, &request)
+        .map_err(|error| format!("the run stopped: {error:?}").into())
+}
+
+fn adopt(key: &str) -> PendingPushOrder {
+    PendingPushOrder::Adopt(TrackerKey::parse(key).expect("a tracker key"))
+}
+
+fn orders(
+    entries: &[(&str, PendingPushOrder)],
+) -> BTreeMap<String, PendingPushOrder> {
+    entries
+        .iter()
+        .map(|(id, order)| ((*id).to_owned(), order.clone()))
+        .collect()
+}
+
+/// The one failure a run reports for `id`.
+fn failure_for(report: &RunReport, id: &str) -> RunFailure {
+    let failures: Vec<RunFailure> = report
+        .failures()
+        .filter(|failure| failure.subject == id)
+        .collect();
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    failures[0].clone()
+}
+
+fn assert_order_refused(
+    failure: &RunFailure,
+    operation: SyncOperation,
+    cause: &str,
+) {
+    assert_eq!(failure.class, FailureClass::OrderRefused, "{failure:?}");
+    assert_eq!(failure.operation, operation, "{failure:?}");
+    assert_eq!(failure.cause, cause);
+}
+
+fn assert_nothing_sent(tracker: &RecordingTracker, author: &RecordingAuthor) {
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Create { .. })),
+        "{:?}",
+        tracker.calls()
+    );
+    assert!(author.linked.borrow().is_empty());
+}
+
+#[test]
+fn an_order_under_pull_only_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            direction: SyncDirection::PullOnly,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "orders settle pending pushes; run without --pull-only",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn an_order_naming_a_draft_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("draft-k7mq3x", adopt("ENG-7"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&draft), &orders),
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "draft-k7mq3x"),
+        SyncOperation::Adopt,
+        "draft-k7mq3x is a draft; promote it with accelerator work promote \
+         draft-k7mq3x",
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn an_order_naming_a_confirmed_link_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let unsynced = fixture.unsynced_item("0001", "Draft one")?;
+    let item = LocalItem {
+        external_id: Some(ExternalId::new("ENG-3".to_owned())),
+        ..unsynced
+    };
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-3".to_owned()),
+        issue("Draft one\nBody"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", adopt("ENG-7"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &orders),
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Adopt,
+        &format!(
+            "0001 already carries external_id ENG-3; if ENG-3 is the wrong \
+             issue, check which is right in the tracker and edit \
+             external_id in {} by hand",
+            item.path.display()
+        ),
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn an_order_targeted_out_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let ordered = fixture.unsynced_item("0001", "Draft one")?;
+    let targeted = fixture.unsynced_item("0002", "Draft two")?;
+    let corpus = [ordered, targeted.clone()];
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            selection: ItemSelection::Targeted {
+                items: std::slice::from_ref(&targeted),
+                pull_ids: &[],
+            },
+            ..OrderedRun::over(&corpus, &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "0001 is not in this run's --target",
+    );
+    Ok(())
+}
+
+#[test]
+fn an_order_naming_a_deferred_item_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let deferred = fixture.unsynced_item("0001", "Draft one")?;
+    let settled = fixture.unsynced_item("0002", "Draft two")?;
+    let corpus = [deferred, settled.clone()];
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            selection: ItemSelection::Settled {
+                items: std::slice::from_ref(&settled),
+            },
+            ..OrderedRun::over(&corpus, &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "0001 was deferred by identity settlement; settle its identity row \
+         first",
+    );
+    Ok(())
+}
+
+#[test]
+fn an_order_naming_no_item_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0009", adopt("ENG-9"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(&[], &orders),
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0009"),
+        SyncOperation::Adopt,
+        "no work item 0009 in this run",
+    );
+    Ok(())
+}
+
+#[test]
+fn a_preview_reports_an_inert_order_without_sending() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0009", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            mode: RunMode::Preview,
+            ..OrderedRun::over(&[], &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0009"),
+        SyncOperation::Create,
+        "no work item 0009 in this run",
+    );
     Ok(())
 }
