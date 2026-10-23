@@ -194,6 +194,7 @@ struct RecordingAuthor {
     dir: PathBuf,
     authored: RefCell<Vec<ExternalId>>,
     linked: RefCell<Vec<(PathBuf, ExternalId)>>,
+    unlinked: RefCell<Vec<PathBuf>>,
     next: RefCell<u32>,
     fault: AuthorFault,
 }
@@ -218,6 +219,7 @@ impl RecordingAuthor {
             dir: dir.to_path_buf(),
             authored: RefCell::new(Vec::new()),
             linked: RefCell::new(Vec::new()),
+            unlinked: RefCell::new(Vec::new()),
             next: RefCell::new(9000),
             fault,
         }
@@ -276,6 +278,10 @@ impl LocalAuthor for RecordingAuthor {
         self.linked
             .borrow_mut()
             .push((path.to_path_buf(), external_id.clone()));
+        Ok(())
+    }
+    fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
+        self.unlinked.borrow_mut().push(path.to_path_buf());
         Ok(())
     }
 }
@@ -4903,5 +4909,267 @@ fn a_record_that_cannot_be_retired_warns_and_is_kept() -> Result<(), TestError>
         .map(|unretired| (unretired.id.as_str(), unretired.path.as_path()))
         .collect();
     assert_eq!(unretired, [("0001", record.as_path())]);
+    Ok(())
+}
+
+/// An item linked to ENG-7 by an adopt no sync has recorded since.
+fn unconfirmed_link(
+    fixture: &Fixture,
+) -> Result<(LocalItem, PathBuf), TestError> {
+    let item = LocalItem {
+        external_id: Some(ExternalId::new("ENG-7".to_owned())),
+        ..fixture.unsynced_item("0001", "Draft one")?
+    };
+    let record = seed_adoption_record(fixture, "0001", "ENG-7");
+    Ok((item, record))
+}
+
+fn relinking(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    author: &RecordingAuthor,
+    item: &LocalItem,
+    order: PendingPushOrder,
+) -> Result<RunReport, TestError> {
+    let orders = orders(&[("0001", order)]);
+    run_ordered(
+        fixture,
+        tracker,
+        author,
+        OrderedRun::over(std::slice::from_ref(item), &orders),
+    )
+}
+
+fn relink_row(report: &RunReport) -> &ReportedItem {
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.action() == Action::Relink)
+        .expect("a relink row")
+}
+
+fn two_issues() -> RecordingTracker {
+    RecordingTracker::holding(vec![
+        keyed("ENG-7", "Someone else's issue\nBody\n"),
+        keyed("ENG-8", "Draft one\nBody\n"),
+    ])
+}
+
+#[test]
+fn an_unconfirmed_adopt_can_be_replaced_with_the_right_key(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, record) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = relinking(&fixture, &tracker, &author, &item, adopt("ENG-8"))?;
+
+    let row = relink_row(&report);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.planned.order(), Some(&adopt("ENG-8")));
+    assert_eq!(linked_keys(&author), ["ENG-8"]);
+    assert!(fixture.baseline().get("0001").is_some());
+    assert!(fixture.spy.removals.borrow().contains(&record));
+    assert!(!report
+        .reported
+        .iter()
+        .any(|item| item.planned.action() == Action::Prompt));
+    Ok(())
+}
+
+#[test]
+fn an_unconfirmed_adopt_can_be_cleared_by_create() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = relinking(
+        &fixture,
+        &tracker,
+        &author,
+        &item,
+        PendingPushOrder::Create,
+    )?;
+
+    let row = relink_row(&report);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert!(row.notice.is_none());
+    assert_eq!(*author.unlinked.borrow(), [item.path]);
+    assert_eq!(created_count(&tracker), 1);
+    assert_eq!(linked_keys(&author), ["REC-1"]);
+    Ok(())
+}
+
+#[test]
+fn a_confirmed_link_cannot_be_replaced() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let content = std::fs::read_to_string(&item.path)?;
+    let entry = support::split_entry(
+        "0001",
+        &PlainDialect,
+        &content,
+        "Someone else's issue\nBody\n",
+        "2026-06-01T00:00:00Z",
+    );
+    fixture
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[entry]));
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = relinking(&fixture, &tracker, &author, &item, adopt("ENG-8"))?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::OrderRefused);
+    assert!(
+        failure
+            .cause
+            .starts_with("0001 already carries external_id ENG-7"),
+        "{}",
+        failure.cause
+    );
+    assert!(author.linked.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_link_whose_baseline_update_push_cleared_stays_confirmed(
+) -> Result<(), TestError> {
+    for order in [adopt("ENG-8"), PendingPushOrder::Create] {
+        let fixture = Fixture::new()?;
+        let item = LocalItem {
+            external_id: Some(ExternalId::new("ENG-7".to_owned())),
+            ..fixture.unsynced_item("0001", "Draft one")?
+        };
+        let tracker = two_issues();
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = relinking(&fixture, &tracker, &author, &item, order)?;
+
+        let failure = failure_for(&report, "0001");
+        assert_eq!(failure.class, FailureClass::OrderRefused);
+        assert!(
+            failure
+                .cause
+                .starts_with("0001 already carries external_id"),
+            "{}",
+            failure.cause
+        );
+        assert_nothing_sent(&tracker, &author);
+        assert!(author.unlinked.borrow().is_empty());
+    }
+    Ok(())
+}
+
+#[test]
+fn a_tracked_adoption_record_is_ignored() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", adopt("ENG-8"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            marker_tracking: FileTracking::Tracked,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    assert_eq!(
+        failure_for(&report, "0001").class,
+        FailureClass::OrderRefused
+    );
+    assert!(author.linked.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_relink_create_under_pull_only_is_refused() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            direction: SyncDirection::PullOnly,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "orders settle pending pushes; run without --pull-only",
+    );
+    assert!(author.unlinked.borrow().is_empty());
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn a_relink_adopt_is_refused_while_the_corpus_is_incomplete(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", adopt("ENG-8"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            unusable: vec![work::inventory::Unidentified {
+                path: fixture.dir.path().join("0002-broken.md"),
+                reason: work::inventory::UnidentifiedReason::Malformed(
+                    work::inventory::MalformedCause::UnclosedFence,
+                ),
+            }],
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::Unparseable);
+    assert_eq!(failure.operation, SyncOperation::Adopt);
+    assert!(author.linked.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_link_fault_after_the_record_leaves_it_unconfirmed() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let (item, record) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author =
+        RecordingAuthor::faulty(fixture.dir.path(), AuthorFault::LinkFails);
+
+    let report = relinking(&fixture, &tracker, &author, &item, adopt("ENG-8"))?;
+
+    assert_eq!(
+        failure_for(&report, "0001").operation,
+        SyncOperation::LinkExternalId
+    );
+    let written = fixture
+        .spy
+        .content(&record.display().to_string())
+        .ok_or("the record was not rewritten")?;
+    let rewritten = work_adapters::sync::adoption_records::read(&written)?;
+    assert_eq!(rewritten.key, ExternalId::new("ENG-8".to_owned()));
+    assert!(rewritten.vouches_for(item.external_id.as_ref()));
     Ok(())
 }

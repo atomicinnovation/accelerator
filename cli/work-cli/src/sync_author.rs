@@ -19,6 +19,7 @@ use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
+use document::Mapping;
 use document::Scalar;
 use document::Yaml;
 use tracker::ExternalId;
@@ -219,6 +220,34 @@ pub fn link_external_id(
     path: &Path,
     external_id: &ExternalId,
 ) -> Result<(), kernel::Error> {
+    rewrite_frontmatter(path, |mapping| {
+        mapping.set(
+            "external_id".to_owned(),
+            Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
+        );
+    })
+}
+
+/// Removes `path`'s `external_id`, so the item can be created anew.
+///
+/// # Errors
+///
+/// When the file cannot be locked, read, parsed or rewritten.
+pub fn unlink_external_id(path: &Path) -> Result<(), kernel::Error> {
+    rewrite_frontmatter(path, |mapping| {
+        *mapping = std::mem::take(mapping)
+            .into_iter()
+            .filter(|(key, _)| key != "external_id")
+            .collect();
+    })
+}
+
+/// Rewrites `path`'s frontmatter under the file's lock, as one atomic
+/// write.
+fn rewrite_frontmatter(
+    path: &Path,
+    change: impl FnOnce(&mut Mapping),
+) -> Result<(), kernel::Error> {
     let work_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let _held = LockdirLock::new(work_dir)
         .acquire(&LockName::ForFile(path.to_path_buf()))
@@ -228,13 +257,9 @@ pub fn link_external_id(
     let Yaml::Mapping(mapping) = &mut yaml else {
         return Err(failed("frontmatter is not a mapping"));
     };
-    mapping.set(
-        "external_id".to_owned(),
-        Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
-    );
+    change(mapping);
     let rendered = document::render(Some(&content), &yaml).map_err(failed)?;
-    let store =
-        FileCorpusStore::new(path.parent().unwrap_or_else(|| Path::new(".")));
+    let store = FileCorpusStore::new(work_dir);
     AtomicWrite::write(&store, path, rendered.as_bytes()).map_err(failed)?;
     Ok(())
 }
@@ -332,6 +357,10 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         external_id: &ExternalId,
     ) -> Result<(), kernel::Error> {
         link_external_id(path, external_id)
+    }
+
+    fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
+        unlink_external_id(path)
     }
 }
 
@@ -690,6 +719,22 @@ mod tests {
         let content = std::fs::read_to_string(&path).expect("read");
         assert!(content.contains("status: \"ready\""), "{content}");
         assert!(content.contains("external_id: \"ENG-5\""), "{content}");
+    }
+
+    #[test]
+    fn an_unlink_removes_only_the_external_id() {
+        let repo = TrackerRepo::new();
+        let path = repo.write_item(
+            "0001-legacy.md",
+            "id: \"0001\"\nexternal_id: \"ENG-5\"\nstatus: \"ready\"\n",
+        );
+
+        super::unlink_external_id(&path).expect("the unlink lands");
+
+        let content = std::fs::read_to_string(&path).expect("read");
+        assert!(!content.contains("external_id"), "{content}");
+        assert!(content.contains("id: \"0001\""), "{content}");
+        assert!(content.contains("status: \"ready\""), "{content}");
     }
 
     fn save_promotion(repo: &TrackerRepo, stage: PromotionStage) -> PathBuf {
