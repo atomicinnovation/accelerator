@@ -3126,6 +3126,67 @@ mod tests {
     }
 
     #[test]
+    fn render_report_orders_every_record_family_as_the_golden_does() {
+        use work_adapters::sync::kept_edits::KeptCopy;
+        use work_adapters::sync::kept_edits::KeptEdits;
+        use work_adapters::sync::kept_edits::KeptEditsReview;
+
+        let report = RunReport {
+            reported: vec![
+                reported("0003", SyncState::RemotelyModified, Action::Pull),
+                reported("0001", SyncState::Synced, Action::Noop),
+            ],
+            refused_orders: vec![refused_order("0009")],
+            inventory: work::inventory::CorpusInventory {
+                ids: std::collections::BTreeSet::new(),
+                unidentified: vec![
+                    work::inventory::Unidentified {
+                        path: PathBuf::from("meta/work/0004-broken.md"),
+                        reason: work::inventory::UnidentifiedReason::Malformed(
+                            work::inventory::MalformedCause::UnclosedFence,
+                        ),
+                    },
+                    work::inventory::Unidentified {
+                        path: PathBuf::from("meta/work/README.md"),
+                        reason: work::inventory::UnidentifiedReason::NoId,
+                    },
+                ],
+            },
+            adoptions: vec![work_adapters::sync::report::Adoption {
+                id: "0005".to_owned(),
+                key: ExternalId::new("ENG-7".to_owned()),
+                title: "The adopted issue".to_owned(),
+            }],
+            discovery: DiscoveryStatus::SkippedPendingPush,
+            ..crate::test_support::run_report()
+        };
+        let finished = crate::finished_run::FinishedRun {
+            kept_edits: KeptEditsReview {
+                entries: vec![KeptEdits::KeptThisRun(KeptCopy {
+                    id: "0003".to_owned(),
+                    item: PathBuf::from("meta/work/0003-pulled.md"),
+                    copy: PathBuf::from(
+                        ".accelerator/state/sync-recovery/x/0003-pulled.md",
+                    ),
+                    directory: PathBuf::from(
+                        ".accelerator/state/sync-recovery/x",
+                    ),
+                    kept_since: Some(1),
+                })],
+            },
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        };
+
+        let golden = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/sync-report-records.golden"
+        ))
+        .expect("golden readable");
+
+        assert_eq!(render_report(&finished), golden);
+    }
+
+    #[test]
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
             discovery: DiscoveryStatus::SkippedPushOnly,

@@ -1,0 +1,8 @@
+0003	pull	remotely-modified	-
+0009	failed	-	order-refused
+#	discovery	skipped	pending-push
+#	unidentified	meta/work/0004-broken.md	malformed
+#	unidentified	meta/work/README.md	no-id
+#	adopt	0005	ENG-7	The adopted issue
+#	kept-edits	0003	this-run	meta/work/0003-pulled.md	.accelerator/state/sync-recovery/x/0003-pulled.md
+#	summary	synced	1
