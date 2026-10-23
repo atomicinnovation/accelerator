@@ -282,6 +282,100 @@ pub fn work::identity_run::RunPlanStatus::gate(&self) -> work::identity_run::Run
 pub fn work::identity_run::begin_identity_run(lock: &dyn work::identity_run::IdentityRun, plan: &dyn work::identity_run::RunPlanStatus, command: &str, waiting: &dyn core::ops::function::Fn(core::option::Option<&work::rekey::outcome::Holder>)) -> core::result::Result<work::identity_run::IdentityRunGuard, work::identity_run::IdentityRunRefusal>
 pub fn work::identity_run::begin_rekey_run(lock: &dyn work::identity_run::IdentityRun, waiting: &dyn core::ops::function::Fn(core::option::Option<&work::rekey::outcome::Holder>)) -> core::result::Result<work::identity_run::IdentityRunGuard, work::rekey::outcome::NotRekeyed>
 pub fn work::identity_run::waiting_line(holder: core::option::Option<&work::rekey::outcome::Holder>) -> alloc::string::String
+pub mod work::inventory
+pub enum work::inventory::Fault
+pub work::inventory::Fault::Content
+pub work::inventory::Fault::Environment
+impl core::clone::Clone for work::inventory::Fault
+pub fn work::inventory::Fault::clone(&self) -> work::inventory::Fault
+impl core::cmp::Eq for work::inventory::Fault
+impl core::cmp::PartialEq for work::inventory::Fault
+pub fn work::inventory::Fault::eq(&self, other: &work::inventory::Fault) -> bool
+impl core::fmt::Debug for work::inventory::Fault
+pub fn work::inventory::Fault::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::inventory::Fault
+impl core::marker::StructuralPartialEq for work::inventory::Fault
+pub enum work::inventory::MalformedCause
+pub work::inventory::MalformedCause::ConflictMarkers
+pub work::inventory::MalformedCause::NoFenceButNamed(alloc::string::String)
+pub work::inventory::MalformedCause::NoIdButNamed(alloc::string::String)
+pub work::inventory::MalformedCause::UnclosedFence
+impl core::clone::Clone for work::inventory::MalformedCause
+pub fn work::inventory::MalformedCause::clone(&self) -> work::inventory::MalformedCause
+impl core::cmp::Eq for work::inventory::MalformedCause
+impl core::cmp::PartialEq for work::inventory::MalformedCause
+pub fn work::inventory::MalformedCause::eq(&self, other: &work::inventory::MalformedCause) -> bool
+impl core::fmt::Debug for work::inventory::MalformedCause
+pub fn work::inventory::MalformedCause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::inventory::MalformedCause
+pub fn work::inventory::MalformedCause::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::inventory::MalformedCause
+pub enum work::inventory::UnidentifiedReason
+pub work::inventory::UnidentifiedReason::Malformed(work::inventory::MalformedCause)
+pub work::inventory::UnidentifiedReason::NoFrontmatter
+pub work::inventory::UnidentifiedReason::NoId
+pub work::inventory::UnidentifiedReason::Undecodable
+pub work::inventory::UnidentifiedReason::Unreadable(alloc::string::String)
+impl work::inventory::UnidentifiedReason
+pub const fn work::inventory::UnidentifiedReason::fault(&self) -> core::option::Option<work::inventory::Fault>
+pub const fn work::inventory::UnidentifiedReason::keyword(&self) -> &'static str
+impl core::clone::Clone for work::inventory::UnidentifiedReason
+pub fn work::inventory::UnidentifiedReason::clone(&self) -> work::inventory::UnidentifiedReason
+impl core::cmp::Eq for work::inventory::UnidentifiedReason
+impl core::cmp::PartialEq for work::inventory::UnidentifiedReason
+pub fn work::inventory::UnidentifiedReason::eq(&self, other: &work::inventory::UnidentifiedReason) -> bool
+impl core::fmt::Debug for work::inventory::UnidentifiedReason
+pub fn work::inventory::UnidentifiedReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::inventory::UnidentifiedReason
+pub fn work::inventory::UnidentifiedReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::inventory::UnidentifiedReason
+pub struct work::inventory::CorpusInventory
+pub work::inventory::CorpusInventory::ids: alloc::collections::btree::set::BTreeSet<alloc::string::String>
+pub work::inventory::CorpusInventory::unidentified: alloc::vec::Vec<work::inventory::Unidentified>
+impl work::inventory::CorpusInventory
+pub fn work::inventory::CorpusInventory::blocking_fault(&self) -> core::option::Option<work::inventory::Fault>
+pub fn work::inventory::CorpusInventory::complete(ids: impl core::iter::traits::collect::IntoIterator<Item = alloc::string::String>) -> Self
+pub fn work::inventory::CorpusInventory::is_complete(&self) -> bool
+pub fn work::inventory::CorpusInventory::proves_absence(&self) -> bool
+impl core::clone::Clone for work::inventory::CorpusInventory
+pub fn work::inventory::CorpusInventory::clone(&self) -> work::inventory::CorpusInventory
+impl core::cmp::Eq for work::inventory::CorpusInventory
+impl core::cmp::PartialEq for work::inventory::CorpusInventory
+pub fn work::inventory::CorpusInventory::eq(&self, other: &work::inventory::CorpusInventory) -> bool
+impl core::default::Default for work::inventory::CorpusInventory
+pub fn work::inventory::CorpusInventory::default() -> work::inventory::CorpusInventory
+impl core::fmt::Debug for work::inventory::CorpusInventory
+pub fn work::inventory::CorpusInventory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::inventory::CorpusInventory
+pub struct work::inventory::IdentifiedCorpus
+pub work::inventory::IdentifiedCorpus::inventory: work::inventory::CorpusInventory
+pub work::inventory::IdentifiedCorpus::items: alloc::vec::Vec<(work::work_item_files::WorkItemFile, work::identity::ItemIdentity)>
+impl core::clone::Clone for work::inventory::IdentifiedCorpus
+pub fn work::inventory::IdentifiedCorpus::clone(&self) -> work::inventory::IdentifiedCorpus
+impl core::cmp::Eq for work::inventory::IdentifiedCorpus
+impl core::cmp::PartialEq for work::inventory::IdentifiedCorpus
+pub fn work::inventory::IdentifiedCorpus::eq(&self, other: &work::inventory::IdentifiedCorpus) -> bool
+impl core::default::Default for work::inventory::IdentifiedCorpus
+pub fn work::inventory::IdentifiedCorpus::default() -> work::inventory::IdentifiedCorpus
+impl core::fmt::Debug for work::inventory::IdentifiedCorpus
+pub fn work::inventory::IdentifiedCorpus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::inventory::IdentifiedCorpus
+pub struct work::inventory::Unidentified
+pub work::inventory::Unidentified::path: std::path::PathBuf
+pub work::inventory::Unidentified::reason: work::inventory::UnidentifiedReason
+impl core::clone::Clone for work::inventory::Unidentified
+pub fn work::inventory::Unidentified::clone(&self) -> work::inventory::Unidentified
+impl core::cmp::Eq for work::inventory::Unidentified
+impl core::cmp::PartialEq for work::inventory::Unidentified
+pub fn work::inventory::Unidentified::eq(&self, other: &work::inventory::Unidentified) -> bool
+impl core::fmt::Debug for work::inventory::Unidentified
+pub fn work::inventory::Unidentified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::inventory::Unidentified
+pub trait work::inventory::ConflictedPaths
+pub fn work::inventory::ConflictedPaths::is_conflicted(&self, path: &std::path::Path) -> bool
+pub trait work::inventory::NamesWorkItem
+pub fn work::inventory::NamesWorkItem::work_item_named(&self, file_name: &str) -> core::option::Option<alloc::string::String>
+pub fn work::inventory::identify(listing: &work::work_item_files::WorkItemListing, names: &dyn work::inventory::NamesWorkItem, conflicted: &dyn work::inventory::ConflictedPaths) -> work::inventory::IdentifiedCorpus
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingKey
@@ -1360,6 +1454,7 @@ pub work::sync::decide::Action::Prompt
 pub work::sync::decide::Action::Pull
 pub work::sync::decide::Action::Push(work::sync::classify::FieldDelivery)
 pub work::sync::decide::Action::RecordBaseline
+pub work::sync::decide::Action::Relink
 pub work::sync::decide::Action::Retitle
 pub work::sync::decide::Action::SkipConflict
 pub work::sync::decide::Action::SkipDirty
@@ -1495,6 +1590,16 @@ impl core::marker::StructuralPartialEq for work::sync::label::SyncPresence
 pub fn work::sync::label::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::label::label(state: work::sync::label::RenderableState) -> &'static str
 pub mod work::sync::plan
+pub enum work::sync::plan::Instruction
+pub work::sync::plan::Instruction::Order(work::sync::push_precondition::PendingPushOrder)
+impl core::clone::Clone for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::clone(&self) -> work::sync::plan::Instruction
+impl core::cmp::Eq for work::sync::plan::Instruction
+impl core::cmp::PartialEq for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::eq(&self, other: &work::sync::plan::Instruction) -> bool
+impl core::fmt::Debug for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::Instruction
 pub struct work::sync::plan::PlanInput<'a>
 pub work::sync::plan::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::plan::PlanInput::baseline_timestamp: u64
@@ -1504,10 +1609,20 @@ pub work::sync::plan::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::plan::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
 pub work::sync::plan::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
 pub work::sync::plan::PlanInput::id: alloc::string::String
+pub struct work::sync::plan::PlanOrders<'a>
+pub work::sync::plan::PlanOrders::pending_push: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::push_precondition::PendingPushOrder>
+pub work::sync::plan::PlanOrders::resolutions: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>
+pub work::sync::plan::PlanOrders::unconfirmed_links: &'a alloc::collections::btree::set::BTreeSet<alloc::string::String>
+impl<'a> work::sync::plan::PlanOrders<'a>
+pub const fn work::sync::plan::PlanOrders<'a>::resolving(resolutions: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> Self
 pub struct work::sync::plan::PlannedAction
-pub work::sync::plan::PlannedAction::action: work::sync::decide::Action
-pub work::sync::plan::PlannedAction::id: alloc::string::String
-pub work::sync::plan::PlannedAction::state: work::sync::state::SyncState
+impl work::sync::plan::PlannedAction
+pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decide::Action
+pub fn work::sync::plan::PlannedAction::id(&self) -> &str
+pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
+pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
+pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
+pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
 pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
 impl core::cmp::Eq for work::sync::plan::PlannedAction
@@ -1537,7 +1652,7 @@ impl core::fmt::Debug for work::sync::plan::Unclassifiable
 pub fn work::sync::plan::Unclassifiable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::plan::Unclassifiable
 pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
-pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> work::sync::plan::SyncPlan
+pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, orders: &work::sync::plan::PlanOrders<'_>) -> work::sync::plan::SyncPlan
 pub mod work::sync::pull_residue
 pub enum work::sync::pull_residue::PullResidue
 pub work::sync::pull_residue::PullResidue::TrackerWireDocument
@@ -1579,6 +1694,22 @@ pub enum work::sync::push_precondition::MarkerState<'a>
 pub work::sync::push_precondition::MarkerState::Absent
 pub work::sync::push_precondition::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::push_precondition::MarkerState::Unreadable
+pub enum work::sync::push_precondition::OrderPrecondition
+pub work::sync::push_precondition::OrderPrecondition::Adopt
+pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere(tracker::ExternalId)
+pub work::sync::push_precondition::OrderPrecondition::AlreadyWritten
+pub work::sync::push_precondition::OrderPrecondition::Create
+pub work::sync::push_precondition::OrderPrecondition::CreateUnlessIssueExists(tracker::ExternalId)
+pub work::sync::push_precondition::OrderPrecondition::CreateUnmarked
+pub work::sync::push_precondition::OrderPrecondition::KeyCarried
+impl core::clone::Clone for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::clone(&self) -> work::sync::push_precondition::OrderPrecondition
+impl core::cmp::Eq for work::sync::push_precondition::OrderPrecondition
+impl core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::eq(&self, other: &work::sync::push_precondition::OrderPrecondition) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition
 pub enum work::sync::push_precondition::PendingPush
 pub work::sync::push_precondition::PendingPush::Attempted
 pub work::sync::push_precondition::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
@@ -1593,6 +1724,19 @@ pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync:
 impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::push_precondition::PendingPushOrder
+pub work::sync::push_precondition::PendingPushOrder::Adopt(work::tracker_key::TrackerKey)
+pub work::sync::push_precondition::PendingPushOrder::Create
+impl core::clone::Clone for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::clone(&self) -> work::sync::push_precondition::PendingPushOrder
+impl core::cmp::Eq for work::sync::push_precondition::PendingPushOrder
+impl core::cmp::PartialEq for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::eq(&self, other: &work::sync::push_precondition::PendingPushOrder) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPushOrder
 pub enum work::sync::push_precondition::PushPrecondition
 pub work::sync::push_precondition::PushPrecondition::Proceed
 pub work::sync::push_precondition::PushPrecondition::Refuse(work::sync::push_precondition::RefusalReason)
@@ -1610,6 +1754,8 @@ pub work::sync::push_precondition::RefusalReason::AlreadyWritten
 pub work::sync::push_precondition::RefusalReason::FingerprintMismatch
 pub work::sync::push_precondition::RefusalReason::MarkerUnreadable
 pub work::sync::push_precondition::RefusalReason::PriorAttemptUnknownOutcome
+impl work::sync::push_precondition::RefusalReason
+pub const fn work::sync::push_precondition::RefusalReason::token(self) -> &'static str
 impl core::clone::Clone for work::sync::push_precondition::RefusalReason
 pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
 impl core::cmp::Eq for work::sync::push_precondition::RefusalReason
@@ -1619,6 +1765,15 @@ impl core::fmt::Debug for work::sync::push_precondition::RefusalReason
 pub fn work::sync::push_precondition::RefusalReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::push_precondition::RefusalReason
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::RefusalReason
+pub struct work::sync::push_precondition::NotATrackerKey(pub alloc::string::String)
+impl core::clone::Clone for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::clone(&self) -> work::sync::push_precondition::NotATrackerKey
+impl core::cmp::Eq for work::sync::push_precondition::NotATrackerKey
+impl core::cmp::PartialEq for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::eq(&self, other: &work::sync::push_precondition::NotATrackerKey) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::NotATrackerKey
 pub struct work::sync::push_precondition::RequestFingerprint
 pub work::sync::push_precondition::RequestFingerprint::attempted_at: u64
 pub work::sync::push_precondition::RequestFingerprint::digest: alloc::string::String
@@ -1632,7 +1787,9 @@ pub fn work::sync::push_precondition::RequestFingerprint::eq(&self, other: &work
 impl core::fmt::Debug for work::sync::push_precondition::RequestFingerprint
 pub fn work::sync::push_precondition::RequestFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::order_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::OrderPrecondition
 pub fn work::sync::push_precondition::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
 pub mod work::sync::state
 pub enum work::sync::state::SyncState
 pub work::sync::state::SyncState::Conflict
@@ -1680,6 +1837,7 @@ pub work::sync::Action::Prompt
 pub work::sync::Action::Pull
 pub work::sync::Action::Push(work::sync::classify::FieldDelivery)
 pub work::sync::Action::RecordBaseline
+pub work::sync::Action::Relink
 pub work::sync::Action::Retitle
 pub work::sync::Action::SkipConflict
 pub work::sync::Action::SkipDirty
@@ -1809,6 +1967,16 @@ impl core::fmt::Display for work::sync::identity::IdentityAction
 pub fn work::sync::identity::IdentityAction::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::identity::IdentityAction
 impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
+pub enum work::sync::Instruction
+pub work::sync::Instruction::Order(work::sync::push_precondition::PendingPushOrder)
+impl core::clone::Clone for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::clone(&self) -> work::sync::plan::Instruction
+impl core::cmp::Eq for work::sync::plan::Instruction
+impl core::cmp::PartialEq for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::eq(&self, other: &work::sync::plan::Instruction) -> bool
+impl core::fmt::Debug for work::sync::plan::Instruction
+pub fn work::sync::plan::Instruction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::Instruction
 pub enum work::sync::KeyChange
 pub work::sync::KeyChange::FollowExternalId
 pub work::sync::KeyChange::FollowExternalId::item: alloc::string::String
@@ -1848,6 +2016,22 @@ pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::MarkerState::Unreadable
+pub enum work::sync::OrderPrecondition
+pub work::sync::OrderPrecondition::Adopt
+pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere(tracker::ExternalId)
+pub work::sync::OrderPrecondition::AlreadyWritten
+pub work::sync::OrderPrecondition::Create
+pub work::sync::OrderPrecondition::CreateUnlessIssueExists(tracker::ExternalId)
+pub work::sync::OrderPrecondition::CreateUnmarked
+pub work::sync::OrderPrecondition::KeyCarried
+impl core::clone::Clone for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::clone(&self) -> work::sync::push_precondition::OrderPrecondition
+impl core::cmp::Eq for work::sync::push_precondition::OrderPrecondition
+impl core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::eq(&self, other: &work::sync::push_precondition::OrderPrecondition) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::OrderPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition
 pub enum work::sync::PendingPush
 pub work::sync::PendingPush::Attempted
 pub work::sync::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
@@ -1862,6 +2046,19 @@ pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync:
 impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::PendingPushOrder
+pub work::sync::PendingPushOrder::Adopt(work::tracker_key::TrackerKey)
+pub work::sync::PendingPushOrder::Create
+impl core::clone::Clone for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::clone(&self) -> work::sync::push_precondition::PendingPushOrder
+impl core::cmp::Eq for work::sync::push_precondition::PendingPushOrder
+impl core::cmp::PartialEq for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::eq(&self, other: &work::sync::push_precondition::PendingPushOrder) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::push_precondition::PendingPushOrder
+pub fn work::sync::push_precondition::PendingPushOrder::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPushOrder
 pub enum work::sync::PullResidue
 pub work::sync::PullResidue::TrackerWireDocument
 pub work::sync::PullResidue::VerbatimRemote
@@ -1912,6 +2109,8 @@ pub work::sync::RefusalReason::AlreadyWritten
 pub work::sync::RefusalReason::FingerprintMismatch
 pub work::sync::RefusalReason::MarkerUnreadable
 pub work::sync::RefusalReason::PriorAttemptUnknownOutcome
+impl work::sync::push_precondition::RefusalReason
+pub const fn work::sync::push_precondition::RefusalReason::token(self) -> &'static str
 impl core::clone::Clone for work::sync::push_precondition::RefusalReason
 pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
 impl core::cmp::Eq for work::sync::push_precondition::RefusalReason
@@ -2081,6 +2280,15 @@ pub fn work::sync::baseline::LocalFingerprints::eq(&self, other: &work::sync::ba
 impl core::fmt::Debug for work::sync::baseline::LocalFingerprints
 pub fn work::sync::baseline::LocalFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::baseline::LocalFingerprints
+pub struct work::sync::NotATrackerKey(pub alloc::string::String)
+impl core::clone::Clone for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::clone(&self) -> work::sync::push_precondition::NotATrackerKey
+impl core::cmp::Eq for work::sync::push_precondition::NotATrackerKey
+impl core::cmp::PartialEq for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::eq(&self, other: &work::sync::push_precondition::NotATrackerKey) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::NotATrackerKey
+pub fn work::sync::push_precondition::NotATrackerKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::NotATrackerKey
 pub struct work::sync::PlanInput<'a>
 pub work::sync::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::PlanInput::baseline_timestamp: u64
@@ -2090,10 +2298,20 @@ pub work::sync::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
 pub work::sync::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
 pub work::sync::PlanInput::id: alloc::string::String
+pub struct work::sync::PlanOrders<'a>
+pub work::sync::PlanOrders::pending_push: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::push_precondition::PendingPushOrder>
+pub work::sync::PlanOrders::resolutions: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>
+pub work::sync::PlanOrders::unconfirmed_links: &'a alloc::collections::btree::set::BTreeSet<alloc::string::String>
+impl<'a> work::sync::plan::PlanOrders<'a>
+pub const fn work::sync::plan::PlanOrders<'a>::resolving(resolutions: &'a alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> Self
 pub struct work::sync::PlannedAction
-pub work::sync::PlannedAction::action: work::sync::decide::Action
-pub work::sync::PlannedAction::id: alloc::string::String
-pub work::sync::PlannedAction::state: work::sync::state::SyncState
+impl work::sync::plan::PlannedAction
+pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decide::Action
+pub fn work::sync::plan::PlannedAction::id(&self) -> &str
+pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
+pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
+pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
+pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
 pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
 impl core::cmp::Eq for work::sync::plan::PlannedAction
@@ -2208,10 +2426,12 @@ pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
-pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> work::sync::plan::SyncPlan
+pub fn work::sync::order_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, orders: &work::sync::plan::PlanOrders<'_>) -> work::sync::plan::SyncPlan
 pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome
 pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
+pub fn work::sync::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
 pub mod work::tags
 pub enum work::tags::TagAction
 pub work::tags::TagAction::Add
@@ -2309,6 +2529,28 @@ pub const work::update::LIST_FIELDS: &[&str]
 pub fn work::update::mutate_list(current: &[alloc::string::String], action: work::update::ListAction, value: &str) -> work::update::ListMutation
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
 pub mod work::work_item_files
+pub enum work::work_item_files::ReadFailure
+pub work::work_item_files::ReadFailure::Io(alloc::string::String)
+pub work::work_item_files::ReadFailure::Undecodable
+impl core::clone::Clone for work::work_item_files::ReadFailure
+pub fn work::work_item_files::ReadFailure::clone(&self) -> work::work_item_files::ReadFailure
+impl core::cmp::Eq for work::work_item_files::ReadFailure
+impl core::cmp::PartialEq for work::work_item_files::ReadFailure
+pub fn work::work_item_files::ReadFailure::eq(&self, other: &work::work_item_files::ReadFailure) -> bool
+impl core::fmt::Debug for work::work_item_files::ReadFailure
+pub fn work::work_item_files::ReadFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::work_item_files::ReadFailure
+pub struct work::work_item_files::UnreadableFile
+pub work::work_item_files::UnreadableFile::path: std::path::PathBuf
+pub work::work_item_files::UnreadableFile::reason: work::work_item_files::ReadFailure
+impl core::clone::Clone for work::work_item_files::UnreadableFile
+pub fn work::work_item_files::UnreadableFile::clone(&self) -> work::work_item_files::UnreadableFile
+impl core::cmp::Eq for work::work_item_files::UnreadableFile
+impl core::cmp::PartialEq for work::work_item_files::UnreadableFile
+pub fn work::work_item_files::UnreadableFile::eq(&self, other: &work::work_item_files::UnreadableFile) -> bool
+impl core::fmt::Debug for work::work_item_files::UnreadableFile
+pub fn work::work_item_files::UnreadableFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::work_item_files::UnreadableFile
 pub struct work::work_item_files::WorkItemFile
 pub work::work_item_files::WorkItemFile::content: alloc::string::String
 pub work::work_item_files::WorkItemFile::path: std::path::PathBuf
@@ -2320,9 +2562,23 @@ pub fn work::work_item_files::WorkItemFile::eq(&self, other: &work::work_item_fi
 impl core::fmt::Debug for work::work_item_files::WorkItemFile
 pub fn work::work_item_files::WorkItemFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::work_item_files::WorkItemFile
+pub struct work::work_item_files::WorkItemListing
+pub work::work_item_files::WorkItemListing::files: alloc::vec::Vec<work::work_item_files::WorkItemFile>
+pub work::work_item_files::WorkItemListing::unreadable: alloc::vec::Vec<work::work_item_files::UnreadableFile>
+impl core::clone::Clone for work::work_item_files::WorkItemListing
+pub fn work::work_item_files::WorkItemListing::clone(&self) -> work::work_item_files::WorkItemListing
+impl core::cmp::Eq for work::work_item_files::WorkItemListing
+impl core::cmp::PartialEq for work::work_item_files::WorkItemListing
+pub fn work::work_item_files::WorkItemListing::eq(&self, other: &work::work_item_files::WorkItemListing) -> bool
+impl core::default::Default for work::work_item_files::WorkItemListing
+pub fn work::work_item_files::WorkItemListing::default() -> work::work_item_files::WorkItemListing
+impl core::fmt::Debug for work::work_item_files::WorkItemListing
+pub fn work::work_item_files::WorkItemListing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::work_item_files::WorkItemListing
 pub const work::work_item_files::DRAFTS_DIRECTORY: &str
 pub trait work::work_item_files::WorkItemFiles
 pub fn work::work_item_files::WorkItemFiles::canonical(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
 pub fn work::work_item_files::WorkItemFiles::files(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
+pub fn work::work_item_files::WorkItemFiles::listing(&self) -> core::result::Result<work::work_item_files::WorkItemListing, kernel::Error>
 pub fn work::work_item_files::identities(files: &[work::work_item_files::WorkItemFile]) -> alloc::vec::Vec<work::identity::ItemIdentity>
 pub fn work::work_item_files::identity_of(file: &work::work_item_files::WorkItemFile) -> core::option::Option<work::identity::ItemIdentity>
