@@ -548,15 +548,13 @@ impl TemplateChangeHandler {
 
 /// How long a test waits for an event it *expects* to arrive.
 ///
-/// This is a hang detector, not a latency budget. Delivery runs the whole
-/// chain: FSEvents/inotify latency, then the debounce, then `rescan` plus
-/// `compute_clusters_with_backfill` over the entire snapshot. Cargo runs
-/// this module's tests concurrently — one `current_thread` runtime each —
-/// and `mise run` schedules the suite alongside cargo builds and the
-/// frontend and Python suites. A chain that settles in tens of
-/// milliseconds idle has been measured past 500ms on a loaded CI runner,
-/// surfacing as a spurious "timed out". A genuinely stuck watcher still
-/// fails, five seconds later, and reports as itself.
+/// This is a hang detector, not a latency budget. The tests script their
+/// events, so delivery is the debounce then `rescan` plus
+/// `compute_clusters_with_backfill` over the entire snapshot, with no OS in
+/// the chain; but cargo runs these tests concurrently and `mise run`
+/// schedules them beside cargo builds, so a chain that settles in
+/// milliseconds idle can take far longer loaded. A genuinely stuck watcher
+/// still fails, five seconds later, and reports as itself.
 ///
 /// The "expected *no* event" waits deliberately do **not** use this: there
 /// the wait *is* the assertion, so a short quiet window keeps the suite
@@ -574,30 +572,6 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::RwLock;
-
-    async fn watcher_fires_in_this_env() -> bool {
-        use notify::Watcher;
-        let tmp = tempfile::tempdir().unwrap();
-        let probe = tmp.path().join("probe.txt");
-        std::fs::write(&probe, "a").unwrap();
-
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-        let mut watcher = notify::recommended_watcher(move |_| {
-            let _ = tx.try_send(());
-        })
-        .unwrap();
-        watcher
-            .watch(tmp.path(), notify::RecursiveMode::NonRecursive)
-            .unwrap();
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        std::fs::write(&probe, "b").unwrap();
-
-        // Same budget as the real waits, for a sharper reason: a `false`
-        // here silently skips the caller, so a slow-but-working runner
-        // read as "not firing" turns a whole test into a false green.
-        tokio::time::timeout(EVENT_BUDGET, rx.recv()).await.is_ok()
-    }
 
     async fn setup(
         tmp: &std::path::Path,
@@ -723,56 +697,6 @@ mod tests {
         assert!(watching.finished().await.is_err());
     }
 
-    #[tokio::test]
-    async fn file_change_produces_doc_changed_event() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        std::fs::write(
-            tmp.path().join("meta/plans/2026-01-01-foo.md"),
-            "---\ntitle: Foo updated\n---\n",
-        )
-        .unwrap();
-
-        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out waiting for SSE event")
-            .expect("channel closed");
-
-        match event {
-            SsePayload::DocChanged { action, .. } => {
-                // Setup wrote the file before the indexer was built, so `pre`
-                // is populated when the modify event fires -> Edited.
-                assert_eq!(action, ActionKind::Edited);
-            }
-            other => panic!("expected DocChanged, got {other:?}"),
-        }
-    }
-
     struct ScriptedWatcher;
 
     impl DirectoryWatcher for ScriptedWatcher {
@@ -786,7 +710,7 @@ mod tests {
     }
 
     impl ScriptedEvents {
-        fn modified(&mut self, path: &Path) {
+        fn changed(&mut self, path: &Path) {
             use notify::EventHandler;
             self.sink
                 .handle_event(Ok(Event::new(notify::EventKind::Modify(
@@ -802,6 +726,23 @@ mod tests {
         activity_feed: Arc<ActivityRingBuffer>,
         clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
     ) -> ScriptedEvents {
+        spawn_scripted_debouncing(
+            indexer,
+            hub,
+            activity_feed,
+            clusters,
+            Duration::from_millis(5),
+        )
+        .await
+    }
+
+    async fn spawn_scripted_debouncing(
+        indexer: Arc<Indexer>,
+        hub: Arc<SseHub>,
+        activity_feed: Arc<ActivityRingBuffer>,
+        clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
+        debounce: Duration,
+    ) -> ScriptedEvents {
         let (sink_tx, sink_rx) = std::sync::mpsc::channel();
         spawn(
             move |sink| {
@@ -815,15 +756,255 @@ mod tests {
             activity_feed,
             Arc::new(WriteCoordinator::new()),
             None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
+            Settings { debounce },
         )
         .registered()
         .await;
         ScriptedEvents {
             sink: sink_rx.recv().unwrap(),
         }
+    }
+
+    /// A watcher fed by scripted events over `setup`'s corpus, and the
+    /// broadcasts it makes.
+    struct Scripted {
+        tmp: tempfile::TempDir,
+        events: ScriptedEvents,
+        rx: tokio::sync::broadcast::Receiver<SsePayload>,
+        activity_feed: Arc<ActivityRingBuffer>,
+    }
+
+    impl Scripted {
+        async fn start(debounce: Duration) -> Self {
+            let tmp = tempfile::tempdir().unwrap();
+            let (_, indexer, hub, activity_feed, clusters) =
+                setup(tmp.path()).await;
+            let rx = hub.subscribe();
+            let events = spawn_scripted_debouncing(
+                indexer,
+                hub,
+                activity_feed.clone(),
+                clusters,
+                debounce,
+            )
+            .await;
+            Self {
+                tmp,
+                events,
+                rx,
+                activity_feed,
+            }
+        }
+
+        fn plan(&self, name: &str) -> PathBuf {
+            self.tmp.path().join("meta/plans").join(name)
+        }
+
+        fn write(&mut self, name: &str, content: &str) {
+            let path = self.plan(name);
+            std::fs::write(&path, content).unwrap();
+            self.events.changed(&path);
+        }
+
+        fn remove(&mut self, name: &str) {
+            let path = self.plan(name);
+            std::fs::remove_file(&path).unwrap();
+            self.events.changed(&path);
+        }
+
+        async fn next(&mut self) -> SsePayload {
+            tokio::time::timeout(EVENT_BUDGET, self.rx.recv())
+                .await
+                .expect("timed out waiting for SSE event")
+                .expect("channel closed")
+        }
+
+        async fn assert_quiet(&mut self, window: Duration) {
+            assert!(
+                tokio::time::timeout(window, self.rx.recv()).await.is_err(),
+                "expected no broadcast",
+            );
+        }
+    }
+
+    fn doc_changed(event: &SsePayload) -> (ActionKind, DateTime<Utc>) {
+        match event {
+            SsePayload::DocChanged {
+                action, timestamp, ..
+            } => (*action, *timestamp),
+            other => panic!("expected DocChanged, got {other:?}"),
+        }
+    }
+
+    const FOO: &str = "2026-01-01-foo.md";
+
+    #[tokio::test]
+    async fn file_change_produces_doc_changed_event() {
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+
+        watcher.write(FOO, "---\ntitle: Foo updated\n---\n");
+
+        // Setup indexed the file before the watcher started -> Edited.
+        assert_eq!(doc_changed(&watcher.next().await).0, ActionKind::Edited);
+    }
+
+    #[tokio::test]
+    async fn unchanged_content_rewrite_is_suppressed() {
+        // macOS `FSEvents` replays coalesced historical events and per-write
+        // bursts for files whose content never changed; broadcasting those
+        // would churn SSE clients.
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+        let original = std::fs::read_to_string(watcher.plan(FOO)).unwrap();
+
+        watcher.write(FOO, &original);
+
+        watcher.assert_quiet(Duration::from_millis(400)).await;
+        assert_eq!(
+            watcher.activity_feed.recent(5).len(),
+            0,
+            "suppressed re-broadcast must not push an activity event",
+        );
+    }
+
+    #[tokio::test]
+    async fn rapid_writes_coalesce_to_one_event() {
+        let debounce = Duration::from_millis(100);
+        let mut watcher = Scripted::start(debounce).await;
+
+        for i in 0..5u32 {
+            watcher.write(FOO, &format!("---\ntitle: v{i}\n---\n"));
+        }
+
+        assert_eq!(doc_changed(&watcher.next().await).0, ActionKind::Edited);
+        watcher.assert_quiet(debounce * 3).await;
+    }
+
+    #[tokio::test]
+    async fn malformed_frontmatter_produces_doc_invalid_event() {
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+
+        watcher.write(FOO, "---\ntitle: \"unclosed\n---\nbody\n");
+
+        let event = watcher.next().await;
+        assert!(
+            matches!(event, SsePayload::DocInvalid { .. }),
+            "expected DocInvalid for malformed frontmatter, got {event:?}",
+        );
+    }
+
+    #[tokio::test]
+    async fn new_file_in_watched_dir_produces_doc_changed_event() {
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+
+        let before = Utc::now();
+        watcher.write("2026-05-01-new.md", "---\ntitle: New\n---\n");
+        let (action, timestamp) = doc_changed(&watcher.next().await);
+        let after = Utc::now();
+
+        assert_eq!(action, ActionKind::Created);
+        assert!(
+            timestamp >= before && timestamp <= after,
+            "timestamp {timestamp} not within [{before}, {after}]"
+        );
+        // The ring buffer is pushed before the broadcast, so the event is
+        // readable from the feed by the time a subscriber sees it.
+        let recent = watcher.activity_feed.recent(5);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].action, ActionKind::Created);
+        assert!(
+            recent[0].path.ends_with("meta/plans/2026-05-01-new.md"),
+            "ring-buffer path mismatch: {}",
+            recent[0].path,
+        );
+    }
+
+    #[tokio::test]
+    async fn file_deletion_produces_doc_changed_without_etag() {
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+
+        watcher.remove(FOO);
+
+        let event = watcher.next().await;
+        assert_eq!(doc_changed(&event).0, ActionKind::Deleted);
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(
+            !json.contains("etag"),
+            "etag must be absent for deleted files: {json}",
+        );
+        let recent = watcher.activity_feed.recent(5);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].action, ActionKind::Deleted);
+        assert!(
+            recent[0].path.ends_with("meta/plans/2026-01-01-foo.md"),
+            "ring-buffer path mismatch: {}",
+            recent[0].path,
+        );
+    }
+
+    #[tokio::test]
+    async fn create_edit_delete_chain_emits_three_distinct_events() {
+        let mut watcher = Scripted::start(Duration::from_millis(5)).await;
+        let chain = "2026-05-13-chain.md";
+
+        watcher.write(chain, "---\ntitle: Chain v1\n---\n");
+        let (created, t0) = doc_changed(&watcher.next().await);
+        watcher.write(chain, "---\ntitle: Chain v2\n---\n");
+        let (edited, t1) = doc_changed(&watcher.next().await);
+        watcher.remove(chain);
+        let (deleted, t2) = doc_changed(&watcher.next().await);
+
+        assert_eq!(created, ActionKind::Created);
+        assert_eq!(edited, ActionKind::Edited);
+        assert_eq!(deleted, ActionKind::Deleted);
+        assert!(t0 <= t1, "timestamp ordering created <= edited");
+        assert!(t1 <= t2, "timestamp ordering edited <= deleted");
+        let recent = watcher.activity_feed.recent(10);
+        assert_eq!(recent.len(), 3);
+        assert_eq!(recent[0].action, ActionKind::Deleted);
+        assert_eq!(recent[1].action, ActionKind::Edited);
+        assert_eq!(recent[2].action, ActionKind::Created);
+    }
+
+    /// The one test of the OS adapter itself; every other test feeds the
+    /// watcher scripted events.
+    #[tokio::test]
+    #[ignore = "waits on the OS's file notifications, which a loaded \
+                fseventsd delays by minutes; run with \
+                `mise run test:integration:visualiser-os-watcher`"]
+    async fn the_os_watcher_reports_a_write_under_a_registered_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().canonicalize().unwrap();
+        let probe = dir.join("probe.md");
+        std::fs::write(&probe, "a").unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1024);
+        let mut watcher = os_watcher(EventSink(tx)).unwrap();
+        register(&mut watcher, std::slice::from_ref(&dir));
+
+        let reports_the_probe = async {
+            loop {
+                let event = rx.recv().await.unwrap().unwrap();
+                if event.paths.iter().any(|path| path.ends_with("probe.md")) {
+                    return;
+                }
+            }
+        };
+        let rewrites = async {
+            loop {
+                std::fs::write(&probe, "b").unwrap();
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        };
+
+        // A loaded fseventsd can coalesce or drop the first write, so the
+        // probe is rewritten until a report arrives.
+        tokio::time::timeout(Duration::from_secs(600), async {
+            tokio::select! {
+                () = reports_the_probe => {}
+                () = rewrites => {}
+            }
+        })
+        .await
+        .expect("the OS never reported a write under the watched directory");
     }
 
     #[tokio::test]
@@ -840,9 +1021,9 @@ mod tests {
             spawn_scripted(indexer, hub, activity_feed, clusters).await;
 
         std::fs::write(&foo, "---\ntitle: Foo updated\n---\n").unwrap();
-        events.modified(&bar);
+        events.changed(&bar);
         tokio::time::sleep(Duration::from_millis(300)).await;
-        events.modified(&foo);
+        events.changed(&foo);
 
         let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
@@ -854,389 +1035,6 @@ mod tests {
             }
             other => panic!("expected DocChanged, got {other:?}"),
         }
-    }
-
-    #[tokio::test]
-    async fn unchanged_content_rewrite_is_suppressed() {
-        // A filesystem event whose rescan yields content identical to what was
-        // already indexed must not broadcast. This guards the macOS FSEvents
-        // behaviour where coalesced historical events and per-write multi-event
-        // bursts re-fire for files whose content never changed — broadcasting
-        // those would churn SSE clients with no-op doc-changed events.
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-        let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
-        let original = std::fs::read_to_string(&path).unwrap();
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        // Rewrite byte-for-byte identical content: the rescan etag matches the
-        // pre-event etag, so the broadcast must be suppressed.
-        std::fs::write(&path, &original).unwrap();
-
-        assert!(
-            tokio::time::timeout(Duration::from_millis(400), rx.recv())
-                .await
-                .is_err(),
-            "no-op rewrite of unchanged content must not broadcast",
-        );
-        assert_eq!(
-            activity_feed.recent(5).len(),
-            0,
-            "suppressed re-broadcast must not push an activity event",
-        );
-    }
-
-    #[tokio::test]
-    async fn rapid_writes_coalesce_to_one_event() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-
-        // Use a generous debounce so the coalescing assertion is robust to
-        // CI scheduler / inotify-delivery jitter — on a slow runner the gap
-        // between consecutive events arriving at the consumer can exceed a
-        // tight debounce, splitting the burst into two broadcasts.
-        let debounce = Duration::from_millis(300);
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings { debounce },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        // Write back-to-back without yielding to the runtime — under a
-        // current_thread test runtime an inter-write `sleep().await` lets the
-        // consumer start scheduling debounces mid-burst, which fragments the
-        // coalescing window.
-        let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
-        for i in 0..5u32 {
-            std::fs::write(&path, format!("---\ntitle: v{i}\n---\n")).unwrap();
-        }
-
-        let event = tokio::time::timeout(debounce + EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out")
-            .expect("channel closed");
-        match event {
-            SsePayload::DocChanged { action, .. } => {
-                assert_eq!(action, ActionKind::Edited);
-            }
-            other => panic!("expected DocChanged, got {other:?}"),
-        }
-
-        assert!(
-            tokio::time::timeout(Duration::from_millis(300), rx.recv())
-                .await
-                .is_err(),
-            "expected no second event but got one",
-        );
-    }
-
-    #[tokio::test]
-    async fn malformed_frontmatter_produces_doc_invalid_event() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        std::fs::write(
-            tmp.path().join("meta/plans/2026-01-01-foo.md"),
-            "---\ntitle: \"unclosed\n---\nbody\n",
-        )
-        .unwrap();
-
-        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out")
-            .expect("channel closed");
-
-        assert!(
-            matches!(event, SsePayload::DocInvalid { .. }),
-            "expected DocInvalid for malformed frontmatter, got {event:?}",
-        );
-    }
-
-    #[tokio::test]
-    async fn new_file_in_watched_dir_produces_doc_changed_event() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        let before = Utc::now();
-        std::fs::write(
-            tmp.path().join("meta/plans/2026-05-01-new.md"),
-            "---\ntitle: New\n---\n",
-        )
-        .unwrap();
-
-        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out")
-            .expect("channel closed");
-        let after = Utc::now();
-
-        match event {
-            SsePayload::DocChanged {
-                action, timestamp, ..
-            } => {
-                assert_eq!(action, ActionKind::Created);
-                // Tighter-than-AC bound: timestamp is captured between `before`
-                // and `after` from the test's perspective.
-                assert!(
-                    timestamp >= before && timestamp <= after,
-                    "timestamp {timestamp} not within [{before}, {after}]"
-                );
-                // 1-second tolerance against broadcast wall-clock.
-                assert!(
-                    (after - timestamp).num_milliseconds().abs() < 1_000,
-                    "AC6: timestamp {timestamp} not within 1s of broadcast time {after}"
-                );
-            }
-            other => panic!("expected DocChanged, got {other:?}"),
-        }
-
-        // Ring-buffer push: the emit helper pushes synchronously before the
-        // broadcast, so by the time the subscriber observed the event the
-        // ActivityEvent must already be readable from the feed.
-        let recent = activity_feed.recent(5);
-        assert_eq!(recent.len(), 1);
-        assert_eq!(recent[0].action, ActionKind::Created);
-        // On macOS the notify-delivered path may live under /private/var
-        // while project_root points at /var/folders, breaking strip_prefix;
-        // assert the suffix rather than the full rel so the test is robust.
-        assert!(
-            recent[0].path.ends_with("meta/plans/2026-05-01-new.md"),
-            "ring-buffer path mismatch: {}",
-            recent[0].path,
-        );
-    }
-
-    #[tokio::test]
-    async fn file_deletion_produces_doc_changed_without_etag() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-        let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(5),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        std::fs::remove_file(&path).unwrap();
-
-        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out waiting for deletion SSE event")
-            .expect("channel closed");
-
-        match &event {
-            SsePayload::DocChanged { action, .. } => {
-                assert_eq!(*action, ActionKind::Deleted);
-            }
-            other => panic!("expected DocChanged for deletion, got {other:?}"),
-        }
-        let json = serde_json::to_string(&event).unwrap();
-        assert!(
-            !json.contains("etag"),
-            "etag must be absent for deleted files: {json}",
-        );
-
-        let recent = activity_feed.recent(5);
-        assert_eq!(recent.len(), 1);
-        assert_eq!(recent[0].action, ActionKind::Deleted);
-        assert!(
-            recent[0].path.ends_with("meta/plans/2026-01-01-foo.md"),
-            "ring-buffer path mismatch: {}",
-            recent[0].path,
-        );
-    }
-
-    #[tokio::test]
-    async fn create_edit_delete_chain_emits_three_distinct_events() {
-        if !watcher_fires_in_this_env().await {
-            eprintln!("SKIP: notify watcher not firing in this environment");
-            return;
-        }
-        let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) =
-            setup(tmp.path()).await;
-        let mut rx = hub.subscribe();
-
-        spawn(
-            os_watcher,
-            doc_paths.values().cloned().collect(),
-            indexer,
-            clusters,
-            hub,
-            activity_feed.clone(),
-            Arc::new(WriteCoordinator::new()),
-            None,
-            Settings {
-                debounce: Duration::from_millis(20),
-            },
-        )
-        .registered()
-        .await;
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        let chain_path = tmp.path().join("meta/plans/2026-05-13-chain.md");
-
-        // 1. Create.
-        std::fs::write(&chain_path, "---\ntitle: Chain v1\n---\n").unwrap();
-        let created = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out waiting for created event")
-            .expect("channel closed");
-
-        // 2. Edit. Pause longer than debounce so the events do not coalesce.
-        tokio::time::sleep(Duration::from_millis(150)).await;
-        std::fs::write(&chain_path, "---\ntitle: Chain v2\n---\n").unwrap();
-        let edited = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out waiting for edited event")
-            .expect("channel closed");
-
-        // 3. Delete.
-        tokio::time::sleep(Duration::from_millis(150)).await;
-        std::fs::remove_file(&chain_path).unwrap();
-        let deleted = tokio::time::timeout(EVENT_BUDGET, rx.recv())
-            .await
-            .expect("timed out waiting for deleted event")
-            .expect("channel closed");
-
-        let (a0, t0) = match &created {
-            SsePayload::DocChanged {
-                action, timestamp, ..
-            } => (*action, *timestamp),
-            other => panic!("expected DocChanged for created, got {other:?}"),
-        };
-        let (a1, t1) = match &edited {
-            SsePayload::DocChanged {
-                action, timestamp, ..
-            } => (*action, *timestamp),
-            other => panic!("expected DocChanged for edited, got {other:?}"),
-        };
-        let (a2, t2) = match &deleted {
-            SsePayload::DocChanged {
-                action, timestamp, ..
-            } => (*action, *timestamp),
-            other => panic!("expected DocChanged for deleted, got {other:?}"),
-        };
-
-        assert_eq!(a0, ActionKind::Created);
-        assert_eq!(a1, ActionKind::Edited);
-        assert_eq!(a2, ActionKind::Deleted);
-        assert!(t0 < t1, "timestamp ordering created < edited");
-        assert!(t1 < t2, "timestamp ordering edited < deleted");
-
-        // Ring buffer captured all three events (newest-first).
-        let recent = activity_feed.recent(10);
-        assert_eq!(recent.len(), 3);
-        assert_eq!(recent[0].action, ActionKind::Deleted);
-        assert_eq!(recent[1].action, ActionKind::Edited);
-        assert_eq!(recent[2].action, ActionKind::Created);
     }
 }
 

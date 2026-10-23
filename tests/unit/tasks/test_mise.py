@@ -89,6 +89,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
+    "test:integration:visualiser-os-watcher": "cargo test builds the "
+    "visualiser library itself; reaches no accelerator binary",
     # A build-linkage guard rehomed into the roll-up, not an integration test:
     # it depends only on build:cli:fixture-size and reaches no launcher.
     "test:integration:fixture-size": "depends-only shim for the gix/jj-lib "
@@ -218,6 +220,13 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # runtime is absent.
     "test:integration:design-automation": "needs a Playwright runtime no CI "
     "lane provisions; fails rather than skips without one",
+    # It waits on the OS's file notifications, which a loaded macOS fseventsd
+    # delays by minutes; in the roll-up it would time out whenever the default
+    # task's other lanes saturate the machine. The scripted-event watcher and
+    # SSE tests in test:unit:visualiser and test:integration:visualiser are the
+    # enforcing route.
+    "test:integration:visualiser-os-watcher": "waits on the OS's file "
+    "notifications; the scripted-event tests are the enforcing route",
     # Membership would put it under `test` -> `default` and on both CI legs,
     # including macos-latest, which resolves no sha256sum. It dispatches through
     # the real bootstrap, so it needs network egress and a published signed
