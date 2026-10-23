@@ -36,6 +36,8 @@ use work::sync::SyncPlan;
 use work::sync::SyncState;
 
 use crate::create_request_fields;
+use crate::sync::adoption_records::AdoptionRecords;
+use crate::sync::adoption_records::UnretiredRecord;
 use crate::sync::apply::issue_title;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
@@ -1644,6 +1646,13 @@ fn apply_local_create(
             None,
         );
     };
+    let Some(adoption_record_path) = crate::sync::adoption_records::path(
+        request.integrations_root,
+        request.integration,
+        &item.id,
+    ) else {
+        unreachable!("an id that names a marker names an adoption record")
+    };
     match applier
         .create_from_local(&CreateFromLocalRequest {
             item_id: &item.id,
@@ -1652,6 +1661,7 @@ fn apply_local_create(
             body: &body,
             kind: &kind,
             marker_path: &marker_path,
+            adoption_record_path: &adoption_record_path,
             author,
             carrier_of,
             corpus_blocked_by: request.inventory.blocking_fault(),
@@ -2181,6 +2191,21 @@ pub fn run_with<'a>(
     execute(ports, baseline, request, Some(facts), settled)
 }
 
+/// Removes the adoption records whose items now have a baseline entry; a
+/// baseline that cannot be read retires nothing.
+fn retire_confirmed_adoptions(
+    records: &AdoptionRecords<'_>,
+    ports: &SyncPorts<'_>,
+    baseline: &BaselineStore<'_>,
+) -> Vec<UnretiredRecord> {
+    baseline.load().map_or_else(
+        |_| Vec::new(),
+        |(loaded, _)| {
+            records.retire_confirmed(ports.files.integration_state, &loaded)
+        },
+    )
+}
+
 #[allow(clippy::too_many_lines)]
 fn execute<'a>(
     ports: &SyncPorts<'a>,
@@ -2238,6 +2263,7 @@ fn execute<'a>(
             unclassifiable: plan.unclassifiable,
             refused_orders,
             adoptions,
+            unretired_adoptions: Vec::new(),
             read_failure,
             baseline_degradation: degradation,
             finalisation: Finalisation::NotAttempted,
@@ -2251,6 +2277,13 @@ fn execute<'a>(
     for marker in &leftover_attempts {
         let _ = ports.files.integration_state.remove(marker);
     }
+    let adoption_records = AdoptionRecords::new(
+        request.integrations_root,
+        request.integration,
+        ports.files.tracking,
+    );
+    let mut unretired =
+        retire_confirmed_adoptions(&adoption_records, ports, baseline);
 
     let mut reported = Vec::with_capacity(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
@@ -2318,6 +2351,11 @@ fn execute<'a>(
         run_start_epoch,
         &request.selection,
     );
+    if finalisation == Finalisation::Finalised {
+        unretired =
+            retire_confirmed_adoptions(&adoption_records, ports, baseline);
+    }
+    let unretired_adoptions = unretired;
 
     Ok(RunReport {
         scope: request.selection.corpus_scope(),
@@ -2330,6 +2368,7 @@ fn execute<'a>(
         unclassifiable: plan.unclassifiable,
         refused_orders,
         adoptions,
+        unretired_adoptions,
         read_failure,
         baseline_degradation: degradation,
         finalisation,

@@ -15,6 +15,7 @@ use work::sync::SyncState;
 use work::sync::Unclassifiable;
 
 use crate::promotion::PromotionRow;
+use crate::sync::adoption_records::UnretiredRecord;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::FailureClass;
 use crate::sync::apply::LeftoverMarker;
@@ -195,6 +196,9 @@ pub struct RunReport {
     pub refused_orders: Vec<ApplyError>,
     /// The issues adopt orders link, or would link on a preview.
     pub adoptions: Vec<Adoption>,
+    /// Adoption records whose links are confirmed, yet could not be
+    /// removed.
+    pub unretired_adoptions: Vec<UnretiredRecord>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
     pub finalisation: Finalisation,

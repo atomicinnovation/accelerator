@@ -4674,3 +4674,234 @@ fn a_leftover_attempted_marker_on_a_linked_item_does_not_defer_import(
     assert!(fixture.spy.removals.borrow().contains(&marker));
     Ok(())
 }
+
+fn adoption_record_of(fixture: &Fixture, id: &str) -> PathBuf {
+    work_adapters::sync::adoption_records::path(fixture.dir.path(), "jira", id)
+        .expect("a record path")
+}
+
+fn differing_adopt(
+    fixture: &Fixture,
+) -> Result<(RunReport, RecordingAuthor), TestError> {
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(vec![keyed(
+        "ENG-7",
+        "Someone else's issue\nBody\n",
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let report = adopting(
+        fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+    Ok((report, author))
+}
+
+#[test]
+fn a_differing_adopt_records_the_keys_it_replaced_and_linked(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+
+    differing_adopt(&fixture)?;
+
+    let written = fixture
+        .spy
+        .content(&adoption_record_of(&fixture, "0001").display().to_string())
+        .ok_or("no adoption record was written")?;
+    let record = work_adapters::sync::adoption_records::read(&written)?;
+    assert_eq!(record.key, ExternalId::new("ENG-7".to_owned()));
+    assert_eq!(record.previous_key, None);
+    Ok(())
+}
+
+#[test]
+fn an_adoption_record_that_cannot_be_written_links_nothing(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    fixture
+        .spy
+        .fail_nth_write_to(&adoption_record_of(&fixture, "0001"), 1);
+
+    let (report, author) = differing_adopt(&fixture)?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.class, FailureClass::Retryable);
+    assert_eq!(failure.operation, SyncOperation::AdoptRecord);
+    assert!(author.linked.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_differing_adopt_over_a_stale_entry_stays_unconfirmed(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let stale = support::split_entry(
+        "0001",
+        &PlainDialect,
+        "---\ntitle: Earlier\n---\n\nEarlier\n",
+        "Earlier\nEarlier\n",
+        "2026-06-01T00:00:00Z",
+    );
+    fixture
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[stale]));
+
+    differing_adopt(&fixture)?;
+
+    assert!(fixture.baseline().get("0001").is_none());
+    Ok(())
+}
+
+#[test]
+fn an_equivalent_adopt_records_no_adoption() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let record = adoption_record_of(&fixture, "0001");
+    assert!(!fixture.spy.writes.borrow().contains(&record));
+    Ok(())
+}
+
+fn seed_adoption_record(fixture: &Fixture, id: &str, key: &str) -> PathBuf {
+    let path = adoption_record_of(fixture, id);
+    std::fs::create_dir_all(path.parent().expect("a record directory"))
+        .expect("the record directory is created");
+    std::fs::write(
+        &path,
+        work_adapters::sync::adoption_records::render(
+            &work_adapters::sync::adoption_records::AdoptionRecord {
+                previous_key: None,
+                key: ExternalId::new(key.to_owned()),
+                adopted_at: 1,
+            },
+        ),
+    )
+    .expect("the record is seeded");
+    path
+}
+
+fn linked_and_recorded(fixture: &Fixture) -> Result<LocalItem, TestError> {
+    let item = LocalItem {
+        external_id: Some(ExternalId::new("ENG-3".to_owned())),
+        ..fixture.unsynced_item("0001", "Draft one")?
+    };
+    let content = std::fs::read_to_string(&item.path)?;
+    let entry = support::split_entry(
+        "0001",
+        &PlainDialect,
+        &content,
+        "Draft one\nBody\n",
+        "2026-06-01T00:00:00Z",
+    );
+    fixture
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[entry]));
+    Ok(item)
+}
+
+#[test]
+fn a_record_beside_a_baseline_is_ignored_and_retired() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = linked_and_recorded(&fixture)?;
+    let record = seed_adoption_record(&fixture, "0001", "ENG-3");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-3", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    assert!(fixture.spy.removals.borrow().contains(&record));
+    assert!(report.unretired_adoptions.is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_preview_retires_no_record() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = linked_and_recorded(&fixture)?;
+    let record = seed_adoption_record(&fixture, "0001", "ENG-3");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-3", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            mode: RunMode::Preview,
+            ..OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new())
+        },
+    )?;
+
+    assert!(!fixture.spy.removals.borrow().contains(&record));
+    Ok(())
+}
+
+#[test]
+fn a_record_is_retired_once_its_item_is_recorded() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let record = seed_adoption_record(&fixture, "0001", "ENG-7");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    assert!(fixture.baseline().get("0001").is_some());
+    assert!(fixture.spy.removals.borrow().contains(&record));
+    Ok(())
+}
+
+#[test]
+fn a_record_that_cannot_be_retired_warns_and_is_kept() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = linked_and_recorded(&fixture)?;
+    let record = seed_adoption_record(&fixture, "0001", "ENG-3");
+    fixture.spy.refuse_removals();
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-3", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let unretired: Vec<(&str, &Path)> = report
+        .unretired_adoptions
+        .iter()
+        .map(|unretired| (unretired.id.as_str(), unretired.path.as_path()))
+        .collect();
+    assert_eq!(unretired, [("0001", record.as_path())]);
+    Ok(())
+}
