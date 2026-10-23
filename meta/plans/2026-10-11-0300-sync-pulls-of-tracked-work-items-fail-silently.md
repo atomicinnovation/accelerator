@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-23T05:29:04+00:00"
+last_updated: "2026-10-23T11:51:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3044,9 +3044,9 @@ the call-site updates and the compiler, not by a snapshot.
 #### Automated Verification
 
 - [x] Tracker-mapping pin commits green before the type change
-- [ ] Classification, inventory, rendering, exit and end-to-end tests pass:
+- [x] Classification, inventory, rendering, exit and end-to-end tests pass:
       `cargo test -p work -p accelerator-work -p work-adapters --manifest-path cli/Cargo.toml`
-- [ ] The `work` public-API diff also shows `PlannedAction`'s three `pub`
+- [x] The `work` public-API diff also shows `PlannedAction`'s three `pub`
       fields removed (`work/tests/fixtures/public-api.txt:1078-1080`),
       `PlannedAction::new`, its getters, `Instruction`, `PlannedAction::ordered`
       (crate-visible, so absent) and `plan()`'s new pending-push-orders
@@ -3055,12 +3055,12 @@ the call-site updates and the compiler, not by a snapshot.
       `PathSource` landed in Phase 4) and nothing changed in the consent
       catalogue (`work-adapters`, unpinned, gains
       `OrderRefusal`, `ApplyError::CorpusIncomplete`)
-- [ ] Golden report fixture unchanged (only the test's `RunReport` literal
+- [x] Golden report fixture unchanged (only the test's `RunReport` literal
       changes): `cargo test -p accelerator-work --manifest-path cli/Cargo.toml render_report_sorts_fixed_width_ids_numerically`
-- [ ] CLI surface golden regenerated and reviewed:
+- [x] CLI surface golden regenerated and reviewed:
       `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test cli_surface`
-- [ ] `mise run public-api:check` exits 0 after the reviewed update
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run public-api:check` exits 0 after the reviewed update
+- [x] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
 
 #### Manual Verification
@@ -3072,9 +3072,10 @@ the call-site updates and the compiler, not by a snapshot.
       stderr line naming `lock-local` and `Permission denied`, exit 70;
       restore and re-run pulls.
 
-### Progress So Far
+### As Implemented
 
-In progress. Twenty-three commits have landed: the tracker-mapping pin,
+Landed as forty commits plus this progress record: the twenty-three
+listed when the phase was last recorded (the tracker-mapping pin,
 `FailureClass::keyword`, `SyncOperation`, landing-based classification
 through `ItemAttempt`, the create-path classification table,
 `PendingPushRefused`, operation-carrying variants, the `sync::report`
@@ -3083,23 +3084,14 @@ the report, `RunReport::failures` with the stderr lines, the end-to-end
 failure tests, the configure line through `RunFailure`,
 `WorkItemFiles::listing`, `work::inventory`, the VCS conflict parity test,
 the inventory wiring with `#\tunidentified`, the incomplete-corpus import
-gate, and `PlannedAction`'s private fields behind `new` and getters.
-`work`, `work-adapters` and `accelerator-work` test and lint clean after
-each; `mise run` has not been run in this phase yet.
-
-Still to do: the pending-push orders and everything they carry
-(`PendingPushOrder`, `Instruction`, `PlannedAction::ordered`/`relink`/
-`with_order_of`, `PlanOrders`, `Action::Relink`, `--resolve` parsing and
-its exit-2 refusals, `OrderRefusal` with `FailureClass::OrderRefused`,
-adopt and create in the applier, marker distrust, `AdoptionRecords` and
-`retire_confirmed`, relink, refused-order rows, the import exclusions and
-`SkippedPendingPush` deferral, the `#\tadopt` preview record, the
-unconfirmed-link dossier banner, and the pending-push refusal's
-`--resolve` hint); `classification_is_total`; the `exit_codes.rs`, help and
-`cli_surface.golden` wording; `sync-report-records.golden`; the public-API
-update; and the success criteria above.
-
-Departures so far:
+gate, and `PlannedAction`'s private fields), then the order parsing, the
+planner's orders, the inert-order refusals, `order_precondition`, adopt
+and create in the applier, marker distrust, the import exclusions and
+pending-push deferral, the refusal's `--resolve` remedy, the `#\tadopt`
+record, adoption records and their retirement, relinks, the dossier
+banner, `classification_is_total`, carrying records through the identity
+pass and `work update`, the exit-code and help wording, the records golden
+and the `work` public-API snapshot. Departures from the steps above:
 
 - `failure_code` keeps its own class-to-code match: `FailureClass::keyword`
   is the report spelling and does not decide an exit code.
@@ -3122,8 +3114,6 @@ Departures so far:
   `read-local`; the local create's `create_inputs` splits its read failure,
   undecodable content and unparseable frontmatter the same way. An
   import's `RemoteUnrenderable` names `create`.
-- The pending-push refusal's `--resolve` hint is left for the orders, since
-  until they land it would name orders that do not exist.
 - `Faults` is generic over its inner store and takes an `error` function
   (`test_support::injected` by default), so it can wrap a sync store; the
   CLI builds its test reports from `test_support::run_report()`.
@@ -3143,16 +3133,63 @@ Departures so far:
 - `CreateFromLocalRequest.corpus_blocked_by: Option<Fault>` replaces the
   planned `corpus_complete: bool`, since the deferral's class needs the
   fault. `CorpusIncomplete` is `{ subject, deferred:
-  IncompleteCorpusDeferral::{Import, ReuseId}, blocking }` (the orders add
-  `Adopt`), and `RunReport.discovery_deferral` holds
-  `DiscoveryDeferral::CorpusIncomplete(ApplyError)`. A full run skipping
-  discovery adds no failure of its own; the unusable file already fails it.
+  IncompleteCorpusDeferral::{Import, ReuseId, Adopt}, blocking }`, and
+  `RunReport.discovery_deferral` holds `DiscoveryDeferral::{CorpusIncomplete,
+  PendingPush}`. A full run skipping discovery adds no failure of its own;
+  the unusable file already fails it.
 - `each_failure_kind_reports_its_class_detail_and_exit` is split into the
   tracker kinds and `a_pending_push_refusal_reports_terminal_and_names_its_reason`;
   the conflict-beside-a-failure twins are one test,
   `a_conflict_beside_a_local_failure_shows_both_rows`; the end-to-end tests
   compare the item's baseline entry rather than the document, whose
   timestamp the finalise still advances.
+- `--resolve` is parsed once the id scheme is known, so the id check can
+  use `is_token_safe`; only pending-push orders are held to it. An order
+  token is folded as a conflict token is (`Adopt:PP-12`, ` CREATE `); the
+  key is not case-folded.
+- `ApplyError::OrderRefused` boxes its `OrderRefusal`, which keeps the
+  error under clippy's large-`Err` bound. An order reaching no create is a
+  `RunReport.refused_orders` entry rendered `<id>\tfailed\t-\torder-refused`;
+  one refused while applying fails its own row. `OrderRefusal::MovedToUnknownKey`
+  reads `issue <KEY> moved to a key this tracker does not use; check the key
+  in the tracker`.
+- `CreateFromLocalRequest` also gains `adoption_record_path`, `linked` (the
+  key a relink replaces) and `tracker_name` (for the distrust cause);
+  `create_from_local` and the new `ItemApplier::relink` return
+  `CreatedLocally { leftover_marker, notice, adopted }`. The differing-adopt
+  note and the nothing-to-settle warning travel as `ReportedItem.notice:
+  Option<CreateNotice>`; the `#\tadopt` records as `RunReport.adoptions`,
+  which a preview fills through `locate`.
+- Relinks are taken out of the plan into the local-create list, so the
+  creates' row, bound and refusal handling cover them; the push bound now
+  counts only creates that make an issue, an adopt making none. A relink
+  adopt writes its record even when the issue is equivalent; the record is
+  retired once the baseline that adopt records is finalised.
+  `LocalAuthor::unlink_external_id` has a default that refuses, which only
+  test authors use.
+- `RunReport.unretired_adoptions` carries the records a run could not
+  retire, warned about on stderr. The identity pass carries a record
+  through a followed key or a retired id best-effort and silently, as
+  `work update --push` retires one: a record left behind only errs towards
+  a confirmed link. A retirement's record move happens after the
+  retirement, outside its rollback.
+- An attempt marker left on a linked item is removed best-effort, with no
+  warning; an unreadable marker named for an unsynced item defers import
+  like an attempt marker, and pending pushes that cannot be listed defer it
+  with their own cause.
+- `a_record_beside_a_baseline_is_ignored_and_retired` covers a baseline
+  entry present at the start; retirement after finalise is
+  `a_record_is_retired_once_its_item_is_recorded` and after `work update`
+  `a_pushed_update_retires_the_adoption_record_it_confirms`, since retiring
+  keys on the entry alone, whatever recorded it.
+  `a_confirmed_link_stays_confirmed_after_its_entry_is_lost` exits 4: the
+  lost entry makes the item a conflict, which outranks the order's 75.
+  `an_already_written_refusal_offers_no_order` is a unit test of the
+  refusal's cause.
+- `#\tstale-dossier` lands in Phase 6, so neither the help text nor
+  `sync-report-records.golden` names it yet. The golden carries the
+  pending-push discovery skip; a report has one discovery line, and the
+  incomplete-corpus line is pinned by the rendering tests.
 
 ---
 
