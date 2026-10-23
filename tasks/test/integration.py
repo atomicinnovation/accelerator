@@ -13,10 +13,13 @@ from .helpers import accelerator_env, repo_root
 
 @task
 def visualiser(context: Context) -> None:
-    """Integration tests for the visualiser (cargo --tests).
+    """Integration tests for the visualiser (its `tests/*.rs` targets).
 
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
     feature, so the cargo invocation enables that feature to include it.
+    `--test '*'` rather than `--tests`, which would run the library's unit
+    tests a third time: `test:unit:visualiser` already runs them under both
+    feature sets.
     """
     # The cargo tests include orchestration_lifecycle.rs, which dispatches the
     # compiled launcher, so they need it on the env (built by the build:cli:dev
@@ -24,9 +27,27 @@ def visualiser(context: Context) -> None:
     # passed to each child, not written into this process.
     env = accelerator_env()
     context.run(
-        f"cargo test --manifest-path {CARGO_TOML} --tests "
+        f"cargo test --manifest-path {CARGO_TOML} --test '*' "
         f"--no-default-features --features dev-frontend",
         env=env,
+    )
+
+
+@task
+def visualiser_os_watcher(context: Context) -> None:
+    """Run the visualiser's OS file-watcher contract test (opt-in).
+
+    Every other watcher and SSE test feeds the watcher scripted events; this
+    one waits on the OS's own notifications, which a loaded macOS fseventsd
+    delays by minutes, so it stays out of `test:integration` and the bare
+    default task. Run it on a quiet machine after changing the watcher's OS
+    adapter or the `notify` dependency.
+    """
+    context.run(
+        f"cargo test --manifest-path {CARGO_TOML} --lib "
+        f"--no-default-features --features dev-frontend -- --ignored "
+        f"--exact watcher::tests::"
+        f"the_os_watcher_reports_a_write_under_a_registered_directory"
     )
 
 

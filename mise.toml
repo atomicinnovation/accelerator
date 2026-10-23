@@ -361,6 +361,14 @@ description = "Run visualiser integration tests"
 depends = ["build:server:dev", "build:cli:dev"]
 run = "invoke test.integration.visualiser"
 
+# Deliberately absent from `test:integration` and the bare default task: it
+# waits on the OS's file notifications, which a loaded macOS fseventsd delays
+# by minutes. Every other watcher and SSE test feeds the watcher scripted
+# events instead.
+[tasks."test:integration:visualiser-os-watcher"]
+description = "Run the visualiser's OS file-watcher contract test (opt-in; needs a quiet machine)"
+run = "invoke test.integration.visualiser-os-watcher"
+
 [tasks."test:integration:dev"]
 description = "Run unified dev task integration tests (real circusd + Python fake processes)"
 depends = ["deps:install:python"]
