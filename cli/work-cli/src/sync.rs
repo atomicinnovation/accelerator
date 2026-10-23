@@ -597,6 +597,16 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         ])
         .to_string()
     }));
+    lines.extend(report.adoptions.iter().map(|adoption| {
+        TsvRecord::of([
+            "#",
+            "adopt",
+            adoption.id.as_str(),
+            adoption.key.as_str(),
+            adoption.title.as_str(),
+        ])
+        .to_string()
+    }));
     let mut promotions: Vec<_> = report.promotions.iter().collect();
     promotions.sort_by(|left, right| left.draft.cmp(&right.draft));
     lines.extend(promotions.into_iter().flat_map(detail_lines));
@@ -7902,7 +7912,75 @@ mod tests {
             "{}",
             run.out
         );
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tadopt\t0001\tENG-7\tDraft one"),
+            "{}",
+            run.out
+        );
         assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_preview_order_names_the_adopted_issue_and_changes_nothing() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let draft = dir.path().join("meta/work/0001-draft-one.md");
+        let before = std::fs::read_to_string(&draft).expect("read the draft");
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..ordering("adopt:ENG-7")
+            },
+        );
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line
+                    == "#\tadopt\t0001\tENG-7\tSomeone else's issue"),
+            "{}",
+            run.out
+        );
+        assert_eq!(
+            std::fs::read_to_string(&draft).expect("read the draft"),
+            before
+        );
+        assert!(!baseline_written(dir.path()));
+    }
+
+    #[test]
+    fn an_adopted_title_with_a_newline_and_tab_yields_one_record() {
+        let report = RunReport {
+            adoptions: vec![work_adapters::sync::report::Adoption {
+                id: "0001".to_owned(),
+                key: ExternalId::new("ENG-7".to_owned()),
+                title: "Evil\ttitle\nerror: forged".to_owned(),
+            }],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        let records: Vec<&str> = rendered
+            .lines()
+            .filter(|line| line.starts_with("#\tadopt\t"))
+            .collect();
+        assert_eq!(
+            records,
+            ["#\tadopt\t0001\tENG-7\tEvil title error: forged"]
+        );
+        assert!(!rendered.lines().any(|line| line.starts_with("error:")));
     }
 
     #[test]

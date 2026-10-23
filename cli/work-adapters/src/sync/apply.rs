@@ -52,6 +52,7 @@ use crate::sync::files::SyncFiles;
 use crate::sync::operation::SyncOperation;
 use crate::sync::pending_push;
 use crate::sync::recovery_label::RecoveryLabel;
+use crate::sync::report::Adoption;
 use crate::sync::report::CreateNotice;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -526,6 +527,7 @@ pub struct CreateFromLocalRequest<'a> {
 pub struct CreatedLocally {
     pub leftover_marker: Option<LeftoverMarker>,
     pub notice: Option<CreateNotice>,
+    pub adopted: Option<Adoption>,
 }
 
 impl From<Option<LeftoverMarker>> for CreatedLocally {
@@ -533,6 +535,7 @@ impl From<Option<LeftoverMarker>> for CreatedLocally {
         Self {
             leftover_marker,
             notice: None,
+            adopted: None,
         }
     }
 }
@@ -1240,8 +1243,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             OrderPrecondition::CreateUnmarked => self
                 .create_marking_progress(request, attempt, digest)
                 .map(|leftover_marker| CreatedLocally {
-                    leftover_marker,
                     notice: Some(CreateNotice::NothingToSettle),
+                    ..CreatedLocally::from(leftover_marker)
                 }),
             OrderPrecondition::CreateUnlessIssueExists(recorded) => {
                 match attempt.observe_tracker(SyncOperation::Create, || {
@@ -1324,6 +1327,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             },
             notice: differs
                 .then(|| CreateNotice::DifferingAdoption(key.clone())),
+            adopted: Some(Adoption {
+                id: request.item_id.to_owned(),
+                key: key.clone(),
+                title: issue_title(&issue),
+            }),
         })
     }
 
@@ -1332,9 +1340,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         issue: &RemoteIssue,
     ) -> bool {
-        let remote_title =
-            remote_projection::split_projected(&issue.body).title;
-        remote_title.trim() == request.title.trim()
+        issue_title(issue).trim() == request.title.trim()
             && BodyComparison::new(self.tracker, self.parser)
                 .equivalence(request.body, &issue.body)
                 == BodyEquivalence::Equivalent
@@ -1561,6 +1567,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             self.set_baseline(attempt.item_id(), &remote_updated, fingerprints)
         })
     }
+}
+
+/// The title line of an issue's projected body.
+pub fn issue_title(issue: &RemoteIssue) -> String {
+    remote_projection::split_projected(&issue.body)
+        .title
+        .to_owned()
 }
 
 fn adopted_key(order: &PendingPushOrder) -> ExternalId {
