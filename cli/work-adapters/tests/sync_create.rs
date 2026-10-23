@@ -26,6 +26,7 @@ use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
+use vcs::tracking::FileTracking;
 use work::sync::Action;
 use work::sync::Dirtiness;
 use work::sync::PendingPushOrder;
@@ -3391,6 +3392,7 @@ fn reuse_id_is_deferred_while_the_corpus_is_incomplete() -> Result<(), TestError
 struct OrderedRun<'a> {
     corpus: &'a [LocalItem],
     unusable: Vec<work::inventory::Unidentified>,
+    marker_tracking: FileTracking,
     selection: ItemSelection<'a>,
     direction: SyncDirection,
     orders: &'a BTreeMap<String, PendingPushOrder>,
@@ -3405,6 +3407,7 @@ impl<'a> OrderedRun<'a> {
         Self {
             corpus,
             unusable: Vec::new(),
+            marker_tracking: FileTracking::Untracked,
             selection: ItemSelection::All,
             direction: SyncDirection::Bidirectional,
             orders,
@@ -3419,13 +3422,19 @@ fn run_ordered(
     author: &RecordingAuthor,
     ordered: OrderedRun<'_>,
 ) -> Result<RunReport, TestError> {
+    let tracking = support::CommittedWorkItems {
+        integration_state: ordered.marker_tracking,
+    };
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        files: support::sync_files(&fixture.spy),
+        files: SyncFiles {
+            tracking: &tracking,
+            ..support::sync_files(&fixture.spy)
+        },
         clock: &clock,
         author,
         recovery_labels: &support::LabelsEveryId,
@@ -4312,5 +4321,148 @@ fn adopt_on_an_incomplete_corpus_takes_its_class_from_the_blocker(
         assert!(failure.cause.contains("ENG-7"), "{}", failure.cause);
         assert_nothing_sent(&tracker, &author);
     }
+    Ok(())
+}
+
+fn seed_created_marker_keyed_raw(
+    fixture: &Fixture,
+    item: &LocalItem,
+    key: &str,
+) {
+    seed_created_marker(fixture, item, "ENG-0");
+    let path = marker_of(fixture, &item.id);
+    let rendered =
+        std::fs::read_to_string(&path).expect("the marker is seeded");
+    std::fs::write(&path, rendered.replace("ENG-0", key))
+        .expect("the marker is rewritten");
+}
+
+fn pending_push_refusal(report: &RunReport) -> (&str, String) {
+    match create_from_local_failure(report) {
+        ApplyError::PendingPushRefused { reason, .. } => {
+            (reason.token(), create_from_local_failure(report).cause())
+        }
+        other => panic!("expected a pending-push refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_marker_with_a_malformed_key_is_unreadable() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker_keyed_raw(&fixture, &item, "../last-sync");
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let (reason, cause) = pending_push_refusal(&report);
+    assert_eq!(reason, "marker-unreadable");
+    assert!(
+        cause.contains("marker records a key that is not a jira key"),
+        "{cause}"
+    );
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
+fn a_tracked_marker_is_unreadable() -> Result<(), TestError> {
+    for tracking in [FileTracking::Tracked, FileTracking::Unknown] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        seed_created_marker(&fixture, &item, "ENG-5");
+        let tracker = RecordingTracker::holding(vec![keyed(
+            "ENG-5",
+            "Draft one\nBody\n",
+        )]);
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            OrderedRun {
+                marker_tracking: tracking,
+                ..OrderedRun::over(
+                    std::slice::from_ref(&item),
+                    &BTreeMap::new(),
+                )
+            },
+        )?;
+
+        let (reason, cause) = pending_push_refusal(&report);
+        assert_eq!(reason, "marker-unreadable");
+        assert!(
+            cause.contains("marker is tracked by version control"),
+            "{cause}"
+        );
+        assert_nothing_sent(&tracker, &author);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_tracked_marker_never_steers_an_adopt() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker = RecordingTracker::holding(vec![
+        keyed("ENG-5", "Draft one\nBody\n"),
+        keyed("ENG-7", "Draft one\nBody\n"),
+    ]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", adopt("ENG-7"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            marker_tracking: FileTracking::Tracked,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    assert!(matches!(
+        local_create_row(&report, "0001").outcome,
+        ItemOutcome::Applied
+    ));
+    assert_eq!(linked_keys(&author), ["ENG-7"]);
+    Ok(())
+}
+
+#[test]
+fn create_over_a_tracked_created_marker_is_refused_while_its_issue_exists(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", PendingPushOrder::Create)]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            marker_tracking: FileTracking::Tracked,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "marker records ENG-5; run --resolve 0001=adopt:ENG-5",
+    );
+    assert_nothing_sent(&tracker, &author);
     Ok(())
 }
