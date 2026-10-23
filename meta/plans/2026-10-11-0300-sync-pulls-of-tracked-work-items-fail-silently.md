@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-23T11:51:25+00:00"
+last_updated: "2026-10-23T21:15:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3061,7 +3061,7 @@ the call-site updates and the compiler, not by a snapshot.
       `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test cli_surface`
 - [x] `mise run public-api:check` exits 0 after the reviewed update
 - [x] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
