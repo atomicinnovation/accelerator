@@ -36,26 +36,35 @@
 //! classes [`for_tracker_error`] maps; the fourth, `Unconfigured`, maps to `74`
 //! below. This distinction is safety-critical — the work skills branch on it:
 //!
-//! - `70` `RETRYABLE` — the failure is provably *before* any remote mutation
-//!   (argument/validation/auth/connect, a read that failed, or a discovery
-//!   search that failed transiently). **Safe to retry.** A read that fails
-//!   degrades to presence-only and reports `70`; a read never emits `71`.
-//! - `71` `TERMINAL` — the failure is *at or after* a mutation, so its outcome
-//!   is unknown. **Never auto-retried.** The hazard differs by path: a remote
-//!   `create` is non-idempotent, so a repeat would *double-apply* (a second
-//!   issue) — a remote issue may already exist; a whole-item `update` is
-//!   idempotent, so there the hazard is response *uncertainty*, not
-//!   double-apply. Either way the operator reconciles by hand.
+//! - `70` `RETRYABLE` — nothing for the item had landed, locally or
+//!   remotely, so a re-run cannot double-apply: a tracker call that failed
+//!   before any remote mutation (argument/validation/auth/connect, a read that
+//!   failed, a discovery search that failed transiently), or a local read,
+//!   lock, recovery copy or write the store refused for permission. **Safe to
+//!   retry**: a re-run succeeds once the cause on stderr is fixed, and a
+//!   transient cause (an unreachable tracker, a file changed mid-run) needs no
+//!   fix. A tracker read that fails degrades to presence-only and reports
+//!   `70`; a tracker read never emits `71`.
+//! - `71` `TERMINAL` — the failure is *at or after* something for the item may
+//!   have landed — a tracker mutation, an item-file write or a pending-push
+//!   marker write — or is a pending-push refusal, where an earlier attempt may
+//!   have created an issue. **Never auto-retried.** The hazard differs by
+//!   path: a remote `create` is non-idempotent, so a repeat would
+//!   *double-apply* (a second issue) — a remote issue may already exist; a
+//!   whole-item `update` is idempotent, so there the hazard is response
+//!   *uncertainty*, not double-apply. Either way the operator reconciles by
+//!   hand.
 //! - `75` `REJECTED` — provably unapplied; the request itself must change. It
 //!   was refused before sending (a body that cannot be converted, a path that
-//!   cannot be composed, a local file whose frontmatter does not parse, a
-//!   local write the store refused before writing), so no remote issue
-//!   exists, but a retry would fail identically. **Never auto-retried.**
-//!   Distinct from `71`, whose meaning stays "a remote issue may already
-//!   exist".
+//!   cannot be composed, a work file whose content is wrong — not UTF-8, or
+//!   frontmatter malformed or unparseable — a store refusal a retry would
+//!   repeat — an unsafe path, an existing file, invalid content — or a
+//!   pending-push order the run would not carry out), so a retry would fail
+//!   identically. **Never auto-retried.** Distinct from `71`: nothing for the
+//!   item landed.
 //!
 //! Where one run yields several outcomes, the exit code takes the highest in
-//! the precedence `71 > 4 > 75 > 74 > 70`.
+//! the precedence `71 > 1 > 4 > 75 > 74 > 70`.
 //!
 //! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
 //! configure* a tracker, or a configured root a run refuses to write under.

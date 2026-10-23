@@ -123,24 +123,44 @@ pub enum Command {
     /// unless `--no-promote` is given; a draft left unpromoted exits by its
     /// reason, as `work promote` does.
     ///
+    /// A refused pending push is settled with `--resolve <id>=adopt:<KEY>`
+    /// when the item's issue exists, or `--resolve <id>=create` when it does
+    /// not; an unrecognised order, or a second order for one id, exits 2.
+    ///
     /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
-    /// read failed or every per-item failure was retryable; 71 any
-    /// per-item failure was terminal; 75 a per-item request was rejected
-    /// before sending, so it must change (ranked below 4 and above 74); 1
-    /// an internal error; 2 a usage
-    /// error; 3 a `--target` matched no local id, path, or `external_id`; 5
-    /// refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a
-    /// `--target` path lies outside the work directory; 72 the configured
-    /// tracker is recognised but has no client built yet; 73
-    /// work.integration is unset or names an unrecognised tracker; 74 the
-    /// configured tracker is wired but its configuration or credentials are
-    /// missing, or a configured work, integrations or state root it refuses:
-    /// a symlink out of the repository, an outside root not set in an
-    /// untracked `config.local.md`, or overlapping roots (nothing was sent).
-    /// The report on stdout is
-    /// authoritative: check it for `unresolved` lines regardless of exit
-    /// code, since a 71 run may also carry conflicts.
+    /// failure before anything for the item landed — a read, a lock, a
+    /// recovery copy, a write refused for permission, a retryable tracker
+    /// failure — and also an unreadable work file on a whole-corpus run, an
+    /// item that could not be classified, or a failed baseline finalise: re-run
+    /// once the cause on stderr is fixed; 71 a failure after something for
+    /// the item may have landed, or a refused pending push; 75 a request
+    /// that must change — rejected before sending, a local write refused for
+    /// a reason a retry would repeat (not permissions), an undecodable or
+    /// malformed work file on a whole-corpus run, or a refused order (ranked
+    /// below 4 and above 74); 1 an internal error; 2 a usage error; 3 a
+    /// `--target` matched no local id, path, or `external_id`; 5 refused
+    /// (would exceed --max-pulls/--max-pushes, zero writes); 6 a `--target`
+    /// path lies outside the work directory; 72 the configured tracker is
+    /// recognised but has no client built yet; 73 work.integration is unset
+    /// or names an unrecognised tracker; 74 the configured tracker is wired
+    /// but its configuration or credentials are missing, or a configured
+    /// work, integrations or state root it refuses: a symlink out of the
+    /// repository, an outside root not set in an untracked
+    /// `config.local.md`, or overlapping roots (nothing was sent). Where
+    /// several apply, the highest in `71 > 1 > 4 > 75 > 74 > 70` wins.
+    ///
+    /// Every failure prints `error: <id-or-path-or-dash>: <operation>
+    /// failed: <cause>` on stderr (`would fail` on a preview). The report on
+    /// stdout is authoritative: check its `failed` rows and `#\tunidentified`
+    /// records whatever the exit code, since a run that exits 4 can carry
+    /// retryable failures and a 71 run may also carry conflicts. Besides the
+    /// item rows — whose actions include `adopt` and `relink` — it prints
+    /// `#\tunidentified\t<path>\t<kind>` for each work file sync cannot use,
+    /// `#\tkept-edits\t<id>\t<when>\t<item>\t<copy>` for local edits a pull
+    /// kept, and `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
+    /// order links; discovery reads `skipped\tincomplete-corpus` or
+    /// `skipped\tpending-push` when it imported nothing it otherwise would.
     Sync(Box<SyncArgs>),
     /// Promote one draft onto an issue the tracker creates for it, under
     /// `work.id_pattern: "{tracker}"`: the draft ID is retired to the
@@ -377,9 +397,10 @@ pub struct SyncArgs {
     /// update or work-item write does.
     #[arg(long)]
     pub preview: bool,
-    /// An `<id>=<remote|local|skip>` order for a reported conflict;
-    /// repeatable. An unrecognised token is treated as `skip`, with a
-    /// warning naming the token and the accepted set.
+    /// An `<id>=<order>` order; repeatable, one per id. `remote`, `local`
+    /// or `skip` resolves a reported conflict; `adopt:<KEY>` links the
+    /// item's existing issue and `create` creates it anew, settling a
+    /// refused pending push. An unrecognised order exits 2.
     #[arg(long = "resolve", value_parser = parse_key_value)]
     pub resolutions: Vec<(String, String)>,
     /// Read each item with its own request instead of one bulk retrieval.
