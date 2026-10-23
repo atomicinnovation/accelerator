@@ -430,6 +430,9 @@ pub struct ConflictDossier {
     pub remote_updated: RemoteTimestamp,
     pub sections: Vec<SectionDiff>,
     pub unrenderable: Option<UnrenderableReason>,
+    /// The key an adopt linked that no sync has recorded, so resolving
+    /// against it may be resolving against the wrong issue.
+    pub unconfirmed_link: Option<ExternalId>,
 }
 
 /// Why a dossier's sections cannot be shown. A remote-side reason carries
@@ -551,9 +554,20 @@ fn render_titles(dossier: &ConflictDossier) -> String {
 }
 
 fn dossier_header(dossier: &ConflictDossier, status_lines: &str) -> String {
+    let banner = dossier
+        .unconfirmed_link
+        .as_ref()
+        .map(|key| {
+            format!(
+                "This item was linked to {key} without a recorded sync; if \
+                 {key} is the wrong issue, re-adopt or create instead of \
+                 resolving\n\n"
+            )
+        })
+        .unwrap_or_default();
     format!(
-        "# Conflict: {}\n{status_lines}title: {}\nlocal modified: {}\nremote \
-         updated: {}\n\n",
+        "{banner}# Conflict: {}\n{status_lines}title: {}\nlocal modified: \
+         {}\nremote updated: {}\n\n",
         dossier.id,
         render_titles(dossier),
         render_local_modified(dossier.local_modified),
@@ -843,13 +857,20 @@ impl<'a> RunKnowledge<'a> {
 fn build_dossiers(
     plan: &SyncPlan,
     knowledge: &RunKnowledge<'_>,
+    unconfirmed_links: &BTreeSet<String>,
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
         .filter(|planned| planned.action() == Action::Prompt)
         .filter_map(|planned| {
             let item = knowledge.item(planned.id())?;
-            Some(dossier_for(planned.id(), item, knowledge))
+            Some(ConflictDossier {
+                unconfirmed_link: item
+                    .external_id
+                    .clone()
+                    .filter(|_| unconfirmed_links.contains(&item.id)),
+                ..dossier_for(planned.id(), item, knowledge)
+            })
         })
         .collect()
 }
@@ -889,6 +910,7 @@ fn unreadable_dossier(
         remote_updated,
         sections: Vec::new(),
         unrenderable: Some(reason),
+        unconfirmed_link: None,
     }
 }
 
@@ -940,6 +962,7 @@ fn readable_dossier(
         remote_updated: knowledge.remote_updated(id),
         sections,
         unrenderable,
+        unconfirmed_link: None,
     }
 }
 
@@ -2191,7 +2214,7 @@ fn prepare_run<'a>(
         });
     }
 
-    let dossiers = build_dossiers(&plan, &knowledge);
+    let dossiers = build_dossiers(&plan, &knowledge, &unconfirmed_links);
     let refused_orders = refused_orders(request, &plan, &creates_from_local);
 
     Ok(PreparedRun {
@@ -2473,6 +2496,7 @@ mod tests {
             remote_updated,
             sections,
             unrenderable: None,
+            unconfirmed_link: None,
         }
     }
 
@@ -2737,6 +2761,34 @@ mod tests {
                 super::SendRefusal::RemoteUnfetched,
             );
             assert_eq!(refused.operation(), operation, "{action:?}");
+        }
+    }
+
+    #[test]
+    fn an_unconfirmed_link_dossier_says_so() {
+        for unrenderable in
+            [None, Some(super::UnrenderableReason::LocalUnreadable)]
+        {
+            let linked = ConflictDossier {
+                unconfirmed_link: Some(tracker::ExternalId::new(
+                    "ENG-7".to_owned(),
+                )),
+                unrenderable,
+                ..dossier(None, RemoteTimestamp::NotRead, Vec::new())
+            };
+
+            let (DossierRender::Renderable(text)
+            | DossierRender::Unrenderable(text)) =
+                render_dossier(&linked, &ok_renderer);
+
+            assert!(
+                text.starts_with(
+                    "This item was linked to ENG-7 without a recorded sync; \
+                     if ENG-7 is the wrong issue, re-adopt or create instead \
+                     of resolving\n\n# Conflict: 0009\n"
+                ),
+                "{text}"
+            );
         }
     }
 

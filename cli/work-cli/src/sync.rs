@@ -2965,6 +2965,7 @@ mod tests {
             }],
             unrenderable: local_unreadable
                 .then_some(UnrenderableReason::LocalUnreadable),
+            unconfirmed_link: None,
         }
     }
 
@@ -8056,6 +8057,40 @@ mod tests {
             ),
         )
         .expect("write the adoption record");
+    }
+
+    #[test]
+    fn a_differing_adopt_is_followed_by_a_conflict_with_the_banner() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+        drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line.starts_with("0001\tunresolved\tconflict")),
+            "{}",
+            run.out
+        );
+        let dossier =
+            std::fs::read_to_string(dir.path().join(
+                ".accelerator/state/integrations/linear/conflicts/0001.md",
+            ))
+            .expect("the conflict dossier");
+        assert!(
+            dossier.starts_with(
+                "This item was linked to ENG-7 without a recorded sync; if \
+                 ENG-7 is the wrong issue, re-adopt or create instead of \
+                 resolving\n"
+            ),
+            "{dossier}"
+        );
     }
 
     #[test]
