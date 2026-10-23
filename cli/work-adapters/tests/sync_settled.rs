@@ -503,6 +503,9 @@ fn targeted(items: &[LocalItem], targets: Option<&[&str]>) -> Vec<LocalItem> {
     })
 }
 
+static NO_PENDING_PUSH_ORDERS: BTreeMap<String, work::sync::PendingPushOrder> =
+    BTreeMap::new();
+
 fn request<'a>(
     items: &'a [LocalItem],
     inventory: &'a work::inventory::CorpusInventory,
@@ -523,6 +526,7 @@ fn request<'a>(
         direction: options.direction,
         strategy: options.strategy,
         resolutions,
+        pending_push_orders: &NO_PENDING_PUSH_ORDERS,
         max_pulls: options.max_pulls,
         max_pushes: options.max_pushes,
         mode: options.mode,

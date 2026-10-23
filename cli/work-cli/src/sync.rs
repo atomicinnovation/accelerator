@@ -42,6 +42,8 @@ use work::identity_run::IdentityRunGuard;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
+use work::sync::NotATrackerKey;
+use work::sync::PendingPushOrder;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
@@ -350,31 +352,60 @@ fn report_kept_recoveries(
     }
 }
 
-fn parse_resolutions(
-    console: &mut Console<'_>,
+/// The orders `--resolve` gives, one per id: a conflict's resolution or a
+/// refused pending push's settlement.
+struct Orders {
+    resolutions: BTreeMap<String, Resolution>,
+    pending_push: BTreeMap<String, PendingPushOrder>,
+}
+
+/// Once orders can link or create issues, a typo must stop the run rather
+/// than quietly do less, so every malformed order is refused here.
+fn parse_orders(
     raw: &[(String, String)],
-) -> Result<BTreeMap<String, Resolution>, String> {
-    let mut resolutions = BTreeMap::new();
+    integration: &str,
+    scheme: &WorkItemIdScheme,
+) -> Result<Orders, String> {
+    let mut orders = Orders {
+        resolutions: BTreeMap::new(),
+        pending_push: BTreeMap::new(),
+    };
     for (id, token) in raw {
-        if resolutions.contains_key(id) {
+        let (shown_id, shown_token) = (single_line(id), single_line(token));
+        if orders.resolutions.contains_key(id)
+            || orders.pending_push.contains_key(id)
+        {
+            return Err(format!("--resolve names '{shown_id}' more than once"));
+        }
+        if let Some(resolution) = work::sync::resolve_conflict_token(token) {
+            orders.resolutions.insert(id.clone(), resolution);
+            continue;
+        }
+        let order = match work::sync::resolve_pending_push_token(token) {
+            Some(Ok(order)) => order,
+            Some(Err(NotATrackerKey(key))) => {
+                return Err(format!(
+                    "--resolve {shown_id}={shown_token}: '{}' is not a \
+                     {integration} key (for example PP-12)",
+                    single_line(&key)
+                ));
+            }
+            None => {
+                return Err(format!(
+                    "--resolve {shown_id}={shown_token}: '{shown_token}' is \
+                     not an order (accepted: remote, local, skip, \
+                     adopt:<KEY>, create)"
+                ));
+            }
+        };
+        if !is_token_safe(scheme, id) {
             return Err(format!(
-                "--resolve names '{id}' more than once with contradictory \
-                 orders"
+                "--resolve: '{shown_id}' is not a work-item id"
             ));
         }
-        let resolution = work::sync::resolve_conflict_token(token)
-            .unwrap_or_else(|| {
-                let (id, token) = (single_line(id), single_line(token));
-                console.warn(format_args!(
-                    "warning: --resolve {id}={token} — '{token}' is not a \
-                     recognised order (accepted: remote, local, skip); \
-                     treating as skip"
-                ));
-                Resolution::Skip
-            });
-        resolutions.insert(id.clone(), resolution);
+        orders.pending_push.insert(id.clone(), order);
     }
-    Ok(resolutions)
+    Ok(orders)
 }
 
 const fn action_keyword(action: work::sync::Action) -> &'static str {
@@ -1711,14 +1742,6 @@ pub fn run_sync_with(
         SyncDirection::Bidirectional
     };
 
-    let resolutions = match parse_resolutions(console, &args.resolutions) {
-        Ok(resolutions) => resolutions,
-        Err(message) => {
-            console.warn(message);
-            return ExitCode::from(exit_codes::USAGE);
-        }
-    };
-
     let integration =
         match crate::config::effective_nonempty(config, "work.integration") {
             Ok(value) => value,
@@ -1781,6 +1804,13 @@ pub fn run_sync_with(
     let work_dir = roots.work_items.root().to_path_buf();
     let integrations_root = roots.integrations.root().to_path_buf();
 
+    let orders = match parse_orders(&args.resolutions, &integration, &scheme) {
+        Ok(orders) => orders,
+        Err(message) => {
+            console.warn(message);
+            return ExitCode::from(exit_codes::USAGE);
+        }
+    };
     let names = match ConfiguredNames::for_scheme(&scheme) {
         Ok(names) => names,
         Err(error) => {
@@ -1935,7 +1965,8 @@ pub fn run_sync_with(
         selection,
         direction,
         strategy,
-        resolutions: &resolutions,
+        resolutions: &orders.resolutions,
+        pending_push_orders: &orders.pending_push,
         max_pulls,
         max_pushes,
         mode,
@@ -7526,8 +7557,74 @@ mod tests {
             },
         );
 
-        assert!(run.err.contains("is not a recognised order"), "{}", run.err);
+        assert!(run.err.contains("is not an order"), "{}", run.err);
         assert!(!run.err.contains(['\x1b', '\r']), "{:?}", run.err);
+    }
+
+    fn resolving(orders: &[(&str, &str)]) -> SyncArgs {
+        SyncArgs {
+            resolutions: orders
+                .iter()
+                .map(|(id, order)| ((*id).to_owned(), (*order).to_owned()))
+                .collect(),
+            ..sync_args(vec![])
+        }
+    }
+
+    fn assert_refused_before_running(orders: &[(&str, &str)], expected: &str) {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", None);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &resolving(orders));
+
+        assert_eq!(run.code, ExitCode::from(exit_codes::USAGE), "{}", run.err);
+        assert!(run.err.contains(expected), "{}", run.err);
+        assert!(run.out.is_empty(), "{}", run.out);
+        assert!(!baseline_written(dir.path()));
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn an_unrecognised_resolve_order_exits_2() {
+        assert_refused_before_running(
+            &[("0001", "remot")],
+            "--resolve 0001=remot: 'remot' is not an order (accepted: \
+             remote, local, skip, adopt:<KEY>, create)",
+        );
+    }
+
+    #[test]
+    fn two_orders_for_one_id_exit_2() {
+        assert_refused_before_running(
+            &[("0001", "create"), ("0001", "adopt:PP-12")],
+            "--resolve names '0001' more than once",
+        );
+    }
+
+    #[test]
+    fn a_conflict_order_and_a_pending_push_order_for_one_id_exit_2() {
+        assert_refused_before_running(
+            &[("0001", "remote"), ("0001", "create")],
+            "--resolve names '0001' more than once",
+        );
+    }
+
+    #[test]
+    fn a_malformed_adopt_key_exits_2_before_any_write() {
+        assert_refused_before_running(
+            &[("0001", "adopt:../last-sync")],
+            "--resolve 0001=adopt:../last-sync: '../last-sync' is not a jira \
+             key (for example PP-12)",
+        );
+    }
+
+    #[test]
+    fn a_pending_push_order_for_an_id_that_names_no_file_exits_2() {
+        assert_refused_before_running(
+            &[("../0001", "create")],
+            "--resolve: '../0001' is not a work-item id",
+        );
     }
 
     #[test]

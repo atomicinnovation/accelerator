@@ -291,6 +291,9 @@ fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
     })
 }
 
+static NO_PENDING_PUSH_ORDERS: BTreeMap<String, work::sync::PendingPushOrder> =
+    BTreeMap::new();
+
 #[allow(clippy::too_many_arguments)]
 fn request<'a>(
     corpus: &'a [LocalItem],
@@ -309,6 +312,7 @@ fn request<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
+        pending_push_orders: &NO_PENDING_PUSH_ORDERS,
         max_pulls: tracker::Ceiling::Bounded(max_pulls),
         max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
@@ -506,6 +510,7 @@ fn run_with<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
+        pending_push_orders: &BTreeMap::new(),
         max_pulls: tracker::Ceiling::Bounded(25),
         max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,

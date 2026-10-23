@@ -363,6 +363,7 @@ fn sync(harness: &Harness, settings: &Run<'_>) -> RunReport {
             direction: settings.direction,
             strategy: RetrievalStrategy::Bulk,
             resolutions: settings.resolutions,
+            pending_push_orders: &BTreeMap::new(),
             max_pulls: tracker::Ceiling::Bounded(25),
             max_pushes: tracker::Ceiling::Bounded(25),
             mode: settings.mode,

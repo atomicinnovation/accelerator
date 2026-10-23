@@ -1747,6 +1747,7 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
             direction: work::sync::SyncDirection::Bidirectional,
             strategy: RetrievalStrategy::Bulk,
             resolutions: &std::collections::BTreeMap::new(),
+            pending_push_orders: &std::collections::BTreeMap::new(),
             max_pulls: tracker::Ceiling::Unlimited,
             max_pushes: tracker::Ceiling::Unlimited,
             mode: RunMode::Preview,

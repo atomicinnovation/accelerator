@@ -111,6 +111,7 @@ fn rescoped<'a>(
         direction: request.direction,
         strategy: request.strategy,
         resolutions: request.resolutions,
+        pending_push_orders: request.pending_push_orders,
         max_pulls: request.max_pulls,
         max_pushes: request.max_pushes,
         mode: request.mode,
