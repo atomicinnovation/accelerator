@@ -127,6 +127,8 @@ pub struct RunReport {
     /// Items whose classification failed, so they were neither planned nor
     /// applied.
     pub unclassifiable: Vec<Unclassifiable>,
+    /// Pending-push orders that reached no create, each refused.
+    pub refused_orders: Vec<ApplyError>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
     pub finalisation: Finalisation,
@@ -143,7 +145,7 @@ pub struct RunReport {
 
 impl RunReport {
     /// Every failure this run reports, in report order: failed rows
-    /// (a preview's included), unclassifiable items, work files the run
+    /// (a preview's included), refused orders, unclassifiable items, work files the run
     /// could not use, then a failed baseline finalise. Only a whole-corpus
     /// run may judge the corpus, so on a targeted run an unusable file is
     /// a warning.
@@ -158,6 +160,14 @@ impl RunReport {
                 )),
                 _ => None,
             });
+        let refused_orders = self.refused_orders.iter().map(|error| {
+            RunFailure::error(
+                error.item_id(),
+                error.operation(),
+                error.cause(),
+                error.class(),
+            )
+        });
         let unclassifiable = self.unclassifiable.iter().map(|item| {
             RunFailure::error(
                 &item.id,
@@ -193,7 +203,8 @@ impl RunReport {
             )),
             Finalisation::NotAttempted | Finalisation::Finalised => None,
         };
-        rows.chain(unclassifiable)
+        rows.chain(refused_orders)
+            .chain(unclassifiable)
             .chain(files)
             .chain(deferral)
             .chain(finalise)

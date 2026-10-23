@@ -40,6 +40,7 @@ use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::IncompleteCorpusDeferral;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::KeyCarrier;
+use crate::sync::apply::OrderRefusal;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
@@ -1198,6 +1199,62 @@ fn unsynced_creates<'a>(
         .collect()
 }
 
+/// One refusal per pending-push order that reaches no create, so an order
+/// is never silently ignored. An unclassifiable item already fails on its
+/// own row.
+fn refused_orders(
+    request: &SyncRequest<'_>,
+    plan: &SyncPlan,
+    creates_from_local: &[&LocalItem],
+) -> Vec<ApplyError> {
+    request
+        .pending_push_orders
+        .iter()
+        .filter(|(id, _)| {
+            !creates_from_local.iter().any(|item| &item.id == *id)
+        })
+        .filter(|(id, _)| {
+            !plan.unclassifiable.iter().any(|item| &item.id == *id)
+        })
+        .map(|(id, order)| ApplyError::OrderRefused {
+            item_id: id.clone(),
+            order: order.clone(),
+            refusal: why_no_create(request, id),
+        })
+        .collect()
+}
+
+fn why_no_create(request: &SyncRequest<'_>, id: &str) -> OrderRefusal {
+    let named = || id.to_owned();
+    if matches!(request.direction, SyncDirection::PullOnly) {
+        return OrderRefusal::PullOnly;
+    }
+    let Some(item) = request.corpus.iter().find(|item| item.id == id) else {
+        return OrderRefusal::NoSuchItem { id: named() };
+    };
+    if !request.reconciled().iter().any(|item| item.id == id) {
+        return match request.selection {
+            ItemSelection::Targeted { .. } => {
+                OrderRefusal::TargetedOut { id: named() }
+            }
+            ItemSelection::All | ItemSelection::Settled { .. } => {
+                OrderRefusal::DeferredByIdentity { id: named() }
+            }
+        };
+    }
+    if DraftId::parse(id).is_some() {
+        return OrderRefusal::Draft { id: named() };
+    }
+    item.external_id.as_ref().map_or_else(
+        || OrderRefusal::NoSuchItem { id: named() },
+        |key| OrderRefusal::ConfirmedLink {
+            id: named(),
+            key: key.clone(),
+            path: item.path.clone(),
+        },
+    )
+}
+
 /// The `(title, body, kind)` a create-from-local needs, read from the draft's
 /// own frontmatter and body.
 fn create_inputs(
@@ -1559,6 +1616,7 @@ struct PreparedRun<'a> {
     discovery: DiscoveryStatus,
     discovery_deferral: Option<DiscoveryDeferral>,
     creates_from_local: Vec<&'a LocalItem>,
+    refused_orders: Vec<ApplyError>,
     dossiers: Vec<ConflictDossier>,
 }
 
@@ -1827,6 +1885,7 @@ fn prepare_run<'a>(
     }
 
     let dossiers = build_dossiers(&plan, &knowledge);
+    let refused_orders = refused_orders(request, &plan, &creates_from_local);
 
     Ok(PreparedRun {
         run_start_epoch,
@@ -1840,6 +1899,7 @@ fn prepare_run<'a>(
         discovery,
         discovery_deferral,
         creates_from_local,
+        refused_orders,
         dossiers,
     })
 }
@@ -1902,6 +1962,7 @@ fn execute<'a>(
         discovery,
         discovery_deferral,
         creates_from_local,
+        refused_orders,
         dossiers,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
@@ -1937,6 +1998,7 @@ fn execute<'a>(
             deferred: 0,
             reported,
             unclassifiable: plan.unclassifiable,
+            refused_orders,
             read_failure,
             baseline_degradation: degradation,
             finalisation: Finalisation::NotAttempted,
@@ -2020,6 +2082,7 @@ fn execute<'a>(
         deferred: 0,
         reported,
         unclassifiable: plan.unclassifiable,
+        refused_orders,
         read_failure,
         baseline_degradation: degradation,
         finalisation,

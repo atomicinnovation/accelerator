@@ -561,6 +561,10 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         TsvRecord::of([item.id.as_str(), "failed", "-", "retryable"])
             .to_string()
     }));
+    lines.extend(report.refused_orders.iter().map(|error| {
+        TsvRecord::of([error.item_id(), "failed", "-", error.class().keyword()])
+            .to_string()
+    }));
     // Capture before appending the always-present discovery line, which would
     // otherwise make `is_empty()` false and drop the empty-run summary.
     let summary_needed = synced_count > 0 || lines.is_empty();
@@ -787,7 +791,8 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
         | work_adapters::sync::apply::FailureClass::Unrenderable
         | work_adapters::sync::apply::FailureClass::PullResidue
         | work_adapters::sync::apply::FailureClass::Unparseable
-        | work_adapters::sync::apply::FailureClass::WriteRefused => {
+        | work_adapters::sync::apply::FailureClass::WriteRefused
+        | work_adapters::sync::apply::FailureClass::OrderRefused => {
             exit_codes::REJECTED
         }
     }
@@ -2318,6 +2323,7 @@ mod tests {
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
+    use work::sync::PendingPushOrder;
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
@@ -4118,6 +4124,43 @@ mod tests {
         assert_eq!(
             exit_for(vec![rejection(), refused()]),
             super::exit_codes::REJECTED
+        );
+    }
+
+    fn refused_order(id: &str) -> ApplyError {
+        ApplyError::OrderRefused {
+            item_id: id.to_owned(),
+            order: PendingPushOrder::Create,
+            refusal: work_adapters::sync::apply::OrderRefusal::NoSuchItem {
+                id: id.to_owned(),
+            },
+        }
+    }
+
+    #[test]
+    fn a_refused_order_renders_a_failed_row_and_exits_75() {
+        let report = RunReport {
+            refused_orders: vec![refused_order("0009")],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line == "0009\tfailed\t-\torder-refused"),
+            "{rendered}"
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+        assert_eq!(
+            super::failure_lines(&report),
+            ["error: 0009: create failed: no work item 0009 in this run"]
         );
     }
 

@@ -21,6 +21,7 @@ use work::sync::Dirtiness;
 use work::sync::DualRecipeFingerprints;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
+use work::sync::PendingPushOrder;
 use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
@@ -56,6 +57,7 @@ pub enum FailureClass {
     PullResidue,
     Unparseable,
     WriteRefused,
+    OrderRefused,
 }
 
 impl FailureClass {
@@ -71,6 +73,7 @@ impl FailureClass {
             Self::PullResidue => "pull-residue",
             Self::Unparseable => "unparseable",
             Self::WriteRefused => "local-write-refused",
+            Self::OrderRefused => "order-refused",
         }
     }
 }
@@ -123,6 +126,13 @@ pub enum ApplyError {
         reason: RefusalReason,
         detail: String,
     },
+    /// A pending-push order the run would not carry out: the request itself
+    /// must change.
+    OrderRefused {
+        item_id: String,
+        order: PendingPushOrder,
+        refusal: OrderRefusal,
+    },
     /// Deferred because an unreadable or malformed work file may carry the
     /// key the step needs to know is carried nowhere else.
     CorpusIncomplete {
@@ -130,6 +140,63 @@ pub enum ApplyError {
         deferred: IncompleteCorpusDeferral,
         blocking: Fault,
     },
+}
+
+/// Why a pending-push order was not carried out; each cause ends in the
+/// next step a person takes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OrderRefusal {
+    PullOnly,
+    Draft {
+        id: String,
+    },
+    ConfirmedLink {
+        id: String,
+        key: ExternalId,
+        path: PathBuf,
+    },
+    TargetedOut {
+        id: String,
+    },
+    NoSuchItem {
+        id: String,
+    },
+    DeferredByIdentity {
+        id: String,
+    },
+}
+
+impl std::fmt::Display for OrderRefusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PullOnly => formatter.write_str(
+                "orders settle pending pushes; run without --pull-only",
+            ),
+            Self::Draft { id } => write!(
+                formatter,
+                "{id} is a draft; promote it with accelerator work promote \
+                 {id}"
+            ),
+            Self::ConfirmedLink { id, key, path } => write!(
+                formatter,
+                "{id} already carries external_id {key}; if {key} is the \
+                 wrong issue, check which is right in the tracker and edit \
+                 external_id in {} by hand",
+                path.display()
+            ),
+            Self::TargetedOut { id } => {
+                write!(formatter, "{id} is not in this run's --target")
+            }
+            Self::NoSuchItem { id } => {
+                write!(formatter, "no work item {id} in this run")
+            }
+            Self::DeferredByIdentity { id } => write!(
+                formatter,
+                "{id} was deferred by identity settlement; settle its \
+                 identity row first"
+            ),
+        }
+    }
 }
 
 /// What a run defers while its corpus is incomplete.
@@ -176,6 +243,7 @@ impl ApplyError {
                 ..
             } => FailureClass::Unparseable,
             Self::LocalWriteRefused { .. } => FailureClass::WriteRefused,
+            Self::OrderRefused { .. } => FailureClass::OrderRefused,
         }
     }
 }
@@ -193,6 +261,7 @@ impl ApplyError {
             | Self::LocalWriteRefused { item_id, .. }
             | Self::LocalChangedSinceClassified { item_id }
             | Self::PendingPushRefused { item_id, .. }
+            | Self::OrderRefused { item_id, .. }
             | Self::CorpusIncomplete {
                 subject: item_id, ..
             } => item_id,
@@ -213,6 +282,10 @@ impl ApplyError {
                 SyncOperation::RecheckLocal
             }
             Self::PendingPushRefused { .. } => SyncOperation::Create,
+            Self::OrderRefused { order, .. } => match order {
+                PendingPushOrder::Adopt(_) => SyncOperation::Adopt,
+                PendingPushOrder::Create => SyncOperation::Create,
+            },
             Self::CorpusIncomplete { deferred, .. } => match deferred {
                 IncompleteCorpusDeferral::Import(_) => SyncOperation::Discover,
                 IncompleteCorpusDeferral::ReuseId(_) => {
@@ -269,6 +342,7 @@ impl ApplyError {
             Self::PendingPushRefused { reason, detail, .. } => {
                 format!("pending push refused ({}): {detail}", reason.token())
             }
+            Self::OrderRefused { refusal, .. } => refusal.to_string(),
             Self::CorpusIncomplete { deferred, .. } => {
                 let unknown = match deferred {
                     IncompleteCorpusDeferral::Import(keys) => format!(
