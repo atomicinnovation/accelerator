@@ -11,6 +11,7 @@ use time::OffsetDateTime;
 use tracker::Ceiling;
 use tracker::Completeness;
 use tracker::ExternalId;
+use tracker::Located;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
@@ -24,6 +25,7 @@ use work::sync::Action;
 use work::sync::FieldDelivery;
 use work::sync::ItemDigests;
 use work::sync::LocalFingerprints;
+use work::sync::PendingPush;
 use work::sync::PendingPushOrder;
 use work::sync::PlanOrders;
 use work::sync::PlannedAction;
@@ -66,12 +68,14 @@ use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::item_snapshot::UnreadContent;
 use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
+use crate::sync::pending_push::Marker;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
 use crate::sync::report::CorpusScope;
 use crate::sync::report::DiscoveryDeferral;
 use crate::sync::report::Finalisation;
 pub use crate::sync::report::ItemOutcome;
+use crate::sync::report::PendingPushDeferral;
 pub use crate::sync::report::ReportedItem;
 pub use crate::sync::report::RunReport;
 use crate::sync::scope;
@@ -259,6 +263,9 @@ pub enum DiscoveryStatus {
     /// The corpus held a work file the run could not use, so its
     /// `external_id`s are not all known and nothing was imported.
     SkippedIncompleteCorpus,
+    /// A pending push was unsettled or its issue unchecked, so an issue it
+    /// created might be imported as a second item; nothing was imported.
+    SkippedPendingPush,
 }
 
 /// What the identity pass settled before the engine planned, so the engine
@@ -1642,6 +1649,7 @@ struct PreparedRun<'a> {
     discovery_deferral: Option<DiscoveryDeferral>,
     creates_from_local: Vec<LocalCreate<'a>>,
     refused_orders: Vec<ApplyError>,
+    leftover_attempts: Vec<PathBuf>,
     dossiers: Vec<ConflictDossier>,
 }
 
@@ -1690,12 +1698,155 @@ impl Imports {
             deferral: None,
         }
     }
+
+    fn deferred_by(deferral: Option<PendingPushDeferral>) -> Self {
+        Self {
+            deferral: deferral.map(DiscoveryDeferral::PendingPush),
+            ..Self::none(DiscoveryStatus::SkippedPendingPush)
+        }
+    }
+}
+
+/// What the pending pushes outstanding when a run starts say about its
+/// untracked import.
+struct PendingPushes {
+    /// Issues a create may have made for an item: the keys created markers
+    /// record, by item id.
+    created: Vec<(String, ExternalId)>,
+    /// Keys an adopt order links this run.
+    adopted: Vec<ExternalId>,
+    /// Why import must wait, before any search is worth running.
+    unsettled: Option<PendingPushDeferral>,
+    /// Attempt markers left on items that have since been linked, which
+    /// never create again.
+    leftover: Vec<PathBuf>,
+}
+
+impl PendingPushes {
+    fn outstanding(request: &SyncRequest<'_>) -> Self {
+        let adopted = request
+            .pending_push_orders
+            .values()
+            .filter_map(|order| match order {
+                PendingPushOrder::Adopt(key) => Some(ExternalId::from(key)),
+                PendingPushOrder::Create => None,
+            })
+            .collect();
+        let mut pending = Self {
+            created: Vec::new(),
+            adopted,
+            unsettled: None,
+            leftover: Vec::new(),
+        };
+        let entries = match crate::sync::pending_push::outstanding(
+            request.integrations_root,
+            request.integration,
+        ) {
+            Ok(entries) => entries,
+            Err(error) => {
+                pending.unsettled =
+                    Some(PendingPushDeferral::Unlisted(error.to_string()));
+                return pending;
+            }
+        };
+        let mut unsettled = Vec::new();
+        for entry in entries {
+            let (path, attempted, created) = match entry {
+                Ok((
+                    path,
+                    Marker::Legacy(PendingPush::Created {
+                        external_id, ..
+                    }),
+                )) => (path, false, Some(external_id)),
+                Ok((path, Marker::Legacy(PendingPush::Attempted { .. }))) => {
+                    (path, true, None)
+                }
+                Ok((_, Marker::Promotion(_))) => continue,
+                Err(unreadable) => (unreadable.path, true, None),
+            };
+            let Some(id) = path.file_stem().and_then(|stem| stem.to_str())
+            else {
+                continue;
+            };
+            if let Some(key) = created {
+                pending.created.push((id.to_owned(), key));
+            }
+            let Some(item) = request.corpus.iter().find(|item| item.id == id)
+            else {
+                continue;
+            };
+            if item.external_id.is_some() {
+                if attempted {
+                    pending.leftover.push(path);
+                }
+            } else if attempted && !request.pending_push_orders.contains_key(id)
+            {
+                unsettled.push(id.to_owned());
+            }
+        }
+        if !unsettled.is_empty() {
+            pending.unsettled = Some(PendingPushDeferral::Unsettled(unsettled));
+        }
+        pending
+    }
+
+    /// `discovered` without any issue a pending push may have made or an
+    /// adopt order links: a marker's key, or the key its issue moved to.
+    fn excluding(
+        &self,
+        tracker: &dyn RemoteTracker,
+        request: &SyncRequest<'_>,
+        discovered: Discovered,
+    ) -> Result<Discovered, PendingPushDeferral> {
+        let found: BTreeSet<String> =
+            discovered.ids.iter().map(canonical_external_key).collect();
+        let carried: BTreeSet<String> = request
+            .corpus
+            .iter()
+            .filter_map(|item| item.external_id.as_ref())
+            .map(canonical_external_key)
+            .collect();
+        let mut excluded: BTreeSet<String> = self
+            .adopted
+            .iter()
+            .chain(self.created.iter().map(|(_, key)| key))
+            .map(canonical_external_key)
+            .collect();
+        for (id, key) in &self.created {
+            let canonical = canonical_external_key(key);
+            if found.contains(&canonical) || carried.contains(&canonical) {
+                continue;
+            }
+            match tracker.locate(key) {
+                Ok(Located::Found(issue)) => {
+                    excluded.insert(canonical_external_key(&issue.key));
+                }
+                Ok(Located::NotFound) => {}
+                Err(error) => {
+                    return Err(PendingPushDeferral::Unchecked {
+                        id: id.clone(),
+                        key: key.clone(),
+                        cause: error.into_detail(),
+                    });
+                }
+            }
+        }
+        Ok(Discovered {
+            ids: discovered
+                .ids
+                .into_iter()
+                .filter(|id| !excluded.contains(&canonical_external_key(id)))
+                .collect(),
+            ..discovered
+        })
+    }
 }
 
 fn untracked_to_import(
     ports: &SyncPorts<'_>,
     request: &SyncRequest<'_>,
     settled: &SettledView,
+    pending: &PendingPushes,
 ) -> Result<Imports, RunError> {
     let blocked_by = request.inventory.blocking_fault();
     Ok(match &request.selection {
@@ -1742,54 +1893,77 @@ fn untracked_to_import(
         {
             Imports::none(DiscoveryStatus::SkippedIncompleteCorpus)
         }
+        ItemSelection::All | ItemSelection::Settled { .. }
+            if pending.unsettled.is_some() =>
+        {
+            Imports::deferred_by(pending.unsettled.clone())
+        }
         ItemSelection::All | ItemSelection::Settled { .. } => {
-            let prepared = resolve_discovery_scope(ports, request)?;
-            let resolved = if scope::is_broadened(&request.scope) {
-                match scope::resolve_entities(ports.tracker, &prepared) {
-                    Ok(resolved) => resolved,
-                    Err(scope::EntityResolution::Unconfigured(error)) => {
-                        return Err(RunError::DiscoveryUnconfigured {
-                            detail: error.detail,
-                        });
-                    }
-                    Err(scope::EntityResolution::Transient(error)) => {
-                        return Ok(Imports::none(DiscoveryStatus::Failed {
-                            detail: error.into_detail(),
-                        }));
-                    }
-                }
-            } else {
-                prepared
-            };
-            match discover_untracked(
-                ports.tracker,
-                &resolved,
-                request.corpus,
-                settled,
-            ) {
-                Ok(discovered) if !discovered.completeness.is_complete() => {
-                    return Err(RunError::DiscoveryIncomplete {
-                        found: discovered.ids.len(),
-                        completeness: discovered.completeness,
-                    });
-                }
-                Ok(discovered) => {
-                    let found = discovered.ids.len();
-                    Imports {
-                        ids: discovered.ids,
-                        discovery: DiscoveryStatus::Ran { found },
-                        deferral: None,
-                    }
-                }
-                Err(TrackerError::Unconfigured { detail }) => {
-                    return Err(RunError::DiscoveryUnconfigured { detail });
-                }
-                Err(error) => Imports::none(DiscoveryStatus::Failed {
-                    detail: error.into_detail(),
-                }),
-            }
+            searched_imports(ports, request, settled, pending)?
         }
     })
+}
+
+/// A whole-corpus run's untracked import: a search of the resolved scope,
+/// less every issue a pending push may have made.
+fn searched_imports(
+    ports: &SyncPorts<'_>,
+    request: &SyncRequest<'_>,
+    settled: &SettledView,
+    pending: &PendingPushes,
+) -> Result<Imports, RunError> {
+    let prepared = resolve_discovery_scope(ports, request)?;
+    let resolved = if scope::is_broadened(&request.scope) {
+        match scope::resolve_entities(ports.tracker, &prepared) {
+            Ok(resolved) => resolved,
+            Err(scope::EntityResolution::Unconfigured(error)) => {
+                return Err(RunError::DiscoveryUnconfigured {
+                    detail: error.detail,
+                });
+            }
+            Err(scope::EntityResolution::Transient(error)) => {
+                return Ok(Imports::none(DiscoveryStatus::Failed {
+                    detail: error.into_detail(),
+                }));
+            }
+        }
+    } else {
+        prepared
+    };
+    Ok(
+        match discover_untracked(
+            ports.tracker,
+            &resolved,
+            request.corpus,
+            settled,
+        ) {
+            Ok(discovered) if !discovered.completeness.is_complete() => {
+                return Err(RunError::DiscoveryIncomplete {
+                    found: discovered.ids.len(),
+                    completeness: discovered.completeness,
+                });
+            }
+            Ok(discovered) => {
+                match pending.excluding(ports.tracker, request, discovered) {
+                    Ok(discovered) => {
+                        let found = discovered.ids.len();
+                        Imports {
+                            ids: discovered.ids,
+                            discovery: DiscoveryStatus::Ran { found },
+                            deferral: None,
+                        }
+                    }
+                    Err(deferral) => Imports::deferred_by(Some(deferral)),
+                }
+            }
+            Err(TrackerError::Unconfigured { detail }) => {
+                return Err(RunError::DiscoveryUnconfigured { detail });
+            }
+            Err(error) => Imports::none(DiscoveryStatus::Failed {
+                detail: error.into_detail(),
+            }),
+        },
+    )
 }
 
 /// The configuration-only half of discovery's pre-flight: the scope must name
@@ -1885,11 +2059,12 @@ fn prepare_run<'a>(
         .map(|item| item.id.clone())
         .collect();
 
+    let pending_pushes = PendingPushes::outstanding(request);
     let Imports {
         ids: untracked,
         discovery,
         deferral: discovery_deferral,
-    } = untracked_to_import(ports, request, settled)?;
+    } = untracked_to_import(ports, request, settled, &pending_pushes)?;
     let creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
 
@@ -1925,6 +2100,7 @@ fn prepare_run<'a>(
         discovery_deferral,
         creates_from_local,
         refused_orders,
+        leftover_attempts: pending_pushes.leftover,
         dossiers,
     })
 }
@@ -1988,6 +2164,7 @@ fn execute<'a>(
         discovery_deferral,
         creates_from_local,
         refused_orders,
+        leftover_attempts,
         dossiers,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
@@ -2028,6 +2205,10 @@ fn execute<'a>(
             discovery_deferral,
             keyed_read_budget_limited,
         });
+    }
+
+    for marker in &leftover_attempts {
+        let _ = ports.files.integration_state.remove(marker);
     }
 
     let mut reported = Vec::with_capacity(
