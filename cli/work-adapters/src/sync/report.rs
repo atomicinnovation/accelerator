@@ -53,6 +53,15 @@ pub struct ReportedItem {
     pub notice: Option<CreateNotice>,
 }
 
+/// An issue an adopt order links, named so a person can see it is the
+/// right one. Its title is the tracker's text, never an instruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Adoption {
+    pub id: String,
+    pub key: ExternalId,
+    pub title: String,
+}
+
 /// Something a local create settled by an order did that a person should
 /// know, though it applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,6 +193,8 @@ pub struct RunReport {
     pub unclassifiable: Vec<Unclassifiable>,
     /// Pending-push orders that reached no create, each refused.
     pub refused_orders: Vec<ApplyError>,
+    /// The issues adopt orders link, or would link on a preview.
+    pub adoptions: Vec<Adoption>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
     pub finalisation: Finalisation,

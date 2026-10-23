@@ -36,6 +36,7 @@ use work::sync::SyncPlan;
 use work::sync::SyncState;
 
 use crate::create_request_fields;
+use crate::sync::apply::issue_title;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
@@ -71,6 +72,7 @@ use crate::sync::ordering;
 use crate::sync::pending_push::Marker;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::RecoveryLabels;
+use crate::sync::report::Adoption;
 use crate::sync::report::CorpusScope;
 use crate::sync::report::DiscoveryDeferral;
 use crate::sync::report::Finalisation;
@@ -1211,6 +1213,37 @@ impl LocalCreate<'_> {
     }
 }
 
+/// The issues a preview's adopt orders would link, read but not linked.
+/// An issue the tracker cannot find under its key is left for the apply to
+/// refuse.
+fn previewed_adoptions(
+    tracker: &dyn RemoteTracker,
+    creates: &[LocalCreate<'_>],
+) -> Vec<Adoption> {
+    creates
+        .iter()
+        .filter_map(|create| match create.planned.order() {
+            Some(PendingPushOrder::Adopt(key)) => {
+                let key = ExternalId::from(key);
+                match tracker.locate(&key) {
+                    Ok(Located::Found(issue))
+                        if canonical_external_key(&issue.key)
+                            == canonical_external_key(&key) =>
+                    {
+                        Some(Adoption {
+                            id: create.item.id.clone(),
+                            title: issue_title(&issue),
+                            key,
+                        })
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// The unsynced local items eligible for create-from-local: state `Unsynced`
 /// (no `external_id`), under a push-capable direction. A draft is excluded:
 /// it reaches the tracker only through promotion, which retires its ID.
@@ -1590,23 +1623,26 @@ fn apply_local_create(
     author: &dyn LocalAuthor,
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
-) -> ReportedItem {
+) -> (ReportedItem, Option<Adoption>) {
     let item = create.item;
     let (title, body, kind) = match create_inputs(item) {
         Ok(inputs) => inputs,
-        Err(error) => return create.report(ItemOutcome::Failed(error)),
+        Err(error) => return (create.report(ItemOutcome::Failed(error)), None),
     };
     let Some(marker_path) = crate::sync::pending_push::for_item(
         request.integrations_root,
         request.integration,
         &item.id,
     ) else {
-        return create.report(ItemOutcome::Failed(
-            ItemAttempt::begin(&item.id).io_failure(
-                SyncOperation::MarkerWrite,
-                "id cannot name a pending-push marker",
-            ),
-        ));
+        return (
+            create.report(ItemOutcome::Failed(
+                ItemAttempt::begin(&item.id).io_failure(
+                    SyncOperation::MarkerWrite,
+                    "id cannot name a pending-push marker",
+                ),
+            )),
+            None,
+        );
     };
     match applier
         .create_from_local(&CreateFromLocalRequest {
@@ -1625,12 +1661,15 @@ fn apply_local_create(
         })
         .result
     {
-        Ok(created) => ReportedItem {
-            leftover_marker: created.leftover_marker,
-            notice: created.notice,
-            ..create.report(ItemOutcome::Applied)
-        },
-        Err(error) => create.report(ItemOutcome::Failed(error)),
+        Ok(created) => (
+            ReportedItem {
+                leftover_marker: created.leftover_marker,
+                notice: created.notice,
+                ..create.report(ItemOutcome::Applied)
+            },
+            created.adopted,
+        ),
+        Err(error) => (create.report(ItemOutcome::Failed(error)), None),
     }
 }
 
@@ -2187,6 +2226,7 @@ fn execute<'a>(
         for create in &creates_from_local {
             reported.push(create.report(ItemOutcome::NotApplied));
         }
+        let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         return Ok(RunReport {
             scope: request.selection.corpus_scope(),
             mode: request.mode,
@@ -2197,6 +2237,7 @@ fn execute<'a>(
             reported,
             unclassifiable: plan.unclassifiable,
             refused_orders,
+            adoptions,
             read_failure,
             baseline_degradation: degradation,
             finalisation: Finalisation::NotAttempted,
@@ -2215,6 +2256,7 @@ fn execute<'a>(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
+    let mut adoptions = Vec::new();
     let carrier =
         |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
 
@@ -2256,14 +2298,16 @@ fn execute<'a>(
         }
 
         for create in &creates_from_local {
-            reported.push(apply_local_create(
+            let (row, adopted) = apply_local_create(
                 &mut applier,
                 create,
                 request,
                 ports.author,
                 &carrier,
                 run_start_epoch,
-            ));
+            );
+            reported.push(row);
+            adoptions.extend(adopted);
         }
     }
 
@@ -2285,6 +2329,7 @@ fn execute<'a>(
         reported,
         unclassifiable: plan.unclassifiable,
         refused_orders,
+        adoptions,
         read_failure,
         baseline_degradation: degradation,
         finalisation,

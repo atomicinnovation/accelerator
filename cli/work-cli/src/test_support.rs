@@ -260,6 +260,7 @@ pub fn run_report() -> work_adapters::sync::run::RunReport {
         reported: Vec::new(),
         unclassifiable: Vec::new(),
         refused_orders: Vec::new(),
+        adoptions: Vec::new(),
         read_failure: None,
         baseline_degradation: work_adapters::sync::baseline::Degradation::None,
         finalisation: work_adapters::sync::report::Finalisation::Finalised,
