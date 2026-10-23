@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-relates_to: ["work-item:0280", "work-item:0281"]
+relates_to: ["work-item:0280", "work-item:0281", "work-item:0306"]
 tags: ["research", "visualiser"]
 last_updated: "2026-10-22T19:20:22+00:00"
 last_updated_by: "Toby Clemson"
@@ -67,6 +67,10 @@ umbrella doc type and nested indexing.
   `tier-3`, and a `None found.` Sources section.
 - Show each report's `question`, and mark a report as stale when its
   `rounds_covered` is below the manifest's `round_count`.
+- Show each report's `coverage` (`answered` or `partial`) and render a
+  `partial` report's Gaps section, as 0281 defines them.
+- Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
+  weakest tier with the other tiers marked as a distinct element.
 
 ## Acceptance Criteria
 
@@ -97,6 +101,11 @@ umbrella doc type and nested indexing.
 - [ ] Given a report with `rounds_covered: 2` in a set whose manifest has
       `round_count: 3`, then the page lists the report under its question
       and marks it stale; at `rounds_covered: 3` it is not marked.
+- [ ] Given a report with `coverage: partial` and a Gaps section, then the
+      page shows its coverage and its Gaps; given `coverage: answered`, it
+      shows the coverage and no Gaps.
+- [ ] Given a Sources entry reading `— tier-3 (also tier-1) —`, then it
+      renders as `tier-3` with `also tier-1` marked as a distinct element.
 
 ## Open Questions
 
@@ -111,7 +120,9 @@ umbrella doc type and nested indexing.
 - Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
   `blocks`), 0279 (round/focus-area structure the page shows — recorded on
   0279's `blocks`), 0281 (the `report` kind and `reports/` layout — recorded
-  on 0281's `blocks`).
+  on 0281's `blocks`), including its `coverage` extra and Gaps section.
+- Related: 0306 adds the `also` tier suffix; this page renders it once 0306
+  lands, and until then no Sources entry carries it.
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes this page consumes. If this page is built before 0280 lands,
   0280 owns updating it.

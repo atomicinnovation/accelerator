@@ -7,8 +7,9 @@ author: "Toby Clemson"
 producer: "extract-work-items"
 status: "draft"
 kind: "story"
-priority: "medium"
+priority: "high"
 parent: "work-item:0121"
+blocks: ["work-item:0281"]
 relates_to: ["work-item:0283", "work-item:0305", "work-item:0311"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 last_updated: "2026-10-09T17:58:47+00:00"
@@ -21,7 +22,7 @@ external_id: "PP-892"
 
 **Kind**: Story
 **Status**: Draft
-**Priority**: Medium
+**Priority**: High
 **Author**: Toby Clemson
 
 ## Summary
@@ -106,7 +107,8 @@ the conflict record follows that form.
 ## Dependencies
 
 - Blocked by: none known
-- Blocks: none known
+- Blocks: 0281, whose `report` Sources and coverage judgement apply this
+  rule over the findings a report cites.
 - Related: 0305 (DOI resolver tiering), 0311 (web-profile tier drift).
 
 ## Assumptions

@@ -91,6 +91,11 @@ to draw on fresher findings.
   `synthesise` re-runs. `finding_count` is unchanged.
 - `conduct`'s shallow-finding notice recommends `deepen` instead of a manual
   rename.
+- When 0281's `ask` or `report` proposes research for a question the corpus
+  answers only partly or not at all, the proposal may offer `revisit` or
+  `deepen` of an existing finding whose coverage of the question is thin, as
+  well as new focus areas. A confirmed operation is written as its outline
+  item in the appended round.
 - The epic (0121) stops describing findings as immutable, and an ADR records
   the reversal and that the VCS is the history.
 
@@ -125,6 +130,10 @@ to draw on fresher findings.
       refuses until `synthesise` re-runs.
 - [ ] Given every operation item conducted, when `conduct`'s tick step runs,
       then each item's checkbox is ticked.
+- [ ] Given a question that `ask` or `report` judges partly answered because
+      an existing finding covers it thinly, when the verb proposes research,
+      then the proposal may include `revisit` or `deepen` of that finding,
+      and on confirmation the appended round carries the operation item.
 
 ## Open Questions
 
@@ -143,8 +152,10 @@ to draw on fresher findings.
 
 - Blocked by: none.
 - Related: 0281, whose `ask` and `report` propose new focus areas when the
-  corpus cannot answer a question. Whichever of the two lands second extends
-  those proposals to `revisit` and `deepen` items.
+  corpus cannot answer a question. This item extends those proposals to
+  `revisit` and `deepen` items; if it lands first, the extension waits on
+  0281's proposal flow, and the proposal criterion cannot close until 0281
+  is done.
 - Related: 0283, whose resume-at-larger-depth behaviour `deepen` scopes to one
   finding.
 - Related: 0307, which passes spawn context by reference; `revisit`'s

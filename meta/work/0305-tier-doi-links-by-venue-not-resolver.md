@@ -9,7 +9,7 @@ status: "draft"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0121"
-relates_to: ["work-item:0280", "work-item:0306", "work-item:0311"]
+relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0311"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
