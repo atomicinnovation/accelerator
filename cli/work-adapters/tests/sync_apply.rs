@@ -1602,10 +1602,39 @@ fn each_failure_class_has_its_report_keyword() {
         (FailureClass::PullResidue, "pull-residue"),
         (FailureClass::Unparseable, "unparseable"),
         (FailureClass::WriteRefused, "local-write-refused"),
+        (FailureClass::OrderRefused, "order-refused"),
     ];
     for (class, keyword) in keywords {
         assert_eq!(class.keyword(), keyword);
     }
+}
+
+/// Totality only: the match has no wildcard, so a new variant fails to
+/// compile until it is classed. Each site's class is pinned elsewhere.
+#[test]
+fn classification_is_total() {
+    fn class_of(error: &ApplyError) -> FailureClass {
+        match error {
+            ApplyError::Tracker { .. }
+            | ApplyError::Io { .. }
+            | ApplyError::RemoteBodyUnavailable { .. }
+            | ApplyError::RemoteUnrenderable { .. }
+            | ApplyError::LocalPullResidue { .. }
+            | ApplyError::LocalUnparseable { .. }
+            | ApplyError::LocalWriteRefused { .. }
+            | ApplyError::LocalChangedSinceClassified { .. }
+            | ApplyError::PendingPushRefused { .. }
+            | ApplyError::OrderRefused { .. }
+            | ApplyError::CorpusIncomplete { .. } => error.class(),
+        }
+    }
+
+    assert_eq!(
+        class_of(&ApplyError::LocalChangedSinceClassified {
+            item_id: "0001".to_owned(),
+        }),
+        FailureClass::Retryable
+    );
 }
 
 fn push_through(fake: &Fake) -> Result<(), ApplyError> {
