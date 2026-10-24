@@ -715,6 +715,10 @@
   never writes over a file changed since the run read it, and keeps local
   edits made since the last sync under `.accelerator/state/sync-recovery/`
   until they are merged or deleted.
+- **An unreadable pending-push marker stops a create.** `work sync` took a
+  marker it could not read as absent and could create a second issue for an
+  item whose first create had landed; it now refuses the create as
+  `marker-unreadable`.
 - **Conflict dossiers are retired only for conflicts an apply run settled**,
   so `--preview`, `--target`, `--pull-only`/`--push-only`, budget-limited
   runs, deferred items and unreadable work files keep the dossiers of
