@@ -3291,7 +3291,7 @@ commit message says it is a record, not evidence of this change's cost.
 
 - [x] `mise run docs:check` exits 0
 - [x] `CHANGELOG.md`'s `[Unreleased]` section carries the five entries
-- [ ] A new `meta/measurements/warm-dispatch-*.json` is committed
+- [x] A new `meta/measurements/warm-dispatch-*.json` is committed
 - [x] `mise run` exits 0 end-to-end
 
 #### Manual Verification:
