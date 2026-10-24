@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-24T05:43:40+00:00"
+last_updated: "2026-10-24T08:04:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3495,22 +3495,66 @@ Run `mise run public-api:update` and review: `work` gains
 
 #### Automated Verification
 
-- [ ] Resolution, status and dossier tests pass:
+- [x] Resolution, status and dossier tests pass:
       `cargo test -p work -p accelerator-work -p work-adapters --manifest-path cli/Cargo.toml`
-- [ ] 0296's classification fixture and dossier presentation tests are
+- [x] 0296's classification fixture and dossier presentation tests are
       unchanged and pass:
       `cargo test -p work --manifest-path cli/Cargo.toml --test sync_classify`
       and `cargo test -p work-adapters --manifest-path cli/Cargo.toml --test sync_dossiers`
-- [ ] `sync_resolves_argv` still passes:
+- [x] `sync_resolves_argv` still passes:
       `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test sync_resolves_argv`
-- [ ] `mise run public-api:check` exits 0 after the reviewed update
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run public-api:check` exits 0 after the reviewed update
+- [x] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
 
 #### Manual Verification
 
 - [ ] With two real conflicts, `accelerator work sync --target <a>` then
       `--target <a> --resolve <a>=remote` leaves `<b>`'s dossier presentable.
+
+### As Implemented
+
+Landed as three commits: the resolution marker on `PlannedAction`, the
+engine's `ConflictStatus` and `DossierAuthority` with dossiers built after
+apply, and the CLI's scoped retirement and stale-dossier reporting.
+Departures from the steps above:
+
+- The `ConflictStatus` table, the refresh and stale sets, and the
+  `DossierAuthority` tests share the new `work-adapters/tests/dossiers.rs`
+  rather than `sync_run.rs`; they build resolved and relinked actions
+  through `work::sync::plan`, since only the planner can mark one.
+  `dossiers_to_refresh` and `dossiers_gone_stale` are therefore `pub`.
+- `ApplyError::progress()` decides untouched against partially applied: an
+  `Io` failure's own progress, and `MayHaveLanded` for a terminal tracker
+  failure, so a terminal overwrite failure keeps its dossier as stale.
+- `ConflictShape::of` splits into `of_resolved` and `of_unresolved`, each
+  with one `Unobserved` arm, to satisfy clippy's `match_same_arms` and
+  `unnested_or_patterns`. An `UnsupportedRecipe` outcome is `Unobserved`
+  before the shape is consulted.
+- `may_retire` retires a reported id only when every row for it is
+  `Settled` or `NotInConflict`.
+- `StaleDossier { id, path, cause }` with `StaleDossierCause::{PartialResolution,
+  NotRefreshed}` lives in `finished_run.rs`. A partial resolution is
+  warned about only when its dossier exists, and even when the conflicts
+  directory cannot be prepared. `prepare_conflicts_dir` no longer takes the
+  id scheme.
+- The help text, `cli_surface.golden` and `sync-report-records.golden` now
+  name `#\tstale-dossier`.
+- End-to-end tests not written as listed: the budget-limited
+  `Indeterminate` run and the identity-pass deferral (covered by the
+  `Unobserved` rows of the status table and `may_retire`'s requirement of a
+  reported row), and the resolve on a dirty `RemotelyModified` item whose
+  pull fails (covered by the status table). `--push-only --target a` runs
+  over a conflict, beside `--pull-only`, in
+  `a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict`.
+
+`mise run` exits 1 on `docs:audit:check` alone: npm reports two new
+high-severity advisories in `docs-site` (GHSA-xjj6-f33q-929c in `undici`,
+GHSA-mrhx-c7xc-m3w5 in `zod`), unrelated to this phase. Every other lane
+of the default task (`build:frontend`, `build:server:dev`, `format:fix`,
+`lint:check`, `types:check`, `deny:check`, `pup:check`,
+`public-api:check`, `notices:check`, `test`) exits 0. The manual check
+needs real Linear.
 
 ---
 
