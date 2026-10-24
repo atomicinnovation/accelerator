@@ -4098,11 +4098,11 @@ Amend 0296's entries in place rather than adding parallel ones:
 
 #### Automated Verification
 
-- [ ] Skill lints pass: `mise run check`
-- [ ] Skill content and frontmatter checks pass:
+- [x] Skill lints pass: `mise run check`
+- [x] Skill content and frontmatter checks pass:
       `uv run pytest tests/unit/tasks/test_sync_work_items_skill_structure.py tests/unit/tasks/test_skill_frontmatter_validation.py`
-- [ ] `mise run docs:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run docs:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -4115,6 +4115,38 @@ Amend 0296's entries in place rather than adding parallel ones:
       `external_id` change, never offers to link an `already-written` key,
       prints the grouped summary, relays the kept path, and never reports
       completion.
+
+### As Implemented
+
+Landed as six commits plus this progress record: the permission-skip
+banner, the local-save relay in `create-work-item` and `extract-work-items`,
+the configure line, the skill rewrite with its reference skill and content
+check, the user guide, and the changelog. Departures from the steps above:
+
+- The configure line names only `integrations`: Phase 4 found `paths.work`
+  is a doc-type key that can never name a root outside the repository.
+- The files rule's read allow-list also admits a conflict dossier built
+  from `accelerator config path integrations`, `conflicts/` and a canonical
+  id, since Step 3 already reads one there.
+- The files rule asks the user to check a file's version-control status
+  rather than naming `jj status` or `git status`, which
+  `lint:git-tokens` forbids in a skill.
+- The membership table drops the separate unclassifiable row: an
+  unclassifiable item is a `retryable` row in state `-`, which the
+  any-state `retryable` row already covers. An identity-settlement refusal
+  joins `needs-attention`.
+- The order-refusal table lists every fixed `OrderRefusal` cause, the inert
+  ones included, each with its next step.
+- `extract-work-items`'s outcome table, and the guide's batch table, gain a
+  `draft — sync refused (configuration)` row beside `local-save`.
+- The `test:unit:cli` banner is pinned by
+  `tests/unit/tasks/test_cli_permission_skip.py`; the relay sentences by
+  `test_work_skills_local_save_relay.py`.
+- `mise run docs:generate` lists the new skill under the internal skills;
+  the generated pages are not tracked.
+
+The manual check is outstanding: it needs the Phase 5 scratch run against
+real Linear.
 
 ---
 
