@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-24T09:00:15+00:00"
+last_updated: "2026-10-24T10:22:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4145,8 +4145,24 @@ check, the user guide, and the changelog. Departures from the steps above:
 - `mise run docs:generate` lists the new skill under the internal skills;
   the generated pages are not tracked.
 
-The manual check is outstanding: it needs the Phase 5 scratch run against
-real Linear.
+`mise run check` first failed on `lint:git-tokens` alone (the `git status`
+wording above); with that fixed, `mise run` exited 0 with nothing
+reformatted.
+
+Every phase's code and automated criteria are complete. What remains is
+manual and needs real Linear: Phase 5's pull and read-only work directory
+checks, Phase 6's two-conflict `--target` check, and this phase's skill
+drive. One scratch session covers all four. Run Phase 5's sequence and
+Phase 6's conflict setup through `/sync-work-items` rather than the bare
+CLI, then add the failure cases this phase's criterion lists: an exit-71
+`baseline-set` after a resolution overwrite (seal
+`<integrations>/linear/` before the `--resolve` run), a terminal
+`marker-write` with a created key and an `already-written` refusal (two
+items carrying one `external_id`), an unreadable work file (`chmod 000`),
+and a resolve-to-remote over uncommitted edits. Then check the wording,
+the confirmation before each order, the grouped summary and that the
+skill never reports completion. The plan moves to `complete` once these
+are ticked.
 
 ---
 
