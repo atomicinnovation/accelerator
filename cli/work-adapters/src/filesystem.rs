@@ -76,15 +76,20 @@ fn markdown_files_in(dir: &Path) -> Result<WorkItemListing, kernel::Error> {
             )));
         }
     };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(std::result::Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.is_file()
-                && path.extension().and_then(std::ffi::OsStr::to_str)
-                    == Some("md")
-        })
-        .collect();
+    let mut paths = Vec::new();
+    for entry in entries {
+        let path = entry
+            .map_err(|error| {
+                kernel::Error::Failed(format!(
+                    "could not list {}: {error}",
+                    dir.display()
+                ))
+            })?
+            .path();
+        if is_markdown_file_or_dangling_link(&path) {
+            paths.push(path);
+        }
+    }
     paths.sort();
     let mut listing = WorkItemListing::default();
     for path in paths {
@@ -101,6 +106,18 @@ fn markdown_files_in(dir: &Path) -> Result<WorkItemListing, kernel::Error> {
         }
     }
     Ok(listing)
+}
+
+/// A dangling link is kept so its read fails visibly: it may be a work
+/// item whose file was moved away.
+fn is_markdown_file_or_dangling_link(path: &Path) -> bool {
+    let is_markdown =
+        path.extension().and_then(std::ffi::OsStr::to_str) == Some("md");
+    let is_dangling_link = path
+        .symlink_metadata()
+        .is_ok_and(|metadata| metadata.file_type().is_symlink())
+        && std::fs::metadata(path).is_err();
+    is_markdown && (path.is_file() || is_dangling_link)
 }
 
 impl WorkItemFiles for FilesystemWorkItemFiles {
@@ -148,6 +165,25 @@ mod tests {
         assert_eq!(listing.files.len(), 1);
         assert_eq!(listing.unreadable.len(), 1);
         assert_eq!(listing.unreadable[0].path, sealed);
+        assert!(matches!(listing.unreadable[0].reason, ReadFailure::Io(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn a_dangling_markdown_link_is_listed_as_unreadable(
+    ) -> Result<(), std::io::Error> {
+        let dir = tempfile::tempdir()?;
+        let dangling = dir.path().join("0005-moved.md");
+        std::os::unix::fs::symlink(dir.path().join("gone.md"), &dangling)?;
+        std::fs::create_dir(dir.path().join("archive.md"))?;
+
+        let listing = FilesystemWorkItemFiles::new(dir.path())
+            .listing()
+            .expect("the directory lists");
+
+        assert!(listing.files.is_empty());
+        assert_eq!(listing.unreadable.len(), 1);
+        assert_eq!(listing.unreadable[0].path, dangling);
         assert!(matches!(listing.unreadable[0].reason, ReadFailure::Io(_)));
         Ok(())
     }
