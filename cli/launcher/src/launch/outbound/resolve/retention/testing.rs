@@ -1,6 +1,3 @@
-//! A cache root in a temporary directory, seeded and back-dated, and the
-//! ports a prune over it runs with.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

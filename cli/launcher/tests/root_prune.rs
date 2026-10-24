@@ -1666,7 +1666,6 @@ fn an_unreadable_tree_claims_directory_reclaims_no_claimed_tree() {
     );
 }
 
-/// The process's own identity, with its primary group taken to be private.
 struct PrivatePrimaryGroup;
 
 impl Ownership for PrivatePrimaryGroup {
@@ -1866,24 +1865,13 @@ fn a_tree_removal_failure_is_reported() {
     );
 }
 
-/// Answers `Free` for every lease, remembering each it was asked about.
-#[derive(Default)]
-struct RecordingLiveness(Mutex<Vec<PathBuf>>);
-
-impl LivenessProbe for RecordingLiveness {
-    fn probe(&self, lease: &Path) -> Liveness {
-        self.0.lock().expect("probed").push(lease.to_path_buf());
-        Liveness::Free
-    }
-}
-
 #[test]
 fn a_tree_whose_lease_this_process_holds_is_kept_unprobed() {
     let harness = RootHarness::new();
     let trees = harness.trees();
     let tree =
         trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
-    let liveness = Arc::new(RecordingLiveness::default());
+    let liveness = Arc::new(ProbedLeases::default());
 
     prune_trees_directly(
         &harness,
@@ -1898,9 +1886,10 @@ fn a_tree_whose_lease_this_process_holds_is_kept_unprobed() {
     );
 
     tree.assert_survives();
-    let lease = lease::lease_beside(&tree.generation);
     assert!(
-        !liveness.0.lock().expect("probed").contains(&lease),
+        liveness
+            .of_generations(std::slice::from_ref(&tree.generation))
+            .is_empty(),
         "a lease this process holds was probed"
     );
 }
@@ -2404,8 +2393,6 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
     }
 }
 
-/// Records whether a seeded name was still present at the moment `exec`
-/// was reached, and the program it was asked to run.
 struct SnapshotAtExec {
     watched: PathBuf,
     present_at_exec: Mutex<Option<bool>>,
@@ -2656,7 +2643,6 @@ fn a_cold_store_never_probes_its_own_held_leases() {
     }
 }
 
-/// A clock a test moves on between two steps of one launcher's run.
 struct SettableClock(std::sync::atomic::AtomicU64);
 
 impl SettableClock {
@@ -3097,8 +3083,6 @@ fn a_materialise_prunes_the_superseded_tree_single_files_and_probes() {
     superseded.assert_reclaimed();
 }
 
-/// An orphan temp generation and an unreferenced generation of the
-/// materialised artifact, both old enough for any reap.
 struct ReapableResidue {
     temp: PathBuf,
     unreferenced: PathBuf,

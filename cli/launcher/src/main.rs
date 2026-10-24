@@ -71,7 +71,6 @@ compile_error!("test-loopback must never be enabled in a release build");
 #[cfg(feature = "test-loopback")]
 const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_LAUNCHER_TEST_LOOPBACK_MARKER";
 
-/// Which key a release is trusted under.
 #[derive(Debug, PartialEq, Eq)]
 enum ReleaseTrust {
     Embedded,
@@ -169,10 +168,9 @@ fn release_base_url() -> String {
     )
 }
 
-/// The override first, else the real resolver built lazily over the root
-/// `start_up` identified, so built-ins never touch TLS or the network. The
-/// rustls crypto provider is installed here rather than in `main`, so a
-/// `version` or `config` built-in never pays for capability it does not use.
+/// Built lazily, so a built-in never touches TLS or the network; that is
+/// also why the rustls crypto provider is installed here rather than in
+/// `main`.
 struct LazyProductionResolver<'a> {
     start: &'a StartUp,
     consumed: &'a [AcquiredTree],

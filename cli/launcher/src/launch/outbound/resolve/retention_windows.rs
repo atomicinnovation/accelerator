@@ -1,5 +1,3 @@
-//! The windows every retention rule in the cache root shares.
-
 use std::time::Duration;
 
 /// Residue younger than this with no live holder is spared.
@@ -19,9 +17,6 @@ pub const CLAIM_WINDOW: Duration = Duration::from_secs(14 * 24 * 60 * 60);
 /// than one each.
 pub const REFRESH_FRACTION: u64 = 10;
 
-/// Whether something last modified at `modified_seconds` is at least
-/// [`AGE_BACKSTOP`] old at `now`.
-///
 /// An unknown mtime is never aged and a future one is age zero, so an
 /// unreadable or skewed clock can only keep.
 #[must_use]

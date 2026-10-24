@@ -1,5 +1,3 @@
-//! The retention regime governing a cache root, chosen once from its kind.
-
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -24,16 +22,13 @@ use super::root_prune::{PruneOutcome, PruneReport, RootPrune};
 use super::version_claims::{self, VersionClaim};
 
 pub trait RootRetention: AfterStore + AfterMaterialise {
-    /// Declare that the running version still uses this root.
     fn claim_running_version(&self);
 
-    /// Prune the root, waiting for its locks; `older_than` replaces the claim
-    /// window for version and tree claims alike.
+    /// Waits for the root's locks; `older_than` replaces the claim window for
+    /// version and tree claims alike.
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome;
 }
 
-/// The plugin's own `bin`, which ADR-0063 governs: nothing is claimed, and
-/// prune visits only the pinned artifacts' trees on this host.
 pub struct PluginBinRetention {
     root: PluginBinRoot,
     ports: Arc<CachePorts>,
@@ -50,8 +45,8 @@ impl AfterStore for PluginBinRetention {
     fn after_store(&self, _held_leases: &HeldLeases) {}
 }
 
-/// The materialise has already reaped under its lock, as the plugin's own
-/// `bin` always has been, wherever the user owns its `trees/`.
+/// The materialise has already reaped under its lock, wherever the user owns
+/// `trees/`.
 impl AfterMaterialise for PluginBinRetention {
     fn reap_permit(&self) -> Option<ReapPermit> {
         ReapPermit::for_root(
@@ -173,6 +168,8 @@ impl AfterMaterialise for RelocatedRetention {
 }
 
 impl RootRetention for RelocatedRetention {
+    /// Written even in an unsafe root, so a root made safe later keeps its
+    /// protection.
     fn claim_running_version(&self) {
         let launcher_id = launcher_id();
         version_claims::refresh(
@@ -187,8 +184,6 @@ impl RootRetention for RelocatedRetention {
         );
     }
 
-    /// An unsafe root removes nothing; its claims are still written, so a root
-    /// made safe later keeps its protection.
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome {
         let safe = match self.safe_root() {
             Ok(safe) => safe,
@@ -201,7 +196,6 @@ impl RootRetention for RelocatedRetention {
     }
 }
 
-/// A root that could not be identified is never claimed or pruned.
 pub struct UnidentifiedRetention {
     detail: String,
 }
@@ -224,13 +218,12 @@ impl RootRetention for UnidentifiedRetention {
     fn claim_running_version(&self) {}
 
     fn prune(&self, _older_than: Option<Duration>) -> PruneOutcome {
-        PruneOutcome::Unavailable {
+        PruneOutcome::Unidentified {
             detail: self.detail.clone(),
         }
     }
 }
 
-/// The retention for the identified `root`.
 #[must_use]
 pub fn for_root(
     root: Result<&CacheRoot, &str>,
@@ -353,7 +346,7 @@ mod tests {
     fn an_unidentifiable_root_is_never_pruned() {
         assert_eq!(
             retention_for(Err("unidentified")).prune(None),
-            PruneOutcome::Unavailable {
+            PruneOutcome::Unidentified {
                 detail: "unidentified".to_owned()
             }
         );

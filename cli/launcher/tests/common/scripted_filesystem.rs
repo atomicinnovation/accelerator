@@ -87,7 +87,6 @@ impl ScriptedFilesystem {
         });
     }
 
-    /// The error to answer with instead of making `call`, if any.
     fn intercept(&self, call: &FilesystemCall) -> Option<io::Error> {
         let nth = {
             let mut seen = self.seen.lock().expect("seen");

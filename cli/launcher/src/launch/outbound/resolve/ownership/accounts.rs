@@ -1,6 +1,3 @@
-//! Who the effective user and their primary group are, by name, read from the
-//! host's account databases.
-
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -13,20 +10,18 @@ pub struct Accounts {
     pub members: Vec<String>,
 }
 
-/// One way of resolving the effective user's accounts; `None` when it has no
-/// entry for either.
 pub trait AccountLookup {
     fn accounts(&self, uid: u32, gid: u32) -> Option<Accounts>;
 }
 
-/// `getent passwd` and `getent group`, which go through the host's NSS.
+/// Goes through the host's NSS.
 ///
 /// The shipped Linux launchers are static musl builds, whose own lookups read
 /// only `/etc/passwd`, `/etc/group` and `nscd`, so directory-service accounts
 /// (SSSD, `FreeIPA`, Active Directory, LDAP, `systemd-homed`) reach only this.
-/// `getent` runs from a fixed root-owned path, never through `PATH`, with a
-/// cleared environment, in its own process group, and is killed and reaped
-/// if it outlasts its timeout.
+///
+/// It runs `getent` only from a fixed system path, never through `PATH`,
+/// since its answer decides which directories a prune trusts.
 pub struct GetentLookup {
     executables: Vec<PathBuf>,
     timeout: Duration,
@@ -45,7 +40,6 @@ impl GetentLookup {
         )
     }
 
-    /// Run the first of `executables` that exists, giving up after `timeout`.
     #[must_use]
     pub const fn using(executables: Vec<PathBuf>, timeout: Duration) -> Self {
         Self {
@@ -86,7 +80,6 @@ impl AccountLookup for GetentLookup {
     }
 }
 
-/// The login in a `passwd` line, when its uid field is `uid`.
 #[must_use]
 pub fn parse_passwd_line(line: &str, uid: u32) -> Option<String> {
     let fields: Vec<&str> = line.split(':').collect();
@@ -96,7 +89,6 @@ pub fn parse_passwd_line(line: &str, uid: u32) -> Option<String> {
     (!login.is_empty() && is_id(id, uid)).then(|| (*login).to_owned())
 }
 
-/// The name and members in a `group` line, when its gid field is `gid`.
 #[must_use]
 pub fn parse_group_line(line: &str, gid: u32) -> Option<(String, Vec<String>)> {
     let fields: Vec<&str> = line.split(':').collect();
@@ -120,8 +112,6 @@ fn is_id(field: &str, expected: u32) -> bool {
         && field.parse::<u32>().is_ok_and(|id| id == expected)
 }
 
-/// The child's stdout when it exits 0 within `timeout` having written at most
-/// [`ANSWER_LIMIT`] bytes; anything else is no answer.
 #[cfg(unix)]
 fn supervised_output(
     program: &Path,
@@ -184,7 +174,6 @@ const fn supervised_output(
     None
 }
 
-/// The C library's `getpwuid_r` and `getgrgid_r`.
 pub struct LibcLookup;
 
 impl AccountLookup for LibcLookup {
@@ -345,8 +334,8 @@ mod tests {
     }
 
     impl Stub {
-        /// A `getent` stand-in running `body` after noting in a marker file
-        /// that it ran, since its environment is cleared.
+        /// Notes that it ran in a marker file, since its environment is
+        /// cleared.
         fn new(body: &str) -> Self {
             use std::os::unix::fs::PermissionsExt as _;
             let dir = tempfile::tempdir().expect("stub dir");

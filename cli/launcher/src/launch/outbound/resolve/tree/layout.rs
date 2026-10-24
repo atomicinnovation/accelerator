@@ -250,7 +250,6 @@ pub fn generation_name(
     )
 }
 
-/// What a generation directory's name says about the tree inside it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct GenerationName<'a> {
     pub artifact: Artifact,
@@ -281,8 +280,6 @@ pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>> {
     })
 }
 
-/// `<name>-<platform>`, split at a known platform with a non-empty name
-/// before it.
 fn artifact_of_stem(stem: &str) -> Option<Artifact> {
     KNOWN_PLATFORMS.iter().find_map(|platform| {
         stem.strip_suffix(platform)?
@@ -292,7 +289,6 @@ fn artifact_of_stem(stem: &str) -> Option<Artifact> {
     })
 }
 
-/// What a name under `trees/` is, named apart from an archive's entries.
 #[derive(Debug, PartialEq, Eq)]
 pub enum TreesEntry<'a> {
     Pointer {
@@ -313,8 +309,8 @@ pub enum TreesEntry<'a> {
     Unrecognised,
 }
 
-/// The one classification of the shared `trees/` index; a name on a platform
-/// this launcher does not know is `Unrecognised`, so it is kept.
+/// A name on a platform this launcher does not know is `Unrecognised`, so a
+/// prune keeps it.
 #[must_use]
 pub fn classify_trees_entry(name: &str) -> TreesEntry<'_> {
     if name.starts_with(TEMP_PREFIX) {

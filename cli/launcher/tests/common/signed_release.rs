@@ -233,8 +233,6 @@ impl SignedRelease {
         Self::serve_with_trees(workdir, &[])
     }
 
-    /// As [`Self::serve`], also publishing a tree for each of `artifacts` on
-    /// this host.
     pub fn serve_with_trees(
         workdir: &Path,
         artifacts: &[&str],
@@ -320,7 +318,6 @@ impl SignedRelease {
         self.server.hits(&RequestKey::get(&asset_path()))
     }
 
-    /// Each published tree's digest on this host, as a launcher pins them.
     pub fn tree_digests(&self) -> BTreeMap<(String, String), String> {
         self.trees
             .iter()

@@ -157,7 +157,6 @@ impl Harness {
         )
     }
 
-    /// The cache is the plugin's own `bin`, named with no override.
     fn plugin_bin_root(&self) -> CacheRootConfig {
         CacheRootConfig {
             cache_dir_override: None,
@@ -165,8 +164,6 @@ impl Harness {
         }
     }
 
-    /// The cache is an override naming a directory other than the plugin
-    /// `bin`, which exists.
     fn relocated_root(&self) -> CacheRootConfig {
         let plugin_root = self.workdir.join("plugin");
         std::fs::create_dir_all(plugin_root.join("bin")).expect("plugin bin");
@@ -389,8 +386,6 @@ impl ResolveBinary for RemovingAfterResolve {
     }
 }
 
-/// Fails as `exec` does on a missing program, and otherwise records the
-/// program as executed.
 #[derive(Default)]
 struct ExecUnlessMissing {
     executed: RefCell<Vec<PathBuf>>,

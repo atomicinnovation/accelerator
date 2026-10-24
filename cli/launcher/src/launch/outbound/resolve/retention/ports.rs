@@ -28,8 +28,6 @@ pub struct CachePorts {
 }
 
 impl CachePorts {
-    /// What a tree prune borrows from these ports, keeping `held_leases`
-    /// unprobed.
     #[must_use]
     pub fn tree_prune_ports<'a>(
         &'a self,

@@ -1,6 +1,3 @@
-//! Single-file prune: the sub-binary and launcher entries, shim copies and
-//! staging files at the top of a relocated cache root.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::time::Duration;
@@ -36,7 +33,6 @@ pub enum Age {
     Young,
 }
 
-/// What the running plugin's own shim source hashes to, per platform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShimSource {
     Digest(String),
@@ -58,7 +54,6 @@ impl RunningShims {
         self
     }
 
-    /// A platform never hashed is treated as unhashable, so its copies stay.
     fn runs(&self, platform: &str, digest: &str) -> bool {
         match self.sources.get(platform) {
             Some(ShimSource::Digest(running)) => running == digest,
@@ -67,7 +62,6 @@ impl RunningShims {
     }
 }
 
-/// The pids of bootstraps still running, by the staging names they wrote.
 #[derive(Debug, Default)]
 pub struct LiveBootstraps {
     pids: BTreeSet<i32>,
@@ -91,10 +85,6 @@ pub struct ProtectionContext {
     pub live_bootstraps: LiveBootstraps,
 }
 
-/// The one place an entry's protection is decided.
-///
-/// A sub-binary's version is matched as a suffix of its stem and never split
-/// out of the name, since both names and versions may hold hyphens.
 #[must_use]
 pub fn protection(
     entry: &RootEntry<'_>,
@@ -124,6 +114,8 @@ pub fn protection(
     }
 }
 
+/// Matched as a suffix of the stem and never split out of it, since both
+/// names and versions may hold hyphens.
 fn is_stem_of_version(stem: &str, version: &str) -> bool {
     stem.rsplit_once('-')
         .and_then(|(named, _digest)| named.strip_suffix(version))
@@ -159,8 +151,6 @@ pub const fn disposition(
     }
 }
 
-/// Whether a stale version claim goes: beside a fresh claim on the same
-/// version, or once every entry of that version this prune listed is gone.
 #[must_use]
 pub const fn stale_claim_disposition(
     has_other_fresh_claim: bool,
@@ -173,12 +163,11 @@ pub const fn stale_claim_disposition(
     }
 }
 
-/// Removes the top-level entries no fresh claim, running shim or live
-/// bootstrap protects, then the stale claims nothing needs any more.
+/// Safe beside a concurrent `store`.
 ///
-/// It removes only entries in a listing taken before claims are read, which
-/// is what makes a concurrent `store` safe: an entry stored after the listing
-/// is never touched, and one stored before it was preceded by its claim.
+/// It removes only entries in a listing taken before claims are read: an
+/// entry stored after the listing is never touched, and one stored before it
+/// was preceded by its claim.
 pub struct SingleFilePrune<'a> {
     pub root: &'a Path,
     pub running_version: &'a str,
@@ -193,20 +182,28 @@ pub struct SingleFileOutcome {
     pub unreadable_claims: Option<UnreadableClaims>,
 }
 
-/// Which versions' entries this prune listed, and whether each went.
+struct RemovalAttempt {
+    of: String,
+    removed: bool,
+}
+
 #[derive(Default)]
 struct VersionedRemovals {
-    stems: Vec<(String, bool)>,
-    launchers: Vec<(String, bool)>,
+    stems: Vec<RemovalAttempt>,
+    launchers: Vec<RemovalAttempt>,
 }
 
 impl VersionedRemovals {
     fn every_entry_removed(&self, version: &str) -> bool {
         self.stems
             .iter()
-            .filter(|(stem, _)| is_stem_of_version(stem, version))
-            .chain(self.launchers.iter().filter(|(of, _)| of == version))
-            .all(|(_, removed)| *removed)
+            .filter(|attempt| is_stem_of_version(&attempt.of, version))
+            .chain(
+                self.launchers
+                    .iter()
+                    .filter(|attempt| attempt.of == version),
+            )
+            .all(|attempt| attempt.removed)
     }
 }
 
@@ -335,10 +332,16 @@ impl SingleFilePrune<'_> {
                 self.remove_if_disposable(name, entry, context, outcome);
             match *entry {
                 RootEntry::SubBinary { stem } => {
-                    versioned.stems.push((stem.to_owned(), removed));
+                    versioned.stems.push(RemovalAttempt {
+                        of: stem.to_owned(),
+                        removed,
+                    });
                 }
                 RootEntry::LauncherEntry { version } => {
-                    versioned.launchers.push((version.to_owned(), removed));
+                    versioned.launchers.push(RemovalAttempt {
+                        of: version.to_owned(),
+                        removed,
+                    });
                 }
                 _ => {}
             }
@@ -346,7 +349,6 @@ impl SingleFilePrune<'_> {
         versioned
     }
 
-    /// Whether the entry is gone afterwards.
     fn remove_if_disposable(
         &self,
         name: &str,
@@ -381,7 +383,6 @@ impl SingleFilePrune<'_> {
             .left_nothing()
     }
 
-    /// Aged only when every file of the entry is a regular file and aged.
     fn age_of(&self, path: &Path, signature: Option<&Path>) -> Age {
         let now = self.ports.clock.now_seconds();
         let aged = std::iter::once(path).chain(signature).all(|file| {
@@ -1014,7 +1015,6 @@ mod run_tests {
         assert!(root.has(&young_dead));
     }
 
-    /// A plugin root whose `bin/` holds a distinct shim source per platform.
     struct Plugin {
         dir: tempfile::TempDir,
     }

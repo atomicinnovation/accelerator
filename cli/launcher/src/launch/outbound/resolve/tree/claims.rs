@@ -60,7 +60,6 @@ pub fn refresh(
     write_private(&claim, clock);
 }
 
-/// One tree claim whose name parses as `<digest>.<launcher-id>`.
 #[derive(Debug, Clone)]
 pub struct ListedTreeClaim {
     pub digest: String,
@@ -87,8 +86,6 @@ impl ListedTreeClaim {
     }
 }
 
-/// Whether `entry` is a claim this prune may sweep as stale: a valid claim
-/// last refreshed at least `window` ago.
 #[must_use]
 pub fn is_stale_claim_entry(
     entry: &EntryMetadata,
@@ -150,8 +147,6 @@ pub enum TreeClaimsListing {
     Untrusted,
 }
 
-/// Every tree claim whose name parses; a missing `trees/claims/` is an empty
-/// index.
 pub fn list(
     paths: &TreePaths,
     filesystem: &dyn CacheFilesystem,

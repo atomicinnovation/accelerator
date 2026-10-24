@@ -1,6 +1,3 @@
-//! The root prune of a relocated cache root: single-file prune and the
-//! residue sweep under the root lock, then tree prune once it is released.
-
 use std::path::Path;
 use std::time::Duration;
 
@@ -18,7 +15,6 @@ use super::root_entries::RootListing;
 use super::root_lock::{HeldRootLock, ROOT_LOCK};
 use super::single_file::SingleFilePrune;
 
-/// Prunes the root that was checked safe, and nothing else.
 pub struct RootPrune<'a> {
     pub safe: &'a SafePruneRoot,
     pub running_version: &'a str,
@@ -42,14 +38,13 @@ impl PruneReport {
         self.removal_failures.extend(removals.failures);
     }
 
-    /// Whether every lock was taken and every removal made; an unreadable or
-    /// untrusted directory only kept entries.
+    /// An unreadable or untrusted directory only kept entries, so it leaves
+    /// the prune finished.
     #[must_use]
     pub const fn finished(&self) -> bool {
         self.lock_failures.is_empty() && self.removal_failures.is_empty()
     }
 
-    /// One line for each thing the prune could not do.
     #[must_use]
     pub fn problems(&self) -> Vec<String> {
         let locks = self.lock_failures.iter().map(|failure| {
@@ -100,15 +95,11 @@ impl PruneReport {
 pub enum PruneOutcome {
     Refused(UnsafeRoot),
     Ran(PruneReport),
-    /// The cache root could not be identified, so there is nothing to prune.
-    Unavailable {
-        detail: String,
-    },
+    Unidentified { detail: String },
 }
 
 impl RootPrune<'_> {
-    /// `held_leases` are the generations this process holds leases on, which
-    /// tree prune keeps without probing.
+    /// Tree prune keeps the generations in `held_leases` without probing them.
     pub fn run(
         &self,
         patience: LockPatience,

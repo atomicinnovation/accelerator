@@ -1,6 +1,3 @@
-//! Planting trees, pointers, sidecars, locks and claims under a cache root's
-//! `trees/`, and the fixed clock and lease liveness a prune of them runs with.
-
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -40,7 +37,6 @@ impl LivenessProbe for FixedLiveness {
     }
 }
 
-/// Fails every lock call on one path and takes every other for real.
 pub struct FailingLockAt(pub PathBuf);
 
 impl FailingLockAt {
@@ -83,7 +79,6 @@ pub fn on_host(name: &str) -> Artifact {
     Artifact::new(name, HOST_PLATFORM)
 }
 
-/// A known platform this host is not.
 pub fn another_platform() -> &'static str {
     KNOWN_PLATFORMS
         .iter()
@@ -101,7 +96,6 @@ pub fn set_mode(path: &Path, mode: u32) {
         .expect("mode");
 }
 
-/// Works on a directory too.
 pub fn set_mtime(path: &Path, seconds: u64) {
     std::fs::File::open(path)
         .expect("opened to set its mtime")
@@ -113,7 +107,6 @@ pub fn exists(path: &Path) -> bool {
     path.symlink_metadata().is_ok()
 }
 
-/// A published tree: its pointer, generation directory and sidecars.
 pub struct PlantedTree {
     pub pointer: PathBuf,
     pub generation: PathBuf,
@@ -142,13 +135,11 @@ impl PlantedTree {
     }
 }
 
-/// The `trees/` of one cache root.
 pub struct Trees {
     paths: TreePaths,
 }
 
 impl Trees {
-    /// Creates `trees/` at `0700`, as a materialise does.
     pub fn under(cache_root: &Path) -> Self {
         let paths = TreePaths::under(cache_root);
         if !exists(paths.root()) {
@@ -184,8 +175,6 @@ impl Trees {
         )
     }
 
-    /// A pointer, the generation it names and its sidecars, all modified at
-    /// `modified`.
     pub fn plant_tree(
         &self,
         artifact: &Artifact,
@@ -243,7 +232,6 @@ impl Trees {
         sidecars
     }
 
-    /// An artifact's tree lock file, left free.
     pub fn plant_lock(&self, artifact: &Artifact, modified: u64) -> PathBuf {
         let lock = self.paths.single_flight_lock(artifact);
         drop(take_single_flight(&lock).expect("lock file"));

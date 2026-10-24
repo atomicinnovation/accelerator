@@ -1,6 +1,3 @@
-//! Tree locks: the artifact-level lock over the injected single-flight
-//! primitive, and the production primitive over `flock`.
-
 use std::path::Path;
 
 use crate::launch::core::tree::TreeError;

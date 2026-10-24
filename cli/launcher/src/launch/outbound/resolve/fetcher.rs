@@ -222,8 +222,7 @@ impl Fetcher {
         )
     }
 
-    /// Build the production fetcher, except that `http` is permitted, for a
-    /// release served from loopback.
+    /// Production limits, for a release served over `http` from loopback.
     ///
     /// # Errors
     ///

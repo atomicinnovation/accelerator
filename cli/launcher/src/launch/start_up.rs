@@ -37,14 +37,12 @@ pub struct StartUp {
     ports: Arc<CachePorts>,
 }
 
-/// What a dispatch resolver needs beyond the cache root and the ports.
 pub struct DispatchConfig {
     pub base_url: String,
     pub keys: TrustedKeys,
     pub fetcher: Fetcher,
 }
 
-/// What a tree resolver borrows from its caller, who builds it lazily.
 pub struct TreeConfig<'a> {
     pub base_url: String,
     pub keys: &'a TrustedKeys,

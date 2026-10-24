@@ -72,8 +72,6 @@ pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     Ok(plugin_root.join("bin"))
 }
 
-/// Whether the cache root is the plugin's own `bin` or a directory the user
-/// relocated it to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CacheRootKind {
     PluginBin,
@@ -93,7 +91,6 @@ impl CacheRoot {
         &self.path
     }
 
-    /// The plugin's own `bin`, when that is what this root was identified as.
     #[must_use]
     pub fn plugin_bin(&self) -> Option<PluginBinRoot> {
         (self.kind == CacheRootKind::PluginBin).then(|| PluginBinRoot {

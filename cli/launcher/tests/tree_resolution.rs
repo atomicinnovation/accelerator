@@ -363,7 +363,6 @@ impl Harness {
         }
     }
 
-    /// The plugin's own `bin`, which this harness's cache is.
     fn plugin_bin_root(&self) -> PluginBinRoot {
         identify(
             &CacheRootConfig {
@@ -377,7 +376,7 @@ impl Harness {
         .expect("the plugin bin")
     }
 
-    /// The plugin-bin retention of this cache, pinning what `resolver` pins.
+    /// Pins what `resolver` pins.
     fn retention_with(
         &self,
         clock: Arc<dyn Clock + Send + Sync>,
@@ -507,7 +506,6 @@ impl Harness {
     }
 }
 
-/// A hook for a cache no test here reaps.
 struct ReapsNothing;
 
 impl AfterMaterialise for ReapsNothing {
@@ -520,7 +518,6 @@ impl AfterMaterialise for ReapsNothing {
     }
 }
 
-/// What a default-root prune of the harness's cache is injected with.
 struct PluginBinSeams {
     clock: Box<dyn Clock>,
     lease_liveness: Box<dyn LivenessProbe>,
