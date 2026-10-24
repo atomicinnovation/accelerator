@@ -9,8 +9,8 @@ kind: "task"
 priority: "medium"
 external_id: "PP-179"
 tags: ["evaluation", "skills", "inspect", "testing", "migration"]
-relates_to: ["adr:ADR-0055", "adr:ADR-0050", "adr:ADR-0052"]
-last_updated: "2026-06-28T11:44:00+00:00"
+relates_to: ["adr:ADR-0055", "adr:ADR-0050", "adr:ADR-0052", "work-item:0348"]
+last_updated: "2026-10-24T11:36:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
