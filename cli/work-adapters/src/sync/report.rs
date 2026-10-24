@@ -212,9 +212,10 @@ pub struct RunReport {
 }
 
 impl RunReport {
-    /// Every failure this run reports, in report order: failed rows (a
-    /// preview's included), refused orders, unclassifiable items, work files
-    /// the run could not use, then a failed baseline finalise. Only a
+    /// Every failure this run reports, in report order: a failed tracker
+    /// read, failed rows (a preview's included), refused orders,
+    /// unclassifiable items, work files the run could not use, a failed or
+    /// deferred discovery, then a failed baseline finalise. Only a
     /// whole-corpus run may judge the corpus, so on a targeted run an
     /// unusable file is a warning.
     pub fn failures(&self) -> impl Iterator<Item = RunFailure> + '_ {
@@ -265,6 +266,23 @@ impl RunReport {
                         )
                     }
                 });
+        let remote_read = self.read_failure.iter().map(|error| {
+            RunFailure::error(
+                "-",
+                SyncOperation::Show,
+                error.to_string(),
+                FailureClass::Retryable,
+            )
+        });
+        let discovery = match &self.discovery {
+            DiscoveryStatus::Failed { detail } => Some(RunFailure::error(
+                "-",
+                SyncOperation::Discover,
+                detail.clone(),
+                FailureClass::Retryable,
+            )),
+            _ => None,
+        };
         let files = self
             .inventory
             .unidentified
@@ -279,9 +297,12 @@ impl RunReport {
             )),
             Finalisation::NotAttempted | Finalisation::Finalised => None,
         };
-        rows.chain(refused_orders)
+        remote_read
+            .chain(rows)
+            .chain(refused_orders)
             .chain(unclassifiable)
             .chain(files)
+            .chain(discovery)
             .chain(deferral)
             .chain(finalise)
     }
