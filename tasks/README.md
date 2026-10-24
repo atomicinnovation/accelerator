@@ -618,6 +618,16 @@ the env var.
 | `ACCELERATOR_PUP_MODE` | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`.                         |
 | `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
 
+### Permission tests under root
+
+The `cli/` tests that seal a directory or file (`store::test_support`'s
+`ReadOnlyDir` and `UnreadableFile`) **fail when run as root**, because root
+writes through the seal and the test would pass without exercising anything.
+In a container that can only run as root, set
+`ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1` to skip them instead;
+`test:unit:cli` prints a one-line warning whenever it is set. CI must never set
+it: GitHub-hosted runners run as a non-root user.
+
 ## Registering a dispatched sub-binary
 
 A **dispatched sub-binary** is a separate static binary the launcher fetches on

@@ -1,3 +1,5 @@
+import os
+
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import CLI_WORKSPACE_CARGO_TOML
@@ -12,6 +14,7 @@ _MANIFEST = (
     f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} --workspace "
     "--exclude accelerator-visualiser --all-features"
 )
+_PERMISSION_SKIP = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
 
 
 @task
@@ -27,7 +30,16 @@ def run(context: Context) -> None:
     the black-box suites need. The suites that build real repositories run
     unconditionally and need the mise-pinned `jj` and a `git` on `PATH`; an
     absent tool hard-fails rather than skipping.
+
+    The permission tests refuse to run as root;
+    ACCELERATOR_TEST_SKIP_PERMISSION_TESTS turns that refusal into a skip,
+    announced here because cargo captures the tests' own output.
     """
+    if os.environ.get(_PERMISSION_SKIP):
+        print(
+            f"WARNING: {_PERMISSION_SKIP} is set; permission tests are skipped "
+            "when run as root"
+        )
     command = (
         f"cargo llvm-cov nextest {_MANIFEST} --summary-only"
         if coverage_enabled()
