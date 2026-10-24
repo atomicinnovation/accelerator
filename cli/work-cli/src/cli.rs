@@ -151,7 +151,9 @@ pub enum Command {
     /// several apply, the highest in `71 > 1 > 4 > 75 > 74 > 70` wins.
     ///
     /// Every failure prints `error: <id-or-path-or-dash>: <operation>
-    /// failed: <cause>` on stderr (`would fail` on a preview). The report on
+    /// failed: <cause>` on stderr (`would fail` on a preview), except a
+    /// refused or rolled-back key change, which is a `failed` row awaiting
+    /// a human. The report on
     /// stdout is authoritative: check its `failed` rows and `#\tunidentified`
     /// records whatever the exit code, since a run that exits 4 can carry
     /// retryable failures and a 71 run may also carry conflicts. Besides the

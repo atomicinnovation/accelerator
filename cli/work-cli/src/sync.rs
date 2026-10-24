@@ -955,12 +955,8 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
     let awaiting_human = (report.awaiting_human().next().is_some()
         || report.identity.iter().any(IdentityRow::awaits_human))
     .then_some(exit_codes::UNRESOLVED);
-    let read_failed = (report.read_failure.is_some()
-        || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
-    .then_some(exit_codes::RETRYABLE);
     failures
         .chain(awaiting_human)
-        .chain(read_failed)
         .chain(report.promotions.iter().map(promotion_exit))
         .max_by_key(|&code| severity(code))
         .unwrap_or(exit_codes::CLEAN)
@@ -4554,6 +4550,32 @@ mod tests {
         assert_eq!(
             super::exit_code_for_report(&beside_a_conflict),
             super::exit_codes::UNRESOLVED
+        );
+    }
+
+    #[test]
+    fn failed_tracker_reads_are_retryable_run_level_failures() {
+        let report = RunReport {
+            read_failure: Some(TrackerError::Retryable {
+                detail: "rate limited".to_owned(),
+            }),
+            discovery: DiscoveryStatus::Failed {
+                detail: "connection refused".to_owned(),
+            },
+            ..crate::test_support::run_report()
+        };
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec![
+                "error: -: show failed: tracker call failed with no remote \
+                 change: rate limited",
+                "error: -: discover failed: connection refused",
+            ]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
         );
     }
 
