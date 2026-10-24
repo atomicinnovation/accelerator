@@ -585,7 +585,10 @@ Example `instructions.md` for create-plan:
 ### paths
 
 Override where skills write output documents. Paths are relative to the
-project root (absolute paths are also supported):
+project root (absolute paths are also supported). An `integrations` path
+outside the repository, absolute or `..`-relative, syncs only when set in
+`.accelerator/config.local.md`; set in the team config, `work sync` refuses
+with exit 74 until it moves there:
 
 | Key                           | Default                            | Description                                                                      |
 |-------------------------------|------------------------------------|----------------------------------------------------------------------------------|
