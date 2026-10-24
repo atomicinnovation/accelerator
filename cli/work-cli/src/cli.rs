@@ -158,8 +158,9 @@ pub enum Command {
     /// item rows — whose actions include `adopt` and `relink` — it prints
     /// `#\tunidentified\t<path>\t<kind>` for each work file sync cannot use,
     /// `#\tkept-edits\t<id>\t<when>\t<item>\t<copy>` for local edits a pull
-    /// kept, and `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
-    /// order links; discovery reads `skipped\tincomplete-corpus` or
+    /// kept, `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
+    /// order links, and `#\tstale-dossier\t<id>\t<path>` for a conflict
+    /// dossier that no longer describes its item; discovery reads `skipped\tincomplete-corpus` or
     /// `skipped\tpending-push` when it imported nothing it otherwise would.
     Sync(Box<SyncArgs>),
     /// Promote one draft onto an issue the tracker creates for it, under
