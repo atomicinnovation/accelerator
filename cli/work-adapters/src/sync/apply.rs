@@ -580,7 +580,7 @@ fn refused_marker_state(
     };
     match (reason, marker) {
         (RefusalReason::MarkerUnreadable, _) => {
-            "the marker could not be parsed".to_owned()
+            "the marker could not be read or parsed".to_owned()
         }
         (
             RefusalReason::PriorAttemptUnknownOutcome,
@@ -1216,7 +1216,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
     ) -> MarkerReading {
-        let raw = std::fs::read_to_string(request.marker_path).ok();
+        let raw = match std::fs::read_to_string(request.marker_path) {
+            Ok(raw) => Some(raw),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => return MarkerReading::Unreadable,
+        };
         let marker = match pending_push::read(raw.as_deref()) {
             Err(_) => {
                 return MarkerReading::Unreadable;
