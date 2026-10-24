@@ -1,5 +1,3 @@
-//! What follows a materialise, and whether its root may be reaped at all.
-
 use super::super::cache_root::PluginBinRoot;
 use super::super::filesystem::CacheFilesystem;
 use super::super::ownership::safe_root::SafePruneRoot;
@@ -16,7 +14,6 @@ pub trait AfterMaterialise {
     fn after_materialise(&self, held: HeldTreeLock);
 }
 
-/// The root a reap would run in, as it was checked.
 #[derive(Clone, Copy)]
 pub enum RootTrust<'a> {
     PluginBin(&'a PluginBinRoot),

@@ -1,5 +1,3 @@
-//! How long the cache root keeps what each plugin version left in it.
-
 pub mod ports;
 pub mod residue;
 pub mod root_entries;
@@ -12,11 +10,8 @@ pub mod single_file;
 pub(crate) mod testing;
 pub mod version_claims;
 
-/// A per-install identity for a retention claim.
-///
-/// Derived from the launcher's own content-addressed path, so two installs
-/// sharing a cache root write distinct claim files. Falls back to the version
-/// when the path is unavailable.
+/// Hashed from the launcher's own content-addressed path, so two installs
+/// sharing a cache root write distinct claim files.
 #[must_use]
 pub fn launcher_id() -> String {
     use std::fmt::Write as _;

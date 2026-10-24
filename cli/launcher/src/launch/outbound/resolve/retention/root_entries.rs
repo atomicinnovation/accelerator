@@ -1,5 +1,3 @@
-//! The grammar of the names the plugin writes at the top of a cache root.
-//!
 //! A name is recognised only by its full shape, and anything else is kept, so
 //! a newer release's names and a user's own files are never mistaken for
 //! residue.
@@ -37,9 +35,8 @@ pub enum RootEntry<'a> {
     Unrecognised,
 }
 
-/// One listing of a cache root's top level, which single-file prune and the
-/// residue sweep both act on; a name that is not UTF-8 is no name the plugin
-/// writes, so it is left out and kept.
+/// A name that is not UTF-8 is no name the plugin writes, so it is left out
+/// of the listing and kept.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RootListing {
     names: Vec<String>,
@@ -65,7 +62,6 @@ impl RootListing {
         })
     }
 
-    /// Every listed name beside what it is.
     pub fn classified(&self) -> Vec<(&str, RootEntry<'_>)> {
         let listed: BTreeSet<&str> =
             self.names.iter().map(String::as_str).collect();
@@ -76,8 +72,6 @@ impl RootListing {
     }
 }
 
-/// What `name` is, given every name `listed` beside it.
-///
 /// An entry with a signature is recognised only while its `.minisig` is
 /// listed too, and a `.minisig` is never recognised alone: it goes with its
 /// entry.
@@ -161,7 +155,6 @@ fn has_signature(name: &str, listed: &BTreeSet<&str>) -> bool {
     listed.contains(format!("{name}{SIGNATURE_SUFFIX}").as_str())
 }
 
-/// `<x>-<64 lowercase hex>` with `<x>` non-empty.
 fn is_digest_suffixed_stem(candidate: &str) -> bool {
     candidate
         .rsplit_once('-')

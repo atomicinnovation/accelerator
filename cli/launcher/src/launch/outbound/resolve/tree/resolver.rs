@@ -159,10 +159,9 @@ impl TreeResolver<'_> {
         self.expected_digests.digest_for(artifact, &self.platform)
     }
 
-    /// Steps 1-5: the side-effect-free query behind both `query` and `acquire`.
+    /// The side-effect-free query behind both `query` and `acquire`.
     ///
-    /// Returns the validated generation name and the verified attestation, or
-    /// `None` for any miss. No I/O error propagates: within design a broken
+    /// No I/O error propagates: within design a broken
     /// cache path is a miss, not a failure, so the crawl re-materialises rather
     /// than aborting.
     fn locate(&self, artifact: &str, digest: &str) -> Option<Located> {

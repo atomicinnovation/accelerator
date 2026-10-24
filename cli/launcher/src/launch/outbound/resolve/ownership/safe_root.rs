@@ -58,8 +58,7 @@ impl TrustedOwners {
             .map(|uids| Self { uids })
     }
 
-    /// The listing in [`TRUSTED_OWNERS_VAR`]; a malformed value is ignored
-    /// with a warning, so it can only refuse.
+    /// A malformed value is ignored with a warning, so it can only refuse.
     #[must_use]
     pub fn from_env() -> Self {
         let Some(value) = std::env::var_os(TRUSTED_OWNERS_VAR) else {
@@ -97,7 +96,6 @@ pub enum UnsafeReason {
     OwnershipIgnored,
 }
 
-/// The path that failed the rule and why, with its remedy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnsafeRoot {
     pub path: PathBuf,
@@ -390,8 +388,6 @@ mod tests {
         }
     }
 
-    /// A synthetic `/srv/cache/accelerator`: `/` and `/srv` root-owned
-    /// `0755`, `/srv/cache` and the root as given.
     struct Tree {
         cache: EntryMetadata,
         root: EntryMetadata,

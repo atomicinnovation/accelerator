@@ -14,13 +14,12 @@ use super::root_entries::{RootEntry, RootListing};
 const PID_FILE: &str = "pid";
 const PID_LIMIT: u64 = 64;
 
-/// Whether the bootstrap that wrote a pid is still running.
 pub trait BootstrapHolderLiveness {
     fn is_alive(&self, pid: i32) -> bool;
 }
 
-/// `kill(pid, 0)`: only `ESRCH` means dead. A pid reused by another process
-/// reads as alive, which only keeps residue longer.
+/// A pid reused by another process reads as alive, which only keeps residue
+/// longer.
 pub struct KillZeroProbe;
 
 impl BootstrapHolderLiveness for KillZeroProbe {
@@ -38,8 +37,7 @@ impl BootstrapHolderLiveness for KillZeroProbe {
     }
 }
 
-/// Removes aged probe files and abandoned bootstrap lock directories, under
-/// the root lock and over the same listing single-file prune read.
+/// Runs under the root lock, over the same listing single-file prune read.
 pub struct ResidueSweep<'a> {
     root: &'a Path,
     ports: &'a CachePorts,
@@ -137,8 +135,6 @@ impl<'a> ResidueSweep<'a> {
             })
     }
 
-    /// A missing or empty pid file, or one naming a dead process, has no
-    /// holder; one that does not parse is kept.
     fn holder_is_gone(&self, pid_contents: Option<&[u8]>) -> bool {
         let Some(contents) = pid_contents else {
             return true;

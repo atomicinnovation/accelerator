@@ -1,5 +1,3 @@
-//! Tree prune: the launcher's one reclamation of trees.
-//!
 //! A process holds at most one tree lock at a time, and each artifact's lock
 //! is taken inside that artifact's own iteration and released before the
 //! next, so no prune ever probes or retakes a tree lock it holds.
@@ -47,8 +45,7 @@ use super::tree_lock::HeldTreeLock;
 /// bookkeeping a materialise leaves: orphan sidecars, orphan tree locks and
 /// stale tree claims.
 pub enum TreePruneRegime<'a> {
-    /// The pinned artifacts on this host, and no bookkeeping, as the plugin's
-    /// own `bin` has always been pruned.
+    /// The pinned artifacts on this host, and no bookkeeping.
     PinnedOnHost(&'a PluginBinRoot),
     /// Every artifact and platform under a relocated root's `trees/`.
     WholeTree(&'a SafePruneRoot),
@@ -204,9 +201,8 @@ impl TreePrune<'_> {
         }
     }
 
-    /// Steps 1 and 2 for the one artifact whose lock the caller holds, after
-    /// it reaped under that lock; no other tree lock is taken, since a
-    /// process must never probe or retake one it holds.
+    /// Called after the caller reaped under `held`; no other tree lock is
+    /// taken, since a process must never probe or retake one it holds.
     pub fn prune_held(&self, held: &HeldTreeLock) -> TreePruneReport {
         let mut report = TreePruneReport::default();
         let paths = self.regime.paths();
@@ -230,8 +226,6 @@ impl TreePrune<'_> {
         report
     }
 
-    /// The claims and the listing every step judges by, or `None` when there
-    /// is no `trees/` to prune or it must not be pruned through.
     fn survey(
         &self,
         paths: &TreePaths,
@@ -405,9 +399,8 @@ impl TreePrune<'_> {
         }
     }
 
-    /// Step 1: a pointer whose digest nothing protects goes with the
-    /// generation it names. The index decides every keep; a re-read of the
-    /// digest's claims guards every removal.
+    /// The index decides every keep; a re-read of the digest's claims guards
+    /// every removal.
     fn reclaim_unclaimed_trees(
         &self,
         held: &HeldTreeLock,
@@ -462,7 +455,6 @@ impl TreePrune<'_> {
         }
     }
 
-    /// Step 2: a sidecar whose generation is gone, once aged and unheld.
     fn reclaim_orphan_sidecars(
         &self,
         paths: &TreePaths,
@@ -492,8 +484,6 @@ impl TreePrune<'_> {
         }
     }
 
-    /// Step 3: an aged lock file of an artifact nothing else is left of goes
-    /// while this prune holds it, once a fresh listing confirms the index.
     fn reclaim_orphan_lock(
         &self,
         held: HeldTreeLock,
@@ -613,7 +603,6 @@ impl TreePrune<'_> {
         }
     }
 
-    /// Every unlink this prune makes is announced to the observer first.
     fn unlink_file(
         &self,
         removals: &mut Removals,
@@ -661,7 +650,6 @@ impl TreePrune<'_> {
     }
 }
 
-/// A pointer nothing protects and the current generation it names.
 struct UnclaimedTree<'a> {
     paths: &'a TreePaths,
     pointer: PathBuf,

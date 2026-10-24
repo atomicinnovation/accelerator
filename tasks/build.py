@@ -354,17 +354,13 @@ def _assert_no_e2e_insecure(src: Path) -> None:
 def _assert_no_test_loopback(src: Path) -> None:
     """Fail staging if a release artifact carries a `test-loopback` marker.
 
-    The `accelerator-jira`, `accelerator-linear` and `accelerator-research`
-    binaries admit a loopback API URL, and the `accelerator` launcher a release
-    signed by a test key and served from loopback, only under the test-only
-    `test-loopback` feature, whose sole reason to exist is pointing the
-    integration tests at a mock. Under that feature each reads a
-    ``*_TEST_LOOPBACK_MARKER`` string literal at start-up, so its bytes survive
-    stripping and LTO, and their presence in a staged artifact proves the
-    feature leaked into a release. A
-    binary without the feature carries no such string and this is a no-op, so
-    the guard covers a seamed binary once it joins ``_CLI_RELEASE_BINARIES``,
-    needing no per-binary edit.
+    The test-only `test-loopback` feature lets a binary trust a loopback
+    mock: an API URL for the tracker and research CLIs, a test-signed release
+    for the launcher. Under it each binary reads a ``*_TEST_LOOPBACK_MARKER``
+    string at start-up, so the bytes survive stripping and LTO and their
+    presence proves the feature leaked into a release. Without the feature
+    this is a no-op, so a seamed binary is covered once it joins
+    ``_CLI_RELEASE_BINARIES``.
     """
     marker = b"TEST_LOOPBACK_MARKER"
     if marker in src.read_bytes():

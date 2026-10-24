@@ -74,7 +74,6 @@ impl Removal {
     }
 }
 
-/// What a prune removed and failed to remove.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Removals {
     pub reclaimed: u64,
@@ -82,7 +81,6 @@ pub struct Removals {
 }
 
 impl Removals {
-    /// Remove the file at `path`, tracing the `rule` that allowed it.
     pub fn remove_file(
         &mut self,
         filesystem: &dyn CacheFilesystem,
@@ -94,8 +92,6 @@ impl Removals {
         self.tally(path, filesystem.remove_file(path), count)
     }
 
-    /// Remove the empty directory at `path`, tracing the `rule` that allowed
-    /// it.
     pub fn remove_dir(
         &mut self,
         filesystem: &dyn CacheFilesystem,
@@ -107,8 +103,6 @@ impl Removals {
         self.tally(path, filesystem.remove_dir(path), count)
     }
 
-    /// Remove the directory at `path` and everything in it, tracing the
-    /// `rule` that allowed it.
     pub fn remove_tree(
         &mut self,
         filesystem: &dyn CacheFilesystem,

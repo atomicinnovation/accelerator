@@ -36,7 +36,6 @@ pub trait AfterStore {
     fn after_store(&self, held_leases: &HeldLeases);
 }
 
-/// For a resolver that only ever reads the manifest, and so never stores.
 pub struct NothingAfterStore;
 
 impl AfterStore for NothingAfterStore {
@@ -93,7 +92,6 @@ pub struct FetchVerifyCacheResolver {
     held_leases: HeldLeases,
 }
 
-/// What a resolver consults beyond its configuration, trust and transport.
 pub struct ResolverPorts {
     pub filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
     pub after_store: Arc<dyn AfterStore + Send + Sync>,
