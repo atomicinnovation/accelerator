@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-24T08:36:48+00:00"
+last_updated: "2026-10-24T09:00:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3514,9 +3514,10 @@ Run `mise run public-api:update` and review: `work` gains
 
 ### As Implemented
 
-Landed as three commits: the resolution marker on `PlannedAction`, the
-engine's `ConflictStatus` and `DossierAuthority` with dossiers built after
-apply, and the CLI's scoped retirement and stale-dossier reporting.
+Landed as three code commits (the resolution marker on `PlannedAction`;
+the engine's `ConflictStatus` and `DossierAuthority` with dossiers built
+after apply; the CLI's scoped retirement and stale-dossier reporting), one
+commit clearing the docs site's npm advisories, and the progress records.
 Departures from the steps above:
 
 - The `ConflictStatus` table, the refresh and stale sets, and the
@@ -3540,21 +3541,52 @@ Departures from the steps above:
   id scheme.
 - The help text, `cli_surface.golden` and `sync-report-records.golden` now
   name `#\tstale-dossier`.
-- End-to-end tests not written as listed: the budget-limited
-  `Indeterminate` run and the identity-pass deferral (covered by the
-  `Unobserved` rows of the status table and `may_retire`'s requirement of a
-  reported row), and the resolve on a dirty `RemotelyModified` item whose
-  pull fails (covered by the status table). `--push-only --target a` runs
-  over a conflict, beside `--pull-only`, in
-  `a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict`.
+- `retiring_removes_only_canonical_dossiers_the_run_may_retire` and
+  `a_preview_retires_no_dossier_and_no_artefact` replace
+  `the_stale_clear_removes_only_canonical_dossiers_and_artefacts`.
+- The end-to-end tests in `work-cli/src/sync.rs` cover §5's list under
+  these names: `a_targeted_run_keeps_the_dossiers_it_did_not_plan`
+  (Reproduction C), `a_targeted_resolution_retires_only_its_own_dossier`,
+  `a_previewed_resolution_refreshes_its_dossier`,
+  `a_targeted_run_refreshes_its_unresolved_dossier`,
+  `a_resolution_failing_before_it_lands_refreshes_its_dossier`,
+  `a_resolution_failing_after_its_pull_keeps_a_stale_dossier`,
+  `a_failed_local_overwrite_keeps_its_dossier`,
+  `a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict` (both
+  `--pull-only` and `--push-only` over a conflict),
+  `a_new_conflict_gets_a_dossier_without_touching_the_others`,
+  `a_converged_conflict_loses_its_dossier_once_recorded` (with its
+  preview), `a_dossier_that_cannot_be_refreshed_is_removed`,
+  `a_dossier_that_can_be_neither_refreshed_nor_removed_is_stale`,
+  `a_whole_corpus_run_retires_settled_and_orphaned_dossiers`,
+  `a_readme_does_not_block_orphan_retirement` and
+  `an_unusable_work_file_keeps_every_dossier` (a lost fence and invalid
+  UTF-8, standing in for `a_conflicted_work_item_file_keeps_every_dossier`).
+- Not written end-to-end: the budget-limited `Indeterminate` run, the
+  identity-pass deferral, the resolve on a dirty `RemotelyModified` item
+  whose pull fails, and `--push-only` on a dirty, prompted
+  `RemotelyModified` item. The status table's `Unobserved` and
+  `ResolutionFailed` rows and `may_retire`'s need for a reported row cover
+  them.
+- The engine tests and the stale-record golden were seen to fail before
+  their code; the CLI end-to-end tests were written alongside the CLI
+  change and passed on first run, so they were never seen failing against
+  the clear-everything retirement.
 
 `mise run` first failed on `docs:audit:check` alone: npm reported two new
 high-severity advisories in `docs-site` (GHSA-xjj6-f33q-929c in `undici`,
 GHSA-mrhx-c7xc-m3w5 in `zod`). `npm audit fix` took `undici` 8.12.3; no
 zod 3.x fixes the other, so an override gives
 `astro-rehype-relative-markdown-links`, whose latest release still asks
-for zod 3, the shared zod 4.6.7. `mise run` then exited 0. The manual check
-needs real Linear.
+for zod 3, the shared zod 4.6.7. `mise run` then exited 0.
+
+The manual check is outstanding and needs real Linear; it fits the
+Phase 5 scratch run. Create two items with `create --push`, sync once,
+then make each a conflict: a local body edit plus a remote one pushed
+with `update --push` from a copy of the scratch repository. A full
+`work sync` writes both dossiers; `--target <a>` must leave `<b>.md`
+byte-identical, and `--target <a> --resolve <a>=remote` must pull `<a>`,
+remove `<a>.md` and leave `<b>.md` byte-identical and presentable.
 
 ---
 
