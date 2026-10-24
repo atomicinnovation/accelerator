@@ -203,6 +203,9 @@ pub struct RunReport {
     pub baseline_degradation: Degradation,
     pub finalisation: Finalisation,
     pub dossiers: Vec<ConflictDossier>,
+    /// Items whose resolution failed part-way, so the dossier a prior run
+    /// wrote no longer describes them.
+    pub stale_dossier_ids: Vec<String>,
     pub discovery: DiscoveryStatus,
     pub discovery_deferral: Option<DiscoveryDeferral>,
     /// The bulk keyed read was cut short by a transient condition (a deadline,

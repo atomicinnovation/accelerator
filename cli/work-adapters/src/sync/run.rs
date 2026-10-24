@@ -60,6 +60,8 @@ use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
 use crate::sync::create::LocalAuthor;
+use crate::sync::dossiers::dossiers_gone_stale;
+use crate::sync::dossiers::dossiers_to_refresh;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::GatheredRemote;
@@ -855,23 +857,29 @@ impl<'a> RunKnowledge<'a> {
 }
 
 fn build_dossiers(
-    plan: &SyncPlan,
+    items: &[ReportedItem],
     knowledge: &RunKnowledge<'_>,
     unconfirmed_links: &BTreeSet<String>,
 ) -> Vec<ConflictDossier> {
-    plan.actions
-        .iter()
-        .filter(|planned| planned.action() == Action::Prompt)
-        .filter_map(|planned| {
-            let item = knowledge.item(planned.id())?;
+    dossiers_to_refresh(items)
+        .into_iter()
+        .filter_map(|id| {
+            let item = knowledge.item(id)?;
             Some(ConflictDossier {
                 unconfirmed_link: item
                     .external_id
                     .clone()
                     .filter(|_| unconfirmed_links.contains(&item.id)),
-                ..dossier_for(planned.id(), item, knowledge)
+                ..dossier_for(id, item, knowledge)
             })
         })
+        .collect()
+}
+
+fn stale_dossier_ids(items: &[ReportedItem]) -> Vec<String> {
+    dossiers_gone_stale(items)
+        .into_iter()
+        .map(str::to_owned)
         .collect()
 }
 
@@ -1767,7 +1775,7 @@ struct PreparedRun<'a> {
     creates_from_local: Vec<LocalCreate<'a>>,
     refused_orders: Vec<ApplyError>,
     leftover_attempts: Vec<PathBuf>,
-    dossiers: Vec<ConflictDossier>,
+    unconfirmed_links: BTreeSet<String>,
 }
 
 /// Maps the bulk keyed read's completeness to the run's fate. A cap-hit is the
@@ -2214,7 +2222,6 @@ fn prepare_run<'a>(
         });
     }
 
-    let dossiers = build_dossiers(&plan, &knowledge, &unconfirmed_links);
     let refused_orders = refused_orders(request, &plan, &creates_from_local);
 
     Ok(PreparedRun {
@@ -2231,7 +2238,7 @@ fn prepare_run<'a>(
         creates_from_local,
         refused_orders,
         leftover_attempts: pending_pushes.leftover,
-        dossiers,
+        unconfirmed_links,
     })
 }
 
@@ -2310,7 +2317,7 @@ fn execute<'a>(
         creates_from_local,
         refused_orders,
         leftover_attempts,
-        dossiers,
+        unconfirmed_links,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
     let reported_as = |item: ReportedItem| {
@@ -2333,6 +2340,9 @@ fn execute<'a>(
             reported.push(create.report(ItemOutcome::NotApplied));
         }
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
+        let dossiers =
+            build_dossiers(&reported, &knowledge, &unconfirmed_links);
+        let stale_dossier_ids = stale_dossier_ids(&reported);
         return Ok(RunReport {
             scope: request.selection.corpus_scope(),
             mode: request.mode,
@@ -2349,6 +2359,7 @@ fn execute<'a>(
             baseline_degradation: degradation,
             finalisation: Finalisation::NotAttempted,
             dossiers,
+            stale_dossier_ids,
             discovery,
             discovery_deferral,
             keyed_read_budget_limited,
@@ -2437,6 +2448,8 @@ fn execute<'a>(
             retire_confirmed_adoptions(&adoption_records, ports, baseline);
     }
     let unretired_adoptions = unretired;
+    let dossiers = build_dossiers(&reported, &knowledge, &unconfirmed_links);
+    let stale_dossier_ids = stale_dossier_ids(&reported);
 
     Ok(RunReport {
         scope: request.selection.corpus_scope(),
@@ -2454,6 +2467,7 @@ fn execute<'a>(
         baseline_degradation: degradation,
         finalisation,
         dossiers,
+        stale_dossier_ids,
         discovery,
         discovery_deferral,
         keyed_read_budget_limited,
