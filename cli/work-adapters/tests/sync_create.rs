@@ -3236,7 +3236,7 @@ fn each_pending_push_refusal_is_terminal_and_names_its_reason(
             "marker-unreadable",
             Some("{ not a marker".to_owned()),
             false,
-            "could not be parsed",
+            "could not be read or parsed",
         ),
         (
             "prior-attempt-unknown",
@@ -4409,6 +4409,33 @@ fn a_tracked_marker_is_unreadable() -> Result<(), TestError> {
         );
         assert_nothing_sent(&tracker, &author);
     }
+    Ok(())
+}
+
+#[test]
+fn a_marker_that_cannot_be_read_is_unreadable() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    std::fs::write(marker_of(&fixture, &item.id), [0xff, 0xfe, b'{'])
+        .expect("the marker is overwritten");
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun::over(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let (reason, cause) = pending_push_refusal(&report);
+    assert_eq!(reason, "marker-unreadable");
+    assert!(
+        cause.contains("the marker could not be read or parsed"),
+        "{cause}"
+    );
+    assert_nothing_sent(&tracker, &author);
     Ok(())
 }
 
