@@ -8367,6 +8367,36 @@ mod tests {
     }
 
     #[test]
+    fn a_relinked_items_dossier_is_retired_and_kept_on_preview() {
+        for preview in [true, false] {
+            let dir = sync_repo_integrated_with("linear");
+            unconfirmed_link_to(dir.path(), "ENG-7");
+            let dossier = dir.path().join(
+                ".accelerator/state/integrations/linear/conflicts/0001.md",
+            );
+            std::fs::create_dir_all(dossier.parent().expect("a parent"))
+                .expect("mkdir");
+            std::fs::write(&dossier, "the prior dossier").expect("seed");
+            let tracker = Rc::new(RecordingTracker::holding(vec![
+                keyed_issue("ENG-7", "Someone else's issue\nBody\n"),
+                keyed_issue("ENG-8", "Draft one\nBody\n"),
+            ]));
+
+            let run = drive_sync_captured(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    preview,
+                    ..ordering("adopt:ENG-8")
+                },
+            );
+
+            assert_eq!(dossier.exists(), preview, "{}{}", run.out, run.err);
+            assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        }
+    }
+
+    #[test]
     fn a_differing_adopt_says_a_conflict_follows() {
         let dir = sync_repo_integrated_with("linear");
         unsynced_draft(dir.path());

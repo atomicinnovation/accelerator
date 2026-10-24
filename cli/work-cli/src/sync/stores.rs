@@ -252,4 +252,23 @@ mod tests {
             &elsewhere.path().join("0001-x.md"),
         );
     }
+
+    #[test]
+    fn an_integrations_directory_symlinked_out_of_the_repository_is_refused() {
+        let repository = Repository::new();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let store = rooted_store(&repository.integration_state());
+        let integrations = repository.path(".accelerator/state/integrations");
+        std::fs::remove_dir_all(&integrations).expect("rmdir");
+        std::fs::create_dir(elsewhere.path().join("jira")).expect("mkdir");
+        std::os::unix::fs::symlink(elsewhere.path(), &integrations)
+            .expect("symlink");
+
+        let baseline = integrations.join("jira/last-sync.json");
+
+        refused(
+            &store.write(&baseline, b"{}"),
+            &elsewhere.path().join("jira/last-sync.json"),
+        );
+    }
 }
