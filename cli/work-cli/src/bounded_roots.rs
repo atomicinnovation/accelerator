@@ -135,6 +135,10 @@ pub enum RootRefusal {
         parent: &'static str,
         target: PathBuf,
     },
+    IntegrationStateSymlinked {
+        path: PathBuf,
+        target: PathBuf,
+    },
     Overlapping,
     ContainsState {
         key: RootKey,
@@ -198,6 +202,14 @@ impl fmt::Display for RootRefusal {
                 "{STATE_DIR}/{parent} is a symlink to {}; move its contents \
                  back into {STATE_DIR}/{parent}/, then remove the link",
                 target.display()
+            ),
+            Self::IntegrationStateSymlinked { path, target } => write!(
+                formatter,
+                "{} is a symlink to {}; move its contents back into {}/, then \
+                 remove the link",
+                path.display(),
+                target.display(),
+                path.display()
             ),
             Self::Overlapping => formatter.write_str(
                 "paths.work and paths.integrations overlap; configure them as \
@@ -325,8 +337,22 @@ impl ValidatedRoots {
         })
     }
 
-    pub fn integration_state(&self, integration: &str) -> BoundedRoot {
-        self.integrations.child(integration)
+    /// # Errors
+    ///
+    /// [`RootRefusal::IntegrationStateSymlinked`] when the integration's
+    /// state directory is a symlink, which its own adapters would follow.
+    pub fn integration_state(
+        &self,
+        integration: &str,
+    ) -> Result<BoundedRoot, RootRefusal> {
+        let state = self.integrations.child(integration);
+        if let Ok(target) = std::fs::read_link(state.root()) {
+            return Err(RootRefusal::IntegrationStateSymlinked {
+                path: state.root().to_path_buf(),
+                target,
+            });
+        }
+        Ok(state)
     }
 }
 
