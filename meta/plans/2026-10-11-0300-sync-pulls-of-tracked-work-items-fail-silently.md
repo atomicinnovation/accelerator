@@ -3104,8 +3104,11 @@ and the `work` public-API snapshot. Departures from the steps above:
   returns `Attempted` like every other apply method.
 - `land_created` returns the raw `TrackerError`, so the local create still
   chooses between abandoning the attempt and recording a terminal one.
-  `Tracker` carries no `created`/`after` prefix: no apply path reaches a
-  tracker failure after a landing.
+  `Tracker` carries no `created`/`after` prefix. A local create lands its
+  Attempted marker, and a relink clears `external_id`, before
+  `land_created`; a `create` failure there keeps the tracker's class,
+  since `abandon_attempt` clears the marker and leaves the item plainly
+  unsynced.
 - A store's `NotWritable` on a pull's write is a `write-local` `Io`
   failure; `NotDurable` from an item or marker write is
   `FailedAfterPublish`.
@@ -4149,20 +4152,10 @@ check, the user guide, and the changelog. Departures from the steps above:
 wording above); with that fixed, `mise run` exited 0 with nothing
 reformatted.
 
-Every phase's code and automated criteria are complete. What remains is
-manual and needs real Linear: Phase 5's pull and read-only work directory
-checks, Phase 6's two-conflict `--target` check, and this phase's skill
-drive. One scratch session covers all four. Run Phase 5's sequence and
-Phase 6's conflict setup through `/sync-work-items` rather than the bare
-CLI, then add the failure cases this phase's criterion lists: an exit-71
-`baseline-set` after a resolution overwrite (seal
-`<integrations>/linear/` before the `--resolve` run), a terminal
-`marker-write` with a created key and an `already-written` refusal (two
-items carrying one `external_id`), an unreadable work file (`chmod 000`),
-and a resolve-to-remote over uncommitted edits. Then check the wording,
-the confirmation before each order, the grouped summary and that the
-skill never reports completion. The plan moves to `done` once these
-are ticked.
+Every phase's code and automated criteria are complete. The manual
+checks ran against Linear in one scratch session, driving Phase 5's
+sequence and Phase 6's conflict setup through `/sync-work-items` and
+adding this phase's failure cases; the defects they found are 0351–0354.
 
 ---
 

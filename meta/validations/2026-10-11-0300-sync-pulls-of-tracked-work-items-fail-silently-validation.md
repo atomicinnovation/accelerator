@@ -185,3 +185,30 @@ These departures are not recorded in any phase's As Implemented section:
   Phase 7's "outstanding" paragraph.
 - Fix the skill's refusal-class count and the stale "Safe to retry" doc on
   exit code 70.
+
+### Follow-up
+
+Fixed on the branch after this validation:
+
+- An unreadable pending-push marker is refused as `marker-unreadable`.
+- A symlinked `<integrations>/<tracker>/` directory refuses the run with
+  exit 74 before any tracker call.
+- A failed tracker read prints `error: -: show failed:` and a failed
+  discovery `error: -: discover failed:`. The help and skill now say a
+  refused key change is a `failed` row only.
+- A dangling Markdown link in the work directory is reported as
+  unreadable, and an entry that cannot be listed fails the listing.
+- The relink dossier and integrations-symlink backstop tests exist.
+- The skill's refusal-class count and its tracker-rejection exit claim are
+  corrected, and so are the plan's two inaccurate notes.
+
+Found not to be issues:
+
+- Control characters already reach stderr escaped: `Console::warn` applies
+  `printable` to every line.
+- `exit_codes.rs` calls `70` "Safe to retry" meaning a re-run cannot
+  double-apply, which holds.
+
+Left as they are: part-built kept-copy cleanup, tabs or newlines in copy
+records, `PermissionDenied` mapped to `Io` on directory creation, and the
+pull's re-read of a newly non-UTF-8 file exiting 70 rather than 75.
