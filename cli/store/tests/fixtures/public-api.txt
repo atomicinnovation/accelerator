@@ -34,7 +34,9 @@ impl core::fmt::Debug for store::lock::LockOptions
 pub fn store::lock::LockOptions::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for store::lock::LockOptions
 pub fn store::lock::acquire(lockdir: &std::path::Path, opts: store::lock::LockOptions) -> core::result::Result<store::lock::LockGuard, store::lock::LockError>
+pub fn store::lock::clear_abandoned(lockdir: &std::path::Path)
 pub fn store::lock::holder_pid(lockdir: &std::path::Path) -> core::option::Option<u32>
+pub fn store::lock::is_lock_sentinel(name: &str) -> bool
 pub enum store::NewFileMode
 pub store::NewFileMode::PreserveOr(u32)
 pub store::NewFileMode::Set(u32)
@@ -76,6 +78,7 @@ pub fn store::atomic_create(path: &std::path::Path, bytes: &[u8], bounds: &store
 pub fn store::atomic_write(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::current_umask() -> u32
 pub fn store::ensure_contained(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<std::path::PathBuf, store::WriteError>
+pub fn store::is_atomic_temporary(file_name: &str) -> bool
 pub fn store::read_within(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<core::option::Option<alloc::vec::Vec<u8>>, store::WriteError>
 pub fn store::replace_without_sync(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::require_owner_only_permissions(path: &std::path::Path) -> core::result::Result<(), store::WriteError>

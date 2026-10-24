@@ -179,6 +179,19 @@ options. State the allocation count and warn about partial state:
    recover)
 2. **No, cancel** — cancel without writing
 
+**A re-key in progress.** `accelerator work next-number` and
+`accelerator work create` refuse before reading or writing anything while an
+`accelerator work rekey` run is unfinished. Before any other branch on a
+non-zero exit from one of them, check its stderr for these codes; in every
+case nothing was written:
+
+- `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
+  run `/rekey-work-items` to finish or undo it. Stop.
+- `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
+  suggesting the re-key be finished. Stop.
+- `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
+  retry once it ends.
+
 **On approval** under `{tracker}`: do not call `accelerator work
 next-number` and do not write children with the `Write` tool. For each
 child, write its body (H1 through the remaining template sections, with the

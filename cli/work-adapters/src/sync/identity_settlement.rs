@@ -45,7 +45,9 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementPorts;
 use crate::retirement_records::RetirementRecords;
+use crate::sync::baseline::Baseline;
 use crate::sync::baseline_digester::BaselineDigester;
+use crate::sync::baseline_store::BaselineStore;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
@@ -56,6 +58,7 @@ use crate::sync::run::RunMode;
 use crate::sync::run::SettledView;
 use crate::sync::run::SyncPorts;
 use crate::sync::run::SyncRequest;
+use work::identity_run::IdentityRunGuard;
 
 pub struct SettlementPorts<'a> {
     pub retirement: &'a RetirementPorts<'a>,
@@ -69,6 +72,7 @@ pub struct SettlementPorts<'a> {
     pub probe_status: &'a dyn Fn() -> Box<dyn WorkingCopyStatus>,
     /// Reads a promoted issue, to predict its next sync.
     pub remote: RemoteReading<'a>,
+    pub identity_run: &'a IdentityRunGuard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -390,7 +394,7 @@ fn detect_identity_changes(
     let (baseline, _) = settlement
         .retirement
         .baseline
-        .load()
+        .map_or_else(|| Ok(Baseline::read(None)), BaselineStore::load)
         .map_err(|error| RunError::Internal(error.into()))?;
     let facts = fetch::gather(
         request.reconciled(),
@@ -464,8 +468,12 @@ fn promote_draft(
         retirement: &retirement,
         records: settlement.promotions,
     };
-    let result =
-        promote(&planned.draft, &PromotionMode::Standard, &promotion_ports);
+    let result = promote(
+        &planned.draft,
+        &PromotionMode::Standard,
+        &promotion_ports,
+        settlement.identity_run,
+    );
     if let Err(NotPromoted::RetirementFailed(
         failure @ RetirementFailure::RestoreIncomplete { .. },
     )) = &result

@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 
 use corpus::lock::{ExclusiveLock, HeldLock, LockName};
@@ -53,9 +54,18 @@ impl LockdirLock {
 
 impl ExclusiveLock for LockdirLock {
     fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError> {
-        acquire(&self.lockdir(name), self.options)
+        let lockdir = self.lockdir(name);
+        if let Some(parent) = lockdir.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| crate::store::io(parent, &error))?;
+        }
+        acquire(&lockdir, self.options)
             .map(HeldLock::new)
             .map_err(from_lock_error)
+    }
+
+    fn clear_abandoned(&self, name: &LockName) {
+        store::lock::clear_abandoned(&self.lockdir(name));
     }
 }
 
@@ -125,6 +135,46 @@ mod tests {
             store.replace_locked(&target, b"blocked"),
             Err(StoreError::LockTimeout { .. })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn an_abandoned_for_file_lock_is_cleared() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("0001-item.md");
+        let lockdir = dir.path().join("0001-item.md.lockdir");
+        fs::create_dir(&lockdir)?;
+        fs::write(lockdir.join("owner.0123456789abcdef"), "2147483632")?;
+
+        LockdirLock::new(dir.path())
+            .clear_abandoned(&LockName::ForFile(target));
+
+        assert!(!lockdir.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_held_lock_is_never_cleared() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lock = LockdirLock::new(dir.path());
+        let _held = lock.acquire(&LockName::Retirement)?;
+
+        lock.clear_abandoned(&LockName::Retirement);
+
+        assert!(dir.path().join(LockdirLock::RETIREMENT_LOCKDIR).is_dir());
+        Ok(())
+    }
+
+    #[test]
+    fn a_for_file_lock_in_a_directory_that_does_not_exist_creates_it(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("drafts").join("draft-k3x9mq-item.md");
+        let lock = LockdirLock::with_options(dir.path(), FAST);
+
+        let _held = lock.acquire(&LockName::ForFile(target))?;
+
+        assert!(dir.path().join("drafts").is_dir());
         Ok(())
     }
 }

@@ -44,7 +44,8 @@
       "8",
       "9",
       "35",
-      "36"
+      "36",
+      "37"
     ],
     "runs_per_configuration": 1
   },
@@ -1916,6 +1917,40 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 37,
+      "eval_name": "routes_an_in_progress_rekey",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
+          "passed": true,
+          "evidence": "response.md: \"a work item re-key is still in progress\" and \"Run `/rekey-work-items` to finish (or undo) the unfinished re-key\"."
+        },
+        {
+          "text": "commands.md shows the next-number call and no accelerator work create",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work next-number`; no accelerator work create follows."
+        },
+        {
+          "text": "files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "files.md: none."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -1973,6 +2008,7 @@
     "All 14 pre-existing evals (1\u201314) pass 100% in both configs \u2014 no regressions introduced by the enrich-existing extension.",
     "Evals 1\u201314 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior.",
     "Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed.",
-    "Evals 35 and 36 ({tracker} push-gate decline and preview failure) were run with_skill only on 2026-09-28, by claude-sonnet-5; both passed on the first run."
+    "Evals 35 and 36 ({tracker} push-gate decline and preview failure) were run with_skill only on 2026-09-28, by claude-sonnet-5; both passed on the first run.",
+    "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
   ]
 }

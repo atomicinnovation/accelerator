@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::path::PathBuf;
 
 use migrate::ports::MigrationError;
@@ -5,28 +6,51 @@ use migrate::ports::WorkingCopy;
 use migrate::ports::WorkingCopyObservation;
 use migrate::run_base::RunBase;
 use tracing::warn;
-use vcs::VcsKind;
+use vcs::guarded_working_copy::observe_guarded;
+use vcs::guarded_working_copy::GuardedObservation;
+use vcs::RepositoryProbe;
 use vcs::WorkingCopyState;
-use vcs::WorkingCopyStateProbe;
 
 pub struct VcsWorkingCopy<'a> {
     root: PathBuf,
-    kind: VcsKind,
-    probe: &'a dyn WorkingCopyStateProbe,
+    probe: &'a dyn RepositoryProbe,
 }
 
 impl<'a> VcsWorkingCopy<'a> {
     #[must_use]
     pub fn new(
         root: impl Into<PathBuf>,
-        kind: VcsKind,
-        probe: &'a dyn WorkingCopyStateProbe,
+        probe: &'a dyn RepositoryProbe,
     ) -> Self {
         Self {
             root: root.into(),
-            kind,
             probe,
         }
+    }
+
+    /// The working copy containing `root`, its dirty paths relative to
+    /// `root`, which may sit below the repository's own root.
+    fn probed(&self) -> Result<WorkingCopyState, kernel::Error> {
+        let Some(facts) = self.probe.facts_at(&self.root) else {
+            return Ok(WorkingCopyState::default());
+        };
+        let canonical = |path: &Path| {
+            path.canonicalize().unwrap_or_else(|_| path.to_owned())
+        };
+        let config_root = canonical(&self.root);
+        let within =
+            config_root
+                .strip_prefix(canonical(&facts.root))
+                .map_err(|_| {
+                    kernel::Error::Failed(format!(
+                        "{} lies outside the repository at {}",
+                        self.root.display(),
+                        facts.root.display()
+                    ))
+                })?;
+        self.probe
+            .working_copy_state(&facts.root, facts.kind)
+            .map(|state| state.seen_from(within))
     }
 }
 
@@ -38,26 +62,20 @@ impl WorkingCopy for VcsWorkingCopy<'_> {
         &self,
         roots: &[&str],
     ) -> Result<WorkingCopyObservation, MigrationError> {
-        let state = self
-            .probe
-            .working_copy_state(&self.root, self.kind)
-            .unwrap_or_else(|error| {
+        let state = match observe_guarded(self.probed(), roots) {
+            GuardedObservation::Observed(state) => state,
+            GuardedObservation::Unprobeable { reason } => {
                 warn!(
                     root = %self.root.display(),
-                    %error,
+                    error = %reason,
                     "could not compute the working-copy diff; treating as clean"
                 );
                 WorkingCopyState::default()
-            });
+            }
+        };
         Ok(WorkingCopyObservation {
             run_base: RunBase::from_base_commits(&state.base_commits),
-            dirty_paths: state
-                .dirty_paths
-                .into_iter()
-                .filter(|path| {
-                    roots.iter().any(|scope| path.starts_with(scope))
-                })
-                .collect(),
+            dirty_paths: state.dirty_paths,
         })
     }
 }

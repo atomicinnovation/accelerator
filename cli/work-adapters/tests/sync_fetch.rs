@@ -49,9 +49,7 @@ fn item(id: &str, external_id: Option<&str>) -> LocalItem {
 
 /// `RecordingTracker::holding` never fails `fetch_all`, so this pins the
 /// partition for a tracker that knows nothing: every id comes back absent
-/// — a complete but empty catalogue — rather than indeterminate. A genuine
-/// pre-flight failure has no seam here and is covered by `work-cli`'s
-/// command-level tests.
+/// — a complete but empty catalogue — rather than indeterminate.
 #[test]
 fn a_no_entry_item_falls_back_to_the_document_timestamp_for_its_gate() {
     let tracker = RecordingTracker::holding(Vec::new());

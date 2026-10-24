@@ -241,6 +241,18 @@ A local change over a Jira description with no Markdown form is not refused: a
 body or title change facing a remote body change is a conflict whose dossier
 offers `=local`, and a metadata-only change is sent by retitle or recorded.
 
+**A re-key in progress.** `work sync` refuses before reading or writing
+anything while an `accelerator work rekey` run is unfinished. Before any other
+branch on a non-zero exit, check its stderr for these codes; in every case
+nothing was written:
+
+- `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
+  run `/rekey-work-items` to finish or undo it. Stop.
+- `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
+  suggesting the re-key be finished. Stop.
+- `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
+  retry once it ends.
+
 ## Step 3: Conflict resolution (bidirectional only)
 
 When the report lists a conflict as **unresolved** (a bidirectional

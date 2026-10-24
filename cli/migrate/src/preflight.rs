@@ -24,6 +24,7 @@ pub struct AffordanceEntry {
 pub enum PreflightOutcome {
     Clean,
     Resumed { affordance: Vec<AffordanceEntry> },
+    Forced { skipped: Vec<String> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,16 +77,15 @@ impl Preflight<'_> {
         let observation = self.working_copy.observe(&SCOPES)?;
         let run_base = observation.run_base.as_ref();
 
-        if self.force {
-            self.start_fresh_run(run_base)?;
-            return Ok((guard, PreflightOutcome::Clean));
-        }
-
         let dirty: Vec<String> = observation
             .dirty_paths
             .into_iter()
             .filter(|path| !is_runner_managed(path, &self.runner))
             .collect();
+        if self.force && !dirty.is_empty() {
+            self.start_fresh_run(run_base)?;
+            return Ok((guard, PreflightOutcome::Forced { skipped: dirty }));
+        }
         if dirty.is_empty() {
             self.start_fresh_run(run_base)?;
             return Ok((guard, PreflightOutcome::Clean));

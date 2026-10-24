@@ -49,7 +49,7 @@ from tasks.shared.sources import repo_root
 # Injection is expected in exactly this many skills. Bump deliberately when a
 # skill's context/instructions injection is genuinely added or removed — the
 # equality is what catches an accidental loss.
-EXPECTED_INJECTION_SKILLS = 43
+EXPECTED_INJECTION_SKILLS = 44
 
 _NAME_TOKEN = re.compile(r"([a-z0-9][a-z0-9-]*)")
 

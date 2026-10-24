@@ -1,6 +1,7 @@
 //! Applying a [`RetirementPlan`] all-or-nothing across the corpus, and the
 //! one path that plans, applies and cleans up a retirement.
 
+use std::convert::Infallible;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -57,7 +58,9 @@ pub struct RetirementPorts<'a> {
     pub walker: &'a dyn CorpusWalker,
     pub status: &'a dyn WorkingCopyStatus,
     pub lock: &'a dyn ExclusiveLock,
-    pub baseline: &'a BaselineStore<'a>,
+    /// The sync baseline, or `None` when no integration is configured and
+    /// so no baseline entry can name the retiring item.
+    pub baseline: Option<&'a BaselineStore<'a>>,
 }
 
 /// Proof that the caller holds the retirement lock, so no retirement can
@@ -157,10 +160,13 @@ enum Step<'a> {
         path: &'a Path,
         original: &'a str,
     },
-    RenameBaseline,
+    RenameBaseline(&'a BaselineStore<'a>),
 }
 
-fn steps(plan: &RetirementPlan) -> Vec<Step<'_>> {
+fn steps<'a>(
+    plan: &'a RetirementPlan,
+    baseline: Option<&'a BaselineStore<'a>>,
+) -> Vec<Step<'a>> {
     let mut steps: Vec<Step<'_>> = plan
         .rewrites
         .iter()
@@ -182,7 +188,7 @@ fn steps(plan: &RetirementPlan) -> Vec<Step<'_>> {
             original,
         });
     }
-    steps.push(Step::RenameBaseline);
+    steps.extend(baseline.map(Step::RenameBaseline));
     steps
 }
 
@@ -299,7 +305,6 @@ fn take(
     step: &Step<'_>,
     plan: &RetirementPlan,
     files: &RetirementFiles<'_>,
-    baseline: &BaselineStore<'_>,
 ) -> Result<(), RetirementCause> {
     match step {
         Step::Rewrite { path, content, .. } => files
@@ -314,7 +319,7 @@ fn take(
             .remover
             .remove(path)
             .map_err(|error| store_cause(path, error)),
-        Step::RenameBaseline => baseline
+        Step::RenameBaseline(baseline) => baseline
             .rename(&plan.baseline_rename.from, &plan.baseline_rename.to)
             .map_err(|error| store_cause(baseline.path(), error)),
     }
@@ -357,7 +362,7 @@ fn undo(step: &Step<'_>, files: &RetirementFiles<'_>) -> Result<(), PathBuf> {
             .creator
             .create_new(path, original.as_bytes())
             .map_err(|_| unrestored(path)),
-        Step::RenameBaseline => Ok(()),
+        Step::RenameBaseline(_) => Ok(()),
     }
 }
 
@@ -403,7 +408,7 @@ fn roll_back(
 pub fn apply_retirement(
     plan: &RetirementPlan,
     files: &RetirementFiles<'_>,
-    baseline: &BaselineStore<'_>,
+    baseline: Option<&BaselineStore<'_>>,
     _lock: &RetirementLockGuard,
 ) -> Result<(), RetirementFailure> {
     let resumes = plan.resumes || files.recovery.exists(&plan.recovery_dir);
@@ -417,9 +422,9 @@ pub fn apply_retirement(
         }
         return Err(rolled_back(cause));
     }
-    let steps = steps(plan);
+    let steps = steps(plan, baseline);
     for (index, step) in steps.iter().enumerate() {
-        if let Err(failure) = take(step, plan, files, baseline) {
+        if let Err(failure) = take(step, plan, files) {
             return Err(roll_back(
                 &steps[..index],
                 failure,
@@ -432,10 +437,22 @@ pub fn apply_retirement(
     Ok(())
 }
 
-fn walked_corpus(
+/// The corpus as it stood when walked once: every markdown file, and the
+/// identities of the work items among them.
+pub struct CorpusSnapshot {
+    pub files: Vec<CorpusFile>,
+    pub items: Vec<ItemIdentity>,
+}
+
+/// Walks the corpus once.
+///
+/// # Errors
+///
+/// [`FinishFailure::Failed`] when the corpus cannot be read.
+pub fn corpus_snapshot(
     ports: &RetirementPorts<'_>,
-) -> Result<Vec<CorpusFile>, FinishFailure> {
-    corpus_files(
+) -> Result<CorpusSnapshot, FinishFailure> {
+    let files = corpus_files(
         ports.walker,
         ports.files.reader,
         ports.status,
@@ -451,7 +468,9 @@ fn walked_corpus(
                 }),
             ),
         })
-    })
+    })?;
+    let items = identities(&work_items(&files, ports.layout.work_dir));
+    Ok(CorpusSnapshot { files, items })
 }
 
 /// Plans `retirement` over the corpus as it now stands.
@@ -464,10 +483,14 @@ pub fn plan_from_corpus(
     retirement: &Retirement<'_>,
     ports: &RetirementPorts<'_>,
 ) -> Result<RetirementPlan, FinishFailure> {
-    let corpus = walked_corpus(ports)?;
-    let items = identities(&work_items(&corpus, ports.layout.work_dir));
-    plan_retirement(retirement, ports.layout.work_dir, &items, &corpus)
-        .map_err(FinishFailure::Refused)
+    let snapshot = corpus_snapshot(ports)?;
+    plan_retirement(
+        retirement,
+        ports.layout.work_dir,
+        &snapshot.items,
+        &snapshot.files,
+    )
+    .map_err(FinishFailure::Refused)
 }
 
 /// The identities of every work item, drafts included, as the corpus now
@@ -479,8 +502,7 @@ pub fn plan_from_corpus(
 pub fn corpus_identities(
     ports: &RetirementPorts<'_>,
 ) -> Result<Vec<ItemIdentity>, FinishFailure> {
-    let corpus = walked_corpus(ports)?;
-    Ok(identities(&work_items(&corpus, ports.layout.work_dir)))
+    corpus_snapshot(ports).map(|snapshot| snapshot.items)
 }
 
 /// Whether `retirement` still has a step to take: a file to write, create
@@ -494,11 +516,12 @@ pub fn retirement_outstanding(
     ports: &RetirementPorts<'_>,
 ) -> Result<bool, FinishFailure> {
     let plan = plan_from_corpus(retirement, ports)?;
-    let baseline_still_old = ports
-        .baseline
-        .load()
-        .map(|(baseline, _)| baseline.get(retirement.old_id).is_some())
-        .unwrap_or(true);
+    let baseline_still_old = ports.baseline.is_some_and(|store| {
+        store
+            .load()
+            .map(|(baseline, _)| baseline.get(retirement.old_id).is_some())
+            .unwrap_or(true)
+    });
     Ok(!plan.leaves_corpus_unchanged() || baseline_still_old)
 }
 
@@ -518,14 +541,49 @@ pub fn finish_retirement(
     ports: &RetirementPorts<'_>,
     lock: &RetirementLockGuard,
 ) -> Result<(), FinishFailure> {
+    finish_retirement_with(retirement, ports, lock, &mut |_| {
+        Ok::<(), Infallible>(())
+    })
+    .map_err(|failure| match failure {
+        HookedFinishFailure::Retirement(failure) => failure,
+        HookedFinishFailure::BeforeApply(never) => match never {},
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HookedFinishFailure<E> {
+    Retirement(FinishFailure),
+    BeforeApply(E),
+}
+
+/// [`finish_retirement`], handing `before_apply` each plan just before it
+/// is applied, a re-plan included; an error from it stops the retirement
+/// before that plan writes anything.
+///
+/// # Errors
+///
+/// [`HookedFinishFailure::Retirement`] as [`finish_retirement`] fails, and
+/// [`HookedFinishFailure::BeforeApply`] when `before_apply` stops it.
+pub fn finish_retirement_with<E>(
+    retirement: &Retirement<'_>,
+    ports: &RetirementPorts<'_>,
+    lock: &RetirementLockGuard,
+    before_apply: &mut dyn FnMut(&RetirementPlan) -> Result<(), E>,
+) -> Result<(), HookedFinishFailure<E>> {
     let mut attempts_left = 2;
     loop {
         attempts_left -= 1;
-        let plan = plan_from_corpus(retirement, ports)?;
+        let plan = plan_from_corpus(retirement, ports)
+            .map_err(HookedFinishFailure::Retirement)?;
+        before_apply(&plan).map_err(HookedFinishFailure::BeforeApply)?;
         match apply_retirement(&plan, &ports.files, ports.baseline, lock) {
             Ok(()) => break,
             Err(RetirementFailure::RolledBack { .. }) if attempts_left > 0 => {}
-            Err(failure) => return Err(FinishFailure::Failed(failure)),
+            Err(failure) => {
+                return Err(HookedFinishFailure::Retirement(
+                    FinishFailure::Failed(failure),
+                ));
+            }
         }
     }
     let recovery_dir = retirement.recovery_dir();

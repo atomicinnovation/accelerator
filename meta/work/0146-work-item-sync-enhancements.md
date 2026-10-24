@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-09-23T21:40:07+00:00"
+last_updated: "2026-10-15T21:49:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -269,6 +269,12 @@ Resolved during refinement (2026-08-30):
   meaning-changing rewrites); blocked by 0296.
 - 0321 — Sync authority model between local work items and the tracker (ADR
   ratifying or revising 0296's representation rule).
+- 0302 — Work item re-key command (`work rekey` converges existing IDs onto
+  the current `work.id_pattern`; blocked by 0230).
+- 0343 — Alias normalisation for re-keyed work items (split out of 0302).
+- 0345 — Bare-number review during alias normalisation (blocked by 0343 and
+  0344).
+- 0346 — Remove deprecated `ACCELERATOR_MIGRATE_FORCE` (blocked by 0302).
 
 ### Future candidates (deferred from 0229 refinement)
 

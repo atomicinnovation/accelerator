@@ -1,5 +1,6 @@
 //! The dirty-tree pre-flight driven end to end against the compiled binary
-//! over real git/jj repositories: unowned changes refuse, `FORCE` bypasses.
+//! over real git/jj repositories: unowned changes refuse, `ACCELERATOR_FORCE`
+//! (or the deprecated `ACCELERATOR_MIGRATE_FORCE`) bypasses.
 
 mod common;
 
@@ -45,17 +46,23 @@ fn an_unowned_git_change_refuses() -> Result<(), TestError> {
         stderr,
         "Error: dirty working tree — uncommitted changes detected in \
          meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or \
-         discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 \
-         to skip this check.\nUnowned changes (1):\n  meta/a.md\n"
+         discard those changes first, or set ACCELERATOR_FORCE=1 to skip \
+         this check.\nUnowned changes (1):\n  meta/a.md\n"
     );
     Ok(())
 }
 
-#[test]
-fn force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel(
-) -> Result<(), TestError> {
+const DEPRECATION_NOTICE: &str = "warning: ACCELERATOR_MIGRATE_FORCE is \
+     deprecated and will be removed in a future release; use \
+     ACCELERATOR_FORCE=1 on the one command instead\n";
+
+/// A committed git repository with every migration applied and one edit to
+/// `meta/a.md` left uncommitted.
+fn dirty_git_repo(
+    tag: &str,
+) -> Result<(tempfile::TempDir, Hermetic, std::path::PathBuf), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
-    let work = tempdir("git-force")?;
+    let work = tempdir(tag)?;
     let env = Hermetic::rooted_at(work.path())?;
     let root = work.path().join("repo");
     fs::create_dir_all(root.join("meta"))?;
@@ -63,18 +70,139 @@ fn force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel(
     fs::write(root.join("meta/a.md"), "one\n")?;
     env.git(&["add", "meta/a.md"], &root)?;
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
-
     fs::write(root.join("meta/a.md"), "two\n")?;
     mark_all_migrations_applied(&root)?;
+    Ok((work, env, root))
+}
+
+#[test]
+fn accelerator_force_applies_over_a_dirty_tree() -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("accelerator-force")?;
 
     let Outcome {
         stdout,
-        stderr: _stderr,
+        stderr,
+        code,
+    } = run(&env, &root, &[("ACCELERATOR_FORCE", "1")])?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(stdout, "No pending migrations.\n");
+    assert!(!stderr.contains("deprecated"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn the_deprecated_migrate_force_still_applies_over_a_dirty_tree(
+) -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("migrate-force")?;
+
+    let Outcome {
+        stdout,
+        stderr,
         code,
     } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
 
-    assert_eq!(code, 0);
+    assert_eq!(code, 0, "{stderr}");
     assert_eq!(stdout, "No pending migrations.\n");
+    Ok(())
+}
+
+#[test]
+fn the_deprecated_migrate_force_prints_a_notice_suggesting_a_per_invocation_accelerator_force(
+) -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("migrate-force-notice")?;
+
+    let Outcome { stderr, .. } =
+        run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+
+    assert!(stderr.starts_with(DEPRECATION_NOTICE), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn the_notice_prints_when_both_variables_are_set() -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("both-forces")?;
+
+    let Outcome { stderr, code, .. } = run(
+        &env,
+        &root,
+        &[
+            ("ACCELERATOR_FORCE", "1"),
+            ("ACCELERATOR_MIGRATE_FORCE", "1"),
+        ],
+    )?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert!(stderr.starts_with(DEPRECATION_NOTICE), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn accelerator_force_zero_does_not_force_migrate() -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("accelerator-force-zero")?;
+
+    let Outcome { stderr, code, .. } =
+        run(&env, &root, &[("ACCELERATOR_FORCE", "0")])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn the_refusal_names_accelerator_force() -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("refusal-names-force")?;
+
+    let Outcome { stderr, .. } = run(&env, &root, &[])?;
+
+    assert!(
+        stderr.contains("or set ACCELERATOR_FORCE=1 to skip this check."),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("ACCELERATOR_MIGRATE_FORCE"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn the_stale_run_explanation_names_both_variables() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("stale-run")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    committed_git_repo(&env, &root, &["meta/a.md"])?;
+    seed_manifest(
+        &root,
+        &["meta/a.md"],
+        "0000000000000000000000000000000000000000",
+    )?;
+    fs::write(root.join("meta/a.md"), "two\n")?;
+
+    let Outcome { stderr, code, .. } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert!(
+        stderr.contains(
+            "commit them and re-run without ACCELERATOR_FORCE or \
+             ACCELERATOR_MIGRATE_FORCE to resume."
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn forcing_past_a_dirty_tree_says_what_it_skipped() -> Result<(), TestError> {
+    let (_work, env, root) = dirty_git_repo("force-says-skipped")?;
+
+    let Outcome { stderr, code, .. } =
+        run(&env, &root, &[("ACCELERATOR_FORCE", "1")])?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(
+        stderr,
+        "warning: forced past the dirty-tree pre-flight over uncommitted \
+         changes (1):\n  meta/a.md\n"
+    );
     Ok(())
 }
 
@@ -280,7 +408,7 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
         stdout,
         stderr: _stderr,
         code,
-    } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    } = run(&env, &root, &[("ACCELERATOR_FORCE", "1")])?;
 
     assert_eq!(code, 0, "{stdout}");
     assert!(stdout.starts_with("No pending migrations.\n"), "{stdout}");
@@ -313,6 +441,69 @@ fn an_unowned_jj_change_refuses() -> Result<(), TestError> {
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
     assert!(stderr.contains("dirty working tree"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn an_unowned_git_change_under_a_config_root_below_the_repository_root_refuses(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-nested-refuse")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repository = work.path().join("mono");
+    let root = repository.join("pkg");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &repository)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "pkg/meta/a.md"], &repository)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &repository)?;
+    mark_all_migrations_applied(&root)?;
+
+    fs::write(root.join("meta/a.md"), "two\n")?;
+
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.ends_with("Unowned changes (1):\n  meta/a.md\n"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unowned_jj_change_under_a_config_root_below_the_repository_root_refuses(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempdir("jj-nested-refuse")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repository = work.path().join("mono");
+    let root = repository.join("pkg");
+    fs::create_dir_all(root.join("meta"))?;
+    env.jj(&["git", "init", "--no-colocate"], &repository)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.jj(&["commit", "-m", "init"], &repository)?;
+    mark_all_migrations_applied(&root)?;
+
+    fs::write(root.join("meta/b.md"), "two\n")?;
+
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.ends_with("Unowned changes (1):\n  meta/b.md\n"),
+        "{stderr}"
+    );
     Ok(())
 }
 

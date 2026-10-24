@@ -1,6 +1,6 @@
 //! Pins every push outcome's keyword and exit code, every keyword a batch
-//! create reports, and every reason a draft is not promoted, against a
-//! frozen expectation.
+//! create reports, every reason a draft is not promoted, and every code a
+//! re-key stops under, against a frozen expectation.
 //!
 //! The work skills branch on both the keyword `work create --push`,
 //! `work create-batch`, `work sync` and `work promote` print and the code
@@ -8,13 +8,22 @@
 //! derived from the code they guard.
 #![allow(clippy::expect_used, clippy::panic)]
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use corpus::StoreError;
 use tracker::ExternalId;
 use work::create_batch::BatchKeyword;
+use work::draft_id::DraftIdExhausted;
 use work::identity::IdentityField;
 use work::promotion::NotPromoted;
+use work::rekey::entry::RekeyEntry;
+use work::rekey::entry::RekeyTarget;
+use work::rekey::fingerprint::Staleness;
+use work::rekey::outcome::NotRekeyed;
+use work::rekey::run_plan::Unreadability;
+use work::rekey::run_plan::UnreadablePlan;
+use work::rekey::write_set::Unreverted;
 use work::retirement::RetirementCause;
 use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
@@ -192,4 +201,109 @@ fn every_not_promoted_reason_maps_to_its_frozen_exit_code() {
             );
         }
     }
+}
+
+const FROZEN_NOT_REKEYED: &[(&str, u8)] = &[
+    ("E_REKEY_IN_PROGRESS", 4),
+    ("E_REKEY_PLAN_UNREADABLE", 4),
+    ("E_REKEY_NOT_REVERTED", 4),
+    ("E_REKEY_PARTLY_APPLIED", 4),
+    ("E_REKEY_SYNC_UNFINISHED", 4),
+    ("E_REKEY_PENDING_PUSH", 4),
+    ("E_REKEY_ID_COLLISION", 4),
+    ("E_REKEY_UNCLASSIFIABLE_ID", 4),
+    ("E_REKEY_NUMBER_SPACE_EXHAUSTED", 4),
+    ("E_REKEY_TARGET_EXISTS", 4),
+    ("E_REKEY_PREVIEW_STALE", 4),
+    ("E_REKEY_DIRTY_WORKING_COPY", 4),
+    ("E_REKEY_WORKING_COPY_UNPROBEABLE", 4),
+    ("E_REKEY_ENTRY_REFUSED", 4),
+    ("E_REKEY_ENTRY_ROLLED_BACK", 4),
+    ("E_REKEY_RESTORE_INCOMPLETE", 4),
+    ("E_REKEY_STATE_UNWRITABLE", 1),
+    ("E_IDENTITY_RUN_BUSY", 1),
+    ("E_REKEY_TRACKER_UNREACHABLE", 70),
+    ("E_DRAFT_ID_EXHAUSTED", 1),
+];
+
+fn rekey_entry() -> RekeyEntry {
+    RekeyEntry {
+        old: "0042".to_owned(),
+        target: RekeyTarget::Renumbered("ACC-0042".to_owned()),
+    }
+}
+
+fn every_not_rekeyed() -> Vec<NotRekeyed> {
+    let item = PathBuf::from("meta/work/0042-x.md");
+    vec![
+        NotRekeyed::InProgress(None),
+        NotRekeyed::PlanUnreadable(UnreadablePlan {
+            path: PathBuf::from(".accelerator/state/rekey/run-plan.json"),
+            cause: Unreadability::NewerSchema(2),
+        }),
+        NotRekeyed::NotReverted(Unreverted::default()),
+        NotRekeyed::PartlyApplied {
+            items: Vec::new(),
+            recoveries: Vec::new(),
+        },
+        NotRekeyed::SyncUnfinished(Vec::new()),
+        NotRekeyed::PendingPush(Vec::new()),
+        NotRekeyed::Collision {
+            first: item.clone(),
+            second: item.clone(),
+            target: "ACC-0042".to_owned(),
+        },
+        NotRekeyed::Unclassifiable(item.clone()),
+        NotRekeyed::FreshNumbersExhausted {
+            needed: 2,
+            remaining: 1,
+            pattern: String::new(),
+        },
+        NotRekeyed::KeptNumberAboveCap {
+            item: item.clone(),
+            number: 12_345,
+            pattern: String::new(),
+        },
+        NotRekeyed::TargetExists(item.clone()),
+        NotRekeyed::PreviewStale(Staleness::SchemeChanged),
+        NotRekeyed::DirtyWorkingCopy(Vec::new()),
+        NotRekeyed::WorkingCopyUnprobeable(String::new()),
+        NotRekeyed::EntryRefused {
+            entry: rekey_entry(),
+            refusal: RetirementRefusal::TargetExists(item.clone()),
+        },
+        NotRekeyed::EntryRolledBack {
+            entry: rekey_entry(),
+            cause: Box::new(cause()),
+        },
+        NotRekeyed::RestoreIncomplete {
+            entry: rekey_entry(),
+            recovery: item,
+        },
+        NotRekeyed::StateUnwritable(String::new()),
+        NotRekeyed::IdentityRunBusy(None),
+        NotRekeyed::TrackerUnreachable(String::new()),
+        NotRekeyed::DraftIdExhausted(DraftIdExhausted { attempts: 16 }),
+    ]
+}
+
+#[test]
+fn every_rekey_outcome_maps_to_its_frozen_code() {
+    let outcomes = every_not_rekeyed();
+    for outcome in &outcomes {
+        let (_, frozen) = FROZEN_NOT_REKEYED
+            .iter()
+            .find(|(code, _)| *code == outcome.code())
+            .unwrap_or_else(|| {
+                panic!("no frozen exit code for {}", outcome.code())
+            });
+        assert_eq!(
+            outcome.exit_code(),
+            *frozen,
+            "{} has drifted from its contract",
+            outcome.code()
+        );
+    }
+    let codes: BTreeSet<&str> = outcomes.iter().map(NotRekeyed::code).collect();
+    assert_eq!(codes.len(), FROZEN_NOT_REKEYED.len());
 }

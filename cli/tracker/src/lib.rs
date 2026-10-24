@@ -292,12 +292,18 @@ impl std::error::Error for TrackerError {}
 /// `absent` must be empty and every unseen id belongs in `indeterminate`.
 ///
 /// Nothing here enforces totality — the type cannot, and this crate ships no
-/// logic. It is an obligation on every implementation.
+/// logic. It is an obligation on every implementation, as is reporting an id
+/// `found` only under the key the tracker currently holds the issue under
+/// (see [`RemoteTracker::fetch_all`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FetchOutcome {
     /// The issues the retrieval accounted for, each paired with the id it was
     /// requested under — bulk payloads carry no other way to associate a
     /// record with a local work item.
+    ///
+    /// An id is here only when the tracker held the issue under exactly that
+    /// id when it answered; an issue moved to another key is never found
+    /// under its old one.
     ///
     /// A stamp, not an issue: no provider's bulk query returns a projected
     /// body, so a `RemoteIssue` here could only ever hold a fabricated one.
@@ -762,6 +768,13 @@ pub trait RemoteTracker: BodyDialect {
     /// Returns stamps, not bodies. This is the cheap first tier of a two-tier
     /// read: compare each stamp against the sync baseline, then call `show`
     /// for the minority that moved.
+    ///
+    /// An implementation reports an id as `found` only when the tracker holds
+    /// the issue under exactly that id at the time of the read. An issue moved
+    /// to another key must report its old key as `absent` or `indeterminate`,
+    /// never `found`, so the caller reaches [`locate`](Self::locate) and
+    /// learns the current key. An id differing from the held key only in case
+    /// may be reported `absent`; `locate` then finds the issue unmoved.
     ///
     /// # Errors
     ///

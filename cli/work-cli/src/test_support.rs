@@ -135,3 +135,90 @@ impl FileRemove for Faults {
         self.inner.remove(path)
     }
 }
+
+/// Leaves a re-key run plan in progress in the repository at `root`.
+pub fn rekey_in_progress(root: &Path) {
+    use work::rekey::run_plan::InProgressPlan;
+    use work::rekey::run_plan::RunPlan;
+    use work::rekey::write_set::WriteSet;
+
+    save_rekey_plan(
+        root,
+        &RunPlan::InProgress(InProgressPlan::new(
+            empty_fingerprint(),
+            Vec::new(),
+            WriteSet::default(),
+        )),
+    );
+}
+
+/// Leaves a previewed re-key run plan in the repository at `root`.
+pub fn rekey_proposed(root: &Path) {
+    use work::rekey::run_plan::ProposedPlan;
+    use work::rekey::run_plan::RunPlan;
+
+    save_rekey_plan(
+        root,
+        &RunPlan::Proposed(ProposedPlan::new(empty_fingerprint(), Vec::new())),
+    );
+}
+
+fn empty_fingerprint() -> work::rekey::fingerprint::IdentityFingerprint {
+    work::rekey::fingerprint::IdentityFingerprint::of(
+        &corpus::WorkItemIdScheme::numeric(),
+        &[],
+    )
+}
+
+fn save_rekey_plan(root: &Path, plan: &work::rekey::run_plan::RunPlan) {
+    use work_adapters::rekey::run_plan_store::FileRunPlanStore;
+    use work_adapters::rekey::run_plan_store::RunPlanStore as _;
+
+    let store = FileCorpusStore::new(root);
+    let saved = FileRunPlanStore::new(
+        &root.join(crate::sync::STATE_DIR),
+        root,
+        &store,
+        &store,
+    )
+    .save(plan);
+    assert!(saved.is_ok(), "{saved:?}");
+}
+
+/// Leaves a re-key run plan no reader can parse in the repository at
+/// `root`.
+pub fn rekey_plan_unreadable(root: &Path) {
+    let dir = root.join(crate::sync::STATE_DIR).join("rekey");
+    let written = std::fs::create_dir_all(&dir)
+        .and_then(|()| std::fs::write(dir.join(".gitignore"), "*\n"))
+        .and_then(|()| std::fs::write(dir.join("run-plan.json"), "{"));
+    assert!(written.is_ok(), "{written:?}");
+}
+
+/// Every file under `root`'s `meta/`, by path, to show a refusal wrote
+/// nothing.
+#[must_use]
+pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
+    fn collect(
+        root: &Path,
+        dir: &Path,
+        tree: &mut std::collections::BTreeMap<String, String>,
+    ) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect(root, &path, tree);
+            } else if let (Ok(relative), Ok(content)) =
+                (path.strip_prefix(root), std::fs::read_to_string(&path))
+            {
+                tree.insert(relative.display().to_string(), content);
+            }
+        }
+    }
+    let mut tree = std::collections::BTreeMap::new();
+    collect(root, &root.join("meta"), &mut tree);
+    tree
+}

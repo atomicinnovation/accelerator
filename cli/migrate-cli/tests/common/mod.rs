@@ -75,6 +75,7 @@ pub fn run(
         .current_dir(root)
         .stdin(Stdio::null())
         .env("ACCELERATOR_LOG", "warn")
+        .env_remove("ACCELERATOR_FORCE")
         .env_remove("ACCELERATOR_MIGRATE_FORCE")
         .env_remove("ACCELERATOR_MIGRATE_DECISIONS_FILE");
     for (key, value) in env_extra {

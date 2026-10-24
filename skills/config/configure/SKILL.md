@@ -691,7 +691,7 @@ to `meta/work/` first.
 This invariant applies to every skill under `skills/work/`
 (`create-work-item`, `update-work-item`, `list-work-items`,
 `extract-work-items`, `refine-work-item`, `review-work-item`,
-`stress-test-work-item`). Integration skills under `skills/integrations/`
+`stress-test-work-item`, `rekey-work-items`). Integration skills under `skills/integrations/`
 add remote behaviour on top — they read from and write to the same
 local store. When `work.integration` is unset, every work-management
 skill operates purely against `meta/work/` with no external API calls.

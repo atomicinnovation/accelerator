@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "state": "in_progress",
+  "fingerprint": {
+    "id_pattern": "{key}-{number:04d}",
+    "key": "ACC",
+    "items": [
+      {
+        "path": "meta/work/0042-search.md",
+        "id": "0042",
+        "aliases": [],
+        "external_id": null
+      },
+      {
+        "path": "meta/work/PP-760-sync.md",
+        "id": "PP-760",
+        "aliases": ["0007"],
+        "external_id": "PP-760"
+      },
+      {
+        "path": "meta/work/drafts/draft-k3x9mq-idea.md",
+        "id": "draft-k3x9mq",
+        "aliases": [],
+        "external_id": null
+      }
+    ]
+  },
+  "entries": [
+    { "old": "0042", "target": { "kind": "renumbered", "id": "ACC-0042" } },
+    { "old": "PP-760", "target": { "kind": "renumbered", "id": "ACC-0043" } },
+    {
+      "old": "draft-k3x9mq",
+      "target": { "kind": "renumbered", "id": "ACC-0044" }
+    }
+  ],
+  "write_set": [
+    {
+      "path": "meta/work/0042-search.md",
+      "digest": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "base": ["c0ffee"]
+    },
+    {
+      "path": "meta/work/ACC-0042-search.md",
+      "digest": null,
+      "base": ["c0ffee"]
+    },
+    {
+      "path": "meta/notes/forced.md",
+      "digest": "60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752",
+      "base": null
+    }
+  ]
+}

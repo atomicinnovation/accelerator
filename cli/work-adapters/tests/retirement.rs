@@ -23,6 +23,7 @@ use corpus_adapters::RealFs;
 use store::lock::LockOptions;
 use tracker::RemoteTimestamp;
 use work::dirtiness::Dirtiness;
+use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::retirement::plan_retirement;
@@ -38,8 +39,11 @@ use work_adapters::retirement::acquire_retirement_lock;
 use work_adapters::retirement::apply_retirement;
 use work_adapters::retirement::corpus_files;
 use work_adapters::retirement::finish_retirement;
+use work_adapters::retirement::finish_retirement_with;
+use work_adapters::retirement::retirement_outstanding;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::FinishFailure;
+use work_adapters::retirement::HookedFinishFailure;
 use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
 use work_adapters::sync::baseline::Entry;
@@ -305,6 +309,7 @@ struct Harness<'a> {
     status: Box<dyn WorkingCopyStatus>,
     roots: Vec<PathBuf>,
     work_dir: PathBuf,
+    integration_configured: bool,
 }
 
 impl<'a> Harness<'a> {
@@ -328,6 +333,14 @@ impl<'a> Harness<'a> {
             status: Box::new(EveryPath(Dirtiness::Clean)),
             roots: repo.roots(),
             work_dir: repo.work_dir(),
+            integration_configured: true,
+        }
+    }
+
+    fn without_an_integration(repo: &'a Repo) -> Self {
+        Self {
+            integration_configured: false,
+            ..Self::new(repo)
         }
     }
 
@@ -359,12 +372,50 @@ impl<'a> Harness<'a> {
         let Ok(lock) = acquire_retirement_lock(&self.locks) else {
             unreachable!("the retirement lock is free");
         };
-        apply_retirement(plan, &self.files(), &self.baseline(), &lock)
+        apply_retirement(plan, &self.files(), Some(&self.baseline()), &lock)
     }
 
     fn finish(&self) -> Result<(), FinishFailure> {
+        self.finish_retirement(&promotion())
+    }
+
+    fn finish_retirement(
+        &self,
+        retirement: &Retirement<'_>,
+    ) -> Result<(), FinishFailure> {
         let baseline = self.baseline();
-        let ports = RetirementPorts {
+        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+            unreachable!("the retirement lock is free");
+        };
+        finish_retirement(retirement, &self.ports(&baseline), &lock)
+    }
+
+    fn finish_with<E>(
+        &self,
+        before_apply: &mut dyn FnMut(&RetirementPlan) -> Result<(), E>,
+    ) -> Result<(), HookedFinishFailure<E>> {
+        let baseline = self.baseline();
+        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+            unreachable!("the retirement lock is free");
+        };
+        finish_retirement_with(
+            &promotion(),
+            &self.ports(&baseline),
+            &lock,
+            before_apply,
+        )
+    }
+
+    fn outstanding(&self) -> Result<bool, FinishFailure> {
+        let baseline = self.baseline();
+        retirement_outstanding(&promotion(), &self.ports(&baseline))
+    }
+
+    fn ports<'p>(
+        &'p self,
+        baseline: &'p BaselineStore<'p>,
+    ) -> RetirementPorts<'p> {
+        RetirementPorts {
             files: self.files(),
             layout: CorpusLayout {
                 roots: &self.roots,
@@ -373,12 +424,8 @@ impl<'a> Harness<'a> {
             walker: &RealFs,
             status: self.status.as_ref(),
             lock: &self.locks,
-            baseline: &baseline,
-        };
-        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
-            unreachable!("the retirement lock is free");
-        };
-        finish_retirement(&promotion(), &ports, &lock)
+            baseline: self.integration_configured.then_some(baseline),
+        }
     }
 }
 
@@ -427,6 +474,32 @@ fn applying_a_plan_moves_the_baseline_entry() -> Result<(), TestError> {
     assert_eq!(repo.baseline_entry("draft-k7mq3x")?, None);
     assert_eq!(repo.baseline_entry("PP-900")?, Some(entry("draft")));
     assert_eq!(repo.baseline_entry("0001")?, Some(entry("child")));
+    Ok(())
+}
+
+#[test]
+fn a_retirement_without_a_baseline_skips_the_baseline_rename(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let baseline_before = repo.read(BASELINE);
+    let harness = Harness::without_an_integration(&repo);
+
+    harness.finish().map_err(|f| format!("{f:?}"))?;
+
+    assert!(repo.read(TARGET).is_some());
+    assert_eq!(repo.read(BASELINE), baseline_before);
+    Ok(())
+}
+
+#[test]
+fn a_completed_retirement_without_a_baseline_is_not_outstanding(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::without_an_integration(&repo);
+
+    harness.finish().map_err(|f| format!("{f:?}"))?;
+
+    assert!(!harness.outstanding().map_err(|f| format!("{f:?}"))?);
     Ok(())
 }
 
@@ -669,6 +742,33 @@ fn a_rollback_of_a_resumed_retirement_keeps_the_recovery_directory(
 }
 
 #[test]
+fn retiring_into_a_drafts_directory_that_does_not_exist_creates_it(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    fs::remove_dir_all(repo.path("meta/work/drafts"))?;
+    repo.write(
+        "meta/work/0042-add-search.md",
+        "---\nid: \"0042\"\n---\n\n# 0042: Add search\n",
+    )?;
+    let draft = DraftId::parse("draft-k3x9mq").ok_or("a draft id")?;
+
+    Harness::new(&repo)
+        .finish_retirement(&Retirement::into_draft("0042", &draft))
+        .map_err(|f| format!("{f:?}"))?;
+
+    assert_eq!(repo.read("meta/work/0042-add-search.md"), None);
+    assert_eq!(
+        repo.read("meta/work/drafts/draft-k3x9mq-add-search.md")
+            .as_deref(),
+        Some(
+            "---\nid: \"draft-k3x9mq\"\naliases: [\"0042\"]\n---\n\n\
+             # draft-k3x9mq: Add search\n"
+        )
+    );
+    Ok(())
+}
+
+#[test]
 fn retirement_outside_any_vcs_succeeds() -> Result<(), TestError> {
     let repo = Repo::new()?;
     let mut harness = Harness::new(&repo);
@@ -800,6 +900,66 @@ fn finish_retirement_replans_once_on_a_changed_file() -> Result<(), TestError> {
         repo.read(CHILD).as_deref(),
         Some("---\nid: \"0001\"\nparent: \"work-item:PP-900\"\n---\n\n# 0001: Renamed\n")
     );
+    Ok(())
+}
+
+#[test]
+fn before_apply_sees_the_plan_applied_including_after_a_rollback_replan(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::failing_at(&repo, Some(0));
+    let edit_path = repo.path(CHILD);
+    *harness.store.before_failing.borrow_mut() = Some(Box::new(move || {
+        let _ =
+            fs::write(&edit_path, CHILD_CONTENT.replace("Child", "Renamed"));
+    }));
+    let mut seen: Vec<RetirementPlan> = Vec::new();
+
+    harness
+        .finish_with(&mut |plan: &RetirementPlan| -> Result<(), String> {
+            seen.push(plan.clone());
+            Ok(())
+        })
+        .map_err(|f| format!("{f:?}"))?;
+
+    let child_originals: Vec<Option<&str>> = seen
+        .iter()
+        .map(|plan| {
+            plan.rewrites
+                .iter()
+                .find(|rewrite| rewrite.path == repo.path(CHILD))
+                .map(|rewrite| rewrite.original.as_str())
+        })
+        .collect();
+    assert_eq!(
+        child_originals,
+        vec![
+            Some(CHILD_CONTENT),
+            Some(CHILD_CONTENT.replace("Child", "Renamed").as_str())
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_refusing_before_apply_stops_the_retirement_before_any_write(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::new(&repo);
+    let before = repo.snapshot();
+
+    let result = harness.finish_with(&mut |_: &RetirementPlan| {
+        Err("the run plan could not be saved")
+    });
+
+    assert!(matches!(
+        result,
+        Err(HookedFinishFailure::BeforeApply(
+            "the run plan could not be saved"
+        ))
+    ));
+    assert_eq!(repo.snapshot(), before);
+    assert_eq!(harness.store.count.get(), 0);
     Ok(())
 }
 

@@ -11,11 +11,25 @@ use migrate::ports::Reporter;
 use migrate::preflight::AffordanceEntry;
 use migrate::preflight::UnownedChanges;
 
-const PREAMBLE: &str = "\nMigrations rewrite files and may make repo-wide changes; commit\nyour working tree before running so VCS revert is available as\nrollback. The pre-flight will refuse to run on a dirty tree\nunless ACCELERATOR_MIGRATE_FORCE=1 is set.\n\n";
+const PREAMBLE: &str = "\nMigrations rewrite files and may make repo-wide changes; commit\nyour working tree before running so VCS revert is available as\nrollback. The pre-flight will refuse to run on a dirty tree\nunless ACCELERATOR_FORCE=1 is set.\n\n";
 
-pub const DIRTY_TREE_REFUSAL: &str = "Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check.";
+pub const DIRTY_TREE_REFUSAL: &str = "Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or discard those changes first, or set ACCELERATOR_FORCE=1 to skip this check.";
 
-const STALE_RUN_EXPLANATION: &str = "A previous migration run's recorded base no longer matches the working copy, so its output is listed too.\nIf the listed paths are only that run's output, commit them and re-run without ACCELERATOR_MIGRATE_FORCE to resume.";
+const STALE_RUN_EXPLANATION: &str = "A previous migration run's recorded base no longer matches the working copy, so its output is listed too.\nIf the listed paths are only that run's output, commit them and re-run without ACCELERATOR_FORCE or ACCELERATOR_MIGRATE_FORCE to resume.";
+
+pub const DEPRECATED_FORCE_NOTICE: &str = "warning: ACCELERATOR_MIGRATE_FORCE is deprecated and will be removed in a future release; use ACCELERATOR_FORCE=1 on the one command instead";
+
+pub fn forced_past(skipped: &[String]) -> String {
+    let mut notice = format!(
+        "warning: forced past the dirty-tree pre-flight over uncommitted \
+         changes ({}):",
+        skipped.len()
+    );
+    for path in skipped {
+        let _ = write!(notice, "\n  {}", with_control_characters_escaped(path));
+    }
+    notice
+}
 
 pub fn unowned_changes_refusal(unowned: &UnownedChanges) -> String {
     let mut refusal = DIRTY_TREE_REFUSAL.to_owned();
@@ -276,6 +290,7 @@ impl Reporter for StdoutReporter {
 mod tests {
     use migrate::preflight::UnownedChanges;
 
+    use super::forced_past;
     use super::unowned_changes_refusal;
     use super::DIRTY_TREE_REFUSAL;
 
@@ -312,9 +327,24 @@ mod tests {
                  A previous migration run's recorded base no longer matches \
                  the working copy, so its output is listed too.\n\
                  If the listed paths are only that run's output, commit them \
-                 and re-run without ACCELERATOR_MIGRATE_FORCE to resume.\n\
+                 and re-run without ACCELERATOR_FORCE or \
+                 ACCELERATOR_MIGRATE_FORCE to resume.\n\
                  Unowned changes (1):\n  meta/a.md"
             )
+        );
+    }
+
+    #[test]
+    fn a_forced_run_counts_and_lists_each_skipped_path_escaped() {
+        let notice = forced_past(&[
+            ".accelerator/b".to_owned(),
+            "meta/a\nb.md".to_owned(),
+        ]);
+
+        assert_eq!(
+            notice,
+            "warning: forced past the dirty-tree pre-flight over uncommitted \
+             changes (2):\n  .accelerator/b\n  meta/a\\nb.md"
         );
     }
 

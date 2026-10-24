@@ -22,6 +22,7 @@ use tracker::SearchScope;
 use tracker::ValidationOutcome;
 use tracker_test_support::contract::{
     a_failing_read_is_retryable_property,
+    a_moved_issue_is_found_only_under_its_current_key_property,
     create_then_show_round_trips_property,
     fetch_all_partitions_totally_property,
     preview_create_makes_no_mutation_property,
@@ -34,6 +35,8 @@ use tracker_test_support::contract::{
 const CREATED: &str = "ENG-1";
 const UNREADABLE: &str = "ENG-404";
 const UNACCOUNTABLE: &str = "ENG-999";
+const MOVED_FROM: &str = "PP-76";
+const MOVED_TO: &str = "OPS-5";
 
 struct MockBackedClient {
     client: JiraClient,
@@ -54,6 +57,15 @@ impl ContractSubject for MockBackedClient {
         ExternalId::new(UNREADABLE.to_owned())
     }
 
+    /// The moved-issue server's search answers the old key's request with the
+    /// issue under its new key, as Jira's JQL follows a project move.
+    fn moved_issue(&self) -> Option<(ExternalId, ExternalId)> {
+        Some((
+            ExternalId::new(MOVED_FROM.to_owned()),
+            ExternalId::new(MOVED_TO.to_owned()),
+        ))
+    }
+
     /// The mock fails every `/search/jql`, so any project-scoped discovery
     /// comes back `complete == false`.
     fn truncating_scope(&self) -> SearchScope {
@@ -68,8 +80,12 @@ impl ContractSubject for MockBackedClient {
 }
 
 fn issue_body(summary: &str) -> String {
+    issue_body_under(CREATED, summary)
+}
+
+fn issue_body_under(key: &str, summary: &str) -> String {
     format!(
-        "{{\"key\":\"{CREATED}\",\"fields\":{{\
+        "{{\"key\":\"{key}\",\"fields\":{{\
          \"updated\":\"2026-01-01T00:00:00.000+0000\",\
          \"summary\":\"{summary}\",\"description\":{{\"type\":\"doc\"}}}}}}"
     )
@@ -412,4 +428,30 @@ fn validating_without_a_body_composes_no_description() {
             .validate_update(&id, Some("Title"), None),
         ValidationOutcome::Valid
     );
+}
+
+#[test]
+fn a_moved_issue_is_found_only_under_its_current_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post("/rest/api/3/search/jql"),
+        Route::Json {
+            status: 200,
+            body: format!(
+                "{{\"issues\":[{{\"key\":\"{MOVED_TO}\",\"fields\":{{\
+                 \"updated\":\"2026-01-01T00:00:00.000+0000\"}}}}]}}"
+            ),
+        },
+    );
+    server.route(
+        RequestKey::get(&format!("/rest/api/3/issue/{MOVED_FROM}")),
+        Route::Json {
+            status: 200,
+            body: issue_body_under(MOVED_TO, "Moved"),
+        },
+    );
+
+    a_moved_issue_is_found_only_under_its_current_key_property(&subject(
+        &server,
+    ));
 }

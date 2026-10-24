@@ -289,6 +289,18 @@ fn is_symlink(path: &Path) -> Result<bool, WriteError> {
     }
 }
 
+const TEMP_RANDOM_LEN: usize = 6;
+
+/// Whether `file_name` names a temporary an atomic write stages beside its
+/// target, which a killed writer can leave behind.
+#[must_use]
+pub fn is_atomic_temporary(file_name: &str) -> bool {
+    file_name.strip_prefix(TEMP_PREFIX).is_some_and(|random| {
+        random.len() == TEMP_RANDOM_LEN
+            && random.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    })
+}
+
 fn stage(
     dir: &Path,
     target: &Path,
@@ -297,6 +309,7 @@ fn stage(
 ) -> Result<NamedTempFile, WriteError> {
     let mut temp = Builder::new()
         .prefix(TEMP_PREFIX)
+        .rand_bytes(TEMP_RANDOM_LEN)
         .tempfile_in(dir)
         .map_err(|error| {
             if error.kind() == ErrorKind::PermissionDenied {
@@ -395,8 +408,9 @@ mod tests {
 
     use super::{
         atomic_create, atomic_write, classify_persist_error, ensure_contained,
-        read_within, replace_without_sync, require_owner_only_permissions,
-        stage, NewFileMode, WriteBounds, WriteError,
+        is_atomic_temporary, read_within, replace_without_sync,
+        require_owner_only_permissions, stage, NewFileMode, WriteBounds,
+        WriteError,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -862,5 +876,33 @@ mod tests {
         assert_eq!(fs::read(&target)?, b"theirs");
         assert_eq!(temp_names(dir.path())?, vec!["item.md".to_owned()]);
         Ok(())
+    }
+
+    #[test]
+    fn a_staged_temporary_is_named_as_an_atomic_temporary(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let staged = stage(
+            dir.path(),
+            &dir.path().join("item.md"),
+            b"half-written",
+            NewFileMode::Set(0o600),
+        )?;
+        let name = staged
+            .path()
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("a staged name")?;
+
+        assert!(is_atomic_temporary(name), "{name}");
+        Ok(())
+    }
+
+    #[test]
+    fn a_name_that_only_starts_like_a_temporary_is_not_one() {
+        for name in [".tmp-scratch.md", ".tmp-a1B2c", ".tmp-a1B2c3d", "a1B2c3"]
+        {
+            assert!(!is_atomic_temporary(name), "{name}");
+        }
     }
 }

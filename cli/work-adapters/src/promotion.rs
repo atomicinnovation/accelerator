@@ -63,6 +63,7 @@ use crate::sync::digest;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
 use crate::sync::synced_fields;
+use work::identity_run::IdentityRunGuard;
 
 /// What became of one draft a run set out to promote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -394,6 +395,7 @@ pub fn promote(
     draft: &DraftId,
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
+    _identity_run: &IdentityRunGuard,
 ) -> Result<Promotion, NotPromoted> {
     let lock =
         acquire_retirement_lock(ports.retirement.lock).map_err(|error| {
@@ -894,11 +896,11 @@ pub fn finish_promotion(
         .map_or(work::sync::SyncState::Synced, |item| {
             remote.next_sync(baseline, &ExternalId::from(key), &item.path)
         });
-    if promoted_item.is_some() {
+    if let (Some(_), Some(store)) = (promoted_item, retirement_ports.baseline) {
         record_created_baseline(
             key.as_str(),
             baseline,
-            retirement_ports.baseline,
+            store,
             UNSYNCED_WATERMARK,
         )
         .map_err(|error| unwritable(Some(key), &error))?;

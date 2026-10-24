@@ -11,8 +11,9 @@
 //! - `1` `ERROR` — an internal error.
 //! - `2` `USAGE` — a usage error (bad arguments, mutually-exclusive flags).
 //! - `3` `RESOLVE_NOT_FOUND` — an identifier resolved to no work item.
-//! - `4` `UNRESOLVED` — the run completed but items await a human (unresolved
-//!   conflicts, skipped-dirty pulls, remote-absent or indeterminate items).
+//! - `4` `UNRESOLVED` — the run stopped pending a human: items await one
+//!   (unresolved conflicts, skipped-dirty pulls, remote-absent or
+//!   indeterminate items), or a pre-flight refusal wrote nothing.
 //! - `5` `REFUSED_BULK_OVERWRITE` — a run refused because it would exceed
 //!   `--max-pulls`/`--max-pushes`; zero writes occurred.
 //! - `6` `RESOLVE_OUTSIDE_WORKDIR` — a path target names a file that exists but
@@ -121,6 +122,41 @@
 //! `0` there (`local-save`, the draft is saved), an earlier unconfirmed
 //! create is `71` there (`loud-terminal`), and an unwritable first record is
 //! `0` there (`local-save`).
+//!
+//! `work rekey` prints `Error: <code>: <what>. <remedy>.` for every refusal.
+//! Nothing remote is mutated, so a local failure is `4`, never `70`/`71`:
+//!
+//! - `4` — `E_REKEY_IN_PROGRESS`, `E_REKEY_PLAN_UNREADABLE`,
+//!   `E_REKEY_NOT_REVERTED`, `E_REKEY_PARTLY_APPLIED`,
+//!   `E_REKEY_SYNC_UNFINISHED`, `E_REKEY_PENDING_PUSH`,
+//!   `E_REKEY_ID_COLLISION`, `E_REKEY_UNCLASSIFIABLE_ID`,
+//!   `E_REKEY_NUMBER_SPACE_EXHAUSTED`, `E_REKEY_TARGET_EXISTS`,
+//!   `E_REKEY_PREVIEW_STALE`, `E_REKEY_DIRTY_WORKING_COPY`,
+//!   `E_REKEY_WORKING_COPY_UNPROBEABLE`, `E_REKEY_ENTRY_REFUSED`,
+//!   `E_REKEY_ENTRY_ROLLED_BACK`, `E_REKEY_RESTORE_INCOMPLETE`. The three
+//!   `ENTRY`/`RESTORE` codes stop a run mid-way: earlier entries stay
+//!   re-keyed and the run plan stays in progress. Every other code wrote
+//!   nothing. `--preview` refuses as an apply would, except that it warns
+//!   of uncommitted changes rather than refusing over them, and refuses
+//!   with `E_REKEY_IN_PROGRESS` while a run is in progress.
+//! - `1` — `E_REKEY_STATE_UNWRITABLE` (the run plan cannot be saved or
+//!   removed), `E_IDENTITY_RUN_BUSY` and `E_DRAFT_ID_EXHAUSTED`.
+//! - `70` — `E_REKEY_TRACKER_UNREACHABLE`: under
+//!   `work.id_pattern: "{tracker}"`, a read refreshing synced items' keys
+//!   failed, and nothing was written or recorded.
+//! - `72`-`74` — under `{tracker}`, the tracker cannot be selected or
+//!   configured, as for `work promote`. Finishing a run, applying a
+//!   preview and discarding never select one.
+//!
+//! `work sync`, `work promote`, `work create`, `work create-batch`,
+//! `work next-number` and `work update --push` hold the identity-run lock
+//! for their whole run, and before reading or writing anything refuse with
+//! `E_REKEY_IN_PROGRESS` (`4`) while a re-key is in progress,
+//! `E_REKEY_PLAN_UNREADABLE` (`4`) while its plan cannot be read, and
+//! `E_IDENTITY_RUN_BUSY` (`1`) when another identity command still holds the
+//! lock after a 60 s wait. `work create --push` refuses too, writing nothing:
+//! a deliberate exception to its save-intent contract, as plain `work create`
+//! refuses.
 
 use tracker::TrackerError;
 

@@ -33,6 +33,7 @@ use work::create::FieldValue;
 use work::create::TypedLinkage;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
+use work::identity_run::IdentityRunGuard;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
@@ -63,6 +64,7 @@ use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 use crate::config::templates_dir;
 use crate::exit_codes;
+use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
@@ -106,6 +108,11 @@ pub enum RunOutcome {
     /// A create of the same content is already pending; nothing was sent.
     Pending(String),
     Failed(String),
+    /// The identity run could not begin; nothing was read or written.
+    Refused {
+        message: String,
+        code: u8,
+    },
 }
 
 const SLUG_MAX_LEN: usize = 60;
@@ -200,6 +207,7 @@ pub fn allocate_id(
     scheme: &corpus::WorkItemIdScheme,
     work_dir: &Path,
     project: Option<&str>,
+    _identity_run: &IdentityRunGuard,
 ) -> Result<String, String> {
     let filenames = FilesystemLister::new(work_dir).filenames();
     let scan_regex =
@@ -425,13 +433,21 @@ impl CreationContext<'_> {
         Ok(IntegrationState { root, name })
     }
 
-    fn allocate_local_id(&self) -> Result<String, String> {
+    fn allocate_local_id(
+        &self,
+        identity_run: &IdentityRunGuard,
+    ) -> Result<String, String> {
         let project = self
             .args
             .project
             .clone()
             .or_else(|| self.scheme.key.clone());
-        allocate_id(&self.scheme, &self.work_dir, project.as_deref())
+        allocate_id(
+            &self.scheme,
+            &self.work_dir,
+            project.as_deref(),
+            identity_run,
+        )
     }
 }
 
@@ -491,6 +507,7 @@ pub fn create_item(
     args: &CreateArgs,
     seams: &mut Seams<'_>,
     drafted: &mut Drafted<'_>,
+    identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, CreateFailure> {
     let context = creation_context(start, config, templates, args)?;
     let state_dir = context.root.join(crate::sync::STATE_DIR);
@@ -510,8 +527,9 @@ pub fn create_item(
     match (context.scheme.ownership(), args.push) {
         (IdOwnership::Local, false) => Ok(create_local_item(
             &creation,
-            &|| context.allocate_local_id(),
+            &|| context.allocate_local_id(identity_run),
             None,
+            identity_run,
         )?),
         (IdOwnership::Local, true) => {
             let state = context.integration_state()?;
@@ -526,11 +544,12 @@ pub fn create_item(
             };
             Ok(create_local_item(
                 &creation,
-                &|| context.allocate_local_id(),
+                &|| context.allocate_local_id(identity_run),
                 Some(&LegacyPushing {
                     state: &state,
                     tracker: &tracker,
                 }),
+                identity_run,
             )?)
         }
         (IdOwnership::Tracker, false) => {
@@ -562,7 +581,12 @@ pub fn create_item(
                     retirement: &retirement,
                     records: &records,
                 };
-                let result = promote(draft, &PromotionMode::Standard, &ports);
+                let result = promote(
+                    draft,
+                    &PromotionMode::Standard,
+                    &ports,
+                    identity_run,
+                );
                 Ok(Some(PromotionRow::of(
                     draft,
                     draft_path,
@@ -589,6 +613,7 @@ pub struct Seams<'a> {
     pub registry: &'a dyn TrackerRegistry,
     pub store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
     pub draws: &'a mut dyn SuffixDraws,
+    pub identity_run: &'a IdentityRunStart<'a>,
 }
 
 /// # Errors
@@ -614,6 +639,7 @@ pub fn run(
             registry,
             store_at: &store_at,
             draws: &mut RandomSuffixDraws,
+            identity_run: &crate::identity_run::begin,
         },
     )
 }
@@ -633,7 +659,23 @@ pub fn run_with(
         };
         return preview_push(&integration, &args.kind, seams.registry);
     }
-    match create_item(start, config, templates, args, seams, &mut |_| Ok(())) {
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let identity_run = match (seams.identity_run)(&root, "create") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) = crate::identity_run::refused(refusal, &root);
+            return RunOutcome::Refused { message, code };
+        }
+    };
+    match create_item(
+        start,
+        config,
+        templates,
+        args,
+        seams,
+        &mut |_| Ok(()),
+        &identity_run,
+    ) {
         Ok(CreationOutcome { path, push }) => {
             RunOutcome::Created { path, push }
         }
@@ -969,6 +1011,69 @@ mod tests {
         assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
     }
 
+    fn refusal_of(outcome: RunOutcome) -> (String, u8) {
+        match outcome {
+            RunOutcome::Refused { message, code } => (message, code),
+            _ => panic!("the create was not refused"),
+        }
+    }
+
+    #[test]
+    fn create_refuses_while_a_rekey_is_in_progress_and_writes_nothing() {
+        for push in [false, true] {
+            let repo = PushingRepo::new();
+            crate::test_support::rekey_in_progress(repo.root.path());
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let (message, code) = refusal_of(repo.run_args(
+                &PushingRepo::args(push),
+                &tracker,
+                None,
+            ));
+
+            assert_eq!(code, exit_codes::UNRESOLVED, "push: {push}");
+            assert!(
+                message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+                "{message}"
+            );
+            assert!(message.contains("accelerator work rekey"), "{message}");
+            assert!(tracker.calls().is_empty(), "push: {push}");
+            assert!(
+                crate::test_support::meta_tree(repo.root.path()).is_empty(),
+                "push: {push}"
+            );
+        }
+    }
+
+    #[test]
+    fn create_dry_run_is_not_guarded() {
+        let repo = PushingRepo::new();
+        crate::test_support::rekey_in_progress(repo.root.path());
+        let args = CreateArgs {
+            dry_run: true,
+            ..PushingRepo::args(true)
+        };
+
+        let outcome =
+            repo.create_with(&args, RecordingTracker::holding(Vec::new()));
+
+        assert!(matches!(
+            outcome,
+            RunOutcome::Previewed(_) | RunOutcome::PreviewFailed { .. }
+        ));
+    }
+
+    #[test]
+    fn create_in_a_repository_without_a_work_directory_still_succeeds() {
+        let repo = PushingRepo::new();
+        assert!(!repo.path("meta/work").exists());
+
+        let outcome =
+            repo.create_pushing(false, RecordingTracker::holding(Vec::new()));
+
+        assert!(matches!(outcome, RunOutcome::Created { path: Some(_), .. }));
+    }
+
     fn in_the_work_directory_itself(path: &Path) -> bool {
         path.parent().is_some_and(|dir| dir.ends_with("meta/work"))
             && path.extension().is_some_and(|extension| extension == "md")
@@ -1019,6 +1124,7 @@ mod tests {
                     registry: &StubRegistry(Rc::clone(tracker)),
                     store_at: &store_at,
                     draws: &mut RandomSuffixDraws,
+                    identity_run: &crate::identity_run::begin,
                 },
             )
         }

@@ -23,6 +23,7 @@ const SUBCOMMANDS: &[&str] = &[
     "list",
     "sync",
     "promote",
+    "rekey",
 ];
 
 fn help(args: &[&str]) -> Result<String, TestError> {

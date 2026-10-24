@@ -22,45 +22,29 @@ use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::create::CreationStore;
 
-pub struct IdentityWorkspace {
+/// The corpus a retirement rewrites and the state it keeps beside it,
+/// whether or not an integration is configured.
+pub struct CorpusWorkspace {
     work_dir: PathBuf,
     state_dir: PathBuf,
-    integrations_root: PathBuf,
-    integration: String,
     roots: Vec<PathBuf>,
     locks: LockdirLock,
     recovery: FileRecoveryCopies,
     status: VcsWorkingCopyStatus,
 }
 
-impl IdentityWorkspace {
-    /// Opens the workspace of the repository at `repo_root`, creating the
-    /// state directories its records and baseline are written under.
+impl CorpusWorkspace {
+    /// Opens the corpus of the repository at `repo_root`, creating nothing.
     ///
     /// # Errors
     ///
-    /// A message naming the directory that could not be created, or the
-    /// configuration that could not be read.
+    /// A message naming the configuration that could not be read.
     pub fn open(
         config: &dyn ConfigAccess,
         repo_root: &Path,
         work_dir: &Path,
-        integrations_root: &Path,
-        integration: &str,
     ) -> Result<Self, String> {
         let state_dir = repo_root.join(crate::sync::STATE_DIR);
-        // On a never-synced integration the baseline's directory does not
-        // exist yet, and the atomic-write containment check canonicalises it
-        // as its trusted root, so the first baseline write fails unless it
-        // is present.
-        let baseline_dir = baseline::path(integrations_root, integration)
-            .parent()
-            .map_or_else(|| integrations_root.to_path_buf(), Path::to_path_buf);
-        for dir in [&state_dir, &baseline_dir] {
-            std::fs::create_dir_all(dir).map_err(|error| {
-                format!("could not create {}: {error}", dir.display())
-            })?;
-        }
         let roots = crate::sync::corpus_roots(config, repo_root)
             .map_err(|error| error.to_string())?;
         Ok(Self {
@@ -72,14 +56,16 @@ impl IdentityWorkspace {
                 &InProcessProbe,
             ),
             state_dir,
-            integrations_root: integrations_root.to_path_buf(),
-            integration: integration.to_owned(),
             roots,
         })
     }
 
     pub fn state_dir(&self) -> &Path {
         &self.state_dir
+    }
+
+    pub fn roots(&self) -> &[PathBuf] {
+        &self.roots
     }
 
     pub const fn recovery(&self) -> &FileRecoveryCopies {
@@ -90,21 +76,10 @@ impl IdentityWorkspace {
         &self.status
     }
 
-    pub fn baseline_path(&self) -> PathBuf {
-        baseline::path(&self.integrations_root, &self.integration)
-    }
-
-    pub fn baseline<'a>(
-        &self,
-        writer: &'a dyn AtomicWrite,
-    ) -> BaselineStore<'a> {
-        BaselineStore::new(self.baseline_path(), &RealFs, writer)
-    }
-
     pub fn retirement_ports<'a>(
         &'a self,
         store: &'a dyn CreationStore,
-        baseline: &'a BaselineStore<'a>,
+        baseline: Option<&'a BaselineStore<'a>>,
     ) -> RetirementPorts<'a> {
         RetirementPorts {
             files: RetirementFiles {
@@ -126,6 +101,98 @@ impl IdentityWorkspace {
         }
     }
 
+    pub fn retirement_records<'a>(
+        &self,
+        writer: &'a dyn AtomicWrite,
+    ) -> FileRetirementRecords<'a> {
+        FileRetirementRecords::new(&self.state_dir, writer)
+    }
+}
+
+pub struct IdentityWorkspace {
+    corpus: CorpusWorkspace,
+    integrations_root: PathBuf,
+    integration: String,
+}
+
+impl IdentityWorkspace {
+    /// Opens the workspace of the repository at `repo_root`, creating the
+    /// state directories its records and baseline are written under.
+    ///
+    /// # Errors
+    ///
+    /// A message naming the directory that could not be created, or the
+    /// configuration that could not be read.
+    pub fn open(
+        config: &dyn ConfigAccess,
+        repo_root: &Path,
+        work_dir: &Path,
+        integrations_root: &Path,
+        integration: &str,
+    ) -> Result<Self, String> {
+        let corpus = CorpusWorkspace::open(config, repo_root, work_dir)?;
+        // On a never-synced integration the baseline's directory does not
+        // exist yet, and the atomic-write containment check canonicalises it
+        // as its trusted root, so the first baseline write fails unless it
+        // is present.
+        let baseline_dir = baseline::path(integrations_root, integration)
+            .parent()
+            .map_or_else(|| integrations_root.to_path_buf(), Path::to_path_buf);
+        for dir in [corpus.state_dir(), &baseline_dir] {
+            std::fs::create_dir_all(dir).map_err(|error| {
+                format!("could not create {}: {error}", dir.display())
+            })?;
+        }
+        Ok(Self {
+            corpus,
+            integrations_root: integrations_root.to_path_buf(),
+            integration: integration.to_owned(),
+        })
+    }
+
+    pub const fn corpus(&self) -> &CorpusWorkspace {
+        &self.corpus
+    }
+
+    pub fn state_dir(&self) -> &Path {
+        self.corpus.state_dir()
+    }
+
+    pub const fn recovery(&self) -> &FileRecoveryCopies {
+        self.corpus.recovery()
+    }
+
+    pub const fn status(&self) -> &VcsWorkingCopyStatus {
+        self.corpus.status()
+    }
+
+    pub fn integrations_root(&self) -> &Path {
+        &self.integrations_root
+    }
+
+    pub fn integration(&self) -> &str {
+        &self.integration
+    }
+
+    pub fn baseline_path(&self) -> PathBuf {
+        baseline::path(&self.integrations_root, &self.integration)
+    }
+
+    pub fn baseline<'a>(
+        &self,
+        writer: &'a dyn AtomicWrite,
+    ) -> BaselineStore<'a> {
+        BaselineStore::new(self.baseline_path(), &RealFs, writer)
+    }
+
+    pub fn retirement_ports<'a>(
+        &'a self,
+        store: &'a dyn CreationStore,
+        baseline: &'a BaselineStore<'a>,
+    ) -> RetirementPorts<'a> {
+        self.corpus.retirement_ports(store, Some(baseline))
+    }
+
     pub fn promotion_records<'a>(
         &self,
         writer: &'a dyn AtomicWrite,
@@ -141,6 +208,6 @@ impl IdentityWorkspace {
         &self,
         writer: &'a dyn AtomicWrite,
     ) -> FileRetirementRecords<'a> {
-        FileRetirementRecords::new(&self.state_dir, writer)
+        self.corpus.retirement_records(writer)
     }
 }

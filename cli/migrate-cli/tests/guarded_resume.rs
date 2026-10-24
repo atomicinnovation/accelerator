@@ -110,7 +110,7 @@ fn force_over_an_unreadable_jj_working_copy_records_no_run_base(
     let (_work, env, root) =
         stalled_on_a_corrupt_jj_operation_store("jj-corrupt-force")?;
 
-    let outcome = run(&env, &root, &[], &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    let outcome = run(&env, &root, &[], &[("ACCELERATOR_FORCE", "1")])?;
 
     assert!(outcome.stderr.contains("WARN"), "{}", outcome.stderr);
     assert!(
@@ -572,7 +572,8 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
             );
             assert!(
                 refused.stderr.contains(
-                    "commit them and re-run without ACCELERATOR_MIGRATE_FORCE"
+                    "commit them and re-run without ACCELERATOR_FORCE or \
+                     ACCELERATOR_MIGRATE_FORCE"
                 ),
                 "{}",
                 refused.stderr

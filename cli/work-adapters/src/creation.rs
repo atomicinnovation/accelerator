@@ -62,6 +62,7 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
+use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
 pub trait CreationStore: AtomicWrite + ExclusiveCreate + FileRemove {}
@@ -596,6 +597,7 @@ pub fn create_local_item(
     creation: &Creation<'_>,
     allocate: &dyn Fn() -> Result<String, String>,
     pushing: Option<&LegacyPushing<'_>>,
+    _identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, String> {
     let _held = creation.hold_create_lock()?;
     let id = allocate()?;
