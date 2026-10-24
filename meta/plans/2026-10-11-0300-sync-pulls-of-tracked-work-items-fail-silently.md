@@ -3065,10 +3065,10 @@ the call-site updates and the compiler, not by a snapshot.
 
 #### Manual Verification
 
-- [ ] Against Linear, an item edited remotely after its last sync pulls with
+- [x] Against Linear, an item edited remotely after its last sync pulls with
       `accelerator work sync --target <id>`: row `pull`, exit 0, frontmatter
       unchanged (body fidelity is 0296's).
-- [ ] `chmod 555` the work directory, re-run: row `retryable`, one `error:`
+- [x] `chmod 555` the work directory, re-run: row `retryable`, one `error:`
       stderr line naming `lock-local` and `Permission denied`, exit 70;
       restore and re-run pulls.
 
@@ -3509,7 +3509,7 @@ Run `mise run public-api:update` and review: `work` gains
 
 #### Manual Verification
 
-- [ ] With two real conflicts, `accelerator work sync --target <a>` then
+- [x] With two real conflicts, `accelerator work sync --target <a>` then
       `--target <a> --resolve <a>=remote` leaves `<b>`'s dossier presentable.
 
 ### As Implemented
