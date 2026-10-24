@@ -152,8 +152,7 @@ pub enum ApplyError {
     },
 }
 
-/// Why a pending-push order was not carried out; each cause ends in the
-/// next step a person takes.
+/// Each cause ends in the next step a person takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrderRefusal {
     PullOnly,
@@ -255,7 +254,6 @@ impl std::fmt::Display for OrderRefusal {
     }
 }
 
-/// What a run defers while its corpus is incomplete.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IncompleteCorpusDeferral {
     Import(Vec<ExternalId>),
@@ -505,7 +503,6 @@ pub struct RetitleRequest<'a> {
     pub sent_content: &'a str,
 }
 
-/// Who already carries a tracker key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyCarrier {
     WorkItem(String),
@@ -544,16 +541,13 @@ pub struct CreateFromLocalRequest<'a> {
     /// What keeps the corpus incomplete, if anything: a marker's key cannot
     /// be linked while an unusable file may already carry it.
     pub corpus_blocked_by: Option<Fault>,
-    /// How a person settled this item's refused pending push, if they did.
     pub order: Option<&'a PendingPushOrder>,
     /// The key the item carries now, which a relink replaces.
     pub linked: Option<&'a ExternalId>,
-    /// The active tracker's name, for causes that name its keys.
     pub tracker_name: &'a str,
     pub attempted_at: u64,
 }
 
-/// A local create that applied, with what a person should know of it.
 #[derive(Debug, Default)]
 pub struct CreatedLocally {
     pub leftover_marker: Option<LeftoverMarker>,
@@ -735,7 +729,6 @@ fn marker_write_error(path: &Path, error: &StoreError) -> PublishError<String> {
     }
 }
 
-/// The ports an [`ItemApplier`] applies through.
 #[derive(Clone, Copy)]
 pub struct ApplierPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
@@ -899,8 +892,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         })
     }
 
-    /// Keeps a copy of `current` unless the last sync already captured it.
-    ///
     /// A tracked file has history only once it is VCS-clean, so it is
     /// copied whenever it is not, even when the baseline matches. An
     /// untracked or ignored file reads as clean yet has no history, so only

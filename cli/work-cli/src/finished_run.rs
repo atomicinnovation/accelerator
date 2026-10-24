@@ -11,7 +11,6 @@ use work_adapters::sync::run::RunReport;
 
 pub struct FinishedRun<'a> {
     pub report: &'a RunReport,
-    /// The `external_id` of every tracked work item in the corpus.
     pub corpus_external_ids: Vec<ExternalId>,
     pub integrations_root: &'a Path,
     pub repo_root: &'a Path,
@@ -57,7 +56,6 @@ impl FinishedRun<'_> {
 
 #[cfg(test)]
 impl<'a> FinishedRun<'a> {
-    /// `report` alone, as an apply run with nothing else to say.
     pub fn for_report(report: &'a RunReport) -> Self {
         Self {
             report,

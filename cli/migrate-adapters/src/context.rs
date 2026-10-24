@@ -34,7 +34,6 @@ pub struct Capabilities<'a> {
     pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
     pub canonicaliser: &'a dyn corpus::work_item_id::WorkItemIdCanonicaliser,
     pub sync_baselines: &'a dyn migrate::ports::SyncBaselines,
-    /// The repository's version control, when there is one.
     pub version_control: Option<VersionControlled<'a>>,
 }
 

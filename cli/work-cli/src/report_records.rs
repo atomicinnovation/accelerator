@@ -4,7 +4,6 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-/// One stdout record, its fields joined by tabs.
 #[derive(Debug, Default)]
 pub struct TsvRecord {
     fields: Vec<String>,

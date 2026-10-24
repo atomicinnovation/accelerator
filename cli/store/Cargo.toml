@@ -13,7 +13,7 @@ role = "technical-library"
 workspace = true
 
 [features]
-# Permission guards for tests. Only enabled from dev-dependencies.
+# Enable only from dev-dependencies.
 test-support = []
 
 [dependencies]

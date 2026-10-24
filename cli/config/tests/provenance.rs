@@ -1,6 +1,3 @@
-//! Where a configured path's effective value came from, and whether the
-//! personal file it came from is tracked.
-
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::cell::RefCell;

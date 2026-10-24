@@ -30,9 +30,7 @@ impl DraftId {
     }
 }
 
-/// Whether `id` can name a file or directory as it stands: a canonical id
-/// under `scheme`, or, where the tracker owns ids, a tracker key or a draft
-/// id.
+/// Whether `id` can name a file or directory as it stands.
 #[must_use]
 pub fn is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
     scheme.is_canonical_id_token(id)

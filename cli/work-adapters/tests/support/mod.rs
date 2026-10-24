@@ -893,7 +893,6 @@ impl RecoveryCopies for DiscardedCopies {
     }
 }
 
-/// Answers that every file is committed.
 pub struct AllTracked;
 
 impl RepositoryTracking for AllTracked {
@@ -937,7 +936,6 @@ impl RepositoryTracking for CommittedWorkItems {
     }
 }
 
-/// Names a recovery directory for every id.
 pub struct LabelsEveryId;
 
 impl RecoveryLabels for LabelsEveryId {

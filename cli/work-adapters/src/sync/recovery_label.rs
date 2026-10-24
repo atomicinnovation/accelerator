@@ -72,7 +72,6 @@ fn is_drawn_suffix(suffix: &str) -> bool {
             .all(|byte| work::draft_id::ALPHABET.contains(&byte))
 }
 
-/// Names the directory a pull keeps an item's edits in.
 pub trait RecoveryLabels {
     /// `None` when `id` cannot name a directory safely.
     fn label_for(&self, id: &str, epoch: u64) -> Option<RecoveryLabel>;

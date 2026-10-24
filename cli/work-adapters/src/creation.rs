@@ -122,17 +122,15 @@ pub type Drafted<'a> = dyn FnMut(&DraftId) -> Result<(), String> + 'a;
 pub type LegacyTracker<'a> =
     dyn Fn() -> Result<Box<dyn RemoteTracker>, PushOutcome> + 'a;
 
-/// What became of promoting a just-written draft.
 pub enum DraftPromotionOutcome {
     NoTracker,
-    /// Refused before anything was sent, for the reason `warning` gives.
+    /// Refused before anything reached the tracker.
     Refused {
         warning: String,
     },
     Attempted(PromotionRow),
 }
 
-/// Promotes the just-written draft.
 pub type DraftPromotion<'a> =
     dyn FnMut(&DraftId, PathBuf) -> Result<DraftPromotionOutcome, String> + 'a;
 
