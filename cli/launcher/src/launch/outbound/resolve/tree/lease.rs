@@ -39,11 +39,8 @@ impl LivenessProbe for FlockProbe {
     }
 }
 
-/// The generation directories this process holds shared leases on.
-///
-/// Each is held without a probe: where `flock` is emulated with
-/// process-owned POSIX locks, probing a lease the process holds would
-/// release it.
+/// A lease this process holds is never probed: where `flock` is emulated
+/// with process-owned POSIX locks, probing it would release it.
 #[derive(Debug, Default)]
 pub struct HeldLeases {
     generations: BTreeSet<PathBuf>,

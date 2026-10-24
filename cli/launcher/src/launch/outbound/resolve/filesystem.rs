@@ -52,7 +52,7 @@ pub enum AccessAcl {
 }
 
 pub trait CacheFilesystem {
-    /// The names in `dir`; an entry the directory stream fails on is skipped.
+    /// An entry the directory stream fails on is skipped.
     ///
     /// # Errors
     ///
@@ -108,14 +108,12 @@ pub trait CacheFilesystem {
     /// If the file cannot be removed.
     fn remove_file(&self, path: &Path) -> io::Result<()>;
 
-    /// Remove an empty directory.
-    ///
     /// # Errors
     ///
     /// If the directory cannot be removed.
     fn remove_dir(&self, path: &Path) -> io::Result<()>;
 
-    /// Remove a directory and everything in it, never following a symlink.
+    /// Never follows a symlink.
     ///
     /// # Errors
     ///
@@ -127,9 +125,6 @@ pub trait CacheFilesystem {
     /// If `path` cannot be examined.
     fn entry(&self, path: &Path) -> io::Result<EntryMetadata>;
 
-    /// The canonical form of `path`, every symlink in it resolved, and the
-    /// identity of what it names.
-    ///
     /// # Errors
     ///
     /// If `path` does not exist or cannot be resolved.
@@ -143,14 +138,14 @@ pub trait CacheFilesystem {
     /// the creation meets.
     fn create_private_dir(&self, path: &Path) -> io::Result<()>;
 
-    /// Set the mtime of the file at `path`, never following a symlink.
+    /// Never follows a symlink at `path`.
     ///
     /// # Errors
     ///
     /// If the file cannot be opened or its time set.
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()>;
 
-    /// The access ACL on the directory at `path`, never following a symlink.
+    /// Never follows a symlink at `path`.
     ///
     /// # Errors
     ///
@@ -458,8 +453,8 @@ const fn set_executable(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Test overlays over a real filesystem, compiled always because the
-/// launcher's integration tests link the library without `cfg(test)`.
+/// Compiled always because the launcher's integration tests link the library
+/// without `cfg(test)`.
 #[doc(hidden)]
 pub mod testing {
     use std::collections::BTreeMap;
@@ -473,9 +468,6 @@ pub mod testing {
         SystemFilesystem,
     };
 
-    /// Answers `entry` and `resolve` for chosen paths with synthetic results,
-    /// passing every other call to `inner`, and remembers which paths were
-    /// resolved.
     pub struct ReportingFilesystem<F = SystemFilesystem> {
         inner: F,
         overlay: Mutex<Overlay>,
@@ -541,7 +533,6 @@ pub mod testing {
             self
         }
 
-        /// Every path passed to `resolve`, in call order.
         pub fn resolved_paths(&self) -> Vec<PathBuf> {
             self.overlay().resolved.clone()
         }

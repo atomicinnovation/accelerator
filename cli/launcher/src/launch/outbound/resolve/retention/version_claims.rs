@@ -1,5 +1,3 @@
-//! Version claims: how a launcher declares "my version still uses this root".
-//!
 //! Each launcher start in a relocated root refreshes
 //! `claims/<version>.<launcher-id>`, so a prune can tell which versions'
 //! entries are still wanted by reading only that directory.
@@ -32,11 +30,8 @@ impl VersionClaim<'_> {
     }
 }
 
-/// Refresh this launcher's claim on its version, best-effort.
-///
-/// A valid claim younger than a tenth of the window is left alone, so a crawl
-/// writes at most once. A failed write is only logged at debug, because a
-/// read-only root is a supported case.
+/// A young valid claim is left alone, so a crawl writes at most once. A failed
+/// write is only logged at debug, because a read-only root is a supported case.
 pub fn refresh(
     root: &Path,
     claim: &VersionClaim<'_>,
@@ -108,7 +103,6 @@ pub enum ClaimsListing {
     Unreadable(io::ErrorKind),
 }
 
-/// Every claim in the root whose name parses.
 pub fn list(
     root: &Path,
     filesystem: &dyn CacheFilesystem,
@@ -154,7 +148,6 @@ pub fn list(
     ClaimsListing::Read(listed)
 }
 
-/// The versions some valid claim protects.
 #[derive(Debug, Clone, Default)]
 pub struct FreshVersions {
     versions: BTreeSet<String>,
@@ -182,8 +175,7 @@ impl FreshVersions {
         Self { versions }
     }
 
-    /// The same versions and `version` besides, as the running version is
-    /// protected whatever its claims say.
+    /// The running version is protected whatever its claims say.
     #[must_use]
     pub fn including(mut self, version: &str) -> Self {
         self.versions.insert(version.to_owned());
@@ -200,8 +192,7 @@ impl FreshVersions {
     }
 }
 
-/// Split a claim name at its last `.` when exactly sixteen lowercase hex
-/// characters follow, so a version's own dots survive.
+/// Split at the last `.`, so a version's own dots survive.
 #[must_use]
 pub fn parse_claim_name(name: &str) -> Option<(&str, &str)> {
     let (version, launcher_id) = name.rsplit_once('.')?;
@@ -216,7 +207,6 @@ const fn is_valid(entry: &EntryMetadata, uid: u32) -> bool {
     matches!(entry.kind, FileKind::File) && entry.owner == uid
 }
 
-/// A future mtime is age zero.
 fn age(entry: &EntryMetadata, now: u64) -> Option<u64> {
     entry
         .modified_seconds

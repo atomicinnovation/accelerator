@@ -1823,9 +1823,9 @@ class _Root:
 def _seed_a_superseded_version(
     root: _Root, version: str, seed: str, retired_seed: str, alias: str
 ) -> None:
-    """A dispatch's and a materialise's leavings from `version`, none of it
-    claimed within the window, with a tree of `driver`, which C pins at
-    another digest, and of an artifact C no longer ships."""
+    """Leave what a dispatch and a materialise of `version` would, none of it
+    claimed within the window, plus a `driver` tree at a digest the current
+    version does not pin and a tree of an artifact it no longer ships."""
     digest = seed * 64
     old = _BEYOND_THE_CLAIM_WINDOW
     for binary in ("visualiser", "vcs"):

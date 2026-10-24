@@ -163,7 +163,7 @@ fn prune(
         PruneOutcome::Refused(unsafe_root) => {
             Err(kernel::Error::Failed(format!("not pruning: {unsafe_root}")))
         }
-        PruneOutcome::Unavailable { detail } => {
+        PruneOutcome::Unidentified { detail } => {
             Err(ResolutionError::CacheRootUnavailable { detail }.into())
         }
     }

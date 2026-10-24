@@ -45,7 +45,6 @@ impl RecordingLocks {
             .collect()
     }
 
-    /// Every call made on a path this process held at the time.
     pub fn calls_on_held_locks(&self) -> Vec<(LockCall, PathBuf)> {
         self.state.lock().expect("state").on_held.clone()
     }

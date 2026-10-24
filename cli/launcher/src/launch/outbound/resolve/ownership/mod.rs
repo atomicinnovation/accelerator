@@ -1,5 +1,5 @@
-//! Who owns the cache's bookkeeping directories, and which of them this
-//! process may trust not to be renamed into by another user.
+//! Which cache bookkeeping directories this process may trust not to be
+//! renamed into by another user.
 
 pub mod accounts;
 pub mod safe_root;
@@ -10,7 +10,6 @@ use std::sync::OnceLock;
 use self::accounts::{AccountLookup, LibcLookup};
 use super::filesystem::{AccessAcl, CacheFilesystem, EntryMetadata, FileKind};
 
-/// What the effective gid's group is to the effective user.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrimaryGroup {
     /// The user-private group of Ubuntu, Debian, Fedora and RHEL: named as
@@ -19,7 +18,6 @@ pub enum PrimaryGroup {
     Shared {
         name: String,
     },
-    /// No lookup could name the user or the group.
     Unresolved,
 }
 
@@ -35,15 +33,12 @@ pub trait Ownership {
     }
 }
 
-/// The running process's identity, its primary group resolved on first ask
-/// and remembered for this instance only.
 pub struct ProcessOwnership {
     lookups: Vec<Box<dyn AccountLookup + Send + Sync>>,
     primary_group: OnceLock<PrimaryGroup>,
 }
 
 impl Default for ProcessOwnership {
-    /// The C library first; on Linux, `getent` when it finds no entry.
     fn default() -> Self {
         Self::with_lookups(vec![
             Box::new(LibcLookup),
@@ -54,7 +49,6 @@ impl Default for ProcessOwnership {
 }
 
 impl ProcessOwnership {
-    /// Resolve through `lookups` in order, stopping at the first that answers.
     #[must_use]
     pub fn with_lookups(
         lookups: Vec<Box<dyn AccountLookup + Send + Sync>>,
@@ -117,7 +111,6 @@ impl Ownership for ProcessOwnership {
     }
 }
 
-/// Whether `group_name`, listing `members`, is `login`'s private group.
 #[must_use]
 pub fn is_private_group(
     login: &str,
@@ -127,9 +120,6 @@ pub fn is_private_group(
     group_name == login && members.iter().all(|member| *member == login)
 }
 
-/// A real directory owned by `uid` that no one else can write to: neither
-/// world nor group writable, unless its group is `private_gid`, the user's own
-/// private group.
 #[must_use]
 pub const fn is_trusted_entry(
     entry: &EntryMetadata,
@@ -145,8 +135,6 @@ pub const fn is_trusted_entry(
             || writable_only_through_the_private_group)
 }
 
-/// [`is_trusted_entry`] for the directory at `path`, read without following a
-/// symlink there; an unreadable path is never trusted.
 pub fn is_trusted_directory(
     path: &Path,
     filesystem: &dyn CacheFilesystem,
@@ -157,12 +145,9 @@ pub fn is_trusted_directory(
     })
 }
 
-/// [`is_trusted_directory`] over metadata already read.
-///
-/// The private group is resolved only for a directory its group could write
-/// to, and admitted only with no access ACL: on Linux the group mode bits of
-/// a directory with a POSIX ACL are its mask, so another user's entry would
-/// read as group-writable.
+/// A private group is admitted only with no access ACL: on Linux the group
+/// mode bits of a directory with a POSIX ACL are its mask, so another user's
+/// entry would read as group-writable.
 pub fn is_trusted_directory_entry(
     path: &Path,
     entry: &EntryMetadata,

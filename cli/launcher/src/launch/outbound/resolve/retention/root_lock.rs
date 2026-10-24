@@ -1,7 +1,6 @@
-//! The lock serialising root prunes of one cache root.
-//!
-//! It is released before any tree lock is taken or waited on, and a holder of
-//! a tree lock only ever tries it, so the two never deadlock.
+//! The root prune lock is released before any tree lock is taken or waited
+//! on, and a holder of a tree lock only ever tries it, so the two never
+//! deadlock.
 
 use std::io;
 use std::path::Path;
@@ -20,9 +19,6 @@ pub struct HeldRootLock {
 }
 
 impl HeldRootLock {
-    /// Take `root`'s prune lock, waiting or only trying; `None` when another
-    /// prune holds it and `patience` is to try.
-    ///
     /// A lock file that is a symlink or not this user's own can only be the
     /// same user's doing in a root nobody else can write to, so it is refused
     /// rather than followed or unlinked.
