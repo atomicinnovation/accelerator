@@ -55,6 +55,7 @@ pub use crate::sync::label::RenderableState;
 pub use crate::sync::label::SyncPresence;
 pub use crate::sync::plan::needs_body_read;
 pub use crate::sync::plan::plan;
+pub use crate::sync::plan::AppliedResolution;
 pub use crate::sync::plan::Instruction;
 pub use crate::sync::plan::PlanInput;
 pub use crate::sync::plan::PlanOrders;

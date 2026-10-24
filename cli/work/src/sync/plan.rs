@@ -34,6 +34,32 @@ pub struct RemoteFacts<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instruction {
     Order(PendingPushOrder),
+    Resolution(AppliedResolution),
+}
+
+/// A `--resolve` that rewrote a prompt into an action; a skip leaves the
+/// prompt in place, so it is never one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppliedResolution {
+    AcceptRemote,
+    PushLocal,
+}
+
+impl AppliedResolution {
+    const fn of(resolution: Resolution) -> Option<Self> {
+        match resolution {
+            Resolution::AcceptRemote => Some(Self::AcceptRemote),
+            Resolution::PushLocal => Some(Self::PushLocal),
+            Resolution::Skip => None,
+        }
+    }
+
+    const fn action(self) -> Action {
+        match self {
+            Self::AcceptRemote => Action::Pull,
+            Self::PushLocal => Action::Overwrite,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +111,19 @@ impl PlannedAction {
         }
     }
 
+    /// A prompted item a `--resolve` settles, taking the action its
+    /// resolution names.
+    pub(crate) fn resolved(
+        id: impl Into<String>,
+        state: SyncState,
+        resolution: AppliedResolution,
+    ) -> Self {
+        Self {
+            instruction: Some(Instruction::Resolution(resolution)),
+            ..Self::new(id, state, resolution.action())
+        }
+    }
+
     /// This action carrying `planned`'s pending-push order, when `planned`
     /// is for the same item; only the planner can give an action an order.
     #[must_use]
@@ -117,7 +156,15 @@ impl PlannedAction {
     pub const fn order(&self) -> Option<&PendingPushOrder> {
         match &self.instruction {
             Some(Instruction::Order(order)) => Some(order),
-            None => None,
+            Some(Instruction::Resolution(_)) | None => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn resolution(&self) -> Option<AppliedResolution> {
+        match &self.instruction {
+            Some(Instruction::Resolution(resolution)) => Some(*resolution),
+            Some(Instruction::Order(_)) | None => None,
         }
     }
 }
@@ -256,25 +303,24 @@ pub fn plan(
                 continue;
             }
         };
-        let mut action = decide::decide(direction, &classification, item.dirty);
-        if action == Action::Prompt {
-            if let Some(resolution) = orders.resolutions.get(&item.id) {
-                action = match resolution {
-                    Resolution::AcceptRemote => Action::Pull,
-                    Resolution::PushLocal => Action::Overwrite,
-                    Resolution::Skip => Action::Prompt,
-                };
-            }
-        }
+        let action = decide::decide(direction, &classification, item.dirty);
+        let resolution = orders
+            .resolutions
+            .get(&item.id)
+            .filter(|_| action == Action::Prompt)
+            .and_then(|resolution| AppliedResolution::of(*resolution));
         let state = classification.state();
-        actions.push(match orders.pending_push.get(&item.id) {
-            Some(order) if orders.unconfirmed_links.contains(&item.id) => {
+        actions.push(match (orders.pending_push.get(&item.id), resolution) {
+            (Some(order), _) if orders.unconfirmed_links.contains(&item.id) => {
                 PlannedAction::relink(item.id.clone(), state, order.clone())
             }
-            Some(order) if state == SyncState::Unsynced => {
+            (Some(order), _) if state == SyncState::Unsynced => {
                 PlannedAction::ordered(item.id.clone(), state, order.clone())
             }
-            _ => PlannedAction::new(item.id.clone(), state, action),
+            (_, Some(resolution)) => {
+                PlannedAction::resolved(item.id.clone(), state, resolution)
+            }
+            (_, None) => PlannedAction::new(item.id.clone(), state, action),
         });
     }
     SyncPlan {

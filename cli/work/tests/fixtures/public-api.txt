@@ -1590,8 +1590,21 @@ impl core::marker::StructuralPartialEq for work::sync::label::SyncPresence
 pub fn work::sync::label::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::label::label(state: work::sync::label::RenderableState) -> &'static str
 pub mod work::sync::plan
+pub enum work::sync::plan::AppliedResolution
+pub work::sync::plan::AppliedResolution::AcceptRemote
+pub work::sync::plan::AppliedResolution::PushLocal
+impl core::clone::Clone for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::clone(&self) -> work::sync::plan::AppliedResolution
+impl core::cmp::Eq for work::sync::plan::AppliedResolution
+impl core::cmp::PartialEq for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::eq(&self, other: &work::sync::plan::AppliedResolution) -> bool
+impl core::fmt::Debug for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::plan::AppliedResolution
+impl core::marker::StructuralPartialEq for work::sync::plan::AppliedResolution
 pub enum work::sync::plan::Instruction
 pub work::sync::plan::Instruction::Order(work::sync::push_precondition::PendingPushOrder)
+pub work::sync::plan::Instruction::Resolution(work::sync::plan::AppliedResolution)
 impl core::clone::Clone for work::sync::plan::Instruction
 pub fn work::sync::plan::Instruction::clone(&self) -> work::sync::plan::Instruction
 impl core::cmp::Eq for work::sync::plan::Instruction
@@ -1621,6 +1634,7 @@ pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decid
 pub fn work::sync::plan::PlannedAction::id(&self) -> &str
 pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
 pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
+pub const fn work::sync::plan::PlannedAction::resolution(&self) -> core::option::Option<work::sync::plan::AppliedResolution>
 pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
 pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
@@ -1855,6 +1869,18 @@ impl core::fmt::Display for work::sync::decide::Action
 pub fn work::sync::decide::Action::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::decide::Action
 impl core::marker::StructuralPartialEq for work::sync::decide::Action
+pub enum work::sync::AppliedResolution
+pub work::sync::AppliedResolution::AcceptRemote
+pub work::sync::AppliedResolution::PushLocal
+impl core::clone::Clone for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::clone(&self) -> work::sync::plan::AppliedResolution
+impl core::cmp::Eq for work::sync::plan::AppliedResolution
+impl core::cmp::PartialEq for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::eq(&self, other: &work::sync::plan::AppliedResolution) -> bool
+impl core::fmt::Debug for work::sync::plan::AppliedResolution
+pub fn work::sync::plan::AppliedResolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::plan::AppliedResolution
+impl core::marker::StructuralPartialEq for work::sync::plan::AppliedResolution
 pub enum work::sync::BaselineFingerprints
 pub work::sync::BaselineFingerprints::Legacy(work::sync::baseline::LegacyHashes)
 pub work::sync::BaselineFingerprints::Split(work::sync::baseline::SplitFingerprints)
@@ -1969,6 +1995,7 @@ impl core::marker::Copy for work::sync::identity::IdentityAction
 impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
 pub enum work::sync::Instruction
 pub work::sync::Instruction::Order(work::sync::push_precondition::PendingPushOrder)
+pub work::sync::Instruction::Resolution(work::sync::plan::AppliedResolution)
 impl core::clone::Clone for work::sync::plan::Instruction
 pub fn work::sync::plan::Instruction::clone(&self) -> work::sync::plan::Instruction
 impl core::cmp::Eq for work::sync::plan::Instruction
@@ -2310,6 +2337,7 @@ pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decid
 pub fn work::sync::plan::PlannedAction::id(&self) -> &str
 pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
 pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
+pub const fn work::sync::plan::PlannedAction::resolution(&self) -> core::option::Option<work::sync::plan::AppliedResolution>
 pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
 pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
