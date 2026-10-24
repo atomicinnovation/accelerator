@@ -266,6 +266,7 @@ pub fn run_report() -> work_adapters::sync::run::RunReport {
         baseline_degradation: work_adapters::sync::baseline::Degradation::None,
         finalisation: work_adapters::sync::report::Finalisation::Finalised,
         dossiers: Vec::new(),
+        stale_dossier_ids: Vec::new(),
         discovery: work_adapters::sync::run::DiscoveryStatus::Ran { found: 0 },
         discovery_deferral: None,
         keyed_read_budget_limited: false,

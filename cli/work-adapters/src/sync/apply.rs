@@ -306,6 +306,30 @@ impl ApplyError {
 }
 
 impl ApplyError {
+    /// Whether anything for the item may have landed before it failed: a
+    /// local step records it, and a terminal tracker failure may have
+    /// applied its mutation.
+    #[must_use]
+    pub const fn progress(&self) -> ItemProgress {
+        match self {
+            Self::Io { progress, .. } => *progress,
+            Self::Tracker {
+                source: TrackerError::Terminal { .. },
+                ..
+            } => ItemProgress::MayHaveLanded,
+            Self::Tracker { .. }
+            | Self::RemoteBodyUnavailable { .. }
+            | Self::RemoteUnrenderable { .. }
+            | Self::LocalPullResidue { .. }
+            | Self::LocalUnparseable { .. }
+            | Self::LocalWriteRefused { .. }
+            | Self::LocalChangedSinceClassified { .. }
+            | Self::PendingPushRefused { .. }
+            | Self::OrderRefused { .. }
+            | Self::CorpusIncomplete { .. } => ItemProgress::NothingLanded,
+        }
+    }
+
     #[must_use]
     pub fn item_id(&self) -> &str {
         match self {

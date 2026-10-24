@@ -12,6 +12,7 @@ pub mod body_comparison;
 pub mod create;
 pub mod created_baseline;
 pub mod digest;
+pub mod dossiers;
 pub mod fetch;
 pub mod files;
 pub mod identity_settlement;
