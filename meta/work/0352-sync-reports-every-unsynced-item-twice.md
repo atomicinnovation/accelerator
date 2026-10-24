@@ -14,6 +14,7 @@ tags: ["sync", "report", "work-adapters"]
 last_updated: "2026-10-24T11:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-927"
 ---
 # 0352: Sync Reports Every Unsynced Item Twice
 

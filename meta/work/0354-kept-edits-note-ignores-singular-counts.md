@@ -14,6 +14,7 @@ tags: ["sync", "kept-edits", "wording"]
 last_updated: "2026-10-24T11:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-929"
 ---
 # 0354: Kept-Edits Note Ignores Singular Counts
 
