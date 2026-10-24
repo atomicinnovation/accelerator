@@ -1956,6 +1956,13 @@ pub fn run_sync_with(
             return ExitCode::from(exit_codes::UNCONFIGURED);
         }
     };
+    let integration_state = match roots.integration_state(&integration) {
+        Ok(state) => state,
+        Err(refusal) => {
+            console.warn(configure_failure(&refusal));
+            return ExitCode::from(exit_codes::UNCONFIGURED);
+        }
+    };
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
@@ -2141,11 +2148,8 @@ pub fn run_sync_with(
     };
 
     sweep_kept_recoveries(console, recovery);
-    let stores = SyncStores::bounded(
-        &roots.work_items,
-        &roots.integration_state(&integration),
-        stores,
-    );
+    let stores =
+        SyncStores::bounded(&roots.work_items, &integration_state, stores);
     let outcome = assemble_run(
         &RunAssembly {
             stores: &stores,
@@ -7710,6 +7714,32 @@ mod tests {
             );
             assert!(is_empty_dir(elsewhere.path()), "{parent}");
         }
+    }
+
+    #[test]
+    fn a_tracker_state_directory_symlinked_out_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let integrations = dir.path().join(".accelerator/state/integrations");
+        std::fs::create_dir_all(&integrations).expect("mkdir");
+        std::os::unix::fs::symlink(elsewhere.path(), integrations.join("jira"))
+            .expect("symlink");
+        work_file(dir.path(), "0001", None);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            &format!(
+                "{jira} is a symlink to {}; move its contents back into \
+                 {jira}/, then remove the link",
+                elsewhere.path().display(),
+                jira = integrations.join("jira").display()
+            ),
+        );
+        assert!(is_empty_dir(elsewhere.path()));
     }
 
     #[test]
