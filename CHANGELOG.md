@@ -101,12 +101,16 @@
   promotion record written past its first stage and aborts on it. Run
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
-- **A `work sync` local file read failure, or a write that fails in flight,
-  exits 71** (`terminal`), where it exited 0 with a `-` detail. A write the
-  store refuses before writing, such as through an unsafe path, fails as
-  `local-write-refused` (exit 75) and leaves the file as it was; until 0300
-  lands, that includes every pull into an existing work item. A pull whose
-  remote body could not be
+- **`work sync` classes a local failure by whether anything for the item had
+  landed.** A read, lock, recovery-copy or write failure before anything for
+  that item landed — a write refused for lack of permission included — exits
+  `70` (`retryable`); a failure after something may have landed, locally or
+  in the tracker, exits `71` (`terminal`). Both exited 0 with a `-` detail
+  before. Each carries its class in the report's detail column and prints
+  `error: <id>: <operation> failed: <cause>` on stderr (`would fail` on
+  `--preview`). A write the store refuses for an unsafe path, an existing file
+  or invalid content stays `local-write-refused` (exit 75) and leaves the file
+  as it was. A pull whose remote body could not be
   fetched fails as `retryable` (exit 70) instead of writing an empty body, and
   a `show` that fails after the remote stamp moved leaves the item
   `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
@@ -128,10 +132,45 @@
 - **`work sync` reports two new rows.** An item whose baseline entry was
   written by a newer release reports `noop\tindeterminate\tunsupported-recipe`
   (exit 4) and is left untouched, with a stderr warning naming those items and
-  saying to upgrade, and a baseline record or a pull whose local
-  file changed after the run read it reports `failed\tsynced\tretryable` or
-  `failed\tremotely-modified\tretryable` (exit 70), writing nothing. Scripts
-  that parse `work sync` output need updating.
+  saying to upgrade, and a baseline record or pull that failed before
+  anything landed (the `error:` line names the cause) reports
+  `failed\tsynced\tretryable` or `failed\tremotely-modified\tretryable`
+  (exit 70), writing nothing. A refused pending-push create exits `71`. A
+  work file that cannot be read is reported by path and exits `70`, one that
+  is not UTF-8 is reported as `undecodable` and exits `75`, and one whose
+  frontmatter is broken (an unclosed fence, a missing `id` or fence under a
+  work-item name, VCS conflict markers) is reported by path as `malformed`
+  and exits `75`, as unparseable YAML already does, instead of either being
+  skipped silently. While one exists no new remote issue is imported, so a
+  conflicted tracked item is never re-imported as a duplicate. A Markdown
+  file that is not a work item (a README, say) is reported as
+  `no-frontmatter` or `no-id` and does not fail the run; on a targeted run
+  such a file outside the target is reported but does not change the exit
+  code. A failed write of `last-sync.json`, silent and exit `0` before, now
+  prints `error: -: baseline-set failed:` and exits `70`. A per-item
+  classification error, which aborted the whole run with exit `1`, now fails
+  only that item (`<id>\tfailed\t-\tretryable`, exit `70`). A `meta/work`
+  or integrations directory that is a symlink out of the repository refuses
+  the run at the start with exit `74`, before anything is sent: move the
+  directory back inside the repository, or, for the integrations directory,
+  set `paths.integrations` to the absolute target in
+  `.accelerator/config.local.md`. An out-of-repository
+  `paths.integrations`, absolute or `..`-relative, is honoured only from an
+  untracked `.accelerator/config.local.md`; one in the team config or a
+  tracked personal file now refuses the run with exit `74` naming that
+  remedy (other `work` commands still use such a path; only sync writes
+  there unattended). Overlapping work and integrations roots refuse with
+  `74`. A symlinked `.accelerator/state` root or recovery directory refuses
+  `work sync` and `work promote` with `74` before any tracker call,
+  retirement included, while `work create --push` saves the draft and
+  reports `local-save` (exit `0`) with a `warning:` naming the cause. A
+  refused `--resolve` order reports `failed … order-refused` (exit `75`), and
+  an adopt order's row action reads `adopt`. An unrecognised `--resolve`
+  order, previously skipped with a warning, now exits `2`, as does a second
+  order for the same id. Conflicts outrank retryable and refusal failures
+  (exit `4`), but a terminal failure still exits `71`; read `failed` rows or
+  `error:` lines to detect failures. Scripts that parse `work sync` output
+  need updating.
 - **`work sync` reports a `record-baseline` row for a metadata-only local
   change.** A local change that touches no field the tracker holds, or whose
   bodies already agree, now reports `<id>\trecord-baseline\tlocally-modified\t-`
@@ -408,6 +447,31 @@
 
 ### Changed
 
+- **Sync state that belongs to one machine is ignored.** `accelerator config
+  init` and migration `0011` ignore
+  `.accelerator/state/{retirement,sync}-recovery/` and every integration's
+  `pending-push/`, `conflicts/` and `adopted/`; a symlinked recovery directory
+  is now refused, retirement's included.
+- **Paths with `..` through a not-yet-existing directory are refused** by
+  every store read and write, and "not writable" errors from `work` and
+  `config` writes and locks now end with the operating system's reason.
+- **Refused pending pushes are settled by an order.** Their refusals name a
+  reason token and no longer suggest removing the marker; instead
+  `--resolve <id>=adopt:<KEY>` links an existing issue and
+  `--resolve <id>=create` discards the marker and creates one.
+  `--discard-kept-edits <id>` removes an item's kept recovery copies.
+- **The `work sync` report gains records.** A
+  `#\tunidentified\t<path>\t<kind>` record (`unreadable`, `undecodable`,
+  `malformed`, `no-frontmatter`, `no-id`), a
+  `#\tkept-edits\t<id>\t<kind>\t<item-path>\t<copy-path>` record
+  (`this-run`, `earlier`, `unrecorded`), a
+  `#\tstale-dossier\t<id>\t<dossier-path>` record, a
+  `#\tadopt\t<id>\t<KEY>\t<title>` record and the row actions `adopt` and
+  `relink`; `#\tdiscovery` gains `skipped\tincomplete-corpus` and
+  `skipped\tpending-push` (no new remote issue is imported while a pending
+  push is unresolved), and `#\tdetail` keeps its meaning. Every record field
+  of `work sync`, `work promote` and `work create`/`create-batch` output is
+  now sanitised to one line.
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
@@ -647,6 +711,14 @@
 - **Relative links survive an item moving into or out of `drafts/`.** Links
   written inside `drafts/` follow the moved item, and the moved item's own
   relative links are re-based for its new directory.
+- **Pulls into tracked work items land.** A pull takes the item's file lock,
+  never writes over a file changed since the run read it, and keeps local
+  edits made since the last sync under `.accelerator/state/sync-recovery/`
+  until they are merged or deleted.
+- **Conflict dossiers are retired only for conflicts an apply run settled**,
+  so `--preview`, `--target`, `--pull-only`/`--push-only`, budget-limited
+  runs, deferred items and unreadable work files keep the dossiers of
+  conflicts they did not settle.
 - **Cosmetic rewrites no longer cause pushes, pulls or conflicts.** `work
   sync` compares bodies by meaning, so Linear's re-serialisation and an
   equivalent local rewrite are never a change. A title change is sent alone,
@@ -771,6 +843,11 @@
 
 ### Migrations
 
+- **Run `/accelerator:migrate` (migration 0011) to ignore machine-local sync
+  state.** Settle any tracked pending-push markers with
+  `--resolve <id>=adopt:<KEY>` or `=create` before untracking what it names.
+  Move a team-config `paths.integrations` outside the repository into an
+  untracked `.accelerator/config.local.md`, or sync refuses with `74`.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item
   file changed and nothing sent to the tracker; commit the result. A Jira file
