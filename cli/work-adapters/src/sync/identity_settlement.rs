@@ -30,7 +30,6 @@ use work::promotion::PromotionMode;
 use work::promotion::PromotionStage;
 use work::sync::SyncDirection;
 
-use crate::identity_run::IdentityRunGuard;
 use crate::promotion::finish_promotion;
 use crate::promotion::promote;
 use crate::promotion::PromotionOutcome;
@@ -59,6 +58,7 @@ use crate::sync::run::RunMode;
 use crate::sync::run::SettledView;
 use crate::sync::run::SyncPorts;
 use crate::sync::run::SyncRequest;
+use work::identity_run::IdentityRunGuard;
 
 pub struct SettlementPorts<'a> {
     pub retirement: &'a RetirementPorts<'a>,

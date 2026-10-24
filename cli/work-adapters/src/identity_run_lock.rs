@@ -13,11 +13,11 @@ use store::lock::LockGuard;
 use store::lock::LockOptions;
 use work::rekey::outcome::Holder;
 
-use crate::identity_run::HeldIdentityRun;
-use crate::identity_run::IdentityRun;
-use crate::identity_run::IdentityRunAttempt;
-use crate::identity_run::IdentityRunLockError;
 use crate::ignored_dir::prepare_ignored_dir;
+use work::identity_run::HeldIdentityRun;
+use work::identity_run::IdentityRun;
+use work::identity_run::IdentityRunAttempt;
+use work::identity_run::IdentityRunLockError;
 
 const LOCKDIR: &str = "identity-run.lockdir";
 

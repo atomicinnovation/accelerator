@@ -226,6 +226,62 @@ impl core::marker::StructuralPartialEq for work::identity::ItemIdentity
 pub fn work::identity::holder_of<'a>(candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
 pub fn work::identity::linker_of<'a>(key: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
 pub fn work::identity::resolve_identity<'a>(token: &str, items: &'a [work::identity::ItemIdentity]) -> work::identity::IdentityResolution<'a>
+pub mod work::identity_run
+pub enum work::identity_run::IdentityRunAttempt
+pub work::identity_run::IdentityRunAttempt::Acquired(work::identity_run::HeldIdentityRun)
+pub work::identity_run::IdentityRunAttempt::HeldBy(core::option::Option<work::rekey::outcome::Holder>)
+pub enum work::identity_run::IdentityRunLockError
+pub work::identity_run::IdentityRunLockError::Lock(corpus::store::StoreError)
+pub work::identity_run::IdentityRunLockError::Timeout(core::option::Option<work::rekey::outcome::Holder>)
+impl core::clone::Clone for work::identity_run::IdentityRunLockError
+pub fn work::identity_run::IdentityRunLockError::clone(&self) -> work::identity_run::IdentityRunLockError
+impl core::cmp::Eq for work::identity_run::IdentityRunLockError
+impl core::cmp::PartialEq for work::identity_run::IdentityRunLockError
+pub fn work::identity_run::IdentityRunLockError::eq(&self, other: &work::identity_run::IdentityRunLockError) -> bool
+impl core::fmt::Debug for work::identity_run::IdentityRunLockError
+pub fn work::identity_run::IdentityRunLockError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::identity_run::IdentityRunLockError
+pub enum work::identity_run::IdentityRunRefusal
+pub work::identity_run::IdentityRunRefusal::Busy(core::option::Option<work::rekey::outcome::Holder>)
+pub work::identity_run::IdentityRunRefusal::Lock(corpus::store::StoreError)
+pub work::identity_run::IdentityRunRefusal::RekeyInProgress
+pub work::identity_run::IdentityRunRefusal::RekeyPlanUnreadable(work::rekey::run_plan::UnreadablePlan)
+pub work::identity_run::IdentityRunRefusal::RekeyRunning(work::rekey::outcome::Holder)
+impl core::clone::Clone for work::identity_run::IdentityRunRefusal
+pub fn work::identity_run::IdentityRunRefusal::clone(&self) -> work::identity_run::IdentityRunRefusal
+impl core::cmp::Eq for work::identity_run::IdentityRunRefusal
+impl core::cmp::PartialEq for work::identity_run::IdentityRunRefusal
+pub fn work::identity_run::IdentityRunRefusal::eq(&self, other: &work::identity_run::IdentityRunRefusal) -> bool
+impl core::convert::From<work::identity_run::IdentityRunRefusal> for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::from(refusal: work::identity_run::IdentityRunRefusal) -> Self
+impl core::fmt::Debug for work::identity_run::IdentityRunRefusal
+pub fn work::identity_run::IdentityRunRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::identity_run::IdentityRunRefusal
+pub enum work::identity_run::RunPlanGate
+pub work::identity_run::RunPlanGate::Clear
+pub work::identity_run::RunPlanGate::InProgress
+pub work::identity_run::RunPlanGate::Unreadable(work::rekey::run_plan::UnreadablePlan)
+impl core::clone::Clone for work::identity_run::RunPlanGate
+pub fn work::identity_run::RunPlanGate::clone(&self) -> work::identity_run::RunPlanGate
+impl core::cmp::Eq for work::identity_run::RunPlanGate
+impl core::cmp::PartialEq for work::identity_run::RunPlanGate
+pub fn work::identity_run::RunPlanGate::eq(&self, other: &work::identity_run::RunPlanGate) -> bool
+impl core::fmt::Debug for work::identity_run::RunPlanGate
+pub fn work::identity_run::RunPlanGate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::identity_run::RunPlanGate
+pub struct work::identity_run::HeldIdentityRun
+impl work::identity_run::HeldIdentityRun
+pub fn work::identity_run::HeldIdentityRun::new(guard: impl core::marker::Send + core::marker::Sync + 'static) -> Self
+pub struct work::identity_run::IdentityRunGuard
+pub const work::identity_run::IDENTITY_RUN_CEILING: core::time::Duration
+pub trait work::identity_run::IdentityRun
+pub fn work::identity_run::IdentityRun::acquire_within(&self, command: &str, ceiling: core::time::Duration) -> core::result::Result<work::identity_run::HeldIdentityRun, work::identity_run::IdentityRunLockError>
+pub fn work::identity_run::IdentityRun::try_acquire(&self, command: &str) -> core::result::Result<work::identity_run::IdentityRunAttempt, corpus::store::StoreError>
+pub trait work::identity_run::RunPlanStatus
+pub fn work::identity_run::RunPlanStatus::gate(&self) -> work::identity_run::RunPlanGate
+pub fn work::identity_run::begin_identity_run(lock: &dyn work::identity_run::IdentityRun, plan: &dyn work::identity_run::RunPlanStatus, command: &str, waiting: &dyn core::ops::function::Fn(core::option::Option<&work::rekey::outcome::Holder>)) -> core::result::Result<work::identity_run::IdentityRunGuard, work::identity_run::IdentityRunRefusal>
+pub fn work::identity_run::begin_rekey_run(lock: &dyn work::identity_run::IdentityRun, waiting: &dyn core::ops::function::Fn(core::option::Option<&work::rekey::outcome::Holder>)) -> core::result::Result<work::identity_run::IdentityRunGuard, work::rekey::outcome::NotRekeyed>
+pub fn work::identity_run::waiting_line(holder: core::option::Option<&work::rekey::outcome::Holder>) -> alloc::string::String
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingKey
@@ -624,6 +680,8 @@ pub fn work::rekey::outcome::NotRekeyed::clone(&self) -> work::rekey::outcome::N
 impl core::cmp::Eq for work::rekey::outcome::NotRekeyed
 impl core::cmp::PartialEq for work::rekey::outcome::NotRekeyed
 pub fn work::rekey::outcome::NotRekeyed::eq(&self, other: &work::rekey::outcome::NotRekeyed) -> bool
+impl core::convert::From<work::identity_run::IdentityRunRefusal> for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::from(refusal: work::identity_run::IdentityRunRefusal) -> Self
 impl core::error::Error for work::rekey::outcome::NotRekeyed
 impl core::fmt::Debug for work::rekey::outcome::NotRekeyed
 pub fn work::rekey::outcome::NotRekeyed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result

@@ -18,6 +18,7 @@ use work::hierarchy::HierarchyNode;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::identity::ItemIdentity;
+use work::identity_run::IdentityRunGuard;
 use work::sync::PushOutcome;
 use work::work_item_files::identities;
 use work::work_item_files::identity_of;
@@ -25,7 +26,6 @@ use work::work_item_files::WorkItemFile;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
-use work_adapters::identity_run::IdentityRunGuard;
 use work_adapters::promotion::Detail;
 use work_adapters::sync::pending_push;
 
@@ -705,18 +705,16 @@ mod tests {
         taken: std::cell::Cell<usize>,
     }
 
-    impl work_adapters::identity_run::IdentityRun for TakenOnce {
+    impl work::identity_run::IdentityRun for TakenOnce {
         fn try_acquire(
             &self,
             _command: &str,
-        ) -> Result<
-            work_adapters::identity_run::IdentityRunAttempt,
-            corpus::StoreError,
-        > {
+        ) -> Result<work::identity_run::IdentityRunAttempt, corpus::StoreError>
+        {
             self.taken.set(self.taken.get() + 1);
             assert_eq!(self.taken.get(), 1, "the identity run was taken twice");
-            Ok(work_adapters::identity_run::IdentityRunAttempt::Acquired(
-                work_adapters::identity_run::HeldIdentityRun::new(()),
+            Ok(work::identity_run::IdentityRunAttempt::Acquired(
+                work::identity_run::HeldIdentityRun::new(()),
             ))
         }
 
@@ -725,8 +723,8 @@ mod tests {
             _command: &str,
             _ceiling: std::time::Duration,
         ) -> Result<
-            work_adapters::identity_run::HeldIdentityRun,
-            work_adapters::identity_run::IdentityRunLockError,
+            work::identity_run::HeldIdentityRun,
+            work::identity_run::IdentityRunLockError,
         > {
             unreachable!("the lock is never contended")
         }
@@ -734,9 +732,9 @@ mod tests {
 
     struct Clear;
 
-    impl work_adapters::identity_run::RunPlanStatus for Clear {
-        fn gate(&self) -> work_adapters::identity_run::RunPlanGate {
-            work_adapters::identity_run::RunPlanGate::Clear
+    impl work::identity_run::RunPlanStatus for Clear {
+        fn gate(&self) -> work::identity_run::RunPlanGate {
+            work::identity_run::RunPlanGate::Clear
         }
     }
 
@@ -766,7 +764,7 @@ mod tests {
         let repo = BatchRepo::numeric();
         let lock = TakenOnce::default();
         let begin = |_: &Path, command: &str| {
-            work_adapters::identity_run::begin_identity_run(
+            work::identity_run::begin_identity_run(
                 &lock,
                 &Clear,
                 command,

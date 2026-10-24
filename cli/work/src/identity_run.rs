@@ -4,10 +4,10 @@
 
 use std::time::Duration;
 
+use crate::rekey::outcome::Holder;
+use crate::rekey::outcome::NotRekeyed;
+use crate::rekey::run_plan::UnreadablePlan;
 use corpus::StoreError;
-use work::rekey::outcome::Holder;
-use work::rekey::outcome::NotRekeyed;
-use work::rekey::run_plan::UnreadablePlan;
 
 /// Short enough that a skill's shell call sees a refusal code rather than
 /// its own tool timeout.
@@ -35,8 +35,8 @@ impl HeldIdentityRun {
 /// Only [`begin_identity_run`] and [`begin_rekey_run`] mint one:
 ///
 /// ```compile_fail
-/// use work_adapters::identity_run::HeldIdentityRun;
-/// use work_adapters::identity_run::IdentityRunGuard;
+/// use work::identity_run::HeldIdentityRun;
+/// use work::identity_run::IdentityRunGuard;
 ///
 /// let _ = IdentityRunGuard::new(HeldIdentityRun::new(()));
 /// ```

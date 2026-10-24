@@ -11,21 +11,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use corpus::StoreError;
+use work::identity_run::begin_identity_run;
+use work::identity_run::begin_rekey_run;
+use work::identity_run::waiting_line;
+use work::identity_run::HeldIdentityRun;
+use work::identity_run::IdentityRun;
+use work::identity_run::IdentityRunAttempt;
+use work::identity_run::IdentityRunLockError;
+use work::identity_run::IdentityRunRefusal;
+use work::identity_run::RunPlanGate;
+use work::identity_run::RunPlanStatus;
+use work::identity_run::IDENTITY_RUN_CEILING;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
 use work::rekey::run_plan::Unreadability;
 use work::rekey::run_plan::UnreadablePlan;
-use work_adapters::identity_run::begin_identity_run;
-use work_adapters::identity_run::begin_rekey_run;
-use work_adapters::identity_run::waiting_line;
-use work_adapters::identity_run::HeldIdentityRun;
-use work_adapters::identity_run::IdentityRun;
-use work_adapters::identity_run::IdentityRunAttempt;
-use work_adapters::identity_run::IdentityRunLockError;
-use work_adapters::identity_run::IdentityRunRefusal;
-use work_adapters::identity_run::RunPlanGate;
-use work_adapters::identity_run::RunPlanStatus;
-use work_adapters::identity_run::IDENTITY_RUN_CEILING;
 
 type Events = Rc<RefCell<Vec<String>>>;
 

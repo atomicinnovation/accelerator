@@ -4,11 +4,11 @@
 use std::path::Path;
 
 use corpus_adapters::FileCorpusStore;
+use work::identity_run::begin_identity_run;
+use work::identity_run::waiting_line;
+use work::identity_run::IdentityRunGuard;
+use work::identity_run::IdentityRunRefusal;
 use work::rekey::outcome::NotRekeyed;
-use work_adapters::identity_run::begin_identity_run;
-use work_adapters::identity_run::waiting_line;
-use work_adapters::identity_run::IdentityRunGuard;
-use work_adapters::identity_run::IdentityRunRefusal;
 use work_adapters::identity_run_lock::IdentityRunLock;
 use work_adapters::rekey::run_plan_store::FileRunPlanStore;
 
@@ -61,9 +61,9 @@ pub fn refused(refusal: IdentityRunRefusal, root: &Path) -> (String, u8) {
 mod tests {
     use std::path::Path;
 
+    use work::identity_run::IdentityRunRefusal;
     use work::rekey::run_plan::Unreadability;
     use work::rekey::run_plan::UnreadablePlan;
-    use work_adapters::identity_run::IdentityRunRefusal;
 
     use super::refused;
 

@@ -236,13 +236,13 @@ mod in_a_real_repository {
     use vcs_test_support::hermetic::assert_jj_matches;
     use vcs_test_support::hermetic::assert_no_repository_ancestor;
     use vcs_test_support::hermetic::Hermetic;
+    use work::identity_run::IdentityRun as _;
+    use work::identity_run::IdentityRunAttempt;
     use work::rekey::outcome::NotRekeyed;
     use work::rekey::run_plan::ProposedPlan;
     use work::rekey::run_plan::RunPlan;
     use work::rekey::write_set::Base;
     use work::rekey::write_set::WriteSet;
-    use work_adapters::identity_run::IdentityRun as _;
-    use work_adapters::identity_run::IdentityRunAttempt;
     use work_adapters::identity_run_lock::IdentityRunLock;
     use work_adapters::rekey::run_plan_store::FileRunPlanStore;
     use work_adapters::rekey::run_plan_store::RunPlanStore as _;

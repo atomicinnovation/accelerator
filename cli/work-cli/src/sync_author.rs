@@ -32,12 +32,12 @@ use work::draft_id::DraftId;
 use work::identity::holder_of;
 use work::identity::linker_of;
 use work::identity::ItemIdentity;
+use work::identity_run::IdentityRunGuard;
 use work::sync::PendingPush;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::RepositoryIdentityProbe;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
-use work_adapters::identity_run::IdentityRunGuard;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
 use work_adapters::retirement::acquire_retirement_lock;
@@ -368,7 +368,7 @@ mod tests {
     use work_adapters::sync::pending_push;
 
     use super::ConfiguredLocalAuthor;
-    use work_adapters::identity_run::IdentityRunGuard;
+    use work::identity_run::IdentityRunGuard;
 
     struct FakeConfig(HashMap<String, String>);
 

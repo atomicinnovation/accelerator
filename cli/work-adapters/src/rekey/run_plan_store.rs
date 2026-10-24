@@ -31,9 +31,9 @@ use work::rekey::write_set::StartState;
 use work::rekey::write_set::WriteSet;
 use work::tracker_key::TrackerKey;
 
-use crate::identity_run::RunPlanGate;
-use crate::identity_run::RunPlanStatus;
 use crate::ignored_dir::prepare_ignored_dir;
+use work::identity_run::RunPlanGate;
+use work::identity_run::RunPlanStatus;
 
 const PLAN_FILE: &str = "run-plan.json";
 

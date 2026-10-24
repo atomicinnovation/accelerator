@@ -34,8 +34,6 @@ use work::rekey::write_set::WriteSet;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 
-use crate::identity_run::begin_rekey_run;
-use crate::identity_run::IdentityRun;
 use crate::rekey::execute::current_states;
 use crate::rekey::execute::execute;
 use crate::rekey::execute::outstanding_entries;
@@ -49,6 +47,8 @@ use crate::rekey::run_plan_store::RunPlanStore;
 use crate::rekey::working_copy::guarded_working_copy;
 use crate::retirement::acquire_retirement_lock;
 use crate::retirement::RetirementLockGuard;
+use work::identity_run::begin_rekey_run;
+use work::identity_run::IdentityRun;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RekeyAction {

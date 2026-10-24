@@ -47,7 +47,6 @@ use work::work_item_files::WorkItemFiles;
 use crate::create_request_fields;
 use crate::filesystem::drafts_dir;
 use crate::filesystem::FilesystemWorkItemFiles;
-use crate::identity_run::IdentityRunGuard;
 use crate::promotion::Detail;
 use crate::promotion::PromotionOutcome;
 use crate::promotion::PromotionRow;
@@ -63,6 +62,7 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
+use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
 pub trait CreationStore: AtomicWrite + ExclusiveCreate + FileRemove {}
