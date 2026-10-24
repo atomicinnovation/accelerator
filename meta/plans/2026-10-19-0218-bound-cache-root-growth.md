@@ -5,7 +5,7 @@ title: "Bound a Relocated Cache Root's Growth Implementation Plan"
 date: "2026-10-19T18:27:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0218"
 parent: "work-item:0218"
 derived_from: ["codebase-research:2026-10-18-0218-bound-cache-root-growth"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
 revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
 repository: "accelerator"
-last_updated: "2026-10-22T15:40:00+00:00"
+last_updated: "2026-10-24T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3302,7 +3302,7 @@ commit message says it is a record, not evidence of this change's cost.
 
 #### Manual Verification:
 
-- [ ] Both `ACCELERATOR_CACHE_DIR` entries read as one consistent account in
+- [x] Both `ACCELERATOR_CACHE_DIR` entries read as one consistent account in
       the rendered docs site
 
 ---
