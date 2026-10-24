@@ -111,8 +111,6 @@ impl PlannedAction {
         }
     }
 
-    /// A prompted item a `--resolve` settles, taking the action its
-    /// resolution names.
     pub(crate) fn resolved(
         id: impl Into<String>,
         state: SyncState,
@@ -200,9 +198,8 @@ impl SyncPlan {
     }
 }
 
-/// What a person ordered beyond planning: conflict resolutions and
-/// pending-push orders, by item id, and the items whose link a person may
-/// still replace because it is unconfirmed.
+/// What a person ordered beyond planning, by item id, and the items whose
+/// link is unconfirmed and so may still be replaced.
 pub struct PlanOrders<'a> {
     pub resolutions: &'a BTreeMap<String, Resolution>,
     pub pending_push: &'a BTreeMap<String, PendingPushOrder>,
@@ -214,7 +211,6 @@ static NO_PENDING_PUSH_ORDERS: BTreeMap<String, PendingPushOrder> =
 static NO_UNCONFIRMED_LINKS: BTreeSet<String> = BTreeSet::new();
 
 impl<'a> PlanOrders<'a> {
-    /// Conflict resolutions alone.
     #[must_use]
     pub const fn resolving(
         resolutions: &'a BTreeMap<String, Resolution>,

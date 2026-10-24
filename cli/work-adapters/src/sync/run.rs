@@ -323,14 +323,14 @@ impl SettledView {
     }
 }
 
-/// Whether an item was reconciled to a definite, up-to-date state this run, so
-/// its change-detection watermark may advance. An item left for a human
-/// (conflict, skipped-dirty, remote-absent), one whose remote read was
-/// indeterminate, or one whose apply failed keeps the watermark of the last run
-/// that did reconcile it, so a local edit predating this run is not buried.
 /// Writes the run's baseline bookkeeping: blanks each unreconciled conflict's
 /// local hash, advances the reconciled items' watermarks, and — only for a
 /// whole-corpus run — advances the document-level fallback watermark.
+///
+/// An item left for a human (conflict, skipped-dirty, remote-absent), one
+/// whose remote read was indeterminate, or one whose apply failed keeps the
+/// watermark of the last run that did reconcile it, so a local edit predating
+/// this run is not buried.
 fn finalise_baseline(
     baseline: &mut BaselineStore<'_>,
     reported: &[ReportedItem],
@@ -1127,7 +1127,6 @@ fn check_send(
     )))
 }
 
-/// The tracker operation `action` sends through.
 const fn sending_operation(action: Action) -> SyncOperation {
     match action {
         Action::Retitle => SyncOperation::Retitle,
@@ -1793,20 +1792,6 @@ const fn classify_keyed_read(
     }
 }
 
-/// The remote-side ids a run imports and the discovery line that describes how
-/// they were found. A `Targeted` run pulls its confirmed `pull_ids` by id,
-/// dropping any already bound in the corpus; a full run resolves its scope and
-/// searches for untracked issues; a push-only full run does neither.
-///
-/// Computed from reads only, so the combined gate in [`prepare_run`] can bound
-/// every write — planned pulls, planned pushes, and both create paths — before
-/// a single one runs.
-///
-/// # Errors
-///
-/// [`RunError::DiscoveryUnconfigured`] when a full run's scope names no valid
-/// target; [`RunError::DiscoveryIncomplete`] when the untracked search is cut
-/// short.
 /// The remote issues a run imports, how discovery found them, and why it
 /// imported none it would otherwise have.
 struct Imports {
@@ -1838,7 +1823,6 @@ struct PendingPushes {
     /// Issues a create may have made for an item: the keys created markers
     /// record, by item id.
     created: Vec<(String, ExternalId)>,
-    /// Keys an adopt order links this run.
     adopted: Vec<ExternalId>,
     /// Why import must wait, before any search is worth running.
     unsettled: Option<PendingPushDeferral>,
@@ -1967,6 +1951,20 @@ impl PendingPushes {
     }
 }
 
+/// The remote-side ids a run imports and the discovery line that describes how
+/// they were found. A `Targeted` run pulls its confirmed `pull_ids` by id,
+/// dropping any already bound in the corpus; a full run resolves its scope and
+/// searches for untracked issues; a push-only full run does neither.
+///
+/// Computed from reads only, so the combined gate in [`prepare_run`] can bound
+/// every write — planned pulls, planned pushes, and both create paths — before
+/// a single one runs.
+///
+/// # Errors
+///
+/// [`RunError::DiscoveryUnconfigured`] when a full run's scope names no valid
+/// target; [`RunError::DiscoveryIncomplete`] when the untracked search is cut
+/// short.
 fn untracked_to_import(
     ports: &SyncPorts<'_>,
     request: &SyncRequest<'_>,

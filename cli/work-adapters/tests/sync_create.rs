@@ -199,7 +199,6 @@ struct RecordingAuthor {
     fault: AuthorFault,
 }
 
-/// How a [`RecordingAuthor`] misbehaves.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AuthorFault {
     None,

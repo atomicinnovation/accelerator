@@ -2220,7 +2220,6 @@ fn ids_to_discard(
         .collect()
 }
 
-/// What a run's stores and ports are built from.
 struct RunAssembly<'a> {
     stores: &'a SyncStores,
     config: &'a dyn ConfigAccess,
@@ -2303,7 +2302,6 @@ fn assemble_run<T>(
     run(&ports, &settlement, &mut baseline_store)
 }
 
-/// What reporting a finished run needs beside its report.
 struct FinishedRunContext<'a> {
     config: &'a dyn ConfigAccess,
     integration: &'a str,
@@ -5389,14 +5387,12 @@ mod tests {
         );
     }
 
-    // --- run_sync end-to-end over a stub tracker registry -------------------
-    //
     // `accelerator-work` is bin-only, so these in-crate tests are the only seam
     // that can exercise the post-credential `fetch_all` gate without live
-    // Linear/Jira. `run_sync_with` returns an opaque `ExitCode`, so they assert
-    // the observable effects — files written, tracker calls made, and what the
-    // captured console printed — while the exit-code chain is proven by the
-    // pure-logic tests above.
+    // Linear/Jira. `run_sync_with` returns an opaque `ExitCode`, so they
+    // assert the observable effects — files written, tracker calls made, and
+    // what the captured console printed — while the exit-code chain is proven
+    // by the pure-logic tests above.
 
     use std::cell::RefCell;
     use std::process::ExitCode;
@@ -6532,7 +6528,6 @@ mod tests {
         kept_copy_settles_over_three_runs(dir.path());
     }
 
-    /// Fails the first baseline write, then writes through `inner`.
     struct FailingFirstBaselineWrite {
         inner: Box<dyn SyncStore>,
         failed: std::cell::Cell<bool>,
@@ -6560,7 +6555,6 @@ mod tests {
         }
     }
 
-    /// Writes through `inner`, logging every path written.
     struct RecordingWrites {
         inner: Box<dyn SyncStore>,
         written: Rc<RefCell<Vec<PathBuf>>>,
@@ -8932,7 +8926,6 @@ mod tests {
 
     const CONFLICTED: [(&str, &str); 2] = [("0001", "PP-1"), ("0002", "PP-2")];
 
-    /// Both items in conflict, with the dossiers a full run wrote for them.
     fn conflicts_with_dossiers(dir: &Path) -> Rc<RecordingTracker> {
         let tracker = edited_remotely_numbered(dir, &CONFLICTED);
         for (id, key) in CONFLICTED {

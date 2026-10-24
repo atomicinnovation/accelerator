@@ -62,8 +62,7 @@ impl FilesystemWorkItemFiles {
     }
 }
 
-/// The `*.md` files directly inside `dir`, sorted by path. A missing
-/// directory holds none.
+/// The `*.md` files directly inside `dir`, sorted by path.
 fn markdown_files_in(dir: &Path) -> Result<WorkItemListing, kernel::Error> {
     let entries = match std::fs::read_dir(dir) {
         Ok(entries) => entries,

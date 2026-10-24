@@ -27,11 +27,8 @@ pub fn filter_lines(content: &str, keep: impl Fn(&str) -> bool) -> String {
     join_lines(content, &lines)
 }
 
-/// `touch`-then-append-each-rule-if-absent: creates `path` (empty) when it
-/// does not exist, whether or not `lines` is empty, then appends any of
-/// `lines` not already present as a whole line — mirrors
-/// `accelerator_ensure_inner_gitignore`/`accelerator_ensure_root_gitignore_rule`'s
-/// `touch` + `grep -qFx || append` shape.
+/// Creates `path` (empty) when it does not exist, whether or not `lines` is
+/// empty, then appends any of `lines` not already present as a whole line.
 pub(crate) fn ensure_lines(
     ctx: &dyn MigrationContext,
     path: &Path,

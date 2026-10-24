@@ -51,7 +51,6 @@ impl std::fmt::Display for MalformedCause {
     }
 }
 
-/// Why a listed file is not one of the corpus's work items.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnidentifiedReason {
     Unreadable(String),
@@ -103,8 +102,6 @@ pub struct Unidentified {
     pub reason: UnidentifiedReason,
 }
 
-/// The ids of the corpus's work items, and every listed file that is not
-/// one.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CorpusInventory {
     pub ids: BTreeSet<String>,
@@ -112,7 +109,6 @@ pub struct CorpusInventory {
 }
 
 impl CorpusInventory {
-    /// An inventory of `ids` with nothing unidentified.
     #[must_use]
     pub fn complete(ids: impl IntoIterator<Item = String>) -> Self {
         Self {
@@ -146,18 +142,14 @@ impl CorpusInventory {
     }
 }
 
-/// Whether a filename names a work item, and which.
 pub trait NamesWorkItem {
     fn work_item_named(&self, file_name: &str) -> Option<String>;
 }
 
-/// The paths the version control system reports as conflicted.
 pub trait ConflictedPaths {
     fn is_conflicted(&self, path: &Path) -> bool;
 }
 
-/// The listing split into the work items it holds and an inventory of
-/// everything else.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IdentifiedCorpus {
     pub items: Vec<(WorkItemFile, ItemIdentity)>,
@@ -303,9 +295,8 @@ fn is_code_fence(line: &str) -> bool {
     line.starts_with("```") || line.starts_with("~~~")
 }
 
-/// Whether `content` holds a complete conflict block outside fenced code.
-/// Fences are tracked ignoring every line inside a block, so a conflict
-/// whose sides add or remove a fence cannot hide itself.
+/// Fences are tracked ignoring every line inside a conflict block, so a
+/// conflict whose sides add or remove a fence cannot hide itself.
 fn holds_conflict_markers(content: &str) -> bool {
     let lines: Vec<&str> = content.lines().collect();
     let blocks = conflict_blocks(&lines);

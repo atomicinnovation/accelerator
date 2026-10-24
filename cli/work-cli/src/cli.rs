@@ -160,8 +160,9 @@ pub enum Command {
     /// `#\tkept-edits\t<id>\t<when>\t<item>\t<copy>` for local edits a pull
     /// kept, `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
     /// order links, and `#\tstale-dossier\t<id>\t<path>` for a conflict
-    /// dossier that no longer describes its item; discovery reads `skipped\tincomplete-corpus` or
-    /// `skipped\tpending-push` when it imported nothing it otherwise would.
+    /// dossier that no longer describes its item; discovery reads
+    /// `skipped\tincomplete-corpus` or `skipped\tpending-push` when it
+    /// imported nothing it otherwise would.
     Sync(Box<SyncArgs>),
     /// Promote one draft onto an issue the tracker creates for it, under
     /// `work.id_pattern: "{tracker}"`: the draft ID is retired to the

@@ -45,15 +45,15 @@
 //!   transient cause (an unreachable tracker, a file changed mid-run) needs no
 //!   fix. A tracker read that fails degrades to presence-only and reports
 //!   `70`; a tracker read never emits `71`.
-//! - `71` `TERMINAL` — the failure is *at or after* something for the item may
-//!   have landed — a tracker mutation, an item-file write or a pending-push
-//!   marker write — or is a pending-push refusal, where an earlier attempt may
-//!   have created an issue. **Never auto-retried.** The hazard differs by
-//!   path: a remote `create` is non-idempotent, so a repeat would
-//!   *double-apply* (a second issue) — a remote issue may already exist; a
-//!   whole-item `update` is idempotent, so there the hazard is response
-//!   *uncertainty*, not double-apply. Either way the operator reconciles by
-//!   hand.
+//! - `71` `TERMINAL` — the failure is *at or after* something for the item
+//!   may have landed — a tracker mutation, an item-file write or a
+//!   pending-push marker write — or is a pending-push refusal, where an
+//!   earlier attempt may have created an issue. **Never auto-retried.** The
+//!   hazard differs by path: a remote `create` is non-idempotent, so a repeat
+//!   would *double-apply* (a second issue) — a remote issue may already
+//!   exist; a whole-item `update` is idempotent, so there the hazard is
+//!   response *uncertainty*, not double-apply. Either way the operator
+//!   reconciles by hand.
 //! - `75` `REJECTED` — provably unapplied; the request itself must change. It
 //!   was refused before sending (a body that cannot be converted, a path that
 //!   cannot be composed, a work file whose content is wrong — not UTF-8, or
@@ -85,11 +85,12 @@
 //!   key, or a configured `additional_*`/`all_*` entity the credential cannot
 //!   see), or a configured work, integrations or state root it refuses: a
 //!   symlink out of the repository, an outside root not set in an untracked
-//!   `config.local.md`, or overlapping roots. A run-level refusal is pre-flight, before the apply/push phase, so
-//!   **no write was made**. A broadened scope is confirmed against a live
-//!   entity-enumeration read, so a read may have gone out, but nothing was
-//!   mutated — so save locally and fix the config; never reconcile against a
-//!   create that never happened. A sync report whose worst outcome is a
+//!   `config.local.md`, or overlapping roots. A run-level refusal is
+//!   pre-flight, before the apply/push phase, so **no write was made**. A
+//!   broadened scope is confirmed against a live entity-enumeration read, so
+//!   a read may have gone out, but nothing was mutated — so save locally and
+//!   fix the config; never reconcile against a create that never happened. A
+//!   sync report whose worst outcome is a
 //!   per-item `unconfigured` failure also exits `74`: that item sent nothing,
 //!   but other items in the same run may already have applied.
 //!

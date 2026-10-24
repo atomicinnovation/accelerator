@@ -58,7 +58,6 @@ impl ConfiguredNames {
     }
 }
 
-/// The first `count` dash-separated parts of `file_name`.
 fn leading_parts(file_name: &str, count: usize) -> String {
     file_name
         .trim_end_matches(".md")

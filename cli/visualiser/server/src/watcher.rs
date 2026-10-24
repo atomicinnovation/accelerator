@@ -548,13 +548,9 @@ impl TemplateChangeHandler {
 
 /// How long a test waits for an event it *expects* to arrive.
 ///
-/// This is a hang detector, not a latency budget. The tests script their
-/// events, so delivery is the debounce then `rescan` plus
-/// `compute_clusters_with_backfill` over the entire snapshot, with no OS in
-/// the chain; but cargo runs these tests concurrently and `mise run`
-/// schedules them beside cargo builds, so a chain that settles in
-/// milliseconds idle can take far longer loaded. A genuinely stuck watcher
-/// still fails, five seconds later, and reports as itself.
+/// This is a hang detector, not a latency budget: cargo runs these tests
+/// concurrently and `mise run` schedules them beside cargo builds, so a
+/// delivery that settles in milliseconds idle can take far longer loaded.
 ///
 /// The "expected *no* event" waits deliberately do **not** use this: there
 /// the wait *is* the assertion, so a short quiet window keeps the suite

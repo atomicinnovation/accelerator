@@ -29,8 +29,6 @@ pub struct UnreadableFile {
     pub reason: ReadFailure,
 }
 
-/// Every work-item file, the ones that could be read and the ones that
-/// could not.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkItemListing {
     pub files: Vec<WorkItemFile>,

@@ -50,7 +50,6 @@ pub struct ReportedItem {
     pub kept_edits: Option<PathBuf>,
     /// A local create's marker this run linked yet could not remove.
     pub leftover_marker: Option<LeftoverMarker>,
-    /// What a person should know about a local create that applied.
     pub notice: Option<CreateNotice>,
 }
 
@@ -81,8 +80,7 @@ pub enum FailureSeverity {
     Warning,
 }
 
-/// One failure a run reports: what it concerned (an item id, a path, or
-/// `-` for the run itself), the operation that failed, why, and its class.
+/// `subject` is an item id, a path, or `-` for the run itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunFailure {
     pub subject: String,
@@ -117,8 +115,6 @@ pub enum CorpusScope {
     Targeted,
 }
 
-/// Why untracked discovery imported nothing it would otherwise have
-/// imported.
 #[derive(Debug)]
 pub enum DiscoveryDeferral {
     CorpusIncomplete(ApplyError),
@@ -139,7 +135,6 @@ pub enum PendingPushDeferral {
         key: ExternalId,
         cause: String,
     },
-    /// The pending pushes could not be listed.
     Unlisted(String),
 }
 
@@ -217,11 +212,11 @@ pub struct RunReport {
 }
 
 impl RunReport {
-    /// Every failure this run reports, in report order: failed rows
-    /// (a preview's included), refused orders, unclassifiable items, work files the run
-    /// could not use, then a failed baseline finalise. Only a whole-corpus
-    /// run may judge the corpus, so on a targeted run an unusable file is
-    /// a warning.
+    /// Every failure this run reports, in report order: failed rows (a
+    /// preview's included), refused orders, unclassifiable items, work files
+    /// the run could not use, then a failed baseline finalise. Only a
+    /// whole-corpus run may judge the corpus, so on a targeted run an
+    /// unusable file is a warning.
     pub fn failures(&self) -> impl Iterator<Item = RunFailure> + '_ {
         let rows =
             self.reported.iter().filter_map(|item| match &item.outcome {

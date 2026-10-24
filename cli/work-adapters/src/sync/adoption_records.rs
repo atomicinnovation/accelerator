@@ -21,7 +21,6 @@ use crate::sync::create::canonical_external_key;
 use crate::sync::fetch::LocalItem;
 use crate::sync::files::SyncStore;
 
-/// The link a differing adopt replaced, if any, and the key it linked.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdoptionRecord {
     pub previous_key: Option<ExternalId>,
@@ -46,8 +45,7 @@ impl AdoptionRecord {
     }
 }
 
-/// `id`'s record, `<integrations>/<integration>/adopted/<id>.json`, or
-/// `None` when the id is not one plain file-name component.
+/// `None` when `id` is not one plain file-name component.
 #[must_use]
 pub fn path(
     integrations_dir: &Path,
@@ -190,8 +188,7 @@ impl<'a> AdoptionRecords<'a> {
     }
 
     /// Rewrites whichever of `id`'s record keys named `old` to `new`, so a
-    /// followed key keeps the record that vouches for it. A record naming
-    /// neither, or none at all, is left as it is.
+    /// followed key keeps the record that vouches for it.
     ///
     /// # Errors
     ///

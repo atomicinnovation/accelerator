@@ -176,8 +176,8 @@ pub enum OrderPrecondition {
     CreateUnmarked,
 }
 
-/// Decides what `order` does over `marker`. Adopt never falls through to a
-/// create, and a create never ignores an issue a marker says exists.
+/// Adopt never falls through to a create, and a create never ignores an
+/// issue a marker says exists.
 #[must_use]
 pub fn order_precondition(
     marker: &MarkerState<'_>,

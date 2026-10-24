@@ -43,7 +43,6 @@ impl RootKey {
     }
 }
 
-/// A directory as configured, and who configured it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfiguredRoot {
     pub key: RootKey,
@@ -107,7 +106,6 @@ impl BoundedRoot {
         &self.bound
     }
 
-    /// The directory `name` below this root, under the same bound.
     pub fn child(&self, name: &str) -> Self {
         Self {
             root: self.root.join(name),
@@ -327,7 +325,6 @@ impl ValidatedRoots {
         })
     }
 
-    /// The integration-state root of one tracker.
     pub fn integration_state(&self, integration: &str) -> BoundedRoot {
         self.integrations.child(integration)
     }

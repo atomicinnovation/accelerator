@@ -25,7 +25,6 @@ use crate::sync::fetch::LocalItem;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::recovery_label::PARENT;
 
-/// One item's kept edits, located on disk.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeptCopy {
     pub id: String,
@@ -45,7 +44,6 @@ pub enum Provenance {
     /// Version control tracks something in it, so it came with the
     /// repository rather than from a pull.
     Tracked,
-    /// Version control could not say whether it tracks it.
     TrackingUnknown,
 }
 
@@ -84,14 +82,12 @@ pub enum KeptEdits {
         entry: Box<Self>,
         reason: String,
     },
-    /// A person named an item to discard that has no kept copy.
     NothingToDiscard {
         id: String,
     },
 }
 
 impl KeptEdits {
-    /// The item the entry keeps edits of, when known.
     #[must_use]
     pub fn id(&self) -> Option<&str> {
         match self {
@@ -108,7 +104,6 @@ impl KeptEdits {
         }
     }
 
-    /// The directory the entry is about, on disk.
     #[must_use]
     pub fn directory(&self) -> Option<&Path> {
         match self {
@@ -141,8 +136,7 @@ pub struct KeptEditsRetention<'a> {
     pub discarding: &'a BTreeSet<String>,
 }
 
-/// The files directly or deeply under a directory, and whether any entry
-/// in it is a link.
+/// The files at any depth under a directory.
 struct Contents {
     files: Vec<PathBuf>,
     holds_a_link: bool,
