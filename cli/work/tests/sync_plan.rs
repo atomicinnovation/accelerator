@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use work::sync::plan;
+use work::sync::AppliedResolution;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
 use work::sync::BodyEquivalence;
@@ -513,6 +514,133 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert() {
 
     assert_eq!(result.actions[0].state(), SyncState::RemotelyModified);
     assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
+}
+
+fn dirty_remotely_modified_item<'a>(
+    id: &'a str,
+    external_id: &'a ExternalId,
+    updated: &'a RemoteTimestamp,
+    baseline_updated: &'a RemoteTimestamp,
+    digests: &'a dyn ItemDigests,
+) -> PlanInput<'a> {
+    PlanInput {
+        id: id.to_owned(),
+        external_id: Some(external_id),
+        facts: RemoteFacts {
+            presence: RemotePresence::Present,
+            remote_updated: updated,
+        },
+        dirty: work::sync::Dirtiness::Dirty,
+        baseline: BaselineEntry {
+            remote_updated_at: baseline_updated,
+            fingerprints: legacy(Some("h"), Some("stale")),
+        },
+        baseline_timestamp: 0,
+        digests,
+        comparison: &DifferingBodies,
+    }
+}
+
+fn plan_resolving(
+    item: PlanInput<'_>,
+    resolution: Resolution,
+) -> work::sync::PlannedAction {
+    let resolutions = BTreeMap::from([(item.id.clone(), resolution)]);
+    let mut result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
+    result.actions.remove(0)
+}
+
+#[test]
+fn a_remote_resolution_of_a_conflict_is_recorded_on_its_pull() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-21".to_owned());
+    let item =
+        conflicting_item("0021", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::AcceptRemote));
+}
+
+#[test]
+fn a_remote_resolution_of_a_dirty_remote_change_is_recorded_on_its_pull() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-22".to_owned());
+    let item = dirty_remotely_modified_item(
+        "0022",
+        &id,
+        &updated,
+        &baseline_updated,
+        &digests,
+    );
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.state(), SyncState::RemotelyModified);
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::AcceptRemote));
+}
+
+#[test]
+fn a_local_resolution_is_recorded_on_its_overwrite() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-23".to_owned());
+    let item =
+        conflicting_item("0023", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::PushLocal);
+
+    assert_eq!(planned.action(), work::sync::Action::Overwrite);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::PushLocal));
+}
+
+#[test]
+fn a_skip_resolution_leaves_an_unresolved_prompt() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-24".to_owned());
+    let item =
+        conflicting_item("0024", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::Skip);
+
+    assert_eq!(planned.action(), work::sync::Action::Prompt);
+    assert_eq!(planned.resolution(), None);
+}
+
+#[test]
+fn a_plain_remote_change_pulls_without_a_resolution() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-25".to_owned());
+    let item = PlanInput {
+        dirty: work::sync::Dirtiness::Clean,
+        ..dirty_remotely_modified_item(
+            "0025",
+            &id,
+            &updated,
+            &baseline_updated,
+            &digests,
+        )
+    };
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), None);
 }
 
 #[test]
