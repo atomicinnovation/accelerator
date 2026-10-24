@@ -14,6 +14,7 @@ tags: ["sync", "sync-work-items", "skill", "documentation"]
 last_updated: "2026-10-24T11:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-928"
 ---
 # 0353: Sync Work Items Skill Ignores the Summary Record
 
