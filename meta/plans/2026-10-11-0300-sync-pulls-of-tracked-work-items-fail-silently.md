@@ -5,7 +5,7 @@ title: "Sync Pulls of Tracked Work Items Fail Silently Implementation Plan"
 date: "2026-10-11T00:00:33+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0300"
 parent: "work-item:0300"
 derived_from: ["codebase-research:2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-24T10:22:11+00:00"
+last_updated: "2026-10-24T11:24:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4106,7 +4106,7 @@ Amend 0296's entries in place rather than adding parallel ones:
 
 #### Manual Verification
 
-- [ ] Driving `/sync-work-items` over an exit-70 run, an exit-4 run with a
+- [x] Driving `/sync-work-items` over an exit-70 run, an exit-4 run with a
       `retryable` row, an exit-71 `baseline-set` run after a resolution
       overwrite, a terminal `marker-write` with a created key, an
       `already-written` refusal, an unreadable work file, and a
@@ -4161,7 +4161,7 @@ CLI, then add the failure cases this phase's criterion lists: an exit-71
 items carrying one `external_id`), an unreadable work file (`chmod 000`),
 and a resolve-to-remote over uncommitted edits. Then check the wording,
 the confirmation before each order, the grouped summary and that the
-skill never reports completion. The plan moves to `complete` once these
+skill never reports completion. The plan moves to `done` once these
 are ticked.
 
 ---
