@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-23T21:15:55+00:00"
+last_updated: "2026-10-24T05:43:40+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3074,7 +3074,7 @@ the call-site updates and the compiler, not by a snapshot.
 
 ### As Implemented
 
-Landed as forty commits plus this progress record: the twenty-three
+Landed as forty commits plus the progress records: the twenty-three
 listed when the phase was last recorded (the tracker-mapping pin,
 `FailureClass::keyword`, `SyncOperation`, landing-based classification
 through `ItemAttempt`, the create-path classification table,
@@ -3190,6 +3190,30 @@ and the `work` public-API snapshot. Departures from the steps above:
   `sync-report-records.golden` names it yet. The golden carries the
   pending-push discovery skip; a report has one discovery line, and the
   incomplete-corpus line is pinned by the rendering tests.
+
+Getting `mise run` green took three commits outside the phase's steps:
+
+- The visualiser's watcher and SSE tests waited on the OS's file
+  notifications, which a saturated macOS `fseventsd` delayed past fifteen
+  minutes under `mise run`. They now feed the watcher scripted events through
+  the server's injected-watcher seam (`server::run_with`); one OS contract
+  test runs in the opt-in `test:integration:visualiser-os-watcher` lane, and
+  `test:integration:visualiser` runs only the `tests/*.rs` targets.
+- `tokio` moved to 1.53.3 for RUSTSEC-2026-0386, changing only its lock
+  entry and the third-party notices: `cargo update -p tokio` also
+  re-resolved `windows-sys` to 0.52 for `errno`, `rustix` and `socket2`,
+  which broke the VCS library's build-script snapshot.
+
+Both manual checks are outstanding. The read-only case is covered in-process
+by `a_read_only_work_directory_fails_the_pull_as_retryable_then_pulls`
+against a fake tracker; the real binary has no tracker-endpoint override, so
+the manual run needs real Linear. One scratch run covers both checks: create
+an item with `create --push`, sync it once, push a body edit from a copy of
+the scratch repository with `update --push`, then sync the original with its
+work directory at `0555` (expect the `retryable` row, one `error:` line
+naming `lock-local` and `Permission denied`, exit 70, file and baseline entry
+unchanged) and again at `0755` (expect `pull`, exit 0, byte-identical
+frontmatter). The scratch issue is left in the team to archive.
 
 ---
 
