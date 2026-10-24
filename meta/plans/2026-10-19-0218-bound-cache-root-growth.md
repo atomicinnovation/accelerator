@@ -152,7 +152,7 @@ Strategy), and `mise run` exits 0.
 
 ## Accepted Risks
 
-These are recorded here and stated in `internals.md` in Phase 8:
+These are recorded here; Phase 8 states the first in `internals.md`:
 
 - **Pre-0339 launchers and orphan-lock removal.** A launcher that does not
   confirm its lock's inode can lock an unlinked inode after tree prune
@@ -3210,7 +3210,10 @@ record a post-change measurement, and run the full default task.
   crash residue. In the default root it covers unclaimed trees of the
   current artifacts. Prints how many entries it removed, and exits non-zero
   when a lock cannot be taken or a removal fails."
-- The `ACCELERATOR_CACHE_DIR` row (`:264`) gains five statements:
+- The `ACCELERATOR_CACHE_DIR` row (`:264`) summarises the first, second,
+  third and fifth statements below and links to `internals.md`'s
+  "A relocated cache root", which carries all five; a table cell cannot
+  hold a list:
   - a relocated root is pruned automatically on cold paths;
   - a version idle for 14 days loses its entries and re-fetches;
   - `--older-than` below ~1.4 days can evict versions other sessions are
@@ -3229,15 +3232,18 @@ record a post-change measurement, and run the full default task.
 
 #### 2. `docs-site/src/content/docs/internals.md`
 
-- The `ACCELERATOR_CACHE_DIR` row (`:263`) carries the same five
-  statements.
-- A paragraph after `:273-284` explains why a warm dispatch in a relocated
-  root still tolerates a read-only directory: the claim write is
-  best-effort. It also states the accepted pre-0339 lock-file risk.
+- The `ACCELERATOR_CACHE_DIR` row (`:263`) links to a new subsection,
+  "A relocated cache root", after the read-only-installs section.
+- The subsection carries the five statements, with a GitHub Actions example
+  of `ACCELERATOR_CACHE_TRUSTED_OWNERS`.
+- Its last paragraph explains why a warm dispatch in a relocated root still
+  tolerates a read-only directory: the claim write is best-effort. It also
+  states the accepted pre-0339 lock-file risk.
 
 #### 3. `CHANGELOG.md`
 
-Add `[Unreleased]` entries:
+Add `[Unreleased]` entries, each as a bold-led bullet under the
+`[Unreleased]` section the label names:
 
 - **Changed.** A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically
   on cold paths, keeping what a version or tree claim from the last 14 days
@@ -3290,7 +3296,7 @@ commit message says it is a record, not evidence of this change's cost.
 #### Automated Verification:
 
 - [x] `mise run docs:check` exits 0
-- [x] `CHANGELOG.md`'s `[Unreleased]` section carries the five entries
+- [x] `CHANGELOG.md`'s `[Unreleased]` section carries the seven entries
 - [x] A new `meta/measurements/warm-dispatch-*.json` is committed
 - [x] `mise run` exits 0 end-to-end
 
