@@ -55,6 +55,7 @@ use work_adapters::retirement::RecoveryNotice;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
+use work_adapters::sync::dossiers::DossierAuthority;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
@@ -96,6 +97,8 @@ use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
 use crate::finaliser::RunFinaliser;
+use crate::finished_run::StaleDossier;
+use crate::finished_run::StaleDossierCause;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::promotion_report::detail_lines;
 use crate::promotion_report::promotion_exit;
@@ -628,6 +631,15 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
         ));
     }
     lines.extend(kept_edits_records(&finished.kept_edits));
+    lines.extend(finished.stale_dossiers.iter().map(|dossier| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "stale-dossier".to_owned(),
+            dossier.id.clone(),
+            dossier.path.display().to_string(),
+        ])
+        .to_string()
+    }));
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
@@ -954,10 +966,15 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
         .unwrap_or(exit_codes::CLEAN)
 }
 
-fn clear_stale_dossiers(
+fn dossier_path(dir: &Path, id: &str) -> PathBuf {
+    dir.join(format!("{id}.md"))
+}
+
+fn retire_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
     scheme: &WorkItemIdScheme,
+    authority: &DossierAuthority<'_>,
 ) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -968,26 +985,23 @@ fn clear_stale_dossiers(
         else {
             continue;
         };
-        let is_stale_dossier = name
-            .strip_suffix(".md")
-            .is_some_and(|stem| is_token_safe(scheme, stem));
-        let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
-        if is_stale_dossier || is_write_artefact {
+        let retired_dossier = name.strip_suffix(".md").is_some_and(|id| {
+            is_token_safe(scheme, id) && authority.may_retire(id)
+        });
+        let retired_artefact = authority.retires_artefacts()
+            && name.starts_with(kernel::TEMP_PREFIX);
+        if retired_dossier || retired_artefact {
             let _ = store.remove(&path);
         }
     }
 }
 
-/// Fail-closed: creates the directory and writes a directory-local
-/// `.gitignore` of `*`, verifying it before clearing anything, so a run that
-/// cannot prove the dossiers ignored never writes one and never destroys the
-/// prior run's. The stale-clear removes only canonical-id `<id>.md` dossiers
-/// and this surface's own `.tmp-*` write artefacts, so anything else a user
-/// placed under `conflicts/` survives.
+/// Fail-closed: a dossier holds both sides of a conflict, so none is
+/// written until the directory's own `.gitignore` of `*` is proven in
+/// place.
 fn prepare_conflicts_dir(
     store: &dyn SyncStore,
     dir: &Path,
-    scheme: &WorkItemIdScheme,
 ) -> Result<(), String> {
     let gitignore = dir.join(".gitignore");
     store
@@ -999,8 +1013,21 @@ fn prepare_conflicts_dir(
     if !verified {
         return Err("the conflicts .gitignore could not be verified".to_owned());
     }
-    clear_stale_dossiers(store, dir, scheme);
     Ok(())
+}
+
+fn stale_dossier_warning(dossier: &StaleDossier) -> String {
+    let why = match dossier.cause {
+        StaleDossierCause::PartialResolution => {
+            "predates a partial resolution and is stale"
+        }
+        StaleDossierCause::NotRefreshed => "is stale and was not refreshed",
+    };
+    format!(
+        "warning: {}: conflict dossier at {} {why}",
+        single_line(&dossier.id),
+        single_line(&dossier.path.display().to_string())
+    )
 }
 
 fn persist_dossiers(
@@ -1010,7 +1037,8 @@ fn persist_dossiers(
     dir: &Path,
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
-) {
+) -> Vec<StaleDossier> {
+    let mut stale = Vec::new();
     for dossier in dossiers {
         if !is_token_safe(scheme, &dossier.id) {
             console.warn(format_args!(
@@ -1023,32 +1051,77 @@ fn persist_dossiers(
             DossierRender::Renderable(text)
             | DossierRender::Unrenderable(text) => text,
         };
-        let path = dir.join(format!("{}.md", dossier.id));
+        let path = dossier_path(dir, &dossier.id);
         if let Err(error) = store.write(&path, body.as_bytes()) {
             console.warn(format_args!(
                 "warning: could not write conflict dossier {}: {}",
                 single_line(&path.display().to_string()),
                 single_line(&error.to_string())
             ));
+            if store.remove(&path).is_err() {
+                let unrefreshed = StaleDossier {
+                    id: dossier.id.clone(),
+                    path,
+                    cause: StaleDossierCause::NotRefreshed,
+                };
+                console.warn(stale_dossier_warning(&unrefreshed));
+                stale.push(unrefreshed);
+            }
         }
     }
+    stale
 }
 
-/// The reset-then-write over the shared `conflicts/` directory is not
-/// lock-guarded here: `/sync-work-items` issues one `work sync` at a time and
-/// the two-invocation shape is sequential, so a stale file from a racing run
-/// is overwritten before it is read.
+fn partially_resolved_dossiers(
+    console: &mut Console<'_>,
+    ids: &[String],
+    dir: &Path,
+    scheme: &WorkItemIdScheme,
+) -> Vec<StaleDossier> {
+    ids.iter()
+        .filter(|id| is_token_safe(scheme, id))
+        .map(|id| StaleDossier {
+            id: id.clone(),
+            path: dossier_path(dir, id),
+            cause: StaleDossierCause::PartialResolution,
+        })
+        .filter(|dossier| dossier.path.exists())
+        .inspect(|dossier| console.warn(stale_dossier_warning(dossier)))
+        .collect()
+}
+
+/// Not lock-guarded: `/sync-work-items` issues one `work sync` at a time,
+/// so no two runs write `conflicts/` together.
 fn persist_conflict_dossiers(
     console: &mut Console<'_>,
     store: &dyn SyncStore,
     dir: &Path,
-    dossiers: &[ConflictDossier],
+    report: &RunReport,
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
-) {
-    match prepare_conflicts_dir(store, dir, scheme) {
+) -> Vec<StaleDossier> {
+    let mut stale = partially_resolved_dossiers(
+        console,
+        &report.stale_dossier_ids,
+        dir,
+        scheme,
+    );
+    match prepare_conflicts_dir(store, dir) {
         Ok(()) => {
-            persist_dossiers(console, store, dossiers, dir, scheme, render);
+            stale.extend(persist_dossiers(
+                console,
+                store,
+                &report.dossiers,
+                dir,
+                scheme,
+                render,
+            ));
+            retire_dossiers(
+                store,
+                dir,
+                scheme,
+                &DossierAuthority::for_run(report),
+            );
         }
         Err(error) => console.warn(format_args!(
             "warning: conflict dossiers not written — could not guarantee an \
@@ -1057,6 +1130,7 @@ fn persist_conflict_dossiers(
             single_line(&error)
         )),
     }
+    stale
 }
 
 #[derive(Debug)]
@@ -2326,21 +2400,24 @@ fn report_finished_run(
         .integrations_root
         .join(context.integration)
         .join("conflicts");
-    match crate::config::resolve_scheme(context.config) {
+    let stale_dossiers = match crate::config::resolve_scheme(context.config) {
         Ok(scheme) => persist_conflict_dossiers(
             console,
             context.dossier_store,
             &conflicts_dir,
-            &report.dossiers,
+            report,
             &scheme,
             &work_adapters::diff::render,
         ),
-        Err(error) => console.warn(format_args!(
-            "warning: conflict dossiers not written — could not resolve the \
-             work-item id scheme ({})",
-            single_line(&error.to_string())
-        )),
-    }
+        Err(error) => {
+            console.warn(format_args!(
+                "warning: conflict dossiers not written — could not resolve \
+                 the work-item id scheme ({})",
+                single_line(&error.to_string())
+            ));
+            Vec::new()
+        }
+    };
     let finished = FinishedRun {
         report,
         corpus_external_ids: context
@@ -2351,6 +2428,7 @@ fn report_finished_run(
         integrations_root: context.integrations_root,
         repo_root: context.repo_root,
         kept_edits: review_kept_edits(console, context, report),
+        stale_dossiers,
     };
     console.report(render_report(&finished));
     for failure in failure_lines(report) {
@@ -2407,6 +2485,8 @@ fn report_stopped_run(
     clippy::panic
 )]
 mod tests {
+    use crate::finished_run::StaleDossier;
+    use crate::finished_run::StaleDossierCause;
     use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
@@ -2419,6 +2499,7 @@ mod tests {
     use work_adapters::sync::apply::ApplyError;
     use work_adapters::sync::apply::ItemProgress;
     use work_adapters::sync::apply::LeftoverMarker;
+    use work_adapters::sync::dossiers::DossierAuthority;
     use work_adapters::sync::operation::SyncOperation;
     use work_adapters::sync::report::FailureSeverity;
     use work_adapters::sync::report::Finalisation;
@@ -3174,6 +3255,13 @@ mod tests {
                     kept_since: Some(1),
                 })],
             },
+            stale_dossiers: vec![StaleDossier {
+                id: "0006".to_owned(),
+                path: PathBuf::from(
+                    ".accelerator/state/integrations/jira/conflicts/0006.md",
+                ),
+                cause: StaleDossierCause::PartialResolution,
+            }],
             ..crate::finished_run::FinishedRun::for_report(&report)
         };
 
@@ -5165,7 +5253,7 @@ mod tests {
             &mut super::Console::new(&mut out, &mut err),
             &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0001", false)],
+            &dossiers_report(vec![conflict_dossier("0001", false)]),
             &scheme(),
             &ok_render,
         );
@@ -5176,45 +5264,62 @@ mod tests {
         assert!(conflicts.join("0001.md").exists());
     }
 
-    #[test]
-    fn the_stale_clear_removes_only_canonical_dossiers_and_artefacts() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let conflicts = dir.path().join("conflicts");
+    fn dossiers_report(dossiers: Vec<ConflictDossier>) -> RunReport {
+        RunReport {
+            dossiers,
+            ..crate::test_support::run_report()
+        }
+    }
+
+    fn seeded_conflicts_dir(dir: &std::path::Path) -> PathBuf {
+        let conflicts = dir.join("conflicts");
         std::fs::create_dir_all(&conflicts).expect("mkdir");
-        std::fs::write(conflicts.join("0001.md"), "stale").expect("seed");
-        std::fs::write(conflicts.join("notes.md"), "mine").expect("seed");
-        std::fs::write(
-            conflicts.join(format!("{}sweep", kernel::TEMP_PREFIX)),
-            "artefact",
-        )
-        .expect("seed");
+        for name in ["0001.md", "0002.md", "notes.md"] {
+            std::fs::write(conflicts.join(name), "prior").expect("seed");
+        }
+        std::fs::write(conflicts.join(".tmp-sweep"), "artefact").expect("seed");
+        conflicts
+    }
 
-        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+    fn retiring_under(
+        mode: RunMode,
+    ) -> (tempfile::TempDir, PathBuf, Vec<&'static str>) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let conflicts = seeded_conflicts_dir(dir.path());
+        let report = RunReport {
+            mode,
+            inventory: work::inventory::CorpusInventory::complete([
+                "0002".to_owned()
+            ]),
+            ..crate::test_support::run_report()
+        };
 
-        super::persist_conflict_dossiers(
-            &mut super::Console::new(&mut out, &mut err),
+        super::retire_dossiers(
             &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0002", false)],
             &scheme(),
-            &ok_render,
+            &DossierAuthority::for_run(&report),
         );
 
-        assert!(
-            conflicts.join("notes.md").exists(),
-            "a user's own notes.md must survive the stale-clear"
-        );
-        assert!(
-            !conflicts.join("0001.md").exists(),
-            "a resolved conflict's dossier is cleared"
-        );
-        assert!(
-            !conflicts
-                .join(format!("{}sweep", kernel::TEMP_PREFIX))
-                .exists(),
-            "a stray write artefact is swept"
-        );
-        assert!(conflicts.join("0002.md").exists());
+        let survivors = ["0001.md", "0002.md", "notes.md", ".tmp-sweep"]
+            .into_iter()
+            .filter(|name| conflicts.join(name).exists())
+            .collect();
+        (dir, conflicts, survivors)
+    }
+
+    #[test]
+    fn retiring_removes_only_canonical_dossiers_the_run_may_retire() {
+        let (_dir, _conflicts, survivors) = retiring_under(RunMode::Apply);
+
+        assert_eq!(survivors, ["0002.md", "notes.md"]);
+    }
+
+    #[test]
+    fn a_preview_retires_no_dossier_and_no_artefact() {
+        let (_dir, _conflicts, survivors) = retiring_under(RunMode::Preview);
+
+        assert_eq!(survivors, ["0001.md", "0002.md", "notes.md", ".tmp-sweep"]);
     }
 
     #[test]
@@ -5263,7 +5368,7 @@ mod tests {
             &mut super::Console::new(&mut out, &mut err),
             &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0002", false)],
+            &dossiers_report(vec![conflict_dossier("0002", false)]),
             &scheme(),
             &ok_render,
         );
@@ -8793,6 +8898,461 @@ mod tests {
             );
             assert_eq!(ceiling, Ceiling::Unlimited);
             assert_eq!(level, Some(::config::Level::Personal));
+        }
+    }
+
+    fn conflict_dossier_path(dir: &Path, id: &str) -> PathBuf {
+        dir.join(format!(
+            ".accelerator/state/integrations/jira/conflicts/{id}.md"
+        ))
+    }
+
+    fn dossier_text(dir: &Path, id: &str) -> String {
+        std::fs::read_to_string(conflict_dossier_path(dir, id))
+            .unwrap_or_else(|error| panic!("the {id} dossier: {error}"))
+    }
+
+    fn edit_locally(dir: &Path, id: &str, key: &str) {
+        std::fs::write(
+            numbered_path(dir, id),
+            numbered_item(id, key, "Local edit\n"),
+        )
+        .expect("edit the item");
+    }
+
+    fn edit_remote(tracker: &RecordingTracker, key: &str, body: &str) {
+        tracker.edit_remotely(RemoteIssue {
+            key: ExternalId::new(key.to_owned()),
+            updated: tracker::RemoteTimestamp::Reported(
+                "2026-03-01T00:00:00Z".to_owned(),
+            ),
+            body: format!("Title\n{body}\n"),
+        });
+    }
+
+    const CONFLICTED: [(&str, &str); 2] = [("0001", "PP-1"), ("0002", "PP-2")];
+
+    /// Both items in conflict, with the dossiers a full run wrote for them.
+    fn conflicts_with_dossiers(dir: &Path) -> Rc<RecordingTracker> {
+        let tracker = edited_remotely_numbered(dir, &CONFLICTED);
+        for (id, key) in CONFLICTED {
+            edit_locally(dir, id, key);
+        }
+        let seeding = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        assert_eq!(
+            seeding.code,
+            ExitCode::from(super::exit_codes::UNRESOLVED),
+            "{}{}",
+            seeding.out,
+            seeding.err
+        );
+        for (id, _) in CONFLICTED {
+            assert!(conflict_dossier_path(dir, id).exists(), "{id}");
+        }
+        tracker
+    }
+
+    fn targeting(id: &str, resolution: Option<&str>) -> SyncArgs {
+        SyncArgs {
+            resolutions: resolution
+                .map(|side| vec![(id.to_owned(), side.to_owned())])
+                .unwrap_or_default(),
+            ..sync_args(vec![id.to_owned()])
+        }
+    }
+
+    fn capture_targeted_with_stores(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        work_items: &StoreFactory,
+        integration_state: &StoreFactory,
+    ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            args,
+            &NoFinaliser,
+            super::stores::StoreFactories {
+                work_items,
+                integration_state,
+            },
+        )
+    }
+
+    #[test]
+    fn a_targeted_run_keeps_the_dossiers_it_did_not_plan() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_targeted_resolution_retires_only_its_own_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+        );
+
+        assert!(run.out.contains("0001\tpull\tconflict"), "{}", run.out);
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_previewed_resolution_refreshes_its_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..targeting("0001", Some("remote"))
+            },
+        );
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}{}", run.out, run.err);
+    }
+
+    #[test]
+    fn a_targeted_run_refreshes_its_unresolved_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_resolution_failing_before_it_lands_refreshes_its_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert!(
+            run.out.contains("0001\tfailed\tconflict\tretryable"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_resolution_failing_after_its_pull_keeps_a_stale_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let before = dossier_text(dir.path(), "0001");
+        let path = conflict_dossier_path(dir.path(), "0001");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+            &super::stores::rooted_store,
+            &failing_work_items(
+                |path| path.ends_with("last-sync.json"),
+                crate::test_support::injected,
+            ),
+        );
+
+        assert_eq!(dossier_text(dir.path(), "0001"), before);
+        assert!(
+            run.err.contains(&format!(
+                "warning: 0001: conflict dossier at {} predates a partial \
+                 resolution and is stale",
+                path.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out.contains(&format!(
+                "#\tstale-dossier\t0001\t{}",
+                path.display()
+            )),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out.contains("0001\tfailed\tconflict\tterminal"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_failed_local_overwrite_keeps_its_dossier() {
+        let dir = sync_repo();
+        let seeded = conflicts_with_dossiers(dir.path());
+        let tracker = Rc::new(
+            RecordingTracker::holding(
+                CONFLICTED
+                    .iter()
+                    .map(|(_, key)| {
+                        let key = ExternalId::new((*key).to_owned());
+                        let issue = seeded.show(&key).expect("seeded issue");
+                        (key, issue)
+                    })
+                    .collect(),
+            )
+            .failing_update(
+                ExternalId::new("PP-1".to_owned()),
+                TrackerError::Terminal {
+                    detail: "timed out after sending".to_owned(),
+                },
+            ),
+        );
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("local")),
+        );
+
+        assert!(conflict_dossier_path(dir.path(), "0001").exists());
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict() {
+        for direction in [
+            SyncArgs {
+                pull_only: true,
+                ..targeting("0001", None)
+            },
+            SyncArgs {
+                push_only: true,
+                ..targeting("0001", None)
+            },
+        ] {
+            let dir = sync_repo();
+            let tracker = conflicts_with_dossiers(dir.path());
+            let before = dossier_text(dir.path(), "0001");
+
+            drive_sync_captured(dir.path(), &tracker, &direction);
+
+            assert_eq!(dossier_text(dir.path(), "0001"), before);
+        }
+    }
+
+    #[test]
+    fn a_new_conflict_gets_a_dossier_without_touching_the_others() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+        std::fs::remove_file(conflict_dossier_path(dir.path(), "0001"))
+            .expect("forget the dossier");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Local edit"), "{dossier}");
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_converged_conflict_loses_its_dossier_once_recorded() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(
+            numbered_path(dir.path(), "0001"),
+            numbered_item("0001", "PP-1", "Pulled body\n"),
+        )
+        .expect("match the remote");
+
+        let preview = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..targeting("0001", None)
+            },
+        );
+        assert!(
+            conflict_dossier_path(dir.path(), "0001").exists(),
+            "{}",
+            preview.out
+        );
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        assert!(!run.out.contains("0001\t"), "{}", run.out);
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(conflict_dossier_path(dir.path(), "0002").exists());
+    }
+
+    fn failing_dossier_writes(
+        left: usize,
+    ) -> impl Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore> {
+        move |root| {
+            Box::new(crate::test_support::Faults {
+                inner: super::stores::rooted_store(root),
+                applies: |path: &Path| path.ends_with("conflicts/0001.md"),
+                left: std::cell::Cell::new(left),
+                error: crate::test_support::injected,
+            }) as Box<dyn SyncStore>
+        }
+    }
+
+    #[test]
+    fn a_dossier_that_cannot_be_refreshed_is_removed() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", None),
+            &super::stores::rooted_store,
+            &failing_dossier_writes(1),
+        );
+
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(
+            run.err
+                .contains("warning: could not write conflict dossier"),
+            "{}",
+            run.err
+        );
+        assert!(!run.out.contains("stale-dossier"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::UNRESOLVED));
+    }
+
+    #[test]
+    fn a_dossier_that_can_be_neither_refreshed_nor_removed_is_stale() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let path = conflict_dossier_path(dir.path(), "0001");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", None),
+            &super::stores::rooted_store,
+            &failing_dossier_writes(2),
+        );
+
+        assert!(path.exists());
+        assert!(
+            run.err.contains(&format!(
+                "warning: 0001: conflict dossier at {} is stale and was not \
+                 refreshed",
+                path.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out.contains(&format!(
+                "#\tstale-dossier\t0001\t{}",
+                path.display()
+            )),
+            "{}",
+            run.out
+        );
+    }
+
+    #[test]
+    fn a_whole_corpus_run_retires_settled_and_orphaned_dossiers() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(
+            numbered_path(dir.path(), "0001"),
+            numbered_item("0001", "PP-1", "Pulled body\n"),
+        )
+        .expect("match the remote");
+        std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+            .expect("seed an orphan");
+
+        drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(!conflict_dossier_path(dir.path(), "0009").exists());
+        assert!(conflict_dossier_path(dir.path(), "0002").exists());
+    }
+
+    #[test]
+    fn a_readme_does_not_block_orphan_retirement() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(dir.path().join("meta/work/README.md"), "# Work\n")
+            .expect("write a readme");
+        std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+            .expect("seed an orphan");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out.contains("#\tunidentified\t")
+                && run.out.contains("no-frontmatter"),
+            "{}",
+            run.out
+        );
+        assert!(!conflict_dossier_path(dir.path(), "0009").exists());
+    }
+
+    #[test]
+    fn an_unusable_work_file_keeps_every_dossier() {
+        for content in [
+            b"id: \"0001\"\nexternal_id: \"PP-1\"\n---\n\nNo opening fence\n"
+                .to_vec(),
+            b"---\nid: \"0001\"\n---\n\n\xff\xfe\n".to_vec(),
+        ] {
+            let dir = sync_repo();
+            let tracker = conflicts_with_dossiers(dir.path());
+            std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+                .expect("seed an orphan");
+            let before = dossier_text(dir.path(), "0001");
+            std::fs::write(numbered_path(dir.path(), "0001"), content)
+                .expect("break the item");
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(run.out.contains("#\tunidentified\t"), "{}", run.out);
+            assert!(
+                run.err.contains("identify-local")
+                    || run.err.contains("read-local"),
+                "{}",
+                run.err
+            );
+            assert_eq!(dossier_text(dir.path(), "0001"), before);
+            assert!(conflict_dossier_path(dir.path(), "0009").exists());
         }
     }
 }

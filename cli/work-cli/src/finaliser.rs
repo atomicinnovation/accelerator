@@ -286,6 +286,7 @@ mod tests {
                         work_adapters::sync::kept_edits::KeptEditsReview {
                             entries: Vec::new(),
                         },
+                    stale_dossiers: Vec::new(),
                 },
                 &mut diagnostics,
             );
@@ -483,6 +484,7 @@ mod tests {
             kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
                 entries: Vec::new(),
             },
+            stale_dossiers: Vec::new(),
         };
 
         assert_eq!(
@@ -516,6 +518,7 @@ mod tests {
                 kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
                     entries: Vec::new(),
                 },
+                stale_dossiers: Vec::new(),
             },
             &mut Vec::new(),
         );

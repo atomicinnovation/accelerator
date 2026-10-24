@@ -2,6 +2,7 @@
 //! report and the finaliser.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use tracker::ExternalId;
 use work_adapters::sync::kept_edits::KeptEditsReview;
@@ -17,6 +18,21 @@ pub struct FinishedRun<'a> {
     /// The kept-edits review on a preview, or what the sweep left on an
     /// apply run.
     pub kept_edits: KeptEditsReview,
+    pub stale_dossiers: Vec<StaleDossier>,
+}
+
+/// A conflict dossier left in place that no longer describes its item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StaleDossier {
+    pub id: String,
+    pub path: PathBuf,
+    pub cause: StaleDossierCause,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaleDossierCause {
+    PartialResolution,
+    NotRefreshed,
 }
 
 impl FinishedRun<'_> {
@@ -51,6 +67,7 @@ impl<'a> FinishedRun<'a> {
             kept_edits: KeptEditsReview {
                 entries: Vec::new(),
             },
+            stale_dossiers: Vec::new(),
         }
     }
 }
