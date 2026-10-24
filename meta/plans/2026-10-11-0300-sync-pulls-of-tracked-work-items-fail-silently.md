@@ -13,7 +13,7 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
-last_updated: "2026-10-24T08:04:11+00:00"
+last_updated: "2026-10-24T08:36:48+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3505,7 +3505,7 @@ Run `mise run public-api:update` and review: `work` gains
       `cargo test -p accelerator-work --manifest-path cli/Cargo.toml --test sync_resolves_argv`
 - [x] `mise run public-api:check` exits 0 after the reviewed update
 - [x] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -3548,12 +3548,12 @@ Departures from the steps above:
   over a conflict, beside `--pull-only`, in
   `a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict`.
 
-`mise run` exits 1 on `docs:audit:check` alone: npm reports two new
+`mise run` first failed on `docs:audit:check` alone: npm reported two new
 high-severity advisories in `docs-site` (GHSA-xjj6-f33q-929c in `undici`,
-GHSA-mrhx-c7xc-m3w5 in `zod`), unrelated to this phase. Every other lane
-of the default task (`build:frontend`, `build:server:dev`, `format:fix`,
-`lint:check`, `types:check`, `deny:check`, `pup:check`,
-`public-api:check`, `notices:check`, `test`) exits 0. The manual check
+GHSA-mrhx-c7xc-m3w5 in `zod`). `npm audit fix` took `undici` 8.12.3; no
+zod 3.x fixes the other, so an override gives
+`astro-rehype-relative-markdown-links`, whose latest release still asks
+for zod 3, the shared zod 4.6.7. `mise run` then exited 0. The manual check
 needs real Linear.
 
 ---
