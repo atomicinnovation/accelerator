@@ -96,10 +96,11 @@ is valid.
   line.
 - The CLI emits recommended keys in table order, then any other key in
   byte-wise order. Copying in emitted order keeps that order.
-- The template's `  - {source-metadata}` slot becomes one `  - key: value`
-  line per entry of the cited source's `metadata` map, in emitted order.
-  When the source has no map, delete the slot line: never leave it as
-  written, and never fill it from anything else.
+- The template's `  - {source-metadata}` slot line repeats under every
+  Sources entry. Under each, it becomes one `  - key: value` line per entry
+  of that source's `metadata` map, in emitted order. When the source has no
+  map, delete the whole slot line: never leave it as written, and never fill
+  it from anything else.
 
 The recommended keys, in order:
 

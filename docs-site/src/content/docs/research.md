@@ -137,7 +137,7 @@ as `unavailable`, reporting the status verbatim as its reason.
 | `E_RESEARCH_UNDECODABLE`          | 1    | A response the CLI could not parse                           |
 | `E_RESEARCH_TRANSPORT`            | 1    | The HTTP client could not start                              |
 | `E_TOKEN_*`, `E_COMMAND_*`, `E_CONSENT_KEY_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
-| `E_WEB_*`                         | 1    | A page `web metadata` could not read; see [`web metadata`](#web-metadata) |
+| Any other `E_WEB_*`               | 1    | A page `web metadata` could not read; see [`web metadata`](#web-metadata) |
 
 ### Retries and deadlines
 
@@ -204,10 +204,11 @@ in the order below, and each declaration of a field in document order:
 
 #### Fetch rules
 
-- **URL.** Only `http` and `https`. A URL carrying user information, a
-  numerically encoded host such as `0x7f000001`, whitespace, a control
-  character or a backslash is refused with `E_WEB_URL_MALFORMED`. Any
-  fragment is dropped.
+- **URL.** Only `http` and `https`. A URL with no host, with user
+  information, with a numerically encoded host such as `0x7f000001`, with a
+  port outside 1–65535, or with whitespace, a control character or a
+  backslash anywhere is refused with `E_WEB_URL_MALFORMED`. Any fragment is
+  dropped.
 - **Admission.** Each hop's host is resolved, `localhost` included, and
   admitted only when every address it resolves to is public. A loopback,
   private, link-local, reserved or unspecified address is rejected before
@@ -235,7 +236,7 @@ stdout. No message carries the URL, the host or an address.
 | `E_WEB_TOO_MANY_REDIRECTS`        | `the page redirected more than 5 times`                                                     |
 | `E_WEB_REDIRECT_WITHOUT_LOCATION` | `the page redirected without a Location`                                                    |
 | `E_WEB_REDIRECT_UNFOLLOWABLE`     | `the page redirected to a URL that cannot be fetched`                                       |
-| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`                                                             |
+| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`; also a request the transport refuses unsent because its host would not be read as admitted |
 | `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                           |
 | `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                           |
 | `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                      |

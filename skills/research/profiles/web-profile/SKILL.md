@@ -34,7 +34,9 @@ accelerator research fetch web metadata 'URL'
 
 Then copy its `metadata` map into the entry's metadata block, as the finding
 outputter describes. Pass a Bash `timeout` of 120000 ms: a call finishes
-within 100 s. A call that exits non-zero, or that Claude Code refuses, leaves
+within 100 s. A call that exits 0 always emits at least `accessed`, so its
+entry always carries a block. A call that exits non-zero, or that Claude Code
+refuses, leaves
 that entry without a metadata block; it never makes the outcome Denied or
 Unreachable.
 

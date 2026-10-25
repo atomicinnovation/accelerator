@@ -1413,7 +1413,8 @@ def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
     for rule in (
         "metadata block byte-for-byte",
         "even when it is not in canonical order",
-        "`{source-metadata}`",
+        "Never merge, reorder or complete a block",
+        f"`{METADATA_SLOT.strip()}` slot line under each source",
     ):
         assert rule in text, f"a carrier must state {rule!r}"
 
