@@ -1511,6 +1511,41 @@ pub trait research::sources::web::declarations::PageDecoder
 pub fn research::sources::web::declarations::PageDecoder::declarations(&self, html: &[u8]) -> research::sources::web::declarations::PageDeclarations
 pub mod research::sources::web::extract
 pub fn research::sources::web::extract::declared_metadata(page: &research::sources::web::declarations::PageDeclarations, accessed: research::sources::metadata::date::PartialDate) -> research::sources::metadata::SourceMetadata
+pub mod research::sources::web::page_url
+pub enum research::sources::web::page_url::PageUrlError
+pub research::sources::web::page_url::PageUrlError::Character
+pub research::sources::web::page_url::PageUrlError::Host(network::host::HostError)
+pub research::sources::web::page_url::PageUrlError::Port
+pub research::sources::web::page_url::PageUrlError::Scheme
+impl core::clone::Clone for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::clone(&self) -> research::sources::web::page_url::PageUrlError
+impl core::cmp::Eq for research::sources::web::page_url::PageUrlError
+impl core::cmp::PartialEq for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::eq(&self, other: &research::sources::web::page_url::PageUrlError) -> bool
+impl core::convert::From<network::authority::AuthorityError> for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::from(error: network::authority::AuthorityError) -> Self
+impl core::error::Error for research::sources::web::page_url::PageUrlError
+impl core::fmt::Debug for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::page_url::PageUrlError
+pub struct research::sources::web::page_url::PageUrl
+impl research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::follow(&self, location: &str) -> core::result::Result<Self, research::sources::web::page_url::PageUrlError>
+pub const fn research::sources::web::page_url::PageUrl::host(&self) -> &network::host::Host
+pub fn research::sources::web::page_url::PageUrl::parse(raw: &str) -> core::result::Result<Self, research::sources::web::page_url::PageUrlError>
+pub const fn research::sources::web::page_url::PageUrl::port(&self) -> u16
+impl core::clone::Clone for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::clone(&self) -> research::sources::web::page_url::PageUrl
+impl core::cmp::Eq for research::sources::web::page_url::PageUrl
+impl core::cmp::PartialEq for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::eq(&self, other: &research::sources::web::page_url::PageUrl) -> bool
+impl core::fmt::Debug for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::page_url::PageUrl
 pub mod research::sources::web::precedence
 pub enum research::sources::web::precedence::Field
 pub research::sources::web::precedence::Field::LinkedData(research::sources::web::precedence::LinkedDataField)

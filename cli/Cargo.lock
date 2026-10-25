@@ -4136,6 +4136,9 @@ dependencies = [
 [[package]]
 name = "research"
 version = "1.24.0-pre.87"
+dependencies = [
+ "network",
+]
 
 [[package]]
 name = "research-adapters"
