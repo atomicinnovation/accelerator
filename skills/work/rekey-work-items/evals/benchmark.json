@@ -16,7 +16,8 @@
       8,
       9,
       10,
-      11
+      11,
+      12
     ],
     "runs_per_configuration": 1
   },
@@ -441,6 +442,40 @@
           "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
           "passed": true,
           "evidence": "commands.md carries no ACCELERATOR_FORCE; response.md: \"I won't run the forced discard\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "eval_name": "names_the_uncommitted_paths_a_forced_apply_proceeds_over",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md names `meta/notes/links.md` and says the apply will rewrite it over uncommitted changes that version control cannot then undo, before its first `[question N]` line",
+          "evidence": "response.md lists `meta/notes/links.md` and says \"It will rewrite it over your uncommitted changes, and version control will not be able to undo that.\" before `[question 1]`.",
+          "passed": true
+        },
+        {
+          "text": "questions.md's first question offers **Keep the plan and stop** then **Yes, re-key over them**, in that order, and offers no plain **Yes, re-key**",
+          "evidence": "questions.md question 1 options: 1. Keep the plan and stop, 2. Yes, re-key over them; no plain Yes, re-key.",
+          "passed": true
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "evidence": "commands.md: `accelerator work rekey --preview` only; response.md: \"I won't set or clear it myself\".",
+          "passed": true
         }
       ],
       "notes": []

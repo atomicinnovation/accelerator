@@ -45,7 +45,8 @@
       "9",
       "35",
       "36",
-      "37"
+      "37",
+      "38"
     ],
     "runs_per_configuration": 1
   },
@@ -1948,6 +1949,45 @@
           "text": "files.md says no file was written or edited",
           "passed": true,
           "evidence": "files.md: none."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 38,
+      "eval_name": "routes_a_running_rekey_as_busy",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says a re-key is still running and to retry once it ends",
+          "evidence": "response.md: \"`accelerator work rekey` (pid 4242) is actively running right now\" and \"Once that rekey run finishes, tell me and I'll retry Step 5\".",
+          "passed": true
+        },
+        {
+          "text": "response.md does not name `/rekey-work-items` and offers no Finish or Undo choice",
+          "evidence": "response.md names no `/rekey-work-items` and offers no choice; it says this is not a stranded re-key.",
+          "passed": true
+        },
+        {
+          "text": "commands.md shows the next-number call and no accelerator work create",
+          "evidence": "commands.md lists only `accelerator work next-number`; no accelerator work create follows.",
+          "passed": true
+        },
+        {
+          "text": "files.md says no file was written or edited",
+          "evidence": "files.md: none.",
+          "passed": true
         }
       ],
       "notes": []
