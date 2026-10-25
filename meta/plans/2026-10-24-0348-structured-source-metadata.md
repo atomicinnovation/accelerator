@@ -898,12 +898,10 @@ encode:
 - [x] Extraction tests pass: `cargo test -p research --test web_extract --manifest-path cli/Cargo.toml`
 - [x] Decoder tests pass: `cargo test -p research-adapters --test web_html --test web_html_metadata --manifest-path cli/Cargo.toml`
 - [x] Dependency policy for the new crate passes: `mise exec -- cargo deny --manifest-path cli/Cargo.toml check bans licenses sources`
-- [x] `mise exec -- cargo deny --manifest-path cli/Cargo.toml check advisories` fails only on the pre-existing `RUSTSEC-2026-0386`, so `html5gum` and `jetscii` carry no advisory
+- [x] `mise exec -- cargo deny --manifest-path cli/Cargo.toml check advisories` passes, so `html5gum` and `jetscii` carry no advisory
 - [x] Public API pin matches: `mise run public-api:check`
-- [x] `mise run check` and `mise run` exit 0 — every task green under
-  `mise run --continue-on-error` except `deny:check` (the pre-existing
-  `RUSTSEC-2026-0386`) and `docs:audit:check` (the pre-existing `docs-site`
-  advisories in `dompurify`, `undici` and `zod`)
+- [x] `mise run check` and `mise run` exit 0, with `tokio` at 1.53.3 for
+  `RUSTSEC-2026-0386` and the `docs-site` advisories cleared
 
 #### Manual Verification
 
