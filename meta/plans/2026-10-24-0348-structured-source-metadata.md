@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T06:05:31+00:00"
+last_updated: "2026-10-25T08:00:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -408,7 +408,8 @@ Tests first (`cli/research/tests/metadata_date.rs`):
   last second of `2024-02-29` both convert to `2024-02-29`; a time before
   the epoch → `1970-01-01`.
 
-The cases are one table of `(input, expected)` pairs.
+The cases are tables of `(input, expected)` pairs: one of usable dates,
+one of unusable dates, and one of instants.
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -476,9 +477,10 @@ impl Doi {
     case-insensitive.
 - After a URL prefix, the rest is cut at the first raw `?` or `#`, which are
   URL delimiters rather than DOI characters, then percent-decoded, then
-  validated. Only an encoded `%3F` or `%23` becomes part of the DOI. Tests:
-  `https://doi.org/10.1000/ABC?x=1` and `https://doi.org/10.1000/ABC#s1`
-  each parse to canonical `10.1000/abc`.
+  validated. Only an encoded `%3F` or `%23` becomes part of the DOI. A
+  malformed escape, or escapes that decode to invalid UTF-8, refuse the
+  DOI. Tests: `https://doi.org/10.1000/ABC?x=1` and
+  `https://doi.org/10.1000/ABC#s1` each parse to canonical `10.1000/abc`.
 - Validation keeps today's rule (`10.<4–9 digits>/<suffix>`, no `.` or
   `..` segment) and adds two limits:
   - every character is printable ASCII (`0x21`–`0x7E`);
@@ -496,7 +498,10 @@ widens what an OpenAlex lookup accepts (`DOI: …`, `http://dx.doi.org/…`).
 The existing
 `an_openalex_id_accepts_a_doi_in_bare_prefixed_or_url_form` test gains
 those forms, and a `citation_url` test asserts that a `dx.doi.org` work DOI
-still yields the canonical `https://doi.org/` URL.
+still yields the canonical `https://doi.org/` URL. The printable-ASCII limit
+narrows it too: `a_doi_encodes_multibyte_text_byte_by_byte`
+(`10.1234/café`) becomes a rejection case, so a lookup by a non-ASCII DOI
+now exits 2 instead of being sent.
 
 #### 4. Records carry metadata
 
@@ -560,8 +565,11 @@ pub fn normalise(entry: &Entry, withdrawn: bool, accessed: PartialDate) -> Optio
   `cli/research-cli/tests/support/mod.rs:17` and the request tests that
   assert the URL.
 - `WorkJson` gains `publication_date: Option<String>`. Add it to
-  `work-doi.json`, `work-no-doi.json` and `work-retracted.json`, and assert
-  it in `cli/research-adapters/tests/openalex_json.rs`.
+  `work-doi.json` (`2018-02-13`, the work item's value),
+  `work-no-doi.json` (`1989-01-01`) and `work-retracted.json`
+  (`2020-07-30`), and assert it in
+  `cli/research-adapters/tests/openalex_json.rs`. The last two are plausible
+  values written by hand, not recorded from OpenAlex.
 - `atom::entry` reads `child(node, ATOM, "published")` and
   `child(node, ATOM, "updated")`, trimmed. Assert both in
   `cli/research-adapters/tests/arxiv_xml.rs` against
@@ -619,6 +627,11 @@ impl Serialize for MetadataJson<'_> {
 
 - [x] `accelerator research fetch openalex lookup W2741809807` prints a record whose `metadata` reads `doi`, `openalex_id`, `published`, `accessed` in that order with today's UTC date
 - [x] `accelerator research fetch arxiv lookup 2305.12345` (or another known id) prints a versioned `arxiv_id` and both dates
+
+Both ran through the launcher with `ACCELERATOR_RESEARCH_BIN` pointing at
+the dev build, from a directory outside the repository: inside it, a local
+`openalex.api_key_cmd` that exits 1 fails the OpenAlex call with
+`E_TOKEN_CMD_FAILED`, which is unrelated to this phase.
 
 ---
 
