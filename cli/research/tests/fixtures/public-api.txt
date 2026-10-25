@@ -1456,6 +1456,120 @@ pub fn research::sources::schedule::RetrySchedule::wait_before(retry: research::
 pub mod research::sources::tier
 pub const fn research::sources::tier::arxiv_tier(withdrawn: bool) -> research::sources::record::Tier
 pub fn research::sources::tier::openalex_tier(work: &research::sources::openalex::Work) -> research::sources::record::Tier
+pub mod research::sources::web
+pub mod research::sources::web::declarations
+pub enum research::sources::web::declarations::LinkedDataValue
+pub research::sources::web::declarations::LinkedDataValue::List(alloc::vec::Vec<research::sources::web::declarations::LinkedDataValue>)
+pub research::sources::web::declarations::LinkedDataValue::Node(research::sources::web::declarations::LinkedDataNode)
+pub research::sources::web::declarations::LinkedDataValue::Text(alloc::string::String)
+impl core::clone::Clone for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::clone(&self) -> research::sources::web::declarations::LinkedDataValue
+impl core::cmp::Eq for research::sources::web::declarations::LinkedDataValue
+impl core::cmp::PartialEq for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::eq(&self, other: &research::sources::web::declarations::LinkedDataValue) -> bool
+impl core::fmt::Debug for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::LinkedDataValue
+pub struct research::sources::web::declarations::LinkedDataNode
+pub research::sources::web::declarations::LinkedDataNode::properties: alloc::vec::Vec<(alloc::string::String, research::sources::web::declarations::LinkedDataValue)>
+pub research::sources::web::declarations::LinkedDataNode::types: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::clone(&self) -> research::sources::web::declarations::LinkedDataNode
+impl core::cmp::Eq for research::sources::web::declarations::LinkedDataNode
+impl core::cmp::PartialEq for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::eq(&self, other: &research::sources::web::declarations::LinkedDataNode) -> bool
+impl core::default::Default for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::default() -> research::sources::web::declarations::LinkedDataNode
+impl core::fmt::Debug for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::LinkedDataNode
+pub struct research::sources::web::declarations::MetaTag
+pub research::sources::web::declarations::MetaTag::content: alloc::string::String
+pub research::sources::web::declarations::MetaTag::name: alloc::string::String
+impl core::clone::Clone for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::clone(&self) -> research::sources::web::declarations::MetaTag
+impl core::cmp::Eq for research::sources::web::declarations::MetaTag
+impl core::cmp::PartialEq for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::eq(&self, other: &research::sources::web::declarations::MetaTag) -> bool
+impl core::fmt::Debug for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::MetaTag
+pub struct research::sources::web::declarations::PageDeclarations
+pub research::sources::web::declarations::PageDeclarations::linked_data: alloc::vec::Vec<research::sources::web::declarations::LinkedDataNode>
+pub research::sources::web::declarations::PageDeclarations::meta_tags: alloc::vec::Vec<research::sources::web::declarations::MetaTag>
+impl core::clone::Clone for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::clone(&self) -> research::sources::web::declarations::PageDeclarations
+impl core::cmp::Eq for research::sources::web::declarations::PageDeclarations
+impl core::cmp::PartialEq for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::eq(&self, other: &research::sources::web::declarations::PageDeclarations) -> bool
+impl core::default::Default for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::default() -> research::sources::web::declarations::PageDeclarations
+impl core::fmt::Debug for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::PageDeclarations
+pub trait research::sources::web::declarations::PageDecoder
+pub fn research::sources::web::declarations::PageDecoder::declarations(&self, html: &[u8]) -> research::sources::web::declarations::PageDeclarations
+pub mod research::sources::web::extract
+pub fn research::sources::web::extract::declared_metadata(page: &research::sources::web::declarations::PageDeclarations, accessed: research::sources::metadata::date::PartialDate) -> research::sources::metadata::SourceMetadata
+pub mod research::sources::web::precedence
+pub enum research::sources::web::precedence::Field
+pub research::sources::web::precedence::Field::LinkedData(research::sources::web::precedence::LinkedDataField)
+pub research::sources::web::precedence::Field::Meta(&'static str)
+impl core::clone::Clone for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::clone(&self) -> research::sources::web::precedence::Field
+impl core::cmp::Eq for research::sources::web::precedence::Field
+impl core::cmp::PartialEq for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::eq(&self, other: &research::sources::web::precedence::Field) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::Field
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::Field
+pub enum research::sources::web::precedence::LinkedDataField
+pub research::sources::web::precedence::LinkedDataField::Identifier
+pub research::sources::web::precedence::LinkedDataField::SameAs
+pub research::sources::web::precedence::LinkedDataField::Text(&'static str)
+impl core::clone::Clone for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::clone(&self) -> research::sources::web::precedence::LinkedDataField
+impl core::cmp::Eq for research::sources::web::precedence::LinkedDataField
+impl core::cmp::PartialEq for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::eq(&self, other: &research::sources::web::precedence::LinkedDataField) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::LinkedDataField
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::LinkedDataField
+pub enum research::sources::web::precedence::Scheme
+pub research::sources::web::precedence::Scheme::DublinCore
+pub research::sources::web::precedence::Scheme::Highwire
+pub research::sources::web::precedence::Scheme::LinkedData
+pub research::sources::web::precedence::Scheme::OpenGraph
+impl research::sources::web::precedence::Scheme
+pub const research::sources::web::precedence::Scheme::PRECEDENCE: [Self; 4]
+impl core::clone::Clone for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::clone(&self) -> research::sources::web::precedence::Scheme
+impl core::cmp::Eq for research::sources::web::precedence::Scheme
+impl core::cmp::PartialEq for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::eq(&self, other: &research::sources::web::precedence::Scheme) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::Scheme
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::Scheme
+pub enum research::sources::web::precedence::WebKey
+pub research::sources::web::precedence::WebKey::Doi
+pub research::sources::web::precedence::WebKey::Published
+pub research::sources::web::precedence::WebKey::Updated
+impl core::clone::Clone for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::clone(&self) -> research::sources::web::precedence::WebKey
+impl core::cmp::Eq for research::sources::web::precedence::WebKey
+impl core::cmp::PartialEq for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::eq(&self, other: &research::sources::web::precedence::WebKey) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::WebKey
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::WebKey
+pub const research::sources::web::precedence::ARTICLE_TYPES: [&str; 11]
+pub const research::sources::web::precedence::WEB_KEYS: [research::sources::web::precedence::KeyPrecedence; 3]
+pub type research::sources::web::precedence::KeyPrecedence = (research::sources::web::precedence::WebKey, &'static [research::sources::web::precedence::SchemeFields])
+pub type research::sources::web::precedence::SchemeFields = (research::sources::web::precedence::Scheme, &'static [research::sources::web::precedence::Field])
 pub mod research::topic
 pub mod research::topic::claims
 pub struct research::topic::claims::ClaimedIndexes(_)

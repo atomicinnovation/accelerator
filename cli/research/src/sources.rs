@@ -12,3 +12,4 @@ pub mod record;
 pub mod request;
 pub mod schedule;
 pub mod tier;
+pub mod web;
