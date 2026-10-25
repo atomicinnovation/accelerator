@@ -106,6 +106,43 @@ impl RekeyCorpus<'_> {
             .collect()
     }
 
+    /// Every state `plan` sets out to leave a path in, repo-relative.
+    fn intended_by(
+        &self,
+        plan: &RetirementPlan,
+    ) -> Result<Vec<(String, StartState)>, NotRekeyed> {
+        let written = |path: &Path, content: &str| {
+            (self.relative(path), StartState::Content(digest_of(content)))
+        };
+        let mut intended: Vec<(String, StartState)> = plan
+            .rewrites
+            .iter()
+            .map(|rewrite| written(&rewrite.path, &rewrite.content))
+            .collect();
+        intended.extend(
+            plan.retired_item
+                .as_deref()
+                .map(|content| written(&plan.to, content)),
+        );
+        if plan.from_original.is_some() {
+            intended.push((self.relative(&plan.from), StartState::Absent));
+        }
+        if let Some(baseline) = self.ports.baseline {
+            let rendered = baseline
+                .rendered_after_renaming(
+                    &plan.baseline_rename.from,
+                    &plan.baseline_rename.to,
+                )
+                .map_err(|error| {
+                    NotRekeyed::StateUnwritable(error.to_string())
+                })?;
+            intended.extend(
+                rendered.map(|content| written(baseline.path(), &content)),
+            );
+        }
+        Ok(intended)
+    }
+
     fn recovery_location(&self, entry: &RekeyEntry) -> PathBuf {
         self.state_dir.join(entry.retirement().recovery_dir())
     }
@@ -243,8 +280,10 @@ pub fn outstanding_entries(
 /// `applied` with its new path.
 ///
 /// Before each retirement writes, every path it touches that the plan has
-/// not recorded is added, at its state now and against `base`, and the plan
-/// saved, so a discard can see everything the run has written.
+/// not recorded is added, at its state now and against `base`, along with
+/// the state the retirement will leave each path in, and the plan saved, so
+/// a discard can see everything the run has written and a resume can tell
+/// the run's writes from edits made since.
 ///
 /// # Errors
 ///
@@ -278,9 +317,13 @@ pub fn execute(
                     .into_iter()
                     .filter(|path| plan.write_set().recorded(path).is_none())
                     .collect();
-                if !unrecorded.is_empty() {
-                    let additions = corpus.recorded(unrecorded, base)?;
-                    plan = plan.clone().extended_with(additions);
+                let additions = corpus.recorded(unrecorded, base)?;
+                let extended = plan
+                    .clone()
+                    .extended_with(additions)
+                    .intending(corpus.intended_by(about_to_apply)?);
+                if extended != plan {
+                    plan = extended;
                     store.save(&RunPlan::InProgress(plan.clone()))?;
                 }
                 target = Some(corpus.relative(&about_to_apply.to));

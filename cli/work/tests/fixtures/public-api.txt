@@ -745,6 +745,7 @@ impl work::rekey::run_plan::InProgressPlan
 pub fn work::rekey::run_plan::InProgressPlan::entries(&self) -> &[work::rekey::entry::RekeyEntry]
 pub fn work::rekey::run_plan::InProgressPlan::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
 pub const fn work::rekey::run_plan::InProgressPlan::fingerprint(&self) -> &work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::run_plan::InProgressPlan::intending(self, writes: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::StartState)>) -> Self
 pub const fn work::rekey::run_plan::InProgressPlan::new(fingerprint: work::rekey::fingerprint::IdentityFingerprint, entries: alloc::vec::Vec<work::rekey::entry::RekeyEntry>, write_set: work::rekey::write_set::WriteSet) -> Self
 pub fn work::rekey::run_plan::InProgressPlan::preview_lines(&self) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::InProgressPlan::write_set(&self) -> &work::rekey::write_set::WriteSet
@@ -854,9 +855,12 @@ pub fn work::rekey::write_set::Unreverted::default() -> work::rekey::write_set::
 impl core::fmt::Debug for work::rekey::write_set::Unreverted
 pub fn work::rekey::write_set::Unreverted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::write_set::Unreverted
-pub struct work::rekey::write_set::WriteSet(_)
+pub struct work::rekey::write_set::WriteSet
 impl work::rekey::write_set::WriteSet
+pub fn work::rekey::write_set::WriteSet::attributable_to_the_run(&self, now: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::rekey::write_set::StartState>) -> Self
 pub fn work::rekey::write_set::WriteSet::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
+pub fn work::rekey::write_set::WriteSet::intended(&self, path: &str) -> &[work::rekey::write_set::StartState]
+pub fn work::rekey::write_set::WriteSet::intending(self, writes: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::StartState)>) -> Self
 pub fn work::rekey::write_set::WriteSet::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&alloc::string::String, &work::rekey::write_set::Recorded)>
 pub fn work::rekey::write_set::WriteSet::recorded(&self, path: &str) -> core::option::Option<&work::rekey::write_set::Recorded>
 pub fn work::rekey::write_set::WriteSet::unreverted(&self, now: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::rekey::write_set::StartState>) -> work::rekey::write_set::Unreverted

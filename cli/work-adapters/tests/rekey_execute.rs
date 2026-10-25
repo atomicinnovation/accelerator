@@ -233,11 +233,11 @@ fn an_interrupted_run_finishes_without_duplicating_an_item(
         let mutations = Mutations::new(Fault::Never);
         started(&Ports::new(&repo, &mutations), synced_only)?
     };
-    let halting = Mutations::new(Fault::HaltAt(2));
+    let halting = Mutations::new(Fault::HaltAt(3));
     let halted = halted_at(|| {
         executed(&Ports::new(&repo, &halting), plan, &Applied::default())
     });
-    assert_eq!(halted.err(), Some(Some(2)));
+    assert_eq!(halted.err(), Some(Some(3)));
     assert!(repo.read(SYNCED).is_some());
     assert!(repo.read(SYNCED_TARGET).is_some());
     assert!(repo
@@ -370,7 +370,7 @@ fn a_rolled_back_entry_leaves_the_plan_in_progress() -> Result<(), TestError> {
         let mutations = Mutations::new(Fault::Never);
         started(&Ports::new(&repo, &mutations), entries())?
     };
-    let failing = Mutations::new(Fault::FailFrom(0));
+    let failing = Mutations::new(Fault::FailFrom(1));
     let ports = Ports::new(&repo, &failing);
 
     let outcome = executed(&ports, plan, &Applied::default());
@@ -398,7 +398,7 @@ fn an_incomplete_restore_leaves_the_plan_in_progress_naming_the_recovery_directo
             vec![renumbered("0041", "ACC-0041")],
         )?
     };
-    let failing = Mutations::new(Fault::FailAt(1));
+    let failing = Mutations::new(Fault::FailAt(2));
     let plan_path = repo.path(PLAN);
     *failing.before_failing.borrow_mut() = Some(Box::new(move || {
         let _ = std::fs::write(&plan_path, "Edited by hand mid-run.\n");

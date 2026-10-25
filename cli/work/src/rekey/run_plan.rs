@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::fingerprint::IdentityFingerprint;
 use crate::rekey::write_set::Recorded;
+use crate::rekey::write_set::StartState;
 use crate::rekey::write_set::WriteSet;
 
 /// Bumped whenever the run plan gains a field; a reader finishes plans of
@@ -130,6 +131,17 @@ impl InProgressPlan {
     ) -> Self {
         Self {
             write_set: self.write_set.extended_with(additions),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn intending(
+        self,
+        writes: impl IntoIterator<Item = (String, StartState)>,
+    ) -> Self {
+        Self {
+            write_set: self.write_set.intending(writes),
             ..self
         }
     }

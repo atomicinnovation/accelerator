@@ -319,25 +319,58 @@ fn encode_write_set(write_set: &WriteSet) -> Value {
             .map(|(path, recorded)| {
                 json!({
                     "path": path,
-                    "digest": match &recorded.state {
-                        StartState::Absent => None,
-                        StartState::Content(digest) => Some(digest.as_str()),
-                    },
+                    "digest": digest_of(&recorded.state),
                     "base": recorded.base.as_ref().map(Base::commits),
+                    "intended": write_set
+                        .intended(path)
+                        .iter()
+                        .map(digest_of)
+                        .collect::<Vec<_>>(),
                 })
             })
             .collect(),
     )
 }
 
+fn digest_of(state: &StartState) -> Option<&str> {
+    match state {
+        StartState::Absent => None,
+        StartState::Content(digest) => Some(digest.as_str()),
+    }
+}
+
+fn state_of(digest: Option<&str>) -> StartState {
+    digest.map_or(StartState::Absent, |digest| {
+        StartState::Content(Digest::new(digest))
+    })
+}
+
+fn decode_intended(
+    path: &str,
+    entry: &Value,
+) -> Result<Vec<(String, StartState)>, Unreadability> {
+    match entry.get("intended") {
+        None => Ok(Vec::new()),
+        Some(Value::Array(digests)) => digests
+            .iter()
+            .map(|digest| match digest {
+                Value::Null => Ok((path.to_owned(), StartState::Absent)),
+                Value::String(digest) => {
+                    Ok((path.to_owned(), state_of(Some(digest))))
+                }
+                _ => Err(malformed("a non-text intended digest")),
+            })
+            .collect(),
+        Some(_) => Err(malformed("'intended' is not a list")),
+    }
+}
+
 fn decode_write_set(value: &Value) -> Result<WriteSet, Unreadability> {
+    let mut intended = Vec::new();
     let recorded = array(value, "write_set")?
         .iter()
         .map(|entry| {
-            let state = optional_text(entry, "digest")?
-                .map_or(StartState::Absent, |digest| {
-                    StartState::Content(Digest::new(digest))
-                });
+            let state = state_of(optional_text(entry, "digest")?.as_deref());
             let base = match entry.get("base") {
                 None | Some(Value::Null) => None,
                 Some(Value::Array(commits)) => Some(Base::new(
@@ -352,10 +385,14 @@ fn decode_write_set(value: &Value) -> Result<WriteSet, Unreadability> {
                 )),
                 Some(_) => return Err(malformed("'base' is not a list")),
             };
-            Ok((text(entry, "path")?.to_owned(), Recorded { state, base }))
+            let path = text(entry, "path")?;
+            intended.extend(decode_intended(path, entry)?);
+            Ok((path.to_owned(), Recorded { state, base }))
         })
         .collect::<Result<Vec<_>, Unreadability>>()?;
-    Ok(WriteSet::default().extended_with(recorded))
+    Ok(WriteSet::default()
+        .extended_with(recorded)
+        .intending(intended))
 }
 
 fn discarded_name() -> String {

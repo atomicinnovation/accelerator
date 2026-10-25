@@ -93,13 +93,36 @@ impl<'a> BaselineStore<'a> {
     ///
     /// [`StoreError`] on either the read or the write.
     pub fn rename(&self, old: &str, new: &str) -> Result<(), StoreError> {
+        self.renamed(old, new)?
+            .map_or(Ok(()), |baseline| self.write_document(&baseline))
+    }
+
+    /// The document [`Self::rename`] would write, rendered, or `None` when
+    /// it would write nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on the read.
+    pub fn rendered_after_renaming(
+        &self,
+        old: &str,
+        new: &str,
+    ) -> Result<Option<String>, StoreError> {
+        Ok(self.renamed(old, new)?.map(|baseline| baseline.render()))
+    }
+
+    fn renamed(
+        &self,
+        old: &str,
+        new: &str,
+    ) -> Result<Option<Baseline>, StoreError> {
         let (mut baseline, _) = self.load()?;
         let Some(entry) = baseline.get(old).cloned() else {
-            return Ok(());
+            return Ok(None);
         };
         baseline.remove(old);
         baseline.set(new, entry);
-        self.write_document(&baseline)
+        Ok(Some(baseline))
     }
 
     /// Forgets the named items' local digests, advances the reconciled items'

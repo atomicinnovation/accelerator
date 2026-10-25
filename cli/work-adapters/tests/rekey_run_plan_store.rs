@@ -300,6 +300,27 @@ fn a_saved_plan_round_trips() -> Result<(), TestError> {
 }
 
 #[test]
+fn the_states_a_run_set_out_to_write_round_trip() -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let plan = fixture_plan(repo.root()).intending([
+        ("meta/work/0042-search.md".to_owned(), StartState::Absent),
+        (
+            "meta/work/ACC-0042-search.md".to_owned(),
+            StartState::Content(Digest::new("retired")),
+        ),
+        (
+            "meta/work/ACC-0042-search.md".to_owned(),
+            StartState::Content(Digest::new("retired again")),
+        ),
+    ]);
+
+    repo.store().save(&RunPlan::InProgress(plan.clone()))?;
+
+    assert_eq!(repo.store().load(), Ok(Some(RunPlan::InProgress(plan))));
+    Ok(())
+}
+
+#[test]
 fn an_older_schema_plan_is_read() -> Result<(), TestError> {
     let repo = Repo::new()?;
     write_plan(&repo, include_str!("fixtures/rekey/run-plan-schema-1.json"))?;

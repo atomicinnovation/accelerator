@@ -1267,7 +1267,7 @@ mod tests {
             assert_eq!(uninterrupted.rekey().code, 0);
             uninterrupted.tree()
         };
-        repo.halt_at(5);
+        repo.halt_at(6);
         assert!(repo.read("meta/work/0041-first.md").is_some());
         assert!(repo.read("meta/work/ACC-0041-first.md").is_some());
 

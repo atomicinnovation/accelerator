@@ -177,7 +177,11 @@ fn apply(
 ) -> Result<RekeyReport, NotRekeyed> {
     let mapping = match loaded.map_err(NotRekeyed::PlanUnreadable)? {
         Some(RunPlan::InProgress(plan)) => {
-            let base = working_copy(request.forcing, ports, plan.write_set())?;
+            let written_by_the_run = plan.write_set().attributable_to_the_run(
+                &current_states(plan.write_set(), &ports.corpus)?,
+            );
+            let base =
+                working_copy(request.forcing, ports, &written_by_the_run)?;
             finish(plan, base.as_ref(), ports, lock)?;
             return Ok(RekeyReport::Rekeyed { resumed: true });
         }

@@ -391,7 +391,7 @@ fn discard_refuses_an_in_progress_plan_whose_write_set_changed_naming_the_paths_
 fn not_reverted_lists_paths_to_restore_and_to_remove_and_names_the_base_revision(
 ) -> Result<(), TestError> {
     let repo = Repo::new()?;
-    halt_at(&repo, 5)?;
+    halt_at(&repo, 6)?;
     let mutations = Mutations::new(Fault::Never);
     let ports = Ports::new(&repo, &mutations);
 
@@ -727,6 +727,8 @@ mod in_a_real_repository {
     use super::Recorder;
     use super::Repo;
     use super::TestError;
+    use super::RUN_PLAN;
+    use super::SYNCED;
 
     #[derive(Clone, Copy, Debug)]
     enum Vcs {
@@ -798,6 +800,59 @@ mod in_a_real_repository {
                 "{vcs:?}: {outcome:?}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn a_run_killed_at_every_write_resumes_over_its_own_writes(
+    ) -> Result<(), TestError> {
+        for vcs in [Vcs::Git, Vcs::Jj] {
+            for at in 0..mutations_of_a_whole_run()? {
+                let (repo, _env) = committed(vcs)?;
+                halt_at(&repo, at)?;
+                let mutations = Mutations::new(Fault::Never);
+                let ports = Ports::new(&repo, &mutations);
+
+                let report = ports.apply(&InProcessProbe);
+
+                assert!(
+                    matches!(report, Ok(RekeyReport::Rekeyed { .. })),
+                    "{vcs:?} halted at mutation {at}: {report:?}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
+    ) -> Result<(), TestError> {
+        const SYNCED_ONLY: &str = "meta/notes/synced-only.md";
+        let mut checked = 0;
+        for at in 0..mutations_of_a_whole_run()? {
+            let (repo, env) = committed(Vcs::Git)?;
+            repo.write(SYNCED_ONLY, "See PP-760.\n")?;
+            commit_everything(Vcs::Git, &repo, &env)?;
+            halt_at(&repo, at)?;
+            let unreached = repo.read(SYNCED).is_some()
+                && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");
+            if repo.read(RUN_PLAN).is_none() || !unreached {
+                continue;
+            }
+            repo.write(SYNCED_ONLY, "See PP-760, edited since the halt.\n")?;
+            let mutations = Mutations::new(Fault::Never);
+            let ports = Ports::new(&repo, &mutations);
+
+            let report = ports.apply(&InProcessProbe);
+
+            assert_eq!(
+                report,
+                Err(NotRekeyed::DirtyWorkingCopy(vec![SYNCED_ONLY.to_owned()])),
+                "halted at mutation {at}"
+            );
+            checked += 1;
+        }
+        assert!(checked > 0, "no halt left the synced entry unreached");
         Ok(())
     }
 

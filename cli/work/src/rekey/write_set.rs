@@ -50,9 +50,13 @@ pub struct Recorded {
     pub base: Option<Base>,
 }
 
-/// Keyed by repo-relative path.
+/// Keyed by repo-relative path: each path's state when the run first
+/// touched it, and every state the run has since set out to write there.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct WriteSet(BTreeMap<String, Recorded>);
+pub struct WriteSet {
+    recorded: BTreeMap<String, Recorded>,
+    intended: BTreeMap<String, Vec<StartState>>,
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Unreverted {
@@ -70,11 +74,16 @@ impl Unreverted {
 impl WriteSet {
     #[must_use]
     pub fn recorded(&self, path: &str) -> Option<&Recorded> {
-        self.0.get(path)
+        self.recorded.get(path)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Recorded)> {
-        self.0.iter()
+        self.recorded.iter()
+    }
+
+    #[must_use]
+    pub fn intended(&self, path: &str) -> &[StartState] {
+        self.intended.get(path).map_or(&[], Vec::as_slice)
     }
 
     /// Every path whose state `now` differs from the one recorded for it: to
@@ -83,7 +92,7 @@ impl WriteSet {
     #[must_use]
     pub fn unreverted(&self, now: &BTreeMap<String, StartState>) -> Unreverted {
         let mut unreverted = Unreverted::default();
-        for (path, recorded) in &self.0 {
+        for (path, recorded) in &self.recorded {
             let current = now.get(path).unwrap_or(&StartState::Absent);
             if *current == recorded.state {
                 continue;
@@ -108,9 +117,50 @@ impl WriteSet {
         additions: impl IntoIterator<Item = (String, Recorded)>,
     ) -> Self {
         for (path, recorded) in additions {
-            self.0.entry(path).or_insert(recorded);
+            self.recorded.entry(path).or_insert(recorded);
         }
         self
+    }
+
+    /// Remembers each state the run is about to write, alongside every
+    /// state it set out to write there before, since a retirement rolled
+    /// back restores the path to one of those.
+    #[must_use]
+    pub fn intending(
+        mut self,
+        writes: impl IntoIterator<Item = (String, StartState)>,
+    ) -> Self {
+        for (path, state) in writes {
+            let intended = self.intended.entry(path).or_default();
+            if !intended.contains(&state) {
+                intended.push(state);
+            }
+        }
+        self
+    }
+
+    /// The recorded paths whose state `now` the run accounts for: the one it
+    /// started from, or one it set out to write. Any other state is an edit
+    /// made outside the run. A path missing from `now` is absent.
+    #[must_use]
+    pub fn attributable_to_the_run(
+        &self,
+        now: &BTreeMap<String, StartState>,
+    ) -> Self {
+        let recorded = self
+            .recorded
+            .iter()
+            .filter(|(path, recorded)| {
+                let current = now.get(*path).unwrap_or(&StartState::Absent);
+                *current == recorded.state
+                    || self.intended(path).contains(current)
+            })
+            .map(|(path, recorded)| (path.clone(), recorded.clone()))
+            .collect();
+        Self {
+            recorded,
+            intended: self.intended.clone(),
+        }
     }
 }
 
@@ -217,6 +267,69 @@ mod tests {
             extended.recorded(REFERRER),
             Some(&recorded(content("ref"), Some(base("c1"))))
         );
+    }
+
+    fn attributable(
+        write_set: &WriteSet,
+        states: &[(&str, StartState)],
+    ) -> Vec<String> {
+        write_set
+            .attributable_to_the_run(&now(states))
+            .iter()
+            .map(|(path, _)| path.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_path_at_a_state_the_run_intended_is_attributable_to_it() {
+        let intending = started().intending([
+            (OLD.to_owned(), StartState::Absent),
+            (REFERRER.to_owned(), content("rewritten")),
+        ]);
+
+        assert_eq!(
+            attributable(
+                &intending,
+                &[(OLD, StartState::Absent), (REFERRER, content("rewritten"))]
+            ),
+            vec![REFERRER.to_owned(), OLD.to_owned(), NEW.to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_path_changed_to_a_state_the_run_never_intended_is_not() {
+        let intending =
+            started().intending([(REFERRER.to_owned(), content("rewritten"))]);
+
+        assert_eq!(
+            attributable(
+                &intending,
+                &[(OLD, content("old")), (REFERRER, content("edited"))]
+            ),
+            vec![OLD.to_owned(), NEW.to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_path_rolled_back_to_an_earlier_intended_state_is_attributable() {
+        let intending = started()
+            .intending([(REFERRER.to_owned(), content("first entry"))])
+            .intending([(REFERRER.to_owned(), content("second entry"))]);
+
+        assert!(attributable(
+            &intending,
+            &[(OLD, content("old")), (REFERRER, content("first entry"))]
+        )
+        .contains(&REFERRER.to_owned()));
+    }
+
+    #[test]
+    fn an_intended_state_is_remembered_once() {
+        let intending = started()
+            .intending([(REFERRER.to_owned(), content("rewritten"))])
+            .intending([(REFERRER.to_owned(), content("rewritten"))]);
+
+        assert_eq!(intending.intended(REFERRER), &[content("rewritten")]);
     }
 
     #[test]
