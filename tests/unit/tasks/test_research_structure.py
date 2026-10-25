@@ -1417,3 +1417,23 @@ def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
 
 def test_synthesise_leaves_a_one_line_citation_one_line() -> None:
     assert "cited one-line in its finding stays one-line" in _synthesise()
+
+
+COPY_THE_MAP = "copy its `metadata` map into the entry's metadata block"
+
+
+@pytest.mark.parametrize(("family", "name"), sorted(ACADEMIC_FAMILIES.items()))
+def test_an_academic_profile_copies_each_cited_records_metadata(
+    family: str, name: str
+) -> None:
+    profile = _profile_skill(family)
+    prose = _prose(REPO_ROOT / profile)
+    assert COPY_THE_MAP in _section(
+        prose, "## Reputation Tiers", "## Outcome", path=profile
+    ), f"the {name} profile must copy a cited record's metadata"
+    assert "`metadata`" in _section(
+        prose,
+        "## Untrusted-Content Contract",
+        "## Reputation Tiers",
+        path=profile,
+    ), f"the {name} profile must treat metadata values as data"
