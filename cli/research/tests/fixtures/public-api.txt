@@ -843,6 +843,26 @@ impl core::fmt::Display for research::sources::metadata::date::PartialDate
 pub fn research::sources::metadata::date::PartialDate::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::metadata::date::PartialDate
 impl core::marker::StructuralPartialEq for research::sources::metadata::date::PartialDate
+pub struct research::sources::metadata::SourceMetadata
+impl research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::entries(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&str, &str)>
+pub fn research::sources::metadata::SourceMetadata::record_accessed(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_arxiv_id(&mut self, id: &research::sources::request::ArxivId)
+pub fn research::sources::metadata::SourceMetadata::record_doi(&mut self, doi: &research::sources::request::Doi)
+pub fn research::sources::metadata::SourceMetadata::record_openalex_id(&mut self, id: &research::sources::request::WorkId)
+pub fn research::sources::metadata::SourceMetadata::record_published(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_updated(&mut self, date: research::sources::metadata::date::PartialDate)
+impl core::clone::Clone for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::clone(&self) -> research::sources::metadata::SourceMetadata
+impl core::cmp::Eq for research::sources::metadata::SourceMetadata
+impl core::cmp::PartialEq for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::eq(&self, other: &research::sources::metadata::SourceMetadata) -> bool
+impl core::default::Default for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::default() -> research::sources::metadata::SourceMetadata
+impl core::fmt::Debug for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::metadata::SourceMetadata
+pub const research::sources::metadata::RECOMMENDED_KEYS: [&str; 19]
 pub mod research::sources::openalex
 pub struct research::sources::openalex::Location
 pub research::sources::openalex::Location::source: core::option::Option<research::sources::openalex::Source>
