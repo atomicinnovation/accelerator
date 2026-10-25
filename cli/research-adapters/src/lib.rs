@@ -16,3 +16,4 @@ pub mod scratch;
 pub mod topic;
 pub mod transport;
 pub mod unicode_text;
+pub mod web_html;

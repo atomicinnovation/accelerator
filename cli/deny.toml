@@ -162,7 +162,9 @@ skip = [
 # pulldown-cmark are the infra-out-of-domain bans: the YAML parser is reachable
 # only through the document wrapper, and the Markdown parser only through
 # document and markdown, whose exact pin and characterisation tests carry the
-# soft-line-break span rule; a direct domain import violates.
+# soft-line-break span rule; a direct domain import violates. html5gum is
+# reachable only through research-adapters, whose web page decoder pins the
+# tokeniser behaviour its JSON-LD reading depends on.
 #
 # gix-credentials spawns `git credential-*` helper programs and is absent only
 # because the gix pin sets default-features = false, so this ban is what stops a
@@ -176,6 +178,7 @@ deny = [
     { crate = "openssl-sys" },
     { crate = "serde-saphyr", wrappers = ["document"] },
     { crate = "pulldown-cmark", wrappers = ["document", "markdown"] },
+    { crate = "html5gum", wrappers = ["research-adapters"] },
     { crate = "gix-credentials" },
     { crate = "curl-sys" },
 ]

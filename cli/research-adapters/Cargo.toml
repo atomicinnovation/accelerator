@@ -22,6 +22,7 @@ kernel = { path = "../kernel" }
 reqwest = { workspace = true }
 rustls = { workspace = true }
 roxmltree = { workspace = true }
+html5gum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }

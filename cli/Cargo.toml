@@ -116,6 +116,12 @@ icu_normalizer = { version = "=2.2.0", default-features = false, features = [
 icu_properties = { version = "=2.2.0", default-features = false, features = [
     "compiled_data",
 ] }
+# HTML tokeniser behind the web page decoder. Exact-pinned because the decoder
+# relies on naively_switch_states entering script data without a tree builder,
+# so JSON-LD holding `<` stays text; a release must arrive as a deliberate
+# re-run of the decoder fixtures. research-adapters is the sole permitted
+# wrapper (see deny.toml).
+html5gum = "=0.8.4"
 # Read-only XML trees for arXiv's Atom and OAI-PMH responses. Its default
 # parsing refuses a DTD, so no entity expansion reaches the decoder.
 roxmltree = "0.21"

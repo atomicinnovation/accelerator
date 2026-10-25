@@ -1527,7 +1527,7 @@ def _write_research_probe(
     (stub_src / "lib.rs").write_text(_TRACKER_SUPPORT_STUB_LIB)
 
 
-_RESEARCH_DECODERS = ["openalex_json", "arxiv_xml"]
+_RESEARCH_DECODERS = ["openalex_json", "arxiv_xml", "web_html"]
 
 
 @pytest.mark.parametrize("decoder", _RESEARCH_DECODERS)
