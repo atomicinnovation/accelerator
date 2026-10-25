@@ -287,6 +287,39 @@ fn a_plan_of_a_newer_schema_is_unreadable_naming_the_version(
 }
 
 #[test]
+fn a_newer_schemas_proposed_plan_gates_nothing() -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let newer = RUN_PLAN_SCHEMA + 1;
+    write_plan(
+        &repo,
+        &format!("{{\"schema\": {newer}, \"state\": \"proposed\"}}"),
+    )?;
+
+    assert_eq!(repo.store().gate(), RunPlanGate::Clear);
+    Ok(())
+}
+
+#[test]
+fn a_newer_schemas_in_progress_plan_gates_as_unreadable_naming_the_version(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let newer = RUN_PLAN_SCHEMA + 1;
+    write_plan(
+        &repo,
+        &format!("{{\"schema\": {newer}, \"state\": \"in_progress\"}}"),
+    )?;
+
+    assert_eq!(
+        repo.store().gate(),
+        RunPlanGate::Unreadable(UnreadablePlan {
+            path: repo.plan_path(),
+            cause: Unreadability::NewerSchema(newer),
+        })
+    );
+    Ok(())
+}
+
+#[test]
 fn a_saved_plan_round_trips() -> Result<(), TestError> {
     let repo = Repo::new()?;
     for plan in [

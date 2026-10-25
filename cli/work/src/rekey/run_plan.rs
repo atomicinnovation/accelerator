@@ -9,8 +9,11 @@ use crate::rekey::write_set::Recorded;
 use crate::rekey::write_set::StartState;
 use crate::rekey::write_set::WriteSet;
 
-/// Bumped whenever the run plan gains a field; a reader finishes plans of
-/// any schema up to its own.
+/// Bumped only when a field changes meaning, or a reader ignoring a new
+/// field would act wrongly on the plan.
+///
+/// Readers ignore fields they do not know, so an additive field is not a
+/// bump. A reader finishes plans of any schema up to its own.
 pub const RUN_PLAN_SCHEMA: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

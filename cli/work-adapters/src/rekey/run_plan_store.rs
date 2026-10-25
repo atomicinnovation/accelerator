@@ -113,6 +113,19 @@ impl<'a> FileRunPlanStore<'a> {
         }
     }
 
+    /// A newer binary's preview, which, like one of this binary's, has
+    /// written nothing a guarded command could trip over.
+    fn is_newer_proposal(&self, plan: &UnreadablePlan) -> bool {
+        matches!(plan.cause, Unreadability::NewerSchema(_))
+            && std::fs::read_to_string(self.path())
+                .ok()
+                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                .is_some_and(|value| {
+                    value.get("state").and_then(Value::as_str)
+                        == Some("proposed")
+                })
+    }
+
     fn relative(&self, path: &Path) -> String {
         let relative = path.strip_prefix(&self.repo_root).unwrap_or(path);
         relative
@@ -456,6 +469,9 @@ impl RunPlanStatus for FileRunPlanStore<'_> {
         match self.status() {
             RekeyStatus::Absent | RekeyStatus::Proposed => RunPlanGate::Clear,
             RekeyStatus::InProgress => RunPlanGate::InProgress,
+            RekeyStatus::Unreadable(plan) if self.is_newer_proposal(&plan) => {
+                RunPlanGate::Clear
+            }
             RekeyStatus::Unreadable(plan) => RunPlanGate::Unreadable(plan),
         }
     }
