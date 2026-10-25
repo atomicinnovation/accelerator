@@ -40,6 +40,21 @@ pub fn document(fetched: &Fetched) -> Option<String> {
     serde_json::to_string(&document).ok()
 }
 
+/// The stdout document for a page's declared metadata.
+pub fn web_document(metadata: &SourceMetadata) -> Option<String> {
+    serde_json::to_string(&WebDocument {
+        status: "ok",
+        metadata: MetadataJson(metadata),
+    })
+    .ok()
+}
+
+#[derive(Serialize)]
+struct WebDocument<'a> {
+    status: &'static str,
+    metadata: MetadataJson<'a>,
+}
+
 /// The usage line for a ticket presented in a way the queue refuses.
 pub fn rejection(fetched: &Fetched) -> Option<String> {
     let FetchOutcome::Rejected(rejection) = &fetched.outcome else {

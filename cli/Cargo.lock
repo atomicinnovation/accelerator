@@ -121,6 +121,7 @@ dependencies = [
  "corpus",
  "corpus-adapters",
  "http-test-support",
+ "network",
  "rand 0.9.5",
  "research",
  "research-adapters",

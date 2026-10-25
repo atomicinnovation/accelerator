@@ -1187,6 +1187,7 @@ pub research::sources::request::Family::Arxiv
 pub research::sources::request::Family::OpenAlex
 pub research::sources::request::Family::Web
 impl research::sources::request::Family
+pub const research::sources::request::Family::ALL: [Self; 3]
 pub const fn research::sources::request::Family::code(self) -> &'static str
 pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
 pub const fn research::sources::request::Family::verbs(self) -> &'static [research::sources::request::Verb]

@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Fetch tiered scholarly records from OpenAlex and arXiv"
+description = "Fetch tiered scholarly records from OpenAlex and arXiv, and the metadata a web page declares"
 
 [package.metadata.accelerator]
 role = "composition-root"
@@ -26,6 +26,7 @@ test-loopback = []
 
 [dependencies]
 research = { path = "../research" }
+network = { path = "../network" }
 research-adapters = { path = "../research-adapters" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }

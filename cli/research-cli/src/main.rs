@@ -16,6 +16,7 @@ mod search_cap;
 mod search_wording;
 mod subagent_cap;
 mod topic_command;
+mod web_command;
 mod write_target;
 
 use std::path::Path;
@@ -38,6 +39,7 @@ use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
+use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
@@ -45,9 +47,11 @@ use research_adapters::confirmations::FileConfirmationCache;
 use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
+use research_adapters::host_resolver::DnsHostResolver;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
 use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
+use research_adapters::page_transport::HttpPageTransport;
 use research_adapters::queue::random_nonce;
 use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
@@ -69,6 +73,7 @@ use crate::topic_command::PlanRequest;
 use crate::topic_command::Printed;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
+use crate::web_command::WebAdapters;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -155,8 +160,8 @@ fn fetch(
     let request = match request {
         FetchRequest::OpenAlex(request) => ScholarlyRequest::OpenAlex(request),
         FetchRequest::Arxiv(request) => ScholarlyRequest::Arxiv(request),
-        FetchRequest::Web(_) => {
-            return failure("E_RESEARCH_USAGE: web fetches are not served yet")
+        FetchRequest::Web(request) => {
+            return web(&request, clock.as_ref(), deadline)
         }
     };
     let endpoints = match selected_endpoints() {
@@ -184,6 +189,27 @@ fn fetch(
     match fetch_command::run(&ports, &project, deadline, &call) {
         Ok(fetched) => report(&fetched),
         Err(error) => failure(&error.to_string()),
+    }
+}
+
+fn web(
+    request: &WebRequest,
+    clock: &dyn Clock,
+    deadline: &Deadline,
+) -> ExitCode {
+    let adapters = match selected_web_adapters() {
+        Ok(adapters) => adapters,
+        Err(message) => return usage(&message),
+    };
+    match web_command::run(request, &adapters, clock, deadline) {
+        Ok(metadata) => render::web_document(&metadata).map_or(
+            ExitCode::FAILURE,
+            |document| {
+                println!("{document}");
+                ExitCode::SUCCESS
+            },
+        ),
+        Err(failed) => failure(&failed.to_string()),
     }
 }
 
@@ -402,6 +428,27 @@ fn selected_call_budget() -> Duration {
 #[cfg(not(feature = "test-loopback"))]
 const fn selected_call_budget() -> Duration {
     CALL_BUDGET
+}
+
+#[cfg(feature = "test-loopback")]
+fn selected_web_adapters() -> Result<WebAdapters, String> {
+    let production = WebAdapters {
+        resolver: Box::new(DnsHostResolver),
+        transport: Box::new(HttpPageTransport),
+    };
+    Ok(match loopback::stand_in()? {
+        Some(stand_in) => loopback::through_stand_in(&stand_in, production),
+        None => production,
+    })
+}
+
+#[cfg(not(feature = "test-loopback"))]
+#[allow(clippy::unnecessary_wraps)]
+fn selected_web_adapters() -> Result<WebAdapters, String> {
+    Ok(WebAdapters {
+        resolver: Box::new(DnsHostResolver),
+        transport: Box::new(HttpPageTransport),
+    })
 }
 
 struct Endpoints {

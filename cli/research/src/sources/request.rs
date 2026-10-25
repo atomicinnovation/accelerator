@@ -142,6 +142,8 @@ pub enum Family {
 }
 
 impl Family {
+    pub const ALL: [Self; 3] = [Self::OpenAlex, Self::Arxiv, Self::Web];
+
     /// # Errors
     ///
     /// [`RequestError::UnknownFamily`] for anything but an exact family code.

@@ -9,10 +9,12 @@ use clap::Parser;
 use clap::Subcommand;
 
 const FETCH_HELP: &str = "\
-Fetch tiered scholarly records from OpenAlex or arXiv.
+Fetch tiered scholarly records from OpenAlex or arXiv, or the metadata a
+public web page declares about itself.
 
-Families: openalex, arxiv. Verbs: search (free text), lookup (one ID: an
-OpenAlex W… ID or DOI, or an arXiv ID).
+Families and their verbs: openalex and arxiv take search (free text) or lookup
+(one ID: an OpenAlex W… ID or DOI, or an arXiv ID); web takes metadata (one
+http or https page URL).
 
 Prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]}, each record
 carrying title, authors, url, venue, venue_signals, abstract, tier, retracted,
@@ -25,6 +27,14 @@ metadata maps doi, arxiv_id, openalex_id, published, updated and accessed (the
 UTC date of the call) to their values, omitting any the source lacks. Its keys
 are in their canonical order, which only the raw stdout bytes preserve: a
 JSON parser may reorder them.
+
+web metadata prints {\"status\":\"ok\",\"metadata\":{…}}, mapping the doi,
+published and updated dates the page declares, and accessed, in the same
+canonical order. It follows at most 5 redirects, admitting each hop only when
+every address its host resolves to is public, reads at most 2 MiB of the page
+and never uses a proxy. A page it cannot read exits 1 with one E_WEB_* line on
+stderr and nothing on stdout; a URL that is not a fetchable http(s) URL exits 2
+with E_WEB_URL_MALFORMED.
 
 arXiv calls wait their turn in a queue shared by the project. One that cannot
 be served in time prints
@@ -50,15 +60,16 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Fetch tiered scholarly records from OpenAlex or arXiv.
+    /// Fetch tiered scholarly records from OpenAlex or arXiv, or a web page's
+    /// declared metadata.
     #[command(long_about = FETCH_HELP)]
     Fetch {
-        /// openalex or arxiv.
+        /// openalex, arxiv or web.
         family: String,
-        /// search or lookup.
+        /// search or lookup for openalex and arxiv; metadata for web.
         verb: String,
-        /// The search query, or the ID to look up. Several words are joined
-        /// with single spaces.
+        /// The search query, the ID to look up, or the page URL. Several
+        /// words of a query or ID are joined with single spaces.
         terms: Vec<String>,
         /// How many records a search returns, 1–25 (default 10).
         #[arg(long)]
@@ -137,4 +148,21 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         run: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use research::sources::request::Family;
+
+    use super::FETCH_HELP;
+
+    #[test]
+    fn the_fetch_help_names_every_family_and_each_verb_it_supports() {
+        for family in Family::ALL {
+            assert!(FETCH_HELP.contains(family.code()), "{}", family.code());
+            for verb in family.verbs() {
+                assert!(FETCH_HELP.contains(verb.code()), "{}", verb.code());
+            }
+        }
+    }
 }

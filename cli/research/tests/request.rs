@@ -57,7 +57,6 @@ fn a_verb_names_itself_as_callers_spell_it() {
     assert_eq!(Verb::Metadata.code(), "metadata");
 }
 
-const FAMILIES: [Family; 3] = [Family::OpenAlex, Family::Arxiv, Family::Web];
 const VERBS: [Verb; 3] = [Verb::Search, Verb::Lookup, Verb::Metadata];
 
 const fn a_valid_term_for(family: Family, verb: Verb) -> &'static str {
@@ -71,7 +70,7 @@ const fn a_valid_term_for(family: Family, verb: Verb) -> &'static str {
 
 #[test]
 fn each_family_accepts_exactly_the_verbs_it_supports() {
-    for family in FAMILIES {
+    for family in Family::ALL {
         for verb in VERBS {
             let parsed = FetchRequest::parse(
                 family.code(),
