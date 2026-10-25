@@ -1326,3 +1326,69 @@ def test_conduct_reads_the_halting_fields() -> None:
         "into `pairs`, each as `stem`, `question`, `profile` and `stage`",
     ):
         assert field in fields, f"conduct must read {field!r}"
+
+
+SOURCE_METADATA = REPO_ROOT / "cli/research/src/sources/metadata.rs"
+SOURCES_ENTRY = "- [Title](url) — tier-1 — {source domain/venue}"
+METADATA_SLOT = "  - {source-metadata}"
+TEMPLATES = [
+    FINDING_TEMPLATE,
+    REPO_ROOT / "templates/topic-research-level-note.md",
+    REPO_ROOT / "templates/topic-research-synthesis.md",
+]
+
+
+def _recommended_keys() -> list[str]:
+    """The CLI's recommended keys, in order, read from their one Rust
+    definition."""
+    found = re.search(
+        r"pub const RECOMMENDED_KEYS: \[&str; (\d+)\] = \[(.*?)\];",
+        _read(SOURCE_METADATA),
+        re.DOTALL,
+    )
+    assert found, "the CLI no longer defines RECOMMENDED_KEYS"
+    keys = re.findall(r'"([a-z_]+)"', found.group(2))
+    assert len(keys) == int(found.group(1)) == 19, (
+        "RECOMMENDED_KEYS changed shape; read it afresh"
+    )
+    return keys
+
+
+def _key_column(text: str) -> list[str]:
+    """The keys a markdown table lists, in row order."""
+    return re.findall(r"^\s*\| `([a-z_]+)` +\|", text, re.MULTILINE)
+
+
+def test_the_finding_outputter_lists_every_recommended_key_in_order() -> None:
+    assert _key_column(_read(FINDING_OUTPUTTER)) == _recommended_keys()
+
+
+def test_the_finding_outputter_documents_the_metadata_block() -> None:
+    outputter = _prose(FINDING_OUTPUTTER)
+    for rule in (
+        "lowercase `snake_case`",
+        "single-line",
+        "`url`, title and venue never appear in the block",
+        "copied unchanged and in emitted order",
+        "recommended keys in table order, then any other key in byte-wise "
+        "order",
+        METADATA_SLOT.strip(),
+    ):
+        assert rule in outputter, f"the finding outputter must state {rule!r}"
+
+
+def test_the_level_note_outputter_defers_to_the_metadata_block() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    assert "Sources metadata block" in outputter
+    assert "untrusted-content contract" not in outputter
+
+
+@pytest.mark.parametrize("template", TEMPLATES, ids=lambda path: path.name)
+def test_every_template_carries_the_metadata_slot_under_its_entry(
+    template: Path,
+) -> None:
+    lines = _read(template).splitlines()
+    entry = lines.index(SOURCES_ENTRY)
+    assert lines[entry + 1 : entry + 2] == [METADATA_SLOT], (
+        f"{template.name} must carry {METADATA_SLOT!r} under its Sources entry"
+    )
