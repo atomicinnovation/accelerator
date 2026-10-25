@@ -246,7 +246,6 @@ pub work::identity_run::IdentityRunRefusal::Busy(core::option::Option<work::reke
 pub work::identity_run::IdentityRunRefusal::Lock(corpus::store::StoreError)
 pub work::identity_run::IdentityRunRefusal::RekeyInProgress
 pub work::identity_run::IdentityRunRefusal::RekeyPlanUnreadable(work::rekey::run_plan::UnreadablePlan)
-pub work::identity_run::IdentityRunRefusal::RekeyRunning(work::rekey::outcome::Holder)
 impl core::clone::Clone for work::identity_run::IdentityRunRefusal
 pub fn work::identity_run::IdentityRunRefusal::clone(&self) -> work::identity_run::IdentityRunRefusal
 impl core::cmp::Eq for work::identity_run::IdentityRunRefusal
@@ -654,7 +653,7 @@ pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::pattern: alloc::str
 pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::remaining: u64
 pub work::rekey::outcome::NotRekeyed::IdentityRunBusy(core::option::Option<work::rekey::outcome::Holder>)
 pub work::rekey::outcome::NotRekeyed::IdentityRunLockFailed(alloc::string::String)
-pub work::rekey::outcome::NotRekeyed::InProgress(core::option::Option<work::rekey::outcome::Holder>)
+pub work::rekey::outcome::NotRekeyed::InProgress
 pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap
 pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::item: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::number: u64

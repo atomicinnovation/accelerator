@@ -77,8 +77,6 @@ Branch on the outcome:
   `AskUserQuestion` tool with **Finish it** (run `accelerator work rekey`,
   then act on Step 3's outcomes) and **Undo it** (the Undo flow below).
   Under the override note, offer **Finish it** and **Stop** instead.
-- **`E_REKEY_IN_PROGRESS` saying a re-key is running (pid `<n>`)**: another
-  session is re-keying. Relay that and stop.
 - **`E_REKEY_PLAN_UNREADABLE`**: relay the printed remedy and any
   half-applied evidence lines as they are. Never offer to finish the run, and
   never run the forced discard the remedy names. Stop.

@@ -598,7 +598,7 @@ fn preview_does_not_replace_a_plan_started_while_its_lock_was_acquired(
 
     let outcome = preview(&ports, &clean(&repo), Some(&racing));
 
-    assert_eq!(outcome, Err(NotRekeyed::InProgress(None)));
+    assert_eq!(outcome, Err(NotRekeyed::InProgress));
     assert_eq!(ports.plan_store().load(), Ok(Some(racing.plan)));
     Ok(())
 }

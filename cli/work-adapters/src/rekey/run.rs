@@ -225,7 +225,7 @@ fn preview(
     {
         let remaining = outstanding_entries(&plan, &ports.corpus)?;
         ports.progress.remaining(&preview_lines(&remaining));
-        return Err(NotRekeyed::InProgress(None));
+        return Err(NotRekeyed::InProgress);
     }
     let Some(checked) =
         preflight(Mapping::Computed, DirtyPaths::Warn, request, ports)?

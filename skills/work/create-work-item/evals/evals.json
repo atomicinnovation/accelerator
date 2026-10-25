@@ -445,6 +445,19 @@
         "commands.md shows the next-number call and no accelerator work create",
         "files.md says no file was written or edited"
       ]
+    },
+    {
+      "id": 38,
+      "name": "routes_a_running_rekey_as_busy",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty. The user approved the draft of a task titled \"Add search\" (kind task, priority medium) and you are at Step 5. Simulate `accelerator work next-number` exiting 1 with this stderr:\n\nwaiting for accelerator work rekey (pid 4242) to finish\nError: E_IDENTITY_RUN_BUSY: `accelerator work rekey` (pid 4242) is still running. Re-run once it finishes.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run in Step 5, in order, in full.\n- response.md: everything you tell the user in Step 5, in order.\n- files.md: every file you write or edit in Step 5, or `none`.",
+      "expected_output": "The skill stops at the refused next-number call: it says another identity command, a re-key, is still running and to retry once it ends; it neither names /rekey-work-items nor offers to finish or undo a re-key, runs no accelerator work create and writes no file.",
+      "files": [],
+      "expectations": [
+        "response.md says a re-key is still running and to retry once it ends",
+        "response.md does not name `/rekey-work-items` and offers no Finish or Undo choice",
+        "commands.md shows the next-number call and no accelerator work create",
+        "files.md says no file was written or edited"
+      ]
     }
   ]
 }

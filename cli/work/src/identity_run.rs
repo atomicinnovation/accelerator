@@ -103,7 +103,6 @@ pub enum IdentityRunRefusal {
     Busy(Option<Holder>),
     Lock(StoreError),
     RekeyInProgress,
-    RekeyRunning(Holder),
     RekeyPlanUnreadable(UnreadablePlan),
 }
 
@@ -114,10 +113,7 @@ impl From<IdentityRunRefusal> for NotRekeyed {
             IdentityRunRefusal::Lock(error) => {
                 Self::IdentityRunLockFailed(error.to_string())
             }
-            IdentityRunRefusal::RekeyInProgress => Self::InProgress(None),
-            IdentityRunRefusal::RekeyRunning(holder) => {
-                Self::InProgress(Some(holder))
-            }
+            IdentityRunRefusal::RekeyInProgress => Self::InProgress,
             IdentityRunRefusal::RekeyPlanUnreadable(plan) => {
                 Self::PlanUnreadable(plan)
             }
@@ -173,7 +169,7 @@ fn timed_out(gate: RunPlanGate, holder: Option<Holder>) -> IdentityRunRefusal {
         (RunPlanGate::InProgress, Some(holder))
             if holder.command.as_deref() == Some(REKEY) =>
         {
-            IdentityRunRefusal::RekeyRunning(holder)
+            IdentityRunRefusal::Busy(Some(holder))
         }
         (gate, holder) => {
             refused_by(gate).unwrap_or(IdentityRunRefusal::Busy(holder))

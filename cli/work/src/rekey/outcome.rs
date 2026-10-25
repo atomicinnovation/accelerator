@@ -33,8 +33,8 @@ pub enum SyncBlocker {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotRekeyed {
-    /// `Some` when the lock wait timed out behind a running re-key.
-    InProgress(Option<Holder>),
+    /// An interrupted run; a running one is [`Self::IdentityRunBusy`].
+    InProgress,
     PlanUnreadable(UnreadablePlan),
     NotReverted(Unreverted),
     PartlyApplied {
@@ -174,7 +174,7 @@ impl NotRekeyed {
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
-            Self::InProgress(_) => "E_REKEY_IN_PROGRESS",
+            Self::InProgress => "E_REKEY_IN_PROGRESS",
             Self::PlanUnreadable(_) => "E_REKEY_PLAN_UNREADABLE",
             Self::NotReverted(_) => "E_REKEY_NOT_REVERTED",
             Self::PartlyApplied { .. } => "E_REKEY_PARTLY_APPLIED",
@@ -221,10 +221,7 @@ impl NotRekeyed {
 
     fn what(&self) -> String {
         match self {
-            Self::InProgress(None) => "a re-key run is in progress".to_owned(),
-            Self::InProgress(Some(holder)) => {
-                format!("a re-key is running (pid {})", holder.pid)
-            }
+            Self::InProgress => "a re-key run is in progress".to_owned(),
             Self::PlanUnreadable(plan) => unreadable(plan),
             Self::NotReverted(_) => "the run's write set has changed since \
                  it started"
@@ -314,12 +311,8 @@ impl NotRekeyed {
 
     fn remedy(&self) -> String {
         match self {
-            Self::InProgress(None) => {
-                format!("{RUN_REKEY}; {DISCARD_LISTS_PATHS}")
-            }
-            Self::InProgress(Some(_)) | Self::IdentityRunBusy(_) => {
-                "Re-run once it finishes".to_owned()
-            }
+            Self::InProgress => format!("{RUN_REKEY}; {DISCARD_LISTS_PATHS}"),
+            Self::IdentityRunBusy(_) => "Re-run once it finishes".to_owned(),
             Self::PlanUnreadable(UnreadablePlan {
                 cause: Unreadability::NewerSchema(schema),
                 ..
@@ -596,7 +589,7 @@ mod tests {
     /// gain it.
     const fn covered(outcome: &NotRekeyed) {
         match outcome {
-            NotRekeyed::InProgress(_)
+            NotRekeyed::InProgress
             | NotRekeyed::PlanUnreadable(_)
             | NotRekeyed::NotReverted(_)
             | NotRekeyed::PartlyApplied { .. }
@@ -630,14 +623,15 @@ mod tests {
     fn plan_remedies() -> Vec<(NotRekeyed, &'static str)> {
         vec![
             (
-                NotRekeyed::InProgress(None),
+                NotRekeyed::InProgress,
                 "Run `accelerator work rekey` to finish it; to undo it \
                  instead, run `accelerator work rekey --discard`, which \
                  lists the paths to restore",
             ),
             (
-                NotRekeyed::InProgress(Some(holder(Some("rekey")))),
-                "a re-key is running (pid 4242). Re-run once it finishes",
+                NotRekeyed::IdentityRunBusy(Some(holder(Some("rekey")))),
+                "`accelerator work rekey` (pid 4242) is still running. Re-run \
+                 once it finishes",
             ),
             (
                 unreadable(Unreadability::NewerSchema(2)),

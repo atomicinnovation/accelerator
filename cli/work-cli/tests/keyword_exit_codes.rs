@@ -238,7 +238,7 @@ fn rekey_entry() -> RekeyEntry {
 fn every_not_rekeyed() -> Vec<NotRekeyed> {
     let item = PathBuf::from("meta/work/0042-x.md");
     vec![
-        NotRekeyed::InProgress(None),
+        NotRekeyed::InProgress,
         NotRekeyed::PlanUnreadable(UnreadablePlan {
             path: PathBuf::from(".accelerator/state/rekey/run-plan.json"),
             cause: Unreadability::NewerSchema(2),

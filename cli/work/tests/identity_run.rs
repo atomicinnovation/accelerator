@@ -254,7 +254,7 @@ fn a_timeout_with_a_plan_in_progress_is_rekey_in_progress() {
 }
 
 #[test]
-fn a_timeout_behind_a_running_rekey_says_the_rekey_is_running() {
+fn a_timeout_behind_a_running_rekey_is_busy_naming_the_rekey() {
     let events = Events::default();
     let rekey = holder(Some("rekey"));
     let lock =
@@ -272,7 +272,7 @@ fn a_timeout_behind_a_running_rekey_says_the_rekey_is_running() {
     };
     assert_eq!(
         NotRekeyed::from(refusal),
-        NotRekeyed::InProgress(Some(rekey))
+        NotRekeyed::IdentityRunBusy(Some(rekey))
     );
 }
 
