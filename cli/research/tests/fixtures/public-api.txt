@@ -1297,6 +1297,7 @@ pub fn research::sources::request::ArxivQuery::fmt(&self, f: &mut core::fmt::For
 impl core::marker::StructuralPartialEq for research::sources::request::ArxivQuery
 pub struct research::sources::request::Doi(_)
 impl research::sources::request::Doi
+pub fn research::sources::request::Doi::canonical(&self) -> alloc::string::String
 pub fn research::sources::request::Doi::encoded(&self) -> alloc::string::String
 pub fn research::sources::request::Doi::parse(raw: &str) -> core::option::Option<Self>
 pub fn research::sources::request::Doi::url(&self) -> alloc::string::String

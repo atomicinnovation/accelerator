@@ -75,7 +75,6 @@ impl Work {
     fn citation_url(&self, work: &WorkId) -> String {
         self.doi
             .as_deref()
-            .map(|doi| doi.strip_prefix("https://doi.org/").unwrap_or(doi))
             .and_then(Doi::parse)
             .map_or_else(|| work.url(), |doi| doi.url())
     }

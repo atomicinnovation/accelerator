@@ -106,6 +106,16 @@ fn a_doi_with_unsafe_characters_is_cited_percent_encoded() {
 }
 
 #[test]
+fn a_doi_resolved_through_dx_is_cited_at_doi_org() {
+    let work = Work {
+        doi: Some("http://dx.doi.org/10.7717/peerj.4375".to_owned()),
+        ..published_article()
+    };
+    let record = normalise(&work).expect("valid work");
+    assert_eq!(record.url(), "https://doi.org/10.7717/peerj.4375");
+}
+
+#[test]
 fn a_work_whose_id_is_not_an_openalex_work_is_dropped() {
     let work = Work {
         id: "https://evil.example/W1".to_owned(),

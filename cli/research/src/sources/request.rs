@@ -302,23 +302,50 @@ fn all_digits(text: &str, lengths: std::ops::RangeInclusive<usize>) -> bool {
     lengths.contains(&text.len()) && text.chars().all(|c| c.is_ascii_digit())
 }
 
-/// A DOI safe to place in a request path or a citation URL.
+/// A DOI safe to place in a request path or a citation URL, kept in the case
+/// it was declared in.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Doi(String);
 
 impl Doi {
-    /// Accepts `10.<4–9 digits>/<suffix>` with no whitespace and no `.` or
-    /// `..` path segment.
+    const MAX_LENGTH: usize = 256;
+    const RESOLVER_SCHEMES: [&str; 2] = ["https://", "http://"];
+    const RESOLVER_HOSTS: [&str; 2] = ["doi.org/", "dx.doi.org/"];
+    const LABEL: &str = "doi:";
+
+    /// Reads a bare DOI, one labelled `doi:`, or a `doi.org` or `dx.doi.org`
+    /// resolver URL, whose query and fragment are cut before its path is
+    /// percent-decoded. Labels and URL prefixes match whatever their case.
+    ///
+    /// The DOI must be `10.<4–9 digits>/<suffix>` with no `.` or `..` path
+    /// segment, in printable ASCII and at most 256 characters.
     pub fn parse(raw: &str) -> Option<Self> {
-        let (directory, suffix) = raw.split_once('/')?;
+        let bare = match resolver_path(raw) {
+            Some(path) => percent_decode(
+                path.split(['?', '#']).next().unwrap_or_default(),
+            )?,
+            None => unlabelled(raw).to_owned(),
+        };
+        Self::validated(bare)
+    }
+
+    fn validated(bare: String) -> Option<Self> {
+        let (directory, suffix) = bare.split_once('/')?;
         let registrant = directory.strip_prefix("10.")?;
         let well_formed = all_digits(registrant, 4..=9)
             && !suffix.is_empty()
-            && !raw.chars().any(char::is_whitespace)
+            && bare.len() <= Self::MAX_LENGTH
+            && bare.bytes().all(|byte| byte.is_ascii_graphic())
             && !suffix
                 .split('/')
                 .any(|segment| matches!(segment, "." | ".."));
-        well_formed.then(|| Self(raw.to_owned()))
+        well_formed.then_some(Self(bare))
+    }
+
+    /// The metadata value form: ASCII letters lowercased, as DOIs compare
+    /// case-insensitively.
+    pub fn canonical(&self) -> String {
+        self.0.to_ascii_lowercase()
     }
 
     /// Percent-encoded outside the RFC 3986 unreserved set and `/`.
@@ -375,11 +402,7 @@ impl OpenAlexId {
         let recognised = if names_a_work {
             WorkId::from_openalex(raw).map(Self::Work)
         } else {
-            let doi = raw
-                .strip_prefix("doi:")
-                .or_else(|| raw.strip_prefix("https://doi.org/"))
-                .unwrap_or(raw);
-            Doi::parse(doi).map(Self::Doi)
+            Doi::parse(raw).map(Self::Doi)
         };
         recognised
             .ok_or_else(|| RequestError::MalformedOpenAlexId(raw.to_owned()))
@@ -778,6 +801,54 @@ impl Query {
 
     fn finish(self) -> String {
         self.url
+    }
+}
+
+fn resolver_path(raw: &str) -> Option<&str> {
+    Doi::RESOLVER_SCHEMES.iter().find_map(|scheme| {
+        let after_scheme = strip_prefix_ignoring_case(raw, scheme)?;
+        Doi::RESOLVER_HOSTS
+            .iter()
+            .find_map(|host| strip_prefix_ignoring_case(after_scheme, host))
+    })
+}
+
+fn unlabelled(raw: &str) -> &str {
+    strip_prefix_ignoring_case(raw, Doi::LABEL)
+        .map_or(raw, |rest| rest.strip_prefix(' ').unwrap_or(rest))
+}
+
+fn strip_prefix_ignoring_case<'a>(
+    text: &'a str,
+    prefix: &str,
+) -> Option<&'a str> {
+    let head = text.get(..prefix.len())?;
+    head.eq_ignore_ascii_case(prefix)
+        .then(|| &text[prefix.len()..])
+}
+
+/// `None` for a malformed escape or for bytes that decode to invalid UTF-8.
+fn percent_decode(text: &str) -> Option<String> {
+    let mut bytes = text.bytes();
+    let mut decoded = Vec::with_capacity(text.len());
+    while let Some(byte) = bytes.next() {
+        if byte == b'%' {
+            let high = hex_value(bytes.next()?)?;
+            let low = hex_value(bytes.next()?)?;
+            decoded.push(high << 4 | low);
+        } else {
+            decoded.push(byte);
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+const fn hex_value(digit: u8) -> Option<u8> {
+    match digit {
+        b'0'..=b'9' => Some(digit - b'0'),
+        b'a'..=b'f' => Some(digit - b'a' + 10),
+        b'A'..=b'F' => Some(digit - b'A' + 10),
+        _ => None,
     }
 }
 
