@@ -229,3 +229,15 @@ fn an_unusable_publication_date_is_left_out_while_the_rest_remain() {
         ])
     );
 }
+
+#[test]
+fn no_record_repeats_its_url_title_or_venue_in_its_metadata() {
+    let keys = metadata_of(&published_article())
+        .into_iter()
+        .map(|(key, _)| key)
+        .collect::<Vec<_>>();
+    for entry_line_field in ["url", "title", "container_title", "journal_title"]
+    {
+        assert!(!keys.iter().any(|key| key == entry_line_field));
+    }
+}

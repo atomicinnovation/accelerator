@@ -259,7 +259,14 @@ fn a_request_pinned_to_an_ipv6_literal_reaches_it() {
 
 #[test]
 fn a_host_the_client_would_read_differently_is_refused_unsent() {
-    for host in ["a%2Fb", "exa%20mple.org"] {
+    for host in [
+        "a%2Fb",
+        "exa%20mple.org",
+        "a%40127.0.0.1",
+        "127.0.0.1%2F.example",
+        "127.0.0.1%23.example",
+        "127.0.0.1%3F.example",
+    ] {
         let server = MockHTTPServer::start();
         server.route(page(), Route::Status(200));
 

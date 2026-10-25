@@ -65,10 +65,17 @@ fn a_recorded_work_decodes_its_venue_signals_and_abstract() {
 
 #[test]
 fn a_recorded_work_decodes_its_publication_date() {
-    assert_eq!(
-        work("work-doi.json").publication_date.as_deref(),
-        Some("2018-02-13")
-    );
+    for (fixture, published) in [
+        ("work-doi.json", "2018-02-13"),
+        ("work-no-doi.json", "1989-01-01"),
+        ("work-retracted.json", "2020-07-30"),
+    ] {
+        assert_eq!(
+            work(fixture).publication_date.as_deref(),
+            Some(published),
+            "{fixture}"
+        );
+    }
 }
 
 #[test]
