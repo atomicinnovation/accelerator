@@ -1444,6 +1444,7 @@ pub fn research::sources::request::WorkId::eq(&self, other: &research::sources::
 impl core::fmt::Debug for research::sources::request::WorkId
 pub fn research::sources::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::request::WorkId
+pub const research::sources::request::USER_AGENT: &str
 pub fn research::sources::request::parse_ticket(family: research::sources::request::Family, raw: core::option::Option<&str>) -> core::result::Result<core::option::Option<research::sources::queue::Ticket>, research::sources::request::RequestError>
 pub mod research::sources::schedule
 pub struct research::sources::schedule::Deadline

@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -164,7 +164,7 @@ struct Shared {
 }
 
 pub struct MockHTTPServer {
-    port: u16,
+    address: SocketAddr,
     shared: Arc<Shared>,
 }
 
@@ -173,8 +173,15 @@ impl MockHTTPServer {
     /// thread.
     #[must_use]
     pub fn start() -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock");
-        let port = listener.local_addr().expect("addr").port();
+        Self::start_on("127.0.0.1:0")
+    }
+
+    /// Binds `address`, such as `[::1]:0` for an IPv6 loopback port, and
+    /// starts serving in a background thread.
+    #[must_use]
+    pub fn start_on(address: &str) -> Self {
+        let listener = TcpListener::bind(address).expect("bind mock");
+        let address = listener.local_addr().expect("addr");
         listener.set_nonblocking(true).expect("nonblocking");
         let shared = Arc::new(Shared {
             routes: Mutex::new(HashMap::new()),
@@ -188,13 +195,19 @@ impl MockHTTPServer {
             drop(listener);
             server_shared.closed.store(true, Ordering::SeqCst);
         });
-        Self { port, shared }
+        Self { address, shared }
     }
 
     /// The base URL for the server (no trailing slash).
     #[must_use]
     pub fn base_url(&self) -> String {
-        format!("http://127.0.0.1:{}", self.port)
+        format!("http://{}", self.address)
+    }
+
+    /// The socket the server listens on.
+    #[must_use]
+    pub const fn address(&self) -> SocketAddr {
+        self.address
     }
 
     pub fn route(&self, key: RequestKey, route: Route) {

@@ -24,7 +24,8 @@ version = 2
 unmaintained = "all"
 yanked = "deny"
 # hickory-proto 0.25 DNS-parsing DoS advisories with no upgrade path yet
-# (reqwest 0.12 pins hickory-resolver 0.25). Remove when reqwest adopts 0.26.
+# (reqwest 0.12 pins hickory-resolver 0.25, and research-adapters pins the
+# same version directly). Remove once both have moved to 0.26.
 #
 # Every entry carries a `review-by: YYYY-MM-DD` in its reason, asserted by
 # tests/integration/deny/test_advisory_ignores.py — cargo-deny enforces no
@@ -37,8 +38,8 @@ yanked = "deny"
 # upgrade, patch or vendor — never an ignore, because this closure reaches the
 # publicly distributed signed accelerator-visualiser binary.
 ignore = [
-    { id = "RUSTSEC-2026-0118", reason = "hickory-proto 0.25 DNS-parsing DoS; no upgrade path until reqwest adopts hickory-resolver 0.26. review-by: 2026-11-03" },
-    { id = "RUSTSEC-2026-0119", reason = "hickory-proto 0.25 DNS-parsing DoS; no upgrade path until reqwest adopts hickory-resolver 0.26. review-by: 2026-11-03" },
+    { id = "RUSTSEC-2026-0118", reason = "hickory-proto 0.25 DNS-parsing DoS; reqwest and research-adapters both use hickory-resolver 0.25 directly, so remove only once both have moved to 0.26. review-by: 2026-11-03" },
+    { id = "RUSTSEC-2026-0119", reason = "hickory-proto 0.25 DNS-parsing DoS; reqwest and research-adapters both use hickory-resolver 0.25 directly, so remove only once both have moved to 0.26. review-by: 2026-11-03" },
 ]
 
 [licenses]

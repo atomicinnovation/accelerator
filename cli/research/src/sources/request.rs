@@ -7,7 +7,7 @@ use crate::sources::queue::Ticket;
 use crate::sources::web::page_url::PageUrl;
 use crate::sources::web::page_url::PageUrlError;
 
-const USER_AGENT: &str =
+pub const USER_AGENT: &str =
     concat!("accelerator-research/", env!("CARGO_PKG_VERSION"));
 const ATOM: &str = "application/atom+xml";
 const OPENALEX_SELECT: &str = "id,doi,display_name,type,authorships,\

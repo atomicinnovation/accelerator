@@ -4146,11 +4146,13 @@ version = "1.24.0-pre.87"
 dependencies = [
  "corpus",
  "corpus-adapters",
+ "hickory-resolver",
  "html5gum",
  "http-test-support",
  "icu_normalizer",
  "icu_properties",
  "kernel",
+ "network",
  "rand 0.9.5",
  "reqwest",
  "research",
@@ -4162,6 +4164,8 @@ dependencies = [
  "sha2",
  "store",
  "tempfile",
+ "tokio",
+ "url",
 ]
 
 [[package]]

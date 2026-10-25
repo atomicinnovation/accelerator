@@ -15,12 +15,16 @@ workspace = true
 
 [dependencies]
 research = { path = "../research" }
+network = { path = "../network" }
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
 # rustls-tls-webpki-roots-no-provider installs no crypto provider, so the
 # transport installs ring itself.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+url = { workspace = true }
+hickory-resolver = { workspace = true }
+tokio = { workspace = true }
 roxmltree = { workspace = true }
 html5gum = { workspace = true }
 serde = { workspace = true }

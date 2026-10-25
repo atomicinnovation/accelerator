@@ -142,7 +142,7 @@ fn failure(error: &reqwest::Error) -> Response {
 
 /// A body read that outlives the budget surfaces as an `io::Error` wrapping
 /// reqwest's own error, which alone knows it was a timeout.
-fn is_timeout(error: &std::io::Error) -> bool {
+pub(crate) fn is_timeout(error: &std::io::Error) -> bool {
     error.kind() == std::io::ErrorKind::TimedOut
         || error
             .get_ref()
@@ -153,6 +153,6 @@ fn is_timeout(error: &std::io::Error) -> bool {
 /// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, so
 /// nothing but this call stands between an `https` request and a handshake
 /// failure.
-fn install_crypto_provider() {
+pub(crate) fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
 }
