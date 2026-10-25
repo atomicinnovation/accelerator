@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T09:58:24+00:00"
+last_updated: "2026-10-25T11:35:40+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1242,13 +1242,13 @@ impl Family {
   `OpenAlexRequest::parse(verb, terms, limit)`, `ArxivRequest::parse(…)` or
   `WebRequest::parse(…)`. Each accepts only its own verbs. This replaces the
   `(Family, Verb)` cross product at `request.rs:564-593`.
-- An unsupported verb is `UnknownVerb { family, supported }`, worded from
-  `Family::verbs()`:
+- An unsupported verb is `UnknownVerb { verb, family }`, worded from
+  `family.verbs()`:
   - `unknown verb 'find' (openalex supports search or lookup)`;
   - `unknown verb 'search' (web supports metadata)`.
 
   `FETCH_HELP` stays a hand-written `const`. A unit test in
-  `research-cli` asserts that every family and each of its
+  `research-cli` asserts that every family in `Family::ALL` and each of its
   `Family::verbs()` appears in it, so the help cannot drift from the
   parser.
 - The academic wording changes, so these assertions change with it:
@@ -1256,8 +1256,8 @@ impl Family {
     `cli/research/tests/request.rs:353`;
   - `cli/research-cli/tests/fetch_openalex.rs:88`.
 
-  The CHANGELOG entry records the reworded usage messages as a non-breaking
-  text change.
+  No CHANGELOG entry records the rewording: `accelerator research` is
+  itself unreleased, so no release carried the old messages.
 - Regenerate `cli/research/tests/fixtures/public-api.txt` after reading
   the diff. It pins `UnknownVerb`'s shape and the new `Family`, `Verb` and
   `WebRequest` variants.
@@ -1412,9 +1412,11 @@ impl Family {
 
 - `fetch()` in `main.rs` branches on `FetchRequest::Web` as soon as the
   request and ticket parse, before `selected_endpoints()` and
-  `working_project()`. It calls `web_command::run(request, clock,
+  `working_project()`. It calls `web_command::run(request, adapters, clock,
   deadline)` with the `Deadline` that `main()` already builds, so
   `ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS` applies under `test-loopback`.
+  `main`'s `selected_web_adapters()` chooses the `WebAdapters` (resolver
+  and transport), so `test-loopback` can wrap the production pair.
   - `fetch()` matches `FetchRequest` once:
     - `Web` goes to `web_command::run`;
     - `OpenAlex` and `Arxiv` become an academic-only
@@ -1431,7 +1433,8 @@ impl Family {
   - `research-cli` gains `network = { path = "../network" }` for
     `loopback.rs`'s check that `STAND_IN` classifies `Public`.
   - `web_command::run` needs no project, endpoint overrides or credentials.
-- `web_command::run`'s outcomes:
+- `web_command::run` returns `Result<SourceMetadata, WebFailure>`, and
+  `main` prints the outcome:
   - success: `{"status":"ok","metadata":{…}}` on stdout, exit 0;
   - `WebFailure`: its line on stderr, exit 1;
   - a usage error: exit 2, as before.
@@ -1441,10 +1444,14 @@ impl Family {
   name `web metadata` and its exit codes.
 - `test-loopback` only: `ACCELERATOR_RESEARCH_TEST_RESOLVE=<name>=<loopback
   socket>`.
-  - `loopback::stand_in_resolver` answers that one name with
-    `STAND_IN = 93.184.216.34:<port>`, a public stand-in address.
-  - `loopback::stand_in_transport` rewrites a pinned `STAND_IN` to the
-    loopback socket. The domain's admission rule is untouched.
+  - `loopback::stand_in()` reads the variable, and
+    `loopback::through_stand_in(&StandIn, WebAdapters)` wraps the
+    production adapters.
+  - Its resolver answers that one name with `STAND_IN =
+    93.184.216.34:<port>`, a public stand-in address carrying the URL's
+    port, and passes every other name to the production resolver.
+  - Its transport rewrites a pinned `STAND_IN` to the loopback socket. The
+    domain's admission rule is untouched.
   - The value must be a loopback socket, as `overridden` already demands
     for API URLs.
   - Unit tests in `loopback.rs` assert that:
@@ -1481,22 +1488,16 @@ impl Family {
 
 #### 6. As built
 
-- `RequestError::UnknownVerb` carries `{ verb, family }` and words the
-  supported verbs from `family.verbs()`, rather than holding them too.
-  `Family::ALL` lists every family, for the help drift test.
 - `Verb::parse` returns an `Option`, and each family's parser rejects any
   verb it does not support, so no parser needs an unreachable arm.
-- The academic usage-message rewording has no CHANGELOG entry of its own:
-  `accelerator research` is itself still unreleased, so Phase 5's entries
-  describe the messages as they now stand.
 - `bounded_lookup(within, future)` builds and drops its own current-thread
   runtime, so `DnsHostResolver` and its test share one entry point.
 - The page transport takes its `User-Agent` from the domain's now-public
   `request::USER_AGENT`, as the academic requests do.
 - `MockHTTPServer::start_on` binds any address, for the `[::1]` transport
   test.
-- The stand-in resolver passes every name but its own to the production
-  resolver.
+- Until the CLI wiring landed, the request-model commit had a `web`
+  request exit 1.
 
 ### Success Criteria
 
