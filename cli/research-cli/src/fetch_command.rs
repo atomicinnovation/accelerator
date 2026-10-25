@@ -49,6 +49,14 @@ pub struct FetchPorts {
     pub credentials: CredentialPorts,
 }
 
+/// A validated request to one of the scholarly sources, which share the
+/// retried, paced fetch workflow.
+#[derive(Clone)]
+pub enum ScholarlyRequest {
+    OpenAlex(OpenAlexRequest),
+    Arxiv(ArxivRequest),
+}
+
 /// A validated request paired with the adapters of the one source it asks,
 /// so no call builds, or reads configuration for, a source it never asks.
 pub enum SourceCall {
@@ -315,8 +323,9 @@ mod tests {
     use research::sources::queue::Position;
     use research::sources::queue::Ticket;
     use research::sources::request::ArxivId;
+    use research::sources::request::ArxivRequest;
     use research::sources::request::Endpoint;
-    use research::sources::request::FetchRequest;
+    use research::sources::request::OpenAlexRequest;
     use research::sources::request::UpstreamRequest;
     use research::sources::schedule::Deadline;
     use research_adapters::arxiv_xml::XmlArxivDecoder;
@@ -329,6 +338,7 @@ mod tests {
     use super::FetchPorts;
     use super::Fetched;
     use super::OpenAlexAdapters;
+    use super::ScholarlyRequest;
     use super::SourceCall;
     use crate::context::ProjectContext;
 
@@ -575,7 +585,7 @@ mod tests {
     }
 
     struct Call {
-        request: FetchRequest,
+        request: ScholarlyRequest,
         turns_served: Rc<Cell<usize>>,
         confirmations: RememberingCache,
         clock: Rc<VirtualClock>,
@@ -591,13 +601,14 @@ mod tests {
             let clock = VirtualClock::new();
             let deadline = Deadline::starting(clock.now(), secs(100), secs(30));
             Self {
-                request: FetchRequest::parse(
-                    "openalex",
-                    "search",
-                    &["graphs".to_owned()],
-                    None,
-                )
-                .expect("a valid request"),
+                request: ScholarlyRequest::OpenAlex(
+                    OpenAlexRequest::parse(
+                        "search",
+                        &["graphs".to_owned()],
+                        None,
+                    )
+                    .expect("a valid request"),
+                ),
                 turns_served: Rc::default(),
                 confirmations: RememberingCache::default(),
                 clock,
@@ -610,9 +621,10 @@ mod tests {
         }
 
         fn arxiv_lookup(mut self, id: &str) -> Self {
-            self.request =
-                FetchRequest::parse("arxiv", "lookup", &[id.to_owned()], None)
-                    .expect("a valid request");
+            self.request = ScholarlyRequest::Arxiv(
+                ArxivRequest::parse("lookup", &[id.to_owned()], None)
+                    .expect("a valid request"),
+            );
             self
         }
 
@@ -650,7 +662,7 @@ mod tests {
 
         fn source_call(&self) -> SourceCall {
             match self.request.clone() {
-                FetchRequest::OpenAlex(request) => SourceCall::OpenAlex(
+                ScholarlyRequest::OpenAlex(request) => SourceCall::OpenAlex(
                     request,
                     OpenAlexAdapters {
                         api: Endpoint::openalex(),
@@ -661,7 +673,7 @@ mod tests {
                         gate: Box::new(NoPacing),
                     },
                 ),
-                FetchRequest::Arxiv(request) => SourceCall::Arxiv(
+                ScholarlyRequest::Arxiv(request) => SourceCall::Arxiv(
                     ArxivCall {
                         request,
                         presented: None,

@@ -1172,6 +1172,8 @@ impl research::sources::request::ArxivRequest
 pub const fn research::sources::request::ArxivRequest::limit(&self) -> research::sources::request::Limit
 pub fn research::sources::request::ArxivRequest::upstream(&self, api: &research::sources::request::Endpoint) -> research::sources::request::UpstreamRequest
 pub const fn research::sources::request::ArxivRequest::verb(&self) -> research::sources::request::Verb
+impl research::sources::request::ArxivRequest
+pub fn research::sources::request::ArxivRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
 impl core::clone::Clone for research::sources::request::ArxivRequest
 pub fn research::sources::request::ArxivRequest::clone(&self) -> research::sources::request::ArxivRequest
 impl core::cmp::Eq for research::sources::request::ArxivRequest
@@ -1183,9 +1185,11 @@ impl core::marker::StructuralPartialEq for research::sources::request::ArxivRequ
 pub enum research::sources::request::Family
 pub research::sources::request::Family::Arxiv
 pub research::sources::request::Family::OpenAlex
+pub research::sources::request::Family::Web
 impl research::sources::request::Family
 pub const fn research::sources::request::Family::code(self) -> &'static str
 pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub const fn research::sources::request::Family::verbs(self) -> &'static [research::sources::request::Verb]
 impl core::clone::Clone for research::sources::request::Family
 pub fn research::sources::request::Family::clone(&self) -> research::sources::request::Family
 impl core::cmp::Eq for research::sources::request::Family
@@ -1200,6 +1204,7 @@ impl core::marker::StructuralPartialEq for research::sources::request::Family
 pub enum research::sources::request::FetchRequest
 pub research::sources::request::FetchRequest::Arxiv(research::sources::request::ArxivRequest)
 pub research::sources::request::FetchRequest::OpenAlex(research::sources::request::OpenAlexRequest)
+pub research::sources::request::FetchRequest::Web(research::sources::request::WebRequest)
 impl research::sources::request::FetchRequest
 pub const fn research::sources::request::FetchRequest::family(&self) -> research::sources::request::Family
 pub fn research::sources::request::FetchRequest::parse(family: &str, verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
@@ -1234,6 +1239,8 @@ impl research::sources::request::OpenAlexRequest
 pub const fn research::sources::request::OpenAlexRequest::limit(&self) -> research::sources::request::Limit
 pub fn research::sources::request::OpenAlexRequest::upstream(&self, api: &research::sources::request::Endpoint, key: core::option::Option<&research::sources::request::ApiKey>) -> research::sources::request::UpstreamRequest
 pub const fn research::sources::request::OpenAlexRequest::verb(&self) -> research::sources::request::Verb
+impl research::sources::request::OpenAlexRequest
+pub fn research::sources::request::OpenAlexRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
 impl core::clone::Clone for research::sources::request::OpenAlexRequest
 pub fn research::sources::request::OpenAlexRequest::clone(&self) -> research::sources::request::OpenAlexRequest
 impl core::cmp::Eq for research::sources::request::OpenAlexRequest
@@ -1244,15 +1251,20 @@ pub fn research::sources::request::OpenAlexRequest::fmt(&self, f: &mut core::fmt
 impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexRequest
 pub enum research::sources::request::RequestError
 pub research::sources::request::RequestError::EmptyQuery
+pub research::sources::request::RequestError::LimitNotApplicable
 pub research::sources::request::RequestError::LimitOutOfRange(alloc::string::String)
 pub research::sources::request::RequestError::MalformedArxivId(alloc::string::String)
 pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
+pub research::sources::request::RequestError::MalformedUrl(research::sources::web::page_url::PageUrlError)
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
+pub research::sources::request::RequestError::MissingUrl
 pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
 pub research::sources::request::RequestError::TicketNotQueued
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
-pub research::sources::request::RequestError::UnknownVerb(alloc::string::String)
+pub research::sources::request::RequestError::UnknownVerb
+pub research::sources::request::RequestError::UnknownVerb::family: research::sources::request::Family
+pub research::sources::request::RequestError::UnknownVerb::verb: alloc::string::String
 impl core::clone::Clone for research::sources::request::RequestError
 pub fn research::sources::request::RequestError::clone(&self) -> research::sources::request::RequestError
 impl core::cmp::Eq for research::sources::request::RequestError
@@ -1266,10 +1278,11 @@ pub fn research::sources::request::RequestError::fmt(&self, formatter: &mut core
 impl core::marker::StructuralPartialEq for research::sources::request::RequestError
 pub enum research::sources::request::Verb
 pub research::sources::request::Verb::Lookup
+pub research::sources::request::Verb::Metadata
 pub research::sources::request::Verb::Search
 impl research::sources::request::Verb
 pub const fn research::sources::request::Verb::code(self) -> &'static str
-pub fn research::sources::request::Verb::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::request::Verb::parse(raw: &str) -> core::option::Option<Self>
 impl core::clone::Clone for research::sources::request::Verb
 pub fn research::sources::request::Verb::clone(&self) -> research::sources::request::Verb
 impl core::cmp::Eq for research::sources::request::Verb
@@ -1279,6 +1292,18 @@ impl core::fmt::Debug for research::sources::request::Verb
 pub fn research::sources::request::Verb::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::request::Verb
 impl core::marker::StructuralPartialEq for research::sources::request::Verb
+pub enum research::sources::request::WebRequest
+pub research::sources::request::WebRequest::Metadata(research::sources::web::page_url::PageUrl)
+impl research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::clone(&self) -> research::sources::request::WebRequest
+impl core::cmp::Eq for research::sources::request::WebRequest
+impl core::cmp::PartialEq for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::eq(&self, other: &research::sources::request::WebRequest) -> bool
+impl core::fmt::Debug for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::WebRequest
 pub struct research::sources::request::ApiKey
 impl research::sources::request::ApiKey
 pub const fn research::sources::request::ApiKey::new(secret: alloc::string::String, source: research::sources::request::KeySource) -> Self

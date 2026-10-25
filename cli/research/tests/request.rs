@@ -1,5 +1,6 @@
 #![allow(clippy::expect_used)]
 
+use research::sources::request::parse_ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
@@ -16,6 +17,9 @@ use research::sources::request::OpenAlexRequest;
 use research::sources::request::RequestError;
 use research::sources::request::UpstreamRequest;
 use research::sources::request::Verb;
+use research::sources::request::WebRequest;
+use research::sources::web::page_url::PageUrl;
+use research::sources::web::page_url::PageUrlError;
 
 fn terms(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
@@ -25,11 +29,12 @@ fn terms(words: &[&str]) -> Vec<String> {
 fn a_family_parses_only_from_its_exact_name() {
     assert_eq!(Family::parse("openalex"), Ok(Family::OpenAlex));
     assert_eq!(Family::parse("arxiv"), Ok(Family::Arxiv));
+    assert_eq!(Family::parse("web"), Ok(Family::Web));
     assert_eq!(
         Family::parse("openAlex").map_err(|error| error.to_string()),
         Err(
-            "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex \
-             or arxiv)"
+            "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex, \
+             arxiv or web)"
                 .to_owned()
         )
     );
@@ -39,14 +44,145 @@ fn a_family_parses_only_from_its_exact_name() {
 fn a_family_names_itself_for_callers_and_for_readers() {
     assert_eq!(Family::OpenAlex.code(), "openalex");
     assert_eq!(Family::Arxiv.code(), "arxiv");
+    assert_eq!(Family::Web.code(), "web");
     assert_eq!(Family::OpenAlex.to_string(), "OpenAlex");
     assert_eq!(Family::Arxiv.to_string(), "arXiv");
+    assert_eq!(Family::Web.to_string(), "web");
 }
 
 #[test]
 fn a_verb_names_itself_as_callers_spell_it() {
     assert_eq!(Verb::Search.code(), "search");
     assert_eq!(Verb::Lookup.code(), "lookup");
+    assert_eq!(Verb::Metadata.code(), "metadata");
+}
+
+const FAMILIES: [Family; 3] = [Family::OpenAlex, Family::Arxiv, Family::Web];
+const VERBS: [Verb; 3] = [Verb::Search, Verb::Lookup, Verb::Metadata];
+
+const fn a_valid_term_for(family: Family, verb: Verb) -> &'static str {
+    match (family, verb) {
+        (Family::Arxiv, Verb::Lookup) => "2608.21129",
+        (_, Verb::Lookup) => "W1",
+        (_, Verb::Search) => "graphs",
+        (_, Verb::Metadata) => "https://example.org/",
+    }
+}
+
+#[test]
+fn each_family_accepts_exactly_the_verbs_it_supports() {
+    for family in FAMILIES {
+        for verb in VERBS {
+            let parsed = FetchRequest::parse(
+                family.code(),
+                verb.code(),
+                &terms(&[a_valid_term_for(family, verb)]),
+                None,
+            );
+            if family.verbs().contains(&verb) {
+                let request = parsed.expect("a supported verb");
+                assert_eq!(request.family(), family);
+                assert_eq!(request.verb(), verb);
+            } else {
+                assert!(
+                    matches!(parsed, Err(RequestError::UnknownVerb { .. })),
+                    "{family:?} {verb:?}: {parsed:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn an_unknown_verb_names_what_its_family_supports() {
+    for (family, verb, message) in [
+        (
+            "openalex",
+            "find",
+            "E_RESEARCH_USAGE: unknown verb 'find' (openalex supports search \
+             or lookup)",
+        ),
+        (
+            "openalex",
+            "metadata",
+            "E_RESEARCH_USAGE: unknown verb 'metadata' (openalex supports \
+             search or lookup)",
+        ),
+        (
+            "web",
+            "search",
+            "E_RESEARCH_USAGE: unknown verb 'search' (web supports metadata)",
+        ),
+    ] {
+        assert_eq!(
+            FetchRequest::parse(family, verb, &terms(&["x"]), None)
+                .map_err(|error| error.to_string()),
+            Err(message.to_owned()),
+        );
+    }
+}
+
+#[test]
+fn a_web_metadata_request_carries_its_page_url() {
+    assert_eq!(
+        FetchRequest::parse(
+            "web",
+            "metadata",
+            &terms(&["https://example.org/a"]),
+            None
+        ),
+        Ok(FetchRequest::Web(WebRequest::Metadata(
+            PageUrl::parse("https://example.org/a").expect("valid")
+        )))
+    );
+}
+
+#[test]
+fn a_web_metadata_request_needs_exactly_one_url_and_no_limit() {
+    let one_url = "E_RESEARCH_USAGE: metadata needs exactly one URL";
+    for (words, limit, message) in [
+        (&[][..], None, one_url),
+        (
+            &["https://a.example/", "https://b.example/"][..],
+            None,
+            one_url,
+        ),
+        (
+            &["https://a.example/"][..],
+            Some("3"),
+            "E_RESEARCH_USAGE: --limit applies only to openalex and arxiv \
+             fetches",
+        ),
+        (
+            &["file:///etc/passwd"][..],
+            None,
+            "E_WEB_URL_MALFORMED: the URL is not a fetchable http(s) URL: \
+             only http and https are fetched",
+        ),
+    ] {
+        assert_eq!(
+            FetchRequest::parse("web", "metadata", &terms(words), limit)
+                .map_err(|error| error.to_string()),
+            Err(message.to_owned()),
+            "{words:?} {limit:?}"
+        );
+    }
+}
+
+#[test]
+fn a_malformed_page_url_is_distinguishable_from_a_usage_error() {
+    assert_eq!(
+        FetchRequest::parse("web", "metadata", &terms(&["ftp://x/"]), None),
+        Err(RequestError::MalformedUrl(PageUrlError::Scheme))
+    );
+}
+
+#[test]
+fn a_ticket_is_refused_for_a_web_request() {
+    assert_eq!(
+        parse_ticket(Family::Web, Some("42-9f1c2a")),
+        Err(RequestError::TicketNotQueued)
+    );
 }
 
 #[test]
@@ -417,8 +553,8 @@ fn a_request_refuses_each_usage_error_naming_the_bad_value() {
             "fetch",
             &["x"],
             None,
-            "E_RESEARCH_USAGE: unknown verb 'fetch' (expected search or \
-             lookup)",
+            "E_RESEARCH_USAGE: unknown verb 'fetch' (openalex supports search \
+             or lookup)",
         ),
         (
             "openalex",
@@ -446,8 +582,8 @@ fn a_request_refuses_each_usage_error_naming_the_bad_value() {
             "search",
             &["x"],
             None,
-            "E_RESEARCH_USAGE: unknown family 'crossref' (expected openalex \
-             or arxiv)",
+            "E_RESEARCH_USAGE: unknown family 'crossref' (expected openalex, \
+             arxiv or web)",
         ),
     ];
     for (family, verb, words, limit, message) in cases {

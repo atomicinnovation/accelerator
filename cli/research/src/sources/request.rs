@@ -4,6 +4,8 @@
 use std::fmt;
 
 use crate::sources::queue::Ticket;
+use crate::sources::web::page_url::PageUrl;
+use crate::sources::web::page_url::PageUrlError;
 
 const USER_AGENT: &str =
     concat!("accelerator-research/", env!("CARGO_PKG_VERSION"));
@@ -16,13 +18,16 @@ const OPENALEX_SELECT: &str = "id,doi,display_name,type,authorships,\
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestError {
     UnknownFamily(String),
-    UnknownVerb(String),
+    UnknownVerb { verb: String, family: Family },
     LimitOutOfRange(String),
+    LimitNotApplicable,
     MissingQuery,
     MissingId,
+    MissingUrl,
     EmptyQuery,
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
+    MalformedUrl(PageUrlError),
     TicketMalformed(String),
     TicketNotQueued,
 }
@@ -33,16 +38,21 @@ impl fmt::Display for RequestError {
             Self::UnknownFamily(family) => write!(
                 formatter,
                 "E_RESEARCH_USAGE: unknown family '{family}' (expected \
-                 openalex or arxiv)"
+                 openalex, arxiv or web)"
             ),
-            Self::UnknownVerb(verb) => write!(
+            Self::UnknownVerb { verb, family } => write!(
                 formatter,
-                "E_RESEARCH_USAGE: unknown verb '{verb}' (expected search or \
-                 lookup)"
+                "E_RESEARCH_USAGE: unknown verb '{verb}' ({} supports {})",
+                family.code(),
+                alternatives(family.verbs()),
             ),
             Self::LimitOutOfRange(limit) => write!(
                 formatter,
                 "E_RESEARCH_USAGE: --limit must be 1–25 (got {limit})"
+            ),
+            Self::LimitNotApplicable => formatter.write_str(
+                "E_RESEARCH_USAGE: --limit applies only to openalex and arxiv \
+                 fetches",
             ),
             Self::MissingQuery => {
                 formatter.write_str("E_RESEARCH_USAGE: search needs a query")
@@ -50,6 +60,8 @@ impl fmt::Display for RequestError {
             Self::MissingId => {
                 formatter.write_str("E_RESEARCH_USAGE: lookup needs an ID")
             }
+            Self::MissingUrl => formatter
+                .write_str("E_RESEARCH_USAGE: metadata needs exactly one URL"),
             Self::EmptyQuery => formatter.write_str(
                 "E_RESEARCH_USAGE: the query is empty once reserved \
                  characters are removed",
@@ -64,6 +76,11 @@ impl fmt::Display for RequestError {
                 "E_OPENALEX_ID_MALFORMED: expected W123, \
                  https://openalex.org/W123, or a DOI (got '{id}')"
             ),
+            Self::MalformedUrl(rule) => write!(
+                formatter,
+                "E_WEB_URL_MALFORMED: the URL is not a fetchable http(s) URL: \
+                 {rule}"
+            ),
             Self::TicketMalformed(ticket) => write!(
                 formatter,
                 "E_ARXIV_TICKET_MALFORMED: expected a ticket such as \
@@ -77,6 +94,25 @@ impl fmt::Display for RequestError {
 }
 
 impl std::error::Error for RequestError {}
+
+impl RequestError {
+    fn unknown_verb(family: Family, verb: &str) -> Self {
+        Self::UnknownVerb {
+            verb: verb.to_owned(),
+            family,
+        }
+    }
+}
+
+fn alternatives(verbs: &[Verb]) -> String {
+    let codes = verbs.iter().map(|verb| verb.code()).collect::<Vec<_>>();
+    match codes.split_last() {
+        Some((last, rest)) if !rest.is_empty() => {
+            format!("{} or {last}", rest.join(", "))
+        }
+        _ => codes.concat(),
+    }
+}
 
 /// The ticket a waiting arXiv call printed, re-presented by its caller.
 ///
@@ -97,11 +133,12 @@ pub fn parse_ticket(
     Ticket::parse(raw).map(Some)
 }
 
-/// A scholarly source the fetcher can reach.
+/// A source the fetcher can reach: a scholarly index, or a public page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Family {
     OpenAlex,
     Arxiv,
+    Web,
 }
 
 impl Family {
@@ -112,6 +149,7 @@ impl Family {
         match raw {
             "openalex" => Ok(Self::OpenAlex),
             "arxiv" => Ok(Self::Arxiv),
+            "web" => Ok(Self::Web),
             _ => Err(RequestError::UnknownFamily(raw.to_owned())),
         }
     }
@@ -121,6 +159,14 @@ impl Family {
         match self {
             Self::OpenAlex => "openalex",
             Self::Arxiv => "arxiv",
+            Self::Web => "web",
+        }
+    }
+
+    pub const fn verbs(self) -> &'static [Verb] {
+        match self {
+            Self::OpenAlex | Self::Arxiv => &[Verb::Search, Verb::Lookup],
+            Self::Web => &[Verb::Metadata],
         }
     }
 }
@@ -130,6 +176,7 @@ impl fmt::Display for Family {
         formatter.write_str(match self {
             Self::OpenAlex => "OpenAlex",
             Self::Arxiv => "arXiv",
+            Self::Web => "web",
         })
     }
 }
@@ -138,17 +185,17 @@ impl fmt::Display for Family {
 pub enum Verb {
     Search,
     Lookup,
+    Metadata,
 }
 
 impl Verb {
-    /// # Errors
-    ///
-    /// [`RequestError::UnknownVerb`] for anything but `search` or `lookup`.
-    pub fn parse(raw: &str) -> Result<Self, RequestError> {
+    /// Any verb some family supports, whichever family is asked.
+    pub fn parse(raw: &str) -> Option<Self> {
         match raw {
-            "search" => Ok(Self::Search),
-            "lookup" => Ok(Self::Lookup),
-            _ => Err(RequestError::UnknownVerb(raw.to_owned())),
+            "search" => Some(Self::Search),
+            "lookup" => Some(Self::Lookup),
+            "metadata" => Some(Self::Metadata),
+            _ => None,
         }
     }
 
@@ -156,6 +203,7 @@ impl Verb {
         match self {
             Self::Search => "search",
             Self::Lookup => "lookup",
+            Self::Metadata => "metadata",
         }
     }
 }
@@ -569,11 +617,12 @@ impl ArxivRequest {
 pub enum FetchRequest {
     OpenAlex(OpenAlexRequest),
     Arxiv(ArxivRequest),
+    Web(WebRequest),
 }
 
 impl FetchRequest {
-    /// Validates every argument before any request, joining search terms with
-    /// single spaces.
+    /// Validates every argument before any request, handing the verb and
+    /// its arguments to the family named.
     ///
     /// # Errors
     ///
@@ -584,35 +633,14 @@ impl FetchRequest {
         terms: &[String],
         limit: Option<&str>,
     ) -> Result<Self, RequestError> {
-        let family = Family::parse(family)?;
-        let verb = Verb::parse(verb)?;
-        let limit = limit.map_or_else(|| Ok(Limit::default()), Limit::parse)?;
-        if terms.is_empty() {
-            return Err(match verb {
-                Verb::Search => RequestError::MissingQuery,
-                Verb::Lookup => RequestError::MissingId,
-            });
-        }
-        let text = terms.join(" ");
-        Ok(match (family, verb) {
-            (Family::OpenAlex, Verb::Search) => {
-                Self::OpenAlex(OpenAlexRequest::Search {
-                    query: OpenAlexQuery::parse(&text)?,
-                    limit,
-                })
+        Ok(match Family::parse(family)? {
+            Family::OpenAlex => {
+                Self::OpenAlex(OpenAlexRequest::parse(verb, terms, limit)?)
             }
-            (Family::OpenAlex, Verb::Lookup) => Self::OpenAlex(
-                OpenAlexRequest::Lookup(OpenAlexId::parse(&text)?),
-            ),
-            (Family::Arxiv, Verb::Search) => {
-                Self::Arxiv(ArxivRequest::Search {
-                    query: ArxivQuery::parse(&text)?,
-                    limit,
-                })
+            Family::Arxiv => {
+                Self::Arxiv(ArxivRequest::parse(verb, terms, limit)?)
             }
-            (Family::Arxiv, Verb::Lookup) => {
-                Self::Arxiv(ArxivRequest::Lookup(ArxivId::parse(&text)?))
-            }
+            Family::Web => Self::Web(WebRequest::parse(verb, terms, limit)?),
         })
     }
 
@@ -620,6 +648,7 @@ impl FetchRequest {
         match self {
             Self::OpenAlex(_) => Family::OpenAlex,
             Self::Arxiv(_) => Family::Arxiv,
+            Self::Web(_) => Family::Web,
         }
     }
 
@@ -627,7 +656,112 @@ impl FetchRequest {
         match self {
             Self::OpenAlex(request) => request.verb(),
             Self::Arxiv(request) => request.verb(),
+            Self::Web(WebRequest::Metadata(_)) => Verb::Metadata,
         }
+    }
+}
+
+/// The text a scholarly verb reads: a search's query or a lookup's ID, with
+/// its words joined by single spaces.
+fn scholarly_text(
+    terms: &[String],
+    limit: Option<&str>,
+    missing: RequestError,
+) -> Result<(String, Limit), RequestError> {
+    let limit = limit.map_or_else(|| Ok(Limit::default()), Limit::parse)?;
+    if terms.is_empty() {
+        return Err(missing);
+    }
+    Ok((terms.join(" "), limit))
+}
+
+impl OpenAlexRequest {
+    /// # Errors
+    ///
+    /// A [`RequestError`] naming the first argument found invalid.
+    pub fn parse(
+        verb: &str,
+        terms: &[String],
+        limit: Option<&str>,
+    ) -> Result<Self, RequestError> {
+        match Verb::parse(verb) {
+            Some(Verb::Search) => {
+                let (text, limit) =
+                    scholarly_text(terms, limit, RequestError::MissingQuery)?;
+                Ok(Self::Search {
+                    query: OpenAlexQuery::parse(&text)?,
+                    limit,
+                })
+            }
+            Some(Verb::Lookup) => {
+                let (text, _) =
+                    scholarly_text(terms, limit, RequestError::MissingId)?;
+                Ok(Self::Lookup(OpenAlexId::parse(&text)?))
+            }
+            Some(Verb::Metadata) | None => {
+                Err(RequestError::unknown_verb(Family::OpenAlex, verb))
+            }
+        }
+    }
+}
+
+impl ArxivRequest {
+    /// # Errors
+    ///
+    /// A [`RequestError`] naming the first argument found invalid.
+    pub fn parse(
+        verb: &str,
+        terms: &[String],
+        limit: Option<&str>,
+    ) -> Result<Self, RequestError> {
+        match Verb::parse(verb) {
+            Some(Verb::Search) => {
+                let (text, limit) =
+                    scholarly_text(terms, limit, RequestError::MissingQuery)?;
+                Ok(Self::Search {
+                    query: ArxivQuery::parse(&text)?,
+                    limit,
+                })
+            }
+            Some(Verb::Lookup) => {
+                let (text, _) =
+                    scholarly_text(terms, limit, RequestError::MissingId)?;
+                Ok(Self::Lookup(ArxivId::parse(&text)?))
+            }
+            Some(Verb::Metadata) | None => {
+                Err(RequestError::unknown_verb(Family::Arxiv, verb))
+            }
+        }
+    }
+}
+
+/// A request for what a public page declares about itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WebRequest {
+    Metadata(PageUrl),
+}
+
+impl WebRequest {
+    /// # Errors
+    ///
+    /// A [`RequestError`] naming the first argument found invalid.
+    pub fn parse(
+        verb: &str,
+        terms: &[String],
+        limit: Option<&str>,
+    ) -> Result<Self, RequestError> {
+        if Verb::parse(verb) != Some(Verb::Metadata) {
+            return Err(RequestError::unknown_verb(Family::Web, verb));
+        }
+        if limit.is_some() {
+            return Err(RequestError::LimitNotApplicable);
+        }
+        let [url] = terms else {
+            return Err(RequestError::MissingUrl);
+        };
+        PageUrl::parse(url)
+            .map(Self::Metadata)
+            .map_err(RequestError::MalformedUrl)
     }
 }
 

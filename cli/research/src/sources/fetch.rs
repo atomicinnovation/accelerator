@@ -32,7 +32,6 @@ use crate::sources::request::Endpoint;
 use crate::sources::request::Family;
 use crate::sources::request::OpenAlexRequest;
 use crate::sources::request::UpstreamRequest;
-use crate::sources::request::Verb;
 use crate::sources::schedule::Deadline;
 use crate::sources::schedule::RetryNumber;
 use crate::sources::schedule::RetrySchedule;
@@ -256,9 +255,9 @@ pub fn fetch_openalex(
         &fetch.request.upstream(fetch.api, fetch.key),
         &|response| classify::openalex(response, verb, key),
         &mut |body| {
-            match verb {
-                Verb::Search => ports.decoder.works(&body),
-                Verb::Lookup => {
+            match fetch.request {
+                OpenAlexRequest::Search { .. } => ports.decoder.works(&body),
+                OpenAlexRequest::Lookup(_) => {
                     ports.decoder.work(&body).map(|work| vec![work])
                 }
             }

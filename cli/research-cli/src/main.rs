@@ -62,6 +62,7 @@ use crate::fetch_command::ArxivCall;
 use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
+use crate::fetch_command::ScholarlyRequest;
 use crate::fetch_command::SourceCall;
 use crate::topic_command::OutstandingFlags;
 use crate::topic_command::PlanRequest;
@@ -150,6 +151,13 @@ fn fetch(
     let (request, presented) = match parsed {
         Ok(parsed) => parsed,
         Err(error) => return usage(&error.to_string()),
+    };
+    let request = match request {
+        FetchRequest::OpenAlex(request) => ScholarlyRequest::OpenAlex(request),
+        FetchRequest::Arxiv(request) => ScholarlyRequest::Arxiv(request),
+        FetchRequest::Web(_) => {
+            return failure("E_RESEARCH_USAGE: web fetches are not served yet")
+        }
     };
     let endpoints = match selected_endpoints() {
         Ok(endpoints) => endpoints,
@@ -280,7 +288,7 @@ fn minted_run() -> Result<RunId, String> {
 /// Builds only the asked source's adapters, so an OpenAlex call never reads
 /// the configuration arXiv's shared state needs.
 fn source_call(
-    request: FetchRequest,
+    request: ScholarlyRequest,
     presented: Option<Ticket>,
     endpoints: Endpoints,
     project: &ProjectContext,
@@ -290,7 +298,7 @@ fn source_call(
     let transport = HttpTransport::new(deadline.per_request())
         .map_err(|error| error.to_string())?;
     Ok(match request {
-        FetchRequest::OpenAlex(request) => SourceCall::OpenAlex(
+        ScholarlyRequest::OpenAlex(request) => SourceCall::OpenAlex(
             request,
             OpenAlexAdapters {
                 api: endpoints.openalex_api,
@@ -299,7 +307,7 @@ fn source_call(
                 gate: Box::new(NoPacing),
             },
         ),
-        FetchRequest::Arxiv(request) => {
+        ScholarlyRequest::Arxiv(request) => {
             let scratch = project
                 .research_scratch()
                 .map_err(|error| error.to_string())?;
