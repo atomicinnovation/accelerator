@@ -1392,3 +1392,28 @@ def test_every_template_carries_the_metadata_slot_under_its_entry(
     assert lines[entry + 1 : entry + 2] == [METADATA_SLOT], (
         f"{template.name} must carry {METADATA_SLOT!r} under its Sources entry"
     )
+
+
+def _synthesise() -> str:
+    return _section(
+        _research_topic_prose(), "### synthesise", "### Reopening a closed set"
+    )
+
+
+@pytest.mark.parametrize(
+    "carrier",
+    [lambda: _prose(COMPOSER), _synthesise],
+    ids=["composer", "synthesise"],
+)
+def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
+    text = carrier()
+    for rule in (
+        "metadata block byte-for-byte",
+        "even when it is not in canonical order",
+        "`{source-metadata}`",
+    ):
+        assert rule in text, f"a carrier must state {rule!r}"
+
+
+def test_synthesise_leaves_a_one_line_citation_one_line() -> None:
+    assert "cited one-line in its finding stays one-line" in _synthesise()
