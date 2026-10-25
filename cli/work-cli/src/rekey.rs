@@ -1406,21 +1406,38 @@ mod tests {
     }
 
     #[test]
-    fn a_multi_project_corpus_rekeys_to_nothing() {
+    fn a_renamed_key_rekeys_every_item_under_the_old_one() {
+        let repo = Repo::with(
+            KEYED,
+            &[
+                ("meta/work/OLD-0001-a.md", &item("OLD-0001", "A", "")),
+                ("meta/work/OLD-0002-b.md", &item("OLD-0002", "B", "")),
+            ],
+        );
+
+        let ran = repo.rekey();
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(repo.read("meta/work/ACC-0001-a.md").is_some());
+        assert!(repo.read("meta/work/ACC-0002-b.md").is_some());
+        assert_eq!(repo.read("meta/work/OLD-0001-a.md"), None);
+    }
+
+    #[test]
+    fn items_under_two_keys_holding_one_number_refuse_writing_nothing() {
         let repo = Repo::with(
             KEYED,
             &[
                 ("meta/work/ACC-0001-a.md", &item("ACC-0001", "A", "")),
                 ("meta/work/XYZ-0001-b.md", &item("XYZ-0001", "B", "")),
-                ("meta/work/AB1-0001-c.md", &item("AB1-0001", "C", "")),
             ],
         );
         let before = repo.tree();
 
         let ran = repo.rekey();
 
-        assert_eq!(ran.code, 0, "{ran:?}");
-        assert!(ran.out.is_empty(), "{ran:?}");
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(ran.err.contains("E_REKEY_ID_COLLISION"), "{ran:?}");
         assert_eq!(repo.tree(), before);
     }
 

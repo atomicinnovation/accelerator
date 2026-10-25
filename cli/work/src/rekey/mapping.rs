@@ -33,8 +33,8 @@ pub struct RekeyCandidate {
 
 /// Every item off the pattern, by old `id`, with what it becomes.
 ///
-/// A kept number is re-rendered under its own project key, or under
-/// `work.key` when it has none. A tracker key or draft takes a fresh number
+/// A kept number is re-rendered under `work.key`, whatever project key it
+/// had. A tracker key or draft takes a fresh number
 /// under `work.key`, in creation-date order, above every number that key
 /// already holds.
 ///
@@ -66,7 +66,7 @@ pub fn numeric_mapping(
             }
             Classification::Sequenced(number) => entries.push(renumbered(
                 &identity.id,
-                rendered(scheme, kept_key(&identity.id, scheme), number),
+                rendered(scheme, default_key(scheme), number),
             )),
             Classification::Unclassifiable => {
                 return Err(NotRekeyed::Unclassifiable(identity.path.clone()));
@@ -98,10 +98,6 @@ fn default_key(scheme: &WorkItemIdScheme) -> Option<&str> {
     } else {
         None
     }
-}
-
-fn kept_key<'a>(id: &'a str, scheme: &'a WorkItemIdScheme) -> Option<&'a str> {
-    default_key(scheme).map(|fallback| project_key_of(id).unwrap_or(fallback))
 }
 
 /// The highest number held, as an `id`, an alias or a kept target, bare or
@@ -514,17 +510,37 @@ mod tests {
     }
 
     #[test]
-    fn a_multi_project_corpus_is_a_fixed_point() {
-        let corpus = [local("ACC-0001"), local("XYZ-0001"), local("AB1-0001")];
-        assert_eq!(mapped(&acc(), &corpus), pairs(&[]));
+    fn an_item_under_another_key_moves_to_the_default_key_keeping_its_number() {
+        let corpus = [local("ACC-0001"), local("XYZ-0002"), local("AB1-0003")];
+        assert_eq!(
+            mapped(&acc(), &corpus),
+            pairs(&[("AB1-0003", "ACC-0003"), ("XYZ-0002", "ACC-0002")])
+        );
     }
 
     #[test]
-    fn a_width_change_keeps_each_items_project_key() {
-        let corpus = [local("ACC-001"), local("XYZ-001")];
+    fn renaming_the_key_re_keys_every_item_under_the_old_one() {
+        let corpus = [local("ACC-0001"), local("ACC-0002")];
+        assert_eq!(
+            mapped(&keyed("PRJ"), &corpus),
+            pairs(&[("ACC-0001", "PRJ-0001"), ("ACC-0002", "PRJ-0002")])
+        );
+    }
+
+    #[test]
+    fn items_under_two_keys_holding_one_number_collide() {
+        assert!(matches!(
+            numeric_mapping(&acc(), &[local("OLD-0001"), local("XYZ-0001")]),
+            Err(NotRekeyed::Collision { .. })
+        ));
+    }
+
+    #[test]
+    fn a_width_change_moves_every_item_to_the_default_key() {
+        let corpus = [local("ACC-001"), local("XYZ-002")];
         assert_eq!(
             mapped(&acc(), &corpus),
-            pairs(&[("ACC-001", "ACC-0001"), ("XYZ-001", "XYZ-0001")])
+            pairs(&[("ACC-001", "ACC-0001"), ("XYZ-002", "ACC-0002")])
         );
     }
 
@@ -545,15 +561,15 @@ mod tests {
         ];
         assert_eq!(
             mapped(&acc(), &corpus),
-            pairs(&[("draft-k3x9mq", "ACC-0004")])
+            pairs(&[("XYZ-0009", "ACC-0009"), ("draft-k3x9mq", "ACC-0010")])
         );
     }
 
     #[test]
-    fn an_unsynced_tracker_shaped_id_keeps_its_own_key_under_a_key_pattern() {
+    fn an_unsynced_tracker_shaped_id_moves_to_the_default_key() {
         assert_eq!(
             mapped(&acc(), &[local("PP-760")]),
-            pairs(&[("PP-760", "PP-0760")])
+            pairs(&[("PP-760", "ACC-0760")])
         );
     }
 

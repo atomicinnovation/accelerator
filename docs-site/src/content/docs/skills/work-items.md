@@ -71,7 +71,8 @@ reconciles `meta/work/` with the configured remote tracker — run it with
 [`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
 previews and then gives every existing item an ID in the new shape,
 renaming files and rewriting references across `meta/`; the old ID joins
-`aliases`.
+`aliases`. Under a `{key}` pattern every item keeps its number under
+`work.key`, whatever key it had before.
 
 Work items share a template with YAML frontmatter (`work_item_id`,
 `title`, `type`, `status`, `priority`, `parent`, `tags`) and structured

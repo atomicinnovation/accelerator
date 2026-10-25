@@ -362,7 +362,9 @@
 - **Re-key work items onto a changed ID pattern.** `accelerator work rekey
   [--preview | --discard] [--per-item-reads]` gives every work item an `id`
   in the shape `work.id_pattern` describes, renaming its file, adding the old
-  `id` to `aliases` and rewriting references across every corpus root.
+  `id` to `aliases` and rewriting references across every corpus root. Under
+  a `{key}` pattern every item keeps its number under `work.key`, so renaming
+  the key re-keys items under the old one.
   `--preview` records the mapping, which the next apply re-keys exactly; an
   interrupted run finishes when run again, and `--discard` drops a previewed
   run or one a revert has undone. It refuses over uncommitted corpus changes

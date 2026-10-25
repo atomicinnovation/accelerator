@@ -31,21 +31,13 @@ pub(crate) fn project_key_of(id: &str) -> Option<&str> {
     well_formed.then_some(key)
 }
 
-/// Whether the pattern, rendering `id`'s own number under `id`'s own project
-/// key, gives back `id`, ignoring case. Under a pattern with a `{key}`, an
-/// `id` with no project key is never in shape.
+/// Whether the pattern, rendering `id`'s own number under `work.key`, gives
+/// back `id`, ignoring case; an `id` under any other project key is not in
+/// shape.
 #[must_use]
 pub fn is_in_target_shape(id: &str, scheme: &WorkItemIdScheme) -> bool {
-    let key = if corpus::references_key(&scheme.id_pattern) {
-        match project_key_of(id) {
-            Some(key) => Some(key),
-            None => return false,
-        }
-    } else {
-        None
-    };
     sequence_of(id).is_some_and(|number| {
-        rendered(scheme, key, number).eq_ignore_ascii_case(id)
+        rendered(scheme, scheme.key.as_deref(), number).eq_ignore_ascii_case(id)
     })
 }
 
@@ -119,9 +111,9 @@ mod tests {
     }
 
     #[test]
-    fn an_id_under_another_project_key_is_in_target_shape() {
-        assert!(is_in_target_shape("XYZ-0001", &keyed("ACC")));
-        assert!(is_in_target_shape("AB1-0001", &keyed("ACC")));
+    fn an_id_under_another_project_key_is_not_in_target_shape() {
+        assert!(!is_in_target_shape("XYZ-0001", &keyed("ACC")));
+        assert!(!is_in_target_shape("AB1-0001", &keyed("ACC")));
     }
 
     #[test]
