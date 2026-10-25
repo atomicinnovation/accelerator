@@ -15,10 +15,16 @@ Families: openalex, arxiv. Verbs: search (free text), lookup (one ID: an
 OpenAlex W… ID or DOI, or an arXiv ID).
 
 Prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]}, each record
-carrying title, authors, url, venue, venue_signals, abstract, tier, retracted
-and withdrawn; or {\"status\":\"unavailable\",\"source\":…,\"reason\":…} with a
-reason of rate_limited, budget_exhausted or upstream_error when the source
-cannot answer now.
+carrying title, authors, url, venue, venue_signals, abstract, tier, retracted,
+withdrawn and metadata; or {\"status\":\"unavailable\",\"source\":…,\"reason\":…}
+with a reason of rate_limited, budget_exhausted or upstream_error when the
+source cannot answer now. Record fields are only ever added, so ignore any you
+do not know.
+
+metadata maps doi, arxiv_id, openalex_id, published, updated and accessed (the
+UTC date of the call) to their values, omitting any the source lacks. Its keys
+are in their canonical order, which only the raw stdout bytes preserve: a
+JSON parser may reorder them.
 
 arXiv calls wait their turn in a queue shared by the project. One that cannot
 be served in time prints

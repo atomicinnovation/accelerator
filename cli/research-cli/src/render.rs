@@ -4,12 +4,15 @@
 
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
+use research::sources::metadata::SourceMetadata;
 use research::sources::queue::Binding;
 use research::sources::queue::TicketRejection;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
+use serde::ser::SerializeMap;
 use serde::Serialize;
+use serde::Serializer;
 
 use crate::fetch_command::Fetched;
 
@@ -141,6 +144,7 @@ struct RecordJson<'a> {
     tier: String,
     retracted: bool,
     withdrawn: bool,
+    metadata: MetadataJson<'a>,
 }
 
 impl<'a> From<&'a Record> for RecordJson<'a> {
@@ -155,7 +159,25 @@ impl<'a> From<&'a Record> for RecordJson<'a> {
             tier: record.tier().to_string(),
             retracted: record.retracted(),
             withdrawn: record.withdrawn(),
+            metadata: MetadataJson(record.metadata()),
         }
+    }
+}
+
+/// Serialised entry by entry, because `serde_json` maps sort their keys and
+/// the metadata's key order is part of its contract.
+struct MetadataJson<'a>(&'a SourceMetadata);
+
+impl Serialize for MetadataJson<'_> {
+    fn serialize<S: Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        for (key, value) in self.0.entries() {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
     }
 }
 
