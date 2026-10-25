@@ -3,8 +3,8 @@
 A pure content scan (no compiled binary), homed with the other content
 scanners. The generic researcher stays source-agnostic with a pinned tool
 grant; each academic profile reaches its source only through the fetch; and
-every skill that injects an academic profile grants the fetch, because the
-researchers it spawns inherit its allow rules. The composer reads notes and
+every skill that injects a profile granting the fetch grants it too, because
+the researchers it spawns inherit its allow rules. The composer reads notes and
 writes a finding with nothing else, and research-topic's conduct and the
 level-note outputter state the run and note rules the planner enforces.
 """
@@ -84,8 +84,9 @@ def _profiles() -> list[str]:
     )
 
 
-def _academic_profiles() -> list[str]:
-    """Every installed profile whose skill grants the fetch."""
+def _fetch_granting_profiles() -> list[str]:
+    """Every installed profile whose skill grants the fetch, academic or
+    not."""
     return sorted(
         path.parent.name.removesuffix("-profile")
         for path in (REPO_ROOT / PROFILES_DIR).glob("*-profile/SKILL.md")
@@ -789,20 +790,22 @@ def _injects(skill: str, profile: str) -> bool:
     )
 
 
-def test_every_skill_injecting_an_academic_profile_grants_the_fetch() -> None:
-    academic = _academic_profiles()
-    assert academic, "no profile grants the fetch"
+def test_every_skill_injecting_a_fetch_granting_profile_grants_the_fetch() -> (
+    None
+):
+    granting = _fetch_granting_profiles()
+    assert granting, "no profile grants the fetch"
     injecting = [
         path
         for path in sorted((REPO_ROOT / "skills").rglob("SKILL.md"))
         if not path.is_relative_to(REPO_ROOT / PROFILES_DIR)
-        and any(_injects(_read(path), profile) for profile in academic)
+        and any(_injects(_read(path), profile) for profile in granting)
     ]
-    assert injecting, "no skill injects an academic profile"
+    assert injecting, "no skill injects a profile that grants the fetch"
     for path in injecting:
         assert FETCH_GRANT in frontmatter_bash_rules(_read(path)), (
-            f"{path.relative_to(REPO_ROOT)} injects an academic profile "
-            f"without granting Bash({FETCH_GRANT})"
+            f"{path.relative_to(REPO_ROOT)} injects a profile granting the "
+            f"fetch without granting Bash({FETCH_GRANT})"
         )
 
 
@@ -1437,3 +1440,48 @@ def test_an_academic_profile_copies_each_cited_records_metadata(
         "## Reputation Tiers",
         path=profile,
     ), f"the {name} profile must treat metadata values as data"
+
+
+WEB_METADATA = f"{FETCH}web metadata "
+
+
+def _web_profile() -> Path:
+    return REPO_ROOT / _profile_skill("web")
+
+
+def test_the_web_profile_grants_the_fetch() -> None:
+    assert FETCH_GRANT in frontmatter_bash_rules(_read(_web_profile()))
+    assert "web" in _fetch_granting_profiles()
+
+
+def test_the_web_profile_fetches_only_metadata_by_a_quoted_url() -> None:
+    _, body = _split(_read(_web_profile()))
+    commands = fenced_block_commands(body)
+    assert commands, "the web profile shows no metadata fetch to run"
+    for command in commands:
+        assert re.fullmatch(rf"{WEB_METADATA}'[^']+'", command), (
+            f"the web profile runs something other than a quoted metadata "
+            f"fetch: {command}"
+        )
+
+
+def test_a_failed_metadata_fetch_costs_only_the_block() -> None:
+    web = _prose(_web_profile())
+    for rule in (
+        "leaves that entry without a metadata block",
+        "never makes the outcome Denied or Unreachable",
+        "written as `%27`",
+        COPY_THE_MAP,
+    ):
+        assert rule in web, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_treats_declared_metadata_as_inert() -> None:
+    contract = _section(
+        _prose(_web_profile()),
+        "## Untrusted-Content Contract",
+        "## Reputation Tiers",
+        path=_profile_skill("web"),
+    )
+    assert "metadata a page declares" in contract
+    assert "never fetched or followed" in contract

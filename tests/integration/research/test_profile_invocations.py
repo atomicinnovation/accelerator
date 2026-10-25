@@ -1,9 +1,10 @@
-"""Every fetch an academic profile shows passes the built research guard.
+"""Every fetch a profile shows passes the built research guard.
 
 A profile teaches the researcher its calls by example, so a documented
 invocation the guard blocks would leave the researcher unable to follow its
-own profile. Both the fenced commands and the worked single-quoted queries are
-run through the guard as a researcher's `Bash` call.
+own profile. The fenced commands, and for a family that searches its worked
+single-quoted queries, are run through the guard as a researcher's `Bash`
+call.
 """
 
 import json
@@ -24,12 +25,16 @@ GUARD = Path(
     )
 )
 WORKED_QUERY = re.compile(r"`'([^`]*)'`")
+SEARCHING_FAMILIES = {"openalex", "arxiv"}
+FEWEST_INVOCATIONS = {"openalex": 3, "arxiv": 3, "web": 1}
 
 
 def _invocations(family: str) -> list[str]:
     text = (
         REPO_ROOT / f"skills/research/profiles/{family}-profile/SKILL.md"
     ).read_text(encoding="utf-8")
+    if family not in SEARCHING_FAMILIES:
+        return fenced_block_commands(text)
     worked = [
         f"accelerator research fetch {family} search '{query}'"
         for query in WORKED_QUERY.findall(text)
@@ -66,13 +71,13 @@ def test_the_guard_confines_the_researcher_here(tmp_path: Path) -> None:
     assert _guard("ls", tmp_path).returncode == 2
 
 
-@pytest.mark.parametrize("family", ["openalex", "arxiv"])
+@pytest.mark.parametrize("family", sorted(FEWEST_INVOCATIONS))
 def test_every_profile_invocation_passes_the_guard(
     family: str, tmp_path: Path
 ) -> None:
     _require_guard()
     invocations = _invocations(family)
-    assert len(invocations) > 2, (
+    assert len(invocations) >= FEWEST_INVOCATIONS[family], (
         f"the {family} profile shows too few invocations: {invocations}"
     )
     for invocation in invocations:
