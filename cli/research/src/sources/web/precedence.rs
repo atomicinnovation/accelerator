@@ -34,7 +34,6 @@ pub enum Field {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkedDataField {
-    /// A property whose value is text.
     Text(&'static str),
     /// `identifier`: text, a `PropertyValue` whose `propertyID` is `doi`, or
     /// a list of either.

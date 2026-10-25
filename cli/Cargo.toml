@@ -83,8 +83,7 @@ reqwest = { version = "=0.12.28", default-features = false, features = [
 rustls = { version = "=0.23.46", default-features = false, features = ["ring"] }
 # The URL parser reqwest itself uses, so the web page transport reads a host,
 # and converts a Unicode one to its ASCII form, exactly as reqwest will. Keep
-# it on the version reqwest resolves (2.5.8 in the lock) so no second copy
-# enters the graph.
+# it on the version reqwest resolves so no second copy enters the graph.
 url = "2.5"
 # The DNS resolver behind the web page transport's bounded lookups, which
 # std's getaddrinfo cannot bound short of abandoning a thread. Exact-pinned to
@@ -251,8 +250,7 @@ octocrab = { version = "=0.54.1", default-features = false, features = [
 ] }
 # Minimal runtime for the two consumers that drive async code from blocking
 # callers: collaboration-cli's octocrab client and research-adapters' bounded
-# DNS lookups. rt for the current-thread executor, net for sockets, time for
-# backoff and timeouts.
+# DNS lookups.
 tokio = { version = "1", default-features = false, features = [
     "rt",
     "net",

@@ -40,7 +40,6 @@ pub fn document(fetched: &Fetched) -> Option<String> {
     serde_json::to_string(&document).ok()
 }
 
-/// The stdout document for a page's declared metadata.
 pub fn web_document(metadata: &SourceMetadata) -> Option<String> {
     serde_json::to_string(&WebDocument {
         status: "ok",

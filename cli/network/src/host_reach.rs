@@ -11,10 +11,8 @@ use std::net::Ipv6Addr;
 
 use crate::host::Host;
 
-/// The classification a host's address carries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostReach {
-    /// The local machine talking to itself.
     Loopback,
     /// RFC 1918 and IPv6 unique-local.
     Private,
@@ -47,8 +45,6 @@ pub fn classify(host: &Host) -> HostReach {
     }
 }
 
-/// Classifies an address directly, as a caller does for each address a name
-/// resolved to.
 #[must_use]
 pub fn classify_address(address: IpAddr) -> HostReach {
     match address {

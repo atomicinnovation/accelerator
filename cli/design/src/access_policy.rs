@@ -24,7 +24,6 @@ use network::host_reach;
 use network::HostError;
 use network::HostReach;
 
-/// The word a rejection uses for `reach`.
 #[must_use]
 pub const fn reach_word(reach: HostReach) -> &'static str {
     match reach {

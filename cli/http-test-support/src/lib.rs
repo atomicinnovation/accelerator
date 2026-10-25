@@ -204,7 +204,6 @@ impl MockHTTPServer {
         format!("http://{}", self.address)
     }
 
-    /// The socket the server listens on.
     #[must_use]
     pub const fn address(&self) -> SocketAddr {
         self.address
