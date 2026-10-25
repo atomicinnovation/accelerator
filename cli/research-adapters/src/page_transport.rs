@@ -9,17 +9,16 @@
 
 use std::error::Error;
 use std::fmt;
-use std::io::Read as _;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use reqwest::blocking::Client;
 use reqwest::dns::Addrs;
 use reqwest::dns::Name;
 use reqwest::dns::Resolve;
 use reqwest::dns::Resolving;
 use reqwest::header::HeaderMap;
 use reqwest::redirect;
+use reqwest::Client;
 use reqwest::Url;
 use research::sources::request::USER_AGENT;
 use research::sources::web::fetch::PageRequest;
@@ -29,7 +28,6 @@ use research::sources::web::fetch::PageTransport;
 use crate::host_form::admitted_host_matches;
 use crate::host_form::ascii_host;
 use crate::transport::install_crypto_provider;
-use crate::transport::is_timeout;
 
 pub struct HttpPageTransport;
 
@@ -50,7 +48,6 @@ impl PageTransport for HttpPageTransport {
             .redirect(redirect::Policy::none())
             .pool_max_idle_per_host(0)
             .no_proxy()
-            .timeout(request.timeout)
             .dns_resolver(Arc::new(PinnedResolver::new(
                 &name,
                 request.addresses.to_vec(),
@@ -59,22 +56,35 @@ impl PageTransport for HttpPageTransport {
         let Ok(client) = client else {
             return PageResponse::ConnectionFailed;
         };
-        let sent = client
-            .get(url)
-            .header("User-Agent", USER_AGENT)
-            .header("Accept", request.accept)
-            .send();
-        match sent {
-            Ok(response) => receive(response, request.max_body),
-            Err(error) if error.is_timeout() => PageResponse::TimedOut,
-            Err(_) => PageResponse::ConnectionFailed,
-        }
+        let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        else {
+            return PageResponse::ConnectionFailed;
+        };
+        let exchange = async {
+            let sent = client
+                .get(url)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", request.accept)
+                .send()
+                .await;
+            match sent {
+                Ok(response) => receive(response, request.max_body).await,
+                Err(_) => PageResponse::ConnectionFailed,
+            }
+        };
+        runtime.block_on(async {
+            tokio::time::timeout(request.timeout, exchange)
+                .await
+                .unwrap_or(PageResponse::TimedOut)
+        })
     }
 }
 
 /// Bytes past `max_body` are dropped rather than the whole page refused.
-fn receive(
-    response: reqwest::blocking::Response,
+async fn receive(
+    mut response: reqwest::Response,
     max_body: usize,
 ) -> PageResponse {
     let status = response.status().as_u16();
@@ -83,18 +93,19 @@ fn receive(
         return PageResponse::Refused;
     };
     let mut body = Vec::new();
-    let read = response
-        .take(u64::try_from(max_body).unwrap_or(u64::MAX))
-        .read_to_end(&mut body);
-    match read {
-        Ok(_) => PageResponse::Received {
-            status,
-            location,
-            content_type: utf8_header(&headers, "content-type").ok().flatten(),
-            body,
-        },
-        Err(error) if is_timeout(&error) => PageResponse::TimedOut,
-        Err(_) => PageResponse::ConnectionFailed,
+    while body.len() < max_body {
+        match response.chunk().await {
+            Ok(Some(chunk)) => body.extend_from_slice(&chunk),
+            Ok(None) => break,
+            Err(_) => return PageResponse::ConnectionFailed,
+        }
+    }
+    body.truncate(max_body);
+    PageResponse::Received {
+        status,
+        location,
+        content_type: utf8_header(&headers, "content-type").ok().flatten(),
+        body,
     }
 }
 

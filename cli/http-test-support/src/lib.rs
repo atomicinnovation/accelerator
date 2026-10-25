@@ -61,6 +61,11 @@ pub enum Route {
     /// promised length (exercises a broken-transfer retry). A `sent` past the
     /// body's length sends the whole body.
     Truncated { body: Vec<u8>, sent: usize },
+    /// Promise the whole body in the headers, then send it one byte at a
+    /// time with this gap before each — so every read the client makes
+    /// completes, while the whole body arrives only slowly (exercises a
+    /// deadline over the whole transfer rather than each read).
+    Trickle { body: Vec<u8>, gap: Duration },
     /// Wait this long, then answer with `route` — a slow but successful
     /// response, for a deadline that spans several requests.
     Delayed { delay: Duration, route: Box<Route> },
@@ -493,6 +498,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             stream.flush()?;
             return Ok(());
         }
+        Some(Route::Trickle { body, gap }) => {
+            return trickle(&mut stream, &body, gap);
+        }
         None => http_response(UNMATCHED_STATUS, &[], &[]),
     };
     stream.write_all(&response)?;
@@ -500,6 +508,26 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     // Read-to-end guard so the client isn't reset before it reads the body.
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
+    Ok(())
+}
+
+fn trickle(
+    stream: &mut TcpStream,
+    body: &[u8],
+    gap: Duration,
+) -> std::io::Result<()> {
+    let headers = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    stream.write_all(headers.as_bytes())?;
+    stream.flush()?;
+    for byte in body {
+        thread::sleep(gap);
+        stream.write_all(&[*byte])?;
+        stream.flush()?;
+    }
     Ok(())
 }
 

@@ -3,6 +3,7 @@
 use std::net::SocketAddr;
 use std::str::FromStr as _;
 use std::time::Duration;
+use std::time::Instant;
 
 use http_test_support::refused_base_url;
 use http_test_support::MockHTTPServer;
@@ -183,6 +184,29 @@ fn a_body_that_stalls_past_the_request_budget_is_a_timeout() {
     );
 
     assert_eq!(response, PageResponse::TimedOut);
+}
+
+#[test]
+fn a_body_that_trickles_past_the_request_budget_is_a_timeout() {
+    let server = MockHTTPServer::start();
+    server.route(
+        page(),
+        Route::Trickle {
+            body: vec![b'x'; 40],
+            gap: Duration::from_millis(50),
+        },
+    );
+    let started = Instant::now();
+
+    let response = get_pinned(
+        &under_fixture_host(&server),
+        &[server.address()],
+        1024,
+        Duration::from_millis(500),
+    );
+
+    assert_eq!(response, PageResponse::TimedOut);
+    assert!(started.elapsed() < Duration::from_millis(1500));
 }
 
 #[test]
