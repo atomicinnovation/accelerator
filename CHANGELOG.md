@@ -399,7 +399,12 @@
   `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
   re-key is unfinished. `work next-number` now writes its lock under
   `.accelerator/state/locks/`. Upgrade every session before re-keying: an
-  older binary's `work sync` does not take the lock.
+  older binary does not take this lock. A re-key holds the create and
+  retirement locks for its whole run, so an older `work create`,
+  `work create-batch`, `work promote`, and `work sync`'s identity settlement
+  and issue authoring wait behind it; an older `work next-number`, and an
+  older `work sync` or `work update --push` writing an existing item, are
+  not stopped.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already
