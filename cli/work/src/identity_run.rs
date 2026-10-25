@@ -112,7 +112,7 @@ impl From<IdentityRunRefusal> for NotRekeyed {
         match refusal {
             IdentityRunRefusal::Busy(holder) => Self::IdentityRunBusy(holder),
             IdentityRunRefusal::Lock(error) => {
-                Self::StateUnwritable(error.to_string())
+                Self::IdentityRunLockFailed(error.to_string())
             }
             IdentityRunRefusal::RekeyInProgress => Self::InProgress(None),
             IdentityRunRefusal::RekeyRunning(holder) => {
@@ -211,7 +211,7 @@ pub fn begin_identity_run(
 /// # Errors
 ///
 /// [`NotRekeyed::IdentityRunBusy`] when the wait times out, and
-/// [`NotRekeyed::StateUnwritable`] when the lock cannot be taken.
+/// [`NotRekeyed::IdentityRunLockFailed`] when the lock cannot be taken.
 pub fn begin_rekey_run(
     lock: &dyn IdentityRun,
     waiting: &dyn Fn(Option<&Holder>),
@@ -223,7 +223,7 @@ pub fn begin_rekey_run(
                 NotRekeyed::IdentityRunBusy(holder)
             }
             IdentityRunLockError::Lock(error) => {
-                NotRekeyed::StateUnwritable(error.to_string())
+                NotRekeyed::IdentityRunLockFailed(error.to_string())
             }
         })
 }

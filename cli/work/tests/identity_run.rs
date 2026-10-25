@@ -331,7 +331,7 @@ fn a_lock_io_failure_is_not_reported_as_busy() {
     assert!(matches!(begun, Err(IdentityRunRefusal::Lock(_))));
 
     let rekey = begin_rekey_run(&lock, &no_wait);
-    assert!(matches!(rekey, Err(NotRekeyed::StateUnwritable(_))));
+    assert!(matches!(rekey, Err(NotRekeyed::IdentityRunLockFailed(_))));
 }
 
 #[test]

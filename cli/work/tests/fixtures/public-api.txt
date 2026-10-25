@@ -637,6 +637,9 @@ pub work::rekey::outcome::NotRekeyed::Collision
 pub work::rekey::outcome::NotRekeyed::Collision::first: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::Collision::second: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::Collision::target: alloc::string::String
+pub work::rekey::outcome::NotRekeyed::CorpusInaccessible
+pub work::rekey::outcome::NotRekeyed::CorpusInaccessible::detail: alloc::string::String
+pub work::rekey::outcome::NotRekeyed::CorpusInaccessible::path: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::DirtyWorkingCopy(alloc::vec::Vec<alloc::string::String>)
 pub work::rekey::outcome::NotRekeyed::DraftIdExhausted(work::draft_id::DraftIdExhausted)
 pub work::rekey::outcome::NotRekeyed::EntryRefused
@@ -650,6 +653,7 @@ pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::needed: u64
 pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::pattern: alloc::string::String
 pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::remaining: u64
 pub work::rekey::outcome::NotRekeyed::IdentityRunBusy(core::option::Option<work::rekey::outcome::Holder>)
+pub work::rekey::outcome::NotRekeyed::IdentityRunLockFailed(alloc::string::String)
 pub work::rekey::outcome::NotRekeyed::InProgress(core::option::Option<work::rekey::outcome::Holder>)
 pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap
 pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::item: std::path::PathBuf

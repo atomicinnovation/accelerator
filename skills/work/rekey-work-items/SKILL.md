@@ -89,7 +89,8 @@ Branch on the outcome:
 - **Exit 72-74**: the tracker cannot be selected or configured. Relay the
   printed message, point at `/accelerator:configure`, and stop; nothing was
   recorded.
-- **Exit 1** with `E_IDENTITY_RUN_BUSY`, `E_REKEY_STATE_UNWRITABLE` or
+- **Exit 1** with `E_IDENTITY_RUN_BUSY`, `E_REKEY_STATE_UNWRITABLE`,
+  `E_REKEY_IDENTITY_RUN_LOCK_FAILED`, `E_REKEY_CORPUS_INACCESSIBLE` or
   `E_DRAFT_ID_EXHAUSTED`: relay the printed remedy and stop.
 
 ## Step 2: Confirm

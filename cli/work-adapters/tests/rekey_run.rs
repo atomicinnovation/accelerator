@@ -708,6 +708,52 @@ fn a_proposed_apply_runs_the_same_preflight_as_a_fresh_apply(
     Ok(())
 }
 
+fn with_mode(dir: &std::path::Path, mode: u32) -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::create_dir_all(dir)?;
+    fs::set_permissions(dir, fs::Permissions::from_mode(mode))?;
+    Ok(())
+}
+
+#[test]
+fn an_identity_run_lock_that_cannot_be_taken_is_named_as_such(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    with_mode(&repo.state_dir().join("locks"), 0o555)?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+
+    let outcome = ports.apply(&clean(&repo));
+    with_mode(&repo.state_dir().join("locks"), 0o755)?;
+
+    assert!(
+        matches!(outcome, Err(NotRekeyed::IdentityRunLockFailed(_))),
+        "{outcome:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_work_directory_the_run_cannot_lock_is_named() -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    with_mode(&repo.work_dir(), 0o555)?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+
+    let outcome = ports.apply(&clean(&repo));
+    with_mode(&repo.work_dir(), 0o755)?;
+
+    assert!(
+        matches!(
+            &outcome,
+            Err(NotRekeyed::CorpusInaccessible { path, .. })
+                if *path == repo.work_dir()
+        ),
+        "{outcome:?}"
+    );
+    Ok(())
+}
+
 mod in_a_real_repository {
     use vcs_adapters::library::InProcessProbe;
     use vcs_test_support::hermetic::assert_git_is_recent_enough;

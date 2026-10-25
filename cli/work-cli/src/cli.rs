@@ -165,9 +165,11 @@ pub enum Command {
     ///
     /// Exit codes: 0 re-keyed, previewed, nothing to re-key, or discarded;
     /// 4 the run stopped pending a human, each refusal printing an
-    /// `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan
-    /// cannot be saved (`E_REKEY_STATE_UNWRITABLE`) or another identity
-    /// command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`);
+    /// `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan,
+    /// the identity-run lock or a corpus path cannot be written
+    /// (`E_REKEY_STATE_UNWRITABLE`, `E_REKEY_IDENTITY_RUN_LOCK_FAILED`,
+    /// `E_REKEY_CORPUS_INACCESSIBLE`) or another identity command still
+    /// holds the identity-run lock (`E_IDENTITY_RUN_BUSY`);
     /// 70 the tracker could not be read (`E_REKEY_TRACKER_UNREACHABLE`);
     /// 72-74 the tracker cannot be selected or configured.
     Rekey(Box<RekeyArgs>),

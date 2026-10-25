@@ -76,6 +76,11 @@ pub enum NotRekeyed {
         recovery: PathBuf,
     },
     StateUnwritable(String),
+    IdentityRunLockFailed(String),
+    CorpusInaccessible {
+        path: PathBuf,
+        detail: String,
+    },
     IdentityRunBusy(Option<Holder>),
     TrackerUnreachable(String),
     DraftIdExhausted(DraftIdExhausted),
@@ -156,6 +161,12 @@ impl NotRekeyed {
                     recovery: under(recovery),
                 }
             }
+            Self::CorpusInaccessible { path, detail } => {
+                Self::CorpusInaccessible {
+                    path: under(path),
+                    detail,
+                }
+            }
             other => other,
         }
     }
@@ -185,6 +196,10 @@ impl NotRekeyed {
             Self::EntryRolledBack { .. } => "E_REKEY_ENTRY_ROLLED_BACK",
             Self::RestoreIncomplete { .. } => "E_REKEY_RESTORE_INCOMPLETE",
             Self::StateUnwritable(_) => "E_REKEY_STATE_UNWRITABLE",
+            Self::IdentityRunLockFailed(_) => {
+                "E_REKEY_IDENTITY_RUN_LOCK_FAILED"
+            }
+            Self::CorpusInaccessible { .. } => "E_REKEY_CORPUS_INACCESSIBLE",
             Self::IdentityRunBusy(_) => "E_IDENTITY_RUN_BUSY",
             Self::TrackerUnreachable(_) => "E_REKEY_TRACKER_UNREACHABLE",
             Self::DraftIdExhausted(_) => "E_DRAFT_ID_EXHAUSTED",
@@ -195,6 +210,8 @@ impl NotRekeyed {
     pub const fn exit_code(&self) -> u8 {
         match self {
             Self::StateUnwritable(_)
+            | Self::IdentityRunLockFailed(_)
+            | Self::CorpusInaccessible { .. }
             | Self::IdentityRunBusy(_)
             | Self::DraftIdExhausted(_) => INTERNAL_ERROR,
             Self::TrackerUnreachable(_) => RETRYABLE,
@@ -208,18 +225,7 @@ impl NotRekeyed {
             Self::InProgress(Some(holder)) => {
                 format!("a re-key is running (pid {})", holder.pid)
             }
-            Self::PlanUnreadable(UnreadablePlan { path, cause }) => match cause
-            {
-                Unreadability::NewerSchema(schema) => format!(
-                    "the run plan {} has schema {schema}, newer than this \
-                         accelerator reads",
-                    path.display()
-                ),
-                Unreadability::Malformed(detail) => format!(
-                    "the run plan {} is malformed ({detail})",
-                    path.display()
-                ),
-            },
+            Self::PlanUnreadable(plan) => unreadable(plan),
             Self::NotReverted(_) => "the run's write set has changed since \
                  it started"
                 .to_owned(),
@@ -289,6 +295,13 @@ impl NotRekeyed {
             Self::StateUnwritable(detail) => {
                 format!("the run plan cannot be saved or removed ({detail})")
             }
+            Self::IdentityRunLockFailed(detail) => {
+                format!("the identity-run lock cannot be taken ({detail})")
+            }
+            Self::CorpusInaccessible { path, detail } => format!(
+                "{} cannot be read or written ({detail})",
+                path.display()
+            ),
             Self::IdentityRunBusy(holder) => still_running(holder.as_ref()),
             Self::TrackerUnreachable(detail) => {
                 format!("the tracker could not be read ({detail})")
@@ -386,6 +399,12 @@ impl NotRekeyed {
             Self::StateUnwritable(_) => "Check permissions on \
                  `.accelerator/state/rekey/` and re-run"
                 .to_owned(),
+            Self::IdentityRunLockFailed(_) => "Check permissions on \
+                 `.accelerator/state/locks/` and re-run"
+                .to_owned(),
+            Self::CorpusInaccessible { path, .. } => {
+                format!("Check permissions on {} and re-run", path.display())
+            }
             Self::TrackerUnreachable(_) => {
                 "Retry when the tracker is reachable".to_owned()
             }
@@ -422,6 +441,19 @@ impl NotRekeyed {
                 dirty.iter().map(|path| format!("  {path}")).collect()
             }
             _ => Vec::new(),
+        }
+    }
+}
+
+fn unreadable(UnreadablePlan { path, cause }: &UnreadablePlan) -> String {
+    match cause {
+        Unreadability::NewerSchema(schema) => format!(
+            "the run plan {} has schema {schema}, newer than this accelerator \
+             reads",
+            path.display()
+        ),
+        Unreadability::Malformed(detail) => {
+            format!("the run plan {} is malformed ({detail})", path.display())
         }
     }
 }
@@ -582,6 +614,8 @@ mod tests {
             | NotRekeyed::EntryRolledBack { .. }
             | NotRekeyed::RestoreIncomplete { .. }
             | NotRekeyed::StateUnwritable(_)
+            | NotRekeyed::IdentityRunLockFailed(_)
+            | NotRekeyed::CorpusInaccessible { .. }
             | NotRekeyed::IdentityRunBusy(_)
             | NotRekeyed::TrackerUnreachable(_)
             | NotRekeyed::DraftIdExhausted(_) => {}
@@ -775,6 +809,19 @@ mod tests {
                 "Check permissions on `.accelerator/state/rekey/` and re-run",
             ),
             (
+                NotRekeyed::IdentityRunLockFailed(
+                    "permission denied".to_owned(),
+                ),
+                "Check permissions on `.accelerator/state/locks/` and re-run",
+            ),
+            (
+                NotRekeyed::CorpusInaccessible {
+                    path: path("meta/work"),
+                    detail: "permission denied".to_owned(),
+                },
+                "Check permissions on meta/work and re-run",
+            ),
+            (
                 NotRekeyed::IdentityRunBusy(Some(holder(Some("sync")))),
                 "`accelerator work sync` (pid 4242) is still running. Re-run \
                  once it finishes",
@@ -819,7 +866,7 @@ mod tests {
             assert_eq!(variants.len(), expected, "{code}");
             assert!(code.starts_with("E_"), "{code}");
         }
-        assert_eq!(by_code.len(), 20);
+        assert_eq!(by_code.len(), 22);
     }
 
     #[test]
@@ -880,6 +927,10 @@ mod tests {
             NotRekeyed::RestoreIncomplete {
                 entry: entry(),
                 recovery: at(".accelerator/state/retirement-recovery/r"),
+            },
+            NotRekeyed::CorpusInaccessible {
+                path: at("meta/work"),
+                detail: "permission denied".to_owned(),
             },
         ];
         for refusal in refusals {

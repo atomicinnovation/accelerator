@@ -2,6 +2,7 @@
 //! transition taken under the identity-run, retirement and create locks.
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::lock::LockName;
@@ -136,8 +137,11 @@ pub enum RekeyReport {
     },
 }
 
-fn unwritable(error: &impl std::fmt::Display) -> NotRekeyed {
-    NotRekeyed::StateUnwritable(error.to_string())
+fn inaccessible(path: &Path, error: &impl std::fmt::Display) -> NotRekeyed {
+    NotRekeyed::CorpusInaccessible {
+        path: path.to_path_buf(),
+        detail: error.to_string(),
+    }
 }
 
 /// Runs `request` to its end, or to the refusal that stops it.
@@ -153,14 +157,15 @@ pub fn run(
     let _identity_run = begin_rekey_run(ports.identity_run, &|holder| {
         ports.progress.waiting(holder);
     })?;
-    std::fs::create_dir_all(ports.corpus.ports.layout.work_dir)
-        .map_err(|error| unwritable(&error))?;
+    let work_dir = ports.corpus.ports.layout.work_dir;
+    std::fs::create_dir_all(work_dir)
+        .map_err(|error| inaccessible(work_dir, &error))?;
     let locks = ports.corpus.ports.lock;
-    let retirement =
-        acquire_retirement_lock(locks).map_err(|error| unwritable(&error))?;
+    let retirement = acquire_retirement_lock(locks)
+        .map_err(|error| inaccessible(work_dir, &error))?;
     let _create = locks
         .acquire(&LockName::Create)
-        .map_err(|error| unwritable(&error))?;
+        .map_err(|error| inaccessible(work_dir, &error))?;
     let loaded = ports.store.load();
     match request.action {
         RekeyAction::Apply => apply(loaded, request, ports, &retirement),
@@ -259,7 +264,7 @@ fn preflight(
     if !blockers.is_empty() {
         return Err(NotRekeyed::SyncUnfinished(blockers));
     }
-    let candidates = candidates(ports.items)?;
+    let candidates = candidates(ports)?;
     let items: Vec<ItemIdentity> = candidates
         .iter()
         .map(|candidate| candidate.identity.clone())
@@ -367,11 +372,13 @@ fn working_copy(
 }
 
 fn candidates(
-    items: &dyn WorkItemFiles,
+    ports: &RekeyPorts<'_>,
 ) -> Result<Vec<RekeyCandidate>, NotRekeyed> {
-    Ok(items
+    let work_dir = ports.corpus.ports.layout.work_dir;
+    Ok(ports
+        .items
         .files()
-        .map_err(|error| unwritable(&error))?
+        .map_err(|error| inaccessible(work_dir, &error))?
         .iter()
         .filter_map(|file| {
             identity_of(file).map(|identity| RekeyCandidate {
@@ -418,7 +425,7 @@ fn discard(
             discard_in_progress(&plan, forcing, ports)
         }
         Err(unreadable) => {
-            let items: Vec<ItemIdentity> = candidates(ports.items)?
+            let items: Vec<ItemIdentity> = candidates(ports)?
                 .into_iter()
                 .map(|candidate| candidate.identity)
                 .collect();

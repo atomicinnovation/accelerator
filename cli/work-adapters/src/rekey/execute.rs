@@ -59,12 +59,12 @@ impl RekeyCorpus<'_> {
 
     fn state_of(&self, relative: &str) -> Result<StartState, NotRekeyed> {
         let path = self.repo_root.join(relative);
-        let content = self.ports.files.reader.read(&path).map_err(|error| {
-            NotRekeyed::StateUnwritable(format!(
-                "cannot read {}: {error}",
-                path.display()
-            ))
-        })?;
+        let content = self
+            .ports
+            .files
+            .reader
+            .read(&path)
+            .map_err(|error| inaccessible(&path, &error))?;
         Ok(content.map_or(StartState::Absent, |content| {
             StartState::Content(digest_of(&content))
         }))
@@ -133,9 +133,7 @@ impl RekeyCorpus<'_> {
                     &plan.baseline_rename.from,
                     &plan.baseline_rename.to,
                 )
-                .map_err(|error| {
-                    NotRekeyed::StateUnwritable(error.to_string())
-                })?;
+                .map_err(|error| inaccessible(baseline.path(), &error))?;
             intended.extend(
                 rendered.map(|content| written(baseline.path(), &content)),
             );
@@ -170,6 +168,13 @@ impl RekeyCorpus<'_> {
                 recovery: self.recovery_location(entry),
             },
         }
+    }
+}
+
+fn inaccessible(path: &Path, error: &impl std::fmt::Display) -> NotRekeyed {
+    NotRekeyed::CorpusInaccessible {
+        path: path.to_path_buf(),
+        detail: error.to_string(),
     }
 }
 
@@ -214,9 +219,8 @@ pub fn write_set(
     corpus: &RekeyCorpus<'_>,
     base: Option<&Base>,
 ) -> Result<WriteSet, NotRekeyed> {
-    let snapshot = corpus_snapshot(&corpus.ports).map_err(|failure| {
-        NotRekeyed::StateUnwritable(format!("{failure:?}"))
-    })?;
+    let snapshot = corpus_snapshot(&corpus.ports)
+        .map_err(|cause| inaccessible(&cause.path, &cause))?;
     let mut paths = Vec::new();
     for entry in entries {
         let mover = snapshot
@@ -245,7 +249,7 @@ pub fn write_set(
 ///
 /// # Errors
 ///
-/// [`NotRekeyed::StateUnwritable`] when a path cannot be read.
+/// [`NotRekeyed::CorpusInaccessible`] when a path cannot be read.
 pub fn current_states(
     write_set: &WriteSet,
     corpus: &RekeyCorpus<'_>,

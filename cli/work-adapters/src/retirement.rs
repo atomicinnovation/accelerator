@@ -448,10 +448,11 @@ pub struct CorpusSnapshot {
 ///
 /// # Errors
 ///
-/// [`FinishFailure::Failed`] when the corpus cannot be read.
+/// A [`RetirementCause`] naming the work directory when the corpus cannot be
+/// read.
 pub fn corpus_snapshot(
     ports: &RetirementPorts<'_>,
-) -> Result<CorpusSnapshot, FinishFailure> {
+) -> Result<CorpusSnapshot, RetirementCause> {
     let files = corpus_files(
         ports.walker,
         ports.files.reader,
@@ -459,15 +460,13 @@ pub fn corpus_snapshot(
         ports.layout.roots,
     )
     .map_err(|error| {
-        FinishFailure::Failed(RetirementFailure::RolledBack {
-            cause: cause(
-                ports.layout.work_dir,
-                RetirementCauseKind::Store(StoreError::Io {
-                    path: ports.layout.work_dir.display().to_string(),
-                    detail: error.to_string(),
-                }),
-            ),
-        })
+        cause(
+            ports.layout.work_dir,
+            RetirementCauseKind::Store(StoreError::Io {
+                path: ports.layout.work_dir.display().to_string(),
+                detail: error.to_string(),
+            }),
+        )
     })?;
     let items = identities(&work_items(&files, ports.layout.work_dir));
     Ok(CorpusSnapshot { files, items })
@@ -483,7 +482,7 @@ pub fn plan_from_corpus(
     retirement: &Retirement<'_>,
     ports: &RetirementPorts<'_>,
 ) -> Result<RetirementPlan, FinishFailure> {
-    let snapshot = corpus_snapshot(ports)?;
+    let snapshot = corpus_snapshot(ports).map_err(unreadable_corpus)?;
     plan_retirement(
         retirement,
         ports.layout.work_dir,
@@ -502,7 +501,13 @@ pub fn plan_from_corpus(
 pub fn corpus_identities(
     ports: &RetirementPorts<'_>,
 ) -> Result<Vec<ItemIdentity>, FinishFailure> {
-    corpus_snapshot(ports).map(|snapshot| snapshot.items)
+    corpus_snapshot(ports)
+        .map(|snapshot| snapshot.items)
+        .map_err(unreadable_corpus)
+}
+
+const fn unreadable_corpus(cause: RetirementCause) -> FinishFailure {
+    FinishFailure::Failed(RetirementFailure::RolledBack { cause })
 }
 
 /// Whether `retirement` still has a step to take: a file to write, create

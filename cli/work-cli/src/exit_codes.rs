@@ -140,7 +140,9 @@
 //!   of uncommitted changes rather than refusing over them, and refuses
 //!   with `E_REKEY_IN_PROGRESS` while a run is in progress.
 //! - `1` — `E_REKEY_STATE_UNWRITABLE` (the run plan cannot be saved or
-//!   removed), `E_IDENTITY_RUN_BUSY` and `E_DRAFT_ID_EXHAUSTED`.
+//!   removed), `E_REKEY_IDENTITY_RUN_LOCK_FAILED` (the identity-run lock
+//!   cannot be taken), `E_REKEY_CORPUS_INACCESSIBLE` (a corpus path cannot
+//!   be read or written), `E_IDENTITY_RUN_BUSY` and `E_DRAFT_ID_EXHAUSTED`.
 //! - `70` — `E_REKEY_TRACKER_UNREACHABLE`: under
 //!   `work.id_pattern: "{tracker}"`, a read refreshing synced items' keys
 //!   failed, and nothing was written or recorded.
