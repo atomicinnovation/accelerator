@@ -54,18 +54,14 @@ impl Host {
     ///
     /// A [`HostError`] naming which canonicalisation rule the authority broke.
     pub fn canonicalise(authority: &str) -> Result<Self, HostError> {
-        if authority.contains('@') {
-            return Err(HostError::Userinfo);
-        }
+        let decoded = decode(authority)?;
+        let (host, _port) = split_authority(&decoded);
+        Self::from_split(host)
+    }
 
-        let decoded = percent_decode(authority);
-        if decoded.chars().any(char::is_control) {
-            return Err(HostError::ControlCharacter);
-        }
-
-        let lowered = decoded.to_lowercase();
-        let stripped = strip_port_and_brackets(&lowered);
-        let canonical = stripped.strip_suffix('.').unwrap_or(stripped);
+    /// Builds the host from the host part [`split_authority`] produced.
+    pub(crate) fn from_split(host: &str) -> Result<Self, HostError> {
+        let canonical = host.strip_suffix('.').unwrap_or(host);
 
         if canonical.is_empty() {
             return Err(HostError::Empty);
@@ -95,15 +91,35 @@ impl fmt::Display for Host {
     }
 }
 
-/// A bracketed authority is IPv6: the brackets and any zone-id go, and the
-/// colons inside are part of the address. An unbracketed one keeps everything
-/// before its first colon, which is the port separator.
-fn strip_port_and_brackets(authority: &str) -> &str {
-    let Some(rest) = authority.strip_prefix('[') else {
-        return authority.split(':').next().unwrap_or(authority);
+/// The authority percent-decoded and lowercased, once, ahead of splitting.
+pub(crate) fn decode(authority: &str) -> Result<String, HostError> {
+    if authority.contains('@') {
+        return Err(HostError::Userinfo);
+    }
+
+    let decoded = percent_decode(authority);
+    if decoded.chars().any(char::is_control) {
+        return Err(HostError::ControlCharacter);
+    }
+
+    Ok(decoded.to_lowercase())
+}
+
+/// Splits a decoded authority into its host and whatever follows the host.
+///
+/// A bracketed authority is IPv6: the brackets and any zone-id go, the colons
+/// inside are part of the address, and the remainder starts after `]`. An
+/// unbracketed one ends its host at its first colon, which is the port
+/// separator. The remainder is empty when no port was written.
+pub(crate) fn split_authority(decoded: &str) -> (&str, &str) {
+    let Some(rest) = decoded.strip_prefix('[') else {
+        return decoded.find(':').map_or((decoded, ""), |colon| {
+            (&decoded[..colon], &decoded[colon..])
+        });
     };
-    let inside = rest.split(']').next().unwrap_or(rest);
-    inside.split('%').next().unwrap_or(inside)
+    let (inside, remainder) = rest.split_once(']').unwrap_or((rest, ""));
+    let host = inside.split('%').next().unwrap_or(inside);
+    (host, remainder)
 }
 
 /// Whether a host that failed strict address parsing must nonetheless be

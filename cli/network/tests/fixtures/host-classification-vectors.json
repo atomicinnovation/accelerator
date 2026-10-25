@@ -10,6 +10,7 @@
     { "authority": "localhost:3000", "reach": "loopback" },
     { "authority": "LOCALHOST", "reach": "loopback" },
     { "authority": "localhost.", "reach": "loopback" },
+    { "authority": "%5B::1%5D:3000", "reach": "loopback" },
 
     { "authority": "0.0.0.0", "reach": "unspecified" },
     { "authority": "[::]", "reach": "unspecified" },
@@ -42,6 +43,7 @@
     { "authority": "172.32.0.0", "reach": "public" },
     { "authority": "evil.localhost", "reach": "public" },
     { "authority": "localhost.evil.com", "reach": "public" },
+    { "authority": "example.org%3A8080", "reach": "public" },
 
     { "authority": "2130706433", "error": "numeric-encoding" },
     { "authority": "0x7f000001", "error": "numeric-encoding" },
