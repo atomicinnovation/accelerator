@@ -3,4 +3,5 @@
 # check fails until the entry is re-checked upstream, then removed or re-dated.
 ignore = [
     { id = "GHSA-ch52-4w7c-c8xp", reason = "http-cache-semantics <=4.2.0 max-stale cross-user cache disclosure, reached only through astro; no patched release exists and the docs site is built statically. review-by: 2026-11-03" },
+    { id = "GHSA-mrhx-c7xc-m3w5", reason = "zod <4.6.6 memory exhaustion on oversized constrained collections, reached only through astro-rehype-relative-markdown-links, whose latest release still pins zod 3 and calls the zod-3-only one-argument z.record; it validates only the site's own plugin options and frontmatter slugs at build time. review-by: 2026-11-25" },
 ]
