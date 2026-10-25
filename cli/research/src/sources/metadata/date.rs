@@ -15,14 +15,19 @@ pub struct PartialDate {
 
 impl PartialDate {
     /// Reads `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, the last optionally followed
-    /// by `T` and a time of day that is checked and then dropped, or
-    /// `YYYY/M[M]` and `YYYY/M[M]/D[D]`.
+    /// by `T` and a time of day that is checked and then dropped;
+    /// `YYYY/M[M]` and `YYYY/M[M]/D[D]`; or an English month name, in full
+    /// or abbreviated, as `Month D[D][,] YYYY`, `D[D] Month YYYY` or
+    /// `Month YYYY`.
     ///
     /// A time's offset is dropped with it, so the date is the one local to
-    /// the declaration.
+    /// the declaration. An all-numeric date that is not year-first is
+    /// refused, as its day and month order cannot be known.
     pub fn parse(raw: &str) -> Option<Self> {
         if raw.contains('/') {
             Self::slashed(raw)
+        } else if raw.contains(char::is_whitespace) {
+            Self::month_named(raw)
         } else {
             Self::iso(raw)
         }
@@ -53,6 +58,23 @@ impl PartialDate {
     fn slashed(raw: &str) -> Option<Self> {
         let fields = raw.split('/').collect::<Vec<_>>();
         Self::from_fields(&fields, 1..=2).filter(|date| date.month.is_some())
+    }
+
+    fn month_named(raw: &str) -> Option<Self> {
+        let words = raw.split_whitespace().collect::<Vec<_>>();
+        let (month, day, year) = match words.as_slice() {
+            [month, year] => (*month, None, *year),
+            [month, day, year] if month_number(month).is_some() => {
+                (*month, Some(day.strip_suffix(',').unwrap_or(day)), *year)
+            }
+            [day, month, year] => (*month, Some(*day), *year),
+            _ => return None,
+        };
+        let day = match day {
+            Some(day) => Some(number(day, 1..=2)?),
+            None => None,
+        };
+        Self::validated(number(year, 4..=4)?, Some(month_number(month)?), day)
     }
 
     fn from_fields(
@@ -114,6 +136,34 @@ impl fmt::Display for PartialDate {
 }
 
 const SECONDS_PER_DAY: u64 = 86_400;
+
+const MONTH_NAMES: [&str; 12] = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+];
+
+/// A full name, or its first three letters with an optional `.`; `Sept`
+/// is the one longer abbreviation in common use.
+fn month_number(word: &str) -> Option<u16> {
+    let word = word.to_ascii_lowercase();
+    let abbreviation = word.strip_suffix('.').unwrap_or(&word);
+    MONTH_NAMES.iter().zip(1..).find_map(|(name, number)| {
+        let names_it = word == *name
+            || abbreviation == &name[..3]
+            || (abbreviation == "sept" && *name == "september");
+        names_it.then_some(number)
+    })
+}
 
 fn number(field: &str, widths: RangeInclusive<usize>) -> Option<u16> {
     (widths.contains(&field.len()) && field.bytes().all(|b| b.is_ascii_digit()))

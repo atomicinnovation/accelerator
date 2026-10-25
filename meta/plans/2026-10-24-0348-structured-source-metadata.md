@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T08:00:42+00:00"
+last_updated: "2026-10-25T09:46:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -398,8 +398,11 @@ Tests first (`cli/research/tests/metadata_date.rs`):
 - `2021-07-08T12:00:00+0000` and `2021-07-08T12:00+05` → `2021-07-08`, and
   `2023-05-12T10:00:00.123Z` → `2023-05-12`.
 - `2010/5/12` → `2010-05-12`, and `2010/5` → `2010-05`.
+- `May 12, 2010`, `Mar. 21 2007` and `21 March 2007` → their day, and
+  `March 2007` → `2007-03`.
 - `2024-02-29` and `2000-02-29` are usable.
-- These are unusable: `12/05/2010`, `May 12, 2010`, `2023-13-01`,
+- These are unusable: `12/05/2010`, `Feb 29, 2023`, `Mar 21, 07`,
+  `Mars 21, 2007`, `Wed, 21 Mar 2007`, `2023-13-01`,
   `2023-02-30`, `2023-02-29`, `1900-02-29`, `2023-00`, `2023-05-00`,
   `2023-5`, `2023-05-12 10:00`, `2023-05-12T25:00Z`, `2023-05-12T10:60Z`,
   `2023-05-12T10:00+24:00`, `2023-05-12T10:00+05:3` and the empty string.
@@ -433,6 +436,12 @@ impl fmt::Display for PartialDate { … }
   validated, then dropped.
 - Slash forms are `YYYY/M[M]` and `YYYY/M[M]/D[D]`. Day validity follows
   the month and leap year.
+- Month-named forms are `Month D[D][,] YYYY`, `D[D] Month YYYY` and
+  `Month YYYY`, words separated by any whitespace. `Month` is an English
+  name, matched ASCII-case-insensitively, in full or as its first three
+  letters with an optional `.`, or `Sept`. A numeric date that is not
+  year-first stays unusable, because its day and month order cannot be
+  known.
 - `utc_date_of` is a std-only civil-from-days conversion. A time before
   the epoch clamps to `1970-01-01`.
 
@@ -801,6 +810,7 @@ criterion, built from `PageDeclarations` values:
 - Highwire over JSON-LD;
 - the unusable `citation_doi` falling through to Dublin Core;
 - `12/05/2010` falling through;
+- a `citation_date` of `Mar 21, 2007`, as a live PLOS ONE page declares it;
 - a whitespace-wrapped value;
 - a `citation_publication_date` of `2010-05-\n12`, whose internal line
   break collapses to a space and so leaves the value unusable, falling

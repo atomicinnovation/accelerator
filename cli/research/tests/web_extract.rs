@@ -227,6 +227,13 @@ fn an_unusable_highwire_date_falls_through_to_linked_data() {
 }
 
 #[test]
+fn a_month_named_highwire_date_is_read() {
+    let page = tagged(vec![meta("citation_date", "Mar 21, 2007")]);
+
+    assert_eq!(value_of(&page, "published").as_deref(), Some("2007-03-21"));
+}
+
+#[test]
 fn surrounding_whitespace_is_trimmed() {
     let page =
         tagged(vec![meta("citation_publication_date", "\n  2010-05-12\n")]);

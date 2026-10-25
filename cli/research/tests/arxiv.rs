@@ -225,7 +225,7 @@ fn an_entry_without_a_doi_records_no_doi() {
 #[test]
 fn an_unusable_published_date_is_left_out_while_the_rest_remain() {
     let entry = Entry {
-        published: Some("20 May 2023".to_owned()),
+        published: Some("20/05/2023".to_owned()),
         ..dated_entry()
     };
     assert_eq!(

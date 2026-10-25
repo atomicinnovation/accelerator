@@ -36,7 +36,6 @@ fn a_declared_date_is_kept_at_its_precision_and_its_time_dropped() {
 fn a_date_outside_the_accepted_forms_is_unusable() {
     for raw in [
         "12/05/2010",
-        "May 12, 2010",
         "2023-13-01",
         "2023-02-30",
         "2023-02-29",
@@ -56,6 +55,53 @@ fn a_date_outside_the_accepted_forms_is_unusable() {
         "2010/5/12/1",
         "2010/",
         "",
+    ] {
+        assert_eq!(parsed(raw), None, "{raw}");
+    }
+}
+
+#[test]
+fn a_date_naming_its_month_is_kept_at_its_precision() {
+    for (raw, expected) in [
+        ("May 12, 2010", "2010-05-12"),
+        ("Mar 21, 2007", "2007-03-21"),
+        ("March 21, 2007", "2007-03-21"),
+        ("Mar. 21, 2007", "2007-03-21"),
+        ("Sept 3, 2019", "2019-09-03"),
+        ("Mar 21 2007", "2007-03-21"),
+        ("21 March 2007", "2007-03-21"),
+        ("21 Mar 2007", "2007-03-21"),
+        ("03 Mar 2007", "2007-03-03"),
+        ("MARCH 21, 2007", "2007-03-21"),
+        ("march  21,  2007", "2007-03-21"),
+        ("March 2007", "2007-03"),
+        ("Dec 2007", "2007-12"),
+        ("Feb 29, 2024", "2024-02-29"),
+    ] {
+        assert_eq!(parsed(raw).as_deref(), Some(expected), "{raw}");
+    }
+}
+
+#[test]
+fn a_month_named_date_outside_the_accepted_forms_is_unusable() {
+    for raw in [
+        "Feb 29, 2023",
+        "Apr 31, 2010",
+        "Mar 0, 2007",
+        "Mar 021, 2007",
+        "Mar 21, 07",
+        "Mar 21,2007",
+        "21, March 2007",
+        "Mars 21, 2007",
+        "Ma 21, 2007",
+        "Marc 21, 2007",
+        "March. 21, 2007",
+        "Mar 21",
+        "21 Mar",
+        "March",
+        "2007 March 21",
+        "Wed, 21 Mar 2007",
+        "21 Mar 2007 10:00:00 GMT",
     ] {
         assert_eq!(parsed(raw), None, "{raw}");
     }

@@ -12,7 +12,7 @@ parent: "work-item:0121"
 blocks: ["work-item:0305", "work-item:0306", "work-item:0349"]
 relates_to: ["work-item:0280", "work-item:0281", "work-item:0283", "work-item:0160", "work-item:0161", "work-item:0284", "work-item:0311"]
 tags: ["research", "deep-research", "sources", "metadata", "cli"]
-last_updated: "2026-10-24T11:36:49+00:00"
+last_updated: "2026-10-25T09:46:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -150,9 +150,12 @@ already written stays in the one-line form.
 - **Usable values**: a value is usable when it normalises to its key's
   value form. Line breaks collapse to single spaces and surrounding
   whitespace is trimmed first. A `doi` starts with `10.`. A date is usable
-  only as ISO 8601 (a date or datetime at any allowed precision) or as a
-  year-first slash date (`2010/5/12`, `2010/5`); any other form, such as
-  `12/05/2010` or `May 12, 2010`, is unusable rather than guessed. A
+  only as ISO 8601 (a date or datetime at any allowed precision), as a
+  year-first slash date (`2010/5/12`, `2010/5`), or with an English month
+  name in full or abbreviated (`May 12, 2010`, `Mar. 21 2007`,
+  `21 March 2007`, `March 2007`). Any other form, such as `12/05/2010`, is
+  unusable rather than guessed, as is a month-named date carrying a
+  weekday or a time. A
   datetime yields its declared local calendar date, its offset
   discarded. An unusable value is never recorded; the next declaration
   is tried.
@@ -225,6 +228,9 @@ CLI, web metadata command:
 - [ ] Given a page declaring `citation_doi` `https://doi.org/10.1000/ABC`,
       then the map carries `doi: 10.1000/abc` and the command makes no
       request beyond the page.
+- [ ] Given a page declaring `citation_date` `Mar 21, 2007`, then the map
+      carries `published: 2007-03-21`; given `21 March 2007`,
+      `published: 2007-03-21`; given `March 2007`, `published: 2007-03`.
 - [ ] Given a page declaring `citation_publication_date` `2010/5/12` and
       JSON-LD `datePublished` `2011-01-01`, then the map carries
       `published: 2010-05-12`.
@@ -325,6 +331,9 @@ None.
 - Blocks: 0349, which fills the bibliographic and source-specific keys;
   it widens the `select` further, owns the author-name and OpenAlex-to-CSL
   type rules, and defines the value forms of the keys it fills.
+- Accepting month-named dates was a user decision during implementation,
+  after a live PLOS ONE page declared `citation_date` as `Mar 21, 2007`:
+  a named month is unambiguous, unlike a numeric day-first date.
 - Consumers: 0281, whose Sources validation must accept the block and whose
   `report` must cite block-less findings as before; 0284, which must treat
   the block as part of the entry above it. Until 0284 lands, the block
