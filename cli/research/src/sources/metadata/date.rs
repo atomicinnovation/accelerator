@@ -226,7 +226,10 @@ fn is_offset(offset: &str) -> bool {
     };
     let (hours, minutes) = match magnitude.len() {
         2 => (magnitude, None),
-        4 => (&magnitude[..2], Some(&magnitude[2..])),
+        4 => match magnitude.split_at_checked(2) {
+            Some((hours, minutes)) => (hours, Some(minutes)),
+            None => return false,
+        },
         5 => match magnitude.split_once(':') {
             Some((hours, minutes)) => (hours, Some(minutes)),
             None => return false,

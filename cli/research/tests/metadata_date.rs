@@ -61,6 +61,22 @@ fn a_date_outside_the_accepted_forms_is_unusable() {
 }
 
 #[test]
+fn a_date_carrying_non_ascii_where_digits_belong_is_unusable() {
+    for raw in [
+        "2023-05-12T10:00+1é1",
+        "2023-05-12T10:00+é1",
+        "2023-05-12T10:00+0é:00",
+        "2023-05-12T1é:00Z",
+        "2023-0é-12",
+        "2é23",
+        "2010/é/12",
+        "May 1é, 2010",
+    ] {
+        assert_eq!(parsed(raw), None, "{raw}");
+    }
+}
+
+#[test]
 fn a_date_naming_its_month_is_kept_at_its_precision() {
     for (raw, expected) in [
         ("May 12, 2010", "2010-05-12"),
