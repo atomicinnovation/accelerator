@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T11:35:40+00:00"
+last_updated: "2026-10-25T11:51:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1688,15 +1688,26 @@ by hand, against a mock server.
   invocation count becomes a per-family threshold (web: 1).
 - Optionally add a `guard-boundary.tsv` row for the quoted web invocation.
 
+#### 6. As built
+
+- `guard-boundary.tsv` gained the optional row: a single-quoted web URL
+  carrying `?`, `&`, `%27` and `#` passes the guard.
+- The composer is also told never to merge, reorder or complete a block,
+  since merging duplicate citations is 0306's.
+- `research.md`'s `fetch` has no Limits subsection, so the academic-only
+  redirect and 8 MiB rules are scoped in Retries and deadlines. The web
+  errors sit under `fetch web metadata` › Errors, and the sample OpenAlex
+  record's `metadata` comes from a live lookup of `10.1038/nature14539`.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Structure tests pass: `mise run test:unit:build-system` (or `uv run pytest tests/unit/tasks/test_research_structure.py`)
-- [ ] Invocation replay passes: `uv run pytest tests/integration/research/test_profile_invocations.py`
-- [ ] Frontmatter of edited skills and 0121 validates: `accelerator corpus frontmatter validate --file meta/work/0121-topic-research-skillset.md`
-- [ ] Docs lane passes: `mise run docs:check`
-- [ ] `mise run check` and `mise run` exit 0
+- [x] Structure tests pass: `mise run test:unit:build-system` (or `uv run pytest tests/unit/tasks/test_research_structure.py`)
+- [x] Invocation replay passes: `uv run pytest tests/integration/research/test_profile_invocations.py`
+- [x] Frontmatter of edited skills and 0121 validates: `accelerator corpus frontmatter validate --file meta/work/0121-topic-research-skillset.md`
+- [x] Docs lane passes: `mise run docs:check`
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
