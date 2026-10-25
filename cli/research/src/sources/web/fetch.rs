@@ -31,7 +31,11 @@ pub const MAX_REDIRECTS: usize = 5;
 const HTML_MEDIA_TYPES: [&str; 2] = ["text/html", "application/xhtml+xml"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Unresolved;
+pub enum ResolveFailure {
+    Unresolved,
+    /// The resolver's own guards refused to look the name up.
+    Refused,
+}
 
 pub trait HostResolver {
     /// Every address `host` resolves to within `within`, each carrying
@@ -39,13 +43,14 @@ pub trait HostResolver {
     ///
     /// # Errors
     ///
-    /// [`Unresolved`] when the name could not be resolved in time.
+    /// [`ResolveFailure::Unresolved`] when the name could not be resolved in
+    /// time.
     fn resolve(
         &self,
         host: &Host,
         port: u16,
         within: Duration,
-    ) -> Result<Vec<SocketAddr>, Unresolved>;
+    ) -> Result<Vec<SocketAddr>, ResolveFailure>;
 }
 
 /// One `GET`, which must connect only to `addresses`.
@@ -128,6 +133,7 @@ pub enum WebFailure {
     TooManyRedirects,
     RedirectWithoutLocation,
     UnfollowableRedirect,
+    Refused,
     ConnectionFailed,
     TimedOut,
     Status(u16),
@@ -158,6 +164,9 @@ impl fmt::Display for WebFailure {
             Self::UnfollowableRedirect => formatter.write_str(
                 "E_WEB_REDIRECT_UNFOLLOWABLE: the page redirected to a URL \
                  that cannot be fetched",
+            ),
+            Self::Refused => formatter.write_str(
+                "E_WEB_REFUSED: the page's address could not be fetched safely",
             ),
             Self::ConnectionFailed => formatter.write_str(
                 "E_WEB_CONNECTION_FAILED: the page could not be reached",
@@ -253,9 +262,12 @@ fn admitted_addresses(
 ) -> Result<Vec<SocketAddr>, WebFailure> {
     let addresses = match url.host().address() {
         Some(address) => vec![SocketAddr::new(address, url.port())],
-        None => resolver
-            .resolve(url.host(), url.port(), within)
-            .map_err(|Unresolved| WebFailure::Unresolved)?,
+        None => resolver.resolve(url.host(), url.port(), within).map_err(
+            |failure| match failure {
+                ResolveFailure::Unresolved => WebFailure::Unresolved,
+                ResolveFailure::Refused => WebFailure::Refused,
+            },
+        )?,
     };
     if addresses.is_empty() {
         return Err(WebFailure::Unresolved);
@@ -281,7 +293,8 @@ fn next_hop(response: PageResponse, from: &PageUrl) -> Result<Hop, WebFailure> {
             content_type,
             body,
         } => (status, location, content_type, body),
-        PageResponse::Refused | PageResponse::ConnectionFailed => {
+        PageResponse::Refused => return Err(WebFailure::Refused),
+        PageResponse::ConnectionFailed => {
             return Err(WebFailure::ConnectionFailed)
         }
         PageResponse::TimedOut => return Err(WebFailure::TimedOut),

@@ -12,7 +12,7 @@ use research::sources::web::fetch::HostResolver as _;
 use research::sources::web::fetch::PageRequest;
 use research::sources::web::fetch::PageResponse;
 use research::sources::web::fetch::PageTransport as _;
-use research::sources::web::fetch::Unresolved;
+use research::sources::web::fetch::ResolveFailure;
 use research::sources::web::fetch::PAGE_ACCEPT;
 use research::sources::web::page_url::PageUrl;
 use research_adapters::host_resolver::bounded_lookup;
@@ -29,10 +29,10 @@ fn a_lookup_that_never_answers_is_unresolved_once_its_bound_passes() {
 
     let outcome = bounded_lookup(
         Duration::from_millis(50),
-        std::future::pending::<Result<(), Unresolved>>(),
+        std::future::pending::<Result<(), ResolveFailure>>(),
     );
 
-    assert_eq!(outcome, Err(Unresolved));
+    assert_eq!(outcome, Err(ResolveFailure::Unresolved));
     assert!(started.elapsed() < Duration::from_millis(500));
 }
 
@@ -50,12 +50,12 @@ fn localhost_resolves_to_a_loopback_address_carrying_the_port() {
 }
 
 #[test]
-fn a_host_with_no_ascii_form_is_unresolved() {
+fn a_host_with_no_ascii_form_is_refused_unasked() {
     let folding = Host::canonicalise("１２７.０.０.１").expect("a host");
 
     assert_eq!(
         DnsHostResolver.resolve(&folding, 80, Duration::from_secs(5)),
-        Err(Unresolved)
+        Err(ResolveFailure::Refused)
     );
 }
 

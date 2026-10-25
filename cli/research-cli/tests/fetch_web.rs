@@ -158,7 +158,10 @@ fn a_fullwidth_address_is_never_requested() {
 
     let run = web_metadata(&url, &[], &[]);
 
-    assert_eq!(run.code, Some(1), "{}", run.stderr);
+    assert_failed_with(
+        &run,
+        "E_WEB_REFUSED: the page's address could not be fetched safely",
+    );
     assert_eq!(server.hits(&article()), 0);
 }
 

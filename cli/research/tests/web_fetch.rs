@@ -22,8 +22,8 @@ use research::sources::web::fetch::PageRequest;
 use research::sources::web::fetch::PageResponse;
 use research::sources::web::fetch::PageTransport;
 use research::sources::web::fetch::RejectedReach;
+use research::sources::web::fetch::ResolveFailure;
 use research::sources::web::fetch::StepBounds;
-use research::sources::web::fetch::Unresolved;
 use research::sources::web::fetch::WebFailure;
 use research::sources::web::fetch::WebPorts;
 use research::sources::web::fetch::LOOKUP_CAP;
@@ -54,7 +54,7 @@ struct Resolution {
 /// Answers each scripted name; any other name resolves to [`PUBLIC`].
 #[derive(Default)]
 struct ScriptedResolver {
-    answers: HashMap<String, Result<Vec<&'static str>, Unresolved>>,
+    answers: HashMap<String, Result<Vec<&'static str>, ResolveFailure>>,
     asked: RefCell<Vec<Resolution>>,
 }
 
@@ -62,7 +62,7 @@ impl ScriptedResolver {
     fn answering(
         mut self,
         host: &str,
-        answer: Result<Vec<&'static str>, Unresolved>,
+        answer: Result<Vec<&'static str>, ResolveFailure>,
     ) -> Self {
         self.answers.insert(host.to_owned(), answer);
         self
@@ -79,7 +79,7 @@ impl HostResolver for ScriptedResolver {
         host: &Host,
         port: u16,
         within: Duration,
-    ) -> Result<Vec<SocketAddr>, Unresolved> {
+    ) -> Result<Vec<SocketAddr>, ResolveFailure> {
         self.asked.borrow_mut().push(Resolution {
             host: host.to_string(),
             port,
@@ -239,7 +239,7 @@ impl<'a> Fixture<'a> {
     fn resolving(
         mut self,
         host: &str,
-        answer: Result<Vec<&'static str>, Unresolved>,
+        answer: Result<Vec<&'static str>, ResolveFailure>,
     ) -> Self {
         self.resolver = self.resolver.answering(host, answer);
         self
@@ -345,7 +345,7 @@ fn a_name_resolving_to_any_private_address_is_rejected() {
 
 #[test]
 fn a_name_resolving_to_nothing_or_failing_to_resolve_is_unresolved() {
-    for answer in [Ok(Vec::new()), Err(Unresolved)] {
+    for answer in [Ok(Vec::new()), Err(ResolveFailure::Unresolved)] {
         let clock = RecordingClock::new();
         let fixture = Fixture::new(&clock).resolving("gone.example", answer);
 
@@ -358,14 +358,27 @@ fn a_name_resolving_to_nothing_or_failing_to_resolve_is_unresolved() {
 }
 
 #[test]
-fn a_transport_refusal_is_a_connection_failure() {
+fn a_resolver_refusal_is_reported_as_a_refusal() {
+    let clock = RecordingClock::new();
+    let fixture = Fixture::new(&clock)
+        .resolving("folded.example", Err(ResolveFailure::Refused));
+
+    assert_eq!(
+        fixture.fetch("http://folded.example/"),
+        Err(WebFailure::Refused)
+    );
+    assert_eq!(fixture.transport.hits(), 0);
+}
+
+#[test]
+fn a_transport_refusal_is_reported_as_a_refusal() {
     let clock = RecordingClock::new();
     let fixture = Fixture::new(&clock)
         .answering("http://example.org/", PageResponse::Refused);
 
     assert_eq!(
         fixture.fetch("http://example.org/"),
-        Err(WebFailure::ConnectionFailed)
+        Err(WebFailure::Refused)
     );
 }
 
@@ -722,6 +735,10 @@ fn each_failure_is_one_catalogued_line_naming_no_url_host_or_address() {
             WebFailure::UnfollowableRedirect,
             "E_WEB_REDIRECT_UNFOLLOWABLE: the page redirected to a URL that \
              cannot be fetched",
+        ),
+        (
+            WebFailure::Refused,
+            "E_WEB_REFUSED: the page's address could not be fetched safely",
         ),
         (
             WebFailure::ConnectionFailed,

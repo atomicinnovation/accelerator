@@ -19,7 +19,7 @@ use research::sources::web::fetch::HostResolver;
 use research::sources::web::fetch::PageRequest;
 use research::sources::web::fetch::PageResponse;
 use research::sources::web::fetch::PageTransport;
-use research::sources::web::fetch::Unresolved;
+use research::sources::web::fetch::ResolveFailure;
 
 use crate::web_command::WebAdapters;
 
@@ -153,7 +153,7 @@ impl HostResolver for StandInResolver {
         host: &Host,
         port: u16,
         within: Duration,
-    ) -> Result<Vec<SocketAddr>, Unresolved> {
+    ) -> Result<Vec<SocketAddr>, ResolveFailure> {
         if host.to_string() == self.name {
             Ok(vec![SocketAddr::new(STAND_IN, port)])
         } else {
@@ -270,7 +270,7 @@ mod tests {
     use research::sources::web::fetch::PageRequest;
     use research::sources::web::fetch::PageResponse;
     use research::sources::web::fetch::PageTransport;
-    use research::sources::web::fetch::Unresolved;
+    use research::sources::web::fetch::ResolveFailure;
     use research::sources::web::page_url::PageUrl;
 
     use super::stand_in_from;
@@ -295,7 +295,7 @@ mod tests {
             _host: &Host,
             port: u16,
             _within: Duration,
-        ) -> Result<Vec<SocketAddr>, Unresolved> {
+        ) -> Result<Vec<SocketAddr>, ResolveFailure> {
             let answer = vec![SocketAddr::new([198, 51, 100, 7].into(), port)];
             self.0 .0.borrow_mut().push(answer.clone());
             Ok(answer)

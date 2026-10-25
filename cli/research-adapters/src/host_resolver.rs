@@ -8,7 +8,7 @@ use hickory_resolver::config::ResolverOpts;
 use hickory_resolver::TokioResolver;
 use network::Host;
 use research::sources::web::fetch::HostResolver;
-use research::sources::web::fetch::Unresolved;
+use research::sources::web::fetch::ResolveFailure;
 
 use crate::host_form::ascii_host;
 
@@ -22,15 +22,17 @@ impl HostResolver for DnsHostResolver {
         host: &Host,
         port: u16,
         within: Duration,
-    ) -> Result<Vec<SocketAddr>, Unresolved> {
-        let name = ascii_host(host).ok_or(Unresolved)?;
+    ) -> Result<Vec<SocketAddr>, ResolveFailure> {
+        let name = ascii_host(host).ok_or(ResolveFailure::Refused)?;
         bounded_lookup(within, async move {
             let resolver = TokioResolver::builder_tokio()
-                .map_err(|_| Unresolved)?
+                .map_err(|_| ResolveFailure::Unresolved)?
                 .with_options(resolver_opts(within))
                 .build();
-            let found =
-                resolver.lookup_ip(name).await.map_err(|_| Unresolved)?;
+            let found = resolver
+                .lookup_ip(name)
+                .await
+                .map_err(|_| ResolveFailure::Unresolved)?;
             Ok(found
                 .iter()
                 .map(|address| SocketAddr::new(address, port))
@@ -47,20 +49,20 @@ impl HostResolver for DnsHostResolver {
 ///
 /// # Errors
 ///
-/// [`Unresolved`] when the lookup fails, outlives `within`, or no runtime
-/// could be built.
+/// [`ResolveFailure::Unresolved`] when the lookup fails, outlives `within`,
+/// or no runtime could be built.
 pub fn bounded_lookup<T>(
     within: Duration,
-    lookup: impl Future<Output = Result<T, Unresolved>>,
-) -> Result<T, Unresolved> {
+    lookup: impl Future<Output = Result<T, ResolveFailure>>,
+) -> Result<T, ResolveFailure> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|_| Unresolved)?;
+        .map_err(|_| ResolveFailure::Unresolved)?;
     runtime.block_on(async {
         tokio::time::timeout(within, lookup)
             .await
-            .unwrap_or(Err(Unresolved))
+            .unwrap_or(Err(ResolveFailure::Unresolved))
     })
 }
 

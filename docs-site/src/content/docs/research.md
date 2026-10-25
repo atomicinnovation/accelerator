@@ -236,7 +236,8 @@ stdout. No message carries the URL, the host or an address.
 | `E_WEB_TOO_MANY_REDIRECTS`        | `the page redirected more than 5 times`                                                     |
 | `E_WEB_REDIRECT_WITHOUT_LOCATION` | `the page redirected without a Location`                                                    |
 | `E_WEB_REDIRECT_UNFOLLOWABLE`     | `the page redirected to a URL that cannot be fetched`                                       |
-| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`; also a request the transport refuses unsent because its host would not be read as admitted |
+| `E_WEB_REFUSED`                   | `the page's address could not be fetched safely`, as its host would not be read as admitted |
+| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`                                                             |
 | `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                           |
 | `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                           |
 | `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                      |
