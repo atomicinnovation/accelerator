@@ -826,6 +826,23 @@ pub trait research::sources::fetch::Transport
 pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
 pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
+pub mod research::sources::metadata
+pub mod research::sources::metadata::date
+pub struct research::sources::metadata::date::PartialDate
+impl research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::parse(raw: &str) -> core::option::Option<Self>
+pub fn research::sources::metadata::date::PartialDate::utc_date_of(at: std::time::SystemTime) -> Self
+impl core::clone::Clone for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::clone(&self) -> research::sources::metadata::date::PartialDate
+impl core::cmp::Eq for research::sources::metadata::date::PartialDate
+impl core::cmp::PartialEq for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::eq(&self, other: &research::sources::metadata::date::PartialDate) -> bool
+impl core::fmt::Debug for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::metadata::date::PartialDate
+impl core::marker::StructuralPartialEq for research::sources::metadata::date::PartialDate
 pub mod research::sources::openalex
 pub struct research::sources::openalex::Location
 pub research::sources::openalex::Location::source: core::option::Option<research::sources::openalex::Source>

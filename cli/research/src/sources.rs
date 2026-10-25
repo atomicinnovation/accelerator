@@ -5,6 +5,7 @@
 pub mod arxiv;
 pub mod classify;
 pub mod fetch;
+pub mod metadata;
 pub mod openalex;
 pub mod queue;
 pub mod record;
