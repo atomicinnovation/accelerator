@@ -940,15 +940,20 @@ mod run_tests {
             format!(".tmp-vcs-1.0.0-{DIGEST}-11-0"),
             format!(".tmp-vcs-1.0.0-{DIGEST}-11-0.minisig"),
         ];
-        let young_name = format!(".tmp-vcs-1.0.0-{DIGEST}-12-0");
+        let young_names = [
+            format!(".tmp-vcs-1.0.0-{DIGEST}-12-0"),
+            format!(".tmp-vcs-1.0.0-{DIGEST}-12-0.minisig"),
+        ];
         for name in &aged_names {
             root.root.file(name, b"", aged(root.now));
         }
-        root.root.file(&young_name, b"", young(root.now));
+        for name in &young_names {
+            root.root.file(name, b"", young(root.now));
+        }
 
         assert_eq!(root.prune().removals.reclaimed, 2);
         assert!(aged_names.iter().all(|name| !root.has(name)));
-        assert!(root.has(&young_name));
+        assert!(young_names.iter().all(|name| root.has(name)));
     }
 
     fn holding(root: &Seeded) -> Ports {
@@ -977,13 +982,19 @@ mod run_tests {
         let root = Seeded::new();
         let aged_dead = format!(".tmp-launcher-{DEAD}");
         let young_dead = format!(".tmp-launcher-{}", DEAD + 1);
-        root.root.file(&aged_dead, b"", aged(root.now));
-        root.root.file(&young_dead, b"", young(root.now));
+        for name in [&aged_dead, &format!("{aged_dead}.minisig")] {
+            root.root.file(name, b"", aged(root.now));
+        }
+        for name in [&young_dead, &format!("{young_dead}.minisig")] {
+            root.root.file(name, b"", young(root.now));
+        }
 
         root.prune_with(holding(&root), None, CLAIM_WINDOW);
 
         assert!(!root.has(&aged_dead));
+        assert!(!root.has(&format!("{aged_dead}.minisig")));
         assert!(root.has(&young_dead));
+        assert!(root.has(&format!("{young_dead}.minisig")));
     }
 
     fn shim_staging(platform: &str, pid: i32) -> String {
@@ -1219,11 +1230,22 @@ mod run_tests {
             ".tmp-browser-{HOST_PLATFORM}-{DIGEST}-1-0123456789abcdef"
         ));
         std::fs::create_dir(&temp).expect("temp generation");
-        root.sub_binary("1.0.0", aged(root.now));
+        std::fs::File::open(&temp)
+            .and_then(|directory| {
+                directory.set_modified(
+                    std::time::UNIX_EPOCH + Duration::from_secs(aged(root.now)),
+                )
+            })
+            .expect("aged temp generation");
+        let lease = lease::hold_shared_lease(&lease::lease_beside(&temp))
+            .expect("held lease");
+        let unclaimed = root.sub_binary("1.0.0", aged(root.now));
 
         root.prune();
 
         assert!(temp.exists());
+        assert!(!root.has_entry(&unclaimed), "the prune never ran");
+        drop(lease);
     }
 
     #[test]

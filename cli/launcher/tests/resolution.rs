@@ -990,24 +990,46 @@ fn an_unset_override_performs_exactly_the_fixed_calls(
 fn a_read_only_override_root_still_dispatches_warm(
 ) -> Result<(), Box<dyn Error>> {
     use std::os::unix::fs::PermissionsExt as _;
-    let harness = skip_if_no_minisign!(happy_harness());
-    let seeded = harness.seed_cache()?;
-    let config = harness.relocated_root();
-    std::fs::set_permissions(
-        &harness.cache,
-        std::fs::Permissions::from_mode(0o555),
-    )?;
+    for stale_claim in [false, true] {
+        let harness = skip_if_no_minisign!(happy_harness());
+        let seeded = harness.seed_cache()?;
+        let config = harness.relocated_root();
+        let claim = harness.version_claim();
+        let claims = claim.parent().expect("claims directory").to_path_buf();
+        if stale_claim {
+            harness.seed_version_claim(b"stale", now() - REFRESH_AGE - 60);
+        }
+        let read_only = [&claim, &claims, &harness.cache];
+        for path in read_only.iter().filter(|path| path.exists()) {
+            std::fs::set_permissions(
+                path,
+                std::fs::Permissions::from_mode(0o555),
+            )?;
+        }
+        let recorder = harness.recorder();
 
-    let result = harness
-        .dispatch_recorded(&config, &harness.recorder())
-        .map(|path| path.canonicalize());
+        let result = harness
+            .dispatch_recorded(&config, &recorder)
+            .map(|path| path.canonicalize());
 
-    std::fs::set_permissions(
-        &harness.cache,
-        std::fs::Permissions::from_mode(0o755),
-    )?;
-    assert_eq!(result??, seeded.path.canonicalize()?);
-    assert!(!harness.version_claim().exists());
+        for path in read_only.iter().rev().filter(|path| path.exists()) {
+            std::fs::set_permissions(
+                path,
+                std::fs::Permissions::from_mode(0o755),
+            )?;
+        }
+        assert_eq!(result??, seeded.path.canonicalize()?);
+        let attempted = [&claim, &claims]
+            .iter()
+            .flat_map(|path| recorder.calls_touching(path))
+            .any(|call| call.is_mutation());
+        assert!(attempted, "{stale_claim}: the claim write was never tried");
+        if stale_claim {
+            assert_eq!(std::fs::read(&claim)?, b"stale");
+        } else {
+            assert!(!claim.exists());
+        }
+    }
     Ok(())
 }
 
