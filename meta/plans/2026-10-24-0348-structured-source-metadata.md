@@ -300,17 +300,17 @@ workspace = true
 
 #### Automated Verification
 
-- [ ] Network and design tests pass: `cargo test -p network -p design --manifest-path cli/Cargo.toml`
-- [ ] JS classifier test reads the moved fixture: `mise run test:unit:scripts` (or the design Playwright unit lane that runs `access-policy.test.js`)
-- [ ] Crate dependency rules hold: `mise run lint:crate-dependencies:check`
-- [ ] Pup rules and probes pass: `mise run test:integration` (pup lane)
-- [ ] Public API pins match: `mise run public-api:check`
-- [ ] Read-only CI mirror passes: `mise run check`
-- [ ] Full default task passes: `mise run`
+- [x] Network and design tests pass: `cargo test -p network -p design --manifest-path cli/Cargo.toml`
+- [x] JS classifier test reads the moved fixture: `mise run test:unit:scripts` (or the design Playwright unit lane that runs `access-policy.test.js`)
+- [x] Crate dependency rules hold: `mise run lint:crate-dependencies:check`
+- [x] Pup rules and probes pass: `mise run test:integration` (pup lane)
+- [x] Public API pins match: `mise run public-api:check`
+- [x] Read-only CI mirror passes: `mise run check`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `accelerator design` still rejects `http://169.254.169.254/` and admits `http://localhost:3000` as before
+- [x] `accelerator design` still rejects `http://169.254.169.254/` and admits `http://localhost:3000` as before
 
 ---
 
