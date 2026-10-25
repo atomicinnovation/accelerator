@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-10-24-0348-structured-source-metadata"
 tags: ["research", "sources", "metadata", "cli", "network"]
-last_updated: "2026-10-25T14:52:23+00:00"
+last_updated: "2026-10-25T15:18:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -33,10 +33,17 @@ Left as is, by decision:
 - **`network` in `research-cli`:** `research-adapters` already brings it
   into every build.
 - **Byte-wise order for unknown keys:** belongs to 0349.
-- **Classifier gaps:** these predate this work and are low risk; they are a
-  candidate for their own work item.
-- **Academic `transport.rs`:** its per-read timeout only ever faces
-  trusted APIs.
+
+Fixed in two follow-up commits, after which `mise run` exited 0 again:
+- **Classifier gaps:** `network` and its JS mirror now unwrap IPv4-translated
+  `::ffff:0:a.b.c.d` and treat `fec0::/10` as private. They treat local-use
+  NAT64 `64:ff9b:1::/48`, discard-only `100::/64` and the documentation
+  ranges (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`,
+  `2001:db8::/32`, `3fff::/20`) as reserved. `design` users now need
+  `--allow-internal` for these, as the CHANGELOG and `design.md` record.
+- **Academic `transport.rs`:** it now drives the async client on one
+  runtime it owns, under a timeout over the whole exchange, body included.
+  `a_body_that_trickles_past_the_request_budget_is_a_timeout` failed first.
 
 The report below is the original validation, kept as written.
 
