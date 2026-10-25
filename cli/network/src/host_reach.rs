@@ -2,8 +2,8 @@
 //!
 //! For a hostname the classification is **pre-resolution**: a public hostname
 //! resolving to `169.254.169.254` still classifies as [`HostReach::Public`]. A
-//! caller that resolves names must classify each address it resolved to
-//! instead.
+//! caller that resolves names must classify each address it resolved to with
+//! [`classify_address`] instead.
 
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -47,8 +47,10 @@ pub fn classify(host: &Host) -> HostReach {
     }
 }
 
+/// Classifies an address directly, as a caller does for each address a name
+/// resolved to.
 #[must_use]
-fn classify_address(address: IpAddr) -> HostReach {
+pub fn classify_address(address: IpAddr) -> HostReach {
     match address {
         IpAddr::V4(v4) => classify_v4(v4),
         IpAddr::V6(v6) => classify_v6(v6),

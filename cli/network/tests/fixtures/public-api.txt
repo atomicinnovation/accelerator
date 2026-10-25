@@ -48,6 +48,7 @@ pub fn network::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::Copy for network::host_reach::HostReach
 impl core::marker::StructuralPartialEq for network::host_reach::HostReach
 pub fn network::host_reach::classify(host: &network::host::Host) -> network::host_reach::HostReach
+pub fn network::host_reach::classify_address(address: core::net::ip_addr::IpAddr) -> network::host_reach::HostReach
 pub enum network::HostError
 pub network::HostError::ControlCharacter
 pub network::HostError::Empty
