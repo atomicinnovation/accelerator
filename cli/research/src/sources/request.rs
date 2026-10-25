@@ -10,7 +10,7 @@ const USER_AGENT: &str =
 const ATOM: &str = "application/atom+xml";
 const OPENALEX_SELECT: &str = "id,doi,display_name,type,authorships,\
                                primary_location,is_retracted,\
-                               abstract_inverted_index";
+                               abstract_inverted_index,publication_date";
 
 /// Why a request was refused before any upstream call.
 #[derive(Debug, Clone, PartialEq, Eq)]

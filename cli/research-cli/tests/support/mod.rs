@@ -16,7 +16,7 @@ use vcs_test_support::hermetic::Hermetic;
 
 pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
                           primary_location,is_retracted,\
-                          abstract_inverted_index";
+                          abstract_inverted_index,publication_date";
 
 /// Milliseconds since the Unix epoch at which every test clock's wall time
 /// starts, so values one process persists compare deterministically with

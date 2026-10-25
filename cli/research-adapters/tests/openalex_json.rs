@@ -64,6 +64,14 @@ fn a_recorded_work_decodes_its_venue_signals_and_abstract() {
 }
 
 #[test]
+fn a_recorded_work_decodes_its_publication_date() {
+    assert_eq!(
+        work("work-doi.json").publication_date.as_deref(),
+        Some("2018-02-13")
+    );
+}
+
+#[test]
 fn a_recorded_work_without_a_doi_decodes_its_repository_source() {
     let work = work("work-no-doi.json");
 

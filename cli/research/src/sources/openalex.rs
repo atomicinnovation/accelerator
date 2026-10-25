@@ -15,6 +15,7 @@ use crate::sources::tier::openalex_tier;
 pub struct Work {
     pub id: String,
     pub doi: Option<String>,
+    pub publication_date: Option<String>,
     pub title: Option<String>,
     pub work_type: String,
     pub authors: Vec<String>,

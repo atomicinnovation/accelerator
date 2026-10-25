@@ -481,7 +481,7 @@ fn an_openalex_search_encodes_the_query_into_one_filter_value() {
         "https://api.openalex.org/works?filter=title_and_abstract.search:\
          graphs+%26per_page%3D200+%23x%2By&per_page=5&select=id,doi,\
          display_name,type,authorships,primary_location,is_retracted,\
-         abstract_inverted_index"
+         abstract_inverted_index,publication_date"
     );
 }
 

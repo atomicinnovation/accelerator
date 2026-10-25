@@ -555,8 +555,10 @@ pub research::sources::arxiv::Entry::doi: core::option::Option<alloc::string::St
 pub research::sources::arxiv::Entry::id: alloc::string::String
 pub research::sources::arxiv::Entry::journal_ref: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::primary_category: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::published: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::summary: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::title: alloc::string::String
+pub research::sources::arxiv::Entry::updated: core::option::Option<alloc::string::String>
 impl research::sources::arxiv::Entry
 pub fn research::sources::arxiv::Entry::arxiv_id(&self) -> core::option::Option<research::sources::request::ArxivId>
 pub fn research::sources::arxiv::Entry::is_withdrawal_candidate(&self) -> bool
@@ -899,6 +901,7 @@ pub research::sources::openalex::Work::doi: core::option::Option<alloc::string::
 pub research::sources::openalex::Work::id: alloc::string::String
 pub research::sources::openalex::Work::is_retracted: bool
 pub research::sources::openalex::Work::primary_location: core::option::Option<research::sources::openalex::Location>
+pub research::sources::openalex::Work::publication_date: core::option::Option<alloc::string::String>
 pub research::sources::openalex::Work::title: core::option::Option<alloc::string::String>
 pub research::sources::openalex::Work::work_type: alloc::string::String
 impl core::clone::Clone for research::sources::openalex::Work

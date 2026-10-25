@@ -40,6 +40,7 @@ struct Page {
 struct WorkJson {
     id: String,
     doi: Option<String>,
+    publication_date: Option<String>,
     display_name: Option<String>,
     #[serde(rename = "type")]
     work_type: Option<String>,
@@ -79,6 +80,7 @@ impl From<WorkJson> for Work {
         Self {
             id: work.id,
             doi: work.doi,
+            publication_date: work.publication_date,
             title: work.display_name,
             work_type: work.work_type.unwrap_or_default(),
             authors: work

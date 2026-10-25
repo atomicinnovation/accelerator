@@ -19,6 +19,7 @@ fn published_article() -> Work {
     Work {
         id: "https://openalex.org/W2741809807".to_owned(),
         doi: Some("https://doi.org/10.7717/peerj.4375".to_owned()),
+        publication_date: Some("2018-02-13".to_owned()),
         title: Some("The state of OA".to_owned()),
         work_type: "article".to_owned(),
         authors: vec!["Heather Piwowar".to_owned(), "Jason Priem".to_owned()],

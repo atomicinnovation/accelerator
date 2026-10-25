@@ -18,6 +18,8 @@ fn entry() -> Entry {
         journal_ref: Some("J. Attn. 1 (2026)".to_owned()),
         doi: Some("10.1234/attn".to_owned()),
         primary_category: Some("cs.LG".to_owned()),
+        published: Some("2026-08-21T14:06:59Z".to_owned()),
+        updated: Some("2026-08-24T04:57:13Z".to_owned()),
     }
 }
 

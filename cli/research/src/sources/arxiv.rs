@@ -17,6 +17,8 @@ pub struct Entry {
     pub journal_ref: Option<String>,
     pub doi: Option<String>,
     pub primary_category: Option<String>,
+    pub published: Option<String>,
+    pub updated: Option<String>,
 }
 
 impl Entry {
