@@ -596,6 +596,16 @@
 
 ### Fixed
 
+- **`migrate` sees uncommitted changes when `.accelerator/` sits below the
+  repository root.** Its dirty-tree pre-flight read paths relative to the
+  repository rather than the config root, found none under `meta/` or
+  `.accelerator/`, and ran over them.
+- **Retiring or promoting an item no longer corrupts links to longer file
+  names.** A path to the retired file is rewritten only as a whole token, so
+  `0041-first.md` inside `ACC-0041-first.md` is left alone.
+- **Relative links survive an item moving into or out of `drafts/`.** Links
+  written inside `drafts/` follow the moved item, and the moved item's own
+  relative links are re-based for its new directory.
 - **Cosmetic rewrites no longer cause pushes, pulls or conflicts.** `work
   sync` compares bodies by meaning, so Linear's re-serialisation and an
   equivalent local rewrite are never a change. A title change is sent alone,
