@@ -1479,23 +1479,50 @@ impl Family {
     `web_command` runs within `main`'s shared budget;
   - `--limit` with `web` exits 2.
 
+#### 6. As built
+
+- `RequestError::UnknownVerb` carries `{ verb, family }` and words the
+  supported verbs from `family.verbs()`, rather than holding them too.
+  `Family::ALL` lists every family, for the help drift test.
+- `Verb::parse` returns an `Option`, and each family's parser rejects any
+  verb it does not support, so no parser needs an unreachable arm.
+- The academic usage-message rewording has no CHANGELOG entry of its own:
+  `accelerator research` is itself still unreleased, so Phase 5's entries
+  describe the messages as they now stand.
+- `bounded_lookup(within, future)` builds and drops its own current-thread
+  runtime, so `DnsHostResolver` and its test share one entry point.
+- The page transport takes its `User-Agent` from the domain's now-public
+  `request::USER_AGENT`, as the academic requests do.
+- `MockHTTPServer::start_on` binds any address, for the `[::1]` transport
+  test.
+- The stand-in resolver passes every name but its own to the production
+  resolver.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test -p research --manifest-path cli/Cargo.toml`
-- [ ] Adapter tests pass: `cargo test -p research-adapters --manifest-path cli/Cargo.toml`
-- [ ] Binary tests pass: `cargo test -p accelerator-research --features test-loopback --manifest-path cli/Cargo.toml`
-- [ ] Release build carries no loopback marker: `mise run build:cli:research` (staged-binary byte scan)
-- [ ] Crate rules, pup, public API: `mise run lint:crate-dependencies:check`, `mise run public-api:check`
-- [ ] Third-party notices match: `mise run notices:check`, after `mise run notices:update` if a new crate enters the closure
-- [ ] `mise run check` and `mise run` exit 0
+- [x] Domain tests pass: `cargo test -p research --manifest-path cli/Cargo.toml`
+- [x] Adapter tests pass: `cargo test -p research-adapters --manifest-path cli/Cargo.toml`
+- [x] Binary tests pass: `cargo test -p accelerator-research --features test-loopback --manifest-path cli/Cargo.toml`
+- [x] Release build carries no loopback marker. No `build:cli:research`
+  task exists; the staged-binary scan runs only inside
+  `build:cli:cross-compile`, so a host `cargo build --release -p
+  accelerator-research` was scanned instead, and carries neither
+  `TEST_LOOPBACK_MARKER` nor `ACCELERATOR_RESEARCH_TEST_RESOLVE`
+- [x] Crate rules, pup, public API: `mise run lint:crate-dependencies:check`, `mise run public-api:check`
+- [x] Third-party notices match: `mise run notices:check`; no crate entered the closure, since `url`, `hickory-resolver` and `tokio` were already reqwest's
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] `accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'` prints `doi: 10.1371/journal.pone.0000308`, `published: 2007-03-21` and `accessed`
-- [ ] `accelerator research fetch web metadata 'http://169.254.169.254/'` exits 1 with `E_WEB_HOST_REJECTED` and no URL in the message
-- [ ] A publisher page that refuses non-browser clients exits 1 within 100 s with one `E_WEB_*` line, without hanging. `https://peerj.com/articles/4375/` answered `curl` with 403 during Phase 3, so it is the expected `E_WEB_STATUS` case
+- [x] `accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'` prints `doi: 10.1371/journal.pone.0000308`, `published: 2007-03-21` and `accessed`
+- [x] `accelerator research fetch web metadata 'http://169.254.169.254/'` exits 1 with `E_WEB_HOST_REJECTED` and no URL in the message
+- [x] A publisher page that refuses non-browser clients exits 1 within 100 s with one `E_WEB_*` line, without hanging. `https://peerj.com/articles/4375/` answered `curl` with 403 during Phase 3, so it is the expected `E_WEB_STATUS` case
+
+All three ran through the `accelerator` launcher, with
+`ACCELERATOR_RESEARCH_BIN` pointing at the release build, from a directory
+outside the repository. PeerJ answered `E_WEB_STATUS: the page answered HTTP 403` in under a second.
 
 ---
 
