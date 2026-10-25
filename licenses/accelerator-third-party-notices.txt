@@ -12074,7 +12074,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-tokio 1.53.1
+tokio 1.53.3
 ------------------------------------------------------------------------------
 License: MIT
 Source: https://github.com/tokio-rs/tokio
