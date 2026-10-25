@@ -1,4 +1,5 @@
-//! The blocking HTTP transport every source's requests run through.
+//! The blocking HTTP transport every source's requests run through, each
+//! bounded as a whole, body included, by its per-request budget.
 //!
 //! Everything a request carries comes from its [`UpstreamRequest`], so the
 //! transport holds no per-source knowledge. Error text never reaches a
@@ -6,17 +7,17 @@
 //! and no key inside one, can leak through it.
 
 use std::fmt;
-use std::io::Read as _;
 use std::time::Duration;
 
-use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use reqwest::redirect;
+use reqwest::Client;
 use reqwest::Url;
 use research::sources::classify::Received;
 use research::sources::classify::Response;
 use research::sources::fetch::Transport;
 use research::sources::request::UpstreamRequest;
+use tokio::runtime::Runtime;
 
 const MAX_REDIRECTS: usize = 3;
 const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;
@@ -35,8 +36,12 @@ impl fmt::Display for TransportUnavailable {
 
 impl std::error::Error for TransportUnavailable {}
 
+/// The client stays on the one runtime it was first driven by, because the
+/// resolver it builds lazily is bound to that runtime.
 pub struct HttpTransport {
     client: Client,
+    runtime: Runtime,
+    per_request: Duration,
 }
 
 impl HttpTransport {
@@ -48,16 +53,24 @@ impl HttpTransport {
     ///
     /// # Errors
     ///
-    /// [`TransportUnavailable`] when the TLS-backed client cannot be built.
+    /// [`TransportUnavailable`] when the TLS-backed client, or the runtime
+    /// that drives it, cannot be built.
     pub fn new(per_request: Duration) -> Result<Self, TransportUnavailable> {
         install_crypto_provider();
         let client = Client::builder()
-            .timeout(per_request)
             .pool_max_idle_per_host(0)
             .redirect(redirect::Policy::custom(follow_within_origin))
             .build()
             .map_err(|_| TransportUnavailable)?;
-        Ok(Self { client })
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|_| TransportUnavailable)?;
+        Ok(Self {
+            client,
+            runtime,
+            per_request,
+        })
     }
 }
 
@@ -70,10 +83,17 @@ impl Transport for HttpTransport {
         if let Some(token) = request.bearer() {
             outgoing = outgoing.bearer_auth(token);
         }
-        match outgoing.send() {
-            Ok(response) => receive(response),
-            Err(error) => failure(&error),
-        }
+        let exchange = async {
+            match outgoing.send().await {
+                Ok(response) => receive(response).await,
+                Err(_) => Response::ConnectionFailed,
+            }
+        };
+        self.runtime.block_on(async {
+            tokio::time::timeout(self.per_request, exchange)
+                .await
+                .unwrap_or(Response::TimedOut)
+        })
     }
 }
 
@@ -99,19 +119,16 @@ fn same_origin(original: &Url, next: &Url) -> bool {
         && original.port_or_known_default() == next.port_or_known_default()
 }
 
-fn receive(response: reqwest::blocking::Response) -> Response {
+async fn receive(mut response: reqwest::Response) -> Response {
     let status = response.status().as_u16();
     let headers = response.headers().clone();
     let mut body = Vec::new();
-    let read = response
-        .take(MAX_BODY_BYTES as u64 + 1)
-        .read_to_end(&mut body);
-    if let Err(error) = read {
-        return if is_timeout(&error) {
-            Response::TimedOut
-        } else {
-            Response::ConnectionFailed
-        };
+    while body.len() <= MAX_BODY_BYTES {
+        match response.chunk().await {
+            Ok(Some(chunk)) => body.extend_from_slice(&chunk),
+            Ok(None) => break,
+            Err(_) => return Response::ConnectionFailed,
+        }
     }
     if body.len() > MAX_BODY_BYTES {
         body.clear();
@@ -130,24 +147,6 @@ fn receive(response: reqwest::blocking::Response) -> Response {
 
 fn seconds(headers: &HeaderMap, name: &str) -> Option<u64> {
     headers.get(name)?.to_str().ok()?.trim().parse().ok()
-}
-
-fn failure(error: &reqwest::Error) -> Response {
-    if error.is_timeout() {
-        Response::TimedOut
-    } else {
-        Response::ConnectionFailed
-    }
-}
-
-/// A body read that outlives the budget surfaces as an `io::Error` wrapping
-/// reqwest's own error, which alone knows it was a timeout.
-pub(crate) fn is_timeout(error: &std::io::Error) -> bool {
-    error.kind() == std::io::ErrorKind::TimedOut
-        || error
-            .get_ref()
-            .and_then(|inner| inner.downcast_ref::<reqwest::Error>())
-            .is_some_and(reqwest::Error::is_timeout)
 }
 
 /// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, so

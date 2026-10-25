@@ -2,6 +2,7 @@
 
 use std::net::TcpListener;
 use std::time::Duration;
+use std::time::Instant;
 
 use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
@@ -46,6 +47,25 @@ fn a_body_that_stalls_past_the_request_budget_is_a_timeout() {
         .send(&lookup(&server.base_url(), None));
 
     assert_eq!(response, Response::TimedOut);
+}
+
+#[test]
+fn a_body_that_trickles_past_the_request_budget_is_a_timeout() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(WORK),
+        Route::Trickle {
+            body: vec![b'x'; 40],
+            gap: Duration::from_millis(50),
+        },
+    );
+    let started = Instant::now();
+
+    let response = transport(Duration::from_millis(500))
+        .send(&lookup(&server.base_url(), None));
+
+    assert_eq!(response, Response::TimedOut);
+    assert!(started.elapsed() < Duration::from_millis(1500));
 }
 
 #[test]
