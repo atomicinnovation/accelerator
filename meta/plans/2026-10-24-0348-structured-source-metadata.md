@@ -5,14 +5,14 @@ title: "Structured Source Metadata Implementation Plan"
 date: "2026-10-24T14:01:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0348"
 parent: "work-item:0348"
 derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T11:51:16+00:00"
+last_updated: "2026-10-25T14:52:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---

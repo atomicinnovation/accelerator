@@ -6,13 +6,39 @@ date: "2026-10-25T13:27:56+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
-result: "partial"
+result: "pass"
 target: "plan:2026-10-24-0348-structured-source-metadata"
 tags: ["research", "sources", "metadata", "cli", "network"]
-last_updated: "2026-10-25T13:27:56+00:00"
+last_updated: "2026-10-25T14:52:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
+
+## Revalidation after fixes
+
+The result is now `pass`. Four commits after the first validation fixed
+the two defects and the smaller findings below, and `mise run` exited 0
+again, with all 68 tasks finished.
+
+| Finding | Resolution |
+|---|---|
+| Date parser panic | `is_offset` splits with `split_at_checked` and refuses an offset it cannot split; `a_date_carrying_non_ascii_where_digits_belong_is_unusable` failed first |
+| Body read past the deadline | The page transport drives reqwest's async client under one `tokio::time::timeout` over the whole exchange; `a_body_that_trickles_past_the_request_budget_is_a_timeout`, over a new `Route::Trickle`, failed first |
+| Untested `%40`/`%2F`/`%23`/`%3F` hosts | Added to `a_host_the_client_would_read_differently_is_refused_unsent`; all refused unsent |
+| Missing plan tests | OpenAlex url/title exclusion, every fixture's `publication_date`, `Mar. 21 2007` |
+| `research.md` inaccuracies | Exit table row reads "Any other `E_WEB_*`"; URL rules list no host and bad port; transport refusal noted under `E_WEB_CONNECTION_FAILED` |
+| Ambiguous carrier wording | The composer and `synthesise` name the `- {source-metadata}` slot line under each source, and both forbid merging. The outputter says the slot repeats under every entry. The web profile says a successful call always yields a block |
+
+Left as is, by decision:
+- **`network` in `research-cli`:** `research-adapters` already brings it
+  into every build.
+- **Byte-wise order for unknown keys:** belongs to 0349.
+- **Classifier gaps:** these predate this work and are low risk; they are a
+  candidate for their own work item.
+- **Academic `transport.rs`:** its per-read timeout only ever faces
+  trusted APIs.
+
+The report below is the original validation, kept as written.
 
 ## Validation Report: Structured Source Metadata Implementation Plan
 
