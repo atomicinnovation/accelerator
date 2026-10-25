@@ -723,6 +723,9 @@ impl<'a> core::fmt::Debug for corpus::references::Renaming<'a>
 pub fn corpus::references::Renaming<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::StructuralPartialEq for corpus::references::Renaming<'a>
 pub fn corpus::references::rewrite_references(content: &str, renaming: &corpus::references::Renaming<'_>) -> alloc::string::String
+pub mod corpus::relative_links
+pub fn corpus::relative_links::link_between(dir: &std::path::Path, target: &std::path::Path) -> alloc::string::String
+pub fn corpus::relative_links::rebased(content: &str, from_dir: &std::path::Path, to_dir: &std::path::Path) -> alloc::string::String
 pub mod corpus::resolve
 pub enum corpus::resolve::InputClass
 pub corpus::resolve::InputClass::Invalid

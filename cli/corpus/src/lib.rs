@@ -17,6 +17,7 @@ pub mod lock;
 pub mod metadata;
 pub mod record;
 pub mod references;
+pub mod relative_links;
 pub mod resolve;
 pub mod scan;
 pub mod slug;

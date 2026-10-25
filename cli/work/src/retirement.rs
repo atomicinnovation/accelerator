@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use corpus::references::rewrite_references;
 use corpus::references::IdShape;
 use corpus::references::Renaming;
+use corpus::relative_links::link_between;
+use corpus::relative_links::rebased;
 use corpus::StoreError;
 
 use crate::dirtiness::Dirtiness;
@@ -396,36 +398,48 @@ fn destination_of(
     )
 }
 
-fn is_draft_file(path: &Path, work_dir: &Path) -> bool {
-    path.parent() == Some(work_dir.join(DRAFTS_DIRECTORY).as_path())
-}
-
-/// `path` as a link from the work directory spells it.
-fn spelled_from_work_dir(path: &Path, work_dir: &Path) -> String {
-    let name = file_name(path);
-    if is_draft_file(path, work_dir) {
-        format!("{DRAFTS_DIRECTORY}/{name}")
-    } else {
-        name
-    }
-}
-
+/// Spellings of the retiring file's path, as links written in
+/// `referrer_dir` spell it, each paired with how they spell the new path.
+/// A referrer outside the work and drafts directories is matched on the
+/// path's tail, as the work directory spells it.
 fn path_spellings(
     from: &Path,
     to: &Path,
     work_dir: &Path,
+    referrer_dir: &Path,
 ) -> Vec<(String, String)> {
+    let drafts_dir = work_dir.join(DRAFTS_DIRECTORY);
+    let seen_from = if referrer_dir == drafts_dir {
+        referrer_dir
+    } else {
+        work_dir
+    };
     let old_name = file_name(from);
-    let new_spelling = spelled_from_work_dir(to, work_dir);
+    let old_spelling = link_between(seen_from, from);
+    let new_spelling = link_between(seen_from, to);
     let mut spellings = Vec::new();
-    if is_draft_file(from, work_dir) {
-        spellings.push((
-            spelled_from_work_dir(from, work_dir),
-            new_spelling.clone(),
-        ));
+    if old_spelling != old_name {
+        spellings.push((old_spelling, new_spelling.clone()));
     }
     spellings.push((old_name, new_spelling));
     spellings
+}
+
+fn renaming_with<'r>(
+    retirement: &Retirement<'r>,
+    path_spellings: &'r [(String, String)],
+) -> Renaming<'r> {
+    Renaming {
+        doc_type: WORK_ITEM,
+        old_id: retirement.old_id,
+        new_id: retirement.new_id,
+        shape: shape_of(retirement.old_id),
+        path_spellings,
+    }
+}
+
+fn directory_of(path: &Path) -> &Path {
+    path.parent().unwrap_or(path)
 }
 
 /// # Errors
@@ -468,21 +482,18 @@ pub fn plan_retirement(
         return Err(RetirementRefusal::TargetExists(to));
     }
 
-    let renaming_spellings = path_spellings(&from, &to, work_dir);
-    let renaming = Renaming {
-        doc_type: WORK_ITEM,
-        old_id: retirement.old_id,
-        new_id: retirement.new_id,
-        shape: shape_of(retirement.old_id),
-        path_spellings: &renaming_spellings,
-    };
     let from_file = corpus.iter().find(|file| file.path == from);
     let rewrites: Vec<FileRewrite> = corpus
         .iter()
         .filter(|file| file.path != from && file.path != to)
         .filter_map(|file| {
+            let spellings =
+                path_spellings(&from, &to, work_dir, directory_of(&file.path));
             let content = rewrite_review_link(
-                &rewrite_references(&file.content, &renaming),
+                &rewrite_references(
+                    &file.content,
+                    &renaming_with(retirement, &spellings),
+                ),
                 retirement,
             );
             (content != file.content).then(|| FileRewrite {
@@ -493,9 +504,15 @@ pub fn plan_retirement(
         })
         .collect();
     let retired_item = match (interrupted, from_file) {
-        (None, Some(file)) => {
-            Some(retired_from(&file.content, &renaming, retirement))
-        }
+        (None, Some(file)) => Some(retired_from(
+            &file.content,
+            retirement,
+            &Move {
+                from: &from,
+                to: &to,
+                work_dir,
+            },
+        )),
         _ => None,
     };
     let recovery = corpus
@@ -534,24 +551,34 @@ pub fn retired_content(
     work_dir: &Path,
 ) -> String {
     let to = destination_of(retirement, from, work_dir);
-    let spellings = path_spellings(from, &to, work_dir);
-    let renaming = Renaming {
-        doc_type: WORK_ITEM,
-        old_id: retirement.old_id,
-        new_id: retirement.new_id,
-        shape: shape_of(retirement.old_id),
-        path_spellings: &spellings,
-    };
-    retired_from(content, &renaming, retirement)
+    retired_from(
+        content,
+        retirement,
+        &Move {
+            from,
+            to: &to,
+            work_dir,
+        },
+    )
 }
 
-/// The retired item's content: its references rewritten and its identity
-/// moved, keeping the tracker link a renumbering has no new key for.
+struct Move<'p> {
+    from: &'p Path,
+    to: &'p Path,
+    work_dir: &'p Path,
+}
+
+/// The retired item's content: its links re-based for its new directory,
+/// its references rewritten, and its identity moved, keeping the tracker
+/// link a renumbering has no new key for.
 fn retired_from(
     original: &str,
-    renaming: &Renaming<'_>,
     retirement: &Retirement<'_>,
+    moved: &Move<'_>,
 ) -> String {
+    let new_dir = directory_of(moved.to);
+    let spellings =
+        path_spellings(moved.from, moved.to, moved.work_dir, new_dir);
     let linked_to =
         retirement.new_external_id.map(str::to_owned).or_else(|| {
             frontmatter_of(original)
@@ -561,7 +588,10 @@ fn retired_from(
                 .filter(|key| !key.is_empty())
         });
     retired_item_content(
-        &rewrite_references(original, renaming),
+        &rewrite_references(
+            &rebased(original, directory_of(moved.from), new_dir),
+            &renaming_with(retirement, &spellings),
+        ),
         retirement,
         linked_to.as_deref(),
     )
@@ -1011,6 +1041,113 @@ mod tests {
                     work_dir()
                 )
                 .as_str()
+            )
+        );
+    }
+
+    fn parent_item() -> CorpusFile {
+        work_item("/repo/meta/work/0041-parent.md", "id: \"0041\"\n", "Parent")
+    }
+
+    fn sibling_draft(links: &str) -> CorpusFile {
+        work_item(
+            "/repo/meta/work/drafts/draft-aaaaaa-other.md",
+            "id: \"draft-aaaaaa\"\n",
+            &format!("Other, see {links}"),
+        )
+    }
+
+    #[test]
+    fn an_item_retired_into_drafts_keeps_its_links_resolving() {
+        let draft = a_draft_id();
+        let corpus = [
+            work_item(
+                "/repo/meta/work/0042-add-search.md",
+                "id: \"0042\"\n",
+                "Add search, see [self](0042-add-search.md) \
+                 [parent](0041-parent.md) [plan](../plans/p.md) \
+                 [anchor](#scope) [web](https://example.com/a.md)",
+            ),
+            parent_item(),
+            file("/repo/meta/plans/p.md", "Plan.\n"),
+        ];
+
+        let planned = planned(&Retirement::into_draft("0042", &draft), &corpus);
+
+        assert_eq!(
+            retired(&planned),
+            "---\nid: \"draft-k3x9mq\"\naliases: [\"0042\"]\n---\n\n\
+             # draft-k3x9mq: Add search, see \
+             [self](draft-k3x9mq-add-search.md) \
+             [parent](../0041-parent.md) [plan](../../plans/p.md) \
+             [anchor](#scope) [web](https://example.com/a.md)\n"
+        );
+    }
+
+    #[test]
+    fn a_promoted_draft_keeps_its_links_resolving() {
+        let corpus = [
+            work_item(
+                "/repo/meta/work/drafts/draft-k7mq3x-add-search.md",
+                "id: \"draft-k7mq3x\"\n",
+                "Add search, see [self](draft-k7mq3x-add-search.md) \
+                 [sibling](draft-aaaaaa-other.md) [parent](../0041-parent.md) \
+                 [plan](../../plans/p.md)\n\n[ref]: ../0041-parent.md",
+            ),
+            sibling_draft("nothing"),
+            parent_item(),
+            file("/repo/meta/plans/p.md", "Plan.\n"),
+        ];
+
+        let planned = planned(&promotion(), &corpus);
+
+        assert_eq!(
+            retired(&planned),
+            "---\nid: \"PP-900\"\nexternal_id: \"PP-900\"\n\
+             aliases: [\"draft-k7mq3x\"]\n---\n\n\
+             # PP-900: Add search, see [self](PP-900-add-search.md) \
+             [sibling](drafts/draft-aaaaaa-other.md) [parent](0041-parent.md) \
+             [plan](../plans/p.md)\n\n[ref]: 0041-parent.md\n"
+        );
+    }
+
+    #[test]
+    fn a_sibling_drafts_link_follows_a_promoted_draft_out_of_drafts() {
+        let corpus =
+            [draft(), sibling_draft("[it](draft-k7mq3x-add-search.md)")];
+
+        let planned = planned(&promotion(), &corpus);
+
+        assert_eq!(
+            rewrite_of(
+                &planned,
+                "/repo/meta/work/drafts/draft-aaaaaa-other.md"
+            ),
+            Some(
+                "---\nid: \"draft-aaaaaa\"\n---\n\n\
+                 # draft-aaaaaa: Other, see [it](../PP-900-add-search.md)\n"
+            )
+        );
+    }
+
+    #[test]
+    fn a_drafts_link_follows_an_item_retired_into_drafts() {
+        let draft = a_draft_id();
+        let corpus = [
+            numbered_item(),
+            sibling_draft("[it](../0042-add-search.md)"),
+        ];
+
+        let planned = planned(&Retirement::into_draft("0042", &draft), &corpus);
+
+        assert_eq!(
+            rewrite_of(
+                &planned,
+                "/repo/meta/work/drafts/draft-aaaaaa-other.md"
+            ),
+            Some(
+                "---\nid: \"draft-aaaaaa\"\n---\n\n\
+                 # draft-aaaaaa: Other, see [it](draft-k3x9mq-add-search.md)\n"
             )
         );
     }
