@@ -1485,3 +1485,11 @@ def test_the_web_profile_treats_declared_metadata_as_inert() -> None:
     )
     assert "metadata a page declares" in contract
     assert "never fetched or followed" in contract
+
+
+def test_the_docs_list_every_recommended_key_in_order() -> None:
+    docs = _read(DOCS_RESEARCH)
+    sources_metadata = _section(
+        docs, "## Sources metadata\n", "\n## ", path=DOCS_RESEARCH
+    )
+    assert _key_column(sources_metadata) == _recommended_keys()
