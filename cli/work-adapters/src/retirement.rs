@@ -17,6 +17,7 @@ use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
 use corpus::StoreError;
 use work::identity::ItemIdentity;
+use work::identity_run::IdentityRunGuard;
 use work::retirement::plan_retirement;
 use work::retirement::CorpusFile;
 use work::retirement::Retirement;
@@ -65,6 +66,18 @@ pub struct RetirementPorts<'a> {
 
 /// Proof that the caller holds the retirement lock, so no retirement can
 /// apply unlocked.
+///
+/// Only [`acquire_retirement_lock`] mints one, and only inside an identity
+/// run:
+///
+/// ```compile_fail
+/// use corpus::lock::ExclusiveLock;
+/// use work_adapters::retirement::acquire_retirement_lock;
+///
+/// fn outside_an_identity_run(lock: &dyn ExclusiveLock) {
+///     let _ = acquire_retirement_lock(lock);
+/// }
+/// ```
 pub struct RetirementLockGuard {
     _held: HeldLock,
 }
@@ -74,6 +87,7 @@ pub struct RetirementLockGuard {
 /// [`StoreError`] when the lock cannot be taken.
 pub fn acquire_retirement_lock(
     lock: &dyn ExclusiveLock,
+    _within: &IdentityRunGuard,
 ) -> Result<RetirementLockGuard, StoreError> {
     lock.acquire(&LockName::Retirement)
         .map(|held| RetirementLockGuard { _held: held })

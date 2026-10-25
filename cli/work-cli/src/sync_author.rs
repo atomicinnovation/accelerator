@@ -21,8 +21,6 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use document::Scalar;
 use document::Yaml;
-use store::lock::acquire;
-use store::lock::LockOptions;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::create::resolve_author;
@@ -37,6 +35,7 @@ use work::sync::PendingPush;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::RepositoryIdentityProbe;
+use work_adapters::creation::acquire_create_lock;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
@@ -255,19 +254,19 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let _retirement = match scheme.ownership() {
             IdOwnership::Local => None,
             IdOwnership::Tracker => Some(
-                acquire_retirement_lock(&retirement_locks).map_err(failed)?,
+                acquire_retirement_lock(&retirement_locks, self.identity_run)
+                    .map_err(failed)?,
             ),
         };
-        let lockdir = self.work_dir.join(crate::create::LOCK_FILE_NAME);
-        let _guard =
-            acquire(&lockdir, LockOptions::default()).map_err(failed)?;
+        let create = acquire_create_lock(&retirement_locks, self.identity_run)
+            .map_err(failed)?;
 
         let id = match scheme.ownership() {
             IdOwnership::Local => crate::create::allocate_id(
                 &scheme,
                 &self.work_dir,
                 project.as_deref(),
-                self.identity_run,
+                &create,
             )
             .map_err(failed)?,
             IdOwnership::Tracker => self.adoptable(&issue.external_id)?,
@@ -787,7 +786,10 @@ mod tests {
                 "the pull waits for the retirement lock"
             );
             assert!(
-                !repo.work_dir().join(crate::create::LOCK_FILE_NAME).exists(),
+                !repo
+                    .work_dir()
+                    .join(corpus_adapters::LockdirLock::CREATE_LOCKDIR)
+                    .exists(),
                 "and has not taken the create lock"
             );
             drop(held);

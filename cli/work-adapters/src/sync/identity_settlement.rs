@@ -250,8 +250,11 @@ fn reconcile(
             }
             continue;
         }
-        let lock = acquire_retirement_lock(settlement.retirement.lock)
-            .map_err(internal)?;
+        let lock = acquire_retirement_lock(
+            settlement.retirement.lock,
+            settlement.identity_run,
+        )
+        .map_err(internal)?;
         let still_recorded = settlement
             .records
             .outstanding()
@@ -313,8 +316,11 @@ fn reconcile_promotions(
             rows.push(row(IdentityOutcome::NotApplied));
             continue;
         }
-        let lock = acquire_retirement_lock(settlement.retirement.lock)
-            .map_err(internal)?;
+        let lock = acquire_retirement_lock(
+            settlement.retirement.lock,
+            settlement.identity_run,
+        )
+        .map_err(internal)?;
         let StoredRecord::Present(current) =
             settlement.promotions.read(&record.draft_id)
         else {
@@ -529,8 +535,11 @@ fn follow_external_id(
             "cannot follow {old} to {new}: {item} is no longer in the corpus"
         )));
     };
-    let _lock = acquire_retirement_lock(settlement.retirement.lock)
-        .map_err(internal)?;
+    let _lock = acquire_retirement_lock(
+        settlement.retirement.lock,
+        settlement.identity_run,
+    )
+    .map_err(internal)?;
     let identities = corpus_identities(settlement.retirement)
         .map_err(|failure| internal(format!("{failure:?}")))?;
     let others: Vec<_> = identities
@@ -559,8 +568,11 @@ fn retire_key(
     settlement: &SettlementPorts<'_>,
 ) -> Result<IdentityOutcome, RunError> {
     let retirement = Retirement::onto(item, new);
-    let lock = acquire_retirement_lock(settlement.retirement.lock)
-        .map_err(internal)?;
+    let lock = acquire_retirement_lock(
+        settlement.retirement.lock,
+        settlement.identity_run,
+    )
+    .map_err(internal)?;
     settlement
         .records
         .save(&RetirementRecord::of(&retirement))

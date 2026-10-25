@@ -1,6 +1,8 @@
 //! ID retirement applied to a real corpus on disk: every step lands, or the
 //! corpus, the baseline and the recovery copies are as they were.
 
+mod support;
+
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::fs;
@@ -36,6 +38,8 @@ use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::retirement::acquire_retirement_lock;
+
+use support::identity_run;
 use work_adapters::retirement::apply_retirement;
 use work_adapters::retirement::corpus_files;
 use work_adapters::retirement::finish_retirement;
@@ -369,7 +373,11 @@ impl<'a> Harness<'a> {
     }
 
     fn apply(&self, plan: &RetirementPlan) -> Result<(), RetirementFailure> {
-        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+        let Ok(identity_run) = identity_run() else {
+            unreachable!("an identity run is free");
+        };
+        let Ok(lock) = acquire_retirement_lock(&self.locks, &identity_run)
+        else {
             unreachable!("the retirement lock is free");
         };
         apply_retirement(plan, &self.files(), Some(&self.baseline()), &lock)
@@ -384,7 +392,11 @@ impl<'a> Harness<'a> {
         retirement: &Retirement<'_>,
     ) -> Result<(), FinishFailure> {
         let baseline = self.baseline();
-        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+        let Ok(identity_run) = identity_run() else {
+            unreachable!("an identity run is free");
+        };
+        let Ok(lock) = acquire_retirement_lock(&self.locks, &identity_run)
+        else {
             unreachable!("the retirement lock is free");
         };
         finish_retirement(retirement, &self.ports(&baseline), &lock)
@@ -395,7 +407,11 @@ impl<'a> Harness<'a> {
         before_apply: &mut dyn FnMut(&RetirementPlan) -> Result<(), E>,
     ) -> Result<(), HookedFinishFailure<E>> {
         let baseline = self.baseline();
-        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+        let Ok(identity_run) = identity_run() else {
+            unreachable!("an identity run is free");
+        };
+        let Ok(lock) = acquire_retirement_lock(&self.locks, &identity_run)
+        else {
             unreachable!("the retirement lock is free");
         };
         finish_retirement_with(
@@ -1084,9 +1100,10 @@ fn a_held_retirement_lock_blocks_a_second_retirement() -> Result<(), TestError>
 {
     let repo = Repo::new()?;
     let harness = Harness::new(&repo);
-    let _first = acquire_retirement_lock(&harness.locks)?;
+    let identity_run = identity_run()?;
+    let _first = acquire_retirement_lock(&harness.locks, &identity_run)?;
 
-    let second = acquire_retirement_lock(&harness.locks);
+    let second = acquire_retirement_lock(&harness.locks, &identity_run);
 
     assert!(matches!(second, Err(StoreError::LockTimeout { .. })));
     Ok(())

@@ -5,7 +5,6 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::lock::LockName;
 use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
@@ -35,6 +34,7 @@ use work::rekey::write_set::WriteSet;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 
+use crate::creation::acquire_create_lock;
 use crate::rekey::execute::current_states;
 use crate::rekey::execute::execute;
 use crate::rekey::execute::outstanding_entries;
@@ -158,17 +158,16 @@ pub fn run(
     request: &RekeyRequest,
     ports: &RekeyPorts<'_>,
 ) -> Result<RekeyReport, NotRekeyed> {
-    let _identity_run = begin_rekey_run(ports.identity_run, &|holder| {
+    let identity_run = begin_rekey_run(ports.identity_run, &|holder| {
         ports.progress.waiting(holder);
     })?;
     let work_dir = ports.corpus.ports.layout.work_dir;
     std::fs::create_dir_all(work_dir)
         .map_err(|error| inaccessible(work_dir, &error))?;
     let locks = ports.corpus.ports.lock;
-    let retirement = acquire_retirement_lock(locks)
+    let retirement = acquire_retirement_lock(locks, &identity_run)
         .map_err(|error| inaccessible(work_dir, &error))?;
-    let _create = locks
-        .acquire(&LockName::Create)
+    let _create = acquire_create_lock(locks, &identity_run)
         .map_err(|error| inaccessible(work_dir, &error))?;
     let loaded = ports.store.load();
     match request.action {

@@ -16,6 +16,7 @@ use corpus::scan::FileReader;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
 use corpus::AtomicWrite;
+use corpus::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use work::draft_id::mint_draft_id;
@@ -197,9 +198,40 @@ fn pushed(
     }
 }
 
+/// Proof that the caller holds the create lock, so no ID is allocated
+/// while another creation could take it.
+///
+/// Only [`acquire_create_lock`] mints one, and only inside an identity run:
+///
+/// ```compile_fail
+/// use corpus::lock::ExclusiveLock;
+/// use work_adapters::creation::acquire_create_lock;
+///
+/// fn outside_an_identity_run(lock: &dyn ExclusiveLock) {
+///     let _ = acquire_create_lock(lock);
+/// }
+/// ```
+pub struct CreateLockGuard {
+    _held: HeldLock,
+}
+
+/// # Errors
+///
+/// [`StoreError`] when the lock cannot be taken.
+pub fn acquire_create_lock(
+    lock: &dyn ExclusiveLock,
+    _within: &IdentityRunGuard,
+) -> Result<CreateLockGuard, StoreError> {
+    lock.acquire(&LockName::Create)
+        .map(|held| CreateLockGuard { _held: held })
+}
+
 impl Creation<'_> {
-    fn hold_create_lock(&self) -> Result<HeldLock, String> {
-        self.lock.acquire(&LockName::Create).map_err(|error| {
+    fn hold_create_lock(
+        &self,
+        identity_run: &IdentityRunGuard,
+    ) -> Result<CreateLockGuard, String> {
+        acquire_create_lock(self.lock, identity_run).map_err(|error| {
             format!("could not acquire the work-item creation lock: {error}")
         })
     }
@@ -262,7 +294,7 @@ impl Creation<'_> {
     fn write_draft(
         &self,
         draws: &mut dyn SuffixDraws,
-        _held: &HeldLock,
+        _held: &CreateLockGuard,
     ) -> Result<(DraftId, PathBuf), String> {
         let draft = mint_draft_id(draws, &self.identities()?)
             .map_err(|error| error.to_string())?;
@@ -303,8 +335,9 @@ pub fn save_draft(
     creation: &Creation<'_>,
     draws: &mut dyn SuffixDraws,
     drafted: &mut Drafted<'_>,
+    identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, String> {
-    let held = creation.hold_create_lock()?;
+    let held = creation.hold_create_lock(identity_run)?;
     let (draft, path) = creation.write_draft(draws, &held)?;
     drop(held);
     drafted(&draft)?;
@@ -595,12 +628,12 @@ fn record_baseline_after_create(
 /// or an earlier push of the same title refuses this one.
 pub fn create_local_item(
     creation: &Creation<'_>,
-    allocate: &dyn Fn() -> Result<String, String>,
+    allocate: &dyn Fn(&CreateLockGuard) -> Result<String, String>,
     pushing: Option<&LegacyPushing<'_>>,
-    _identity_run: &IdentityRunGuard,
+    identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, String> {
-    let _held = creation.hold_create_lock()?;
-    let id = allocate()?;
+    let create = creation.hold_create_lock(identity_run)?;
+    let id = allocate(&create)?;
     let target = creation.target_for(&id);
     creation.refuse_to_overwrite(&target)?;
     let store = creation.item_store();
@@ -981,9 +1014,10 @@ pub fn create_tracker_keyed_item(
     draws: &mut dyn SuffixDraws,
     drafted: &mut Drafted<'_>,
     promotion: &mut DraftPromotion<'_>,
+    identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, CreateFailure> {
     std::fs::create_dir_all(&state.root).map_err(|error| error.to_string())?;
-    let held = creation.hold_create_lock()?;
+    let held = creation.hold_create_lock(identity_run)?;
     if let Some(pending) = pending_create(creation, records, state)? {
         return Err(CreateFailure::Pending {
             message: pending.message(creation.item.title()),

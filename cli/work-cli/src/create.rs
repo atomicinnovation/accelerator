@@ -44,6 +44,7 @@ use work_adapters::creation::create_local_item;
 use work_adapters::creation::create_tracker_keyed_item;
 use work_adapters::creation::save_draft;
 pub use work_adapters::creation::CreateFailure;
+use work_adapters::creation::CreateLockGuard;
 use work_adapters::creation::Creation;
 pub use work_adapters::creation::CreationOutcome;
 pub use work_adapters::creation::CreationStore;
@@ -71,7 +72,6 @@ use crate::tracker_registry::TrackerRegistry;
 
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
-pub const LOCK_FILE_NAME: &str = LockdirLock::CREATE_LOCKDIR;
 
 pub struct CreateArgs {
     pub title: String,
@@ -207,7 +207,7 @@ pub fn allocate_id(
     scheme: &corpus::WorkItemIdScheme,
     work_dir: &Path,
     project: Option<&str>,
-    _identity_run: &IdentityRunGuard,
+    _create: &CreateLockGuard,
 ) -> Result<String, String> {
     let filenames = FilesystemLister::new(work_dir).filenames();
     let scan_regex =
@@ -435,19 +435,14 @@ impl CreationContext<'_> {
 
     fn allocate_local_id(
         &self,
-        identity_run: &IdentityRunGuard,
+        create: &CreateLockGuard,
     ) -> Result<String, String> {
         let project = self
             .args
             .project
             .clone()
             .or_else(|| self.scheme.key.clone());
-        allocate_id(
-            &self.scheme,
-            &self.work_dir,
-            project.as_deref(),
-            identity_run,
-        )
+        allocate_id(&self.scheme, &self.work_dir, project.as_deref(), create)
     }
 }
 
@@ -527,7 +522,7 @@ pub fn create_item(
     match (context.scheme.ownership(), args.push) {
         (IdOwnership::Local, false) => Ok(create_local_item(
             &creation,
-            &|| context.allocate_local_id(identity_run),
+            &|create| context.allocate_local_id(create),
             None,
             identity_run,
         )?),
@@ -544,7 +539,7 @@ pub fn create_item(
             };
             Ok(create_local_item(
                 &creation,
-                &|| context.allocate_local_id(identity_run),
+                &|create| context.allocate_local_id(create),
                 Some(&LegacyPushing {
                     state: &state,
                     tracker: &tracker,
@@ -553,7 +548,7 @@ pub fn create_item(
             )?)
         }
         (IdOwnership::Tracker, false) => {
-            Ok(save_draft(&creation, seams.draws, drafted)?)
+            Ok(save_draft(&creation, seams.draws, drafted, identity_run)?)
         }
         (IdOwnership::Tracker, true) => {
             let state = context.integration_state()?;
@@ -602,6 +597,7 @@ pub fn create_item(
                 seams.draws,
                 drafted,
                 &mut promotion,
+                identity_run,
             )
         }
     }
@@ -1517,7 +1513,8 @@ mod tests {
         let content =
             std::fs::read_to_string(&concurrent_draft).expect("draft");
         std::fs::remove_file(&concurrent_draft).expect("remove");
-        let lock_path = repo.path("meta/work").join(LOCK_FILE_NAME);
+        let lock_path =
+            repo.path("meta/work").join(LockdirLock::CREATE_LOCKDIR);
         let (locked, lock_held) = std::sync::mpsc::channel();
         let concurrent = std::thread::spawn(move || {
             let _guard = store::lock::acquire(

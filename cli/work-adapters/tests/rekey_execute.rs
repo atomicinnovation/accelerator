@@ -24,6 +24,7 @@ use work_adapters::retirement::acquire_retirement_lock;
 
 use support::entries;
 use support::halted_at;
+use support::identity_run;
 use support::renumbered;
 use support::Fault;
 use support::Mutations;
@@ -75,7 +76,8 @@ fn executed(
     applied: &Applied,
 ) -> Result<InProgressPlan, NotRekeyed> {
     let baseline = ports.baseline();
-    let Ok(lock) = acquire_retirement_lock(&ports.locks) else {
+    let identity_run = identity_run()?;
+    let Ok(lock) = acquire_retirement_lock(&ports.locks, &identity_run) else {
         unreachable!("the retirement lock is free");
     };
     execute(

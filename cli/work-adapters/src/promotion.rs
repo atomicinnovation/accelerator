@@ -395,10 +395,10 @@ pub fn promote(
     draft: &DraftId,
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
-    _identity_run: &IdentityRunGuard,
+    identity_run: &IdentityRunGuard,
 ) -> Result<Promotion, NotPromoted> {
-    let lock =
-        acquire_retirement_lock(ports.retirement.lock).map_err(|error| {
+    let lock = acquire_retirement_lock(ports.retirement.lock, identity_run)
+        .map_err(|error| {
             store_failure(ports.retirement.layout.work_dir.to_path_buf(), error)
         })?;
     let items = identities(ports.retirement)?;
