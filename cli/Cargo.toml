@@ -39,6 +39,7 @@ members = [
     "jira-cli",
     "linear-client",
     "linear-cli",
+    "network",
     "design",
     "design-adapters",
     "design-cli",

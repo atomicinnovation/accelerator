@@ -23,32 +23,16 @@ pub enum HostError {
 
 impl std::error::Error for HostError {}
 
-impl HostError {
-    /// The rejection as the caller reads it. Only the numeric-encoding case
-    /// names the authority; the others describe a property of the URL rather
-    /// than of a host it successfully identified.
-    #[must_use]
-    pub fn message(&self, authority: &str) -> String {
-        match self {
-            Self::Userinfo => "URL contains a userinfo segment (user@host), \
-                               which is not permitted."
-                .to_owned(),
-            Self::Empty => "URL names no host.".to_owned(),
-            Self::ControlCharacter => format!(
-                "host '{authority}' contains a control character, which is \
-                 not permitted."
-            ),
-            Self::NumericEncoding => format!(
-                "host '{authority}' uses a numeric IPv4 encoding (decimal, \
-                 hex, or octal), which is not permitted."
-            ),
-        }
-    }
-}
-
 impl fmt::Display for HostError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.message("<host>"))
+        formatter.write_str(match self {
+            Self::Userinfo => "the authority carries a userinfo segment",
+            Self::Empty => "the authority names no host",
+            Self::ControlCharacter => "the host contains a control character",
+            Self::NumericEncoding => {
+                "the host is a numerically encoded address"
+            }
+        })
     }
 }
 

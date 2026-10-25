@@ -22,6 +22,7 @@ _PINNED_CRATES = (
     "kernel",
     "markdown",
     "migrate",
+    "network",
     "remote-projection",
     "research",
     "store",

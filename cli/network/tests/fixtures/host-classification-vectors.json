@@ -55,23 +55,5 @@
     { "authority": "127.0.0.1%0d%0aevil", "error": "control-character" },
     { "authority": "", "error": "empty" },
     { "authority": ":3000", "error": "empty" }
-  ],
-  "policy": [
-    { "url": "https://example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "http://localhost:3000", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "http://127.0.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "http://example.com", "allow_internal": false, "allow_insecure_scheme": true, "verdict": "accepted" },
-    { "url": "http://10.0.0.1", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "http://169.254.169.254", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "http://100.64.0.1", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
-    { "url": "https://[fd00::1]", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
-
-    { "url": "http://example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "insecure-scheme" },
-    { "url": "http://10.0.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "private" },
-    { "url": "http://[fd00::1]", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "private" },
-    { "url": "http://169.254.169.254", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "link-local" },
-    { "url": "http://100.64.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "reserved" },
-    { "url": "http://0.0.0.0", "allow_internal": true, "allow_insecure_scheme": true, "verdict": "rejected", "classification": "unspecified" },
-    { "url": "http://user@example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "malformed" }
   ]
 }

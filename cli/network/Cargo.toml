@@ -1,0 +1,19 @@
+[package]
+name = "network"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[package.metadata.accelerator]
+role = "domain"
+context = "network"
+kind = "shared"
+downstreams = ["design", "research"]
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }

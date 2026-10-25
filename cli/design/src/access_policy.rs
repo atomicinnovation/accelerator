@@ -1,17 +1,63 @@
 //! Whether a source location may be inspected, and what to say when it may
 //! not.
 //!
-//! This verdict now guards **every `navigate`** — its initial URL and every
+//! Three limits are taken positions rather than oversights.
+//!
+//! The check is **pre-resolution only**: a public hostname resolving to
+//! `169.254.169.254` still classifies as public, and nothing re-checks after
+//! DNS.
+//!
+//! The same verdict guards **every `navigate`** — its initial URL and every
 //! redirect hop — and every `links` destination per request in the daemon, not
-//! only where a crawl begins. Classification stays pre-resolution and does not
-//! cover page subresources, so it is not a full boundary around the navigation
-//! surface.
+//! only where a crawl begins. It does not cover page subresources, so a hostile
+//! page can still reach an internal address through a subresource or a rebased
+//! hostname; this is not a full boundary around the navigation surface.
+//!
+//! It says nothing about **path locations**: a repository path is a valid
+//! source location wherever it points, and nothing confirms it lies inside a
+//! repository.
 
-use crate::host_reach;
-use crate::host_reach::HostReach;
 use crate::source_location::Scheme;
 use crate::source_location::SourceLocation;
 use crate::verdict::Verdict;
+use network::host_reach;
+use network::HostError;
+use network::HostReach;
+
+/// The word a rejection uses for `reach`.
+#[must_use]
+pub const fn reach_word(reach: HostReach) -> &'static str {
+    match reach {
+        HostReach::Loopback => "loopback",
+        HostReach::Private => "RFC1918",
+        HostReach::LinkLocal => "link-local",
+        HostReach::Reserved => "reserved",
+        HostReach::Unspecified => "wildcard",
+        HostReach::Public => "public",
+    }
+}
+
+/// The rejection for an authority that could not be canonicalised.
+///
+/// Only the numeric-encoding and control-character cases name the authority;
+/// the others describe a property of the URL rather than of a host.
+#[must_use]
+pub fn host_error_message(error: &HostError, authority: &str) -> String {
+    match error {
+        HostError::Userinfo => "URL contains a userinfo segment (user@host), \
+                                which is not permitted."
+            .to_owned(),
+        HostError::Empty => "URL names no host.".to_owned(),
+        HostError::ControlCharacter => format!(
+            "host '{authority}' contains a control character, which is not \
+             permitted."
+        ),
+        HostError::NumericEncoding => format!(
+            "host '{authority}' uses a numeric IPv4 encoding (decimal, hex, \
+             or octal), which is not permitted."
+        ),
+    }
+}
 
 /// The two recovering flags. They only ever travel together and are only
 /// meaningful as a pair, so they are one value rather than two bare booleans
@@ -48,7 +94,7 @@ pub fn evaluate(
             return Verdict::Rejected(format!(
                 "host '{host}' is a {} address, which names no host. There is \
                  nothing to inventory there.",
-                reach.description()
+                reach_word(reach)
             ))
         }
         HostReach::Private | HostReach::LinkLocal | HostReach::Reserved => {
@@ -56,7 +102,7 @@ pub fn evaluate(
                 return Verdict::Rejected(format!(
                     "host '{host}' is a {} address. Pass --allow-internal to \
                      permit.",
-                    reach.description()
+                    reach_word(reach)
                 ));
             }
             return Verdict::Accepted;
@@ -75,7 +121,10 @@ pub fn evaluate(
 
 #[cfg(test)]
 mod tests {
+    use network::HostReach;
+
     use super::evaluate;
+    use super::reach_word;
     use super::Allowances;
     use crate::source_location;
     use crate::verdict::Verdict;
@@ -107,8 +156,9 @@ mod tests {
         }
     }
 
-    // The scheme and reachability vectors live in the shared classification
-    // corpus (`tests/host_classification_vectors.rs`), which holds the Rust and
+    // The scheme and reachability vectors live in the shared corpora
+    // (`tests/access_policy_vectors.rs` here, and network's
+    // `tests/host_classification_vectors.rs`), which hold the Rust and
     // JavaScript classifiers to the same cases. The tests below pin behaviour
     // the corpus cannot: the loopback carve-out, the unrecoverable wildcard, the
     // exact rejection prose, and the non-URL locations.
@@ -173,6 +223,15 @@ mod tests {
              permit."
         );
         Ok(())
+    }
+
+    #[test]
+    fn every_rejected_reach_names_itself_for_the_rejection_message() {
+        assert_eq!(reach_word(HostReach::Loopback), "loopback");
+        assert_eq!(reach_word(HostReach::Private), "RFC1918");
+        assert_eq!(reach_word(HostReach::LinkLocal), "link-local");
+        assert_eq!(reach_word(HostReach::Reserved), "reserved");
+        assert_eq!(reach_word(HostReach::Unspecified), "wildcard");
     }
 
     #[test]

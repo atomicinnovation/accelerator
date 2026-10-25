@@ -183,6 +183,24 @@
                 ),
             ],
         )),
+        // The whole network crate is domain: host vocabulary shared by the
+        // contexts that judge where a URL points. Like tracker's rule it
+        // omits the kernel::Error allowance, because the crate declares no
+        // dependencies.
+        Module((
+            name: "network_domain_imports_only_permitted",
+            matches: Module("^network($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
         // tracker-test-support is a fake plus a contract harness, consumed
         // only by other crates' test targets.
         Module((
@@ -525,7 +543,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(
@@ -623,6 +641,7 @@
         // credential scanner's encoding derivation: both are zero-dependency,
         // pure, no-I/O crates, so neither edge drags a transitive graph into
         // the domain, the same widening work makes for corpus and tracker.
+        // network supplies the shared host vocabulary.
         Module((
             name: "design_domain_imports_only_permitted",
             matches: Module("^design($|::)"),
@@ -634,6 +653,7 @@
                         "^crate(::|$)",
                         "^base64(::|$)",
                         "^percent_encoding(::|$)",
+                        "^network(::|$)",
                     ]),
                     denied: None,
                     severity: Error,

@@ -2,8 +2,10 @@
 
 use std::fmt;
 
-use crate::host::Host;
-use crate::host::HostError;
+use network::Host;
+use network::HostError;
+
+use crate::access_policy;
 
 /// The scheme a URL location carries. Only the two the tool acts on are
 /// modelled; every other scheme is a rejection at parse time.
@@ -78,9 +80,9 @@ impl fmt::Display for LocationError {
                 "location '{location}' uses a ../ path escape, which is not \
                  permitted."
             ),
-            Self::Host { authority, error } => {
-                formatter.write_str(&error.message(authority))
-            }
+            Self::Host { authority, error } => formatter.write_str(
+                &access_policy::host_error_message(error, authority),
+            ),
         }
     }
 }
@@ -136,7 +138,7 @@ mod tests {
     use super::LocationError;
     use super::Scheme;
     use super::SourceLocation;
-    use crate::host::HostError;
+    use network::HostError;
 
     type TestError = Box<dyn std::error::Error>;
 

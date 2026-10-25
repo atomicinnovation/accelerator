@@ -1123,6 +1123,7 @@ version = "1.24.0-pre.87"
 dependencies = [
  "base64",
  "kernel",
+ "network",
  "percent-encoding",
  "serde_json",
 ]
@@ -3367,6 +3368,13 @@ dependencies = [
  "smallvec",
  "tagptr",
  "uuid",
+]
+
+[[package]]
+name = "network"
+version = "1.24.0-pre.87"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

@@ -1,9 +1,9 @@
 // Reachability + scheme classification for navigation URLs, reimplemented from
-// the Rust domain (design::host, design::host_reach, design::access_policy) so
-// the daemon can classify each request without crossing back into Rust. The
-// shared corpus at cli/design/tests/fixtures/host-classification-vectors.json
-// holds this implementation and the Rust one to the same cases; either drifting
-// fails CI.
+// the Rust domains (network::host, network::host_reach, design::access_policy)
+// so the daemon can classify each request without crossing back into Rust. The
+// shared corpora at cli/network/tests/fixtures/host-classification-vectors.json
+// and cli/design/tests/fixtures/access-policy-vectors.json hold this
+// implementation and the Rust one to the same cases; either drifting fails CI.
 
 const SCHEMES = [
   ['https://', 'https'],

@@ -418,6 +418,7 @@ _EXPECTED_DECLARATIONS = {
     "github": ("adapter", "collaboration", None, None),
     "migrate": ("domain", "migrate", _PRODUCT, None),
     "migrate-adapters": ("adapter", "migrate", None, None),
+    "network": ("domain", "network", "shared", ["design", "research"]),
     "design": ("domain", "design", _PRODUCT, None),
     "design-adapters": ("adapter", "design", None, None),
     "research": ("domain", "research", _PRODUCT, None),

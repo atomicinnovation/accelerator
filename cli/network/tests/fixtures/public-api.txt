@@ -1,0 +1,96 @@
+pub mod network
+pub mod network::host
+pub enum network::host::HostError
+pub network::host::HostError::ControlCharacter
+pub network::host::HostError::Empty
+pub network::host::HostError::NumericEncoding
+pub network::host::HostError::Userinfo
+impl core::clone::Clone for network::host::HostError
+pub fn network::host::HostError::clone(&self) -> network::host::HostError
+impl core::cmp::Eq for network::host::HostError
+impl core::cmp::PartialEq for network::host::HostError
+pub fn network::host::HostError::eq(&self, other: &network::host::HostError) -> bool
+impl core::error::Error for network::host::HostError
+impl core::fmt::Debug for network::host::HostError
+pub fn network::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for network::host::HostError
+pub fn network::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for network::host::HostError
+pub struct network::host::Host
+impl network::host::Host
+pub const fn network::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
+pub fn network::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, network::host::HostError>
+impl core::clone::Clone for network::host::Host
+pub fn network::host::Host::clone(&self) -> network::host::Host
+impl core::cmp::Eq for network::host::Host
+impl core::cmp::PartialEq for network::host::Host
+pub fn network::host::Host::eq(&self, other: &network::host::Host) -> bool
+impl core::fmt::Debug for network::host::Host
+pub fn network::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for network::host::Host
+pub fn network::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for network::host::Host
+pub mod network::host_reach
+pub enum network::host_reach::HostReach
+pub network::host_reach::HostReach::LinkLocal
+pub network::host_reach::HostReach::Loopback
+pub network::host_reach::HostReach::Private
+pub network::host_reach::HostReach::Public
+pub network::host_reach::HostReach::Reserved
+pub network::host_reach::HostReach::Unspecified
+impl core::clone::Clone for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::clone(&self) -> network::host_reach::HostReach
+impl core::cmp::Eq for network::host_reach::HostReach
+impl core::cmp::PartialEq for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::eq(&self, other: &network::host_reach::HostReach) -> bool
+impl core::fmt::Debug for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for network::host_reach::HostReach
+impl core::marker::StructuralPartialEq for network::host_reach::HostReach
+pub fn network::host_reach::classify(host: &network::host::Host) -> network::host_reach::HostReach
+pub enum network::HostError
+pub network::HostError::ControlCharacter
+pub network::HostError::Empty
+pub network::HostError::NumericEncoding
+pub network::HostError::Userinfo
+impl core::clone::Clone for network::host::HostError
+pub fn network::host::HostError::clone(&self) -> network::host::HostError
+impl core::cmp::Eq for network::host::HostError
+impl core::cmp::PartialEq for network::host::HostError
+pub fn network::host::HostError::eq(&self, other: &network::host::HostError) -> bool
+impl core::error::Error for network::host::HostError
+impl core::fmt::Debug for network::host::HostError
+pub fn network::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for network::host::HostError
+pub fn network::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for network::host::HostError
+pub enum network::HostReach
+pub network::HostReach::LinkLocal
+pub network::HostReach::Loopback
+pub network::HostReach::Private
+pub network::HostReach::Public
+pub network::HostReach::Reserved
+pub network::HostReach::Unspecified
+impl core::clone::Clone for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::clone(&self) -> network::host_reach::HostReach
+impl core::cmp::Eq for network::host_reach::HostReach
+impl core::cmp::PartialEq for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::eq(&self, other: &network::host_reach::HostReach) -> bool
+impl core::fmt::Debug for network::host_reach::HostReach
+pub fn network::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for network::host_reach::HostReach
+impl core::marker::StructuralPartialEq for network::host_reach::HostReach
+pub struct network::Host
+impl network::host::Host
+pub const fn network::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
+pub fn network::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, network::host::HostError>
+impl core::clone::Clone for network::host::Host
+pub fn network::host::Host::clone(&self) -> network::host::Host
+impl core::cmp::Eq for network::host::Host
+impl core::cmp::PartialEq for network::host::Host
+pub fn network::host::Host::eq(&self, other: &network::host::Host) -> bool
+impl core::fmt::Debug for network::host::Host
+pub fn network::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for network::host::Host
+pub fn network::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for network::host::Host

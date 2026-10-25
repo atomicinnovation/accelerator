@@ -1,21 +1,9 @@
 //! How reachable the address a host names is.
 //!
-//! Three limits are taken positions rather than oversights.
-//!
-//! The check is **pre-resolution only**: a public hostname resolving to
-//! `169.254.169.254` still classifies as [`HostReach::Public`], and nothing
-//! re-checks after DNS.
-//!
-//! The same verdict now guards **every `navigate`** — its initial URL and every
-//! redirect hop — and every `links` destination per request in the daemon, not
-//! only where a crawl begins. It stays pre-resolution and does not cover page
-//! subresources, so a hostile page can still reach an internal address through a
-//! subresource or a rebased hostname; this is not a full boundary around the
-//! navigation surface.
-//!
-//! It says nothing about **path locations**: a repository path is a valid
-//! source location wherever it points, and nothing confirms it lies inside a
-//! repository.
+//! For a hostname the classification is **pre-resolution**: a public hostname
+//! resolving to `169.254.169.254` still classifies as [`HostReach::Public`]. A
+//! caller that resolves names must classify each address it resolved to
+//! instead.
 
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -23,13 +11,10 @@ use std::net::Ipv6Addr;
 
 use crate::host::Host;
 
-/// The classification a host's address carries, in the vocabulary the
-/// rejection message speaks.
+/// The classification a host's address carries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostReach {
-    /// The local machine talking to itself. Always allowed: it carries
-    /// neither the internal-network nor the plaintext-interception risk the
-    /// two flags guard against.
+    /// The local machine talking to itself.
     Loopback,
     /// RFC 1918 and IPv6 unique-local.
     Private,
@@ -38,33 +23,17 @@ pub enum HostReach {
     /// Not internet-routable to a normal destination: carrier-grade NAT,
     /// benchmarking, multicast and the rest of the reserved space.
     Reserved,
-    /// `0.0.0.0` and `::` — no host at all, so no flag recovers it.
+    /// `0.0.0.0` and `::` — no host at all.
     Unspecified,
     Public,
 }
 
-impl HostReach {
-    /// The word the rejection message uses.
-    #[must_use]
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::Loopback => "loopback",
-            Self::Private => "RFC1918",
-            Self::LinkLocal => "link-local",
-            Self::Reserved => "reserved",
-            Self::Unspecified => "wildcard",
-            Self::Public => "public",
-        }
-    }
-}
-
 /// The one hostname classified without resolving it.
 ///
-/// `http://localhost:3000` is the skill's primary documented invocation.
-/// Resolving the name would be a DNS lookup this module deliberately does not
-/// make, and treating it as public would reject that invocation, so the name is
-/// honoured as written. Exactly the name: a `foo.localhost` subdomain resolves
-/// wherever its zone says.
+/// A pre-resolution convenience: a caller that classifies without resolving
+/// would otherwise call `localhost` public. A caller that resolves the name
+/// classifies the addresses it resolves to and has no need of it. Exactly the
+/// name: a `foo.localhost` subdomain resolves wherever its zone says.
 const LOOPBACK_NAME: &str = "localhost";
 
 /// Classifies the address `host` names; any other hostname is
@@ -175,23 +144,4 @@ const fn is_unique_local(address: Ipv6Addr) -> bool {
 
 const fn is_v6_link_local(address: Ipv6Addr) -> bool {
     address.segments()[0] & 0xffc0 == 0xfe80
-}
-
-#[cfg(test)]
-mod tests {
-    use super::HostReach;
-
-    // The reachability vectors — every headline address, boundary, indirect
-    // encoding and loopback form — live in the shared classification corpus
-    // (`tests/host_classification_vectors.rs`), so the JavaScript classifier is
-    // held to the same cases. Only the user-facing label vocabulary, which is
-    // Rust-only, is pinned here.
-    #[test]
-    fn every_variant_names_itself_for_the_rejection_message() {
-        assert_eq!(HostReach::Loopback.description(), "loopback");
-        assert_eq!(HostReach::Private.description(), "RFC1918");
-        assert_eq!(HostReach::LinkLocal.description(), "link-local");
-        assert_eq!(HostReach::Reserved.description(), "reserved");
-        assert_eq!(HostReach::Unspecified.description(), "wildcard");
-    }
 }

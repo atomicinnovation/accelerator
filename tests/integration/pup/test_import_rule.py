@@ -810,6 +810,77 @@ def test_real_tracker_rule_permits_std_and_crate_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# The network domain rule is driven against a workspace whose crates are
+# literally named `network` and `serde`, so the shipped `^network($|::)` regex
+# is exercised directly. The violation is a serialisation dependency creeping
+# into a vocabulary every downstream context would then inherit.
+
+_NETWORK_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["network", "serde"]
+"""
+
+_NETWORK_MANIFEST = """\
+[package]
+name = "network"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { path = "../serde" }
+"""
+
+_NETWORK_LIB = "pub mod host;\n\npub struct Marker;\n"
+
+_NETWORK_HOST_VIOLATION = (
+    "use serde::Extra;\n\npub fn make() -> Extra {\n    Extra\n}\n"
+)
+_NETWORK_HOST_COMPLIANT = (
+    "use std::net::IpAddr;\n\n"
+    "use crate::Marker;\n\n"
+    "pub fn make(address: IpAddr) -> (bool, Marker) {\n"
+    "    (address.is_loopback(), Marker)\n"
+    "}\n"
+)
+
+
+def _write_network_probe(root: Path, host_body: str) -> None:
+    (root / "Cargo.toml").write_text(_NETWORK_WORKSPACE)
+
+    network_src = root / "network/src"
+    network_src.mkdir(parents=True, exist_ok=True)
+    (root / "network/Cargo.toml").write_text(_NETWORK_MANIFEST)
+    (network_src / "lib.rs").write_text(_NETWORK_LIB)
+    (network_src / "host.rs").write_text(host_body)
+
+    serde_src = root / "serde/src"
+    serde_src.mkdir(parents=True, exist_ok=True)
+    (root / "serde/Cargo.toml").write_text(_extra_crate_manifest("serde"))
+    (serde_src / "lib.rs").write_text(_EXTRA_CRATE_LIB)
+
+
+def test_real_network_rule_rejects_importing_serde(tmp_path: Path) -> None:
+    _require_tools()
+    _write_network_probe(tmp_path, _NETWORK_HOST_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "network_domain_imports_only_permitted" in output, output
+
+
+def test_real_network_rule_permits_std_net_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_network_probe(tmp_path, _NETWORK_HOST_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # The tracker-test-support import rule is driven against a workspace whose
 # crates are literally named `tracker-test-support` and `work`, so the
 # hyphen-to-underscore matcher is exercised directly. The compliant control must
@@ -1970,8 +2041,8 @@ def test_linear_client_io_rule_permits_a_filesystem_free_upload(
 # The remaining whole-crate domain rules are each driven against a workspace
 # whose crate is literally named for it, under the shipped cli/pup.ron, so
 # deleting or mistyping a rule fails here. corpus and vcs carry config's rule
-# shape; work and migrate widen it, and the third element pins what each
-# widening permits.
+# shape; work, migrate and design widen it, and the third element pins what
+# each widening permits.
 
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
@@ -1979,6 +2050,7 @@ _DOMAIN_RULES = [
     ("research", "research_domain_imports_only_permitted", ()),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
     ("migrate", "migrate_domain_imports_only_permitted", ("corpus",)),
+    ("design", "design_domain_imports_only_permitted", ("network",)),
 ]
 
 # Every extra allowance a domain rule widens with, plus `document`, which
@@ -1987,7 +2059,7 @@ _DOMAIN_RULES = [
 # (cross-rejection) cases below can attempt an import that its own rule does
 # not permit and have cargo-pup reject it, rather than the import failing to
 # resolve for an unrelated reason.
-_ALL_EXTRA_CRATES = ("corpus", "document", "tracker")
+_ALL_EXTRA_CRATES = ("corpus", "document", "network", "tracker")
 
 
 def _extra_crate_manifest(name: str) -> str:

@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 kernel = { path = "../kernel" }
+network = { path = "../network" }
 base64 = { workspace = true }
 percent-encoding = { workspace = true }
 
