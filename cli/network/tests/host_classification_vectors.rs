@@ -16,8 +16,14 @@ use serde_json::Value;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EMBEDDED_FORMS: [&str; 5] =
-    ["6to4", "teredo", "nat64", "ipv4-mapped", "ipv4-compatible"];
+const EMBEDDED_FORMS: [&str; 6] = [
+    "6to4",
+    "teredo",
+    "nat64",
+    "ipv4-mapped",
+    "ipv4-compatible",
+    "ipv4-translated",
+];
 
 const fn reach_token(reach: HostReach) -> &'static str {
     match reach {

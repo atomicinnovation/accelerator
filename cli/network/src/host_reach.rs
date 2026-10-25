@@ -14,12 +14,13 @@ use crate::host::Host;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostReach {
     Loopback,
-    /// RFC 1918 and IPv6 unique-local.
+    /// RFC 1918, and IPv6 unique-local and site-local.
     Private,
     /// `169.254.0.0/16` and `fe80::/10` — the cloud metadata endpoint's home.
     LinkLocal,
     /// Not internet-routable to a normal destination: carrier-grade NAT,
-    /// benchmarking, multicast and the rest of the reserved space.
+    /// benchmarking, documentation, multicast and the rest of the reserved
+    /// space.
     Reserved,
     /// `0.0.0.0` and `::` — no host at all.
     Unspecified,
@@ -67,7 +68,10 @@ fn classify_v4(address: Ipv4Addr) -> HostReach {
         || first == 0
         || (first == 100 && (64..128).contains(&second))
         || (first == 192 && second == 0 && address.octets()[2] == 0)
+        || (first == 192 && second == 0 && address.octets()[2] == 2)
         || (first == 198 && (18..20).contains(&second))
+        || (first == 198 && second == 51 && address.octets()[2] == 100)
+        || (first == 203 && second == 0 && address.octets()[2] == 113)
         || first >= 240
     {
         HostReach::Reserved
@@ -91,11 +95,11 @@ fn classify_v6(address: Ipv6Addr) -> HostReach {
     if let Some(embedded) = embedded_v4(address) {
         return classify_v4(embedded);
     }
-    if is_unique_local(address) {
+    if is_unique_local(address) || is_site_local(address) {
         HostReach::Private
     } else if is_v6_link_local(address) {
         HostReach::LinkLocal
-    } else if address.is_multicast() {
+    } else if address.is_multicast() || is_v6_reserved(address) {
         HostReach::Reserved
     } else {
         HostReach::Public
@@ -105,8 +109,9 @@ fn classify_v6(address: Ipv6Addr) -> HostReach {
 /// The IPv4 address a transition encoding carries, if any.
 ///
 /// `to_ipv4` covers the IPv4-mapped `::ffff:a.b.c.d` and IPv4-compatible
-/// `::a.b.c.d` forms alike with one unwrap; 6to4, Teredo and NAT64 each carry
-/// theirs in a different position.
+/// `::a.b.c.d` forms alike with one unwrap; 6to4, Teredo, NAT64 and the
+/// IPv4-translated `::ffff:0:a.b.c.d` each carry theirs in a different
+/// position.
 fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
     let segments = address.segments();
     if segments[0] == 0x2002 {
@@ -133,6 +138,17 @@ fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
             (segments[7] & 0xff) as u8,
         ));
     }
+    if segments[..4].iter().all(|segment| *segment == 0)
+        && segments[4] == 0xffff
+        && segments[5] == 0
+    {
+        return Some(Ipv4Addr::new(
+            (segments[6] >> 8) as u8,
+            (segments[6] & 0xff) as u8,
+            (segments[7] >> 8) as u8,
+            (segments[7] & 0xff) as u8,
+        ));
+    }
     address.to_ipv4()
 }
 
@@ -142,4 +158,23 @@ const fn is_unique_local(address: Ipv6Addr) -> bool {
 
 const fn is_v6_link_local(address: Ipv6Addr) -> bool {
     address.segments()[0] & 0xffc0 == 0xfe80
+}
+
+/// Deprecated by RFC 3879, but a network that still routes it routes it
+/// internally.
+const fn is_site_local(address: Ipv6Addr) -> bool {
+    address.segments()[0] & 0xffc0 == 0xfec0
+}
+
+/// Local-use NAT64 (`64:ff9b:1::/48`), whose embedded address sits where the
+/// operator's prefix length puts it, is refused whole rather than unwrapped;
+/// discard-only `100::/64` and documentation `2001:db8::/32` and `3fff::/20`
+/// are never anyone's page.
+fn is_v6_reserved(address: Ipv6Addr) -> bool {
+    let segments = address.segments();
+    (segments[0] == 0x0064 && segments[1] == 0xff9b && segments[2] == 0x0001)
+        || (segments[0] == 0x0100
+            && segments[1..4].iter().all(|segment| *segment == 0))
+        || (segments[0] == 0x2001 && segments[1] == 0x0db8)
+        || (segments[0] == 0x3fff && segments[1] & 0xf000 == 0)
 }

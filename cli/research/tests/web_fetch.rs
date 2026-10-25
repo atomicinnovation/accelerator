@@ -34,7 +34,7 @@ use support::secs;
 use support::RecordingClock;
 
 const PUBLIC: &str = "93.184.216.34";
-const OTHER_PUBLIC: &str = "198.51.100.7";
+const OTHER_PUBLIC: &str = "1.0.0.1";
 
 fn socket(address: &str, port: u16) -> SocketAddr {
     SocketAddr::new(address.parse().expect("an address"), port)

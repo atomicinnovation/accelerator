@@ -527,8 +527,12 @@
   previously read as public. Two classes of change:
   - **Recoverable with `--allow-internal`**: IPv4-mapped and IPv4-compatible
     IPv6 forms (`::ffff:10.0.0.1`, `::169.254.169.254`), IPv6 unique-local
-    (`fc00::/7`), carrier-grade NAT (`100.64.0.0/10`), and the 6to4, Teredo and
-    NAT64 transition encodings, classified on the address they carry.
+    (`fc00::/7`) and site-local (`fec0::/10`), carrier-grade NAT
+    (`100.64.0.0/10`), the documentation ranges (`192.0.2.0/24`,
+    `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`, `3fff::/20`),
+    discard-only `100::/64`, local-use NAT64 (`64:ff9b:1::/48`), and the
+    6to4, Teredo, NAT64 and IPv4-translated (`::ffff:0:a.b.c.d`) transition
+    encodings, classified on the address they carry.
   - **Refused with no flag that recovers them**: decimal, hexadecimal and
     zero-padded octal IPv4 encodings (`2130706433`, `0x7f000001`,
     `0177.0.0.1`, `127.0.0.01`), including a non-first octal octet. Rewrite the
