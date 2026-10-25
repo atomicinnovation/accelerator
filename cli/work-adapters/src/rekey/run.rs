@@ -83,6 +83,10 @@ pub trait RekeyProgress {
     /// preview refuses.
     fn remaining(&self, lines: &[String]);
 
+    /// The uncommitted paths a forced apply proceeds over, shown before its
+    /// first write.
+    fn forced_past(&self, dirty: &[String]);
+
     /// The evidence of a half-applied entry an unreadable plan's discard
     /// shows before it refuses or sets the plan aside.
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]);
@@ -185,8 +189,11 @@ fn apply(
             let written_by_the_run = plan.write_set().attributable_to_the_run(
                 &current_states(plan.write_set(), &ports.corpus)?,
             );
-            let base =
-                working_copy(request.forcing, ports, &written_by_the_run)?;
+            let base = applicable_working_copy(
+                request.forcing,
+                ports,
+                &written_by_the_run,
+            )?;
             finish(plan, base.as_ref(), ports, lock)?;
             return Ok(RekeyReport::Rekeyed { resumed: true });
         }
@@ -197,6 +204,9 @@ fn apply(
     else {
         return Ok(RekeyReport::AlreadyConverged);
     };
+    if !checked.dirty.is_empty() {
+        ports.progress.forced_past(&checked.dirty);
+    }
     let base = checked.base.as_ref();
     let recorded = write_set(checked.plan.entries(), &ports.corpus, base)?;
     let plan = checked.plan.started(recorded);
@@ -286,15 +296,19 @@ fn preflight(
     if !pushes.is_empty() {
         return Err(NotRekeyed::PendingPush(pushes));
     }
-    let (base, dirty) =
-        match working_copy(request.forcing, ports, &WriteSet::default()) {
-            Err(NotRekeyed::DirtyWorkingCopy(dirty))
-                if dirty_paths == DirtyPaths::Warn =>
-            {
-                (None, dirty)
-            }
-            observed => (observed?, Vec::new()),
-        };
+    let (base, dirty) = match (
+        request.forcing,
+        dirty_paths,
+        observed_working_copy(ports, &WriteSet::default()),
+    ) {
+        (
+            Forcing::Unforced,
+            DirtyPaths::Warn,
+            Err(NotRekeyed::DirtyWorkingCopy(dirty)),
+        ) => (None, dirty),
+        (Forcing::Unforced, _, observed) => (Some(observed?), Vec::new()),
+        (Forcing::Forced, _, observed) => (None, forced_past(observed)),
+    };
     Ok(Some(Checked { plan, base, dirty }))
 }
 
@@ -354,20 +368,44 @@ fn finish(
     ports.store.remove()
 }
 
-fn working_copy(
+fn observed_working_copy(
+    ports: &RekeyPorts<'_>,
+    exempt: &WriteSet,
+) -> Result<Base, NotRekeyed> {
+    guarded_working_copy(
+        ports.corpus.repo_root,
+        ports.repository,
+        ports.scopes,
+        exempt,
+    )
+}
+
+/// The dirty paths a forced run proceeds over; a probe that fails names
+/// none, leaving only the override's generic warning.
+fn forced_past(observed: Result<Base, NotRekeyed>) -> Vec<String> {
+    match observed {
+        Err(NotRekeyed::DirtyWorkingCopy(dirty)) => dirty,
+        _ => Vec::new(),
+    }
+}
+
+/// The base an apply records against, refusing over uncommitted changes
+/// unless forced, when it names them instead.
+fn applicable_working_copy(
     forcing: Forcing,
     ports: &RekeyPorts<'_>,
     exempt: &WriteSet,
 ) -> Result<Option<Base>, NotRekeyed> {
+    let observed = observed_working_copy(ports, exempt);
     match forcing {
-        Forcing::Forced => Ok(None),
-        Forcing::Unforced => guarded_working_copy(
-            ports.corpus.repo_root,
-            ports.repository,
-            ports.scopes,
-            exempt,
-        )
-        .map(Some),
+        Forcing::Unforced => observed.map(Some),
+        Forcing::Forced => {
+            let dirty = forced_past(observed);
+            if !dirty.is_empty() {
+                ports.progress.forced_past(&dirty);
+            }
+            Ok(None)
+        }
     }
 }
 

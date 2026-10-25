@@ -50,6 +50,7 @@ use support::ScriptedRepository;
 use support::TestError;
 use support::FIRST;
 use support::FIRST_TARGET;
+use support::NOTE;
 use support::PLAN;
 use support::RUN_PLAN;
 use support::SYNCED;
@@ -705,6 +706,80 @@ fn a_proposed_apply_runs_the_same_preflight_as_a_fresh_apply(
             "{obstacle:?}"
         );
     }
+    Ok(())
+}
+
+fn dirty_at(repo: &Repo, path: &str) -> ScriptedRepository {
+    let repository = clean(repo);
+    repository.dirty.borrow_mut().push(path.to_owned());
+    repository
+}
+
+#[test]
+fn a_forced_apply_names_the_uncommitted_paths_it_proceeds_over(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    let progress = Recorder::default();
+
+    let report = ports.rekey(
+        &request(RekeyAction::Apply, Forcing::Forced),
+        &dirty_at(&repo, NOTE),
+        &progress,
+        None,
+    )?;
+
+    assert_eq!(report, RekeyReport::Rekeyed { resumed: false });
+    assert_eq!(
+        progress.lines.borrow().first(),
+        Some(&format!("forced past {NOTE}"))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_forced_resume_names_the_uncommitted_paths_it_proceeds_over(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    halt_at(&repo, 6)?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+    let progress = Recorder::default();
+
+    let report = ports.rekey(
+        &request(RekeyAction::Apply, Forcing::Forced),
+        &dirty_at(&repo, NOTE),
+        &progress,
+        None,
+    )?;
+
+    assert_eq!(report, RekeyReport::Rekeyed { resumed: true });
+    assert_eq!(
+        progress.lines.borrow().first(),
+        Some(&format!("forced past {NOTE}"))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_forced_preview_names_the_uncommitted_paths_an_apply_would_proceed_over(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mutations = Mutations::new(Fault::Never);
+    let ports = Ports::new(&repo, &mutations);
+
+    let report = ports.rekey(
+        &request(RekeyAction::Preview, Forcing::Forced),
+        &dirty_at(&repo, NOTE),
+        &Recorder::default(),
+        None,
+    )?;
+
+    assert!(
+        matches!(&report, RekeyReport::Previewed { dirty, .. } if *dirty == vec![NOTE.to_owned()]),
+        "{report:?}"
+    );
     Ok(())
 }
 

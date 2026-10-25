@@ -84,6 +84,17 @@ impl RekeyProgress for Shown<'_> {
             .out(&format!("{} → {}\t{path}", entry.old, entry.target.id()));
     }
 
+    fn forced_past(&self, dirty: &[String]) {
+        self.0.err(&format!(
+            "warning: ACCELERATOR_FORCE is set: applying over uncommitted \
+             changes ({}):",
+            dirty.len()
+        ));
+        for path in dirty {
+            self.0.err(&format!("  {path}"));
+        }
+    }
+
     fn remaining(&self, lines: &[String]) {
         self.0.err("the run in progress has still to re-key:");
         for line in lines {
@@ -303,7 +314,7 @@ pub fn run(
     }
     match outcome {
         Ok(report) => {
-            render(&report, console);
+            render(&report, environment.forcing, console);
             exit_codes::CLEAN
         }
         Err(refusal) => {
@@ -382,7 +393,7 @@ fn rekey(
     )
 }
 
-fn render(report: &RekeyReport, console: &dyn Console) {
+fn render(report: &RekeyReport, forcing: Forcing, console: &dyn Console) {
     match report {
         RekeyReport::AlreadyConverged => {
             console.err("every work item already matches `work.id_pattern`");
@@ -392,11 +403,18 @@ fn render(report: &RekeyReport, console: &dyn Console) {
                 console.out(line);
             }
             if !dirty.is_empty() {
-                console.err(
-                    "warning: the working copy has uncommitted changes; \
-                     `accelerator work rekey` will refuse until they are \
-                     committed or reverted:",
-                );
+                console.err(match forcing {
+                    Forcing::Unforced => {
+                        "warning: the working copy has uncommitted changes; \
+                         `accelerator work rekey` will refuse until they are \
+                         committed or reverted:"
+                    }
+                    Forcing::Forced => {
+                        "warning: the working copy has uncommitted changes; \
+                         with ACCELERATOR_FORCE set, `accelerator work rekey` \
+                         will apply over them:"
+                    }
+                });
                 for path in dirty {
                     console.err(&format!("  {path}"));
                 }
@@ -1242,10 +1260,41 @@ mod tests {
         assert_eq!(ran.code, 0, "{ran:?}");
         assert!(ran.err.contains("ACCELERATOR_FORCE is set"), "{ran:?}");
         assert!(ran.err.contains("working-copy check"), "{ran:?}");
+        assert!(
+            ran.err.contains(
+                "warning: ACCELERATOR_FORCE is set: applying over uncommitted \
+                 changes (1):\n  meta/notes/links.md"
+            ),
+            "{ran:?}"
+        );
         assert_eq!(
             repo.read("meta/notes/links.md").as_deref(),
             Some("Edited: work-item:ACC-0041.\n")
         );
+    }
+
+    #[test]
+    fn a_forced_preview_lists_the_uncommitted_paths_the_apply_will_proceed_over(
+    ) {
+        let repo = legacy_pair();
+        repo.write("meta/notes/links.md", "Edited.\n");
+
+        let ran = repo.ran_with(
+            Action::Preview,
+            Forcing::Forced,
+            &InProcessProbe,
+            &plain,
+        );
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(
+            ran.err.contains(
+                "with ACCELERATOR_FORCE set, `accelerator work rekey` will \
+                 apply over them:\n  meta/notes/links.md"
+            ),
+            "{ran:?}"
+        );
+        assert!(!ran.err.contains("will refuse"), "{ran:?}");
     }
 
     #[test]

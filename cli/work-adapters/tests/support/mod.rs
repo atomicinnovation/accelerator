@@ -618,6 +618,12 @@ impl RekeyProgress for Recorder {
             .extend(lines.iter().map(|line| format!("remaining {line}")));
     }
 
+    fn forced_past(&self, dirty: &[String]) {
+        self.lines
+            .borrow_mut()
+            .extend(dirty.iter().map(|path| format!("forced past {path}")));
+    }
+
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]) {
         let lines = items
             .iter()

@@ -110,6 +110,14 @@ committed or reverted. Then use the `AskUserQuestion` tool:
 1. **Keep the plan and stop** — commit or revert the paths first
 2. **Discard** — discard the plan; nothing changes
 
+When stderr carries ``with ACCELERATOR_FORCE set, `accelerator work rekey`
+will apply over them``, name the paths listed under it and say the apply
+will rewrite them over the uncommitted changes, which version control then
+cannot undo. Then use the `AskUserQuestion` tool:
+
+1. **Keep the plan and stop** — commit or revert the paths first
+2. **Yes, re-key over them** — apply despite the uncommitted changes
+
 ## Step 3: Apply
 
 On **Yes, re-key**:
