@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use vcs::guarded_working_copy::observe_guarded;
+use vcs::guarded_working_copy::working_copy_seen_from;
 use vcs::guarded_working_copy::GuardedObservation;
 use vcs::RepositoryProbe;
 use work::rekey::outcome::NotRekeyed;
@@ -45,29 +46,15 @@ pub fn guarded_working_copy(
     scopes: &[String],
     exempt: &WriteSet,
 ) -> Result<Base, NotRekeyed> {
-    let facts = repository.facts_at(root).ok_or_else(|| {
-        NotRekeyed::WorkingCopyUnprobeable(format!(
-            "{} is under no version control",
-            root.display()
-        ))
-    })?;
-    let canonical =
-        |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_owned());
-    let config_root = canonical(root);
-    let within =
-        config_root
-            .strip_prefix(canonical(&facts.root))
-            .map_err(|_| {
-                NotRekeyed::WorkingCopyUnprobeable(format!(
-                    "{} lies outside the repository at {}",
-                    root.display(),
-                    facts.root.display()
-                ))
-            })?;
+    let probed = working_copy_seen_from(repository, root).and_then(|state| {
+        state.ok_or_else(|| {
+            kernel::Error::Failed(format!(
+                "{} is under no version control",
+                root.display()
+            ))
+        })
+    });
     let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
-    let probed = repository
-        .working_copy_state(&facts.root, facts.kind)
-        .map(|state| state.seen_from(within));
     let state = match observe_guarded(probed, &scopes) {
         GuardedObservation::Observed(state) => state,
         GuardedObservation::Unprobeable { reason } => {

@@ -120,6 +120,10 @@ mod tests {
             self.asked_from.borrow_mut().push(start.to_path_buf());
             (start != Path::new("/tmp/loose")).then(|| "Toby".to_owned())
         }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
+        }
     }
 
     #[test]

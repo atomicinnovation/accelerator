@@ -109,6 +109,7 @@ pub const vcs::guarded_working_copy::FORCE_VARIABLE: &str
 pub const vcs::guarded_working_copy::GUARDED_SCOPES: [&str; 3]
 pub fn vcs::guarded_working_copy::forces(value: core::option::Option<&str>) -> bool
 pub fn vcs::guarded_working_copy::observe_guarded(probed: core::result::Result<vcs::WorkingCopyState, kernel::Error>, scopes: &[&str]) -> vcs::guarded_working_copy::GuardedObservation
+pub fn vcs::guarded_working_copy::working_copy_seen_from(probe: &dyn vcs::RepositoryProbe, root: &std::path::Path) -> core::result::Result<core::option::Option<vcs::WorkingCopyState>, kernel::Error>
 pub mod vcs::log
 pub struct vcs::log::LogEntry
 pub vcs::log::LogEntry::short_id: alloc::string::String
@@ -272,12 +273,15 @@ impl core::fmt::Debug for vcs::WorkingCopyState
 pub fn vcs::WorkingCopyState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::WorkingCopyState
 pub trait vcs::RepoRoot
+pub fn vcs::RepoRoot::canonical(&self, path: &std::path::Path) -> std::path::PathBuf
 pub fn vcs::RepoRoot::discover(&self, start: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub fn vcs::RepoRoot::repository_root(&self, working_copy_root: &std::path::Path) -> std::path::PathBuf
 pub trait vcs::RepositoryProbe: vcs::WorkingCopyStateProbe
+pub fn vcs::RepositoryProbe::canonical(&self, path: &std::path::Path) -> std::path::PathBuf
 pub fn vcs::RepositoryProbe::facts_at(&self, start: &std::path::Path) -> core::option::Option<vcs::RepoFacts>
 pub fn vcs::RepositoryProbe::user_name_at(&self, start: &std::path::Path) -> core::option::Option<alloc::string::String>
 impl<T> vcs::RepositoryProbe for T where T: vcs::RepoRoot + vcs::VcsProbe + vcs::UserIdentityProbe + vcs::WorkingCopyStateProbe
+pub fn T::canonical(&self, path: &std::path::Path) -> std::path::PathBuf
 pub fn T::facts_at(&self, start: &std::path::Path) -> core::option::Option<vcs::RepoFacts>
 pub fn T::user_name_at(&self, start: &std::path::Path) -> core::option::Option<alloc::string::String>
 pub trait vcs::UserIdentityProbe

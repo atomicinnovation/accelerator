@@ -58,6 +58,10 @@ pub trait RepoRoot {
     /// repository above it.
     fn discover(&self, start: &Path) -> Option<PathBuf>;
 
+    /// `path` as a discovered root spells it, links resolved, so the two
+    /// compare; `path` itself when it cannot be resolved.
+    fn canonical(&self, path: &Path) -> PathBuf;
+
     /// The repository a working-copy root belongs to. A jj secondary workspace
     /// roots at its own working copy but shares the repository's store; by
     /// default the working-copy root is itself the repository root.
@@ -175,6 +179,9 @@ pub trait RepositoryProbe: WorkingCopyStateProbe {
 
     /// See [`user_name`].
     fn user_name_at(&self, start: &Path) -> Option<String>;
+
+    /// See [`RepoRoot::canonical`].
+    fn canonical(&self, path: &Path) -> PathBuf;
 }
 
 impl<T> RepositoryProbe for T
@@ -187,6 +194,10 @@ where
 
     fn user_name_at(&self, start: &Path) -> Option<String> {
         user_name(start, self, self, self)
+    }
+
+    fn canonical(&self, path: &Path) -> PathBuf {
+        RepoRoot::canonical(self, path)
     }
 }
 
@@ -244,6 +255,10 @@ mod tests {
     impl RepoRoot for FixedRoot {
         fn discover(&self, _start: &Path) -> Option<PathBuf> {
             self.0.clone()
+        }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
         }
     }
 
@@ -390,6 +405,10 @@ mod tests {
     impl RepoRoot for StubRepository {
         fn discover(&self, _start: &Path) -> Option<PathBuf> {
             self.root.clone()
+        }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
         }
     }
 

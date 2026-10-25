@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::path::PathBuf;
 
 use migrate::ports::MigrationError;
@@ -7,6 +6,7 @@ use migrate::ports::WorkingCopyObservation;
 use migrate::run_base::RunBase;
 use tracing::warn;
 use vcs::guarded_working_copy::observe_guarded;
+use vcs::guarded_working_copy::working_copy_seen_from;
 use vcs::guarded_working_copy::GuardedObservation;
 use vcs::RepositoryProbe;
 use vcs::WorkingCopyState;
@@ -28,29 +28,9 @@ impl<'a> VcsWorkingCopy<'a> {
         }
     }
 
-    /// The working copy containing `root`, its dirty paths relative to
-    /// `root`, which may sit below the repository's own root.
     fn probed(&self) -> Result<WorkingCopyState, kernel::Error> {
-        let Some(facts) = self.probe.facts_at(&self.root) else {
-            return Ok(WorkingCopyState::default());
-        };
-        let canonical = |path: &Path| {
-            path.canonicalize().unwrap_or_else(|_| path.to_owned())
-        };
-        let config_root = canonical(&self.root);
-        let within =
-            config_root
-                .strip_prefix(canonical(&facts.root))
-                .map_err(|_| {
-                    kernel::Error::Failed(format!(
-                        "{} lies outside the repository at {}",
-                        self.root.display(),
-                        facts.root.display()
-                    ))
-                })?;
-        self.probe
-            .working_copy_state(&facts.root, facts.kind)
-            .map(|state| state.seen_from(within))
+        working_copy_seen_from(self.probe, &self.root)
+            .map(Option::unwrap_or_default)
     }
 }
 

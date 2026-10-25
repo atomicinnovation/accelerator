@@ -608,6 +608,10 @@ mod tests {
         fn user_name_at(&self, _start: &Path) -> Option<String> {
             None
         }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
+        }
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]

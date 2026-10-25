@@ -43,6 +43,10 @@ impl RepositoryProbe for ScriptedRepository {
     fn user_name_at(&self, _start: &Path) -> Option<String> {
         None
     }
+
+    fn canonical(&self, path: &Path) -> PathBuf {
+        path.to_path_buf()
+    }
 }
 
 fn scopes(extra: &[&str]) -> Vec<String> {

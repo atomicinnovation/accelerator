@@ -39,6 +39,10 @@ mod tests {
         fn discover(&self, _start: &Path) -> Option<PathBuf> {
             self.0.clone()
         }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
+        }
     }
 
     #[test]
