@@ -666,7 +666,7 @@ mod tests {
         run_external, ExecBinary, ExternalCommand, ReResolution,
         ResolutionError, ResolveBinary,
     };
-    use accelerator::launch::inbound::cli::Command;
+    use accelerator::launch::inbound::cli::{CacheAction, Command};
     use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
     use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
     use accelerator::launch::start_up::{start_up, StartUp};
@@ -838,6 +838,17 @@ mod tests {
         let error = dispatch_error(availability_failure);
         let command = Command::External(vec![OsString::from("--fail-safe")]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn an_unfinished_prune_exits_failure() {
+        let error = kernel::Error::Failed(
+            "the prune did not finish; see the failures above".to_owned(),
+        );
+        let command = Command::Cache {
+            action: CacheAction::Prune { older_than: None },
+        };
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::FAILURE);
     }
 
     #[test]

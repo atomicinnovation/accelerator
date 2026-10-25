@@ -82,7 +82,7 @@ use common::scripted_filesystem::ScriptedFilesystem;
 use common::signed_release::{SignedRelease, BINARY};
 use common::trees::{
     another_platform, digest, exists, on_host, set_mode, set_mtime,
-    FailingLockAt, FixedClock, FixedLiveness, Trees,
+    FailingLockAt, FixedClock, FixedLiveness, PlantedTree, Trees,
 };
 
 const OLD: &str = "1.0.0";
@@ -353,6 +353,7 @@ fn foreign_names_survive(trigger: Trigger) {
     let foreign_in_trees = [
         trees.root().join(".tmp-foreign"),
         trees.root().join("notes.txt"),
+        trees.root().join("backup.ref"),
     ];
     for path in &foreign_in_trees {
         std::fs::write(path, b"x").expect("foreign file");
@@ -626,6 +627,13 @@ fn a_last_claim_goes_only_after_its_versions_entries() {
     let harness = RootHarness::new();
     let entry = harness.entry(OLD, harness.aged());
     let claim = harness.claim(OLD, harness.now - CLAIM_WINDOW.as_secs());
+    let shared = "2.0.0";
+    let shared_entry = harness.entry(shared, harness.aged());
+    let shared_stale =
+        harness.claim(shared, harness.now - CLAIM_WINDOW.as_secs());
+    let shared_fresh =
+        harness.claims().join(format!("{shared}.0123456789abcdef"));
+    std::fs::write(&shared_fresh, b"").expect("fresh claim");
     let recorder = harness.recorder();
 
     harness
@@ -640,14 +648,24 @@ fn a_last_claim_goes_only_after_its_versions_entries() {
         .into_iter()
         .filter(|call| matches!(call, FilesystemCall::RemoveFile(_)))
         .collect();
+    let of_the_last_claimed_version: Vec<&FilesystemCall> = removals
+        .iter()
+        .filter(|call| {
+            **call
+                != FilesystemCall::RemoveFile(recorder.recorded(&shared_stale))
+        })
+        .collect();
     assert_eq!(
-        removals,
+        of_the_last_claimed_version,
         [
-            FilesystemCall::RemoveFile(in_root(format!("{entry}.minisig"))),
-            FilesystemCall::RemoveFile(in_root(&entry)),
-            FilesystemCall::RemoveFile(recorder.recorded(&claim)),
+            &FilesystemCall::RemoveFile(in_root(format!("{entry}.minisig"))),
+            &FilesystemCall::RemoveFile(in_root(&entry)),
+            &FilesystemCall::RemoveFile(recorder.recorded(&claim)),
         ]
     );
+    assert_eq!(removals.len(), 4, "{removals:#?}");
+    assert!(harness.has(&shared_entry));
+    assert!(shared_fresh.exists());
 }
 
 #[test]
@@ -1064,13 +1082,14 @@ fn older_than_narrows_the_version_claim_window_through_the_verb() {
     for (older_than, survives) in [(Some(day), false), (None, true)] {
         let harness = RootHarness::new();
         let entry = harness.entry(OLD, harness.aged());
-        harness.claim(OLD, harness.now - 2 * day);
+        let claim = harness.claim(OLD, harness.now - 2 * day);
 
         harness
             .prune_older_than(harness.ports(), older_than)
             .succeeded();
 
         assert_eq!(harness.has(&entry), survives, "{older_than:?}");
+        assert_eq!(exists(&claim), survives, "{older_than:?}");
     }
 }
 
@@ -1106,8 +1125,11 @@ fn unclaimed_retired_and_foreign_platform_trees_go_and_claimed_ones_stay() {
         &digest('b'),
         harness.aged(),
     );
-    let claimed =
-        trees.plant_tree(&on_host("retired"), &digest('c'), harness.aged());
+    let claimed = trees.plant_tree(
+        &Artifact::new("driver", another_platform()),
+        &digest('c'),
+        harness.aged(),
+    );
     let claim = trees.plant_claim(&digest('c'), OTHER_ID, harness.now);
 
     harness.prune(harness.ports()).succeeded();
@@ -1166,8 +1188,10 @@ fn only_tree_claims_outside_the_window_are_removed() {
     let harness = RootHarness::new();
     let trees = harness.trees();
     let stale_seconds = harness.now - CLAIM_WINDOW.as_secs() - 1;
+    let live = trees.plant_tree(&on_host("retired"), &digest('a'), harness.now);
     let stale = trees.plant_claim(&digest('a'), OTHER_ID, stale_seconds);
-    let fresh = trees.plant_claim(&digest('b'), OTHER_ID, harness.now - 60);
+    let fresh =
+        trees.plant_claim(&digest('a'), "0123456789abcdef", harness.now - 60);
     let unparsed_launcher =
         trees.plant_claim(&digest('c'), "test-install", stale_seconds);
     let foreign = trees.claims().join("not-a-claim");
@@ -1176,6 +1200,7 @@ fn only_tree_claims_outside_the_window_are_removed() {
 
     harness.prune(harness.ports()).succeeded();
 
+    live.assert_survives();
     assert!(!stale.exists(), "a stale claim survived");
     assert!(fresh.exists());
     assert!(unparsed_launcher.exists());
@@ -1206,13 +1231,15 @@ fn older_than_narrows_the_tree_claim_window() {
         let trees = harness.trees();
         let tree =
             trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
-        trees.plant_claim(&digest('a'), OTHER_ID, harness.now - 2 * day);
+        let claim =
+            trees.plant_claim(&digest('a'), OTHER_ID, harness.now - 2 * day);
 
         harness
             .prune_older_than(harness.ports(), older_than)
             .succeeded();
 
         assert_eq!(exists(&tree.generation), survives, "{older_than:?}");
+        assert_eq!(exists(&claim), survives, "{older_than:?}");
     }
 }
 
@@ -1333,6 +1360,10 @@ fn old_orphans_sidecars_and_retired_locks_go_and_young_generations_stay() {
     let orphaned = Trees::generation_of(&on_host("retired-a"), &digest('a'));
     let sidecars = trees.plant_sidecars(&orphaned, harness.aged());
     let lock = trees.plant_lock(&on_host("retired-b"), harness.aged());
+    let old = trees.plant_generation(
+        &Trees::generation_of(&on_host("retired-c"), &digest('d')),
+        harness.aged(),
+    );
     let young = trees.plant_generation(
         &Trees::generation_of(&on_host("retired-c"), &digest('c')),
         harness.young(),
@@ -1342,6 +1373,7 @@ fn old_orphans_sidecars_and_retired_locks_go_and_young_generations_stay() {
 
     assert!(sidecars.iter().all(|sidecar| !exists(sidecar)));
     assert!(!exists(&lock), "the retired lock survived");
+    assert!(!exists(&old), "an old unreferenced generation survived");
     assert!(exists(&young), "a young generation was reaped");
 }
 
@@ -2033,7 +2065,9 @@ fn another_layouts_tree_is_kept_and_this_layouts_twin_is_removed() {
     let twin = trees.plant_tree(&retired, &digest('a'), harness.aged());
     let generation = Trees::generation_at_layout(&retired, &digest('e'), 2);
     let other_layout = trees.plant_generation(&generation, harness.aged());
+    trees.plant_sidecars(&generation, harness.aged());
     let pointer = trees.plant_pointer(&retired, &digest('e'), &generation);
+    set_mtime(&pointer, harness.aged());
 
     harness.prune(harness.ports()).succeeded();
 
@@ -2047,9 +2081,22 @@ fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
     let harness = RootHarness::new();
     let trees = harness.trees();
     trees.plant_claim(&digest('a'), OTHER_ID, harness.now);
+    let aged_sidecars = trees.plant_sidecars(
+        &Trees::generation_of(&on_host("retired-a"), &digest('a')),
+        harness.aged(),
+    );
+    let young_sidecars = trees.plant_sidecars(
+        &Trees::generation_of(&on_host("retired-b"), &digest('b')),
+        harness.young(),
+    );
 
     harness.prune(harness.ports()).succeeded();
 
+    assert!(
+        aged_sidecars.iter().all(|sidecar| !exists(sidecar)),
+        "the prune never visited the sidecar-only artifact"
+    );
+    assert!(young_sidecars.iter().all(|sidecar| exists(sidecar)));
     let locks: Vec<_> = std::fs::read_dir(trees.root())
         .expect("trees")
         .flatten()
@@ -2316,12 +2363,16 @@ fn each_artifact_state_and_patience_uses_the_tables_lock_call() {
     }
 }
 
-#[test]
-fn the_plugin_bin_root_is_never_claimed_or_pruned() {
-    for spelling in ["named", "symlinked", "slashed"] {
-        let harness = RootHarness::new();
-        let bin = harness.plugin.join("bin");
-        let seeded: Vec<PathBuf> = [
+/// Everything a relocated root's prune would remove, seeded in the plugin
+/// `bin` where none of it may go.
+struct RelocatedPrunables {
+    files: Vec<PathBuf>,
+    trees: Vec<PlantedTree>,
+}
+
+impl RelocatedPrunables {
+    fn plant(harness: &RootHarness, bin: &Path) -> Self {
+        let mut files: Vec<PathBuf> = [
             format!("vcs-{OLD}-{DIGEST}"),
             format!("vcs-{OLD}-{DIGEST}.minisig"),
             format!("accelerator-launcher-{OLD}-{HOST_PLATFORM}"),
@@ -2344,35 +2395,100 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
         std::fs::create_dir(&lock).expect("bootstrap lock");
         std::fs::write(lock.join("pid"), "4343\n").expect("pid");
         set_mtime(&lock, harness.aged());
+        files.push(lock.join("pid"));
+        let trees = Trees::under(bin);
+        files.push(trees.plant_claim(
+            &digest('a'),
+            OTHER_ID,
+            harness.now - 2 * CLAIM_WINDOW.as_secs(),
+        ));
+        files.push(trees.plant_lock(&on_host("retired-lock"), harness.aged()));
+        files.extend(trees.plant_sidecars(
+            &Trees::generation_of(&on_host("retired-sidecar"), &digest('e')),
+            harness.aged(),
+        ));
+        Self {
+            files,
+            trees: vec![
+                trees.plant_tree(
+                    &on_host("driver"),
+                    &digest('a'),
+                    harness.aged(),
+                ),
+                trees.plant_tree(
+                    &on_host("retired"),
+                    &digest('b'),
+                    harness.aged(),
+                ),
+                trees.plant_tree(
+                    &Artifact::new("driver", another_platform()),
+                    &digest('c'),
+                    harness.aged(),
+                ),
+            ],
+        }
+    }
+
+    #[track_caller]
+    fn assert_survive(&self, spelling: &str) {
+        for path in &self.files {
+            assert!(exists(path), "{spelling}: {} was removed", path.display());
+        }
+        for tree in &self.trees {
+            tree.assert_survives();
+        }
+    }
+}
+
+/// The cache directory override that names `bin` as `spelling` does, or none.
+fn spelled(
+    spelling: &str,
+    harness: &RootHarness,
+    bin: &Path,
+) -> Option<PathBuf> {
+    match spelling {
+        "unset" => None,
+        "named" => Some(bin.to_path_buf()),
+        "symlinked" => {
+            let link = harness.anchor.path().join("bin-link");
+            std::os::unix::fs::symlink(bin, &link).expect("symlink");
+            Some(link)
+        }
+        _ => Some(PathBuf::from(format!("{}/", bin.display()))),
+    }
+}
+
+#[test]
+fn the_plugin_bin_root_is_never_claimed_or_pruned() {
+    for spelling in ["unset", "named", "symlinked", "slashed"] {
+        let harness = RootHarness::new();
+        let bin = harness.plugin.join("bin");
+        let prunables = RelocatedPrunables::plant(&harness, &bin);
         let superseded = Trees::under(&bin).plant_tree(
             &on_host("driver"),
             &digest('d'),
             harness.aged(),
         );
-        let cache_dir = match spelling {
-            "named" => bin.clone(),
-            "symlinked" => {
-                let link = harness.anchor.path().join("bin-link");
-                std::os::unix::fs::symlink(&bin, &link).expect("symlink");
-                link
-            }
-            _ => PathBuf::from(format!("{}/", bin.display())),
-        };
 
-        let start = harness.start_over(
-            &cache_dir,
+        let start = start_up(
+            &CacheRootConfig {
+                cache_dir_override: spelled(spelling, &harness, &bin),
+                plugin_root: Some(harness.plugin.clone()),
+            },
             TrustedOwners::none(),
             Ports {
                 pins: pinning("driver", &digest('a')),
                 ..harness.ports()
-            },
+            }
+            .build(),
         );
         if let Some(release) = harness.release_with_trees(&[MATERIALISED]) {
-            cold_dispatch_through(
-                &start,
-                &release,
-                &[],
-                &SnapshotAtExec::watching(bin.clone()),
+            let executor = SnapshotAtExec::watching(bin.clone());
+            let failure =
+                cold_dispatch_through(&start, &release, &[], &executor);
+            assert!(
+                executor.program().is_some(),
+                "{spelling}: the dispatch never reached exec: {failure}"
             );
             materialise_through(&start, &release, MATERIALISED)
                 .expect("materialised");
@@ -2382,25 +2498,23 @@ fn the_plugin_bin_root_is_never_claimed_or_pruned() {
 
         verb.succeeded();
         assert!(!bin.join(VERSION_CLAIMS_DIR).exists(), "{spelling}");
-        for path in seeded.iter().chain([&lock.join("pid")]) {
-            assert!(
-                path.exists(),
-                "{spelling}: {} was removed",
-                path.display()
-            );
-        }
+        prunables.assert_survive(spelling);
         superseded.assert_reclaimed();
     }
 }
 
 struct SnapshotAtExec {
-    watched: PathBuf,
+    watched: Vec<PathBuf>,
     present_at_exec: Mutex<Option<bool>>,
     program: Mutex<Option<PathBuf>>,
 }
 
 impl SnapshotAtExec {
-    const fn watching(watched: PathBuf) -> Self {
+    fn watching(watched: PathBuf) -> Self {
+        Self::watching_any(vec![watched])
+    }
+
+    const fn watching_any(watched: Vec<PathBuf>) -> Self {
         Self {
             watched,
             present_at_exec: Mutex::new(None),
@@ -2419,8 +2533,11 @@ impl SnapshotAtExec {
 
 impl ExecBinary for SnapshotAtExec {
     fn exec(&self, program: &Path, _args: &[OsString]) -> ResolutionError {
-        *self.present_at_exec.lock().expect("snapshot") =
-            Some(self.watched.symlink_metadata().is_ok());
+        *self.present_at_exec.lock().expect("snapshot") = Some(
+            self.watched
+                .iter()
+                .any(|path| path.symlink_metadata().is_ok()),
+        );
         *self.program.lock().expect("program") = Some(program.to_path_buf());
         ResolutionError::Exec {
             program: program.to_path_buf(),
@@ -2494,7 +2611,10 @@ fn a_cold_dispatch_prunes_before_exec() {
         return;
     };
     let unclaimed = harness.entry(OLD, harness.aged());
-    let executor = SnapshotAtExec::watching(harness.join(&unclaimed));
+    let executor = SnapshotAtExec::watching_any(vec![
+        harness.join(&unclaimed),
+        harness.join(&format!("{unclaimed}.minisig")),
+    ]);
 
     harness.cold_dispatch(&release, harness.ports(), &executor);
 
@@ -2513,6 +2633,7 @@ fn a_held_root_lock_does_not_delay_a_cold_dispatch() {
         return;
     };
     let unclaimed = harness.entry(OLD, harness.aged());
+    let probe = harness.file(".accelerator-probe-77", harness.aged());
     let held = FlockLocks.take(&harness.join(ROOT_LOCK)).expect("held");
     let (done, finished) = mpsc::channel();
     let dispatcher = {
@@ -2529,6 +2650,10 @@ fn a_held_root_lock_does_not_delay_a_cold_dispatch() {
     dispatcher.join().expect("dispatcher");
     assert!(reached.is_ok(), "the dispatch waited for the root lock");
     assert!(harness.has(&unclaimed));
+    assert!(
+        probe.exists(),
+        "the residue sweep ran without the root lock"
+    );
 }
 
 #[test]
@@ -2789,6 +2914,7 @@ fn an_enolck_root_lock_skips_single_file_work_on_the_cold_path() {
         return;
     };
     let unclaimed = harness.entry(OLD, harness.aged());
+    let probe = harness.file(".accelerator-probe-77", harness.aged());
     let tree = harness.trees().plant_tree(
         &on_host("retired"),
         &digest('a'),
@@ -2804,6 +2930,10 @@ fn an_enolck_root_lock_skips_single_file_work_on_the_cold_path() {
     );
 
     assert!(harness.has(&unclaimed));
+    assert!(
+        probe.exists(),
+        "the residue sweep ran without the root lock"
+    );
     tree.assert_reclaimed();
 }
 
@@ -2996,22 +3126,38 @@ fn repair_through(
 
 #[test]
 fn a_materialise_with_the_root_lock_held_still_prunes_other_trees() {
-    let harness = RootHarness::new();
+    let harness = Arc::new(RootHarness::new());
     let unclaimed = harness.entry(OLD, harness.aged());
+    let probe = harness.file(".accelerator-probe-77", harness.aged());
     let tree = harness.trees().plant_tree(
         &on_host("retired"),
         &digest('a'),
         harness.aged(),
     );
     let held = FlockLocks.take(&harness.join(ROOT_LOCK)).expect("held");
+    let (done, finished) = mpsc::channel();
+    let materialiser = {
+        let harness = Arc::clone(&harness);
+        std::thread::spawn(move || {
+            let ran = harness.fire(Trigger::Materialise, harness.ports()).ran();
+            done.send(()).expect("announced");
+            ran
+        })
+    };
 
-    let fired = harness.fire(Trigger::Materialise, harness.ports());
+    let reached = finished.recv_timeout(BOUND);
 
     drop(held);
-    if !fired.ran() {
+    let ran = materialiser.join().expect("materialiser");
+    assert!(reached.is_ok(), "the materialise waited for the root lock");
+    if !ran {
         return;
     }
     assert!(harness.has(&unclaimed));
+    assert!(
+        probe.exists(),
+        "the residue sweep ran without the root lock"
+    );
     tree.assert_reclaimed();
 }
 
@@ -3073,14 +3219,22 @@ fn a_materialise_prunes_the_superseded_tree_single_files_and_probes() {
         &digest('b'),
         harness.aged(),
     );
-
-    if !harness.fire(Trigger::Materialise, harness.ports()).ran() {
+    let Some(release) = harness.release_with_trees(&[MATERIALISED]) else {
         return;
-    }
+    };
+    let start = harness.start_over(
+        &harness.root,
+        TrustedOwners::none(),
+        harness.ports(),
+    );
+
+    let materialised = materialise_through(&start, &release, MATERIALISED)
+        .expect("materialised");
 
     assert!(!harness.has(&unclaimed));
     assert!(!harness.has(probe));
     superseded.assert_reclaimed();
+    assert!(materialised.path.exists(), "the new tree was removed");
 }
 
 struct ReapableResidue {
