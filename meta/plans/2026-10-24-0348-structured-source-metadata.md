@@ -5,14 +5,14 @@ title: "Structured Source Metadata Implementation Plan"
 date: "2026-10-24T14:01:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0348"
 parent: "work-item:0348"
 derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-25T09:46:30+00:00"
+last_updated: "2026-10-25T09:58:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -93,7 +93,7 @@ composer and `synthesise` carry that block byte-for-byte.
   `downstreams` (`cli/tracker/Cargo.toml`), checked by
   `tasks/lint/crate_dependencies.py`.
 - reqwest 0.12.28's hickory resolver is `hickory-resolver` 0.25.2
-  (`TokioResolver::builder_tokio()`, `lookup_ip`), and `tokio` 1.53.1 is
+  (`TokioResolver::builder_tokio()`, `lookup_ip`), and `tokio` 1.53.3 is
   already in the lockfile.
 - `html5gum` does not enter script-data state without a tree builder.
   `naively_switch_states(true)` is required so that JSON-LD containing `<`
@@ -119,9 +119,6 @@ composer and `synthesise` carry that block byte-for-byte.
   byte-for-byte carry-forward, even of non-canonical blocks. A subverted
   researcher can already write arbitrary prose into a note, so filtering
   only the block would protect little.
-- Fixing the pre-existing `RUSTSEC-2026-0386` tokio advisory that fails
-  `cargo deny check` today. ⚠️ `deps:check` is red before this work starts;
-  it is tracked separately and not caused by this plan.
 
 ## Implementation Approach
 
@@ -890,6 +887,30 @@ encode:
 - `cli/pup.ron`: add `web_html` to the
   `research_adapters_decoders_spawn_nothing` alternation, with a probe pair
   in `tests/integration/pup/test_import_rule.py`.
+- `licenses/accelerator-third-party-notices.txt` gains `html5gum` and
+  `jetscii` through `mise run notices:update`; `notices:check` fails until
+  it does.
+- As built:
+  - JSON-LD properties arrive in key order, not document order, because
+    `serde_json` sorts its maps. Extraction looks properties up by name,
+    so nothing depends on their order.
+  - A `@graph` document also lists its container as an untyped node, which
+    can never be the article node.
+  - `cargo` re-resolved an unrelated `getrandom` edge when `html5gum` was
+    added. It was restored, so the lockfile gains only the two crates.
+
+#### 5. Month-named dates
+
+**Files**: `cli/research/src/sources/metadata/date.rs`,
+`cli/research/tests/metadata_date.rs`, `cli/research/tests/web_extract.rs`,
+`meta/work/0348-structured-source-metadata.md`
+
+Added during implementation, after a live PLOS ONE page declared
+`citation_date` as `Mar 21, 2007`. `PartialDate::parse` gains the
+month-named forms described under Phase 2's partial dates, and the work
+item's usable-values rule and acceptance criteria record them. An arXiv
+normaliser test that used `20 May 2023` as its unusable date now uses
+`20/05/2023`.
 
 ### Success Criteria
 
@@ -906,6 +927,11 @@ encode:
 #### Manual Verification
 
 - [ ] None beyond code review; the phase has no user-visible surface
+
+Beyond the plan, live arXiv, PLOS ONE and BBC pages were run through
+`WebHtmlDecoder` and `declared_metadata`. arXiv and PLOS ONE each yielded
+`doi`, `published` and `accessed`. The BBC page, a `CollectionPage`, yielded
+only `accessed`.
 
 ---
 
@@ -1462,13 +1488,14 @@ impl Family {
 - [ ] Binary tests pass: `cargo test -p accelerator-research --features test-loopback --manifest-path cli/Cargo.toml`
 - [ ] Release build carries no loopback marker: `mise run build:cli:research` (staged-binary byte scan)
 - [ ] Crate rules, pup, public API: `mise run lint:crate-dependencies:check`, `mise run public-api:check`
+- [ ] Third-party notices match: `mise run notices:check`, after `mise run notices:update` if a new crate enters the closure
 - [ ] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] `accelerator research fetch web metadata 'https://peerj.com/articles/4375/'` prints `doi: 10.7717/peerj.4375`, a `published` date and `accessed`
+- [ ] `accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'` prints `doi: 10.1371/journal.pone.0000308`, `published: 2007-03-21` and `accessed`
 - [ ] `accelerator research fetch web metadata 'http://169.254.169.254/'` exits 1 with `E_WEB_HOST_REJECTED` and no URL in the message
-- [ ] A publisher page that refuses non-browser clients exits 1 within 100 s with one `E_WEB_*` line, without hanging
+- [ ] A publisher page that refuses non-browser clients exits 1 within 100 s with one `E_WEB_*` line, without hanging. `https://peerj.com/articles/4375/` answered `curl` with 403 during Phase 3, so it is the expected `E_WEB_STATUS` case
 
 ---
 
@@ -1591,7 +1618,9 @@ by hand, against a mock server.
     are scoped to the academic families.
   - **New `fetch web metadata` subsection**: output, the `E_WEB_*` table,
     exit codes, fetch rules (admission, at most 5 redirects re-admitted per
-    hop, 2 MiB truncation, no proxy) and its time bound.
+    hop, 2 MiB truncation, no proxy), its time bound, and the date forms a
+    declaration may use: ISO 8601, year-first slash dates and month-named
+    dates, with numeric day-first dates refused.
   - **`guard` › Granting the fetch**: any skill that injects any profile
     grants the rule. The web profile uses it for `fetch web metadata`, and
     a denied call leaves the entry without a block.
