@@ -605,16 +605,20 @@ impl Serialize for MetadataJson<'_> {
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test -p research --manifest-path cli/Cargo.toml`
-- [ ] Adapter tests pass: `cargo test -p research-adapters --manifest-path cli/Cargo.toml`
-- [ ] Binary goldens pass: `cargo test -p accelerator-research --features test-loopback --manifest-path cli/Cargo.toml`
-- [ ] Public API pin matches: `mise run public-api:check`
-- [ ] `mise run check` and `mise run` exit 0
+- [x] Domain tests pass: `cargo test -p research --manifest-path cli/Cargo.toml`
+- [x] Adapter tests pass: `cargo test -p research-adapters --manifest-path cli/Cargo.toml`
+- [x] Binary goldens pass: `cargo test -p accelerator-research --features test-loopback --manifest-path cli/Cargo.toml`
+- [x] Public API pin matches: `mise run public-api:check`
+- [x] `mise run check` and `mise run` exit 0 — every task green under
+  `mise run --continue-on-error` except `deny:check` (the pre-existing
+  `RUSTSEC-2026-0386`) and `docs:audit:check` (new upstream npm advisories in
+  `docs-site`'s `dompurify`, `undici` and `zod`, which this phase does not
+  touch)
 
 #### Manual Verification
 
-- [ ] `accelerator research fetch openalex lookup W2741809807` prints a record whose `metadata` reads `doi`, `openalex_id`, `published`, `accessed` in that order with today's UTC date
-- [ ] `accelerator research fetch arxiv lookup 2305.12345` (or another known id) prints a versioned `arxiv_id` and both dates
+- [x] `accelerator research fetch openalex lookup W2741809807` prints a record whose `metadata` reads `doi`, `openalex_id`, `published`, `accessed` in that order with today's UTC date
+- [x] `accelerator research fetch arxiv lookup 2305.12345` (or another known id) prints a versioned `arxiv_id` and both dates
 
 ---
 
