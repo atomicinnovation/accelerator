@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
 repository: "accelerator"
-last_updated: "2026-10-24T20:37:32+00:00"
+last_updated: "2026-10-25T06:05:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -201,8 +201,10 @@ workspace = true
   failing test first for a resolved `IpAddr` (`169.254.169.254` →
   `LinkLocal`, `93.184.216.34` → `Public`).
 - Share one authority split, and validate ports only where a port is used:
-  - The private `split_authority(decoded) -> (&str, Option<&str>)` is the
-    only place that decides where the host ends and the port begins. It
+  - The crate-private `split_authority(decoded) -> (&str, &str)` returns
+    the host and the remainder that follows it (empty when no port was
+    written; for a bracketed host, everything after `]`). It is the only
+    place that decides where the host ends and the port begins. It
     keeps today's `strip_port_and_brackets` rules (a bracketed IPv6 host and
     its zone-id, or everything before the first colon) and today's order.
     The authority is percent-decoded and lowercased once, then split.
@@ -217,8 +219,11 @@ workspace = true
   - `Authority::parse(raw) -> Result<Authority, AuthorityError>` uses the
     same split and returns a `Host` and an `Option<u16>` port. Only
     `PageUrl` calls it:
-    - an empty port is `None`, the scheme's default, per RFC 3986 §3.2.3;
-    - `1`–`65535` is `Some`;
+    - an empty remainder, or a bare `:`, is `None`, the scheme's default,
+      per RFC 3986 §3.2.3;
+    - a remainder that does not start with `:` is `AuthorityError::Port`,
+      so `[::1]8080` is refused rather than read as port 8080;
+    - `1`–`65535`, written in ASCII digits only, is `Some`;
     - anything else is `AuthorityError::Port`;
     - host failures are `AuthorityError::Host(HostError)`.
 
@@ -228,7 +233,8 @@ workspace = true
     - `example.org:8080` → `Some(8080)`;
     - `example.org:` → `None`;
     - `[::1]:443` → `Some(443)`, and `[::1]` → `None`;
-    - `example.org:0`, `example.org:99999` and `example.org:8a` → `Port`;
+    - `example.org:0`, `example.org:99999`, `example.org:8a`,
+      `example.org:+80` and `[::1]8080` → `Port`;
     - `Host::canonicalise("example.org:99999")` still succeeds, pinning
       design's behaviour.
 - Make the shared vocabulary policy-neutral:
@@ -244,10 +250,10 @@ workspace = true
   design's rejection wording, for example `access_policy::reach_word` and
   `access_policy::host_error_message`, because they interpolate the
   authority and use design's terms. `HostError` keeps a `Display` in
-  `network` that names the variant without an authority.
-  `downgrade_goldens.rs` and the `host_reach.rs` description tests move
-  with the wording. Research composes its own `E_WEB_*` text from the
-  variant.
+  `network` that names the variant without an authority. The
+  `host_reach.rs` description test moves with the wording into
+  `access_policy.rs`'s tests. Research composes its own `E_WEB_*` text from
+  the variant.
 
 #### 2. Design consumes `network`
 
@@ -263,17 +269,21 @@ workspace = true
 
 **Files**: `cli/network/tests/host_classification_vectors.rs`,
 `cli/network/tests/fixtures/host-classification-vectors.json`,
-`cli/design/tests/host_classification_vectors.rs`,
+`cli/design/tests/access_policy_vectors.rs`,
+`cli/design/tests/fixtures/access-policy-vectors.json`,
 `skills/design/inventory-design/scripts/playwright/lib/access-policy.test.js`
 
 - Split the corpus by owner. The canonicalise and reach cases move to
   `cli/network/tests/fixtures/host-classification-vectors.json` and the
-  network test. The `source_location::parse` cases stay in a design-owned
-  `cli/design/tests/fixtures/source-location-vectors.json`, so neither crate
-  reads the other's test layout.
-- Point `access-policy.test.js:19` at the network fixture. It is the one
-  consumer that still has to cross a crate boundary, because the JS
-  classifier mirrors `network`.
+  network test. The `policy` cases, which run through `source_location::parse`
+  and `access_policy::evaluate`, stay in a design-owned
+  `cli/design/tests/fixtures/access-policy-vectors.json` and
+  `cli/design/tests/access_policy_vectors.rs`, so neither crate reads the
+  other's test layout.
+- `access-policy.test.js` reads both fixtures and merges them, because it
+  runs the reach cases against the JS mirror of `network` and the policy
+  cases against the JS mirror of `access_policy`. It is the one consumer
+  that crosses a crate boundary.
 
 #### 4. Registration (library-crate checklist, `tasks/README.md:790`)
 
@@ -290,8 +300,10 @@ workspace = true
     alternation.
 - `tests/integration/pup/test_import_rule.py` gains a probe pair for
   `network`: a violation importing `serde`, and a compliant control
-  importing `std::net::IpAddr`. It also gains a design control importing
-  `network::Host`.
+  importing `std::net::IpAddr`. Design joins the parametrised
+  `_DOMAIN_RULES` with `network` as its extra allowance, and `network` joins
+  `_ALL_EXTRA_CRATES`, so every other domain rule is also proven to refuse
+  it.
 - `tasks/public_api.py` `_PINNED_CRATES` gains `network`. Generate
   `cli/network/tests/fixtures/public-api.txt` and regenerate design's
   snapshot with `mise run public-api:update` after reading both diffs.
@@ -306,7 +318,10 @@ workspace = true
 - [x] Pup rules and probes pass: `mise run test:integration` (pup lane)
 - [x] Public API pins match: `mise run public-api:check`
 - [x] Read-only CI mirror passes: `mise run check`
-- [x] Full default task passes: `mise run`
+- [x] Full default task passes: `mise run` — every task green under
+  `mise run --continue-on-error` except `deny:check`, which fails only on
+  the pre-existing `RUSTSEC-2026-0386` advisory (bans, licences and sources
+  pass)
 
 #### Manual Verification
 
@@ -881,8 +896,10 @@ adapters and its output.
 **File**: `cli/research/src/sources/web/page_url.rs`;
 `cli/research/Cargo.toml` gains `network = { path = "../network" }`;
 `cli/pup.ron` adds `^network(::|$)` to
-`research_domain_imports_only_permitted`, with a research probe control
-importing `network::HostReach`.
+`research_domain_imports_only_permitted`. Its `_DOMAIN_RULES` entry in
+`tests/integration/pup/test_import_rule.py` gains `("network",)` as its
+extras, which both proves the allowance and retires the rejection case
+Phase 1's `_ALL_EXTRA_CRATES` entry otherwise adds for research.
 
 ```rust
 pub struct PageUrl {
