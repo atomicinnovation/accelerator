@@ -587,7 +587,7 @@ pub fn research::sources::arxiv::RawVersion::fmt(&self, f: &mut core::fmt::Forma
 impl core::marker::StructuralPartialEq for research::sources::arxiv::RawVersion
 pub fn research::sources::arxiv::is_withdrawal_candidate(comment: &str) -> bool
 pub fn research::sources::arxiv::latest_version_withdrawn(versions: &[research::sources::arxiv::RawVersion]) -> bool
-pub fn research::sources::arxiv::normalise(entry: &research::sources::arxiv::Entry, withdrawn: bool) -> core::option::Option<research::sources::record::Record>
+pub fn research::sources::arxiv::normalise(entry: &research::sources::arxiv::Entry, withdrawn: bool, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
 pub mod research::sources::classify
 pub enum research::sources::classify::ClientRejection
 pub research::sources::classify::ClientRejection::ErrorFeed(alloc::string::String)
@@ -915,7 +915,7 @@ impl core::fmt::Debug for research::sources::openalex::Work
 pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
-pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work) -> core::option::Option<research::sources::record::Record>
+pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
 pub research::sources::queue::Argument::Id
@@ -1146,6 +1146,7 @@ pub struct research::sources::record::Record
 impl research::sources::record::Record
 pub fn research::sources::record::Record::abstract_excerpt(&self) -> core::option::Option<&str>
 pub fn research::sources::record::Record::authors(&self) -> &[alloc::string::String]
+pub const fn research::sources::record::Record::metadata(&self) -> &research::sources::metadata::SourceMetadata
 pub const fn research::sources::record::Record::retracted(&self) -> bool
 pub const fn research::sources::record::Record::tier(&self) -> research::sources::record::Tier
 pub fn research::sources::record::Record::title(&self) -> core::option::Option<&str>

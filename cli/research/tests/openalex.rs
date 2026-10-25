@@ -1,5 +1,6 @@
 #![allow(clippy::expect_used)]
 
+use research::sources::metadata::date::PartialDate;
 use research::sources::openalex::abstract_from_inverted_index;
 use research::sources::openalex::normalise;
 use research::sources::openalex::Location;
@@ -12,6 +13,26 @@ fn index(pairs: &[(&str, &[usize])]) -> Vec<(String, Vec<usize>)> {
     pairs
         .iter()
         .map(|(word, positions)| ((*word).to_owned(), positions.to_vec()))
+        .collect()
+}
+
+fn accessed() -> PartialDate {
+    PartialDate::parse("2027-01-15").expect("valid date")
+}
+
+fn metadata_of(work: &Work) -> Vec<(String, String)> {
+    normalise(work, accessed())
+        .expect("valid work")
+        .metadata()
+        .entries()
+        .map(|(key, value)| (key.to_owned(), value.to_owned()))
+        .collect()
+}
+
+fn pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+    expected
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
         .collect()
 }
 
@@ -54,7 +75,8 @@ fn an_abstract_is_rebuilt_in_position_order() {
 
 #[test]
 fn a_work_normalises_every_record_field() {
-    let record = normalise(&published_article()).expect("valid work");
+    let record =
+        normalise(&published_article(), accessed()).expect("valid work");
     assert_eq!(record.title(), Some("The state of OA"));
     assert_eq!(record.authors(), ["Heather Piwowar", "Jason Priem"]);
     assert_eq!(record.url(), "https://doi.org/10.7717/peerj.4375");
@@ -82,7 +104,7 @@ fn a_work_without_a_doi_is_cited_by_its_openalex_url() {
         doi: None,
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert_eq!(record.url(), "https://openalex.org/W2741809807");
 }
 
@@ -92,7 +114,7 @@ fn a_work_whose_doi_is_invalid_is_cited_by_its_openalex_url() {
         doi: Some("https://doi.org/10.1234/../../works".to_owned()),
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert_eq!(record.url(), "https://openalex.org/W2741809807");
 }
 
@@ -102,7 +124,7 @@ fn a_doi_with_unsafe_characters_is_cited_percent_encoded() {
         doi: Some("https://doi.org/10.1002/a)b<c".to_owned()),
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert_eq!(record.url(), "https://doi.org/10.1002/a%29b%3Cc");
 }
 
@@ -112,7 +134,7 @@ fn a_doi_resolved_through_dx_is_cited_at_doi_org() {
         doi: Some("http://dx.doi.org/10.7717/peerj.4375".to_owned()),
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert_eq!(record.url(), "https://doi.org/10.7717/peerj.4375");
 }
 
@@ -122,7 +144,7 @@ fn a_work_whose_id_is_not_an_openalex_work_is_dropped() {
         id: "https://evil.example/W1".to_owned(),
         ..published_article()
     };
-    assert!(normalise(&work).is_none());
+    assert!(normalise(&work, accessed()).is_none());
 }
 
 #[test]
@@ -131,7 +153,7 @@ fn a_retracted_work_is_marked_retracted() {
         is_retracted: true,
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert!(record.retracted());
     assert_eq!(record.tier(), Tier::Three);
 }
@@ -143,7 +165,7 @@ fn a_sourceless_work_reports_empty_venue_signals() {
         abstract_inverted_index: None,
         ..published_article()
     };
-    let record = normalise(&work).expect("valid work");
+    let record = normalise(&work, accessed()).expect("valid work");
     assert_eq!(record.venue(), None);
     assert_eq!(record.abstract_excerpt(), None);
     assert_eq!(
@@ -156,5 +178,54 @@ fn a_sourceless_work_reports_empty_venue_signals() {
             work_type: "article".to_owned(),
             is_retracted: false,
         }
+    );
+}
+
+#[test]
+fn a_work_records_its_doi_id_publication_and_access_dates_in_order() {
+    let work = Work {
+        doi: Some("https://doi.org/10.7717/PeerJ.4375".to_owned()),
+        ..published_article()
+    };
+    assert_eq!(
+        metadata_of(&work),
+        pairs(&[
+            ("doi", "10.7717/peerj.4375"),
+            ("openalex_id", "W2741809807"),
+            ("published", "2018-02-13"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_work_without_a_doi_records_no_doi() {
+    let work = Work {
+        doi: None,
+        ..published_article()
+    };
+    assert_eq!(
+        metadata_of(&work),
+        pairs(&[
+            ("openalex_id", "W2741809807"),
+            ("published", "2018-02-13"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn an_unusable_publication_date_is_left_out_while_the_rest_remain() {
+    let work = Work {
+        publication_date: Some("unknown".to_owned()),
+        ..published_article()
+    };
+    assert_eq!(
+        metadata_of(&work),
+        pairs(&[
+            ("doi", "10.7717/peerj.4375"),
+            ("openalex_id", "W2741809807"),
+            ("accessed", "2027-01-15"),
+        ])
     );
 }

@@ -15,6 +15,7 @@ use crate::sources::classify::FetchError;
 use crate::sources::classify::Reason;
 use crate::sources::classify::Response;
 use crate::sources::classify::Verdict;
+use crate::sources::metadata::date::PartialDate;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
 use crate::sources::queue::ArxivQueue;
@@ -277,10 +278,11 @@ pub fn fetch_openalex(
             ))
         }
     };
+    let accessed = PartialDate::utc_date_of(ports.clock.wall_now());
     FetchOutcome::Records(
         works
             .iter()
-            .filter_map(openalex::normalise)
+            .filter_map(|work| openalex::normalise(work, accessed))
             .take(fetch.request.limit().records())
             .collect(),
     )
@@ -463,11 +465,12 @@ fn served(
         verdicts.note(id, withdrawn);
     }
 
+    let accessed = PartialDate::utc_date_of(ports.clock.wall_now());
     Ok(FetchOutcome::Records(
         listed
             .iter()
             .filter_map(|(id, entry)| {
-                arxiv::normalise(entry, verdicts.withdrawn(id))
+                arxiv::normalise(entry, verdicts.withdrawn(id), accessed)
             })
             .collect(),
     ))

@@ -4,6 +4,8 @@
 //! Work types and source types are open sets upstream, so they stay strings
 //! and are only ever read through the predicates here.
 
+use crate::sources::metadata::date::PartialDate;
+use crate::sources::metadata::SourceMetadata;
 use crate::sources::record::excerpt;
 use crate::sources::record::Record;
 use crate::sources::record::VenueSignals;
@@ -80,6 +82,23 @@ impl Work {
             .map_or_else(|| work.url(), |doi| doi.url())
     }
 
+    fn metadata(&self, work: &WorkId, accessed: PartialDate) -> SourceMetadata {
+        let mut metadata = SourceMetadata::default();
+        if let Some(doi) = self.doi.as_deref().and_then(Doi::parse) {
+            metadata.record_doi(&doi);
+        }
+        metadata.record_openalex_id(work);
+        if let Some(published) = self
+            .publication_date
+            .as_deref()
+            .and_then(PartialDate::parse)
+        {
+            metadata.record_published(published);
+        }
+        metadata.record_accessed(accessed);
+        metadata
+    }
+
     fn venue_signals(&self) -> VenueSignals {
         let source = self.primary_source();
         VenueSignals::OpenAlex {
@@ -129,8 +148,8 @@ pub fn abstract_from_inverted_index(index: &[(String, Vec<usize>)]) -> String {
 }
 
 /// The record a work becomes, or `None` when its ID is not an OpenAlex work
-/// and so cannot be cited.
-pub fn normalise(work: &Work) -> Option<Record> {
+/// and so cannot be cited. `accessed` is the date the work was fetched.
+pub fn normalise(work: &Work, accessed: PartialDate) -> Option<Record> {
     let id = WorkId::from_openalex(&work.id)?;
     Some(Record {
         title: work.title.clone(),
@@ -149,5 +168,6 @@ pub fn normalise(work: &Work) -> Option<Record> {
         tier: openalex_tier(work),
         retracted: work.is_retracted,
         withdrawn: false,
+        metadata: work.metadata(&id, accessed),
     })
 }
