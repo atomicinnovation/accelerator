@@ -1,0 +1,39 @@
+[package]
+edition = "2024"
+name = "include-flate-compress"
+version = "0.3.4"
+authors = [
+    "SOFe <sofe2038@gmail.com>",
+    "Kento Oki <hrn832@protonmail.com>",
+]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+description = "Compression algorithm provider"
+homepage = "https://github.com/SOF3/include-flate"
+readme = false
+license = "Apache-2.0"
+repository = "https://github.com/SOF3/include-flate.git"
+
+[features]
+default = [
+    "deflate",
+    "zstd",
+]
+deflate = ["dep:libflate"]
+zstd = ["dep:zstd"]
+
+[lib]
+name = "include_flate_compress"
+path = "src/lib.rs"
+
+[dependencies.libflate]
+version = "2.3.0"
+optional = true
+
+[dependencies.zstd]
+version = "0.14.3"
+optional = true

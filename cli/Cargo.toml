@@ -48,6 +48,7 @@ members = [
     "process",
     "lease"
 ]
+exclude = ["patches/include-flate-compress"]
 
 [workspace.package]
 version = "1.24.0-pre.86"
@@ -259,3 +260,10 @@ must_use_candidate = "allow"
 [profile.release]
 strip = true
 lto = "thin"
+
+# include-flate-compress 0.3.4, the latest release, pins zstd 0.13, which
+# carries RUSTSEC-2026-0391 and RUSTSEC-2026-0398 into the signed visualiser
+# binary through rust-embed's compression. The vendored copy differs only in
+# requiring zstd 0.14.3; drop it once upstream releases the bump.
+[patch.crates-io]
+include-flate-compress = { path = "patches/include-flate-compress" }
