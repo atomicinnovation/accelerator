@@ -1,3 +1,6 @@
+# Modified from include-flate-compress 0.3.4: the zstd requirement is raised
+# to 0.14.3.
+
 [package]
 edition = "2024"
 name = "include-flate-compress"
