@@ -14,6 +14,7 @@ tags: ["runtime", "cache", "lease", "prune", "design"]
 last_updated: "2026-10-14T15:16:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-930"
 ---
 # 0334: Tree leases are not held on the cold path or honoured when liveness is unknown
 

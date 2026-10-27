@@ -15,6 +15,7 @@ tags: ["rekey", "aliases", "references", "interactive"]
 last_updated: "2026-10-15T18:23:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-933"
 ---
 # 0345: Bare-Number Review During Alias Normalisation
 

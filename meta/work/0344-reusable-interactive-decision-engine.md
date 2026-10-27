@@ -14,6 +14,7 @@ tags: ["migration-engine", "interactive", "rust"]
 last_updated: "2026-10-15T18:23:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-932"
 ---
 # 0344: Reusable Interactive Decision Engine
 
