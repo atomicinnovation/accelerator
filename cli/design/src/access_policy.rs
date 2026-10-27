@@ -25,7 +25,7 @@ use network::HostError;
 use network::HostReach;
 
 #[must_use]
-pub const fn reach_word(reach: HostReach) -> &'static str {
+pub(crate) const fn reach_word(reach: HostReach) -> &'static str {
     match reach {
         HostReach::Loopback => "loopback",
         HostReach::Private => "RFC1918",
@@ -41,7 +41,7 @@ pub const fn reach_word(reach: HostReach) -> &'static str {
 /// Only the numeric-encoding and control-character cases name the authority;
 /// the others describe a property of the URL rather than of a host.
 #[must_use]
-pub fn host_error_message(error: &HostError, authority: &str) -> String {
+pub(crate) fn host_error_message(error: &HostError, authority: &str) -> String {
     match error {
         HostError::Userinfo => "URL contains a userinfo segment (user@host), \
                                 which is not permitted."

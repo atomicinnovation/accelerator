@@ -15,8 +15,6 @@ pub fn design::access_policy::Allowances::fmt(&self, f: &mut core::fmt::Formatte
 impl core::marker::Copy for design::access_policy::Allowances
 impl core::marker::StructuralPartialEq for design::access_policy::Allowances
 pub fn design::access_policy::evaluate(location: &design::source_location::SourceLocation, allowances: design::access_policy::Allowances) -> design::verdict::Verdict<alloc::string::String>
-pub fn design::access_policy::host_error_message(error: &network::host::HostError, authority: &str) -> alloc::string::String
-pub const fn design::access_policy::reach_word(reach: network::host_reach::HostReach) -> &'static str
 pub mod design::credentials
 pub enum design::credentials::AuthConfigurationError
 pub design::credentials::AuthConfigurationError::HeaderWithoutLocation
