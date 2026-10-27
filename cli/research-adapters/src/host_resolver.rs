@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use hickory_resolver::config::ResolverOpts;
+use hickory_resolver::Name;
 use hickory_resolver::TokioResolver;
 use network::Host;
 use research::sources::web::fetch::HostResolver;
@@ -25,7 +26,7 @@ impl HostResolver for DnsHostResolver {
         port: u16,
         within: Duration,
     ) -> Result<Vec<SocketAddr>, ResolveFailure> {
-        let name = ascii_host(host).ok_or(ResolveFailure::Refused)?;
+        let name = lookup_name(host).ok_or(ResolveFailure::Refused)?;
         bounded_lookup(within, async move {
             let resolver = TokioResolver::builder_tokio()
                 .map_err(|_| ResolveFailure::Unresolved)?
@@ -41,6 +42,14 @@ impl HostResolver for DnsHostResolver {
                 .collect())
         })
     }
+}
+
+/// The host's name made fully qualified, so the lookup never appends the
+/// machine's search domains and a host means the same name everywhere.
+pub fn lookup_name(host: &Host) -> Option<Name> {
+    let mut name = Name::from_ascii(ascii_host(host)?).ok()?;
+    name.set_fqdn(true);
+    Some(name)
 }
 
 /// Runs `lookup` to completion within `within` on a runtime that is dropped

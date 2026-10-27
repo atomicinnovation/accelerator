@@ -16,6 +16,7 @@ use research::sources::web::fetch::ResolveFailure;
 use research::sources::web::fetch::PAGE_ACCEPT;
 use research::sources::web::page_url::PageUrl;
 use research_adapters::host_resolver::bounded_lookup;
+use research_adapters::host_resolver::lookup_name;
 use research_adapters::host_resolver::DnsHostResolver;
 use research_adapters::page_transport::HttpPageTransport;
 
@@ -47,6 +48,29 @@ fn localhost_resolves_to_a_loopback_address_carrying_the_port() {
         assert!(address.ip().is_loopback(), "{address}");
         assert_eq!(address.port(), 8080);
     }
+}
+
+#[test]
+fn a_name_is_looked_up_fully_qualified_so_no_search_domain_is_appended() {
+    for (raw, looked_up) in [
+        ("example.org", "example.org."),
+        ("wiki", "wiki."),
+        ("bücher.example", "xn--bcher-kva.example."),
+    ] {
+        let host = Host::canonicalise(raw).expect("a host");
+
+        let name = lookup_name(&host).expect("a name");
+
+        assert!(name.is_fqdn(), "{raw}");
+        assert_eq!(name.to_ascii(), looked_up, "{raw}");
+    }
+}
+
+#[test]
+fn a_host_with_no_ascii_form_has_no_name_to_look_up() {
+    let folding = Host::canonicalise("１２７.０.０.１").expect("a host");
+
+    assert_eq!(lookup_name(&folding), None);
 }
 
 #[test]

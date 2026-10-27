@@ -210,8 +210,9 @@ in the order below, and each declaration of a field in document order:
   port outside 1–65535, or with whitespace, a control character or a
   backslash anywhere is refused with `E_WEB_URL_MALFORMED`. Any fragment is
   dropped.
-- **Admission.** Each hop's host is resolved, `localhost` included, and
-  admitted only when every address it resolves to is public. A loopback,
+- **Admission.** Each hop's host is resolved, `localhost` included, exactly
+  as written: no search domain is appended. It is admitted only when every
+  address it resolves to is public. A loopback,
   private, link-local, reserved or unspecified address is rejected before
   any request, and the request connects only to the addresses admitted.
 - **Redirects.** A `301`, `302`, `303`, `307` or `308` is followed, at most
