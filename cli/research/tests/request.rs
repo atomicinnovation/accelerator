@@ -364,6 +364,23 @@ fn a_resolver_url_is_cut_at_its_query_or_fragment_then_decoded() {
 }
 
 #[test]
+fn a_resolver_url_whose_path_does_not_decode_to_a_doi_is_refused() {
+    for (path, expected) in [
+        ("a%4", None),
+        ("a%zz", None),
+        ("a%C3", None),
+        ("caf%C3%A9", None),
+        ("a%2fb", Some("10.1000/a/b")),
+    ] {
+        assert_eq!(
+            canonical(&format!("https://doi.org/10.1000/{path}")).as_deref(),
+            expected,
+            "{path}"
+        );
+    }
+}
+
+#[test]
 fn an_encoded_delimiter_stays_part_of_the_doi_and_is_re_encoded_in_its_url() {
     let doi = Doi::parse("https://doi.org/10.1000/a%23b%3Fc").expect("valid");
     assert_eq!(doi.canonical(), "10.1000/a#b?c");
