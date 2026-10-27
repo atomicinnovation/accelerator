@@ -234,7 +234,7 @@ never a more precise date from a later scheme:
   `E_WEB_TIMED_OUT`, while `openalex` and `arxiv`, which honour the proxy
   variables, still work.
 - **Time.** The call runs within the 100 s deadline every `fetch` shares.
-  Each lookup is capped at 5 s and each request at 30 s, both clipped to
+  Each DNS resolution is capped at 5 s and each request at 30 s, both clipped to
   the time remaining. Nothing is retried.
 
 #### Errors
@@ -242,20 +242,20 @@ never a more precise date from a later scheme:
 A page that cannot be read exits 1 with one line on stderr and nothing on
 stdout. No message carries the URL, the host or an address.
 
-| Code                              | Message                                                                                     |
-|-----------------------------------|---------------------------------------------------------------------------------------------|
-| `E_WEB_URL_MALFORMED` (exit 2)    | `the URL is not a fetchable http(s) URL: {rule}`, naming the rule the URL broke             |
-| `E_WEB_HOST_REJECTED`             | `the page's host is a {loopback, private, link-local, reserved or unspecified} address`    |
-| `E_WEB_HOST_UNRESOLVED`           | `the page's host did not resolve`                                                           |
-| `E_WEB_TOO_MANY_REDIRECTS`        | `the page redirected more than 5 times`                                                     |
-| `E_WEB_REDIRECT_WITHOUT_LOCATION` | `the page redirected without a Location`                                                    |
-| `E_WEB_REDIRECT_UNFOLLOWABLE`     | `the page redirected to a URL that cannot be fetched`                                       |
-| `E_WEB_REFUSED`                   | `the page's address could not be fetched safely`, as its host would not be read as admitted |
-| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`                                                             |
-| `E_RESEARCH_TRANSPORT`            | `the HTTP client could not be initialised`; nothing was sent                                |
-| `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                           |
-| `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                           |
-| `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                      |
+| Code                              | Message                                                                                          |
+|-----------------------------------|--------------------------------------------------------------------------------------------------|
+| `E_WEB_URL_MALFORMED` (exit 2)    | `the URL is not a fetchable http(s) URL: {rule}`, naming the rule the URL broke                  |
+| `E_WEB_HOST_REJECTED`             | `the page's host is {a loopback, a private, a link-local, a reserved or an unspecified} address` |
+| `E_WEB_HOST_UNRESOLVED`           | `the page's host did not resolve`                                                                |
+| `E_WEB_TOO_MANY_REDIRECTS`        | `the page redirected more than 5 times`                                                          |
+| `E_WEB_REDIRECT_WITHOUT_LOCATION` | `the page redirected without a Location`                                                         |
+| `E_WEB_REDIRECT_UNFOLLOWABLE`     | `the page redirected to a URL that cannot be fetched`                                            |
+| `E_WEB_REFUSED`                   | `the page's address could not be fetched safely`, as its host would not be read as admitted      |
+| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`                                                                  |
+| `E_RESEARCH_TRANSPORT`            | `the HTTP client could not be initialised`; nothing was sent                                     |
+| `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                                |
+| `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                                |
+| `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                           |
 
 ## Reputation tiers
 

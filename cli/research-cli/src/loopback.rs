@@ -83,7 +83,9 @@ fn overridden(
 
 /// A public address the stand-in name resolves to, so admission judges the
 /// mock's page exactly as it would a real one; only the transport knows it
-/// means the mock.
+/// means the mock. It must stay a real public address: a documentation range
+/// such as `192.0.2.0/24` is classified reserved and would be rejected before
+/// the transport sees it.
 pub const STAND_IN: IpAddr = IpAddr::V4(Ipv4Addr::new(93, 184, 216, 34));
 
 /// One page host answered by a loopback mock, named as `<name>=<socket>`.
