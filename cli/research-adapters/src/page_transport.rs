@@ -21,6 +21,7 @@ use reqwest::redirect;
 use reqwest::Client;
 use reqwest::Url;
 use research::sources::request::USER_AGENT;
+use research::sources::web::fetch::is_redirect;
 use research::sources::web::fetch::PageRequest;
 use research::sources::web::fetch::PageResponse;
 use research::sources::web::fetch::PageTransport;
@@ -88,7 +89,7 @@ async fn receive(response: reqwest::Response, max_body: usize) -> PageResponse {
     let headers = response.headers().clone();
     let location = match utf8_header(&headers, "location") {
         Ok(location) => location,
-        Err(_) if status.is_redirection() => return PageResponse::Refused,
+        Err(_) if is_redirect(status.as_u16()) => return PageResponse::Refused,
         Err(_) => None,
     };
     let Ok(body) = read_capped(response, max_body).await else {

@@ -213,7 +213,9 @@ in the order below, and each declaration of a field in document order:
   admitted only when every address it resolves to is public. A loopback,
   private, link-local, reserved or unspecified address is rejected before
   any request, and the request connects only to the addresses admitted.
-- **Redirects.** At most 5 are followed, each re-admitted as its own hop.
+- **Redirects.** A `301`, `302`, `303`, `307` or `308` is followed, at most
+  5 times, each hop re-admitted as its own. Any other `3xx` fails as
+  `E_WEB_STATUS`.
 - **Response.** Only a `2xx` whose content type is `text/html` or
   `application/xhtml+xml` is read. At most 2 MiB of the body is read, and a
   longer body is truncated rather than refused, since the declarations sit

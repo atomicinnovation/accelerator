@@ -1653,6 +1653,7 @@ pub fn research::sources::web::fetch::HostResolver::resolve(&self, host: &networ
 pub trait research::sources::web::fetch::PageTransport
 pub fn research::sources::web::fetch::PageTransport::get(&self, request: &research::sources::web::fetch::PageRequest<'_>) -> research::sources::web::fetch::PageResponse
 pub fn research::sources::web::fetch::fetch_page_metadata(url: &research::sources::web::page_url::PageUrl, deadline: &research::sources::schedule::Deadline, ports: &research::sources::web::fetch::WebPorts<'_>) -> core::result::Result<research::sources::metadata::SourceMetadata, research::sources::web::fetch::WebFailure>
+pub const fn research::sources::web::fetch::is_redirect(status: u16) -> bool
 pub fn research::sources::web::fetch::step_bounds(deadline: &research::sources::schedule::Deadline, now: std::time::Instant) -> core::option::Option<research::sources::web::fetch::StepBounds>
 pub mod research::sources::web::page_url
 pub enum research::sources::web::page_url::PageUrlError

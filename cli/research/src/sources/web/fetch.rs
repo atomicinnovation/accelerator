@@ -285,6 +285,12 @@ fn admitted_addresses(
         })
 }
 
+/// A status whose `Location` is followed. The other 3xx, such as `300`'s
+/// choices or `304`, answer a request this fetch never makes.
+pub const fn is_redirect(status: u16) -> bool {
+    matches!(status, 301 | 302 | 303 | 307 | 308)
+}
+
 enum Hop {
     Follow(PageUrl),
     Page(Vec<u8>),
@@ -308,7 +314,7 @@ fn next_hop(response: PageResponse, from: &PageUrl) -> Result<Hop, WebFailure> {
         PageResponse::TimedOut => return Err(WebFailure::TimedOut),
     };
     match status {
-        300..=399 => {
+        status if is_redirect(status) => {
             let location =
                 location.ok_or(WebFailure::RedirectWithoutLocation)?;
             from.follow(&location)

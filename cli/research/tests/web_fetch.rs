@@ -477,6 +477,37 @@ fn a_redirect_without_a_location_fails() {
 }
 
 #[test]
+fn every_redirect_status_is_followed() {
+    for status in [301, 302, 303, 307, 308] {
+        let clock = RecordingClock::new();
+        let fixture = Fixture::new(&clock).answering(
+            "http://example.org/",
+            received(status, Some("/next"), None),
+        );
+
+        fixture.fetch("http://example.org/").expect("metadata");
+
+        assert_eq!(fixture.transport.hits(), 2, "{status}");
+    }
+}
+
+#[test]
+fn a_3xx_status_that_is_not_a_redirect_fails_as_a_status() {
+    for (status, location) in [(300, Some("/choice")), (304, None), (305, None)]
+    {
+        let clock = RecordingClock::new();
+        let fixture = Fixture::new(&clock)
+            .answering("http://example.org/", received(status, location, None));
+
+        assert_eq!(
+            fixture.fetch("http://example.org/"),
+            Err(WebFailure::Status(status))
+        );
+        assert_eq!(fixture.transport.hits(), 1, "{status}");
+    }
+}
+
+#[test]
 fn a_redirect_to_a_url_the_rules_refuse_is_unfollowable() {
     for location in [
         "file:///etc/passwd",
