@@ -226,16 +226,15 @@ pub fn fetch_page_metadata(
     let accessed = PartialDate::utc_date_of(ports.clock.wall_now());
     let mut url = url.clone();
     for _ in 0..=MAX_REDIRECTS {
-        let bounds = remaining_bounds(deadline, ports.clock)?;
-        let addresses =
-            admitted_addresses(&url, ports.resolver, bounds.lookup)?;
-        let bounds = remaining_bounds(deadline, ports.clock)?;
+        let lookup = remaining_bounds(deadline, ports.clock)?.lookup;
+        let addresses = admitted_addresses(&url, ports.resolver, lookup)?;
+        let request = remaining_bounds(deadline, ports.clock)?.request;
         let response = ports.transport.get(&PageRequest {
             url: &url,
             addresses: &addresses,
             accept: PAGE_ACCEPT,
             max_body: MAX_PAGE_BODY,
-            timeout: bounds.request,
+            timeout: request,
         });
         match next_hop(response, &url)? {
             Hop::Page(body) => {

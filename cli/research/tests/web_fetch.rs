@@ -51,14 +51,30 @@ struct Resolution {
     within: Duration,
 }
 
-/// Answers each scripted name; any other name resolves to [`PUBLIC`].
-#[derive(Default)]
-struct ScriptedResolver {
+/// Answers each scripted name; any other name resolves to [`PUBLIC`]. Each
+/// lookup takes `takes` of the clock's time.
+struct ScriptedResolver<'a> {
+    clock: &'a RecordingClock,
+    takes: Duration,
     answers: HashMap<String, Result<Vec<&'static str>, ResolveFailure>>,
     asked: RefCell<Vec<Resolution>>,
 }
 
-impl ScriptedResolver {
+impl<'a> ScriptedResolver<'a> {
+    fn new(clock: &'a RecordingClock) -> Self {
+        Self {
+            clock,
+            takes: Duration::ZERO,
+            answers: HashMap::new(),
+            asked: RefCell::new(Vec::new()),
+        }
+    }
+
+    const fn taking(mut self, takes: Duration) -> Self {
+        self.takes = takes;
+        self
+    }
+
     fn answering(
         mut self,
         host: &str,
@@ -73,7 +89,7 @@ impl ScriptedResolver {
     }
 }
 
-impl HostResolver for ScriptedResolver {
+impl HostResolver for ScriptedResolver<'_> {
     fn resolve(
         &self,
         host: &Host,
@@ -85,6 +101,7 @@ impl HostResolver for ScriptedResolver {
             port,
             within,
         });
+        self.clock.advance(self.takes);
         let answer = self
             .answers
             .get(&host.to_string())
@@ -221,7 +238,7 @@ fn redirect(to: &str) -> PageResponse {
 
 struct Fixture<'a> {
     clock: &'a RecordingClock,
-    resolver: ScriptedResolver,
+    resolver: ScriptedResolver<'a>,
     transport: RecordingTransport<'a>,
     decoder: StubDecoder,
 }
@@ -230,7 +247,7 @@ impl<'a> Fixture<'a> {
     fn new(clock: &'a RecordingClock) -> Self {
         Self {
             clock,
-            resolver: ScriptedResolver::default(),
+            resolver: ScriptedResolver::new(clock),
             transport: RecordingTransport::new(clock),
             decoder: StubDecoder::default(),
         }
@@ -257,6 +274,11 @@ impl<'a> Fixture<'a> {
 
     fn taking(mut self, takes: Duration) -> Self {
         self.transport = self.transport.taking(takes);
+        self
+    }
+
+    fn resolving_in(mut self, takes: Duration) -> Self {
+        self.resolver = self.resolver.taking(takes);
         self
     }
 
@@ -630,6 +652,30 @@ fn a_step_is_still_attempted_with_less_than_a_whole_request_budget_left() {
 
     assert_eq!(fixture.resolver.asked().len(), 1);
     assert_eq!(fixture.transport.sent()[0].timeout, secs(20));
+}
+
+#[test]
+fn a_slow_lookup_comes_out_of_the_request_budget() {
+    let clock = RecordingClock::new();
+    let fixture = Fixture::new(&clock).resolving_in(secs(4));
+    clock.leaving(secs(20));
+
+    fixture.fetch("http://example.org/").expect("metadata");
+
+    assert_eq!(fixture.transport.sent()[0].timeout, secs(16));
+}
+
+#[test]
+fn a_lookup_that_spends_the_budget_times_out_unsent() {
+    let clock = RecordingClock::new();
+    let fixture = Fixture::new(&clock).resolving_in(secs(4));
+    clock.leaving(secs(4));
+
+    assert_eq!(
+        fixture.fetch("http://example.org/"),
+        Err(WebFailure::TimedOut)
+    );
+    assert_eq!(fixture.transport.hits(), 0);
 }
 
 #[test]
