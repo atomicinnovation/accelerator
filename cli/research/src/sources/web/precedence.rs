@@ -104,7 +104,7 @@ pub const WEB_KEYS: [KeyPrecedence; 3] = [
     ),
 ];
 
-/// The JSON-LD types whose first node describes the page's work.
+/// The JSON-LD types that describe the page's work, most specific first.
 pub const ARTICLE_TYPES: [&str; 11] = [
     "ScholarlyArticle",
     "Article",

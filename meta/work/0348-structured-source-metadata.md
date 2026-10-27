@@ -145,10 +145,12 @@ already written stays in the one-line form.
   - `updated`: Highwire none; JSON-LD `dateModified`; Dublin Core
     `dcterms.modified`; OpenGraph `article:modified_time`.
 
-  Meta tag names match case-insensitively. JSON-LD is read from the first
-  node in document order, top-level or inside `@graph`, whose `@type` is
-  `ScholarlyArticle`, `Article`, `NewsArticle`, `BlogPosting`, `Report`,
-  `Thesis`, `Book`, `Chapter`, `Dataset`, `CreativeWork` or `WebPage`.
+  Meta tag names match case-insensitively. JSON-LD is read from one node,
+  top-level, inside `@graph`, or a top-level node's `mainEntity`: the one
+  whose `@type` comes earliest in `ScholarlyArticle`, `Article`,
+  `NewsArticle`, `BlogPosting`, `Report`, `Thesis`, `Book`, `Chapter`,
+  `Dataset`, `CreativeWork`, `WebPage`, the first in document order on a
+  tie. A schema.org IRI or `schema:` prefix counts as the bare name.
 - **Usable values**: a value is usable when it normalises to its key's
   value form. Line breaks collapse to single spaces and surrounding
   whitespace is trimmed first. A `doi` starts with `10.`. A date is usable

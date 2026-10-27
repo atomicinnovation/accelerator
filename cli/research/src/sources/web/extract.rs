@@ -20,10 +20,7 @@ pub fn declared_metadata(
     page: &PageDeclarations,
     accessed: PartialDate,
 ) -> SourceMetadata {
-    let article = page
-        .linked_data
-        .iter()
-        .find(|node| node.has_any_type_of(&ARTICLE_TYPES));
+    let article = described_work(page);
     let mut metadata = SourceMetadata::default();
     for (key, schemes) in WEB_KEYS {
         let mut by_scheme = schemes.iter().map(|(_, fields)| {
@@ -54,6 +51,17 @@ pub fn declared_metadata(
     }
     metadata.record_accessed(accessed);
     metadata
+}
+
+/// The most specifically typed node, top-level or a top-level node's
+/// `mainEntity`; of equally specific nodes, the first declared.
+fn described_work(page: &PageDeclarations) -> Option<&LinkedDataNode> {
+    page.linked_data
+        .iter()
+        .flat_map(|node| std::iter::once(node).chain(node.main_entities()))
+        .filter_map(|node| Some((node.type_rank(&ARTICLE_TYPES)?, node)))
+        .min_by_key(|(rank, _)| *rank)
+        .map(|(_, node)| node)
 }
 
 /// Of equally precise dates, the first declared.

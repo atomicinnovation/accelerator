@@ -35,8 +35,30 @@ pub trait PageDecoder {
 }
 
 impl LinkedDataNode {
-    pub(crate) fn has_any_type_of(&self, types: &[&str]) -> bool {
-        self.types.iter().any(|kind| types.contains(&kind.as_str()))
+    /// Where this node's most specific type falls in `ranked`, a type named
+    /// by its schema.org IRI or `schema:` prefix counting as its bare name.
+    pub(crate) fn type_rank(&self, ranked: &[&str]) -> Option<usize> {
+        self.types
+            .iter()
+            .filter_map(|kind| {
+                ranked.iter().position(|name| *name == schema_name(kind))
+            })
+            .min()
+    }
+
+    /// The node or nodes this one declares itself to be about.
+    pub(crate) fn main_entities(&self) -> Vec<&Self> {
+        match self.property("mainEntity") {
+            Some(LinkedDataValue::Node(node)) => vec![node],
+            Some(LinkedDataValue::List(values)) => values
+                .iter()
+                .filter_map(|value| match value {
+                    LinkedDataValue::Node(node) => Some(node),
+                    LinkedDataValue::Text(_) | LinkedDataValue::List(_) => None,
+                })
+                .collect(),
+            Some(LinkedDataValue::Text(_)) | None => Vec::new(),
+        }
     }
 
     pub(crate) fn property(&self, name: &str) -> Option<&LinkedDataValue> {
@@ -52,4 +74,11 @@ impl LinkedDataNode {
             LinkedDataValue::Node(_) | LinkedDataValue::List(_) => None,
         }
     }
+}
+
+fn schema_name(kind: &str) -> &str {
+    ["https://schema.org/", "http://schema.org/", "schema:"]
+        .iter()
+        .find_map(|prefix| kind.strip_prefix(prefix))
+        .unwrap_or(kind)
 }

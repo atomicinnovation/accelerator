@@ -788,7 +788,9 @@ pub fn declared_metadata(page: &PageDeclarations, accessed: PartialDate) -> Sour
   first value that normalises wins, except that a date takes the most
   precise usable value within the first scheme declaring one.
 - Meta tag names match ASCII-case-insensitively.
-- The JSON-LD node is the first whose `types` intersects `ARTICLE_TYPES`.
+- The JSON-LD node is the candidate (top-level, `@graph` member, or a
+  top-level node's `mainEntity`) whose type ranks earliest in
+  `ARTICLE_TYPES`, the first declared on a tie.
 - JSON-LD `identifier` is a `Text`, or a `Node` whose `propertyID` text
   equals `doi` ignoring ASCII case, taking its `value`; a `List` is walked
   in order. `sameAs` is a `Text` or a `List` of them.

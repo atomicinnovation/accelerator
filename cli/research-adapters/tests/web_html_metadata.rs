@@ -120,7 +120,7 @@ fn a_more_precise_date_in_a_later_scheme_never_overrides_an_earlier_one() {
 }
 
 #[test]
-fn a_recorded_nature_head_yields_its_day_precise_publication_date() {
+fn a_recorded_nature_head_yields_its_article_s_day_precise_dates() {
     let metadata = metadata_of("nature-head.html");
 
     assert_eq!(
@@ -128,4 +128,41 @@ fn a_recorded_nature_head_yields_its_day_precise_publication_date() {
         Some("10.1038/s41586-020-2649-2")
     );
     assert_eq!(value_of(&metadata, "published"), Some("2020-09-16"));
+    assert_eq!(value_of(&metadata, "updated"), Some("2020-09-16"));
+}
+
+#[test]
+fn a_web_page_s_main_entity_article_yields_its_dates() {
+    assert_eq!(
+        metadata_of("linked-data-main-entity.html"),
+        pairs(&[
+            ("published", "2020-09-16"),
+            ("updated", "2020-10-01"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_web_page_alone_still_yields_its_own_dates() {
+    assert_eq!(
+        metadata_of("linked-data-web-page-alone.html"),
+        pairs(&[("published", "2019-04-05"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn the_most_specifically_typed_node_wins_over_an_earlier_one() {
+    assert_eq!(
+        metadata_of("linked-data-specific-type-wins.html"),
+        pairs(&[("published", "2002-02-02"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_schema_org_type_named_by_iri_or_prefix_is_recognised() {
+    assert_eq!(
+        metadata_of("linked-data-iri-types.html"),
+        pairs(&[("published", "2003-03-03"), ("accessed", "2027-01-15")])
+    );
 }

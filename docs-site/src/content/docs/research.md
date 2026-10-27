@@ -187,10 +187,12 @@ never a more precise date from a later scheme:
 | `published` | `citation_publication_date`, `citation_date`, then `citation_online_date`; JSON-LD `datePublished`; `dcterms.issued`, then `dc.date`; `article:published_time` |
 | `updated`   | JSON-LD `dateModified`; `dcterms.modified`; `article:modified_time`                                                                |
 
-- Meta tag names match case-insensitively. JSON-LD is read from the first
-  node, top-level or inside `@graph`, typed `ScholarlyArticle`, `Article`,
-  `NewsArticle`, `BlogPosting`, `Report`, `Thesis`, `Book`, `Chapter`,
-  `Dataset`, `CreativeWork` or `WebPage`.
+- Meta tag names match case-insensitively. JSON-LD is read from one node,
+  top-level, inside `@graph`, or a top-level node's `mainEntity`: the one
+  whose type comes earliest in `ScholarlyArticle`, `Article`, `NewsArticle`,
+  `BlogPosting`, `Report`, `Thesis`, `Book`, `Chapter`, `Dataset`,
+  `CreativeWork`, `WebPage`, the first declared on a tie. A type may be
+  named bare, by its `https://schema.org/` IRI, or as `schema:`.
 - Line breaks collapse to single spaces and surrounding whitespace is
   trimmed before a value is judged. An unusable value is skipped for the
   next declaration.
