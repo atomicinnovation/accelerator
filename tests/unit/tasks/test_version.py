@@ -114,12 +114,19 @@ class TestLockVersionCoherence:
     @staticmethod
     def _locked_path_packages() -> dict[str, str]:
         # Workspace members are the lock entries with no `source` — registry and
-        # git packages both carry one.
+        # git packages both carry one — less the vendored [patch] crates, which
+        # are path packages too but keep their upstream version.
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        patched = {
+            name
+            for registry in cargo.get("patch", {}).values()
+            for name in registry
+        }
         lock = tomllib.loads((CLI_DIR / "Cargo.lock").read_text())
         return {
             package["name"]: package["version"]
             for package in lock["package"]
-            if "source" not in package
+            if "source" not in package and package["name"] not in patched
         }
 
     def test_every_member_entry_matches_the_workspace_version(self):

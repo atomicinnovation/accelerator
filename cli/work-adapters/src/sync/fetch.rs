@@ -17,6 +17,7 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work::sync::is_move;
 use work::sync::local_change;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
@@ -184,10 +185,6 @@ const fn unaccounted(presence: RemotePresence) -> GatheredRemote {
         remote_updated: RemoteTimestamp::NotReported,
         body: None,
     }
-}
-
-fn is_move(requested: &ExternalId, answered: &ExternalId) -> bool {
-    !requested.as_str().eq_ignore_ascii_case(answered.as_str())
 }
 
 /// Accumulates one item's gathered facts, noting a key change wherever a

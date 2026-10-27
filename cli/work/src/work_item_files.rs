@@ -56,7 +56,7 @@ fn is_fence(line: &str) -> bool {
         .is_some_and(|rest| rest.chars().all(char::is_whitespace))
 }
 
-fn frontmatter_of(content: &str) -> Option<&str> {
+pub(crate) fn frontmatter_of(content: &str) -> Option<&str> {
     let after_open = content.strip_prefix("---")?;
     let (open_rest, body) = after_open.split_once('\n')?;
     if !open_rest.trim().is_empty() {

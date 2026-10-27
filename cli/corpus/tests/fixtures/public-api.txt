@@ -619,6 +619,7 @@ impl corpus::lock::HeldLock
 pub fn corpus::lock::HeldLock::new(guard: impl core::marker::Send + 'static) -> Self
 pub trait corpus::lock::ExclusiveLock
 pub fn corpus::lock::ExclusiveLock::acquire(&self, name: &corpus::lock::LockName) -> core::result::Result<corpus::lock::HeldLock, corpus::store::StoreError>
+pub fn corpus::lock::ExclusiveLock::clear_abandoned(&self, name: &corpus::lock::LockName)
 pub mod corpus::metadata
 pub enum corpus::metadata::FilenameTimestampFormat
 pub corpus::metadata::FilenameTimestampFormat::CompactTime
@@ -722,6 +723,9 @@ impl<'a> core::fmt::Debug for corpus::references::Renaming<'a>
 pub fn corpus::references::Renaming<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::StructuralPartialEq for corpus::references::Renaming<'a>
 pub fn corpus::references::rewrite_references(content: &str, renaming: &corpus::references::Renaming<'_>) -> alloc::string::String
+pub mod corpus::relative_links
+pub fn corpus::relative_links::link_between(dir: &std::path::Path, target: &std::path::Path) -> alloc::string::String
+pub fn corpus::relative_links::rebased(content: &str, from_dir: &std::path::Path, to_dir: &std::path::Path) -> alloc::string::String
 pub mod corpus::resolve
 pub enum corpus::resolve::InputClass
 pub corpus::resolve::InputClass::Invalid

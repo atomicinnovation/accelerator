@@ -21,8 +21,6 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use document::Scalar;
 use document::Yaml;
-use store::lock::acquire;
-use store::lock::LockOptions;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::create::resolve_author;
@@ -32,10 +30,12 @@ use work::draft_id::DraftId;
 use work::identity::holder_of;
 use work::identity::linker_of;
 use work::identity::ItemIdentity;
+use work::identity_run::IdentityRunGuard;
 use work::sync::PendingPush;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::RepositoryIdentityProbe;
+use work_adapters::creation::acquire_create_lock;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
@@ -59,19 +59,22 @@ pub struct ConfiguredLocalAuthor<'a> {
     config: &'a dyn ConfigAccess,
     root: PathBuf,
     work_dir: PathBuf,
+    identity_run: &'a IdentityRunGuard,
 }
 
 impl<'a> ConfiguredLocalAuthor<'a> {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         config: &'a dyn ConfigAccess,
         root: PathBuf,
         work_dir: PathBuf,
+        identity_run: &'a IdentityRunGuard,
     ) -> Self {
         Self {
             config,
             root,
             work_dir,
+            identity_run,
         }
     }
 }
@@ -251,18 +254,19 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let _retirement = match scheme.ownership() {
             IdOwnership::Local => None,
             IdOwnership::Tracker => Some(
-                acquire_retirement_lock(&retirement_locks).map_err(failed)?,
+                acquire_retirement_lock(&retirement_locks, self.identity_run)
+                    .map_err(failed)?,
             ),
         };
-        let lockdir = self.work_dir.join(crate::create::LOCK_FILE_NAME);
-        let _guard =
-            acquire(&lockdir, LockOptions::default()).map_err(failed)?;
+        let create = acquire_create_lock(&retirement_locks, self.identity_run)
+            .map_err(failed)?;
 
         let id = match scheme.ownership() {
             IdOwnership::Local => crate::create::allocate_id(
                 &scheme,
                 &self.work_dir,
                 project.as_deref(),
+                &create,
             )
             .map_err(failed)?,
             IdOwnership::Tracker => self.adoptable(&issue.external_id)?,
@@ -363,6 +367,7 @@ mod tests {
     use work_adapters::sync::pending_push;
 
     use super::ConfiguredLocalAuthor;
+    use work::identity_run::IdentityRunGuard;
 
     struct FakeConfig(HashMap<String, String>);
 
@@ -395,6 +400,7 @@ mod tests {
     struct TrackerRepo {
         dir: tempfile::TempDir,
         config: FakeConfig,
+        identity_run: IdentityRunGuard,
     }
 
     impl TrackerRepo {
@@ -421,7 +427,13 @@ mod tests {
                 .map(|(key, value)| (key.to_owned(), value.to_owned()))
                 .collect(),
             );
-            let repo = Self { dir, config };
+            let identity_run = crate::identity_run::begin(dir.path(), "sync")
+                .expect("the identity run begins");
+            let repo = Self {
+                dir,
+                config,
+                identity_run,
+            };
             std::fs::create_dir_all(repo.work_dir()).expect("work dir");
             repo
         }
@@ -439,6 +451,7 @@ mod tests {
                 &self.config,
                 self.dir.path().to_path_buf(),
                 self.work_dir(),
+                &self.identity_run,
             )
         }
 
@@ -773,7 +786,10 @@ mod tests {
                 "the pull waits for the retirement lock"
             );
             assert!(
-                !repo.work_dir().join(crate::create::LOCK_FILE_NAME).exists(),
+                !repo
+                    .work_dir()
+                    .join(corpus_adapters::LockdirLock::CREATE_LOCKDIR)
+                    .exists(),
                 "and has not taken the create lock"
             );
             drop(held);

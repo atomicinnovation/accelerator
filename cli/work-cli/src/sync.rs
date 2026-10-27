@@ -1435,6 +1435,15 @@ pub fn run_sync(
     // credential check, so a target-resolution abort is credential-independent.
     let root = config_adapters::FileConfigStore::discover_root(start);
     let repo_root = root.clone();
+    let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) =
+                crate::identity_run::refused(refusal, &repo_root);
+            eprintln!("{message}");
+            return ExitCode::from(code);
+        }
+    };
     let work_dir = match crate::config::resolve_work_dir(config, &root) {
         Ok(dir) => dir,
         Err(error) => {
@@ -1562,6 +1571,7 @@ pub fn run_sync(
             tracker: tracker.as_ref(),
             parser: &CommonMarkBody,
         },
+        identity_run: &identity_run,
     };
     let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {
@@ -1573,6 +1583,7 @@ pub fn run_sync(
         config,
         root,
         work_dir.clone(),
+        &identity_run,
     );
 
     let ports = SyncPorts {
@@ -3813,6 +3824,8 @@ mod tests {
     use crate::finaliser::NoFinaliser;
     use crate::finaliser::RunFinaliser;
     use crate::test_support::StubRegistry;
+    use crate::tracker_registry::SelectionError;
+    use crate::tracker_registry::TrackerRegistry;
 
     /// A tracker whose `fetch_all` fails pre-flight — the whole-call `Err` path
     /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
@@ -3907,6 +3920,212 @@ mod tests {
         ) -> tracker::ValidationOutcome {
             unimplemented!("not exercised by the fetch_all failure path")
         }
+    }
+
+    /// Delegates to a recording tracker, noting at each `fetch_all`
+    /// whether the identity-run lockdir exists.
+    struct LockWatchingTracker {
+        inner: tracker_test_support::SharedTracker,
+        lockdir: PathBuf,
+        held_at_fetch: Rc<RefCell<Vec<bool>>>,
+    }
+
+    impl tracker::BodyDialect for LockWatchingTracker {
+        fn local_body(
+            &self,
+            description: &str,
+        ) -> Result<String, tracker::Unrenderable> {
+            self.inner.local_body(description)
+        }
+
+        fn as_pushed<'a>(&self, body: &'a str) -> std::borrow::Cow<'a, str> {
+            self.inner.as_pushed(body)
+        }
+
+        fn rejects(&self, body: &str) -> bool {
+            self.inner.rejects(body)
+        }
+
+        fn is_wire_document(&self, body: &str) -> bool {
+            self.inner.is_wire_document(body)
+        }
+    }
+
+    impl RemoteTracker for LockWatchingTracker {
+        fn fetch_all(
+            &self,
+            ids: &[ExternalId],
+        ) -> Result<tracker::FetchOutcome, TrackerError> {
+            self.held_at_fetch.borrow_mut().push(self.lockdir.is_dir());
+            self.inner.fetch_all(ids)
+        }
+
+        fn create(
+            &self,
+            title: &str,
+            body: &str,
+            kind: &str,
+        ) -> Result<ExternalId, TrackerError> {
+            self.inner.create(title, body, kind)
+        }
+
+        fn update(
+            &self,
+            id: &ExternalId,
+            title: Option<&str>,
+            body: &str,
+        ) -> Result<(), TrackerError> {
+            self.inner.update(id, title, body)
+        }
+
+        fn retitle(
+            &self,
+            id: &ExternalId,
+            title: &str,
+        ) -> Result<(), TrackerError> {
+            self.inner.retitle(id, title)
+        }
+
+        fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
+            self.inner.show(id)
+        }
+
+        fn locate(
+            &self,
+            id: &ExternalId,
+        ) -> Result<tracker::Located, TrackerError> {
+            self.inner.locate(id)
+        }
+
+        fn search(
+            &self,
+            scope: &tracker::SearchScope,
+        ) -> Result<tracker::Discovery, TrackerError> {
+            self.inner.search(scope)
+        }
+
+        fn resolve_scope(
+            &self,
+            scope: &tracker::SearchScope,
+        ) -> Result<tracker::SearchScope, tracker::ScopeError> {
+            self.inner.resolve_scope(scope)
+        }
+
+        fn enumerate_visible_entities(
+            &self,
+        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
+        {
+            self.inner.enumerate_visible_entities()
+        }
+
+        fn preview_create(
+            &self,
+            kind: &str,
+        ) -> Result<tracker::CreatePreview, TrackerError> {
+            self.inner.preview_create(kind)
+        }
+
+        fn validate_update(
+            &self,
+            id: &ExternalId,
+            title: Option<&str>,
+            body: Option<&str>,
+        ) -> tracker::ValidationOutcome {
+            self.inner.validate_update(id, title, body)
+        }
+    }
+
+    struct LockWatchingRegistry {
+        tracker: Rc<RecordingTracker>,
+        lockdir: PathBuf,
+        held_at_fetch: Rc<RefCell<Vec<bool>>>,
+    }
+
+    impl TrackerRegistry for LockWatchingRegistry {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
+            Ok(Box::new(LockWatchingTracker {
+                inner: tracker_test_support::SharedTracker(Rc::clone(
+                    &self.tracker,
+                )),
+                lockdir: self.lockdir.clone(),
+                held_at_fetch: Rc::clone(&self.held_at_fetch),
+            }))
+        }
+    }
+
+    #[test]
+    fn sync_refuses_while_a_rekey_is_in_progress_and_says_run_work_rekey() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", Some("ENG-1"));
+        crate::test_support::rekey_in_progress(dir.path());
+        let before = crate::test_support::meta_tree(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::from(exit_codes::UNRESOLVED));
+        assert!(tracker.calls().is_empty());
+        assert_eq!(crate::test_support::meta_tree(dir.path()), before);
+    }
+
+    #[test]
+    fn a_proposed_rekey_plan_does_not_block_sync() {
+        let dir = sync_repo();
+        crate::test_support::rekey_proposed(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn sync_refuses_while_a_run_plan_is_unreadable() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", Some("ENG-1"));
+        crate::test_support::rekey_plan_unreadable(dir.path());
+        let before = crate::test_support::meta_tree(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::from(exit_codes::UNRESOLVED));
+        assert!(tracker.calls().is_empty());
+        assert_eq!(crate::test_support::meta_tree(dir.path()), before);
+    }
+
+    #[test]
+    fn sync_holds_the_identity_run_lock_across_its_pulls() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", Some("ENG-1"));
+        let held_at_fetch = Rc::new(RefCell::new(Vec::new()));
+        let registry = LockWatchingRegistry {
+            tracker: Rc::new(RecordingTracker::holding(Vec::new())),
+            lockdir: dir
+                .path()
+                .join(".accelerator/state/locks/identity-run.lockdir"),
+            held_at_fetch: Rc::clone(&held_at_fetch),
+        };
+        let composed = config_adapters::compose(
+            dir.path(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+
+        let _ = super::run_sync(
+            dir.path(),
+            &composed.service,
+            &sync_args(Vec::new()),
+            &registry,
+            &NoFinaliser,
+        );
+
+        let held = held_at_fetch.borrow();
+        assert!(!held.is_empty(), "the run never read the tracker");
+        assert!(held.iter().all(|held| *held), "{held:?}");
     }
 
     fn sync_repo() -> tempfile::TempDir {

@@ -15,7 +15,9 @@ Migrations run in-process, compiled into the `accelerator-migrate` sub-binary
 to run on a dirty working tree, prints a pre-run banner listing each pending
 migration, and previews each one before applying. All mutations are tracked
 in `.accelerator/state/migrations-applied`. Recovery is via VCS revert. Set
-`ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree check if needed.
+`ACCELERATOR_FORCE=1` on the one command to bypass the clean-tree check if
+needed; the run lists the uncommitted paths it skipped. The deprecated
+`ACCELERATOR_MIGRATE_FORCE=1` still works and prints a deprecation notice.
 
 To opt out of an individual migration, run
 `${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --skip <id>`

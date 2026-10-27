@@ -47,6 +47,7 @@ pub use crate::sync::decide::Resolution;
 pub use crate::sync::decide::SyncDirection;
 pub use crate::sync::identity::IdentityAction;
 pub use crate::sync::key_change::decide_key_change;
+pub use crate::sync::key_change::is_move;
 pub use crate::sync::key_change::KeyChange;
 pub use crate::sync::label::classify_external_id;
 pub use crate::sync::label::label;

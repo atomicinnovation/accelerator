@@ -359,6 +359,17 @@
 - **Drafts in the visualiser.** Drafts in `meta/work/drafts/` appear as work
   items, with a "Draft" badge on the kanban card and in the library list.
   `work list` shows them as `draft`.
+- **Re-key work items onto a changed ID pattern.** `accelerator work rekey
+  [--preview | --discard] [--per-item-reads]` gives every work item an `id`
+  in the shape `work.id_pattern` describes, renaming its file, adding the old
+  `id` to `aliases` and rewriting references across every corpus root. Under
+  a `{key}` pattern every item keeps its number under `work.key`, so renaming
+  the key re-keys items under the old one.
+  `--preview` records the mapping, which the next apply re-keys exactly; an
+  interrupted run finishes when run again, and `--discard` drops a previewed
+  run or one a revert has undone. It refuses over uncommitted corpus changes
+  unless `ACCELERATOR_FORCE=1` is set. `/accelerator:rekey-work-items`
+  previews, asks, then applies or discards.
 
 ### Changed
 
@@ -374,6 +385,26 @@
   when tabs, line breaks or leading control characters disguise the scheme. A
   `work sync` over a description linking to one of those three refuses it as
   unrenderable rather than deleting the link on the next push.
+- **`ACCELERATOR_FORCE` replaces `ACCELERATOR_MIGRATE_FORCE`.** Set
+  `ACCELERATOR_FORCE=1` (or `true`) on the one `accelerator migrate`
+  invocation to bypass its dirty-tree pre-flight; `0`, `false` and an empty
+  value do not force. A forced run now lists the uncommitted paths it skipped
+  on stderr. `migrate` still honours `ACCELERATOR_MIGRATE_FORCE` under its
+  old non-empty rule, printing a deprecation notice to stderr whenever it is
+  set.
+- **Commands that allocate or retire IDs serialise on one lock.**
+  `work sync`, `work promote`, `work create`, `work create-batch`,
+  `work next-number` and `work update --push` wait for one another, saying on
+  stderr which command they are waiting for, and give up after 60 s with
+  `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
+  re-key is unfinished. `work next-number` now writes its lock under
+  `.accelerator/state/locks/`. Upgrade every session before re-keying: an
+  older binary does not take this lock. A re-key holds the create and
+  retirement locks for its whole run, so an older `work create`,
+  `work create-batch`, `work promote`, and `work sync`'s identity settlement
+  and issue authoring wait behind it; an older `work next-number`, and an
+  older `work sync` or `work update --push` writing an existing item, are
+  not stopped.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already
@@ -565,6 +596,16 @@
 
 ### Fixed
 
+- **`migrate` sees uncommitted changes when `.accelerator/` sits below the
+  repository root.** Its dirty-tree pre-flight read paths relative to the
+  repository rather than the config root, found none under `meta/` or
+  `.accelerator/`, and ran over them.
+- **Retiring or promoting an item no longer corrupts links to longer file
+  names.** A path to the retired file is rewritten only as a whole token, so
+  `0041-first.md` inside `ACC-0041-first.md` is left alone.
+- **Relative links survive an item moving into or out of `drafts/`.** Links
+  written inside `drafts/` follow the moved item, and the moved item's own
+  relative links are re-based for its new directory.
 - **Cosmetic rewrites no longer cause pushes, pulls or conflicts.** `work
   sync` compares bodies by meaning, so Linear's re-serialisation and an
   equivalent local rewrite are never a change. A title change is sent alone,

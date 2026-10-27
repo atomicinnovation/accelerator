@@ -44,7 +44,7 @@ fn explicit_width(pattern: &str) -> Option<usize> {
     }
 }
 
-fn pattern_cap(pattern: &str) -> u64 {
+pub(crate) fn pattern_cap(pattern: &str) -> u64 {
     let width = explicit_width(pattern).unwrap_or(4);
     10u64
         .saturating_pow(u32::try_from(width).unwrap_or(u32::MAX))
@@ -95,7 +95,6 @@ pub fn allocate(
         id_pattern: scheme.id_pattern.clone(),
         key: project.map(str::to_owned),
     };
-    let cap = pattern_cap(&scheme.id_pattern);
 
     let mut highest: u64 = 0;
     let mut highest_file: Option<String> = None;
@@ -113,37 +112,63 @@ pub fn allocate(
         }
     }
 
+    allocate_above(&format_scheme, highest, count).map_err(
+        |error| match error {
+            AllocationError::Overflow {
+                partial,
+                highest,
+                cap,
+                ..
+            } => AllocationError::Overflow {
+                partial,
+                highest,
+                highest_file,
+                cap,
+            },
+            other => other,
+        },
+    )
+}
+
+/// Allocates `count` sequential IDs under `scheme`'s own key, following
+/// `floor`.
+///
+/// # Errors
+///
+/// [`AllocationError::Overflow`] when `floor + count` would exceed the
+/// pattern's numeric cap; it names no `highest_file`.
+pub fn allocate_above(
+    scheme: &WorkItemIdScheme,
+    floor: u64,
+    count: u32,
+) -> Result<Vec<String>, AllocationError> {
+    let cap = pattern_cap(&scheme.id_pattern);
     let format = |number: u64| {
-        format_scheme
+        scheme
             .canonicalise_id(&number.to_string())
             .unwrap_or_else(|| number.to_string())
     };
 
-    if highest.saturating_add(u64::from(count)) > cap {
-        let mut partial = Vec::new();
-        for i in 1..=u64::from(count) {
-            let next = highest + i;
-            if next > cap {
-                break;
-            }
-            partial.push(format(next));
-        }
+    if floor.saturating_add(u64::from(count)) > cap {
+        let partial = (1..=u64::from(count))
+            .map_while(|i| floor.checked_add(i))
+            .take_while(|&next| next <= cap)
+            .map(format)
+            .collect();
         return Err(AllocationError::Overflow {
             partial,
-            highest,
-            highest_file,
+            highest: floor,
+            highest_file: None,
             cap,
         });
     }
 
-    Ok((1..=u64::from(count))
-        .map(|i| format(highest + i))
-        .collect())
+    Ok((1..=u64::from(count)).map(|i| format(floor + i)).collect())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{allocate, AllocationError};
+    use super::{allocate, allocate_above, AllocationError};
     use corpus::{IdScan, IdScanner, WorkItemIdScheme};
 
     struct DigitPrefixScanner;
@@ -259,6 +284,35 @@ mod tests {
                 partial: vec!["9999".to_owned()],
                 highest: 9998,
                 highest_file: Some("9998-near.md".to_owned()),
+                cap: 9999,
+            })
+        );
+    }
+
+    #[test]
+    fn allocation_above_a_floor_starts_after_it() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: "{key}-{number:04d}".to_owned(),
+            key: Some("ACC".to_owned()),
+        };
+        assert_eq!(
+            allocate_above(&scheme, 41, 2),
+            Ok(vec!["ACC-0042".to_owned(), "ACC-0043".to_owned()])
+        );
+    }
+
+    #[test]
+    fn allocation_above_the_largest_floor_overflows_with_nothing_allocated() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: "{number:04d}".to_owned(),
+            key: None,
+        };
+        assert_eq!(
+            allocate_above(&scheme, u64::MAX, 2),
+            Err(AllocationError::Overflow {
+                partial: Vec::new(),
+                highest: u64::MAX,
+                highest_file: None,
                 cap: 9999,
             })
         );

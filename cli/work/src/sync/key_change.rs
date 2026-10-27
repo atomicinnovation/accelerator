@@ -47,6 +47,13 @@ impl KeyChange {
     }
 }
 
+/// Whether a read requested under `requested` answered under another key;
+/// a difference only in case is the same key.
+#[must_use]
+pub fn is_move(requested: &ExternalId, answered: &ExternalId) -> bool {
+    !requested.as_str().eq_ignore_ascii_case(answered.as_str())
+}
+
 #[must_use]
 pub fn decide_key_change(
     ownership: IdOwnership,
@@ -78,6 +85,7 @@ mod tests {
     use tracker::ExternalId;
 
     use super::decide_key_change;
+    use super::is_move;
     use super::KeyChange;
     use crate::tracker_key::TrackerKey;
 
@@ -153,5 +161,11 @@ mod tests {
             matches!(decided, KeyChange::FollowExternalId { .. }),
             "{decided:?}"
         );
+    }
+
+    #[test]
+    fn an_answer_under_another_key_is_a_move_and_a_case_change_is_not() {
+        assert!(is_move(&key("PP-760"), &key("ENG-42")));
+        assert!(!is_move(&key("pp-760"), &key("PP-760")));
     }
 }

@@ -507,6 +507,10 @@ impl RepoRoot for InProcessProbe {
         jj_repository_root(working_copy_root)
             .unwrap_or_else(|| canonical(working_copy_root))
     }
+
+    fn canonical(&self, path: &Path) -> PathBuf {
+        canonical(path)
+    }
 }
 
 impl VcsProbe for InProcessProbe {

@@ -179,6 +179,11 @@ fn try_run(
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir = crate::config::resolve_work_dir(config, &root)
         .map_err(|error| internal(error.to_string()))?;
+    let identity_run =
+        crate::identity_run::begin(&root, "promote").map_err(|refusal| {
+            let (message, code) = crate::identity_run::refused(refusal, &root);
+            PromoteOutcome::Failed { message, code }
+        })?;
     let (draft, draft_path) =
         tracker_owned_draft(config, &work_dir, &args.draft_id)?;
     let integration =
@@ -229,6 +234,7 @@ fn try_run(
             tracker: tracker.as_ref(),
             parser: &CommonMarkBody,
         },
+        identity_run: &identity_run,
     };
     let resumed = finish_interrupted_retirements(&settlement).map_err(
         |error| match error {
@@ -246,7 +252,7 @@ fn try_run(
         retirement: &retirement,
         records: &promotions,
     };
-    let result = promote(&draft, &mode, &ports);
+    let result = promote(&draft, &mode, &ports, &identity_run);
     let row = PromotionRow::of(
         &draft,
         draft_path,
@@ -457,6 +463,57 @@ mod tests {
             } => (lines, remedy, code),
             other => panic!("not reported: {other:?}"),
         }
+    }
+
+    struct Unconfigured;
+
+    impl crate::tracker_registry::TrackerRegistry for Unconfigured {
+        fn resolve(
+            &self,
+            name: &str,
+        ) -> Result<
+            Box<dyn tracker::RemoteTracker>,
+            crate::tracker_registry::SelectionError,
+        > {
+            Err(crate::tracker_registry::SelectionError::Unconfigured {
+                name: name.to_owned(),
+                source: "no credentials".into(),
+            })
+        }
+    }
+
+    #[test]
+    fn promote_refuses_while_a_rekey_is_in_progress_even_with_an_unconfigured_tracker(
+    ) {
+        let repo = Repo::new();
+        crate::test_support::rekey_in_progress(repo.root());
+        let before = crate::test_support::meta_tree(repo.root());
+        let composed = config_adapters::compose(
+            repo.root(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+
+        let outcome = super::run(
+            repo.root(),
+            &composed.service,
+            &PromoteArgs {
+                draft_id: DRAFT.to_owned(),
+                adopt: None,
+                create: false,
+            },
+            &Unconfigured,
+        );
+
+        let PromoteOutcome::Failed { message, code } = outcome else {
+            panic!("not refused: {outcome:?}");
+        };
+        assert_eq!(code, exit_codes::UNRESOLVED);
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+        assert_eq!(crate::test_support::meta_tree(repo.root()), before);
     }
 
     #[test]

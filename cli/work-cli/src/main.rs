@@ -11,11 +11,13 @@ mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod identity_run;
 mod identity_workspace;
 mod list;
 mod next_number;
 mod promote;
 mod promotion_report;
+mod rekey;
 mod resolve;
 mod show;
 mod sync;
@@ -286,6 +288,10 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
+        create::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
     }
 }
 
@@ -337,6 +343,10 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
+        create_batch::BatchOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
     }
 }
 
@@ -381,6 +391,10 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         update::RunOutcome::PushRejected(message) => {
             eprintln!("{message}");
             ExitCode::from(exit_codes::REJECTED)
+        }
+        update::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
         }
     }
 }
@@ -437,6 +451,10 @@ fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
         next_number::RunOutcome::Failed(message) => {
             eprintln!("{message}");
             ExitCode::FAILURE
+        }
+        next_number::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
         }
     }
 }
@@ -552,6 +570,43 @@ fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
     }
 }
 
+fn run_rekey(args: &cli::RekeyArgs) -> ExitCode {
+    let (start, composed) = match composed_here(Intent::Write) {
+        Ok(composed) => composed,
+        Err(code) => return code,
+    };
+    let forced = vcs::guarded_working_copy::forces(
+        std::env::var(vcs::guarded_working_copy::FORCE_VARIABLE)
+            .ok()
+            .as_deref(),
+    );
+    let store_at =
+        |root: &Path| -> Box<dyn work_adapters::creation::CreationStore> {
+            Box::new(corpus_adapters::FileCorpusStore::new(root))
+        };
+    let service: &dyn ConfigAccess = &composed.service;
+    let registry = tracker_registry::ConfiguredTrackers::new(
+        service,
+        config_adapters::FileConfigStore::discover_root(&start),
+    );
+    ExitCode::from(rekey::run(
+        &start,
+        service,
+        args,
+        &rekey::RekeyEnvironment {
+            forcing: if forced {
+                work_adapters::rekey::run::Forcing::Forced
+            } else {
+                work_adapters::rekey::run::Forcing::Unforced
+            },
+            repository: &vcs_adapters::library::InProcessProbe,
+            store_at: &store_at,
+            registry: &registry,
+            console: &rekey::Terminal,
+        },
+    ))
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
@@ -572,5 +627,6 @@ fn main() -> ExitCode {
         Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
         Command::Promote(args) => run_promote(&args),
+        Command::Rekey(args) => run_rekey(&args),
     }
 }

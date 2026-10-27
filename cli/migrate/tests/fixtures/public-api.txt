@@ -309,6 +309,8 @@ impl core::fmt::Display for migrate::preflight::PreflightError
 pub fn migrate::preflight::PreflightError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub enum migrate::preflight::PreflightOutcome
 pub migrate::preflight::PreflightOutcome::Clean
+pub migrate::preflight::PreflightOutcome::Forced
+pub migrate::preflight::PreflightOutcome::Forced::skipped: alloc::vec::Vec<alloc::string::String>
 pub migrate::preflight::PreflightOutcome::Resumed
 pub migrate::preflight::PreflightOutcome::Resumed::affordance: alloc::vec::Vec<migrate::preflight::AffordanceEntry>
 pub struct migrate::preflight::AffordanceEntry

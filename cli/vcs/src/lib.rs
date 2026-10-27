@@ -5,6 +5,7 @@
 pub mod checkout;
 pub mod classify;
 pub mod guard;
+pub mod guarded_working_copy;
 pub mod log;
 pub mod mode;
 pub mod origin_remote;
@@ -56,6 +57,10 @@ pub trait RepoRoot {
     /// The working-copy root containing `start`, or `None` when there is no
     /// repository above it.
     fn discover(&self, start: &Path) -> Option<PathBuf>;
+
+    /// `path` as a discovered root spells it, links resolved, so the two
+    /// compare; `path` itself when it cannot be resolved.
+    fn canonical(&self, path: &Path) -> PathBuf;
 
     /// The repository a working-copy root belongs to. A jj secondary workspace
     /// roots at its own working copy but shares the repository's store; by
@@ -125,6 +130,28 @@ pub struct WorkingCopyState {
     pub dirty_paths: Vec<String>,
 }
 
+impl WorkingCopyState {
+    /// The state as seen from `within`, a repo-relative directory: its dirty
+    /// paths relative to `within`, and none outside it.
+    #[must_use]
+    pub fn seen_from(self, within: &Path) -> Self {
+        let prefix =
+            within.components().fold(String::new(), |prefix, segment| {
+                prefix + &segment.as_os_str().to_string_lossy() + "/"
+            });
+        Self {
+            base_commits: self.base_commits,
+            dirty_paths: self
+                .dirty_paths
+                .into_iter()
+                .filter_map(|path| {
+                    path.strip_prefix(&prefix).map(str::to_owned)
+                })
+                .collect(),
+        }
+    }
+}
+
 /// Reads a working copy's base commits and dirty paths together.
 pub trait WorkingCopyStateProbe {
     /// The commits the working copy at `root` is based on, and the
@@ -152,6 +179,9 @@ pub trait RepositoryProbe: WorkingCopyStateProbe {
 
     /// See [`user_name`].
     fn user_name_at(&self, start: &Path) -> Option<String>;
+
+    /// See [`RepoRoot::canonical`].
+    fn canonical(&self, path: &Path) -> PathBuf;
 }
 
 impl<T> RepositoryProbe for T
@@ -164,6 +194,10 @@ where
 
     fn user_name_at(&self, start: &Path) -> Option<String> {
         user_name(start, self, self, self)
+    }
+
+    fn canonical(&self, path: &Path) -> PathBuf {
+        RepoRoot::canonical(self, path)
     }
 }
 
@@ -221,6 +255,10 @@ mod tests {
     impl RepoRoot for FixedRoot {
         fn discover(&self, _start: &Path) -> Option<PathBuf> {
             self.0.clone()
+        }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
         }
     }
 
@@ -368,6 +406,10 @@ mod tests {
         fn discover(&self, _start: &Path) -> Option<PathBuf> {
             self.root.clone()
         }
+
+        fn canonical(&self, path: &Path) -> PathBuf {
+            path.to_path_buf()
+        }
     }
 
     impl VcsProbe for StubRepository {
@@ -438,5 +480,47 @@ mod tests {
 
         assert_eq!(probe.facts_at(Path::new("/tmp/loose")), None);
         assert_eq!(probe.user_name_at(Path::new("/tmp/loose")), None);
+    }
+
+    fn dirty(paths: &[&str]) -> WorkingCopyState {
+        WorkingCopyState {
+            base_commits: vec!["abc123".to_owned()],
+            dirty_paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+        }
+    }
+
+    #[test]
+    fn a_working_copy_seen_from_a_subdirectory_names_only_its_paths_relative_to_it(
+    ) {
+        assert_eq!(
+            dirty(&["pkg/meta/a.md", "src/main.rs", "pkg/.accelerator/b"])
+                .seen_from(Path::new("pkg")),
+            dirty(&["meta/a.md", ".accelerator/b"])
+        );
+    }
+
+    #[test]
+    fn a_working_copy_seen_from_a_nested_subdirectory_strips_every_segment() {
+        assert_eq!(
+            dirty(&["apps/pkg/meta/a.md", "apps/other/meta/b.md"])
+                .seen_from(Path::new("apps/pkg")),
+            dirty(&["meta/a.md"])
+        );
+    }
+
+    #[test]
+    fn a_sibling_directory_sharing_the_subdirectorys_name_prefix_is_outside_it()
+    {
+        assert_eq!(
+            dirty(&["pkg2/meta/a.md"]).seen_from(Path::new("pkg")),
+            dirty(&[])
+        );
+    }
+
+    #[test]
+    fn a_working_copy_seen_from_its_own_root_is_unchanged() {
+        let state = dirty(&["meta/a.md", "src/main.rs"]);
+
+        assert_eq!(state.clone().seen_from(Path::new("")), state);
     }
 }

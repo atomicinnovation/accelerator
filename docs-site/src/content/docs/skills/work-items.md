@@ -27,7 +27,8 @@ existing docs (specs, PRDs, notes)
                               │
                               ├── list-work-items ──┬──→  review-work-item → meta/reviews/work/
                               │                     └──→  create-plan → implement-plan
-                              └── sync-work-items ⇄ remote tracker (Jira/Linear)
+                              ├── sync-work-items ⇄ remote tracker (Jira/Linear)
+                              └── rekey-work-items → IDs on work.id_pattern
 ```
 
 ## Capturing work
@@ -66,7 +67,12 @@ changes any frontmatter field with a diff preview (no transition
 enforcement); and
 [`sync-work-items`](../reference/skills/work/sync-work-items.md)
 reconciles `meta/work/` with the configured remote tracker — run it with
-`--preview` first.
+`--preview` first. After changing `work.id_pattern` or `work.key`,
+[`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
+previews and then gives every existing item an ID in the new shape,
+renaming files and rewriting references across `meta/`; the old ID joins
+`aliases`. Under a `{key}` pattern every item keeps its number under
+`work.key`, whatever key it had before.
 
 Work items share a template with YAML frontmatter (`work_item_id`,
 `title`, `type`, `status`, `priority`, `parent`, `tags`) and structured

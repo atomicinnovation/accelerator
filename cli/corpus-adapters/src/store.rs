@@ -102,7 +102,7 @@ fn show(path: &Path) -> String {
     path.display().to_string()
 }
 
-fn io(path: &Path, error: &IoError) -> StoreError {
+pub(crate) fn io(path: &Path, error: &IoError) -> StoreError {
     StoreError::Io {
         path: show(path),
         detail: error.to_string(),

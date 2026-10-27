@@ -13,7 +13,7 @@ use clap::Parser;
 #[command(
     name = "accelerator-migrate",
     disable_version_flag = true,
-    after_help = "Environment:\n  ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>  Same as --decisions-file.\n  ACCELERATOR_MIGRATE_FORCE=1                Bypass the dirty-tree pre-flight."
+    after_help = "Environment:\n  ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>  Same as --decisions-file.\n  ACCELERATOR_FORCE=1                        Bypass the dirty-tree pre-flight.\n  ACCELERATOR_MIGRATE_FORCE=1                Deprecated; same as ACCELERATOR_FORCE=1."
 )]
 pub struct Cli {
     /// Mark migration <ID> skipped; do not run it.

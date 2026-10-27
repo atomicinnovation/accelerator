@@ -182,7 +182,9 @@ Under `{tracker}` an item pushed at creation takes the issue's key as
 its `id`; any other new item is saved as a draft in `meta/work/drafts/`
 under a `draft-xxxxxx` ID until `work sync` or `work promote` promotes it.
 `work.key` and `--project` are unused, and items created before the
-switch keep their IDs.
+switch keep their IDs until
+[`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
+converges them.
 
 ⚠️ `{tracker}` needs Accelerator 1.24.0 or later. An older version cannot
 read the pattern at all, so upgrade every teammate before switching a

@@ -1,6 +1,8 @@
 //! Adapter/binary wiring for `work next-number`: a thin display wrapper
 //! around `work::next_number::allocate`, or `work::draft_id::mint_draft_ids`
-//! under `{tracker}` — never writes a file, never commits a number.
+//! under `{tracker}`. It writes nothing in the corpus and commits no number;
+//! it takes the identity-run lock under `.accelerator/state/`, so it never
+//! allocates while a re-key is moving IDs.
 
 use std::path::Path;
 
@@ -29,6 +31,11 @@ pub enum RunOutcome {
         message: String,
     },
     Failed(String),
+    /// The identity run could not begin; nothing was read.
+    Refused {
+        message: String,
+        code: u8,
+    },
 }
 
 fn overflow_message(
@@ -116,6 +123,13 @@ pub fn run(
     let work_dir = match resolve_work_dir(config, &root) {
         Ok(dir) => dir,
         Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
+    let _identity_run = match crate::identity_run::begin(&root, "next-number") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) = crate::identity_run::refused(refusal, &root);
+            return RunOutcome::Refused { message, code };
+        }
     };
     let project = project.map(str::to_owned).or_else(|| scheme.key.clone());
     if scheme.ownership() == IdOwnership::Tracker {
@@ -221,6 +235,28 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
         root
+    }
+
+    #[test]
+    fn next_number_refuses_while_a_rekey_is_in_progress() {
+        let numeric = crate::test_support::FakeConfig(HashMap::new());
+        let configs: [&dyn ConfigAccess; 2] = [&numeric, &TrackerConfig::new()];
+        for config in configs {
+            let root = repo();
+            crate::test_support::rekey_in_progress(root.path());
+
+            let RunOutcome::Refused { message, code } =
+                run(root.path(), config, None, 1)
+            else {
+                panic!("next-number allocated during a re-key");
+            };
+
+            assert_eq!(code, crate::exit_codes::UNRESOLVED);
+            assert!(
+                message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+                "{message}"
+            );
+        }
     }
 
     #[test]

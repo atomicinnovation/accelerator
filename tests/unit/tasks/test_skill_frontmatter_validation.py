@@ -11,12 +11,12 @@ nor explicitly out-of-scope. The bash-fence requirement is what gives the
 static check its mutation-catching power across the skills' varied final-step
 headings.
 
-The discovery pass covers only frontmatter-*emitting* skills. Six in-scope
+The discovery pass covers only frontmatter-*emitting* skills. Seven in-scope
 skills edit an existing document rather than emitting a fresh one
-(``stress-test-*``, ``sync-work-items``, ``conduct-spike``, ``review-adr``,
-``implement-plan``); they carry no emission marker, so they are held only by
-the closed in-scope list, while the discovery pass guards against a new
-*emitter* being added without the step.
+(``stress-test-*``, ``sync-work-items``, ``rekey-work-items``,
+``conduct-spike``, ``review-adr``, ``implement-plan``); they carry no
+emission marker, so they are held only by the closed in-scope list, while the
+discovery pass guards against a new *emitter* being added without the step.
 """
 
 import re
@@ -26,7 +26,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 INVOCATION = "accelerator corpus frontmatter validate"
 
-# The closed in-scope producer set (21). Each must run the validate step.
 IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/work/create-work-item/SKILL.md",
     "skills/work/extract-work-items/SKILL.md",
@@ -34,6 +33,7 @@ IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/work/update-work-item/SKILL.md",
     "skills/work/stress-test-work-item/SKILL.md",
     "skills/work/sync-work-items/SKILL.md",
+    "skills/work/rekey-work-items/SKILL.md",
     "skills/work/review-work-item/SKILL.md",
     "skills/research/conduct-spike/SKILL.md",
     "skills/research/research-codebase/SKILL.md",

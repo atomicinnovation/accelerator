@@ -1,8 +1,10 @@
 //! Exclusive locks over the corpus, named in domain terms.
 //!
-//! Every holder acquires in one global order — batch journal, then
-//! retirement, then create, then per-file — and no holder of a later lock
-//! ever takes an earlier one, so two holders can never wait on each other.
+//! Every holder acquires in one global order — the identity run (taken
+//! under `.accelerator/state/` before any corpus lock), then batch journal,
+//! then retirement, then create, then per-file — and no holder of a later
+//! lock ever takes an earlier one, so two holders can never wait on each
+//! other.
 
 use std::path::PathBuf;
 
@@ -37,4 +39,8 @@ pub trait ExclusiveLock {
     /// [`StoreError::LockTimeout`] when it stays held past the adapter's
     /// ceiling, or another [`StoreError`] when the lock cannot be taken.
     fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError>;
+
+    /// Removes `name` when a holder that has since died left it behind,
+    /// without waiting; a live holder keeps it.
+    fn clear_abandoned(&self, name: &LockName);
 }

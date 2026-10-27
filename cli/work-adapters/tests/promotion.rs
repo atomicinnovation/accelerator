@@ -287,7 +287,7 @@ fn promote_reading(
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(store);
     promote(
@@ -299,6 +299,7 @@ fn promote_reading(
             retirement: &retirement,
             records: &records,
         },
+        &support::identity_run().unwrap(),
     )
 }
 
@@ -327,7 +328,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     let ports = PromotionPorts {
@@ -336,7 +337,12 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         retirement: &retirement,
         records: &records,
     };
-    let result = promote(&draft(), &PromotionMode::Standard, &ports);
+    let result = promote(
+        &draft(),
+        &PromotionMode::Standard,
+        &ports,
+        &support::identity_run().unwrap(),
+    );
     PromotionRow::of(&draft(), repo.path(DRAFT), result, &ports, &state)
 }
 
@@ -718,7 +724,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     let twin_promoted = promote(
@@ -730,6 +736,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
             retirement: &retirement,
             records: &records,
         },
+        &support::identity_run().unwrap(),
     );
 
     assert_eq!(
@@ -1424,7 +1431,7 @@ fn promoted_waiting(
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     promote(
@@ -1436,6 +1443,7 @@ fn promoted_waiting(
             retirement: &retirement,
             records: &records,
         },
+        &support::identity_run().unwrap(),
     )
 }
 

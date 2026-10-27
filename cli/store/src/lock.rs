@@ -131,6 +131,41 @@ fn acquire_with(
     }
 }
 
+/// Removes the lockdir at `lockdir` when its holder is confirmed dead, without
+/// waiting; a live or unconfirmed holder keeps it.
+pub fn clear_abandoned(lockdir: &Path) {
+    reclaim_if_stale(lockdir, &process_is_alive);
+}
+
+/// Whether `name` is a sentinel this module writes inside a lockdir, which a
+/// killed holder can leave behind.
+#[must_use]
+pub fn is_lock_sentinel(name: &str) -> bool {
+    let after = |label: &str| {
+        name.strip_prefix(label)
+            .and_then(|rest| rest.strip_prefix('.'))
+    };
+    after(OWNER).map_or_else(
+        || {
+            after(RECLAIMING)
+                .and_then(|rest| rest.split_once('.'))
+                .is_some_and(|(pid, nonce)| is_pid(pid) && is_nonce(nonce))
+        },
+        is_nonce,
+    )
+}
+
+fn is_pid(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn is_nonce(text: &str) -> bool {
+    text.len() == 16
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 /// The PID recorded by the lockdir's current holder.
 ///
 /// `None` when that is ambiguous: no lockdir, no `owner.<nonce>` sentinel or
@@ -313,8 +348,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        acquire, acquire_with, claim, holder_pid, jitter_ms, process_is_alive,
-        reclaim_if_stale, LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
+        acquire, acquire_with, claim, clear_abandoned, holder_pid,
+        is_lock_sentinel, jitter_ms, process_is_alive, reclaim_if_stale,
+        LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -366,6 +402,31 @@ mod tests {
             .flatten()
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .find(|n| n.starts_with(&format!("{prefix}.")))
+    }
+
+    #[test]
+    fn clearing_an_abandoned_lockdir_removes_it() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, &STALE_PID.to_string())?;
+
+        clear_abandoned(&lockdir);
+
+        assert!(!lockdir.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn clearing_a_lockdir_whose_holder_lives_keeps_it() -> Result<(), TestError>
+    {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, &std::process::id().to_string())?;
+
+        clear_abandoned(&lockdir);
+
+        assert!(sentinel_named(&lockdir, OWNER).is_some());
+        Ok(())
     }
 
     #[test]
@@ -806,5 +867,27 @@ mod tests {
 
         assert_eq!(holder_pid(&lockdir), None);
         Ok(())
+    }
+
+    #[test]
+    fn an_owner_or_reclaiming_sentinel_is_a_lock_sentinel() {
+        for name in
+            ["owner.0123456789abcdef", "reclaiming.4242.0123456789abcdef"]
+        {
+            assert!(is_lock_sentinel(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_name_that_only_starts_like_a_sentinel_is_not_one() {
+        for name in [
+            "notes.md",
+            "owner.md",
+            "owner.0123456789abcdeg",
+            "reclaiming.0123456789abcdef",
+            "reclaiming.x.0123456789abcdef",
+        ] {
+            assert!(!is_lock_sentinel(name), "{name}");
+        }
     }
 }

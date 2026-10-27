@@ -84,6 +84,17 @@ pub trait ContractSubject {
     fn preview_kind(&self) -> String {
         String::new()
     }
+
+    /// An issue this subject holds under a key other than the one it was
+    /// once held under, as `(old, new)`.
+    ///
+    /// The default is `None`: a live tenant cannot move an issue on demand.
+    /// [`run_all`] and [`timed_conformance`] then skip the moved-issue
+    /// property rather than reporting it passed; it stays enforced offline,
+    /// where a mock answers as a moved issue would.
+    fn moved_issue(&self) -> Option<(ExternalId, ExternalId)> {
+        None
+    }
 }
 
 /// Every distinct id in `requested` appears in exactly one of `outcome`'s
@@ -396,6 +407,49 @@ pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
     );
 }
 
+/// Reporting a moved issue as found under its old key is what keeps a caller
+/// from ever reaching `locate`, so it never learns the key the issue moved to.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn a_moved_issue_is_found_only_under_its_current_key(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    a_moved_issue_is_found_only_under_its_current_key_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// See [`create_then_show_round_trips_property`].
+pub fn a_moved_issue_is_found_only_under_its_current_key_property(
+    subject: &dyn ContractSubject,
+) {
+    let (old, new) = subject
+        .moved_issue()
+        .expect("configure this subject with a moved issue first");
+    let tracker = subject.tracker();
+
+    let outcome = tracker
+        .fetch_all(std::slice::from_ref(&old))
+        .expect("fetch_all must succeed for a conformant implementation");
+    assert!(
+        !outcome.found.iter().any(|(id, _)| id == &old),
+        "a moved issue must not be reported found under its old key {old}"
+    );
+
+    let located = tracker
+        .locate(&old)
+        .expect("locate must succeed for a moved issue");
+    assert!(
+        matches!(located, tracker::Located::Found(ref issue) if issue.key == new),
+        "locate must find a moved issue under its current key {new}: \
+         {located:?}"
+    );
+}
+
 /// A truncated discovery must report `complete == false`, so a caller never
 /// mistakes a cut-off query for the whole of what the tracker holds.
 ///
@@ -578,6 +632,9 @@ fn ensure_opted_in() -> Result<(), ContractGateError> {
 /// unprompted, excluding the two that need a deliberately configured
 /// subject.
 ///
+/// The moved-issue property runs, and counts, only for a subject that
+/// supplies a [`ContractSubject::moved_issue`].
+///
 /// Errors rather than skips when the gate is closed, so a dropped or
 /// misspelled env var cannot make every contract binary exit 0 having
 /// asserted nothing. The returned count of properties executed must be
@@ -599,8 +656,13 @@ pub fn run_all(
     fetch_all_partitions_totally(subject, ids)?;
     preview_create_makes_no_mutation(subject)?;
     validate_update_reports_outcome(subject)?;
+    let mut executed = 8;
+    if subject.moved_issue().is_some() {
+        a_moved_issue_is_found_only_under_its_current_key(subject)?;
+        executed += 1;
+    }
 
-    Ok(8)
+    Ok(executed)
 }
 
 /// Run the full conformance set against a live subject, timing each property,
@@ -679,6 +741,17 @@ pub fn timed_conformance(
             search_reports_truncation_property(subject);
         }));
     }
+    if subject.moved_issue().is_some() {
+        records.push(run(
+            "a_moved_issue_is_found_only_under_its_current_key",
+            1,
+            &|| {
+                a_moved_issue_is_found_only_under_its_current_key_property(
+                    subject,
+                );
+            },
+        ));
+    }
 
     Ok(records)
 }
@@ -687,7 +760,12 @@ pub fn timed_conformance(
 mod tests {
     use super::opted_in;
     use super::ContractGateError;
+    use crate::evidence::EvidenceRecord;
     use crate::RecordingTracker;
+    use tracker::ExternalId;
+    use tracker::RemoteIssue;
+    use tracker::RemoteTimestamp;
+    use tracker::TrackerError;
 
     type GatedCall = fn(&RecordingTracker) -> Result<(), ContractGateError>;
 
@@ -737,10 +815,78 @@ mod tests {
             ("validate_update_reports_outcome", |subject| {
                 super::validate_update_reports_outcome(subject)
             }),
+            (
+                "a_moved_issue_is_found_only_under_its_current_key",
+                |subject| {
+                    super::a_moved_issue_is_found_only_under_its_current_key(
+                        subject,
+                    )
+                },
+            ),
             ("timed_conformance", |subject| {
                 super::timed_conformance(subject, &[]).map(|_| ())
             }),
         ]
+    }
+
+    fn conformable_tracker() -> RecordingTracker {
+        let held = ExternalId::new("PP-76".to_owned());
+        RecordingTracker::truncating(
+            vec![(
+                held.clone(),
+                RemoteIssue {
+                    key: held,
+                    updated: RemoteTimestamp::NotReported,
+                    body: "Moved\n".to_owned(),
+                },
+            )],
+            vec![ExternalId::new("REC-unseen".to_owned())],
+        )
+        .failing_show(
+            ExternalId::new("REC-unreadable".to_owned()),
+            TrackerError::Retryable {
+                detail: "connection refused".to_owned(),
+            },
+        )
+        .discovering(Vec::new(), false)
+    }
+
+    fn moved_property_ran(records: &[EvidenceRecord]) -> bool {
+        records.iter().any(|record| {
+            record.name == "a_moved_issue_is_found_only_under_its_current_key"
+        })
+    }
+
+    #[test]
+    fn a_subject_with_no_moved_issue_is_reported_skipped() {
+        // nextest runs each test in its own process, so setting the
+        // variable here cannot race another test.
+        std::env::set_var("ACCELERATOR_TRACKER_CONTRACT", "1");
+        let unmoved = conformable_tracker();
+        let moved = conformable_tracker().moving(
+            &ExternalId::new("PP-76".to_owned()),
+            &ExternalId::new("OPS-5".to_owned()),
+        );
+
+        let unmoved_count =
+            super::run_all(&unmoved, &[]).expect("the gate is open");
+        let moved_count =
+            super::run_all(&moved, &[]).expect("the gate is open");
+        assert_eq!(
+            unmoved_count + 1,
+            moved_count,
+            "run_all must not count the moved-issue property it skipped"
+        );
+
+        let unmoved_records =
+            super::timed_conformance(&unmoved, &[]).expect("the gate is open");
+        let moved_records =
+            super::timed_conformance(&moved, &[]).expect("the gate is open");
+        assert!(
+            !moved_property_ran(&unmoved_records),
+            "evidence must not claim a property the subject could not run"
+        );
+        assert!(moved_property_ran(&moved_records));
     }
 
     #[test]

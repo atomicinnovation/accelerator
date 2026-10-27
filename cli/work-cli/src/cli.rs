@@ -9,8 +9,8 @@ use clap::Subcommand;
 
 /// The `accelerator-work` command-line surface: work-item lifecycle
 /// primitives (`create`, `create-batch`, `show`, `resolve`, `diff`,
-/// `update`, `sync`, `promote`) plus small utility subcommands used by the
-/// skills that orchestrate them.
+/// `update`, `sync`, `promote`, `rekey`) plus small utility subcommands used
+/// by the skills that orchestrate them.
 #[derive(Parser)]
 #[command(name = "accelerator-work", disable_version_flag = true)]
 pub struct Cli {
@@ -148,6 +148,31 @@ pub enum Command {
     /// each reason a draft is not promoted (see `exit_codes`). A draft
     /// promoted already prints `already-promoted` and exits 0.
     Promote(Box<PromoteArgs>),
+    /// Re-key every work item onto the configured `work.id_pattern`.
+    ///
+    /// Each item whose `id` is off the pattern, whatever its shape, is
+    /// retired onto its new `id` across every configured corpus root, its
+    /// old `id` kept as an alias.
+    ///
+    /// Records the run plan under `.accelerator/state/rekey/` before the
+    /// first write, so an interrupted run is finished by the next `work
+    /// rekey`, and refuses over uncommitted changes, so a VCS revert can
+    /// undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed.
+    /// `--preview` records the mapping without applying it, and a later
+    /// `work rekey` applies exactly what it showed. Under `{tracker}`, a
+    /// synced item takes its issue's current key, read from the tracker,
+    /// and an unsynced item becomes a draft.
+    ///
+    /// Exit codes: 0 re-keyed, previewed, nothing to re-key, or discarded;
+    /// 4 the run stopped pending a human, each refusal printing an
+    /// `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan,
+    /// the identity-run lock or a corpus path cannot be written
+    /// (`E_REKEY_STATE_UNWRITABLE`, `E_REKEY_IDENTITY_RUN_LOCK_FAILED`,
+    /// `E_REKEY_CORPUS_INACCESSIBLE`) or another identity command still
+    /// holds the identity-run lock (`E_IDENTITY_RUN_BUSY`);
+    /// 70 the tracker could not be read (`E_REKEY_TRACKER_UNREACHABLE`);
+    /// 72-74 the tracker cannot be selected or configured.
+    Rekey(Box<RekeyArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -410,6 +435,26 @@ pub struct PromoteArgs {
     pub create: bool,
 }
 
+#[derive(Args)]
+pub struct RekeyArgs {
+    /// Record the mapping as a proposed run plan and print one
+    /// `<old> → <new>` line per item it re-keys, changing nothing under the
+    /// corpus; the next `work rekey` applies exactly that mapping, or
+    /// refuses if any item's identity has moved since.
+    #[arg(long, conflicts_with = "discard")]
+    pub preview: bool,
+    /// Remove a proposed run plan; remove an in-progress run plan once every
+    /// path it wrote is back as it was; with `ACCELERATOR_FORCE=1`, set aside
+    /// one that cannot be read or whose paths have changed.
+    #[arg(long)]
+    pub discard: bool,
+    /// Read each synced item's issue with its own request instead of one
+    /// bulk retrieval, as for `work sync`; applies only when a
+    /// `{tracker}` mapping is computed.
+    #[arg(long)]
+    pub per_item_reads: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser as _;
@@ -433,6 +478,18 @@ mod tests {
             "--adopt",
             "PP-900",
             "--create",
+        ]);
+
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn preview_and_discard_are_mutually_exclusive() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "rekey",
+            "--preview",
+            "--discard",
         ]);
 
         assert!(parsed.is_err());

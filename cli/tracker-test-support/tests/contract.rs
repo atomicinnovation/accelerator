@@ -2,6 +2,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use tracker::ExternalId;
+use tracker::RemoteIssue;
+use tracker::RemoteTimestamp;
 use tracker::TrackerError;
 use tracker_test_support::contract;
 use tracker_test_support::RecordingTracker;
@@ -54,4 +56,22 @@ fn a_retitle_keeps_the_description_against_the_recording_tracker() {
     contract::retitle_keeps_the_description_property(
         &RecordingTracker::holding(Vec::new()),
     );
+}
+
+#[test]
+fn a_recording_tracker_finds_a_moved_issue_only_under_its_current_key(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let old = ExternalId::new("PP-76".to_owned());
+    let subject = RecordingTracker::holding(vec![(
+        old.clone(),
+        RemoteIssue {
+            key: old.clone(),
+            updated: RemoteTimestamp::NotReported,
+            body: "Moved\n".to_owned(),
+        },
+    )])
+    .moving(&old, &ExternalId::new("OPS-5".to_owned()));
+
+    contract::a_moved_issue_is_found_only_under_its_current_key(&subject)?;
+    Ok(())
 }

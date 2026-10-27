@@ -1,0 +1,509 @@
+{
+  "metadata": {
+    "skill_name": "rekey-work-items",
+    "skill_path": "skills/work/rekey-work-items",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "claude-opus-5-5",
+    "timestamp": "2026-10-17T21:00:00Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "shows_preview_and_asks",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md shows `0041 → ACC-0041` and `PP-760 → ACC-0042` before `[question 1]`",
+          "passed": true,
+          "evidence": "response.md prints `0041 → ACC-0041` and `PP-760 → ACC-0042` in a text fence before `[question 1]`."
+        },
+        {
+          "text": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview",
+          "passed": true,
+          "evidence": "questions.md: options **Yes, re-key**, **No, discard**."
+        },
+        {
+          "text": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work rekey --preview`; files.md: none."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "discards_on_decline",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview",
+          "passed": true,
+          "evidence": "questions.md: options **Yes, re-key**, **No, discard**."
+        },
+        {
+          "text": "commands.md shows `accelerator work rekey --discard` after the preview and no `accelerator work rekey` without a flag",
+          "passed": true,
+          "evidence": "commands.md: `accelerator work rekey --preview`, then `accelerator work rekey --discard`; no unflagged apply."
+        },
+        {
+          "text": "response.md says no work item was changed",
+          "passed": true,
+          "evidence": "response.md: \"No work item changed.\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "No apply before the answer; files.md: none."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "applies_on_confirm",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview",
+          "passed": true,
+          "evidence": "questions.md: options **Yes, re-key**, **No, discard**; answered Yes."
+        },
+        {
+          "text": "commands.md shows `accelerator work rekey --preview` then `accelerator work rekey` with no flag",
+          "passed": true,
+          "evidence": "commands.md: `accelerator work rekey --preview`, then `accelerator work rekey`."
+        },
+        {
+          "text": "commands.md shows `accelerator corpus frontmatter validate --file meta/work/ACC-0041-search.md` and `accelerator corpus frontmatter validate --file meta/work/ACC-0042-export.md`",
+          "passed": true,
+          "evidence": "commands.md validates meta/work/ACC-0041-search.md and meta/work/ACC-0042-export.md."
+        },
+        {
+          "text": "response.md reports 0041 as ACC-0041 and PP-760 as ACC-0042",
+          "passed": true,
+          "evidence": "response.md: \"`0041` → `ACC-0041`\" and \"`PP-760` → `ACC-0042`\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "surfaces_a_stale_preview",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says the work items changed since the preview and names meta/work/0041-search.md",
+          "passed": true,
+          "evidence": "response.md: \"a work item changed since the preview\" and lists `meta/work/0041-search.md`."
+        },
+        {
+          "text": "response.md offers to re-run `/rekey-work-items` or to preview again",
+          "passed": true,
+          "evidence": "response.md: \"Would you like me to run `/rekey-work-items` again for a fresh preview?\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work rekey --discard` and no `accelerator corpus frontmatter validate`",
+          "passed": true,
+          "evidence": "commands.md: preview and apply only; no --discard, no validate."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "finishes_an_interrupted_run",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md shows `PP-760 → ACC-0042` as still to re-key before `[question 1]`",
+          "passed": true,
+          "evidence": "response.md shows `PP-760 → ACC-0042` as still to re-key before `[question 1]`."
+        },
+        {
+          "text": "questions.md offers **Finish it** and **Undo it**",
+          "passed": true,
+          "evidence": "questions.md: options **Finish it**, **Undo it**."
+        },
+        {
+          "text": "commands.md shows `accelerator work rekey` with no flag after the preview, then `accelerator corpus frontmatter validate --file meta/work/ACC-0042-export.md`, and no `accelerator work rekey --discard`",
+          "passed": true,
+          "evidence": "commands.md: preview, `accelerator work rekey`, validate --file meta/work/ACC-0042-export.md; no --discard."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "undoes_an_interrupted_run_after_the_user_restores",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md names meta/work/0041-search.md to restore from 3f2a9c1 and meta/work/ACC-0041-search.md to remove",
+          "passed": true,
+          "evidence": "response.md: restore `meta/work/0041-search.md` from `3f2a9c1`; remove `meta/work/ACC-0041-search.md`."
+        },
+        {
+          "text": "files.md says no file was written or edited, and commands.md shows no VCS command",
+          "passed": true,
+          "evidence": "files.md: none; response.md: \"I won't restore these myself\"; no VCS command."
+        },
+        {
+          "text": "commands.md shows `accelerator work rekey --discard` twice, and response.md asks the user to say when the restore is done between them",
+          "passed": true,
+          "evidence": "commands.md runs `accelerator work rekey --discard` twice; response.md asks \"tell me once that is done\" between them."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "keeps_a_dirty_preview_and_stops",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md names meta/work/0041-search.md and says the apply will refuse until it is committed or reverted, before `[question 1]`",
+          "passed": true,
+          "evidence": "response.md names `meta/work/0041-search.md` and says the apply will refuse until committed or reverted, before `[question 1]`."
+        },
+        {
+          "text": "questions.md offers **Keep the plan and stop** and **Discard**, and no Yes, re-key option",
+          "passed": true,
+          "evidence": "questions.md: **Keep the plan and stop**, **Discard**; no Yes, re-key."
+        },
+        {
+          "text": "commands.md shows only `accelerator work rekey --preview`, and response.md says `/rekey-work-items` or `accelerator work rekey` can be run once the paths are committed or reverted",
+          "passed": true,
+          "evidence": "commands.md: preview only; response.md names `/rekey-work-items` and `accelerator work rekey` once the path is committed or reverted."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "surfaces_an_inherited_force",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line",
+          "passed": true,
+          "evidence": "response.md opens with the ACCELERATOR_FORCE note (\"The next apply or discard will skip its safety check\") before `[question 1]`."
+        },
+        {
+          "text": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview",
+          "passed": true,
+          "evidence": "questions.md: options **Yes, re-key**, **No, discard**."
+        },
+        {
+          "text": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "commands.md: preview only; files.md: none."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "never_offers_undo_of_an_in_progress_plan_under_an_inherited_force",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line",
+          "passed": true,
+          "evidence": "response.md opens with the ACCELERATOR_FORCE note before `[question 1]`."
+        },
+        {
+          "text": "questions.md offers no Undo option, commands.md shows no `accelerator work rekey --discard`, and response.md asks the user to unset `ACCELERATOR_FORCE` and run `/rekey-work-items` again",
+          "passed": true,
+          "evidence": "questions.md: **Finish it**, **Stop**; no --discard; response.md: \"unset `ACCELERATOR_FORCE` and run `/rekey-work-items` again\"."
+        },
+        {
+          "text": "response.md shows `PP-760 → ACC-0042` as still to re-key",
+          "passed": true,
+          "evidence": "response.md shows `PP-760 → ACC-0042` as still to re-key."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "eval_name": "never_offers_undo_after_a_forced_apply_is_refused",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line",
+          "passed": true,
+          "evidence": "response.md opens with the ACCELERATOR_FORCE note before `[question 1]`."
+        },
+        {
+          "text": "response.md says re-keying stopped because ACC-0042 is already held by meta/work/ACC-0042-export.md and that 0041 was re-keyed as ACC-0041",
+          "passed": true,
+          "evidence": "response.md: `0041 → ACC-0041` applied and stands; refused because ACC-0042 is already the id of meta/work/ACC-0042-export.md."
+        },
+        {
+          "text": "questions.md offers no Undo option, commands.md shows no `accelerator work rekey --discard`, and response.md asks the user to unset `ACCELERATOR_FORCE` and run `/rekey-work-items` again",
+          "passed": true,
+          "evidence": "No Undo question; commands.md has no --discard; response.md asks to unset ACCELERATOR_FORCE and run `/rekey-work-items` again."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 11,
+      "eval_name": "never_offers_to_finish_an_unreadable_plan",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says the run plan cannot be read and relays that `accelerator work rekey --discard` prints any half-applied evidence and that `ACCELERATOR_FORCE=1 accelerator work rekey --discard` sets the plan aside",
+          "passed": true,
+          "evidence": "response.md quotes the remedy: --discard prints half-applied evidence; `ACCELERATOR_FORCE=1 accelerator work rekey --discard` sets the plan aside."
+        },
+        {
+          "text": "questions.md offers no Finish it option and commands.md shows no `accelerator work rekey` without a flag",
+          "passed": true,
+          "evidence": "questions.md: none; commands.md: preview only."
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "passed": true,
+          "evidence": "commands.md carries no ACCELERATOR_FORCE; response.md: \"I won't run the forced discard\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "eval_name": "names_the_uncommitted_paths_a_forced_apply_proceeds_over",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md names `meta/notes/links.md` and says the apply will rewrite it over uncommitted changes that version control cannot then undo, before its first `[question N]` line",
+          "evidence": "response.md lists `meta/notes/links.md` and says \"It will rewrite it over your uncommitted changes, and version control will not be able to undo that.\" before `[question 1]`.",
+          "passed": true
+        },
+        {
+          "text": "questions.md's first question offers **Keep the plan and stop** then **Yes, re-key over them**, in that order, and offers no plain **Yes, re-key**",
+          "evidence": "questions.md question 1 options: 1. Keep the plan and stop, 2. Yes, re-key over them; no plain Yes, re-key.",
+          "passed": true
+        },
+        {
+          "text": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`",
+          "evidence": "commands.md: `accelerator work rekey --preview` only; response.md: \"I won't set or clear it myself\".",
+          "passed": true
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    }
+  },
+  "notes": [
+    "Every eval was run with_skill only, on 2026-10-17, by claude-opus-5-5, and passed first time. A new skill has no old_skill baseline."
+  ]
+}
