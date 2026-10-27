@@ -39,4 +39,5 @@ store = { path = "../store" }
 [dev-dependencies]
 corpus-adapters = { path = "../corpus-adapters" }
 http-test-support = { path = "../http-test-support" }
+rustls = { workspace = true }
 tempfile = { workspace = true }

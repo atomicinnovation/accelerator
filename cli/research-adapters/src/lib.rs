@@ -4,6 +4,7 @@
 //! topic-research set's round inputs.
 
 pub mod arxiv_xml;
+pub mod bounded;
 pub mod clock;
 pub mod conduct;
 pub mod confirmations;

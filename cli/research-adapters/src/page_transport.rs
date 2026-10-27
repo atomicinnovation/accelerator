@@ -25,6 +25,9 @@ use research::sources::web::fetch::PageRequest;
 use research::sources::web::fetch::PageResponse;
 use research::sources::web::fetch::PageTransport;
 
+use crate::bounded::current_thread_runtime;
+use crate::bounded::read_capped;
+use crate::bounded::within;
 use crate::host_form::admitted_host_matches;
 use crate::host_form::ascii_host;
 use crate::transport::install_crypto_provider;
@@ -44,6 +47,8 @@ impl PageTransport for HttpPageTransport {
             return PageResponse::Refused;
         }
         install_crypto_provider();
+        // The resolver is pinned to this request's addresses, so neither the
+        // client nor the runtime it binds to can outlive the request.
         let client = Client::builder()
             .redirect(redirect::Policy::none())
             .pool_max_idle_per_host(0)
@@ -56,10 +61,7 @@ impl PageTransport for HttpPageTransport {
         let Ok(client) = client else {
             return PageResponse::Unavailable;
         };
-        let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        else {
+        let Ok(runtime) = current_thread_runtime() else {
             return PageResponse::Unavailable;
         };
         let exchange = async {
@@ -74,21 +76,14 @@ impl PageTransport for HttpPageTransport {
                 Err(_) => PageResponse::ConnectionFailed,
             }
         };
-        runtime.block_on(async {
-            tokio::time::timeout(request.timeout, exchange)
-                .await
-                .unwrap_or(PageResponse::TimedOut)
-        })
+        within(&runtime, request.timeout, exchange, PageResponse::TimedOut)
     }
 }
 
 /// Bytes past `max_body` are dropped rather than the whole page refused. A
 /// `Location` that is not UTF-8 refuses only a redirect, the one response
 /// that would follow it.
-async fn receive(
-    mut response: reqwest::Response,
-    max_body: usize,
-) -> PageResponse {
+async fn receive(response: reqwest::Response, max_body: usize) -> PageResponse {
     let status = response.status();
     let headers = response.headers().clone();
     let location = match utf8_header(&headers, "location") {
@@ -96,20 +91,14 @@ async fn receive(
         Err(_) if status.is_redirection() => return PageResponse::Refused,
         Err(_) => None,
     };
-    let mut body = Vec::new();
-    while body.len() < max_body {
-        match response.chunk().await {
-            Ok(Some(chunk)) => body.extend_from_slice(&chunk),
-            Ok(None) => break,
-            Err(_) => return PageResponse::ConnectionFailed,
-        }
-    }
-    body.truncate(max_body);
+    let Ok(body) = read_capped(response, max_body).await else {
+        return PageResponse::ConnectionFailed;
+    };
     PageResponse::Received {
         status: status.as_u16(),
         location,
         content_type: utf8_header(&headers, "content-type").ok().flatten(),
-        body,
+        body: body.head,
     }
 }
 

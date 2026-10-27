@@ -10,6 +10,8 @@ use network::Host;
 use research::sources::web::fetch::HostResolver;
 use research::sources::web::fetch::ResolveFailure;
 
+use crate::bounded;
+use crate::bounded::current_thread_runtime;
 use crate::host_form::ascii_host;
 
 /// A resolver built afresh for each lookup, so no state is shared across
@@ -55,15 +57,9 @@ pub fn bounded_lookup<T>(
     within: Duration,
     lookup: impl Future<Output = Result<T, ResolveFailure>>,
 ) -> Result<T, ResolveFailure> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|_| ResolveFailure::Unresolved)?;
-    runtime.block_on(async {
-        tokio::time::timeout(within, lookup)
-            .await
-            .unwrap_or(Err(ResolveFailure::Unresolved))
-    })
+    let runtime =
+        current_thread_runtime().map_err(|_| ResolveFailure::Unresolved)?;
+    bounded::within(&runtime, within, lookup, Err(ResolveFailure::Unresolved))
 }
 
 /// Each query is tried once and bounded too, a second limit beneath the

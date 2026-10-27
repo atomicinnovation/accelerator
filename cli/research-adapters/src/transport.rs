@@ -19,6 +19,10 @@ use research::sources::fetch::Transport;
 use research::sources::request::UpstreamRequest;
 use tokio::runtime::Runtime;
 
+use crate::bounded::current_thread_runtime;
+use crate::bounded::read_capped;
+use crate::bounded::within;
+
 const MAX_REDIRECTS: usize = 3;
 const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;
 
@@ -62,10 +66,8 @@ impl HttpTransport {
             .redirect(redirect::Policy::custom(follow_within_origin))
             .build()
             .map_err(|_| TransportUnavailable)?;
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|_| TransportUnavailable)?;
+        let runtime =
+            current_thread_runtime().map_err(|_| TransportUnavailable)?;
         Ok(Self {
             client,
             runtime,
@@ -89,11 +91,12 @@ impl Transport for HttpTransport {
                 Err(_) => Response::ConnectionFailed,
             }
         };
-        self.runtime.block_on(async {
-            tokio::time::timeout(self.per_request, exchange)
-                .await
-                .unwrap_or(Response::TimedOut)
-        })
+        within(
+            &self.runtime,
+            self.per_request,
+            exchange,
+            Response::TimedOut,
+        )
     }
 }
 
@@ -119,20 +122,19 @@ fn same_origin(original: &Url, next: &Url) -> bool {
         && original.port_or_known_default() == next.port_or_known_default()
 }
 
-async fn receive(mut response: reqwest::Response) -> Response {
+/// A body past the cap is withheld whole: a cut JSON or XML document would
+/// not parse.
+async fn receive(response: reqwest::Response) -> Response {
     let status = response.status().as_u16();
     let headers = response.headers().clone();
-    let mut body = Vec::new();
-    while body.len() <= MAX_BODY_BYTES {
-        match response.chunk().await {
-            Ok(Some(chunk)) => body.extend_from_slice(&chunk),
-            Ok(None) => break,
-            Err(_) => return Response::ConnectionFailed,
-        }
-    }
-    if body.len() > MAX_BODY_BYTES {
-        body.clear();
-    }
+    let Ok(capped) = read_capped(response, MAX_BODY_BYTES).await else {
+        return Response::ConnectionFailed;
+    };
+    let body = if capped.overflowed {
+        Vec::new()
+    } else {
+        capped.head
+    };
     Response::Received(Received {
         status,
         retry_after: seconds(&headers, "retry-after").map(Duration::from_secs),
