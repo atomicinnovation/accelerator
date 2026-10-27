@@ -217,9 +217,9 @@ never a more precise date from a later scheme:
   dropped.
 - **Admission.** Each hop's host is resolved, `localhost` included, exactly
   as written: no search domain is appended. It is admitted only when every
-  address it resolves to is public. A loopback,
-  private, link-local, reserved or unspecified address is rejected before
-  any request, and the request connects only to the addresses admitted.
+  address it resolves to is public. A loopback, private, link-local,
+  reserved or unspecified address is rejected before any request, and the
+  request connects only to the addresses admitted.
 - **Redirects.** A `301`, `302`, `303`, `307` or `308` is followed, at most
   5 times, each hop re-admitted as its own. Any other `3xx` fails as
   `E_WEB_STATUS`.
@@ -227,7 +227,12 @@ never a more precise date from a later scheme:
   `application/xhtml+xml` is read. At most 2 MiB of the body is read, and a
   longer body is truncated rather than refused, since the declarations sit
   in its head.
-- **No proxy.** `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` are ignored.
+- **No proxy.** `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` are ignored: a
+  proxy would resolve the host itself and could connect to an address
+  admission never checked. Where outbound traffic must go through a proxy,
+  the call fails with `E_WEB_HOST_UNRESOLVED`, `E_WEB_CONNECTION_FAILED` or
+  `E_WEB_TIMED_OUT`, while `openalex` and `arxiv`, which honour the proxy
+  variables, still work.
 - **Time.** The call runs within the 100 s deadline every `fetch` shares.
   Each lookup is capped at 5 s and each request at 30 s, both clipped to
   the time remaining. Nothing is retried.
