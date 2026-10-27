@@ -211,6 +211,16 @@ None.
 - arXiv's `primary_category` value is an attribute; the Atom feed has no
   licence, and whether the `arXivRaw` record the CLI already fetches for
   withdrawal carries one is to be confirmed in planning.
+- Page bytes are decoded as UTF-8 whatever the declared charset
+  (`web_html.rs`). 0348's keys are ASCII under any ASCII-compatible
+  charset, so this was harmless; `authors`, `publisher` and other free text
+  are not, so honour `<meta charset>` and the `Content-Type` charset first.
+- Each producer repeats "parse, then record if `Some`" per key; with the
+  bibliographic keys, consider `SourceMetadata` recorders that take
+  `Option<T>`.
+- `Doi`, `ArxivId` and `WorkId` live in `sources::request`, which the web
+  and metadata modules import, making it a hub; extract a
+  `sources::identifier` module before adding `pmid` and `issn`.
 
 ## Drafting Notes
 
