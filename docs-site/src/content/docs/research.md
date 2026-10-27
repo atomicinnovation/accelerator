@@ -739,8 +739,7 @@ block: a nested `key: value` list directly under its line.
 - **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
   key with no value is omitted. `url`, title and venue stay on the entry
   line and never appear in the block.
-- **Order.** Recommended keys come in the table's order, then any other key
-  in byte-wise order.
+- **Order.** Keys come in the table's order; the CLI emits no other key.
 
 | Key                | Group           | Value form                                                                  |
 |--------------------|-----------------|-----------------------------------------------------------------------------|

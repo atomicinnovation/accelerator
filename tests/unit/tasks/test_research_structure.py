@@ -1373,8 +1373,7 @@ def test_the_finding_outputter_documents_the_metadata_block() -> None:
         "single-line",
         "`url`, title and venue never appear in the block",
         "copied unchanged and in emitted order",
-        "recommended keys in table order, then any other key in byte-wise "
-        "order",
+        "emits only recommended keys, in table order",
         METADATA_SLOT.strip(),
     ):
         assert rule in outputter, f"the finding outputter must state {rule!r}"

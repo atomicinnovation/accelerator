@@ -94,8 +94,8 @@ is valid.
   value is omitted.
 - `url`, title and venue never appear in the block: they stay on the entry
   line.
-- The CLI emits recommended keys in table order, then any other key in
-  byte-wise order. Copying in emitted order keeps that order.
+- The CLI emits only recommended keys, in table order. Copying in emitted
+  order keeps that order.
 - The template's `  - {source-metadata}` slot line repeats under every
   Sources entry. Under each, it becomes one `  - key: value` line per entry
   of that source's `metadata` map, in emitted order. When the source has no
