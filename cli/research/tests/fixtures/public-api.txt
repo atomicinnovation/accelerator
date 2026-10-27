@@ -1548,6 +1548,7 @@ pub research::sources::web::fetch::PageResponse::Received::location: core::optio
 pub research::sources::web::fetch::PageResponse::Received::status: u16
 pub research::sources::web::fetch::PageResponse::Refused
 pub research::sources::web::fetch::PageResponse::TimedOut
+pub research::sources::web::fetch::PageResponse::Unavailable
 impl core::clone::Clone for research::sources::web::fetch::PageResponse
 pub fn research::sources::web::fetch::PageResponse::clone(&self) -> research::sources::web::fetch::PageResponse
 impl core::cmp::Eq for research::sources::web::fetch::PageResponse
@@ -1575,14 +1576,28 @@ impl core::fmt::Display for research::sources::web::fetch::RejectedReach
 pub fn research::sources::web::fetch::RejectedReach::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::web::fetch::RejectedReach
 impl core::marker::StructuralPartialEq for research::sources::web::fetch::RejectedReach
+pub enum research::sources::web::fetch::ResolveFailure
+pub research::sources::web::fetch::ResolveFailure::Refused
+pub research::sources::web::fetch::ResolveFailure::Unresolved
+impl core::clone::Clone for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::clone(&self) -> research::sources::web::fetch::ResolveFailure
+impl core::cmp::Eq for research::sources::web::fetch::ResolveFailure
+impl core::cmp::PartialEq for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::eq(&self, other: &research::sources::web::fetch::ResolveFailure) -> bool
+impl core::fmt::Debug for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::fetch::ResolveFailure
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::ResolveFailure
 pub enum research::sources::web::fetch::WebFailure
 pub research::sources::web::fetch::WebFailure::ConnectionFailed
 pub research::sources::web::fetch::WebFailure::HostRejected(research::sources::web::fetch::RejectedReach)
 pub research::sources::web::fetch::WebFailure::NotHtml
 pub research::sources::web::fetch::WebFailure::RedirectWithoutLocation
+pub research::sources::web::fetch::WebFailure::Refused
 pub research::sources::web::fetch::WebFailure::Status(u16)
 pub research::sources::web::fetch::WebFailure::TimedOut
 pub research::sources::web::fetch::WebFailure::TooManyRedirects
+pub research::sources::web::fetch::WebFailure::TransportUnavailable
 pub research::sources::web::fetch::WebFailure::UnfollowableRedirect
 pub research::sources::web::fetch::WebFailure::Unresolved
 impl core::clone::Clone for research::sources::web::fetch::WebFailure
@@ -1624,16 +1639,6 @@ impl core::fmt::Debug for research::sources::web::fetch::StepBounds
 pub fn research::sources::web::fetch::StepBounds::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::web::fetch::StepBounds
 impl core::marker::StructuralPartialEq for research::sources::web::fetch::StepBounds
-pub struct research::sources::web::fetch::Unresolved
-impl core::clone::Clone for research::sources::web::fetch::Unresolved
-pub fn research::sources::web::fetch::Unresolved::clone(&self) -> research::sources::web::fetch::Unresolved
-impl core::cmp::Eq for research::sources::web::fetch::Unresolved
-impl core::cmp::PartialEq for research::sources::web::fetch::Unresolved
-pub fn research::sources::web::fetch::Unresolved::eq(&self, other: &research::sources::web::fetch::Unresolved) -> bool
-impl core::fmt::Debug for research::sources::web::fetch::Unresolved
-pub fn research::sources::web::fetch::Unresolved::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::web::fetch::Unresolved
-impl core::marker::StructuralPartialEq for research::sources::web::fetch::Unresolved
 pub struct research::sources::web::fetch::WebPorts<'a>
 pub research::sources::web::fetch::WebPorts::clock: &'a dyn research::sources::fetch::Clock
 pub research::sources::web::fetch::WebPorts::decoder: &'a dyn research::sources::web::declarations::PageDecoder
@@ -1644,7 +1649,7 @@ pub const research::sources::web::fetch::MAX_PAGE_BODY: usize
 pub const research::sources::web::fetch::MAX_REDIRECTS: usize
 pub const research::sources::web::fetch::PAGE_ACCEPT: &str
 pub trait research::sources::web::fetch::HostResolver
-pub fn research::sources::web::fetch::HostResolver::resolve(&self, host: &network::host::Host, port: u16, within: core::time::Duration) -> core::result::Result<alloc::vec::Vec<core::net::socket_addr::SocketAddr>, research::sources::web::fetch::Unresolved>
+pub fn research::sources::web::fetch::HostResolver::resolve(&self, host: &network::host::Host, port: u16, within: core::time::Duration) -> core::result::Result<alloc::vec::Vec<core::net::socket_addr::SocketAddr>, research::sources::web::fetch::ResolveFailure>
 pub trait research::sources::web::fetch::PageTransport
 pub fn research::sources::web::fetch::PageTransport::get(&self, request: &research::sources::web::fetch::PageRequest<'_>) -> research::sources::web::fetch::PageResponse
 pub fn research::sources::web::fetch::fetch_page_metadata(url: &research::sources::web::page_url::PageUrl, deadline: &research::sources::schedule::Deadline, ports: &research::sources::web::fetch::WebPorts<'_>) -> core::result::Result<research::sources::metadata::SourceMetadata, research::sources::web::fetch::WebFailure>
