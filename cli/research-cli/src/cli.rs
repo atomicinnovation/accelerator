@@ -151,17 +151,49 @@ pub enum TopicAction {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use research::sources::request::Family;
 
     use super::FETCH_HELP;
 
+    fn family_clauses() -> Vec<&'static str> {
+        let (_, after) = FETCH_HELP
+            .split_once("Families and their verbs:")
+            .expect("a families paragraph");
+        let (paragraph, _) = after.split_once("\n\n").expect("its end");
+        paragraph.split(';').collect()
+    }
+
+    fn clause_for(family: Family) -> &'static str {
+        let naming = family_clauses()
+            .into_iter()
+            .filter(|clause| {
+                clause.split_once(" take").is_some_and(|(subject, _)| {
+                    subject.split_whitespace().any(|word| word == family.code())
+                })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(naming.len(), 1, "{} in {naming:?}", family.code());
+        naming[0]
+    }
+
     #[test]
-    fn the_fetch_help_names_every_family_and_each_verb_it_supports() {
+    fn the_fetch_help_pairs_each_family_with_exactly_its_verbs() {
+        let every_verb = Family::ALL
+            .iter()
+            .flat_map(|family| family.verbs())
+            .collect::<Vec<_>>();
         for family in Family::ALL {
-            assert!(FETCH_HELP.contains(family.code()), "{}", family.code());
-            for verb in family.verbs() {
-                assert!(FETCH_HELP.contains(verb.code()), "{}", verb.code());
+            let clause = clause_for(family);
+            for verb in &every_verb {
+                assert_eq!(
+                    clause.contains(verb.code()),
+                    family.verbs().contains(verb),
+                    "{} {} in {clause:?}",
+                    family.code(),
+                    verb.code()
+                );
             }
         }
     }
