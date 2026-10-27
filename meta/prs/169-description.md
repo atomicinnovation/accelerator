@@ -12,9 +12,9 @@ relates_to: ["work-item:0296", "work-item:0257", "work-item:0285", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/169"
 pr_number: 169
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
-revision: "268d24bf59f3aae99376d3ef9a3a6087895df126"
+revision: "999406a3930a16f6b27a456592e9449c69117bb4"
 repository: "accelerator"
-last_updated: "2026-10-24T18:45:07+00:00"
+last_updated: "2026-10-27T19:32:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -126,6 +126,21 @@ settled.
 - The user guide and `CHANGELOG.md` cover the new records, classes and exit
   codes.
 
+**Integration with re-keying (#168)**
+
+The branch is rebased onto main after #168, so sync now runs under its
+identity-run lock.
+
+- `work sync` holds the lock for its whole run and refuses with
+  `E_REKEY_IN_PROGRESS` or `E_REKEY_PLAN_UNREADABLE` (exit 4), or
+  `E_IDENTITY_RUN_BUSY` (exit 1).
+- The lock is taken after the id scheme, `--discard-kept-edits` ids and roots
+  are validated and before any work item is read, so a refused root or a
+  usage error still writes nothing.
+- `IdentityWorkspace` keeps #168's split into `CorpusWorkspace` and gains
+  `for_sync` and `for_identity_change`, which open it under checked roots.
+- `sync-work-items` relays the re-key refusals at the end of Step 2.
+
 **Unrelated changes needed for a green `mise run`**
 
 - The visualiser's watcher and SSE tests feed scripted events through an
@@ -133,8 +148,8 @@ settled.
   delayed OS notifications past the test budgets. A real OS watcher test runs
   in the opt-in `test:integration:visualiser-os-watcher` lane.
 - `tokio` is bumped to 1.53.3 for RUSTSEC-2026-0386.
-- `docs-site` takes `undici` 8.12.3 and pins zod 4.6.7 through an override,
-  for two npm advisories.
+- `docs-site` pins zod 4.6.7 through an override for GHSA-mrhx-c7xc-m3w5;
+  `undici` 8.12.3 already came from main.
 - `test:unit:cli` announces when permission tests are skipped.
 
 ## Context
@@ -150,8 +165,9 @@ settled.
 
 ## Testing
 
-- [x] `mise run` (full local CI mirror) exits 0 at the branch tip. It covers
-  format, lint, types, every test suite, `public-api:check` and `docs:check`.
+- [x] `mise run` (full local CI mirror) exits 0 at the branch tip, rebased
+  onto main after #168. It covers format, lint, types, every test suite,
+  `public-api:check` and `docs:check`.
 - [x] Store containment, including each `..` shape and permission detail:
   `cli/store` unit tests, plus one pin per consumer crate for a
   misconfigured `paths.*` through a missing directory.
@@ -198,6 +214,12 @@ settled.
     `NotWritable` (the class is still `retryable`);
   - a file that turns non-UTF-8 between planning and the pull exits 70, not
     75.
+- Two state-root gaps from #168's commands are left for a follow-up:
+  - `work rekey` opens its workspace without `ValidatedStateRoots::check`, so
+    a symlinked `.accelerator/state` is written through rather than refused;
+  - `work promote` takes the identity-run lock before
+    `for_identity_change` checks the state root, so the lock is written
+    through a symlinked state root before the refusal.
 - `.accelerator/state/integrations/linear/last-sync.json` changes because the
   0351–0354 work items were synced to Linear (PP-926 to PP-929).
 - Most of the line count is `meta/` (plan, reviews, research, validation) and
