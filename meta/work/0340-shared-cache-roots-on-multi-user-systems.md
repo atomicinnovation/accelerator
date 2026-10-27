@@ -8,9 +8,9 @@ producer: "create-work-item"
 status: "draft"
 kind: "epic"
 priority: "low"
-relates_to: ["work-item:0218", "adr:ADR-0072", "adr:ADR-0063", "adr:ADR-0064"]
+relates_to: ["work-item:0218", "adr:ADR-0072", "adr:ADR-0063", "adr:ADR-0064", "adr:ADR-0075", "work-item:0355"]
 tags: ["cli", "launcher", "cache", "multi-user", "security", "nfs"]
-last_updated: "2026-10-21T18:42:16+00:00"
+last_updated: "2026-10-27T19:14:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -34,7 +34,8 @@ but the first, and the root is never pruned.
 
 - Single-file sub-binaries are shared today: `store` writes `0600` then sets
   `0755` (`cache.rs:136-157`), and every use re-verifies against the shipped
-  digest and signature.
+  digest and signature. Under ADR-0075 that becomes the launcher's pinned
+  digest alone.
 - Runtime trees are not: `ensure_trees_dir` refuses a `trees/` that is not
   the effective user's and private (`tree/resolver.rs:949-965`,
   `is_privately_owned` at `layout.rs:349-361`), so a second user's
@@ -56,8 +57,17 @@ but the first, and the root is never pruned.
 
 - **Trust model.** Anyone allowed to write the shared root may use it and
   may cause eviction: availability is shared. Integrity rests only on the
-  digests and signatures that ship with the plugin; every read is verified
-  against them, and no user trusts a file because another user wrote it.
+  digests pinned by the plugin tree and the launcher (ADR-0075) and on the
+  tree attestations; every read is verified against them, and no user trusts
+  a file because another user wrote it.
+- **Check-to-exec integrity.** Pinning protects content at rest, but a member
+  who can write the root can replace a launcher or sub-binary between its
+  check and its exec. Trees already refuse a generation not privately owned
+  (`is_privately_owned`); executables in a shared root need an equivalent:
+  execute only a file no other user can write (for example, a verified copy in
+  a user-private directory), or execute the verified file descriptor itself
+  where the platform allows it. macOS offers no `fexecve`, so the private-copy
+  route is the portable one.
 - **Layout.** A group-shared root is a setgid directory, writable by a Unix
   group whose members are the authorised users. It may sit on local disk or
   NFS.
@@ -68,6 +78,9 @@ but the first, and the root is never pruned.
 ## Acceptance Criteria
 
 - [ ] Both child stories are done.
+- [ ] Given a group-shared root, when another member replaces a launcher or
+      sub-binary after the bootstrap or launcher has checked it, then the
+      replaced file is never executed.
 - [ ] `docs-site` documents the group-shared layout: creating the root
       (`2770`, group, setgid), the trust model, NFS mount requirements, and
       what remains unsupported.
@@ -99,7 +112,9 @@ but the first, and the root is never pruned.
 - Source: `meta/plans/2026-10-19-0218-bound-cache-root-growth.md`, plan
   review `meta/reviews/plans/2026-10-19-0218-bound-cache-root-growth-review-1.md`
   (passes 3–4, decisions C and E)
-- Related: 0218, 0334, 0339, 0222, 0223
+- Related: 0218, 0334, 0339, 0222, 0223, 0355
+- ADR-0075 (digest-pinned resolution chain), whose Consequences assign the
+  check-to-exec obligation here
 - Research: ccache shared cache (https://ccache.dev/manual/latest.html),
   git `--shared` (https://git-scm.com/docs/git-init), Go module cache
   (https://go.dev/ref/mod), npm cacache (https://github.com/npm/cacache),
