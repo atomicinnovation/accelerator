@@ -526,6 +526,8 @@ inputs:
   `10.48550/ARXIV.2305.12345` yields
   `[doi, arxiv_id, published, updated, accessed]`.
 - An entry without `arxiv:doi` yields no `doi`.
+- An `arxiv:doi` listing several space-separated DOIs records the first
+  usable one.
 - An OpenAlex `publication_date` of `unknown`, or an arXiv `<published>`
   that is not ISO 8601, leaves that key absent while the other keys
   remain.

@@ -37,7 +37,11 @@ impl Entry {
 
     fn metadata(&self, id: &ArxivId, accessed: PartialDate) -> SourceMetadata {
         let mut metadata = SourceMetadata::default();
-        if let Some(doi) = self.doi.as_deref().and_then(Doi::parse) {
+        if let Some(doi) = self
+            .doi
+            .as_deref()
+            .and_then(|dois| dois.split_whitespace().find_map(Doi::parse))
+        {
             metadata.record_doi(&doi);
         }
         metadata.record_arxiv_id(id);

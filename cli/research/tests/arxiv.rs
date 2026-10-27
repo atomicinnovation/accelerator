@@ -223,6 +223,24 @@ fn an_entry_without_a_doi_records_no_doi() {
 }
 
 #[test]
+fn an_entry_declaring_several_dois_records_the_first_usable_one() {
+    for (declared, recorded) in [
+        ("10.1000/first 10.1000/second", "10.1000/first"),
+        ("not-a-doi 10.1000/second", "10.1000/second"),
+    ] {
+        let entry = Entry {
+            doi: Some(declared.to_owned()),
+            ..dated_entry()
+        };
+        let doi = metadata_of(&entry)
+            .into_iter()
+            .find(|(key, _)| key == "doi")
+            .map(|(_, value)| value);
+        assert_eq!(doi.as_deref(), Some(recorded), "{declared}");
+    }
+}
+
+#[test]
 fn an_unusable_published_date_is_left_out_while_the_rest_remain() {
     let entry = Entry {
         published: Some("20/05/2023".to_owned()),
