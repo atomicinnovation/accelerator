@@ -15,7 +15,7 @@ pub struct PartialDate {
 
 impl PartialDate {
     /// Reads `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, the last optionally followed
-    /// by `T` and a time of day that is checked and then dropped;
+    /// by `T` or a space and a time of day that is checked and then dropped;
     /// `YYYY/M[M]` and `YYYY/M[M]/D[D]`; or an English month name, in full
     /// or abbreviated, as `Month D[D][,] YYYY`, `D[D] Month YYYY` or
     /// `Month YYYY`.
@@ -27,7 +27,7 @@ impl PartialDate {
         if raw.contains('/') {
             Self::slashed(raw)
         } else if raw.contains(char::is_whitespace) {
-            Self::month_named(raw)
+            Self::iso(raw).or_else(|| Self::month_named(raw))
         } else {
             Self::iso(raw)
         }
@@ -43,7 +43,7 @@ impl PartialDate {
     }
 
     fn iso(raw: &str) -> Option<Self> {
-        let (date, time_of_day) = match raw.split_once('T') {
+        let (date, time_of_day) = match raw.split_once(['T', ' ']) {
             Some((date, time_of_day)) => (date, Some(time_of_day)),
             None => (raw, None),
         };

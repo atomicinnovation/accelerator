@@ -401,7 +401,7 @@ Tests first (`cli/research/tests/metadata_date.rs`):
 - These are unusable: `12/05/2010`, `Feb 29, 2023`, `Mar 21, 07`,
   `Mars 21, 2007`, `Wed, 21 Mar 2007`, `2023-13-01`,
   `2023-02-30`, `2023-02-29`, `1900-02-29`, `2023-00`, `2023-05-00`,
-  `2023-5`, `2023-05-12 10:00`, `2023-05-12T25:00Z`, `2023-05-12T10:60Z`,
+  `2023-5`, `2024-01 10:00`, `2023-05-12T25:00Z`, `2023-05-12T10:60Z`,
   `2023-05-12T10:00+24:00`, `2023-05-12T10:00+05:3` and the empty string.
 - `utc_date_of(UNIX_EPOCH + 1_800_000_000 s)` → `2027-01-15`;
   `utc_date_of(UNIX_EPOCH)` → `1970-01-01`; `2024-02-29T00:00:00Z` and the
@@ -428,9 +428,9 @@ impl fmt::Display for PartialDate { … }
 ```
 
 - ISO forms are `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or `YYYY-MM-DD` followed
-  by `T` and `hh:mm[:ss[.fraction]]`, with an optional `Z`, `±hh`, `±hhmm`
-  or `±hh:mm`. Hours run 00–23, minutes and seconds 00–59. The time part is
-  validated, then dropped.
+  by `T` or a space and `hh:mm[:ss[.fraction]]`, with an optional `Z`,
+  `±hh`, `±hhmm` or `±hh:mm`. Hours run 00–23, minutes and seconds 00–59.
+  The time part is validated, then dropped.
 - Slash forms are `YYYY/M[M]` and `YYYY/M[M]/D[D]`. Day validity follows
   the month and leap year.
 - Month-named forms are `Month D[D][,] YYYY`, `D[D] Month YYYY` and

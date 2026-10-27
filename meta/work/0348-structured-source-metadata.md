@@ -150,7 +150,8 @@ already written stays in the one-line form.
 - **Usable values**: a value is usable when it normalises to its key's
   value form. Line breaks collapse to single spaces and surrounding
   whitespace is trimmed first. A `doi` starts with `10.`. A date is usable
-  only as ISO 8601 (a date or datetime at any allowed precision), as a
+  only as ISO 8601 (a date or datetime at any allowed precision, its time
+  after `T` or, as RFC 3339 allows, a space), as a
   year-first slash date (`2010/5/12`, `2010/5`), or with an English month
   name in full or abbreviated (`May 12, 2010`, `Mar. 21 2007`,
   `21 March 2007`, `March 2007`). Any other form, such as `12/05/2010`, is

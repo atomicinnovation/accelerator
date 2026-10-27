@@ -193,8 +193,9 @@ in the order below, and each declaration of a field in document order:
   next declaration.
 - A DOI is usable bare, after `doi:`, or in a `doi.org` or `dx.doi.org` URL,
   when it is printable ASCII of at most 256 characters.
-- A date is usable as ISO 8601, a date or a datetime, whose local date is
-  kept and offset discarded; as a year-first slash date (`2010/5/12`,
+- A date is usable as ISO 8601, a date or a datetime (its time after `T`
+  or, as RFC 3339 allows, a space), whose local date is kept and offset
+  discarded; as a year-first slash date (`2010/5/12`,
   `2010/5`); or with an English month name, full or abbreviated
   (`May 12, 2010`, `Mar. 21 2007`, `21 March 2007`, `March 2007`). A numeric
   day-first date such as `12/05/2010` is refused, since its day and month
