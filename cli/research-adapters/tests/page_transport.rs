@@ -111,6 +111,57 @@ fn a_location_carrying_raw_utf8_arrives_intact() {
     assert_eq!(location.as_deref(), Some("/bücher"));
 }
 
+fn with_location_bytes(status: u16, location: &[u8]) -> Route {
+    let mut response = format!(
+        "HTTP/1.1 {status} X\r\nContent-Type: text/html\r\n\
+         Content-Length: 0\r\nConnection: close\r\nLocation: "
+    )
+    .into_bytes();
+    response.extend_from_slice(location);
+    response.extend_from_slice(b"\r\n\r\n");
+    Route::Raw(response)
+}
+
+#[test]
+fn a_redirect_whose_location_is_not_utf8_is_refused() {
+    let server = MockHTTPServer::start();
+    server.route(page(), with_location_bytes(302, b"/caf\xe9"));
+
+    assert_eq!(
+        get(&server, &under_fixture_host(&server)),
+        PageResponse::Refused
+    );
+}
+
+#[test]
+fn a_page_whose_location_is_not_utf8_is_received_without_it() {
+    let server = MockHTTPServer::start();
+    server.route(page(), with_location_bytes(200, b"/caf\xe9"));
+
+    let (status, location, _, _) =
+        received(get(&server, &under_fixture_host(&server)));
+
+    assert_eq!(status, 200);
+    assert_eq!(location, None);
+}
+
+#[test]
+fn a_body_cut_off_mid_transfer_is_a_connection_failure() {
+    let server = MockHTTPServer::start();
+    server.route(
+        page(),
+        Route::Truncated {
+            body: b"<html><head></head></html>".to_vec(),
+            sent: 6,
+        },
+    );
+
+    assert_eq!(
+        get(&server, &under_fixture_host(&server)),
+        PageResponse::ConnectionFailed
+    );
+}
+
 #[test]
 fn the_content_type_and_body_are_surfaced() {
     let server = MockHTTPServer::start();

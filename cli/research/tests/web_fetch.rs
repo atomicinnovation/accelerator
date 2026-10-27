@@ -481,6 +481,7 @@ fn a_response_that_is_not_an_html_page_fails() {
         (received(404, None, None), WebFailure::Status(404)),
         (received(500, None, None), WebFailure::Status(500)),
         (PageResponse::ConnectionFailed, WebFailure::ConnectionFailed),
+        (PageResponse::Unavailable, WebFailure::TransportUnavailable),
         (PageResponse::TimedOut, WebFailure::TimedOut),
         (
             received(200, None, Some("application/pdf")),
@@ -745,6 +746,10 @@ fn each_failure_is_one_catalogued_line_naming_no_url_host_or_address() {
             "E_WEB_CONNECTION_FAILED: the page could not be reached",
         ),
         (
+            WebFailure::TransportUnavailable,
+            "E_RESEARCH_TRANSPORT: the HTTP client could not be initialised",
+        ),
+        (
             WebFailure::TimedOut,
             "E_WEB_TIMED_OUT: the page did not answer within the time allowed",
         ),
@@ -756,7 +761,7 @@ fn each_failure_is_one_catalogued_line_naming_no_url_host_or_address() {
     ] {
         let shown = failure.to_string();
         assert_eq!(shown, line);
-        assert!(shown.starts_with("E_WEB_"), "{shown}");
+        assert!(shown.starts_with("E_"), "{shown}");
         for leaked in ["http", "example.org", PUBLIC, "\n"] {
             assert!(!shown.contains(leaked), "{shown} contains {leaked}");
         }

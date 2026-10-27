@@ -54,13 +54,13 @@ impl PageTransport for HttpPageTransport {
             )))
             .build();
         let Ok(client) = client else {
-            return PageResponse::ConnectionFailed;
+            return PageResponse::Unavailable;
         };
         let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
         else {
-            return PageResponse::ConnectionFailed;
+            return PageResponse::Unavailable;
         };
         let exchange = async {
             let sent = client
@@ -82,15 +82,19 @@ impl PageTransport for HttpPageTransport {
     }
 }
 
-/// Bytes past `max_body` are dropped rather than the whole page refused.
+/// Bytes past `max_body` are dropped rather than the whole page refused. A
+/// `Location` that is not UTF-8 refuses only a redirect, the one response
+/// that would follow it.
 async fn receive(
     mut response: reqwest::Response,
     max_body: usize,
 ) -> PageResponse {
-    let status = response.status().as_u16();
+    let status = response.status();
     let headers = response.headers().clone();
-    let Ok(location) = utf8_header(&headers, "location") else {
-        return PageResponse::Refused;
+    let location = match utf8_header(&headers, "location") {
+        Ok(location) => location,
+        Err(_) if status.is_redirection() => return PageResponse::Refused,
+        Err(_) => None,
     };
     let mut body = Vec::new();
     while body.len() < max_body {
@@ -102,7 +106,7 @@ async fn receive(
     }
     body.truncate(max_body);
     PageResponse::Received {
-        status,
+        status: status.as_u16(),
         location,
         content_type: utf8_header(&headers, "content-type").ok().flatten(),
         body,

@@ -73,6 +73,8 @@ pub enum PageResponse {
     },
     /// The transport's own guards refused to send the request.
     Refused,
+    /// No client could be built, so nothing was sent.
+    Unavailable,
     ConnectionFailed,
     TimedOut,
 }
@@ -134,6 +136,7 @@ pub enum WebFailure {
     RedirectWithoutLocation,
     UnfollowableRedirect,
     Refused,
+    TransportUnavailable,
     ConnectionFailed,
     TimedOut,
     Status(u16),
@@ -167,6 +170,9 @@ impl fmt::Display for WebFailure {
             ),
             Self::Refused => formatter.write_str(
                 "E_WEB_REFUSED: the page's address could not be fetched safely",
+            ),
+            Self::TransportUnavailable => formatter.write_str(
+                "E_RESEARCH_TRANSPORT: the HTTP client could not be initialised",
             ),
             Self::ConnectionFailed => formatter.write_str(
                 "E_WEB_CONNECTION_FAILED: the page could not be reached",
@@ -294,6 +300,9 @@ fn next_hop(response: PageResponse, from: &PageUrl) -> Result<Hop, WebFailure> {
             body,
         } => (status, location, content_type, body),
         PageResponse::Refused => return Err(WebFailure::Refused),
+        PageResponse::Unavailable => {
+            return Err(WebFailure::TransportUnavailable)
+        }
         PageResponse::ConnectionFailed => {
             return Err(WebFailure::ConnectionFailed)
         }

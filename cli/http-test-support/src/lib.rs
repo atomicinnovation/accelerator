@@ -44,6 +44,9 @@ pub enum Route {
     },
     /// A redirect response to this absolute Location.
     Redirect { status: u16, location: String },
+    /// These bytes as the whole response, unvalidated — the shape a header
+    /// that is not UTF-8 needs.
+    Raw(Vec<u8>),
     /// 500 for the first `fail_times` hits, then 200 with the bytes.
     FlakyThenOk { fail_times: usize, body: Vec<u8> },
     /// One response per hit, in order, with the last repeating once the
@@ -485,6 +488,11 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             )?;
             stream.flush()?;
             thread::sleep(delay);
+            return Ok(());
+        }
+        Some(Route::Raw(response)) => {
+            stream.write_all(&response)?;
+            stream.flush()?;
             return Ok(());
         }
         Some(Route::Truncated { body, sent }) => {
