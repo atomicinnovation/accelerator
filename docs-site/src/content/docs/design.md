@@ -74,8 +74,9 @@ pass `--allow-internal`. These were accepted unconditionally before:
 - Carrier-grade NAT (`100.64.0.0/10`), and the other reserved ranges
   (`192.0.0.0/24`, `198.18.0.0/15`, `240.0.0.0/4`, multicast), the
   documentation ranges (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`,
-  `2001:db8::/32`, `3fff::/20`), discard-only `100::/64` and local-use NAT64
-  (`64:ff9b:1::/48`)
+  `2001:db8::/32`, `3fff::/20`) and benchmarking `2001:2::/48`
+- Any IPv6 address outside global unicast (`2000::/3`), such as discard-only
+  `100::/64` and local-use NAT64 (`64:ff9b:1::/48`)
 - The transition encodings that embed an IPv4 address — 6to4 (`2002::/16`),
   Teredo (`2001::/32`), NAT64 (`64:ff9b::/96`) and IPv4-translated
   (`::ffff:0:a.b.c.d`) — classified on the address they carry

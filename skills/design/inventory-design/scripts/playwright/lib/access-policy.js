@@ -254,18 +254,18 @@ function classifyV6(bytes) {
   if ((segment0 & 0xfe00) === 0xfc00) return 'private';
   if ((segment0 & 0xffc0) === 0xfec0) return 'private';
   if ((segment0 & 0xffc0) === 0xfe80) return 'link-local';
-  if (bytes[0] === 0xff || isV6Reserved(bytes)) return 'reserved';
+  if (!isGlobalUnicast(bytes) || isV6Reserved(bytes)) return 'reserved';
   return 'public';
+}
+
+function isGlobalUnicast(bytes) {
+  return (bytes[0] & 0xe0) === 0x20;
 }
 
 function isV6Reserved(bytes) {
   const segment = index => (bytes[index * 2] << 8) | bytes[index * 2 + 1];
   return (
-    (segment(0) === 0x0064 && segment(1) === 0xff9b && segment(2) === 0x0001) ||
-    (segment(0) === 0x0100 &&
-      segment(1) === 0 &&
-      segment(2) === 0 &&
-      segment(3) === 0) ||
+    (segment(0) === 0x2001 && segment(1) === 0x0002 && segment(2) === 0) ||
     (segment(0) === 0x2001 && segment(1) === 0x0db8) ||
     (segment(0) === 0x3fff && (segment(1) & 0xf000) === 0)
   );

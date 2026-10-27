@@ -99,7 +99,7 @@ fn classify_v6(address: Ipv6Addr) -> HostReach {
         HostReach::Private
     } else if is_v6_link_local(address) {
         HostReach::LinkLocal
-    } else if address.is_multicast() || is_v6_reserved(address) {
+    } else if !is_global_unicast(address) || is_v6_reserved(address) {
         HostReach::Reserved
     } else {
         HostReach::Public
@@ -166,15 +166,20 @@ const fn is_site_local(address: Ipv6Addr) -> bool {
     address.segments()[0] & 0xffc0 == 0xfec0
 }
 
-/// Local-use NAT64 (`64:ff9b:1::/48`), whose embedded address sits where the
-/// operator's prefix length puts it, is refused whole rather than unwrapped;
-/// discard-only `100::/64` and documentation `2001:db8::/32` and `3fff::/20`
-/// are never anyone's page.
-fn is_v6_reserved(address: Ipv6Addr) -> bool {
+/// Only `2000::/3` is allocated for global unicast, so a block assigned
+/// outside it later is never public by default. Local-use NAT64
+/// (`64:ff9b:1::/48`), whose embedded address sits where the operator's
+/// prefix length puts it, falls outside it and is refused whole rather than
+/// unwrapped.
+const fn is_global_unicast(address: Ipv6Addr) -> bool {
+    address.segments()[0] & 0xe000 == 0x2000
+}
+
+/// Benchmarking `2001:2::/48` and documentation `2001:db8::/32` and
+/// `3fff::/20` sit inside global unicast but are never anyone's page.
+const fn is_v6_reserved(address: Ipv6Addr) -> bool {
     let segments = address.segments();
-    (segments[0] == 0x0064 && segments[1] == 0xff9b && segments[2] == 0x0001)
-        || (segments[0] == 0x0100
-            && segments[1..4].iter().all(|segment| *segment == 0))
+    (segments[0] == 0x2001 && segments[1] == 0x0002 && segments[2] == 0)
         || (segments[0] == 0x2001 && segments[1] == 0x0db8)
         || (segments[0] == 0x3fff && segments[1] & 0xf000 == 0)
 }
