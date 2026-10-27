@@ -830,9 +830,27 @@ pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::A
 pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
 pub mod research::sources::metadata
 pub mod research::sources::metadata::date
+pub enum research::sources::metadata::date::Precision
+pub research::sources::metadata::date::Precision::Day
+pub research::sources::metadata::date::Precision::Month
+pub research::sources::metadata::date::Precision::Year
+impl core::clone::Clone for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::clone(&self) -> research::sources::metadata::date::Precision
+impl core::cmp::Eq for research::sources::metadata::date::Precision
+impl core::cmp::Ord for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::cmp(&self, other: &research::sources::metadata::date::Precision) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::eq(&self, other: &research::sources::metadata::date::Precision) -> bool
+impl core::cmp::PartialOrd for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::partial_cmp(&self, other: &research::sources::metadata::date::Precision) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::metadata::date::Precision
+impl core::marker::StructuralPartialEq for research::sources::metadata::date::Precision
 pub struct research::sources::metadata::date::PartialDate
 impl research::sources::metadata::date::PartialDate
 pub fn research::sources::metadata::date::PartialDate::parse(raw: &str) -> core::option::Option<Self>
+pub const fn research::sources::metadata::date::PartialDate::precision(&self) -> research::sources::metadata::date::Precision
 pub fn research::sources::metadata::date::PartialDate::utc_date_of(at: std::time::SystemTime) -> Self
 impl core::clone::Clone for research::sources::metadata::date::PartialDate
 pub fn research::sources::metadata::date::PartialDate::clone(&self) -> research::sources::metadata::date::PartialDate

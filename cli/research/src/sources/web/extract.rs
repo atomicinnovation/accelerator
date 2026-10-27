@@ -1,5 +1,8 @@
-//! The metadata a page's declarations support: for each key, the first
-//! declaration in precedence order whose value passes the key's value form.
+//! The metadata a page's declarations support.
+//!
+//! For each key, the first declaration in precedence order whose value
+//! passes the key's value form wins, except that a date is the most precise
+//! usable one within the first scheme declaring any.
 
 use crate::sources::metadata::date::PartialDate;
 use crate::sources::metadata::SourceMetadata;
@@ -23,25 +26,27 @@ pub fn declared_metadata(
         .find(|node| node.has_any_type_of(&ARTICLE_TYPES));
     let mut metadata = SourceMetadata::default();
     for (key, schemes) in WEB_KEYS {
-        let mut declared = schemes
-            .iter()
-            .flat_map(|(_, fields)| fields.iter())
-            .flat_map(|field| declarations_of(*field, page, article))
-            .map(tidied);
+        let mut by_scheme = schemes.iter().map(|(_, fields)| {
+            fields
+                .iter()
+                .flat_map(|field| declarations_of(*field, page, article))
+                .map(tidied)
+        });
         match key {
             WebKey::Doi => {
-                if let Some(doi) = declared.find_map(|value| Doi::parse(&value))
+                if let Some(doi) =
+                    by_scheme.flatten().find_map(|value| Doi::parse(&value))
                 {
                     metadata.record_doi(&doi);
                 }
             }
             WebKey::Published => {
-                if let Some(date) = first_date(declared) {
+                if let Some(date) = by_scheme.find_map(most_precise_date) {
                     metadata.record_published(date);
                 }
             }
             WebKey::Updated => {
-                if let Some(date) = first_date(declared) {
+                if let Some(date) = by_scheme.find_map(most_precise_date) {
                     metadata.record_updated(date);
                 }
             }
@@ -51,10 +56,19 @@ pub fn declared_metadata(
     metadata
 }
 
-fn first_date(
-    mut declared: impl Iterator<Item = String>,
+/// Of equally precise dates, the first declared.
+fn most_precise_date(
+    declared: impl Iterator<Item = String>,
 ) -> Option<PartialDate> {
-    declared.find_map(|value| PartialDate::parse(&value))
+    declared
+        .filter_map(|value| PartialDate::parse(&value))
+        .reduce(|kept, next| {
+            if next.precision() > kept.precision() {
+                next
+            } else {
+                kept
+            }
+        })
 }
 
 fn declarations_of<'a>(

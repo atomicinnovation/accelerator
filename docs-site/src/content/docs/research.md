@@ -176,7 +176,10 @@ only `accessed`.
 
 For each key, the first usable declaration wins. Schemes are tried in the
 order Highwire, JSON-LD, Dublin Core, OpenGraph; within a scheme, each field
-in the order below, and each declaration of a field in document order:
+in the order below, and each declaration of a field in document order. A
+date instead takes the most precise usable value within the first scheme
+that declares one, so a scheme's day-precise date beats its own month, but
+never a more precise date from a later scheme:
 
 | Key         | Declarations, in precedence order                                                                                                  |
 |-------------|------------------------------------------------------------------------------------------------------------------------------------|

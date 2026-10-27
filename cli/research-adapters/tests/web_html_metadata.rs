@@ -18,6 +18,16 @@ fn metadata_of(name: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+fn value_of<'a>(
+    metadata: &'a [(String, String)],
+    key: &str,
+) -> Option<&'a str> {
+    metadata
+        .iter()
+        .find(|(present, _)| present == key)
+        .map(|(_, value)| value.as_str())
+}
+
 fn pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
     expected
         .iter()
@@ -83,4 +93,39 @@ fn a_recorded_elife_head_yields_its_dublin_core_doi_and_date() {
             ("accessed", "2027-01-15"),
         ])
     );
+}
+
+#[test]
+fn the_most_precise_date_within_the_winning_scheme_is_kept() {
+    assert_eq!(
+        metadata_of("highwire-mixed-precision.html"),
+        pairs(&[("published", "2020-09-16"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn equally_precise_dates_within_a_scheme_keep_field_order() {
+    assert_eq!(
+        metadata_of("highwire-equal-precision.html"),
+        pairs(&[("published", "2020-09-01"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_more_precise_date_in_a_later_scheme_never_overrides_an_earlier_one() {
+    assert_eq!(
+        metadata_of("cross-scheme-precision.html"),
+        pairs(&[("published", "2020"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_recorded_nature_head_yields_its_day_precise_publication_date() {
+    let metadata = metadata_of("nature-head.html");
+
+    assert_eq!(
+        value_of(&metadata, "doi"),
+        Some("10.1038/s41586-020-2649-2")
+    );
+    assert_eq!(value_of(&metadata, "published"), Some("2020-09-16"));
 }

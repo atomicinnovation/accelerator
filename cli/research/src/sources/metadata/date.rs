@@ -13,7 +13,22 @@ pub struct PartialDate {
     day: Option<u8>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Precision {
+    Year,
+    Month,
+    Day,
+}
+
 impl PartialDate {
+    pub const fn precision(&self) -> Precision {
+        match (self.month, self.day) {
+            (_, Some(_)) => Precision::Day,
+            (Some(_), None) => Precision::Month,
+            (None, None) => Precision::Year,
+        }
+    }
+
     /// Reads `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, the last optionally followed
     /// by `T` or a space and a time of day that is checked and then dropped;
     /// `YYYY/M[M]` and `YYYY/M[M]/D[D]`; or an English month name, in full

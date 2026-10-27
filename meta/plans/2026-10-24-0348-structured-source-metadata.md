@@ -785,7 +785,8 @@ pub fn declared_metadata(page: &PageDeclarations, accessed: PartialDate) -> Sour
 
 - For each key, schemes are tried in order. Within a scheme, each field is
   tried in order, and each declaration of that field in document order. The
-  first value that normalises wins.
+  first value that normalises wins, except that a date takes the most
+  precise usable value within the first scheme declaring one.
 - Meta tag names match ASCII-case-insensitively.
 - The JSON-LD node is the first whose `types` intersects `ARTICLE_TYPES`.
 - JSON-LD `identifier` is a `Text`, or a `Node` whose `propertyID` text

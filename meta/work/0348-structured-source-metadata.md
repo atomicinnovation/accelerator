@@ -124,7 +124,9 @@ already written stays in the one-line form.
   always with `accessed`. For each key, the first usable declaration
   wins: schemes are tried in that order, and within a scheme every
   declaration is tried, in field order and then document order, before
-  the next scheme. When the command fails, the entry carries no block.
+  the next scheme. A date takes the most precise usable value within the
+  first scheme declaring one, ties going to that order. When the command
+  fails, the entry carries no block.
 - **Fetch rules**: the command rejects, without fetching, any scheme but
   `http` or `https` and any host resolving to a loopback, private,
   link-local or unspecified address, re-checking the host after every
