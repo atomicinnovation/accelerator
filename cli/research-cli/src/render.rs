@@ -14,11 +14,11 @@ use serde::ser::SerializeMap;
 use serde::Serialize;
 use serde::Serializer;
 
-use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedRecords;
 
 /// The stdout document, or `None` for a failed or rejected call, which
 /// prints only its diagnostics.
-pub fn document(fetched: &Fetched) -> Option<String> {
+pub fn document(fetched: &FetchedRecords) -> Option<String> {
     let document = match &fetched.outcome {
         FetchOutcome::Records(records) => Document::Ok {
             records: records.iter().map(RecordJson::from).collect(),
@@ -55,7 +55,7 @@ struct WebDocument<'a> {
 }
 
 /// The usage line for a ticket presented in a way the queue refuses.
-pub fn rejection(fetched: &Fetched) -> Option<String> {
+pub fn rejection(fetched: &FetchedRecords) -> Option<String> {
     let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
         return None;
     };
@@ -97,7 +97,7 @@ fn call_as_typed(binding: &Binding) -> String {
 /// The line naming the source, verb and final status of a call that did not
 /// deliver records: with its attempts, or for a waiting call its position
 /// and the ticket to re-present.
-pub fn summary(fetched: &Fetched) -> Option<String> {
+pub fn summary(fetched: &FetchedRecords) -> Option<String> {
     let status = match &fetched.outcome {
         FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,
         FetchOutcome::Waiting { ticket, position } => {

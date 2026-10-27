@@ -34,13 +34,14 @@ use corpus_adapters::SystemClock as CorpusClock;
 use research::conduct::ledger::RunId;
 use research::sources::fetch::Clock;
 use research::sources::fetch::FetchOutcome;
+use research::sources::metadata::SourceMetadata;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
-use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
+use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
@@ -63,10 +64,10 @@ use crate::cli::TopicAction;
 use crate::context::ProjectContext;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::ArxivCall;
-use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedRecords;
 use crate::fetch_command::OpenAlexAdapters;
-use crate::fetch_command::ScholarlyRequest;
+use crate::fetch_command::OpenAlexCall;
 use crate::fetch_command::SourceCall;
 use crate::topic_command::OutstandingFlags;
 use crate::topic_command::PlanRequest;
@@ -109,7 +110,7 @@ fn main() -> ExitCode {
                     ticket,
                 },
         }) => fetch(
-            clock,
+            &clock,
             &deadline,
             &family,
             &verb,
@@ -140,7 +141,7 @@ fn invoked_as_guard() -> bool {
 }
 
 fn fetch(
-    clock: Rc<dyn Clock>,
+    clock: &Rc<dyn Clock>,
     deadline: &Deadline,
     family: &str,
     verb: &str,
@@ -157,59 +158,14 @@ fn fetch(
         Ok(parsed) => parsed,
         Err(error) => return usage(&error.to_string()),
     };
-    let request = match request {
-        FetchRequest::OpenAlex(request) => ScholarlyRequest::OpenAlex(request),
-        FetchRequest::Arxiv(request) => ScholarlyRequest::Arxiv(request),
-        FetchRequest::Web(request) => {
-            return web(&request, clock.as_ref(), deadline)
-        }
-    };
-    let endpoints = match selected_endpoints() {
-        Ok(endpoints) => endpoints,
-        Err(message) => return usage(&message),
-    };
-    let project = match working_project() {
-        Ok((_, project)) => project,
-        Err(message) => return failure(&message),
-    };
-    let call = match source_call(
-        request, presented, endpoints, &project, &clock, deadline,
-    ) {
+    let call = match source_call(request, presented, clock, deadline) {
         Ok(call) => call,
-        Err(message) => return failure(&message),
+        Err(refused) => return refused,
     };
-    let ports = FetchPorts {
-        clock,
-        credentials: config_adapters::credential_ports(
-            vcs_adapters::InProcessTracking,
-            &project.root,
-            &project.root,
-        ),
-    };
-    match fetch_command::run(&ports, &project, deadline, &call) {
-        Ok(fetched) => report(&fetched),
+    match fetch_command::run(clock.as_ref(), deadline, &call) {
+        Ok(Fetched::Records(records)) => report(&records),
+        Ok(Fetched::Page(page)) => report_page(page),
         Err(error) => failure(&error.to_string()),
-    }
-}
-
-fn web(
-    request: &WebRequest,
-    clock: &dyn Clock,
-    deadline: &Deadline,
-) -> ExitCode {
-    let adapters = match selected_web_adapters() {
-        Ok(adapters) => adapters,
-        Err(message) => return usage(&message),
-    };
-    match web_command::run(request, &adapters, clock, deadline) {
-        Ok(metadata) => render::web_document(&metadata).map_or(
-            ExitCode::FAILURE,
-            |document| {
-                println!("{document}");
-                ExitCode::SUCCESS
-            },
-        ),
-        Err(failed) => failure(&failed.to_string()),
     }
 }
 
@@ -311,32 +267,46 @@ fn minted_run() -> Result<RunId, String> {
     Ok(RunId::mint(&timestamp, rand::random()))
 }
 
-/// Builds only the asked source's adapters, so an OpenAlex call never reads
-/// the configuration arXiv's shared state needs.
+/// Builds only the asked source's adapters, so no call reads a project,
+/// configuration or credential its source never needs.
 fn source_call(
-    request: ScholarlyRequest,
+    request: FetchRequest,
     presented: Option<Ticket>,
-    endpoints: Endpoints,
-    project: &ProjectContext,
     clock: &Rc<dyn Clock>,
     deadline: &Deadline,
-) -> Result<SourceCall, String> {
-    let transport = HttpTransport::new(deadline.per_request())
-        .map_err(|error| error.to_string())?;
+) -> Result<SourceCall, ExitCode> {
     Ok(match request {
-        ScholarlyRequest::OpenAlex(request) => SourceCall::OpenAlex(
-            request,
-            OpenAlexAdapters {
-                api: endpoints.openalex_api,
-                transport: Box::new(transport),
-                decoder: Box::new(JsonOpenAlexDecoder),
-                gate: Box::new(NoPacing),
-            },
-        ),
-        ScholarlyRequest::Arxiv(request) => {
+        FetchRequest::OpenAlex(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let transport = http_transport(deadline)?;
+            let credentials = config_adapters::credential_ports(
+                vcs_adapters::InProcessTracking,
+                &project.root,
+                &project.root,
+            );
+            SourceCall::OpenAlex(
+                OpenAlexCall { request, project },
+                OpenAlexAdapters {
+                    api: endpoints.openalex_api,
+                    transport: Box::new(transport),
+                    decoder: Box::new(JsonOpenAlexDecoder),
+                    gate: Box::new(NoPacing),
+                    credentials,
+                },
+            )
+        }
+        FetchRequest::Arxiv(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let transport = http_transport(deadline)?;
             let scratch = project
                 .research_scratch()
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| failure(&error.to_string()))?;
             let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
             let research = ScratchDir::new(&project.root, &scratch);
             SourceCall::Arxiv(
@@ -369,7 +339,16 @@ fn source_call(
                 },
             )
         }
+        FetchRequest::Web(request) => SourceCall::Web(
+            request,
+            selected_web_adapters().map_err(|error| usage(&error))?,
+        ),
     })
+}
+
+fn http_transport(deadline: &Deadline) -> Result<HttpTransport, ExitCode> {
+    HttpTransport::new(deadline.per_request())
+        .map_err(|error| failure(&error.to_string()))
 }
 
 fn working_project() -> Result<(PathBuf, ProjectContext), String> {
@@ -381,7 +360,7 @@ fn working_project() -> Result<(PathBuf, ProjectContext), String> {
     Ok((cwd, project))
 }
 
-fn report(fetched: &Fetched) -> ExitCode {
+fn report(fetched: &FetchedRecords) -> ExitCode {
     if let Some(rejection) = render::rejection(fetched) {
         return usage(&rejection);
     }
@@ -395,6 +374,19 @@ fn report(fetched: &Fetched) -> ExitCode {
         println!("{document}");
         ExitCode::SUCCESS
     })
+}
+
+fn report_page(page: Result<SourceMetadata, WebFailure>) -> ExitCode {
+    match page {
+        Ok(metadata) => render::web_document(&metadata).map_or(
+            ExitCode::FAILURE,
+            |document| {
+                println!("{document}");
+                ExitCode::SUCCESS
+            },
+        ),
+        Err(failed) => failure(&failed.to_string()),
+    }
 }
 
 fn usage(message: &str) -> ExitCode {
@@ -430,12 +422,16 @@ const fn selected_call_budget() -> Duration {
     CALL_BUDGET
 }
 
-#[cfg(feature = "test-loopback")]
-fn selected_web_adapters() -> Result<WebAdapters, String> {
-    let production = WebAdapters {
+fn production_web_adapters() -> WebAdapters {
+    WebAdapters {
         resolver: Box::new(DnsHostResolver),
         transport: Box::new(HttpPageTransport),
-    };
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn selected_web_adapters() -> Result<WebAdapters, String> {
+    let production = production_web_adapters();
     Ok(match loopback::stand_in()? {
         Some(stand_in) => loopback::through_stand_in(&stand_in, production),
         None => production,
@@ -445,10 +441,7 @@ fn selected_web_adapters() -> Result<WebAdapters, String> {
 #[cfg(not(feature = "test-loopback"))]
 #[allow(clippy::unnecessary_wraps)]
 fn selected_web_adapters() -> Result<WebAdapters, String> {
-    Ok(WebAdapters {
-        resolver: Box::new(DnsHostResolver),
-        transport: Box::new(HttpPageTransport),
-    })
+    Ok(production_web_adapters())
 }
 
 struct Endpoints {
