@@ -60,3 +60,27 @@ fn a_date_published_beside_markup_in_a_string_is_read() {
         pairs(&[("published", "2019-03-04"), ("accessed", "2027-01-15")])
     );
 }
+
+#[test]
+fn a_recorded_plos_one_head_yields_its_highwire_doi_and_month_named_date() {
+    assert_eq!(
+        metadata_of("plos-one-head.html"),
+        pairs(&[
+            ("doi", "10.1371/journal.pone.0000308"),
+            ("published", "2007-03-21"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_recorded_elife_head_yields_its_dublin_core_doi_and_date() {
+    assert_eq!(
+        metadata_of("elife-head.html"),
+        pairs(&[
+            ("doi", "10.7554/elife.05005"),
+            ("published", "2015-08-12"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}

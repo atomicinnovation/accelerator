@@ -218,8 +218,10 @@ review".
      few seconds, the call ends with `E_WEB_TIMED_OUT` within the
      configured call budget.
 2. Unchanged:
-   - [ ] Re-run Phase 4's three live checks: PLOS ONE, `169.254.169.254`
-     and PeerJ's 403.
+   - [x] Re-run Phase 4's three live checks: PLOS ONE, `169.254.169.254`
+     and PeerJ's 403. Re-run 2026-10-27 on the PR #171 response tip: PLOS
+     ONE emits `doi` and `published` `2007-03-21`, `169.254.169.254` is
+     `E_WEB_HOST_REJECTED` (link-local), and PeerJ is `E_WEB_STATUS` 403.
 
 ### Recommendations:
 
