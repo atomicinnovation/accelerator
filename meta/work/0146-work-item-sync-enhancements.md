@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-10-15T21:49:14+00:00"
+last_updated: "2026-10-27T13:57:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -262,6 +262,8 @@ Resolved during refinement (2026-08-30):
 - 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
   promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
   lowering, bounded to set-membership negation as Linear has no top-level `not`).
+- 0294 — Remove the legacy Linear catalogue projections (drop the `team` /
+  `workflowStates` keys 0292 keeps writing for one release; blocked by 0292).
 - 0296 — Sync round-trip defects between local work items and the tracker
   (body equivalence, title-line stripping, corpus recovery, digest-recipe
   migration); lands before 0320 and 0290.
@@ -269,12 +271,24 @@ Resolved during refinement (2026-08-30):
   meaning-changing rewrites); blocked by 0296.
 - 0321 — Sync authority model between local work items and the tracker (ADR
   ratifying or revising 0296's representation rule).
+- 0335 — Remove the legacy sync digest recipe (once no unmarked
+  `last-sync.json` entry remains; blocked by 0296, classification set by
+  0290's recipe bump).
 - 0302 — Work item re-key command (`work rekey` converges existing IDs onto
   the current `work.id_pattern`; blocked by 0230).
 - 0343 — Alias normalisation for re-keyed work items (split out of 0302).
 - 0345 — Bare-number review during alias normalisation (blocked by 0343 and
   0344).
 - 0346 — Remove deprecated `ACCELERATOR_MIGRATE_FORCE` (blocked by 0302).
+- 0300 — Sync pulls of tracked work items fail silently (every pull into an
+  already-tracked item fails, reported as a bare `failed` row with exit 0).
+- 0319 — Explicit work item ID on `accelerator work create` (avoid numbers
+  taken on unmerged branches without bypassing the atomic write and push).
+- 0336 — Linear init cannot bootstrap a fresh repository (resolve the team
+  from `linear.team_key` before a catalogue exists; coordinates with 0294).
+- 0338 — Linear update overwrites fields it was not given (`accelerator
+  linear update` sends empty title / description and drops named flags; sync
+  is unaffected).
 
 ### Future candidates (deferred from 0229 refinement)
 

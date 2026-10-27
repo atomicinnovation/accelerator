@@ -519,7 +519,7 @@ Resolved during planning:
 - Related: 0285 — Targeted Pull of Remote-Only Work Items and Resolution
   Normalisation (done); its targeted pull-create is a pull entry point these
   regression tests cover.
-- Coordinated: 0230 — Tracker-Owned Work Item ID Generation (in progress)
+- Coordinated: 0230 — Tracker-Owned Work Item ID Generation (done)
   adds baseline writes and pull paths (pending-push adoption, promotion,
   remote-only pulls). Whichever lands second adapts: 0230's baseline writes
   use the entry shape current at the time, and its pull paths join the
