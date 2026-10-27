@@ -5,7 +5,7 @@ title: "Bound a relocated cache root's growth"
 date: "2026-08-17T20:36:50+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "ready"
+status: "in-progress"
 kind: "story"
 priority: "low"
 parent: "work-item:0136"
@@ -22,7 +22,7 @@ external_id: "PP-747"
 # 0218: Bound a relocated cache root's growth
 
 **Kind**: Story
-**Status**: Ready
+**Status**: In Progress
 **Priority**: Low
 **Author**: Toby Clemson
 
