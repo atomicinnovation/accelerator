@@ -11,9 +11,9 @@ priority: "high"
 parent: "work-item:0121"
 blocks: ["work-item:0281"]
 blocked_by: ["work-item:0348"]
-relates_to: ["work-item:0280", "work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311"]
+relates_to: ["work-item:0280", "work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0349"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
-last_updated: "2026-10-24T09:02:51+00:00"
+last_updated: "2026-10-28T12:19:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-892"
@@ -67,7 +67,7 @@ the conflict record follows that form.
 
 ## Requirements
 
-The requirements below, from **Same source** to **Full ties**, are together
+The requirements below, from **Same source** to **Block order**, are together
 the **citing-once rule**. **Merge rule** and **Retraction suffixes** are its
 tier-text parts. Wherever the rule orders or compares citations by tier, it
 uses the base tier (`tier-3`) and ignores any suffix.
@@ -110,11 +110,15 @@ uses the base tier (`tier-3`) and ignores any suffix.
 - **Metadata merge**: the merged citation carries every source metadata key
   any of its citations carries, each with the value from the first citation
   in citation order that carries that key, except as **Full ties** decides.
-  Keys are ordered as 0348 orders a metadata block.
 - **Full ties**: when citations tie on tier, venue and URL, the title, and
   each metadata value among the tied citations that carry that key, are
   taken separately as the first value in case-folded, then byte-wise order,
   so ISO dates such as `accessed` keep the earliest.
+- **Block order**: every metadata block a composer or `synthesise` writes,
+  merged or carried from a single citation, lists its keys in 0348's
+  canonical order: recommended keys in their table's order, then any other
+  keys byte-wise. Values are carried as recorded, never put into canonical
+  form, and no key is added that no citation carries.
 - The composer agent definition and the `synthesise` instructions both state
   every part of the citing-once rule. `synthesise` applies it to every
   citation across the findings it reads, including duplicates within one
@@ -123,10 +127,14 @@ uses the base tier (`tier-3`) and ignores any suffix.
   tier in the merged tier text, chosen or suffixed, comes from a note, and
   **Merge rule** and **Retraction suffixes** are the only transformations a
   composer applies to tier text.
+- 0348's byte-for-byte carry-forward instruction in the composer and
+  `synthesise` is narrowed likewise: **Metadata merge**, **Full ties** and
+  **Block order** are the only changes either makes to a metadata block.
 - The finding outputter documents the `also` suffix alongside the existing
   tier suffixes.
 - `synthesise` cites a source with exactly one citation across all the
-  findings it reads with its tier text unchanged.
+  findings it reads with its tier text and metadata values unchanged, its
+  block in canonical order.
 
 ## Acceptance Criteria
 
@@ -312,6 +320,16 @@ and metadata assertions refer to that entry.
 - [ ] Given notes citing `pub.example/a` with `doi: 10.x/y` and
       `pub.example/b` with `doi: 10.x/z`, both at tier-2, when a composer
       writes the finding, then they are cited as two sources.
+- [ ] Given a note citing a source once with source metadata
+      `published: 2019` listed before `doi: 10.x/y`, when a composer writes
+      the finding, then the cited source's block lists `doi` before
+      `published`, each value unchanged.
+- [ ] Given one finding citing a source once with source metadata
+      `zeta: 1`, `doi: 10.x/y` and `alpha: 2` in that order, when
+      `synthesise` writes the dossier, then the block lists `doi`, `alpha`,
+      `zeta`.
+- [ ] Given a note citing a source with source metadata `doi: 10.X/Y`, when
+      a composer writes the finding, then the block carries `doi: 10.X/Y`.
 - [ ] Given one finding written before this rule shipped, citing
       `brandur.org/notifier` twice, at tier-2
       and tier-3, when `synthesise` writes the dossier, then it is cited
@@ -321,7 +339,8 @@ and metadata assertions refer to that entry.
       `tier-3 (also tier-2, tier-1)`, and the composer definition states
       that every tier in merged tier text comes from a note and that
       **Merge rule** and **Retraction suffixes** are the only changes it
-      makes to tier text.
+      makes to tier text; neither retains an instruction to carry a
+      metadata block byte-for-byte or never to reorder one.
 
 ## Open Questions
 
@@ -339,6 +358,9 @@ None; review 1 settled the remaining questions (see Drafting Notes).
 - Relies on the `tier-3 (retracted)` and `tier-3 (withdrawn)` suffixes as
   shipped by 0280; a change to that vocabulary changes **Retraction
   suffixes**.
+- Relies on 0348's canonical key order (`RECOMMENDED_KEYS` in
+  `cli/research/src/sources/metadata.rs`, then byte-wise), and replaces
+  0348's byte-for-byte carry-forward in the composer and `synthesise`.
 - 0305 must keep a source's `doi` metadata when it tiers DOI-cited sources
   by resolved venue; without it, those citations match by URL only.
 - Updates 0121: none needed. Its contract derives `synthesis.md`'s Sources
@@ -351,19 +373,27 @@ None; review 1 settled the remaining questions (see Drafting Notes).
   conflicts show up), 0305 (DOI resolver tiering), 0311 (web-profile tier
   drift), 0160 and 0161 (the Inspect eval tier, the future home of a
   retained determinism eval for the citing-once rule).
+- Related: 0349 fills further recommended keys; **Metadata merge** and
+  **Block order** apply to them unchanged.
 
 ## Assumptions
 
 - Notes and findings written before 0348 carry no source metadata; their
   citations carry a DOI only through a `doi.org` or `dx.doi.org` URL.
+- A non-canonical block reaches a note only by hand edit or a later
+  producer, never from 0348's CLI, so reordering every block changes no
+  CLI-produced output.
 
 ## Technical Notes
 
-- Composer rule: `agents/composer.md:28-30`.
-- Synthesise tier carry-forward:
-  `skills/research/research-topic/SKILL.md:645-649`.
+- Composer rule, including 0348's byte-for-byte block carry-forward:
+  `agents/composer.md:28-35`.
+- Synthesise tier and block carry-forward:
+  `skills/research/research-topic/SKILL.md:645-653`.
 - Tier suffix documentation:
-  `skills/research/outputters/finding-outputter/SKILL.md:76-77`.
+  `skills/research/outputters/finding-outputter/SKILL.md:80-82`.
+- Canonical key order: `RECOMMENDED_KEYS` in
+  `cli/research/src/sources/metadata.rs`.
 - Tier text is produced only by `Tier`'s `Display` in
   `cli/research/src/sources/record.rs`; nothing parses it back.
 
@@ -395,8 +425,12 @@ None; review 1 settled the remaining questions (see Drafting Notes).
   field by case-folded then byte-wise order, and `synthesise` applying the
   citing-once rule to every citation, including duplicates within one
   older finding.
+- Review 2 (2026-10-28): 0348 shipped byte-for-byte block carry-forward,
+  contradicting **Metadata merge**. The user chose canonical key order for
+  every block a composer or `synthesise` writes, merged or not, over keeping
+  single-citation blocks byte-for-byte; values stay as recorded.
 
 ## References
 
 - Source: https://github.com/atomicinnovation/accelerator/issues/143
-- Related: 0121, 0280, 0281, 0283, 0284, 0305, 0311, 0348
+- Related: 0121, 0280, 0281, 0283, 0284, 0305, 0311, 0348, 0349
