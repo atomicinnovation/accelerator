@@ -13,7 +13,7 @@ blocks: ["work-item:0281"]
 blocked_by: ["work-item:0348"]
 relates_to: ["work-item:0280", "work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0349"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
-last_updated: "2026-10-28T12:19:11+00:00"
+last_updated: "2026-10-28T15:41:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-892"
@@ -119,10 +119,14 @@ uses the base tier (`tier-3`) and ignores any suffix.
   canonical order: recommended keys in their table's order, then any other
   keys byte-wise. Values are carried as recorded, never put into canonical
   form, and no key is added that no citation carries.
-- The composer agent definition and the `synthesise` instructions both state
-  every part of the citing-once rule. `synthesise` applies it to every
-  citation across the findings it reads, including duplicates within one
-  finding, treating an existing `also` suffix as more tiers to merge.
+- One shared rule file states every part of the citing-once rule, including
+  the recommended keys in canonical order. The composer reads it through a
+  path `conduct` injects beside the finding outputter's, and `synthesise`
+  reads it before writing the dossier; neither the composer agent definition
+  nor the `synthesise` instructions restate the rule. `synthesise` applies
+  it to every citation across the findings it reads, including duplicates
+  within one finding, treating an existing `also` suffix as more tiers to
+  merge.
 - The composer's verbatim-tier instruction is narrowed, not removed: every
   tier in the merged tier text, chosen or suffixed, comes from a note, and
   **Merge rule** and **Retraction suffixes** are the only transformations a
@@ -334,13 +338,18 @@ and metadata assertions refer to that entry.
       `brandur.org/notifier` twice, at tier-2
       and tier-3, when `synthesise` writes the dossier, then it is cited
       once as `tier-3 (also tier-2)`.
-- [ ] The composer agent definition and the `synthesise` instructions each
-      state every part of the citing-once rule, with at least the example
-      `tier-3 (also tier-2, tier-1)`, and the composer definition states
-      that every tier in merged tier text comes from a note and that
-      **Merge rule** and **Retraction suffixes** are the only changes it
-      makes to tier text; neither retains an instruction to carry a
-      metadata block byte-for-byte or never to reorder one.
+- [ ] One shared rule file states every part of the citing-once rule, with
+      at least the example `tier-3 (also tier-2, tier-1)`, and lists the
+      recommended keys in `RECOMMENDED_KEYS` order. `conduct` injects its
+      path into every composer it spawns, `synthesise` reads it before
+      writing the dossier, and neither the composer agent definition nor
+      the `synthesise` instructions restate the rule.
+- [ ] The composer definition states that every tier in merged tier text
+      comes from a note and that **Merge rule** and **Retraction suffixes**
+      are the only changes it makes to tier text; none of the composer
+      definition, the `synthesise` instructions and the rule file retains
+      an instruction to carry a metadata block byte-for-byte or never to
+      reorder one.
 
 ## Open Questions
 
@@ -386,6 +395,11 @@ None; review 1 settled the remaining questions (see Drafting Notes).
 
 ## Technical Notes
 
+- Shared rule file: `skills/research/outputters/citing-once/SKILL.md`, a
+  non-invocable contract like `finding-outputter`. The composer is spawned
+  with its path at `skills/research/research-topic/SKILL.md:439-448`; the
+  composer's read scope (`agents/composer.md:20-22`, `:50-52`) must admit
+  it, and conformance must list it with the other injected outputters.
 - Composer rule, including 0348's byte-for-byte block carry-forward:
   `agents/composer.md:28-35`.
 - Synthesise tier and block carry-forward:
@@ -429,6 +443,9 @@ None; review 1 settled the remaining questions (see Drafting Notes).
   contradicting **Metadata merge**. The user chose canonical key order for
   every block a composer or `synthesise` writes, merged or not, over keeping
   single-citation blocks byte-for-byte; values stay as recorded.
+- Research follow-up (2026-10-28): the user chose one shared rule file that
+  both the composer and `synthesise` read over stating the rule in each, so
+  the two copies cannot drift.
 
 ## References
 
