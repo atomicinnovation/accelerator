@@ -53,7 +53,8 @@ struct FieldsPair {
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct RecipeRecord {
     recipe: u64,
-    pulldown_cmark: String,
+    /// Every parser version under which this recipe's golden digests hold.
+    pulldown_cmark: Vec<String>,
 }
 
 fn text(value: &Value, key: &str) -> String {
@@ -213,11 +214,17 @@ fn recipe_history() -> Result<Vec<RecipeRecord>, TestError> {
     )?)?;
     Ok(entries(&document, "history")
         .iter()
-        .map(|entry| {
-            record(
-                entry["recipe"].as_u64().expect("recipe is a number"),
-                &text(entry, "pulldown_cmark"),
-            )
+        .map(|entry| RecipeRecord {
+            recipe: entry["recipe"].as_u64().expect("recipe is a number"),
+            pulldown_cmark: entries(entry, "pulldown_cmark")
+                .iter()
+                .map(|version| {
+                    version
+                        .as_str()
+                        .expect("a pulldown_cmark version is a string")
+                        .to_owned()
+                })
+                .collect(),
         })
         .collect())
 }
@@ -238,38 +245,47 @@ fn locked_version(package: &str) -> Result<String, TestError> {
         .ok_or_else(|| format!("{package} is not in cli/Cargo.lock").into())
 }
 
-/// The history as of its latest entry; `recipe.json` may only extend it.
+/// The history as of the most recent recipe or parser version; `recipe.json`
+/// may only extend it.
 fn recorded_history() -> Vec<RecipeRecord> {
-    vec![record(1, "0.13.4"), record(1, "0.13.5")]
+    vec![record(1, &["0.13.4", "0.13.5"])]
 }
 
-fn record(recipe: u64, version: &str) -> RecipeRecord {
+fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
     RecipeRecord {
         recipe,
-        pulldown_cmark: version.to_owned(),
+        pulldown_cmark: versions
+            .iter()
+            .map(|&version| version.to_owned())
+            .collect(),
     }
 }
 
-/// Whether `next` keeps `previous`'s recipe, re-verified under another
-/// parser version, or bumps it by one.
-const fn follows(previous: &RecipeRecord, next: &RecipeRecord) -> bool {
-    next.recipe == previous.recipe || next.recipe == previous.recipe + 1
+fn extends(entry: &RecipeRecord, recorded: &RecipeRecord) -> bool {
+    entry.recipe == recorded.recipe
+        && entry.pulldown_cmark.starts_with(&recorded.pulldown_cmark)
 }
 
-/// Whether `history` extends `recorded` one recipe at a time and ends at
-/// `current`, last verified under the `locked` parser version.
+/// Whether `history` extends `recorded` one recipe or parser version at a
+/// time and ends at `current`, recorded under the `locked` parser version.
 fn recipe_guard(
     recorded: &[RecipeRecord],
     history: &[RecipeRecord],
     current: u64,
     locked: &str,
 ) -> Result<(), String> {
-    if !history.starts_with(recorded) {
+    if history.len() < recorded.len()
+        || !history
+            .iter()
+            .zip(recorded)
+            .all(|(entry, recorded)| extends(entry, recorded))
+    {
         return Err("an earlier recipe's history entry was rewritten".into());
     }
-    let first = history.first().ok_or("the history is empty")?;
-    if first.recipe != 1
-        || history.windows(2).any(|pair| !follows(&pair[0], &pair[1]))
+    if history
+        .iter()
+        .zip(1..)
+        .any(|(entry, expected)| entry.recipe != expected)
     {
         return Err("recipes must run 1, 2, 3, … with no gap".into());
     }
@@ -280,12 +296,16 @@ fn recipe_guard(
             latest.recipe
         ));
     }
-    if latest.pulldown_cmark != locked {
+    if !latest
+        .pulldown_cmark
+        .iter()
+        .any(|version| version == locked)
+    {
         return Err(format!(
-            "recipe {current} was last verified under pulldown-cmark {}, but \
+            "recipe {current} was recorded under pulldown-cmark {}, but \
              {locked} is locked; record {locked} against recipe {current} if \
-             every golden digest holds under it, or bump the recipe",
-            latest.pulldown_cmark
+             every golden digest still holds, or bump the recipe",
+            latest.pulldown_cmark.join(", ")
         ));
     }
     Ok(())
@@ -305,41 +325,34 @@ fn the_current_recipe_records_the_locked_parser_version(
 
 #[test]
 fn the_recipe_guard() {
-    let one = record(1, "0.13.4");
-    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 8] = [
+    let one = record(1, &["0.13.4"]);
+    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 7] = [
         ("matching", vec![one.clone()], 1, "0.13.4", true),
         ("mismatched version", vec![one.clone()], 1, "0.13.5", false),
         (
-            "recipe re-verified under a new parser",
-            vec![one.clone(), record(1, "0.13.5")],
+            "version added to the current recipe",
+            vec![record(1, &["0.13.4", "0.13.5"])],
             1,
             "0.13.5",
             true,
         ),
         (
-            "recipe going back",
-            vec![one.clone(), record(2, "0.13.5"), record(1, "0.13.6")],
+            "recorded version dropped",
+            vec![record(1, &["0.13.5"])],
             1,
-            "0.13.6",
-            false,
-        ),
-        (
-            "skipped recipe",
-            vec![one.clone(), record(3, "0.13.5")],
-            3,
             "0.13.5",
             false,
         ),
         (
             "bumped recipe with a new entry",
-            vec![one.clone(), record(2, "0.13.5")],
+            vec![one.clone(), record(2, &["0.13.5"])],
             2,
             "0.13.5",
             true,
         ),
         (
             "rewritten earlier entry",
-            vec![record(1, "0.13.5"), record(2, "0.13.5")],
+            vec![record(1, &["0.13.5"]), record(2, &["0.13.5"])],
             2,
             "0.13.5",
             false,
@@ -354,7 +367,7 @@ fn the_recipe_guard() {
     ];
     for (name, history, current, locked, passes) in cases {
         assert_eq!(
-            recipe_guard(&[record(1, "0.13.4")], &history, current, locked)
+            recipe_guard(&[record(1, &["0.13.4"])], &history, current, locked)
                 .is_ok(),
             passes,
             "{name}"

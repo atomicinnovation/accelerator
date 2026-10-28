@@ -2,11 +2,7 @@
   "history": [
     {
       "recipe": 1,
-      "pulldown_cmark": "0.13.4"
-    },
-    {
-      "recipe": 1,
-      "pulldown_cmark": "0.13.5"
+      "pulldown_cmark": ["0.13.4", "0.13.5"]
     }
   ]
 }
