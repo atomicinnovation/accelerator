@@ -11,7 +11,7 @@ priority: "high"
 relates_to: ["work-item:0369"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "ci"]
-last_updated: "2026-10-28T16:18:46+00:00"
+last_updated: "2026-10-29T08:51:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -64,7 +64,10 @@ well as local runs.
 Goals:
 - Reduce the wall-clock of a warm no-op `mise run`.
 - Shorten the CI workflow's critical path.
-- Keep every gate that exists today, with no lighter local profile.
+- Keep every gate that exists today, with no lighter local profile. One
+  check moves rather than disappears: 0362 drops the hooks smoke test's
+  per-pull-request check of the committed public key against a published
+  signature, which `prerelease:finalise` and `release:finalise` keep.
 
 Decomposition:
 - 0362: Make the bootstrap test suites fast and hermetic (A1, A7)
@@ -83,8 +86,9 @@ Decomposition:
       the same machine completes in under 200 s.
 - [ ] Given the main workflow's job timings, when all children are done,
       then no job in a pull-request run takes longer than 12 minutes.
-- [ ] Each suite runs the same number of tests as before, except for the
-      deliberately removed third run of the visualiser lib tests.
+- [ ] Every test that runs today still runs, except for the deliberately
+      removed third run of the visualiser lib tests. Children may add
+      tests.
 - [ ] `default` still depends on everything it depends on today.
 
 ## Open Questions

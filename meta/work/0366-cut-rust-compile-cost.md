@@ -9,9 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
+blocked_by: ["work-item:0362"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-10-28T16:18:46+00:00"
+last_updated: "2026-10-29T10:10:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -94,7 +95,14 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Dependencies
 
-- Blocked by: none
+- Blocked by: 0362, which lands first. Collapsing the debug builds must
+  keep `test:integration:hooks`'s launcher and `accelerator-vcs` builds
+  working, and the debug-info trial changes the launcher size that 0362's
+  speed ratios measure against. 0362 adds one in-pytest build, the debug
+  shim through `build_shim()`; no mise task builds the shim today. If
+  this item brings the debug shim under a mise task, the hooks,
+  entrypoint and skill-invocation suites take that edge in place of
+  `build_shim()`, and the shim keeps 0362's `minisign-verify` override.
 - Blocks: none
 
 ## Assumptions

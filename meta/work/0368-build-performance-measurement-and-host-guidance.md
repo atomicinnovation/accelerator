@@ -7,11 +7,12 @@ author: "Toby Clemson"
 producer: "extract-work-items"
 status: "draft"
 kind: "task"
-priority: "medium"
+priority: "high"
 parent: "work-item:0361"
+blocks: ["work-item:0362", "work-item:0363", "work-item:0364", "work-item:0365", "work-item:0366", "work-item:0367"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation"]
-last_updated: "2026-10-28T16:18:46+00:00"
+last_updated: "2026-10-29T10:10:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +21,7 @@ schema_version: 1
 
 **Kind**: Task
 **Status**: Draft
-**Priority**: Medium
+**Priority**: High
 **Author**: Toby Clemson
 
 ## Summary
@@ -88,7 +89,12 @@ separated out by experiment.
 ## Dependencies
 
 - Blocked by: none
-- Blocks: none
+- Blocks: 0362, 0363, 0364, 0365, 0366 and 0367, through Requirements 1–2
+  alone: the `measure:build` harness and its warm no-op baseline. 0361
+  measures its 200 s target against that baseline, so it must be recorded
+  before the first of these speed changes merges. The edge gates merging
+  only, and is discharged once the Requirement 2 baseline is recorded.
+  The host guidance (Requirements 3–4) blocks nothing.
 
 ## Assumptions
 
