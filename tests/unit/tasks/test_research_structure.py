@@ -1396,6 +1396,98 @@ def test_every_template_carries_the_metadata_slot_under_its_entry(
     )
 
 
+CITING_ONCE_PATH = "skills/research/outputters/citing-once/SKILL.md"
+CITING_ONCE = REPO_ROOT / CITING_ONCE_PATH
+RULE_PARTS = (
+    "Same source",
+    "Carrying a DOI",
+    "Merge rule",
+    "Retraction suffixes",
+    "Citation order",
+    "Representative citation",
+    "Metadata merge",
+    "Full ties",
+    "Block order",
+)
+RULE_SIGNATURES = (
+    "ignores the suffix",
+    "every tier its `also` suffix lists",
+    "leading `www.`",
+    "Matches chain",
+    "`dx.doi.org`",
+    "case-insensitively",
+    "lowest tier",
+    "next-lowest first",
+    "joined by `; `",
+    "named venue",
+    "sorts after every venue",
+    "`https://` before `http://`",
+    "case-folded, then byte-wise",
+    "never rewrites a cited URL",
+    "Never add a key",
+    "identical as recorded",
+    "never put into canonical form",
+)
+MERGED_TIER_EXAMPLES = (
+    "`tier-3 (also tier-2, tier-1)`",
+    "`tier-3 (retracted; withdrawn; also tier-1)`",
+)
+
+
+def test_the_citing_once_rule_is_an_injected_contract() -> None:
+    frontmatter, _ = _split(_read(CITING_ONCE))
+    assert "user-invocable: false" in frontmatter
+    assert "disable-model-invocation: true" in frontmatter
+
+
+def test_the_citing_once_rule_states_every_part_under_its_own_heading() -> None:
+    headings = re.findall(r"^## (.+)$", _read(CITING_ONCE), re.MULTILINE)
+    for part in RULE_PARTS:
+        assert part in headings, f"the citing-once rule must state {part!r}"
+
+
+@pytest.mark.parametrize("signature", RULE_SIGNATURES)
+def test_the_citing_once_rule_carries_each_decision(signature: str) -> None:
+    assert signature in _prose(CITING_ONCE)
+
+
+@pytest.mark.parametrize("example", MERGED_TIER_EXAMPLES)
+def test_the_citing_once_rule_gives_the_merged_tier_examples(
+    example: str,
+) -> None:
+    assert example in _prose(CITING_ONCE)
+
+
+def test_the_citing_once_rule_lists_every_recommended_key_in_order() -> None:
+    assert _key_column(_read(CITING_ONCE)) == _recommended_keys()
+
+
+def _prescribed_marks() -> set[str]:
+    return {
+        mark
+        for profile in _profiles()
+        for mark in re.findall(
+            r"`tier-[123] \(([a-z]+)\)`",
+            _prose(REPO_ROOT / _profile_skill(profile)),
+        )
+    }
+
+
+def test_the_profiles_prescribe_the_retraction_marks() -> None:
+    assert {"retracted", "withdrawn"} <= _prescribed_marks()
+
+
+def test_the_citing_once_rule_merges_every_prescribed_mark() -> None:
+    marks = _section(
+        _prose(CITING_ONCE),
+        "## Retraction suffixes",
+        "## Citation order",
+        path=CITING_ONCE,
+    )
+    for mark in _prescribed_marks():
+        assert f"`{mark}`" in marks, f"the rule must say how {mark!r} merges"
+
+
 def _synthesise() -> str:
     return _section(
         _research_topic_prose(), "### synthesise", "### Reopening a closed set"

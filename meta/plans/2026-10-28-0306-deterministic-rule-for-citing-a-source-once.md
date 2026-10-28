@@ -431,21 +431,21 @@ Citation order puts the `tier-3` citation first, then `tier-2`, then
 
 #### Automated Verification:
 
-- [ ] The new tests fail before the rule file exists, then pass, except
+- [x] The new tests fail before the rule file exists, then pass, except
       `test_the_profiles_prescribe_the_retraction_marks`, which passes
       throughout:
       `uv run pytest tests/unit/tasks/test_research_structure.py -k "citing_once or prescribe"`
-- [ ] The discovery allowlists stay green without edits:
+- [x] The discovery allowlists stay green without edits:
       `uv run pytest tests/unit/tasks/test_skill_frontmatter_validation.py tests/unit/tasks/test_skill_frontmatter_population.py`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] The generated docs list `citing-once` under internal skills
+- [x] The generated docs list `citing-once` under internal skills
       (`docs-site/src/content/docs/reference/skills/index.md` after
       `mise run docs:check`).
-- [ ] Following the worked example by hand gives its merged entry.
+- [x] Following the worked example by hand gives its merged entry.
 
 ---
 
