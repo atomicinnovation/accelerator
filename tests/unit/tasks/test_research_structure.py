@@ -1513,15 +1513,26 @@ def test_the_citing_once_rule_lists_every_recommended_key_in_order() -> None:
     assert _key_column(_read(CITING_ONCE)) == _recommended_keys()
 
 
+def _marks_in(text: str) -> set[str]:
+    return {
+        mark
+        for suffix in re.findall(r"`tier-[123] \(([^)`]+)\)`", text)
+        for mark in suffix.split("; ")
+    }
+
+
 def _prescribed_marks() -> set[str]:
     return {
         mark
         for profile in _profiles()
-        for mark in re.findall(
-            r"`tier-[123] \(([a-z]+)\)`",
-            _prose(REPO_ROOT / _profile_skill(profile)),
-        )
+        for mark in _marks_in(_prose(REPO_ROOT / _profile_skill(profile)))
     }
+
+
+def test_a_prescribed_mark_may_span_words_and_hyphens() -> None:
+    assert _marks_in(
+        "`tier-2 (expression of concern)` or `tier-3 (pre-print; retracted)`"
+    ) == {"expression of concern", "pre-print", "retracted"}
 
 
 def test_the_profiles_prescribe_the_retraction_marks() -> None:
