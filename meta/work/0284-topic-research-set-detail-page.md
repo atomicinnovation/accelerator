@@ -78,6 +78,9 @@ umbrella doc type and nested indexing.
   `, `, so findings written before and after 0306 both render. Render a
   source listed twice as two entries: depth-1 and pre-0306 findings, and a
   dossier whose composer dropped a linking URL, can carry one.
+- The tier-text grammar has one owner in `cli/`, a parser whose test cases
+  are the citing-once rule's examples. The visualiser renders what it
+  returns, and 0281's `report` and `ask` reuse it when they parse tier text.
 - Treat 0348's optional source metadata block, the nested `key: value` list
   under a Sources entry, as part of the entry above it.
 
