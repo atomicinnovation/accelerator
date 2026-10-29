@@ -13,7 +13,7 @@ blocks: ["work-item:0284"]
 blocked_by: ["work-item:0277", "work-item:0279", "work-item:0280", "work-item:0282", "work-item:0306"]
 relates_to: ["work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0347", "work-item:0348"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-10-29T15:02:58+00:00"
+last_updated: "2026-10-29T15:18:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -127,6 +127,11 @@ from the current findings, with the VCS as its history.
     judges identity only over the findings it reads, so it inherits 0306's
     accepted gap: a merged entry keeps one URL, and a source whose linking
     URL a composer dropped can be cited twice.
+  - `report` reads tier text as a base tier and an optional parenthesised
+    suffix of `; `-separated parts, the last of which may be an `also` list
+    separated by `, `. Findings written before 0306 carry no `also` part,
+    and a depth-1 or pre-0306 finding may list one source twice; `report`
+    merges both as it merges any duplicate.
   - A report's `status` stays `complete` whatever the set's status;
     reopening the set leaves every report unchanged.
   - Before writing anything, `report` shows the answer and its coverage

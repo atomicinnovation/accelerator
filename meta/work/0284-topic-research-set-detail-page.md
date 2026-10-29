@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:0121"
 relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0348"]
 tags: ["research", "visualiser"]
-last_updated: "2026-10-24T08:35:57+00:00"
+last_updated: "2026-10-29T15:18:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -73,6 +73,11 @@ umbrella doc type and nested indexing.
   weakest tier with the other tiers marked as a distinct element, including
   the semicolon-joined forms that combine it with `retracted` or
   `withdrawn`.
+- Parse tier text as a base tier and an optional parenthesised suffix of
+  `; `-separated parts, the last of which may be an `also` list separated by
+  `, `, so findings written before and after 0306 both render. Render a
+  source listed twice as two entries: depth-1 and pre-0306 findings, and a
+  dossier whose composer dropped a linking URL, can carry one.
 - Treat 0348's optional source metadata block, the nested `key: value` list
   under a Sources entry, as part of the entry above it.
 
