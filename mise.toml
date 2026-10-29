@@ -419,7 +419,7 @@ run = "invoke measure.smoke-check"
 # test roll-up: a run needs the claude CLI, network egress and model usage. See
 # tasks/README.md#the-eval-namespace.
 [tasks."eval:citing-once"]
-description = "Run the citing-once behavioural eval: headless claude sessions composing findings and dossiers, judged against a reading of the rule (needs claude, network and model usage; ~1h)"
+description = "Run the citing-once behavioural eval: headless claude sessions composing findings and dossiers, judged against a reading of the rule (needs claude, network and model usage; ~10 min at the default 6 sessions at once)"
 depends = ["deps:install:python"]
 run = "invoke eval.citing-once"
 
