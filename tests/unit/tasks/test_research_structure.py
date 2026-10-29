@@ -1532,6 +1532,10 @@ def test_synthesise_reads_the_citing_once_rule_before_writing() -> None:
     assert text.index(CITING_ONCE_PATH) < text.index("write `synthesis.md`")
 
 
+def test_synthesise_reads_the_citing_once_rule_with_the_read_tool() -> None:
+    assert "Read the citing-once rule with the Read tool" in _synthesise()
+
+
 @CARRIERS
 def test_every_carrier_confines_its_changes_to_the_rule(carrier) -> None:
     text = carrier()

@@ -644,7 +644,7 @@ halt again.
 
 ### synthesise — a standalone dossier from the findings
 
-Read the citing-once rule at
+Read the citing-once rule with the Read tool at
 `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/SKILL.md`, then
 the top-level findings directly in `findings/`, never `.levels/`, and write
 `synthesis.md` inline (spawning nothing). Cite each source once by applying
