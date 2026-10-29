@@ -15,6 +15,7 @@ use crate::sources::classify::FetchError;
 use crate::sources::classify::Reason;
 use crate::sources::classify::Response;
 use crate::sources::classify::Verdict;
+use crate::sources::metadata::date::PartialDate;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
 use crate::sources::queue::ArxivQueue;
@@ -31,7 +32,6 @@ use crate::sources::request::Endpoint;
 use crate::sources::request::Family;
 use crate::sources::request::OpenAlexRequest;
 use crate::sources::request::UpstreamRequest;
-use crate::sources::request::Verb;
 use crate::sources::schedule::Deadline;
 use crate::sources::schedule::RetryNumber;
 use crate::sources::schedule::RetrySchedule;
@@ -255,9 +255,9 @@ pub fn fetch_openalex(
         &fetch.request.upstream(fetch.api, fetch.key),
         &|response| classify::openalex(response, verb, key),
         &mut |body| {
-            match verb {
-                Verb::Search => ports.decoder.works(&body),
-                Verb::Lookup => {
+            match fetch.request {
+                OpenAlexRequest::Search { .. } => ports.decoder.works(&body),
+                OpenAlexRequest::Lookup(_) => {
                     ports.decoder.work(&body).map(|work| vec![work])
                 }
             }
@@ -277,10 +277,11 @@ pub fn fetch_openalex(
             ))
         }
     };
+    let accessed = PartialDate::utc_date_of(ports.clock.wall_now());
     FetchOutcome::Records(
         works
             .iter()
-            .filter_map(openalex::normalise)
+            .filter_map(|work| openalex::normalise(work, accessed))
             .take(fetch.request.limit().records())
             .collect(),
     )
@@ -463,11 +464,12 @@ fn served(
         verdicts.note(id, withdrawn);
     }
 
+    let accessed = PartialDate::utc_date_of(ports.clock.wall_now());
     Ok(FetchOutcome::Records(
         listed
             .iter()
             .filter_map(|(id, entry)| {
-                arxiv::normalise(entry, verdicts.withdrawn(id))
+                arxiv::normalise(entry, verdicts.withdrawn(id), accessed)
             })
             .collect(),
     ))

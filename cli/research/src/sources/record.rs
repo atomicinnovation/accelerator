@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::sources::metadata::SourceMetadata;
+
 /// The standing of the venue a record was published through. Derived here so
 /// no researcher ever judges it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +56,7 @@ pub struct Record {
     pub(crate) tier: Tier,
     pub(crate) retracted: bool,
     pub(crate) withdrawn: bool,
+    pub(crate) metadata: SourceMetadata,
 }
 
 impl Record {
@@ -91,6 +94,10 @@ impl Record {
 
     pub const fn withdrawn(&self) -> bool {
         self.withdrawn
+    }
+
+    pub const fn metadata(&self) -> &SourceMetadata {
+        &self.metadata
     }
 }
 

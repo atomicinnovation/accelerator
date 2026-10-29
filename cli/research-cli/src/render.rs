@@ -4,18 +4,21 @@
 
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
+use research::sources::metadata::SourceMetadata;
 use research::sources::queue::Binding;
 use research::sources::queue::TicketRejection;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
+use serde::ser::SerializeMap;
 use serde::Serialize;
+use serde::Serializer;
 
-use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedRecords;
 
 /// The stdout document, or `None` for a failed or rejected call, which
 /// prints only its diagnostics.
-pub fn document(fetched: &Fetched) -> Option<String> {
+pub fn document(fetched: &FetchedRecords) -> Option<String> {
     let document = match &fetched.outcome {
         FetchOutcome::Records(records) => Document::Ok {
             records: records.iter().map(RecordJson::from).collect(),
@@ -37,8 +40,22 @@ pub fn document(fetched: &Fetched) -> Option<String> {
     serde_json::to_string(&document).ok()
 }
 
+pub fn web_document(metadata: &SourceMetadata) -> Option<String> {
+    serde_json::to_string(&WebDocument {
+        status: "ok",
+        metadata: MetadataJson(metadata),
+    })
+    .ok()
+}
+
+#[derive(Serialize)]
+struct WebDocument<'a> {
+    status: &'static str,
+    metadata: MetadataJson<'a>,
+}
+
 /// The usage line for a ticket presented in a way the queue refuses.
-pub fn rejection(fetched: &Fetched) -> Option<String> {
+pub fn rejection(fetched: &FetchedRecords) -> Option<String> {
     let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
         return None;
     };
@@ -80,7 +97,7 @@ fn call_as_typed(binding: &Binding) -> String {
 /// The line naming the source, verb and final status of a call that did not
 /// deliver records: with its attempts, or for a waiting call its position
 /// and the ticket to re-present.
-pub fn summary(fetched: &Fetched) -> Option<String> {
+pub fn summary(fetched: &FetchedRecords) -> Option<String> {
     let status = match &fetched.outcome {
         FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,
         FetchOutcome::Waiting { ticket, position } => {
@@ -141,6 +158,7 @@ struct RecordJson<'a> {
     tier: String,
     retracted: bool,
     withdrawn: bool,
+    metadata: MetadataJson<'a>,
 }
 
 impl<'a> From<&'a Record> for RecordJson<'a> {
@@ -155,7 +173,25 @@ impl<'a> From<&'a Record> for RecordJson<'a> {
             tier: record.tier().to_string(),
             retracted: record.retracted(),
             withdrawn: record.withdrawn(),
+            metadata: MetadataJson(record.metadata()),
         }
+    }
+}
+
+/// Serialised entry by entry, because `serde_json` maps sort their keys and
+/// the metadata's key order is part of its contract.
+struct MetadataJson<'a>(&'a SourceMetadata);
+
+impl Serialize for MetadataJson<'_> {
+    fn serialize<S: Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        for (key, value) in self.0.entries() {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
     }
 }
 

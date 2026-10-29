@@ -434,3 +434,20 @@ fn an_openalex_fetch_never_waits() {
     assert_eq!(outcome, unavailable(Reason::RateLimited));
     assert_eq!(transport.hits(), 0);
 }
+
+#[test]
+fn every_record_is_accessed_on_the_clocks_utc_date() {
+    let harness = Harness::new();
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(b"page")]);
+
+    let found = records(harness.fetch(&transport, &search("10"), None));
+
+    assert_eq!(found.len(), 3);
+    for record in found {
+        assert_eq!(
+            record.metadata().entries().last(),
+            Some(("accessed", "2027-01-15"))
+        );
+    }
+}

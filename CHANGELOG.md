@@ -183,6 +183,31 @@
   presented with other arguments, or in use by another call exits 2 with
   `E_ARXIV_TICKET_MALFORMED`, `E_ARXIV_TICKET_MISMATCH` or
   `E_ARXIV_TICKET_LIVE`.
+- **`accelerator research fetch web metadata '<url>'` reads the metadata a
+  public page declares about itself.** It prints
+  `{"status":"ok","metadata":{…}}` with the page's `doi`, `published` and
+  `updated`, read from its Highwire Press, schema.org JSON-LD, Dublin Core and
+  OpenGraph declarations, and the `accessed` date. It fetches only `http(s)`
+  URLs, admits a host only when every address it resolves to is public, and
+  connects only to the addresses it admitted. It re-admits each of at most 5
+  redirects, reads at most 2 MiB of a page, never uses a proxy, and finishes
+  within the 100 s every `fetch` shares. A page it cannot read exits 1 with
+  one `E_WEB_*` line that names no URL, host or address; a URL it cannot
+  fetch exits 2 with `E_WEB_URL_MALFORMED`.
+- **OpenAlex and arXiv records carry a `metadata` map** of their `doi`,
+  `arxiv_id`, `openalex_id`, `published`, `updated` and `accessed` values, in
+  a canonical key order, omitting any the source lacks. The field is
+  additive, so callers that ignore unknown fields are unaffected.
+- **A Sources entry may carry a metadata block.** Researchers copy the CLI's
+  `metadata` map for each source they cite into a nested `key: value` list
+  under its entry, and the composer and `synthesise` carry each block
+  byte-for-byte. The block is optional, so existing one-line findings stay
+  valid. See
+  [Sources metadata](https://atomicinnovation.github.io/accelerator/research/#sources-metadata).
+- **The web source profile grants `Bash(accelerator research fetch *)`**, the
+  rule `research-topic` already grants, and runs `fetch web metadata` for
+  each page it cites. A denied or failed call leaves that entry without a
+  block.
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
@@ -502,8 +527,14 @@
   previously read as public. Two classes of change:
   - **Recoverable with `--allow-internal`**: IPv4-mapped and IPv4-compatible
     IPv6 forms (`::ffff:10.0.0.1`, `::169.254.169.254`), IPv6 unique-local
-    (`fc00::/7`), carrier-grade NAT (`100.64.0.0/10`), and the 6to4, Teredo and
-    NAT64 transition encodings, classified on the address they carry.
+    (`fc00::/7`) and site-local (`fec0::/10`), carrier-grade NAT
+    (`100.64.0.0/10`), the documentation ranges (`192.0.2.0/24`,
+    `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`, `3fff::/20`),
+    benchmarking `2001:2::/48`, any IPv6 address outside global unicast
+    (`2000::/3`) such as discard-only `100::/64` and local-use NAT64
+    (`64:ff9b:1::/48`), and the 6to4, Teredo, NAT64 and IPv4-translated
+    (`::ffff:0:a.b.c.d`) transition encodings, classified on the address they
+    carry.
   - **Refused with no flag that recovers them**: decimal, hexadecimal and
     zero-padded octal IPv4 encodings (`2130706433`, `0x7f000001`,
     `0177.0.0.1`, `127.0.0.01`), including a non-first octal octet. Rewrite the

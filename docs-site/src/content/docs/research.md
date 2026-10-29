@@ -5,10 +5,11 @@ title: Research CLI
 `accelerator research` is the sub-binary `/accelerator:research-topic` uses
 to reach the scholarly literature. `research fetch` queries OpenAlex and arXiv
 and returns normalised records, each carrying a reputation tier the CLI
-derives. `research guard` is a `PreToolUse` hook that confines the researcher
+derives, and through `web metadata` reads the metadata a public page declares
+about itself. `research guard` is a `PreToolUse` hook that confines the researcher
 agent to that fetch and to writing its own finding. `research topic
 outstanding` plans a `conduct` round from a topic's set on disk. All three are
-plumbing: the academic source profiles invoke `research fetch` through fenced
+plumbing: the source profiles invoke `research fetch` through fenced
 command blocks (see [Anatomy of a skill
 invocation](internals.md#anatomy-of-a-skill-invocation)), `conduct` calls
 `research topic outstanding`, and Claude Code runs `research guard` on every
@@ -17,7 +18,7 @@ Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 
 | Verb                | What it does                                                         |
 |---------------------|----------------------------------------------------------------------|
-| `fetch`             | Search or look up scholarly records, tiered, within a 100 s deadline |
+| `fetch`             | Search or look up scholarly records, tiered, or read a page's declared metadata, within a 100 s deadline |
 | `topic outstanding` | List a round's outstanding (focus area, profile) pairs as JSON       |
 | `guard`             | Judge one hook call, blocking a researcher outside its confinement   |
 
@@ -32,12 +33,14 @@ accelerator research fetch openalex lookup W2741809807
 accelerator research fetch openalex lookup 10.1038/nature14539
 accelerator research fetch arxiv search 'attention heads specialise'
 accelerator research fetch arxiv lookup 2608.21129
+accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'
 ```
 
-| Family     | `search`                                  | `lookup` accepts                                                   |
-|------------|-------------------------------------------|--------------------------------------------------------------------|
-| `openalex` | Title-and-abstract search over every work | `W123`, `https://openalex.org/W123`, or a DOI (bare, `doi:`, or `https://doi.org/`) |
-| `arxiv`    | Relevance-sorted search over preprints    | A new-style (`2608.21129`) or old-style (`hep-th/9901001`) ID, with or without a version |
+| Family     | `search`                                  | `lookup` accepts                                                   | `metadata` accepts |
+|------------|-------------------------------------------|--------------------------------------------------------------------|--------------------|
+| `openalex` | Title-and-abstract search over every work | `W123`, `https://openalex.org/W123`, or a DOI (bare, `doi:`, `DOI: `, or a `doi.org` or `dx.doi.org` URL) | — |
+| `arxiv`    | Relevance-sorted search over preprints    | A new-style (`2608.21129`) or old-style (`hep-th/9901001`) ID, with or without a version | — |
+| `web`      | —                                         | —                                                                  | One `http` or `https` page URL; see [`web metadata`](#web-metadata) |
 
 Several search terms are joined with single spaces. Characters a source
 reserves for its own query syntax become spaces (`,`, `|`, `!`, and `:` for
@@ -45,22 +48,23 @@ OpenAlex; parentheses, quotes, and the `AND`, `OR`, and `ANDNOT` operators for
 arXiv, which then requires every remaining word), and the query is
 percent-encoded as one value, so it cannot smuggle an operator or a second
 parameter. A query empty once they are removed is a usage error. `--limit`
-takes 1–25 and defaults to 10. `--ticket` re-presents the ticket a `waiting`
-arXiv call printed (see [Output](#output)); an OpenAlex call refuses it.
+takes 1–25 and defaults to 10; a `web` call refuses it. `--ticket` re-presents
+the ticket a `waiting` arXiv call printed (see [Output](#output)); an OpenAlex
+or `web` call refuses it.
 
-**Every call finishes within 100 s of the process starting**, whatever it is
-waiting on: the credential command, pacing, retries, and each request's own
-30 s timeout all draw on that one budget. Give the call a Bash timeout of at
+**Every call finishes within 100 s of the process starting**, `web metadata`
+included, whatever it is waiting on: the credential command, pacing, retries,
+name lookups, and each request's own 30 s timeout all draw on that one budget. Give the call a Bash timeout of at
 least 120 s. An arXiv call that prints `waiting` keeps its place across
 re-presentations instead, so its result can take up to about 1,000 s from the
 first call to settle.
 
 ### Output
 
-On stdout, one line of compact JSON. A source that answered:
+On stdout, one line of compact JSON. An academic source that answered:
 
 ```json
-{"status":"ok","records":[{"title":"…","authors":["…"],"url":"https://doi.org/10.1038/nature14539","venue":"Nature","venue_signals":{"source_type":"journal","version":"publishedVersion","is_core":true,"listed_in":["doaj"],"type":"article","is_retracted":false},"abstract":"…","tier":"tier-1","retracted":false,"withdrawn":false}]}
+{"status":"ok","records":[{"title":"…","authors":["…"],"url":"https://doi.org/10.1038/nature14539","venue":"Nature","venue_signals":{"source_type":"journal","version":"publishedVersion","is_core":true,"listed_in":["doaj"],"type":"article","is_retracted":false},"abstract":"…","tier":"tier-1","retracted":false,"withdrawn":false,"metadata":{"doi":"10.1038/nature14539","openalex_id":"W2919115771","published":"2015-05-26","accessed":"2026-10-25"}}]}
 ```
 
 - `url` is `https://doi.org/<doi>` when the work has a valid DOI, else its
@@ -69,7 +73,15 @@ On stdout, one line of compact JSON. A source that answered:
 - `abstract` is capped at 600 characters on a word boundary.
 - `venue_signals` holds the raw evidence behind the tier: the six keys above
   for OpenAlex, `journal_ref` and `doi` for arXiv.
+- `metadata` maps the core keys the source supplies to their values: `doi`,
+  `openalex_id`, `published` and `accessed` for OpenAlex, which has no
+  `updated`, and `doi`, `arxiv_id`, `published`, `updated` and `accessed` for
+  arXiv. Values take the forms in [Sources metadata](#sources-metadata), and
+  `accessed` is the UTC date of the request. Its keys come in canonical
+  order, which only the raw stdout bytes preserve: a JSON parser may reorder
+  them.
 - A `lookup` that finds nothing is `ok` with no records.
+- Record fields are only ever added, so ignore any you do not know.
 
 A source that cannot answer now:
 
@@ -106,13 +118,14 @@ as `unavailable`, reporting the status verbatim as its reason.
 
 | Exit | Meaning                                                          |
 |------|------------------------------------------------------------------|
-| 0    | `ok`, `unavailable` or `waiting` — the call worked; the source may not have |
-| 1    | A credential refusal or a rejected request, with one `E_*` line  |
-| 2    | Usage error or refused ticket, before any request is sent; only `E_ARXIV_TICKET_LIVE` can clear without changing the call |
+| 0    | `ok`, `unavailable` or `waiting` from an academic family — the call worked; the source may not have. `ok` from `web metadata` |
+| 1    | A credential refusal or a rejected request, with one `E_*` line, or a page `web metadata` could not read, with one `E_WEB_*` line |
+| 2    | Usage error, refused ticket or unfetchable URL, before any request is sent; only `E_ARXIV_TICKET_LIVE` can clear without changing the call |
 
 | Code                              | Exit | Cause                                                        |
 |-----------------------------------|------|--------------------------------------------------------------|
-| `E_RESEARCH_USAGE`                | 2    | Unknown family or verb, `--limit` outside 1–25, a missing or empty query, or `--ticket` on an OpenAlex call |
+| `E_RESEARCH_USAGE`                | 2    | Unknown family, a verb the family does not support (named with the verbs it does, as in `unknown verb 'search' (web supports metadata)`), `--limit` outside 1–25, a missing or empty query, `--ticket` on an OpenAlex or `web` call, or a `web metadata` call with no URL, more than one term, or `--limit` |
+| `E_WEB_URL_MALFORMED`             | 2    | A `web metadata` URL that is not a fetchable `http(s)` URL; see [`web metadata`](#web-metadata) |
 | `E_OPENALEX_ID_MALFORMED`         | 2    | A `lookup` ID that is neither a `W…` ID nor a DOI            |
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
 | `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
@@ -124,8 +137,12 @@ as `unavailable`, reporting the status verbatim as its reason.
 | `E_RESEARCH_UNDECODABLE`          | 1    | A response the CLI could not parse                           |
 | `E_RESEARCH_TRANSPORT`            | 1    | The HTTP client could not start                              |
 | `E_TOKEN_*`, `E_COMMAND_*`, `E_CONSENT_KEY_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
+| Any other `E_WEB_*`               | 1    | A page `web metadata` could not read; see [`web metadata`](#web-metadata) |
 
 ### Retries and deadlines
+
+These apply to the academic families; `web metadata` never retries, and
+follows its own [fetch rules](#fetch-rules).
 
 A retryable response waits 3 s, 6 s, then 12 s between attempts, or the
 server's `Retry-After` capped at 30 s. When the deadline would not admit the
@@ -134,9 +151,111 @@ next wait, an arXiv call stops early with `waiting` and an OpenAlex call with
 exhaustion (`409`, or a `429` whose remaining budget is below the cost of the
 request) is not retried.
 
-Redirects are followed at most three times, and only within the original
-`https` origin; any other redirect is a client error, so the key never
-reaches a second host. Bodies over 8 MiB are refused.
+An academic call follows redirects at most three times, and only within the
+original `https` origin; any other redirect is a client error, so the key
+never reaches a second host. Its bodies over 8 MiB are refused.
+
+### `web metadata`
+
+```bash
+accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'
+```
+
+reads the metadata a public page declares about itself, from its Highwire
+Press `citation_*` meta tags, schema.org JSON-LD, Dublin Core and OpenGraph,
+and prints one line:
+
+```json
+{"status":"ok","metadata":{"doi":"10.1371/journal.pone.0000308","published":"2007-03-21","accessed":"2026-10-25"}}
+```
+
+A page supplies only `doi`, `published` and `updated`, in the forms and order
+of [Sources metadata](#sources-metadata). `accessed`, the UTC date of the
+call, is always present, so a page declaring nothing prints a map holding
+only `accessed`.
+
+For each key, the first usable declaration wins. Schemes are tried in the
+order Highwire, JSON-LD, Dublin Core, OpenGraph; within a scheme, each field
+in the order below, and each declaration of a field in document order. A
+date instead takes the most precise usable value within the first scheme
+that declares one, so a scheme's day-precise date beats its own month, but
+never a more precise date from a later scheme:
+
+| Key         | Declarations, in precedence order                                                                                                  |
+|-------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `doi`       | `citation_doi`; JSON-LD `identifier` (text, or a `PropertyValue` whose `propertyID` is `doi`), then `sameAs`; `dc.identifier`, then `dcterms.identifier` |
+| `published` | `citation_publication_date`, `citation_date`, then `citation_online_date`; JSON-LD `datePublished`; `dcterms.issued`, then `dc.date`; `article:published_time` |
+| `updated`   | JSON-LD `dateModified`; `dcterms.modified`; `article:modified_time`                                                                |
+
+- Meta tag names match case-insensitively. JSON-LD is read from one node,
+  top-level, inside `@graph`, or a top-level node's `mainEntity`: the one
+  whose type comes earliest in `ScholarlyArticle`, `Article`, `NewsArticle`,
+  `BlogPosting`, `Report`, `Thesis`, `Book`, `Chapter`, `Dataset`,
+  `CreativeWork`, `WebPage`, the first declared on a tie. A type may be
+  named bare, by its `https://schema.org/` IRI, or as `schema:`.
+- Line breaks collapse to single spaces and surrounding whitespace is
+  trimmed before a value is judged. An unusable value is skipped for the
+  next declaration.
+- A DOI is usable bare, after `doi:`, or in a `doi.org` or `dx.doi.org` URL,
+  when it is printable ASCII of at most 256 characters.
+- A date is usable as ISO 8601, a date or a datetime (its time after `T`
+  or, as RFC 3339 allows, a space), whose local date is kept and offset
+  discarded; as a year-first slash date (`2010/5/12`,
+  `2010/5`); or with an English month name, full or abbreviated
+  (`May 12, 2010`, `Mar. 21 2007`, `21 March 2007`, `March 2007`). A numeric
+  day-first date such as `12/05/2010` is refused, since its day and month
+  order cannot be known.
+- Declared values are inert text: the command never fetches or follows
+  them, nor a page's `<link rel=canonical>` or `<meta http-equiv=refresh>`.
+
+#### Fetch rules
+
+- **URL.** Only `http` and `https`. A URL with no host, with user
+  information, with a numerically encoded host such as `0x7f000001`, with a
+  port outside 1–65535, or with whitespace, a control character or a
+  backslash anywhere is refused with `E_WEB_URL_MALFORMED`. Any fragment is
+  dropped.
+- **Admission.** Each hop's host is resolved, `localhost` included, exactly
+  as written: no search domain is appended. It is admitted only when every
+  address it resolves to is public. A loopback, private, link-local,
+  reserved or unspecified address is rejected before any request, and the
+  request connects only to the addresses admitted.
+- **Redirects.** A `301`, `302`, `303`, `307` or `308` is followed, at most
+  5 times, each hop re-admitted as its own. Any other `3xx` fails as
+  `E_WEB_STATUS`.
+- **Response.** Only a `2xx` whose content type is `text/html` or
+  `application/xhtml+xml` is read. At most 2 MiB of the body is read, and a
+  longer body is truncated rather than refused, since the declarations sit
+  in its head.
+- **No proxy.** `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` are ignored: a
+  proxy would resolve the host itself and could connect to an address
+  admission never checked. Where outbound traffic must go through a proxy,
+  the call fails with `E_WEB_HOST_UNRESOLVED`, `E_WEB_CONNECTION_FAILED` or
+  `E_WEB_TIMED_OUT`, while `openalex` and `arxiv`, which honour the proxy
+  variables, still work.
+- **Time.** The call runs within the 100 s deadline every `fetch` shares.
+  Each DNS resolution is capped at 5 s and each request at 30 s, both clipped to
+  the time remaining. Nothing is retried.
+
+#### Errors
+
+A page that cannot be read exits 1 with one line on stderr and nothing on
+stdout. No message carries the URL, the host or an address.
+
+| Code                              | Message                                                                                          |
+|-----------------------------------|--------------------------------------------------------------------------------------------------|
+| `E_WEB_URL_MALFORMED` (exit 2)    | `the URL is not a fetchable http(s) URL: {rule}`, naming the rule the URL broke                  |
+| `E_WEB_HOST_REJECTED`             | `the page's host is {a loopback, a private, a link-local, a reserved or an unspecified} address` |
+| `E_WEB_HOST_UNRESOLVED`           | `the page's host did not resolve`                                                                |
+| `E_WEB_TOO_MANY_REDIRECTS`        | `the page redirected more than 5 times`                                                          |
+| `E_WEB_REDIRECT_WITHOUT_LOCATION` | `the page redirected without a Location`                                                         |
+| `E_WEB_REDIRECT_UNFOLLOWABLE`     | `the page redirected to a URL that cannot be fetched`                                            |
+| `E_WEB_REFUSED`                   | `the page's address could not be fetched safely`, as its host would not be read as admitted      |
+| `E_WEB_CONNECTION_FAILED`         | `the page could not be reached`                                                                  |
+| `E_RESEARCH_TRANSPORT`            | `the HTTP client could not be initialised`; nothing was sent                                     |
+| `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                                |
+| `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                                |
+| `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                           |
 
 ## Reputation tiers
 
@@ -379,9 +498,10 @@ a block as a call to correct, not the end of its work.
 The guard never allows anything; it only blocks. The fetch itself must be
 granted by a permission rule that reaches the researcher subagent.
 `research-topic`'s `allowed-tools` carries `Bash(accelerator research fetch *)`,
-which researchers it spawns inherit. Any other skill that injects an academic
-profile must grant the same rule, and a contract test enforces this for skills
-in this repository.
+which researchers it spawns inherit. Any other skill that injects any profile
+must grant the same rule, and a contract test enforces this for skills in this
+repository. The academic profiles search and look up through it, and
+`web-profile` uses it for `fetch web metadata`.
 
 Where that grant does not reach the researcher, add the rule to the project's
 allow rules:
@@ -395,7 +515,9 @@ allow rules:
 ```
 
 A `deny` or `ask` rule covering `accelerator research fetch` overrides the
-grant. `conduct` reports either case as "fetch denied by permissions".
+grant. For an academic researcher, `conduct` reports either case as "fetch
+denied by permissions". A web researcher whose metadata fetch is denied
+still writes its document, leaving that entry without a metadata block.
 
 ### Failure signatures
 
@@ -418,8 +540,9 @@ guard panic on a crafted command blocks instead, with
 
 [`research-topic`](reference/skills/research/research-topic.md) reaches each
 source through a **source profile**, a skill
-the researcher agent follows: `web-profile` (web search and fetch),
-`openalex-profile`, and `arxiv-profile` (each through `research fetch`).
+the researcher agent follows: `web-profile` (web search and fetch, and
+`research fetch` for citation metadata), `openalex-profile`, and
+`arxiv-profile` (each through `research fetch`).
 
 - **`brief`** offers all three and records the chosen subset as the brief's
   `source_profiles`, defaulting to `["web"]`. It suggests the academic
@@ -607,6 +730,56 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
+
+## Sources metadata
+
+A Sources entry in a level note, finding or synthesis may carry a metadata
+block: a nested `key: value` list directly under its line.
+
+```markdown
+- [The state of OA](https://doi.org/10.7717/peerj.4375) — tier-1 — PeerJ
+  - doi: 10.7717/peerj.4375
+  - openalex_id: W2741809807
+  - published: 2018-02-13
+  - accessed: 2026-10-24
+```
+
+- **Optional.** An entry without a block is valid, so findings written
+  before the block existed stay one-line.
+- **Produced by the CLI.** The researcher copies the `metadata` map of the
+  record or page it cites, unchanged and in emitted order, and writes a
+  block from nothing else. The composer and `synthesise` carry each block
+  byte-for-byte.
+- **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
+  key with no value is omitted. `url`, title and venue stay on the entry
+  line and never appear in the block.
+- **Order.** Keys come in the table's order; the CLI emits no other key.
+
+| Key                | Group           | Value form                                                                  |
+|--------------------|-----------------|-----------------------------------------------------------------------------|
+| `doi`              | identifier      | Bare and lowercase: `10.7717/peerj.4375`                                    |
+| `arxiv_id`         | identifier      | Bare, with the version retrieved: `2305.12345v2`                            |
+| `openalex_id`      | identifier      | The bare `W` ID: `W2741809807`                                              |
+| `pmid`             | identifier      |                                                                             |
+| `issn`             | identifier      |                                                                             |
+| `published`        | date            | ISO 8601 at the precision the source declares: `2023`, `2023-05` or `2023-05-12` |
+| `updated`          | date            | As `published`                                                              |
+| `accessed`         | date            | The UTC date of the CLI call the map came from                              |
+| `type`             | bibliographic   |                                                                             |
+| `authors`          | bibliographic   |                                                                             |
+| `publisher`        | bibliographic   |                                                                             |
+| `volume`           | bibliographic   |                                                                             |
+| `issue`            | bibliographic   |                                                                             |
+| `pages`            | bibliographic   |                                                                             |
+| `license`          | bibliographic   |                                                                             |
+| `journal_ref`      | source-specific |                                                                             |
+| `primary_category` | source-specific |                                                                             |
+| `oa_status`        | source-specific |                                                                             |
+| `pdf_url`          | source-specific |                                                                             |
+
+The CLI fills the core keys, those with a value form, wherever the source
+provides them. Any other key is allowed; the recommended keys are the ones a
+consumer can rely on when present.
 
 ## Local development
 

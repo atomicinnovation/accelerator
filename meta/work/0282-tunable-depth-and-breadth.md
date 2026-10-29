@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-blocks: ["work-item:0283"]
+blocks: ["work-item:0281", "work-item:0283"]
 tags: ["research", "skills", "config"]
 last_updated: "2026-09-22T21:39:36+00:00"
 last_updated_by: "Toby Clemson"

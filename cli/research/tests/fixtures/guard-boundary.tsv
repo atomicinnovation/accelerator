@@ -77,3 +77,4 @@ accelerator research fetch a # trailing comment	pass
 accelerator research fetch	block
 accelerator research fetchx a	block
 FOO=1 accelerator research fetch a	block
+accelerator research fetch web metadata 'https://example.org/a?b=1&c=%27x%27#s'	pass

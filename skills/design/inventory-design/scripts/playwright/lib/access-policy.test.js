@@ -11,14 +11,19 @@ import {
   classifyUrl,
 } from './access-policy.js';
 
-// The corpus lives in the Rust domain crate; the Rust classifier is held to the
-// same cases, so a failure on either side means the two implementations drifted.
-const CORPUS_PATH = resolve(
-  import.meta.dirname,
-  '../../../../../..',
-  'cli/design/tests/fixtures/host-classification-vectors.json'
-);
-const CORPUS = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
+// The corpora live in the Rust domain crates; the Rust classifiers are held to
+// the same cases, so a failure on either side means the two implementations
+// drifted.
+const REPO_ROOT = resolve(import.meta.dirname, '../../../../../..');
+
+function corpus(path) {
+  return JSON.parse(readFileSync(resolve(REPO_ROOT, path), 'utf8'));
+}
+
+const CORPUS = {
+  ...corpus('cli/network/tests/fixtures/host-classification-vectors.json'),
+  ...corpus('cli/design/tests/fixtures/access-policy-vectors.json'),
+};
 
 function allowancesOf(policyCase) {
   return {

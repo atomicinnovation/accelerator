@@ -95,6 +95,7 @@
         // The whole research crate is domain (no adapter modules live in it);
         // HTTP, JSON and XML decoding, the pacing lock and the clock live in
         // research-adapters, injected through ports.
+        // network supplies the shared host vocabulary.
         Module((
             name: "research_domain_imports_only_permitted",
             matches: Module("^research($|::)"),
@@ -103,6 +104,7 @@
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
+                        "^network(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,
@@ -115,7 +117,7 @@
         Module((
             name: "research_adapters_decoders_spawn_nothing",
             matches: Module(
-                "^research_adapters::(openalex_json|arxiv_xml)($|::)"
+                "^research_adapters::(openalex_json|arxiv_xml|web_html)($|::)"
             ),
             rules: [
                 RestrictImports(
@@ -172,6 +174,24 @@
         Module((
             name: "tracker_domain_imports_only_permitted",
             matches: Module("^tracker($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // The whole network crate is domain: host vocabulary shared by the
+        // contexts that judge where a URL points. Like tracker's rule it
+        // omits the kernel::Error allowance, because the crate declares no
+        // dependencies.
+        Module((
+            name: "network_domain_imports_only_permitted",
+            matches: Module("^network($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: Some([
@@ -525,7 +545,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(
@@ -623,6 +643,7 @@
         // credential scanner's encoding derivation: both are zero-dependency,
         // pure, no-I/O crates, so neither edge drags a transitive graph into
         // the domain, the same widening work makes for corpus and tracker.
+        // network supplies the shared host vocabulary.
         Module((
             name: "design_domain_imports_only_permitted",
             matches: Module("^design($|::)"),
@@ -634,6 +655,7 @@
                         "^crate(::|$)",
                         "^base64(::|$)",
                         "^percent_encoding(::|$)",
+                        "^network(::|$)",
                     ]),
                     denied: None,
                     severity: Error,

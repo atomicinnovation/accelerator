@@ -2,10 +2,9 @@
 //! one, then fetch within the call's deadline.
 //!
 //! Every read of the environment, the filesystem and the clock goes through
-//! [`FetchPorts`], so the whole call runs against fakes.
+//! the asked source's adapters, so the whole call runs against fakes.
 
 use std::cell::Cell;
-use std::rc::Rc;
 
 use config::consent;
 use config::consent::Refusal;
@@ -30,6 +29,7 @@ use research::sources::fetch::OpenAlexFetch;
 use research::sources::fetch::OpenAlexPorts;
 use research::sources::fetch::PacingGate;
 use research::sources::fetch::Transport;
+use research::sources::metadata::SourceMetadata;
 use research::sources::queue::ArxivQueue;
 use research::sources::queue::Ticket;
 use research::sources::request::ApiKey;
@@ -40,20 +40,26 @@ use research::sources::request::KeySource;
 use research::sources::request::OpenAlexRequest;
 use research::sources::request::UpstreamRequest;
 use research::sources::request::Verb;
+use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
+use research::sources::web::fetch::WebFailure;
 
 use crate::context::ProjectContext;
-
-pub struct FetchPorts {
-    pub clock: Rc<dyn Clock>,
-    pub credentials: CredentialPorts,
-}
+use crate::web_command;
+use crate::web_command::WebAdapters;
 
 /// A validated request paired with the adapters of the one source it asks,
 /// so no call builds, or reads configuration for, a source it never asks.
 pub enum SourceCall {
-    OpenAlex(OpenAlexRequest, OpenAlexAdapters),
+    OpenAlex(OpenAlexCall, OpenAlexAdapters),
     Arxiv(ArxivCall, ArxivAdapters),
+    Web(WebRequest, WebAdapters),
+}
+
+/// The project is where the OpenAlex key is configured.
+pub struct OpenAlexCall {
+    pub request: OpenAlexRequest,
+    pub project: ProjectContext,
 }
 
 pub struct ArxivCall {
@@ -66,6 +72,7 @@ pub struct OpenAlexAdapters {
     pub transport: Box<dyn Transport>,
     pub decoder: Box<dyn OpenAlexDecoder>,
     pub gate: Box<dyn PacingGate>,
+    pub credentials: CredentialPorts,
 }
 
 pub struct ArxivAdapters {
@@ -79,9 +86,16 @@ pub struct ArxivAdapters {
     pub contention: Box<dyn ContentionLog>,
 }
 
-/// A call that reached its source, however the source answered.
+/// What the asked source answered.
 #[derive(Debug)]
-pub struct Fetched {
+pub enum Fetched {
+    Records(FetchedRecords),
+    Page(Result<SourceMetadata, WebFailure>),
+}
+
+/// A records call that reached its source, however the source answered.
+#[derive(Debug)]
+pub struct FetchedRecords {
     pub family: Family,
     pub verb: Verb,
     pub authenticated: bool,
@@ -94,35 +108,37 @@ pub struct Fetched {
 /// A [`CredentialError`] when an OpenAlex key was configured but could not be
 /// resolved, so the call is refused before any request.
 pub fn run(
-    ports: &FetchPorts,
-    project: &ProjectContext,
+    clock: &dyn Clock,
     deadline: &Deadline,
     call: &SourceCall,
 ) -> Result<Fetched, CredentialError> {
-    match call {
-        SourceCall::OpenAlex(request, adapters) => {
-            let key = resolve_key(ports, project, deadline)?;
-            Ok(from_openalex(
-                ports,
+    Ok(match call {
+        SourceCall::OpenAlex(call, adapters) => {
+            let key = resolve_key(clock, adapters, &call.project, deadline)?;
+            Fetched::Records(from_openalex(
+                clock,
                 adapters,
                 deadline,
-                request,
+                &call.request,
                 key.as_ref(),
             ))
         }
         SourceCall::Arxiv(call, adapters) => {
-            Ok(from_arxiv(ports, adapters, deadline, call))
+            Fetched::Records(from_arxiv(clock, adapters, deadline, call))
         }
-    }
+        SourceCall::Web(request, adapters) => {
+            Fetched::Page(web_command::run(request, adapters, clock, deadline))
+        }
+    })
 }
 
 fn from_openalex(
-    ports: &FetchPorts,
+    clock: &dyn Clock,
     adapters: &OpenAlexAdapters,
     deadline: &Deadline,
     request: &OpenAlexRequest,
     key: Option<&ApiKey>,
-) -> Fetched {
+) -> FetchedRecords {
     let transport = Counted::around(adapters.transport.as_ref());
     let outcome = fetch_openalex(
         &OpenAlexFetch {
@@ -133,12 +149,12 @@ fn from_openalex(
         &OpenAlexPorts {
             transport: &transport,
             decoder: adapters.decoder.as_ref(),
-            clock: ports.clock.as_ref(),
+            clock,
             gate: adapters.gate.as_ref(),
         },
         deadline,
     );
-    Fetched {
+    FetchedRecords {
         family: Family::OpenAlex,
         verb: request.verb(),
         authenticated: key.is_some(),
@@ -148,11 +164,11 @@ fn from_openalex(
 }
 
 fn from_arxiv(
-    ports: &FetchPorts,
+    clock: &dyn Clock,
     adapters: &ArxivAdapters,
     deadline: &Deadline,
     call: &ArxivCall,
-) -> Fetched {
+) -> FetchedRecords {
     let transport = Counted::around(adapters.transport.as_ref());
     let outcome = fetch_arxiv(
         &ArxivFetch {
@@ -164,7 +180,7 @@ fn from_arxiv(
         &ArxivPorts {
             transport: &transport,
             decoder: adapters.decoder.as_ref(),
-            clock: ports.clock.as_ref(),
+            clock,
             gate: adapters.gate.as_ref(),
             confirmations: adapters.confirmations.as_ref(),
             queue: adapters.queue.as_ref(),
@@ -172,7 +188,7 @@ fn from_arxiv(
         },
         deadline,
     );
-    Fetched {
+    FetchedRecords {
         family: Family::Arxiv,
         verb: call.request.verb(),
         authenticated: false,
@@ -184,15 +200,16 @@ fn from_arxiv(
 /// The key command runs within whatever the deadline has left, not the
 /// trackers' fixed timeout, so a slow helper cannot overrun the call.
 fn resolve_key(
-    ports: &FetchPorts,
+    clock: &dyn Clock,
+    adapters: &OpenAlexAdapters,
     project: &ProjectContext,
     deadline: &Deadline,
 ) -> Result<Option<ApiKey>, CredentialError> {
     let context = project_credential_context(
         &project.root,
-        &ports.credentials,
+        &adapters.credentials,
         project.config.as_ref(),
-        deadline.remaining(ports.clock.now()),
+        deadline.remaining(clock.now()),
     );
     let keys = openalex_keys();
     match resolve_token(&context, &keys) {
@@ -270,6 +287,7 @@ impl Transport for Counted<'_> {
 mod tests {
     use std::cell::Cell;
     use std::cell::RefCell;
+    use std::net::SocketAddr;
     use std::path::Path;
     use std::path::PathBuf;
     use std::rc::Rc;
@@ -294,6 +312,7 @@ mod tests {
     use config::Scalar;
     use config::Value;
     use config_adapters::credentials::CredentialPorts;
+    use network::Host;
     use research::sources::classify::Reason;
     use research::sources::classify::Received;
     use research::sources::classify::Response;
@@ -319,6 +338,12 @@ mod tests {
     use research::sources::request::FetchRequest;
     use research::sources::request::UpstreamRequest;
     use research::sources::schedule::Deadline;
+    use research::sources::web::fetch::HostResolver;
+    use research::sources::web::fetch::PageRequest;
+    use research::sources::web::fetch::PageResponse;
+    use research::sources::web::fetch::PageTransport;
+    use research::sources::web::fetch::ResolveFailure;
+    use research::sources::web::fetch::WebFailure;
     use research_adapters::arxiv_xml::XmlArxivDecoder;
     use research_adapters::openalex_json::JsonOpenAlexDecoder;
     use research_adapters::pacing::NoPacing;
@@ -326,11 +351,13 @@ mod tests {
     use super::run;
     use super::ArxivAdapters;
     use super::ArxivCall;
-    use super::FetchPorts;
     use super::Fetched;
+    use super::FetchedRecords;
     use super::OpenAlexAdapters;
+    use super::OpenAlexCall;
     use super::SourceCall;
     use crate::context::ProjectContext;
+    use crate::web_command::WebAdapters;
 
     const ROOT: &str = "/project";
 
@@ -574,6 +601,27 @@ mod tests {
         }
     }
 
+    struct RefusingResolver;
+
+    impl HostResolver for RefusingResolver {
+        fn resolve(
+            &self,
+            _host: &Host,
+            _port: u16,
+            _within: Duration,
+        ) -> Result<Vec<SocketAddr>, ResolveFailure> {
+            Err(ResolveFailure::Refused)
+        }
+    }
+
+    struct NoPage;
+
+    impl PageTransport for NoPage {
+        fn get(&self, _request: &PageRequest<'_>) -> PageResponse {
+            panic!("a refused host was requested");
+        }
+    }
+
     struct Call {
         request: FetchRequest,
         turns_served: Rc<Cell<usize>>,
@@ -609,11 +657,15 @@ mod tests {
             }
         }
 
-        fn arxiv_lookup(mut self, id: &str) -> Self {
+        fn asking(mut self, family: &str, verb: &str, term: &str) -> Self {
             self.request =
-                FetchRequest::parse("arxiv", "lookup", &[id.to_owned()], None)
+                FetchRequest::parse(family, verb, &[term.to_owned()], None)
                     .expect("a valid request");
             self
+        }
+
+        fn arxiv_lookup(self, id: &str) -> Self {
+            self.asking("arxiv", "lookup", id)
         }
 
         fn key_command_taking(mut self, takes: Duration) -> Self {
@@ -626,32 +678,27 @@ mod tests {
             self
         }
 
-        fn run(&self) -> Result<Fetched, CredentialError> {
-            let ports = FetchPorts {
-                clock: self.clock.clone(),
-                credentials: CredentialPorts {
-                    environment: Box::new(FixedEnvironment(
-                        self.environment.clone(),
-                    )),
-                    runner: Runner::new(Box::new(SlowKeyCommand {
-                        clock: self.clock.clone(),
-                        takes: self.key_command_takes,
-                        timeouts: self.timeouts.clone(),
-                    })),
-                    tracking: Box::new(UntrackedPersonalFile),
-                },
-            };
-            let project = ProjectContext {
-                root: PathBuf::from(ROOT),
-                config: Box::new(PersonalKeyCommand),
-            };
-            run(&ports, &project, &self.deadline, &self.source_call())
+        fn fetch(&self) -> Result<Fetched, CredentialError> {
+            run(self.clock.as_ref(), &self.deadline, &self.source_call())
+        }
+
+        fn run(&self) -> Result<FetchedRecords, CredentialError> {
+            self.fetch().map(|fetched| match fetched {
+                Fetched::Records(records) => records,
+                Fetched::Page(page) => panic!("expected records, got {page:?}"),
+            })
         }
 
         fn source_call(&self) -> SourceCall {
             match self.request.clone() {
                 FetchRequest::OpenAlex(request) => SourceCall::OpenAlex(
-                    request,
+                    OpenAlexCall {
+                        request,
+                        project: ProjectContext {
+                            root: PathBuf::from(ROOT),
+                            config: Box::new(PersonalKeyCommand),
+                        },
+                    },
                     OpenAlexAdapters {
                         api: Endpoint::openalex(),
                         transport: Box::new(AlwaysUnavailable {
@@ -659,6 +706,17 @@ mod tests {
                         }),
                         decoder: Box::new(JsonOpenAlexDecoder),
                         gate: Box::new(NoPacing),
+                        credentials: CredentialPorts {
+                            environment: Box::new(FixedEnvironment(
+                                self.environment.clone(),
+                            )),
+                            runner: Runner::new(Box::new(SlowKeyCommand {
+                                clock: self.clock.clone(),
+                                takes: self.key_command_takes,
+                                timeouts: self.timeouts.clone(),
+                            })),
+                            tracking: Box::new(UntrackedPersonalFile),
+                        },
                     },
                 ),
                 FetchRequest::Arxiv(request) => SourceCall::Arxiv(
@@ -677,6 +735,13 @@ mod tests {
                         contention: Box::new(NoContention),
                     },
                 ),
+                FetchRequest::Web(request) => SourceCall::Web(
+                    request,
+                    WebAdapters {
+                        resolver: Box::new(RefusingResolver),
+                        transport: Box::new(NoPage),
+                    },
+                ),
             }
         }
 
@@ -685,7 +750,7 @@ mod tests {
         }
     }
 
-    fn unavailable(fetched: &Fetched) -> Unavailable {
+    fn unavailable(fetched: &FetchedRecords) -> Unavailable {
         match fetched.outcome {
             FetchOutcome::Unavailable(unavailable) => unavailable,
             ref other => panic!("expected unavailable, got {other:?}"),
@@ -774,6 +839,16 @@ mod tests {
             [(ArxivId::parse("2608.21129v2").expect("an ID"), true)]
         );
         assert!(!fetched.authenticated);
+        assert!(call.timeouts.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_web_call_answers_with_its_page_and_resolves_no_key() {
+        let call = Call::new().asking("web", "metadata", "http://example.org/");
+
+        let fetched = call.fetch().expect("a fetch");
+
+        assert!(matches!(fetched, Fetched::Page(Err(WebFailure::Refused))));
         assert!(call.timeouts.borrow().is_empty());
     }
 }

@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -44,6 +44,9 @@ pub enum Route {
     },
     /// A redirect response to this absolute Location.
     Redirect { status: u16, location: String },
+    /// These bytes as the whole response, unvalidated — the shape a header
+    /// that is not UTF-8 needs.
+    Raw(Vec<u8>),
     /// 500 for the first `fail_times` hits, then 200 with the bytes.
     FlakyThenOk { fail_times: usize, body: Vec<u8> },
     /// One response per hit, in order, with the last repeating once the
@@ -61,6 +64,11 @@ pub enum Route {
     /// promised length (exercises a broken-transfer retry). A `sent` past the
     /// body's length sends the whole body.
     Truncated { body: Vec<u8>, sent: usize },
+    /// Promise the whole body in the headers, then send it one byte at a
+    /// time with this gap before each — so every read the client makes
+    /// completes, while the whole body arrives only slowly (exercises a
+    /// deadline over the whole transfer rather than each read).
+    Trickle { body: Vec<u8>, gap: Duration },
     /// Wait this long, then answer with `route` — a slow but successful
     /// response, for a deadline that spans several requests.
     Delayed { delay: Duration, route: Box<Route> },
@@ -164,7 +172,7 @@ struct Shared {
 }
 
 pub struct MockHTTPServer {
-    port: u16,
+    address: SocketAddr,
     shared: Arc<Shared>,
 }
 
@@ -173,8 +181,15 @@ impl MockHTTPServer {
     /// thread.
     #[must_use]
     pub fn start() -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock");
-        let port = listener.local_addr().expect("addr").port();
+        Self::start_on("127.0.0.1:0")
+    }
+
+    /// Binds `address`, such as `[::1]:0` for an IPv6 loopback port, and
+    /// starts serving in a background thread.
+    #[must_use]
+    pub fn start_on(address: &str) -> Self {
+        let listener = TcpListener::bind(address).expect("bind mock");
+        let address = listener.local_addr().expect("addr");
         listener.set_nonblocking(true).expect("nonblocking");
         let shared = Arc::new(Shared {
             routes: Mutex::new(HashMap::new()),
@@ -188,13 +203,18 @@ impl MockHTTPServer {
             drop(listener);
             server_shared.closed.store(true, Ordering::SeqCst);
         });
-        Self { port, shared }
+        Self { address, shared }
     }
 
     /// The base URL for the server (no trailing slash).
     #[must_use]
     pub fn base_url(&self) -> String {
-        format!("http://127.0.0.1:{}", self.port)
+        format!("http://{}", self.address)
+    }
+
+    #[must_use]
+    pub const fn address(&self) -> SocketAddr {
+        self.address
     }
 
     pub fn route(&self, key: RequestKey, route: Route) {
@@ -470,6 +490,11 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             thread::sleep(delay);
             return Ok(());
         }
+        Some(Route::Raw(response)) => {
+            stream.write_all(&response)?;
+            stream.flush()?;
+            return Ok(());
+        }
         Some(Route::Truncated { body, sent }) => {
             let headers = format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\
@@ -481,6 +506,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             stream.flush()?;
             return Ok(());
         }
+        Some(Route::Trickle { body, gap }) => {
+            return trickle(&mut stream, &body, gap);
+        }
         None => http_response(UNMATCHED_STATUS, &[], &[]),
     };
     stream.write_all(&response)?;
@@ -488,6 +516,26 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     // Read-to-end guard so the client isn't reset before it reads the body.
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
+    Ok(())
+}
+
+fn trickle(
+    stream: &mut TcpStream,
+    body: &[u8],
+    gap: Duration,
+) -> std::io::Result<()> {
+    let headers = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    stream.write_all(headers.as_bytes())?;
+    stream.flush()?;
+    for byte in body {
+        thread::sleep(gap);
+        stream.write_all(&[*byte])?;
+        stream.flush()?;
+    }
     Ok(())
 }
 

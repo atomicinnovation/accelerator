@@ -1,21 +1,9 @@
 //! How reachable the address a host names is.
 //!
-//! Three limits are taken positions rather than oversights.
-//!
-//! The check is **pre-resolution only**: a public hostname resolving to
-//! `169.254.169.254` still classifies as [`HostReach::Public`], and nothing
-//! re-checks after DNS.
-//!
-//! The same verdict now guards **every `navigate`** — its initial URL and every
-//! redirect hop — and every `links` destination per request in the daemon, not
-//! only where a crawl begins. It stays pre-resolution and does not cover page
-//! subresources, so a hostile page can still reach an internal address through a
-//! subresource or a rebased hostname; this is not a full boundary around the
-//! navigation surface.
-//!
-//! It says nothing about **path locations**: a repository path is a valid
-//! source location wherever it points, and nothing confirms it lies inside a
-//! repository.
+//! For a hostname the classification is **pre-resolution**: a public hostname
+//! resolving to `169.254.169.254` still classifies as [`HostReach::Public`]. A
+//! caller that resolves names must classify each address it resolved to with
+//! [`classify_address`] instead.
 
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -23,48 +11,28 @@ use std::net::Ipv6Addr;
 
 use crate::host::Host;
 
-/// The classification a host's address carries, in the vocabulary the
-/// rejection message speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostReach {
-    /// The local machine talking to itself. Always allowed: it carries
-    /// neither the internal-network nor the plaintext-interception risk the
-    /// two flags guard against.
     Loopback,
-    /// RFC 1918 and IPv6 unique-local.
+    /// RFC 1918, and IPv6 unique-local and site-local.
     Private,
     /// `169.254.0.0/16` and `fe80::/10` — the cloud metadata endpoint's home.
     LinkLocal,
     /// Not internet-routable to a normal destination: carrier-grade NAT,
-    /// benchmarking, multicast and the rest of the reserved space.
+    /// benchmarking, documentation, multicast and the rest of the reserved
+    /// space.
     Reserved,
-    /// `0.0.0.0` and `::` — no host at all, so no flag recovers it.
+    /// `0.0.0.0` and `::` — no host at all.
     Unspecified,
     Public,
 }
 
-impl HostReach {
-    /// The word the rejection message uses.
-    #[must_use]
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::Loopback => "loopback",
-            Self::Private => "RFC1918",
-            Self::LinkLocal => "link-local",
-            Self::Reserved => "reserved",
-            Self::Unspecified => "wildcard",
-            Self::Public => "public",
-        }
-    }
-}
-
 /// The one hostname classified without resolving it.
 ///
-/// `http://localhost:3000` is the skill's primary documented invocation.
-/// Resolving the name would be a DNS lookup this module deliberately does not
-/// make, and treating it as public would reject that invocation, so the name is
-/// honoured as written. Exactly the name: a `foo.localhost` subdomain resolves
-/// wherever its zone says.
+/// A pre-resolution convenience: a caller that classifies without resolving
+/// would otherwise call `localhost` public. A caller that resolves the name
+/// classifies the addresses it resolves to and has no need of it. Exactly the
+/// name: a `foo.localhost` subdomain resolves wherever its zone says.
 const LOOPBACK_NAME: &str = "localhost";
 
 /// Classifies the address `host` names; any other hostname is
@@ -79,7 +47,7 @@ pub fn classify(host: &Host) -> HostReach {
 }
 
 #[must_use]
-fn classify_address(address: IpAddr) -> HostReach {
+pub fn classify_address(address: IpAddr) -> HostReach {
     match address {
         IpAddr::V4(v4) => classify_v4(v4),
         IpAddr::V6(v6) => classify_v6(v6),
@@ -100,7 +68,10 @@ fn classify_v4(address: Ipv4Addr) -> HostReach {
         || first == 0
         || (first == 100 && (64..128).contains(&second))
         || (first == 192 && second == 0 && address.octets()[2] == 0)
+        || (first == 192 && second == 0 && address.octets()[2] == 2)
         || (first == 198 && (18..20).contains(&second))
+        || (first == 198 && second == 51 && address.octets()[2] == 100)
+        || (first == 203 && second == 0 && address.octets()[2] == 113)
         || first >= 240
     {
         HostReach::Reserved
@@ -124,11 +95,11 @@ fn classify_v6(address: Ipv6Addr) -> HostReach {
     if let Some(embedded) = embedded_v4(address) {
         return classify_v4(embedded);
     }
-    if is_unique_local(address) {
+    if is_unique_local(address) || is_site_local(address) {
         HostReach::Private
     } else if is_v6_link_local(address) {
         HostReach::LinkLocal
-    } else if address.is_multicast() {
+    } else if !is_global_unicast(address) || is_v6_reserved(address) {
         HostReach::Reserved
     } else {
         HostReach::Public
@@ -138,8 +109,9 @@ fn classify_v6(address: Ipv6Addr) -> HostReach {
 /// The IPv4 address a transition encoding carries, if any.
 ///
 /// `to_ipv4` covers the IPv4-mapped `::ffff:a.b.c.d` and IPv4-compatible
-/// `::a.b.c.d` forms alike with one unwrap; 6to4, Teredo and NAT64 each carry
-/// theirs in a different position.
+/// `::a.b.c.d` forms alike with one unwrap; 6to4, Teredo, NAT64 and the
+/// IPv4-translated `::ffff:0:a.b.c.d` each carry theirs in a different
+/// position.
 fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
     let segments = address.segments();
     if segments[0] == 0x2002 {
@@ -166,6 +138,17 @@ fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
             (segments[7] & 0xff) as u8,
         ));
     }
+    if segments[..4].iter().all(|segment| *segment == 0)
+        && segments[4] == 0xffff
+        && segments[5] == 0
+    {
+        return Some(Ipv4Addr::new(
+            (segments[6] >> 8) as u8,
+            (segments[6] & 0xff) as u8,
+            (segments[7] >> 8) as u8,
+            (segments[7] & 0xff) as u8,
+        ));
+    }
     address.to_ipv4()
 }
 
@@ -177,21 +160,26 @@ const fn is_v6_link_local(address: Ipv6Addr) -> bool {
     address.segments()[0] & 0xffc0 == 0xfe80
 }
 
-#[cfg(test)]
-mod tests {
-    use super::HostReach;
+/// Deprecated by RFC 3879, but a network that still routes it routes it
+/// internally.
+const fn is_site_local(address: Ipv6Addr) -> bool {
+    address.segments()[0] & 0xffc0 == 0xfec0
+}
 
-    // The reachability vectors — every headline address, boundary, indirect
-    // encoding and loopback form — live in the shared classification corpus
-    // (`tests/host_classification_vectors.rs`), so the JavaScript classifier is
-    // held to the same cases. Only the user-facing label vocabulary, which is
-    // Rust-only, is pinned here.
-    #[test]
-    fn every_variant_names_itself_for_the_rejection_message() {
-        assert_eq!(HostReach::Loopback.description(), "loopback");
-        assert_eq!(HostReach::Private.description(), "RFC1918");
-        assert_eq!(HostReach::LinkLocal.description(), "link-local");
-        assert_eq!(HostReach::Reserved.description(), "reserved");
-        assert_eq!(HostReach::Unspecified.description(), "wildcard");
-    }
+/// Only `2000::/3` is allocated for global unicast, so a block assigned
+/// outside it later is never public by default. Local-use NAT64
+/// (`64:ff9b:1::/48`), whose embedded address sits where the operator's
+/// prefix length puts it, falls outside it and is refused whole rather than
+/// unwrapped.
+const fn is_global_unicast(address: Ipv6Addr) -> bool {
+    address.segments()[0] & 0xe000 == 0x2000
+}
+
+/// Benchmarking `2001:2::/48` and documentation `2001:db8::/32` and
+/// `3fff::/20` sit inside global unicast but are never anyone's page.
+const fn is_v6_reserved(address: Ipv6Addr) -> bool {
+    let segments = address.segments();
+    (segments[0] == 0x2001 && segments[1] == 0x0002 && segments[2] == 0)
+        || (segments[0] == 0x2001 && segments[1] == 0x0db8)
+        || (segments[0] == 0x3fff && segments[1] & 0xf000 == 0)
 }

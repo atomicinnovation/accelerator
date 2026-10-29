@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-blocks: ["work-item:0282", "work-item:0284"]
+blocks: ["work-item:0281", "work-item:0282", "work-item:0284"]
 relates_to: ["work-item:0278"]
 tags: ["research", "skills", "deep-research"]
 last_updated: "2026-09-19T15:38:46+00:00"

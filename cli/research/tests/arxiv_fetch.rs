@@ -975,3 +975,25 @@ fn an_unqueued_call_is_served_without_a_place() {
     assert_eq!(found.len(), 1);
     assert_eq!(harness.queue.left(), 0);
 }
+
+#[test]
+fn every_record_is_accessed_on_the_clocks_utc_date() {
+    let harness = Harness::with(vec![
+        entry("2608.00001v1", None),
+        entry("2608.00002v1", None),
+    ]);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let found =
+        records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(found.len(), 2);
+    for record in found {
+        assert_eq!(
+            record.metadata().entries().last(),
+            Some(("accessed", "2027-01-15"))
+        );
+    }
+}

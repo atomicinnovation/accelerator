@@ -1,9 +1,9 @@
 // Reachability + scheme classification for navigation URLs, reimplemented from
-// the Rust domain (design::host, design::host_reach, design::access_policy) so
-// the daemon can classify each request without crossing back into Rust. The
-// shared corpus at cli/design/tests/fixtures/host-classification-vectors.json
-// holds this implementation and the Rust one to the same cases; either drifting
-// fails CI.
+// the Rust domains (network::host, network::host_reach, design::access_policy)
+// so the daemon can classify each request without crossing back into Rust. The
+// shared corpora at cli/network/tests/fixtures/host-classification-vectors.json
+// and cli/design/tests/fixtures/access-policy-vectors.json hold this
+// implementation and the Rust one to the same cases; either drifting fails CI.
 
 const SCHEMES = [
   ['https://', 'https'],
@@ -171,7 +171,10 @@ function classifyV4(bytes) {
     first === 0 ||
     (first === 100 && second >= 64 && second < 128) ||
     (first === 192 && second === 0 && third === 0) ||
+    (first === 192 && second === 0 && third === 2) ||
     (first === 198 && second >= 18 && second < 20) ||
+    (first === 198 && second === 51 && third === 100) ||
+    (first === 203 && second === 0 && third === 113) ||
     first >= 240
   ) {
     return 'reserved';
@@ -227,6 +230,13 @@ function embeddedV4(bytes) {
       segment(7) & 0xff
     );
   }
+  if (
+    bytes.slice(0, 8).every(byte => byte === 0) &&
+    segment(4) === 0xffff &&
+    segment(5) === 0
+  ) {
+    return Uint8Array.of(bytes[12], bytes[13], bytes[14], bytes[15]);
+  }
   return toEmbeddedV4(bytes);
 }
 
@@ -242,9 +252,23 @@ function classifyV6(bytes) {
 
   const segment0 = (bytes[0] << 8) | bytes[1];
   if ((segment0 & 0xfe00) === 0xfc00) return 'private';
+  if ((segment0 & 0xffc0) === 0xfec0) return 'private';
   if ((segment0 & 0xffc0) === 0xfe80) return 'link-local';
-  if (bytes[0] === 0xff) return 'reserved';
+  if (!isGlobalUnicast(bytes) || isV6Reserved(bytes)) return 'reserved';
   return 'public';
+}
+
+function isGlobalUnicast(bytes) {
+  return (bytes[0] & 0xe0) === 0x20;
+}
+
+function isV6Reserved(bytes) {
+  const segment = index => (bytes[index * 2] << 8) | bytes[index * 2 + 1];
+  return (
+    (segment(0) === 0x2001 && segment(1) === 0x0002 && segment(2) === 0) ||
+    (segment(0) === 0x2001 && segment(1) === 0x0db8) ||
+    (segment(0) === 0x3fff && (segment(1) & 0xf000) === 0)
+  );
 }
 
 const LOOPBACK_NAME = 'localhost';

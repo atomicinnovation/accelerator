@@ -16,6 +16,7 @@ mod search_cap;
 mod search_wording;
 mod subagent_cap;
 mod topic_command;
+mod web_command;
 mod write_target;
 
 use std::path::Path;
@@ -33,21 +34,25 @@ use corpus_adapters::SystemClock as CorpusClock;
 use research::conduct::ledger::RunId;
 use research::sources::fetch::Clock;
 use research::sources::fetch::FetchOutcome;
+use research::sources::metadata::SourceMetadata;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
+use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
 use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
+use research_adapters::host_resolver::DnsHostResolver;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
 use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
+use research_adapters::page_transport::HttpPageTransport;
 use research_adapters::queue::random_nonce;
 use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
@@ -59,15 +64,17 @@ use crate::cli::TopicAction;
 use crate::context::ProjectContext;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::ArxivCall;
-use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedRecords;
 use crate::fetch_command::OpenAlexAdapters;
+use crate::fetch_command::OpenAlexCall;
 use crate::fetch_command::SourceCall;
 use crate::topic_command::OutstandingFlags;
 use crate::topic_command::PlanRequest;
 use crate::topic_command::Printed;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
+use crate::web_command::WebAdapters;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -103,7 +110,7 @@ fn main() -> ExitCode {
                     ticket,
                 },
         }) => fetch(
-            clock,
+            &clock,
             &deadline,
             &family,
             &verb,
@@ -134,7 +141,7 @@ fn invoked_as_guard() -> bool {
 }
 
 fn fetch(
-    clock: Rc<dyn Clock>,
+    clock: &Rc<dyn Clock>,
     deadline: &Deadline,
     family: &str,
     verb: &str,
@@ -151,30 +158,13 @@ fn fetch(
         Ok(parsed) => parsed,
         Err(error) => return usage(&error.to_string()),
     };
-    let endpoints = match selected_endpoints() {
-        Ok(endpoints) => endpoints,
-        Err(message) => return usage(&message),
-    };
-    let project = match working_project() {
-        Ok((_, project)) => project,
-        Err(message) => return failure(&message),
-    };
-    let call = match source_call(
-        request, presented, endpoints, &project, &clock, deadline,
-    ) {
+    let call = match source_call(request, presented, clock, deadline) {
         Ok(call) => call,
-        Err(message) => return failure(&message),
+        Err(refused) => return refused,
     };
-    let ports = FetchPorts {
-        clock,
-        credentials: config_adapters::credential_ports(
-            vcs_adapters::InProcessTracking,
-            &project.root,
-            &project.root,
-        ),
-    };
-    match fetch_command::run(&ports, &project, deadline, &call) {
-        Ok(fetched) => report(&fetched),
+    match fetch_command::run(clock.as_ref(), deadline, &call) {
+        Ok(Fetched::Records(records)) => report(&records),
+        Ok(Fetched::Page(page)) => report_page(page),
         Err(error) => failure(&error.to_string()),
     }
 }
@@ -277,32 +267,46 @@ fn minted_run() -> Result<RunId, String> {
     Ok(RunId::mint(&timestamp, rand::random()))
 }
 
-/// Builds only the asked source's adapters, so an OpenAlex call never reads
-/// the configuration arXiv's shared state needs.
+/// Builds only the asked source's adapters, so no call reads a project,
+/// configuration or credential its source never needs.
 fn source_call(
     request: FetchRequest,
     presented: Option<Ticket>,
-    endpoints: Endpoints,
-    project: &ProjectContext,
     clock: &Rc<dyn Clock>,
     deadline: &Deadline,
-) -> Result<SourceCall, String> {
-    let transport = HttpTransport::new(deadline.per_request())
-        .map_err(|error| error.to_string())?;
+) -> Result<SourceCall, ExitCode> {
     Ok(match request {
-        FetchRequest::OpenAlex(request) => SourceCall::OpenAlex(
-            request,
-            OpenAlexAdapters {
-                api: endpoints.openalex_api,
-                transport: Box::new(transport),
-                decoder: Box::new(JsonOpenAlexDecoder),
-                gate: Box::new(NoPacing),
-            },
-        ),
+        FetchRequest::OpenAlex(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let transport = http_transport(deadline)?;
+            let credentials = config_adapters::credential_ports(
+                vcs_adapters::InProcessTracking,
+                &project.root,
+                &project.root,
+            );
+            SourceCall::OpenAlex(
+                OpenAlexCall { request, project },
+                OpenAlexAdapters {
+                    api: endpoints.openalex_api,
+                    transport: Box::new(transport),
+                    decoder: Box::new(JsonOpenAlexDecoder),
+                    gate: Box::new(NoPacing),
+                    credentials,
+                },
+            )
+        }
         FetchRequest::Arxiv(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let transport = http_transport(deadline)?;
             let scratch = project
                 .research_scratch()
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| failure(&error.to_string()))?;
             let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
             let research = ScratchDir::new(&project.root, &scratch);
             SourceCall::Arxiv(
@@ -335,7 +339,16 @@ fn source_call(
                 },
             )
         }
+        FetchRequest::Web(request) => SourceCall::Web(
+            request,
+            selected_web_adapters().map_err(|error| usage(&error))?,
+        ),
     })
+}
+
+fn http_transport(deadline: &Deadline) -> Result<HttpTransport, ExitCode> {
+    HttpTransport::new(deadline.per_request())
+        .map_err(|error| failure(&error.to_string()))
 }
 
 fn working_project() -> Result<(PathBuf, ProjectContext), String> {
@@ -347,7 +360,7 @@ fn working_project() -> Result<(PathBuf, ProjectContext), String> {
     Ok((cwd, project))
 }
 
-fn report(fetched: &Fetched) -> ExitCode {
+fn report(fetched: &FetchedRecords) -> ExitCode {
     if let Some(rejection) = render::rejection(fetched) {
         return usage(&rejection);
     }
@@ -361,6 +374,19 @@ fn report(fetched: &Fetched) -> ExitCode {
         println!("{document}");
         ExitCode::SUCCESS
     })
+}
+
+fn report_page(page: Result<SourceMetadata, WebFailure>) -> ExitCode {
+    match page {
+        Ok(metadata) => render::web_document(&metadata).map_or(
+            ExitCode::FAILURE,
+            |document| {
+                println!("{document}");
+                ExitCode::SUCCESS
+            },
+        ),
+        Err(failed) => failure(&failed.to_string()),
+    }
 }
 
 fn usage(message: &str) -> ExitCode {
@@ -394,6 +420,28 @@ fn selected_call_budget() -> Duration {
 #[cfg(not(feature = "test-loopback"))]
 const fn selected_call_budget() -> Duration {
     CALL_BUDGET
+}
+
+fn production_web_adapters() -> WebAdapters {
+    WebAdapters {
+        resolver: Box::new(DnsHostResolver),
+        transport: Box::new(HttpPageTransport),
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn selected_web_adapters() -> Result<WebAdapters, String> {
+    let production = production_web_adapters();
+    Ok(match loopback::stand_in()? {
+        Some(stand_in) => loopback::through_stand_in(&stand_in, production),
+        None => production,
+    })
+}
+
+#[cfg(not(feature = "test-loopback"))]
+#[allow(clippy::unnecessary_wraps)]
+fn selected_web_adapters() -> Result<WebAdapters, String> {
+    Ok(production_web_adapters())
 }
 
 struct Endpoints {

@@ -10,8 +10,8 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 blocked_by: ["work-item:0277", "work-item:0279"]
-blocks: ["work-item:0283"]
-relates_to: ["work-item:0278", "work-item:0281", "work-item:0282", "work-item:0284"]
+blocks: ["work-item:0281", "work-item:0283"]
+relates_to: ["work-item:0278", "work-item:0282", "work-item:0284"]
 tags: ["research", "skills", "sources", "config"]
 last_updated: "2026-09-30T11:06:15+00:00"
 last_updated_by: "Toby Clemson"

@@ -64,6 +64,21 @@ fn a_recorded_work_decodes_its_venue_signals_and_abstract() {
 }
 
 #[test]
+fn a_recorded_work_decodes_its_publication_date() {
+    for (fixture, published) in [
+        ("work-doi.json", "2018-02-13"),
+        ("work-no-doi.json", "1989-01-01"),
+        ("work-retracted.json", "2020-07-30"),
+    ] {
+        assert_eq!(
+            work(fixture).publication_date.as_deref(),
+            Some(published),
+            "{fixture}"
+        );
+    }
+}
+
+#[test]
 fn a_recorded_work_without_a_doi_decodes_its_repository_source() {
     let work = work("work-no-doi.json");
 

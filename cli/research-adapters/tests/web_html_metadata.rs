@@ -1,0 +1,168 @@
+#![allow(clippy::expect_used, clippy::panic)]
+
+use research::sources::metadata::date::PartialDate;
+use research::sources::web::declarations::PageDecoder as _;
+use research::sources::web::extract::declared_metadata;
+use research_adapters::web_html::WebHtmlDecoder;
+
+fn metadata_of(name: &str) -> Vec<(String, String)> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/web")
+        .join(name);
+    let html = std::fs::read(&path)
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let accessed = PartialDate::parse("2027-01-15").expect("valid date");
+    declared_metadata(&WebHtmlDecoder.declarations(&html), accessed)
+        .entries()
+        .map(|(key, value)| (key.to_owned(), value.to_owned()))
+        .collect()
+}
+
+fn value_of<'a>(
+    metadata: &'a [(String, String)],
+    key: &str,
+) -> Option<&'a str> {
+    metadata
+        .iter()
+        .find(|(present, _)| present == key)
+        .map(|(_, value)| value.as_str())
+}
+
+fn pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+    expected
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+        .collect()
+}
+
+#[test]
+fn a_highwire_page_yields_its_doi_and_publication_date() {
+    assert_eq!(
+        metadata_of("highwire.html"),
+        pairs(&[
+            ("doi", "10.7717/peerj.4375"),
+            ("published", "2018-02-13"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_property_value_identifier_yields_the_doi() {
+    assert_eq!(
+        metadata_of("linked-data-values.html"),
+        pairs(&[("doi", "10.1000/ld1"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn the_article_in_a_graph_yields_its_publication_date() {
+    assert_eq!(
+        metadata_of("linked-data-graph.html"),
+        pairs(&[("published", "2020-01-02"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_date_published_beside_markup_in_a_string_is_read() {
+    assert_eq!(
+        metadata_of("linked-data-markup-in-string.html"),
+        pairs(&[("published", "2019-03-04"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_recorded_plos_one_head_yields_its_highwire_doi_and_month_named_date() {
+    assert_eq!(
+        metadata_of("plos-one-head.html"),
+        pairs(&[
+            ("doi", "10.1371/journal.pone.0000308"),
+            ("published", "2007-03-21"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_recorded_elife_head_yields_its_dublin_core_doi_and_date() {
+    assert_eq!(
+        metadata_of("elife-head.html"),
+        pairs(&[
+            ("doi", "10.7554/elife.05005"),
+            ("published", "2015-08-12"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn the_most_precise_date_within_the_winning_scheme_is_kept() {
+    assert_eq!(
+        metadata_of("highwire-mixed-precision.html"),
+        pairs(&[("published", "2020-09-16"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn equally_precise_dates_within_a_scheme_keep_field_order() {
+    assert_eq!(
+        metadata_of("highwire-equal-precision.html"),
+        pairs(&[("published", "2020-09-01"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_more_precise_date_in_a_later_scheme_never_overrides_an_earlier_one() {
+    assert_eq!(
+        metadata_of("cross-scheme-precision.html"),
+        pairs(&[("published", "2020"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_recorded_nature_head_yields_its_article_s_day_precise_dates() {
+    let metadata = metadata_of("nature-head.html");
+
+    assert_eq!(
+        value_of(&metadata, "doi"),
+        Some("10.1038/s41586-020-2649-2")
+    );
+    assert_eq!(value_of(&metadata, "published"), Some("2020-09-16"));
+    assert_eq!(value_of(&metadata, "updated"), Some("2020-09-16"));
+}
+
+#[test]
+fn a_web_page_s_main_entity_article_yields_its_dates() {
+    assert_eq!(
+        metadata_of("linked-data-main-entity.html"),
+        pairs(&[
+            ("published", "2020-09-16"),
+            ("updated", "2020-10-01"),
+            ("accessed", "2027-01-15"),
+        ])
+    );
+}
+
+#[test]
+fn a_web_page_alone_still_yields_its_own_dates() {
+    assert_eq!(
+        metadata_of("linked-data-web-page-alone.html"),
+        pairs(&[("published", "2019-04-05"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn the_most_specifically_typed_node_wins_over_an_earlier_one() {
+    assert_eq!(
+        metadata_of("linked-data-specific-type-wins.html"),
+        pairs(&[("published", "2002-02-02"), ("accessed", "2027-01-15")])
+    );
+}
+
+#[test]
+fn a_schema_org_type_named_by_iri_or_prefix_is_recognised() {
+    assert_eq!(
+        metadata_of("linked-data-iri-types.html"),
+        pairs(&[("published", "2003-03-03"), ("accessed", "2027-01-15")])
+    );
+}

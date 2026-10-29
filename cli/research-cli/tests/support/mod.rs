@@ -16,7 +16,7 @@ use vcs_test_support::hermetic::Hermetic;
 
 pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
                           primary_location,is_retracted,\
-                          abstract_inverted_index";
+                          abstract_inverted_index,publication_date";
 
 /// Milliseconds since the Unix epoch at which every test clock's wall time
 /// starts, so values one process persists compare deterministically with
@@ -78,6 +78,10 @@ pub fn openalex_fixture(name: &str) -> String {
 
 pub fn arxiv_fixture(name: &str) -> String {
     adapter_fixture("arxiv", name)
+}
+
+pub fn web_fixture(name: &str) -> String {
+    adapter_fixture("web", name)
 }
 
 fn adapter_fixture(family: &str, name: &str) -> String {
@@ -363,6 +367,36 @@ pub fn fetch(
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         waits,
+    }
+}
+
+/// Runs `fetch <args>` in `dir` on the logging test clock, with no API URL
+/// override or stand-in resolution unless `env` sets one.
+pub fn fetch_from(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
+    let scratch = tempfile::tempdir().expect("tempdir");
+    let clock_log = scratch.path().join("clock.log");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-research"));
+    command
+        .arg("fetch")
+        .args(args)
+        .current_dir(dir)
+        .env("ACCELERATOR_RESEARCH_TEST_CLOCK_LOG", &clock_log)
+        .env("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH", CLOCK_EPOCH_MS)
+        .env_remove("ACCELERATOR_RESEARCH_TEST_RESOLVE")
+        .env_remove(CALL_BUDGET_MS)
+        .env_remove("ACCELERATOR_OPENALEX_API_URL")
+        .env_remove("ACCELERATOR_ARXIV_API_URL")
+        .env_remove("ACCELERATOR_ARXIV_OAI_URL")
+        .stdin(Stdio::null());
+    for (name, value) in env {
+        command.env(name, value);
+    }
+    let output = command.output().expect("run accelerator-research");
+    Run {
+        code: output.status.code(),
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        waits: Vec::new(),
     }
 }
 

@@ -1,5 +1,6 @@
 use research::sources::arxiv;
 use research::sources::arxiv::Entry;
+use research::sources::metadata::date::PartialDate;
 use research::sources::openalex::Location;
 use research::sources::openalex::Source;
 use research::sources::openalex::Work;
@@ -176,7 +177,12 @@ fn arxiv_entry(journal_ref: Option<&str>, doi: Option<&str>) -> Entry {
 }
 
 fn arxiv_record_tier(entry: &Entry, withdrawn: bool) -> Option<Tier> {
-    arxiv::normalise(entry, withdrawn).map(|record| record.tier())
+    arxiv::normalise(
+        entry,
+        withdrawn,
+        PartialDate::utc_date_of(std::time::UNIX_EPOCH),
+    )
+    .map(|record| record.tier())
 }
 
 #[test]

@@ -5,9 +5,11 @@
 pub mod arxiv;
 pub mod classify;
 pub mod fetch;
+pub mod metadata;
 pub mod openalex;
 pub mod queue;
 pub mod record;
 pub mod request;
 pub mod schedule;
 pub mod tier;
+pub mod web;

@@ -121,6 +121,7 @@ dependencies = [
  "corpus",
  "corpus-adapters",
  "http-test-support",
+ "network",
  "rand 0.9.5",
  "research",
  "research-adapters",
@@ -1123,6 +1124,7 @@ version = "1.24.0-pre.87"
 dependencies = [
  "base64",
  "kernel",
+ "network",
  "percent-encoding",
  "serde_json",
 ]
@@ -2416,6 +2418,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "html5gum"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "428502d3ec1742c35e015871aef742bc4722a9acfcb616b8ff79b519922e1c36"
+dependencies = [
+ "jetscii",
+]
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2824,6 +2835,12 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "jetscii"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47f142fe24a9c9944451e8349de0a56af5f3e7226dc46f3ed4d4ecc0b85af75e"
 
 [[package]]
 name = "jiff"
@@ -3367,6 +3384,13 @@ dependencies = [
  "smallvec",
  "tagptr",
  "uuid",
+]
+
+[[package]]
+name = "network"
+version = "1.24.0-pre.87"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4113,6 +4137,9 @@ dependencies = [
 [[package]]
 name = "research"
 version = "1.24.0-pre.87"
+dependencies = [
+ "network",
+]
 
 [[package]]
 name = "research-adapters"
@@ -4120,10 +4147,13 @@ version = "1.24.0-pre.87"
 dependencies = [
  "corpus",
  "corpus-adapters",
+ "hickory-resolver",
+ "html5gum",
  "http-test-support",
  "icu_normalizer",
  "icu_properties",
  "kernel",
+ "network",
  "rand 0.9.5",
  "reqwest",
  "research",
@@ -4135,6 +4165,8 @@ dependencies = [
  "sha2",
  "store",
  "tempfile",
+ "tokio",
+ "url",
 ]
 
 [[package]]

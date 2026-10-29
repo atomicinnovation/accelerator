@@ -3,8 +3,8 @@
 A pure content scan (no compiled binary), homed with the other content
 scanners. The generic researcher stays source-agnostic with a pinned tool
 grant; each academic profile reaches its source only through the fetch; and
-every skill that injects an academic profile grants the fetch, because the
-researchers it spawns inherit its allow rules. The composer reads notes and
+every skill that injects a profile granting the fetch grants it too, because
+the researchers it spawns inherit its allow rules. The composer reads notes and
 writes a finding with nothing else, and research-topic's conduct and the
 level-note outputter state the run and note rules the planner enforces.
 """
@@ -84,8 +84,9 @@ def _profiles() -> list[str]:
     )
 
 
-def _academic_profiles() -> list[str]:
-    """Every installed profile whose skill grants the fetch."""
+def _fetch_granting_profiles() -> list[str]:
+    """Every installed profile whose skill grants the fetch, academic or
+    not."""
     return sorted(
         path.parent.name.removesuffix("-profile")
         for path in (REPO_ROOT / PROFILES_DIR).glob("*-profile/SKILL.md")
@@ -789,20 +790,22 @@ def _injects(skill: str, profile: str) -> bool:
     )
 
 
-def test_every_skill_injecting_an_academic_profile_grants_the_fetch() -> None:
-    academic = _academic_profiles()
-    assert academic, "no profile grants the fetch"
+def test_every_skill_injecting_a_fetch_granting_profile_grants_the_fetch() -> (
+    None
+):
+    granting = _fetch_granting_profiles()
+    assert granting, "no profile grants the fetch"
     injecting = [
         path
         for path in sorted((REPO_ROOT / "skills").rglob("SKILL.md"))
         if not path.is_relative_to(REPO_ROOT / PROFILES_DIR)
-        and any(_injects(_read(path), profile) for profile in academic)
+        and any(_injects(_read(path), profile) for profile in granting)
     ]
-    assert injecting, "no skill injects an academic profile"
+    assert injecting, "no skill injects a profile that grants the fetch"
     for path in injecting:
         assert FETCH_GRANT in frontmatter_bash_rules(_read(path)), (
-            f"{path.relative_to(REPO_ROOT)} injects an academic profile "
-            f"without granting Bash({FETCH_GRANT})"
+            f"{path.relative_to(REPO_ROOT)} injects a profile granting the "
+            f"fetch without granting Bash({FETCH_GRANT})"
         )
 
 
@@ -1326,3 +1329,167 @@ def test_conduct_reads_the_halting_fields() -> None:
         "into `pairs`, each as `stem`, `question`, `profile` and `stage`",
     ):
         assert field in fields, f"conduct must read {field!r}"
+
+
+SOURCE_METADATA = REPO_ROOT / "cli/research/src/sources/metadata.rs"
+SOURCES_ENTRY = "- [Title](url) — tier-1 — {source domain/venue}"
+METADATA_SLOT = "  - {source-metadata}"
+TEMPLATES = [
+    FINDING_TEMPLATE,
+    REPO_ROOT / "templates/topic-research-level-note.md",
+    REPO_ROOT / "templates/topic-research-synthesis.md",
+]
+
+
+def _recommended_keys() -> list[str]:
+    """The CLI's recommended keys, in order, read from their one Rust
+    definition."""
+    found = re.search(
+        r"pub const RECOMMENDED_KEYS: \[&str; (\d+)\] = \[(.*?)\];",
+        _read(SOURCE_METADATA),
+        re.DOTALL,
+    )
+    assert found, "the CLI no longer defines RECOMMENDED_KEYS"
+    keys = re.findall(r'"([a-z_]+)"', found.group(2))
+    assert len(keys) == int(found.group(1)) == 19, (
+        "RECOMMENDED_KEYS changed shape; read it afresh"
+    )
+    return keys
+
+
+def _key_column(text: str) -> list[str]:
+    """The keys a markdown table lists, in row order."""
+    return re.findall(r"^\s*\| `([a-z_]+)` +\|", text, re.MULTILINE)
+
+
+def test_the_finding_outputter_lists_every_recommended_key_in_order() -> None:
+    assert _key_column(_read(FINDING_OUTPUTTER)) == _recommended_keys()
+
+
+def test_the_finding_outputter_documents_the_metadata_block() -> None:
+    outputter = _prose(FINDING_OUTPUTTER)
+    for rule in (
+        "lowercase `snake_case`",
+        "single-line",
+        "`url`, title and venue never appear in the block",
+        "copied unchanged and in emitted order",
+        "emits only recommended keys, in table order",
+        METADATA_SLOT.strip(),
+    ):
+        assert rule in outputter, f"the finding outputter must state {rule!r}"
+
+
+def test_the_level_note_outputter_defers_to_the_metadata_block() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    assert "Sources metadata block" in outputter
+    assert "untrusted-content contract" not in outputter
+
+
+@pytest.mark.parametrize("template", TEMPLATES, ids=lambda path: path.name)
+def test_every_template_carries_the_metadata_slot_under_its_entry(
+    template: Path,
+) -> None:
+    lines = _read(template).splitlines()
+    entry = lines.index(SOURCES_ENTRY)
+    assert lines[entry + 1 : entry + 2] == [METADATA_SLOT], (
+        f"{template.name} must carry {METADATA_SLOT!r} under its Sources entry"
+    )
+
+
+def _synthesise() -> str:
+    return _section(
+        _research_topic_prose(), "### synthesise", "### Reopening a closed set"
+    )
+
+
+@pytest.mark.parametrize(
+    "carrier",
+    [lambda: _prose(COMPOSER), _synthesise],
+    ids=["composer", "synthesise"],
+)
+def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
+    text = carrier()
+    for rule in (
+        "metadata block byte-for-byte",
+        "even when it is not in canonical order",
+        "Never merge, reorder or complete a block",
+        f"`{METADATA_SLOT.strip()}` slot line under each source",
+    ):
+        assert rule in text, f"a carrier must state {rule!r}"
+
+
+def test_synthesise_leaves_a_one_line_citation_one_line() -> None:
+    assert "cited one-line in its finding stays one-line" in _synthesise()
+
+
+COPY_THE_MAP = "copy its `metadata` map into the entry's metadata block"
+
+
+@pytest.mark.parametrize(("family", "name"), sorted(ACADEMIC_FAMILIES.items()))
+def test_an_academic_profile_copies_each_cited_records_metadata(
+    family: str, name: str
+) -> None:
+    profile = _profile_skill(family)
+    prose = _prose(REPO_ROOT / profile)
+    assert COPY_THE_MAP in _section(
+        prose, "## Reputation Tiers", "## Outcome", path=profile
+    ), f"the {name} profile must copy a cited record's metadata"
+    assert "`metadata`" in _section(
+        prose,
+        "## Untrusted-Content Contract",
+        "## Reputation Tiers",
+        path=profile,
+    ), f"the {name} profile must treat metadata values as data"
+
+
+WEB_METADATA = f"{FETCH}web metadata "
+
+
+def _web_profile() -> Path:
+    return REPO_ROOT / _profile_skill("web")
+
+
+def test_the_web_profile_grants_the_fetch() -> None:
+    assert FETCH_GRANT in frontmatter_bash_rules(_read(_web_profile()))
+    assert "web" in _fetch_granting_profiles()
+
+
+def test_the_web_profile_fetches_only_metadata_by_a_quoted_url() -> None:
+    _, body = _split(_read(_web_profile()))
+    commands = fenced_block_commands(body)
+    assert commands, "the web profile shows no metadata fetch to run"
+    for command in commands:
+        assert re.fullmatch(rf"{WEB_METADATA}'[^']+'", command), (
+            f"the web profile runs something other than a quoted metadata "
+            f"fetch: {command}"
+        )
+
+
+def test_a_failed_metadata_fetch_costs_only_the_block() -> None:
+    web = _prose(_web_profile())
+    for rule in (
+        "leaves that entry without a metadata block",
+        "never makes the outcome Denied or Unreachable",
+        "written as `%27`",
+        COPY_THE_MAP,
+    ):
+        assert rule in web, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_treats_declared_metadata_as_inert() -> None:
+    contract = _section(
+        _prose(_web_profile()),
+        "## Untrusted-Content Contract",
+        "## Reputation Tiers",
+        path=_profile_skill("web"),
+    )
+    assert "metadata a page declares" in contract
+    assert "never fetched or followed" in contract
+
+
+def test_the_docs_list_every_recommended_key_in_order() -> None:
+    docs = _read(DOCS_RESEARCH)
+    sources_metadata = _section(
+        docs, "## Sources metadata\n", "\n## ", path=DOCS_RESEARCH
+    )
+    assert _key_column(sources_metadata) == _recommended_keys()

@@ -31,3 +31,4 @@ domain forward.]
 
 ## Sources
 - [Title](url) — tier-1 — {source domain/venue}
+  - {source-metadata}

@@ -9,9 +9,10 @@ status: "draft"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0121"
-relates_to: ["work-item:0280", "work-item:0306", "work-item:0311"]
+blocked_by: ["work-item:0348"]
+relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0311"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers"]
-last_updated: "2026-10-09T17:58:47+00:00"
+last_updated: "2026-10-24T09:43:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -64,6 +65,9 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (0306).
   is not a venue: a source cited by DOI is tiered and recorded by the venue
   it resolves to (journal, conference or publisher), never as `doi.org`.
 - The web profile states how to find that venue (mechanism open; see below).
+- A source cited by DOI keeps its DOI in its `doi` source metadata (0348)
+  whatever URL and venue it is recorded under, so 0306 still recognises it
+  as one source with its other citations.
 - A regression test in `cli/research` asserts that `search` and `lookup` (by
   DOI, by `https://doi.org/` DOI, and by W-id) produce the same tier, venue
   and venue signals for the same work.
@@ -95,10 +99,12 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (0306).
 
 ## Dependencies
 
-- Blocked by: none known
+- Blocked by: 0348, which defines the `doi` source metadata key this item
+  keeps.
 - Blocks: none known
 - Related: 0306, which handles whatever conflicts remain once this source of
-  them is removed.
+  them is removed, and whose DOI identity relies on the `doi` metadata this
+  item keeps.
 
 ## Assumptions
 

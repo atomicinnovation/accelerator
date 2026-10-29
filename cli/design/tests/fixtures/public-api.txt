@@ -462,59 +462,6 @@ impl core::fmt::Debug for design::executor::daemon_identity::RecordedDaemon
 pub fn design::executor::daemon_identity::RecordedDaemon::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for design::executor::daemon_identity::RecordedDaemon
 impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedDaemon
-pub mod design::host
-pub enum design::host::HostError
-pub design::host::HostError::ControlCharacter
-pub design::host::HostError::Empty
-pub design::host::HostError::NumericEncoding
-pub design::host::HostError::Userinfo
-impl design::host::HostError
-pub fn design::host::HostError::message(&self, authority: &str) -> alloc::string::String
-impl core::clone::Clone for design::host::HostError
-pub fn design::host::HostError::clone(&self) -> design::host::HostError
-impl core::cmp::Eq for design::host::HostError
-impl core::cmp::PartialEq for design::host::HostError
-pub fn design::host::HostError::eq(&self, other: &design::host::HostError) -> bool
-impl core::error::Error for design::host::HostError
-impl core::fmt::Debug for design::host::HostError
-pub fn design::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for design::host::HostError
-pub fn design::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for design::host::HostError
-pub struct design::host::Host
-impl design::host::Host
-pub const fn design::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
-pub fn design::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, design::host::HostError>
-impl core::clone::Clone for design::host::Host
-pub fn design::host::Host::clone(&self) -> design::host::Host
-impl core::cmp::Eq for design::host::Host
-impl core::cmp::PartialEq for design::host::Host
-pub fn design::host::Host::eq(&self, other: &design::host::Host) -> bool
-impl core::fmt::Debug for design::host::Host
-pub fn design::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for design::host::Host
-pub fn design::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for design::host::Host
-pub mod design::host_reach
-pub enum design::host_reach::HostReach
-pub design::host_reach::HostReach::LinkLocal
-pub design::host_reach::HostReach::Loopback
-pub design::host_reach::HostReach::Private
-pub design::host_reach::HostReach::Public
-pub design::host_reach::HostReach::Reserved
-pub design::host_reach::HostReach::Unspecified
-impl design::host_reach::HostReach
-pub const fn design::host_reach::HostReach::description(self) -> &'static str
-impl core::clone::Clone for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::clone(&self) -> design::host_reach::HostReach
-impl core::cmp::Eq for design::host_reach::HostReach
-impl core::cmp::PartialEq for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::eq(&self, other: &design::host_reach::HostReach) -> bool
-impl core::fmt::Debug for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for design::host_reach::HostReach
-impl core::marker::StructuralPartialEq for design::host_reach::HostReach
-pub fn design::host_reach::classify(host: &design::host::Host) -> design::host_reach::HostReach
 pub mod design::leaked_credentials
 pub struct design::leaked_credentials::NamedSecret
 pub design::leaked_credentials::NamedSecret::name: alloc::string::String
@@ -717,7 +664,7 @@ pub mod design::source_location
 pub enum design::source_location::LocationError
 pub design::source_location::LocationError::Host
 pub design::source_location::LocationError::Host::authority: alloc::string::String
-pub design::source_location::LocationError::Host::error: design::host::HostError
+pub design::source_location::LocationError::Host::error: network::host::HostError
 pub design::source_location::LocationError::PathEscape(alloc::string::String)
 pub design::source_location::LocationError::Scheme(alloc::string::String)
 impl core::clone::Clone for design::source_location::LocationError
@@ -747,7 +694,7 @@ pub enum design::source_location::SourceLocation
 pub design::source_location::SourceLocation::Blank
 pub design::source_location::SourceLocation::RepositoryPath(alloc::string::String)
 pub design::source_location::SourceLocation::Url
-pub design::source_location::SourceLocation::Url::host: design::host::Host
+pub design::source_location::SourceLocation::Url::host: network::host::Host
 pub design::source_location::SourceLocation::Url::scheme: design::source_location::Scheme
 impl core::clone::Clone for design::source_location::SourceLocation
 pub fn design::source_location::SourceLocation::clone(&self) -> design::source_location::SourceLocation
@@ -816,42 +763,6 @@ impl core::marker::StructuralPartialEq for design::runtime::downgrade::Downgrade
 impl core::str::traits::FromStr for design::runtime::downgrade::DowngradeReason
 pub type design::runtime::downgrade::DowngradeReason::Err = design::runtime::downgrade::UnknownReason
 pub fn design::runtime::downgrade::DowngradeReason::from_str(key: &str) -> core::result::Result<Self, Self::Err>
-pub enum design::HostError
-pub design::HostError::ControlCharacter
-pub design::HostError::Empty
-pub design::HostError::NumericEncoding
-pub design::HostError::Userinfo
-impl design::host::HostError
-pub fn design::host::HostError::message(&self, authority: &str) -> alloc::string::String
-impl core::clone::Clone for design::host::HostError
-pub fn design::host::HostError::clone(&self) -> design::host::HostError
-impl core::cmp::Eq for design::host::HostError
-impl core::cmp::PartialEq for design::host::HostError
-pub fn design::host::HostError::eq(&self, other: &design::host::HostError) -> bool
-impl core::error::Error for design::host::HostError
-impl core::fmt::Debug for design::host::HostError
-pub fn design::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for design::host::HostError
-pub fn design::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for design::host::HostError
-pub enum design::HostReach
-pub design::HostReach::LinkLocal
-pub design::HostReach::Loopback
-pub design::HostReach::Private
-pub design::HostReach::Public
-pub design::HostReach::Reserved
-pub design::HostReach::Unspecified
-impl design::host_reach::HostReach
-pub const fn design::host_reach::HostReach::description(self) -> &'static str
-impl core::clone::Clone for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::clone(&self) -> design::host_reach::HostReach
-impl core::cmp::Eq for design::host_reach::HostReach
-impl core::cmp::PartialEq for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::eq(&self, other: &design::host_reach::HostReach) -> bool
-impl core::fmt::Debug for design::host_reach::HostReach
-pub fn design::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for design::host_reach::HostReach
-impl core::marker::StructuralPartialEq for design::host_reach::HostReach
 pub enum design::Reuse
 pub design::Reuse::Recover
 pub design::Reuse::Reuse(i32)
@@ -868,7 +779,7 @@ pub enum design::SourceLocation
 pub design::SourceLocation::Blank
 pub design::SourceLocation::RepositoryPath(alloc::string::String)
 pub design::SourceLocation::Url
-pub design::SourceLocation::Url::host: design::host::Host
+pub design::SourceLocation::Url::host: network::host::Host
 pub design::SourceLocation::Url::scheme: design::source_location::Scheme
 impl core::clone::Clone for design::source_location::SourceLocation
 pub fn design::source_location::SourceLocation::clone(&self) -> design::source_location::SourceLocation
@@ -922,20 +833,6 @@ pub fn design::credentials::Credentials::default() -> design::credentials::Crede
 impl core::fmt::Debug for design::credentials::Credentials
 pub fn design::credentials::Credentials::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::credentials::Credentials
-pub struct design::Host
-impl design::host::Host
-pub const fn design::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
-pub fn design::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, design::host::HostError>
-impl core::clone::Clone for design::host::Host
-pub fn design::host::Host::clone(&self) -> design::host::Host
-impl core::cmp::Eq for design::host::Host
-impl core::cmp::PartialEq for design::host::Host
-pub fn design::host::Host::eq(&self, other: &design::host::Host) -> bool
-impl core::fmt::Debug for design::host::Host
-pub fn design::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for design::host::Host
-pub fn design::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for design::host::Host
 pub struct design::NamedSecret
 pub design::NamedSecret::name: alloc::string::String
 pub design::NamedSecret::value: alloc::string::String

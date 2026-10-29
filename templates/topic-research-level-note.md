@@ -33,3 +33,4 @@ schema_version: 1
 
 ## Sources
 - [Title](url) — tier-1 — {source domain/venue}
+  - {source-metadata}

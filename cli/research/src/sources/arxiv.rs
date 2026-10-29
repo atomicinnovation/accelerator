@@ -1,10 +1,13 @@
 //! arXiv feed entries and `arXivRaw` versions as the decoder hands them
 //! over, the withdrawal rules, and the record each entry becomes.
 
+use crate::sources::metadata::date::PartialDate;
+use crate::sources::metadata::SourceMetadata;
 use crate::sources::record::excerpt;
 use crate::sources::record::Record;
 use crate::sources::record::VenueSignals;
 use crate::sources::request::ArxivId;
+use crate::sources::request::Doi;
 use crate::sources::tier::arxiv_tier;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -17,6 +20,8 @@ pub struct Entry {
     pub journal_ref: Option<String>,
     pub doi: Option<String>,
     pub primary_category: Option<String>,
+    pub published: Option<String>,
+    pub updated: Option<String>,
 }
 
 impl Entry {
@@ -28,6 +33,30 @@ impl Entry {
 
     pub fn is_withdrawal_candidate(&self) -> bool {
         self.comment.as_deref().is_some_and(is_withdrawal_candidate)
+    }
+
+    fn metadata(&self, id: &ArxivId, accessed: PartialDate) -> SourceMetadata {
+        let mut metadata = SourceMetadata::default();
+        if let Some(doi) = self
+            .doi
+            .as_deref()
+            .and_then(|dois| dois.split_whitespace().find_map(Doi::parse))
+        {
+            metadata.record_doi(&doi);
+        }
+        metadata.record_arxiv_id(id);
+        if let Some(published) =
+            self.published.as_deref().and_then(PartialDate::parse)
+        {
+            metadata.record_published(published);
+        }
+        if let Some(updated) =
+            self.updated.as_deref().and_then(PartialDate::parse)
+        {
+            metadata.record_updated(updated);
+        }
+        metadata.record_accessed(accessed);
+        metadata
     }
 }
 
@@ -75,8 +104,13 @@ pub fn latest_version_withdrawn(versions: &[RawVersion]) -> bool {
 }
 
 /// The record an entry becomes, or `None` when its ID is not an arXiv
-/// abstract URL and so cannot be cited.
-pub fn normalise(entry: &Entry, withdrawn: bool) -> Option<Record> {
+/// abstract URL and so cannot be cited. `accessed` is the date the entry was
+/// fetched.
+pub fn normalise(
+    entry: &Entry,
+    withdrawn: bool,
+    accessed: PartialDate,
+) -> Option<Record> {
     let id = entry.arxiv_id()?;
     Some(Record {
         title: Some(entry.title.clone()),
@@ -98,5 +132,6 @@ pub fn normalise(entry: &Entry, withdrawn: bool) -> Option<Record> {
         tier: arxiv_tier(withdrawn),
         retracted: false,
         withdrawn,
+        metadata: entry.metadata(&id, accessed),
     })
 }

@@ -63,10 +63,15 @@ way, and use your judgement for any section the template shapes differently.
   on its own: **no round narration**, no "in this round", no changelog of what
   you did. A reader who opens only this finding must understand it.
 - **Sources** — one bullet per source, each carrying its reputation tier and
-  recorded domain or venue:
+  recorded domain or venue, and the source's metadata block when it has one
+  (see **Sources Metadata Block**):
 
   ```text
   - [Title](url) — tier-1 — {source domain/venue}
+    - doi: 10.7717/peerj.4375
+    - openalex_id: W2741809807
+    - published: 2018-02-13
+    - accessed: 2026-10-24
   ```
 
   When the profile's sources held nothing relevant, Sources reads
@@ -75,3 +80,52 @@ way, and use your judgement for any section the template shapes differently.
 Tier every source `tier-1`/`tier-2`/`tier-3` by the source profile's vocabulary,
 from venue identity alone. The tier text carries any suffix the profile
 prescribes, such as `tier-3 (retracted)`.
+
+## Sources Metadata Block
+
+A Sources entry may carry a **metadata block**: a nested `  - key: value`
+list directly under its line. The block is optional, and an entry without one
+is valid.
+
+- Block lines are the CLI's `metadata` entries for the cited source, copied
+  unchanged and in emitted order. Never write a block line from anywhere
+  else: not from a page, an abstract, a record's other fields, or memory.
+- Keys are lowercase `snake_case`, values are single-line, and a key with no
+  value is omitted.
+- `url`, title and venue never appear in the block: they stay on the entry
+  line.
+- The CLI emits only recommended keys, in table order. Copying in emitted
+  order keeps that order.
+- The template's `  - {source-metadata}` slot line repeats under every
+  Sources entry. Under each, it becomes one `  - key: value` line per entry
+  of that source's `metadata` map, in emitted order. When the source has no
+  map, delete the whole slot line: never leave it as written, and never fill
+  it from anything else.
+
+The recommended keys, in order:
+
+| Key | Group | Value form |
+|---|---|---|
+| `doi` | identifier | bare and lowercase: `10.7717/peerj.4375` |
+| `arxiv_id` | identifier | bare, with the version retrieved: `2305.12345v2` |
+| `openalex_id` | identifier | the bare `W` ID: `W2741809807` |
+| `pmid` | identifier | |
+| `issn` | identifier | |
+| `published` | date | ISO 8601 at the precision the source declares: `2023`, `2023-05` or `2023-05-12` |
+| `updated` | date | as `published` |
+| `accessed` | date | the UTC date of the CLI call the map came from: `2026-10-24` |
+| `type` | bibliographic | |
+| `authors` | bibliographic | |
+| `publisher` | bibliographic | |
+| `volume` | bibliographic | |
+| `issue` | bibliographic | |
+| `pages` | bibliographic | |
+| `license` | bibliographic | |
+| `journal_ref` | source-specific | |
+| `primary_category` | source-specific | |
+| `oa_status` | source-specific | |
+| `pdf_url` | source-specific | |
+
+The CLI fills the core keys, those with a value form above, wherever the
+source provides them. `journal_ref` is a citation string, not a venue, so it
+does not duplicate the entry line.

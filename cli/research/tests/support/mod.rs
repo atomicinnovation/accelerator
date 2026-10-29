@@ -108,6 +108,10 @@ impl RecordingClock {
         self.wall_origin + offset
     }
 
+    pub fn instant_at(&self, offset: Duration) -> Instant {
+        self.origin + offset
+    }
+
     pub fn deadline(&self) -> Deadline {
         Deadline::starting(self.origin, secs(100), secs(30))
     }

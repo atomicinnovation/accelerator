@@ -57,6 +57,8 @@ fn entry(node: Node<'_, '_>) -> Result<Entry, DecodeFailure> {
         primary_category: child(node, ARXIV, "primary_category")
             .and_then(|category| category.attribute("term"))
             .map(str::to_owned),
+        published: optional(ATOM, "published"),
+        updated: optional(ATOM, "updated"),
     })
 }
 

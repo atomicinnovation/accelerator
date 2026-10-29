@@ -27,7 +27,12 @@ finding. You fetch nothing and run nothing.
    understand it.
 3. **Cite only sources that appear in the injected notes**, carrying each
    source's tier text verbatim, suffix included, and its recorded domain or
-   venue. Never add a source, and never re-tier one.
+   venue. Never add a source, and never re-tier one. Carry each source's
+   metadata block byte-for-byte: the same keys, in the same order, with the
+   same values, even when it is not in canonical order. Never merge, reorder
+   or complete a block. Replace the template's `- {source-metadata}` slot line
+   under each source with the note's block lines, or delete that whole line
+   where the note has none.
 4. **Stamp** the injected `depth`, `round`, `question` and `source_profile`,
    filling the rest of the frontmatter per the outputter.
 5. **Write the finding** to the single injected finding path, and nowhere

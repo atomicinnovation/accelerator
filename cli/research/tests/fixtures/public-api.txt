@@ -555,8 +555,10 @@ pub research::sources::arxiv::Entry::doi: core::option::Option<alloc::string::St
 pub research::sources::arxiv::Entry::id: alloc::string::String
 pub research::sources::arxiv::Entry::journal_ref: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::primary_category: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::published: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::summary: core::option::Option<alloc::string::String>
 pub research::sources::arxiv::Entry::title: alloc::string::String
+pub research::sources::arxiv::Entry::updated: core::option::Option<alloc::string::String>
 impl research::sources::arxiv::Entry
 pub fn research::sources::arxiv::Entry::arxiv_id(&self) -> core::option::Option<research::sources::request::ArxivId>
 pub fn research::sources::arxiv::Entry::is_withdrawal_candidate(&self) -> bool
@@ -585,7 +587,7 @@ pub fn research::sources::arxiv::RawVersion::fmt(&self, f: &mut core::fmt::Forma
 impl core::marker::StructuralPartialEq for research::sources::arxiv::RawVersion
 pub fn research::sources::arxiv::is_withdrawal_candidate(comment: &str) -> bool
 pub fn research::sources::arxiv::latest_version_withdrawn(versions: &[research::sources::arxiv::RawVersion]) -> bool
-pub fn research::sources::arxiv::normalise(entry: &research::sources::arxiv::Entry, withdrawn: bool) -> core::option::Option<research::sources::record::Record>
+pub fn research::sources::arxiv::normalise(entry: &research::sources::arxiv::Entry, withdrawn: bool, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
 pub mod research::sources::classify
 pub enum research::sources::classify::ClientRejection
 pub research::sources::classify::ClientRejection::ErrorFeed(alloc::string::String)
@@ -826,6 +828,61 @@ pub trait research::sources::fetch::Transport
 pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
 pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
+pub mod research::sources::metadata
+pub mod research::sources::metadata::date
+pub enum research::sources::metadata::date::Precision
+pub research::sources::metadata::date::Precision::Day
+pub research::sources::metadata::date::Precision::Month
+pub research::sources::metadata::date::Precision::Year
+impl core::clone::Clone for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::clone(&self) -> research::sources::metadata::date::Precision
+impl core::cmp::Eq for research::sources::metadata::date::Precision
+impl core::cmp::Ord for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::cmp(&self, other: &research::sources::metadata::date::Precision) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::eq(&self, other: &research::sources::metadata::date::Precision) -> bool
+impl core::cmp::PartialOrd for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::partial_cmp(&self, other: &research::sources::metadata::date::Precision) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::Precision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::metadata::date::Precision
+impl core::marker::StructuralPartialEq for research::sources::metadata::date::Precision
+pub struct research::sources::metadata::date::PartialDate
+impl research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::parse(raw: &str) -> core::option::Option<Self>
+pub const fn research::sources::metadata::date::PartialDate::precision(&self) -> research::sources::metadata::date::Precision
+pub fn research::sources::metadata::date::PartialDate::utc_date_of(at: std::time::SystemTime) -> Self
+impl core::clone::Clone for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::clone(&self) -> research::sources::metadata::date::PartialDate
+impl core::cmp::Eq for research::sources::metadata::date::PartialDate
+impl core::cmp::PartialEq for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::eq(&self, other: &research::sources::metadata::date::PartialDate) -> bool
+impl core::fmt::Debug for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::metadata::date::PartialDate
+pub fn research::sources::metadata::date::PartialDate::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::metadata::date::PartialDate
+impl core::marker::StructuralPartialEq for research::sources::metadata::date::PartialDate
+pub struct research::sources::metadata::SourceMetadata
+impl research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::entries(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&str, &str)>
+pub fn research::sources::metadata::SourceMetadata::record_accessed(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_arxiv_id(&mut self, id: &research::sources::request::ArxivId)
+pub fn research::sources::metadata::SourceMetadata::record_doi(&mut self, doi: &research::sources::request::Doi)
+pub fn research::sources::metadata::SourceMetadata::record_openalex_id(&mut self, id: &research::sources::request::WorkId)
+pub fn research::sources::metadata::SourceMetadata::record_published(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_updated(&mut self, date: research::sources::metadata::date::PartialDate)
+impl core::clone::Clone for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::clone(&self) -> research::sources::metadata::SourceMetadata
+impl core::cmp::Eq for research::sources::metadata::SourceMetadata
+impl core::cmp::PartialEq for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::eq(&self, other: &research::sources::metadata::SourceMetadata) -> bool
+impl core::default::Default for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::default() -> research::sources::metadata::SourceMetadata
+impl core::fmt::Debug for research::sources::metadata::SourceMetadata
+pub fn research::sources::metadata::SourceMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::metadata::SourceMetadata
+pub const research::sources::metadata::RECOMMENDED_KEYS: [&str; 19]
 pub mod research::sources::openalex
 pub struct research::sources::openalex::Location
 pub research::sources::openalex::Location::source: core::option::Option<research::sources::openalex::Source>
@@ -862,6 +919,7 @@ pub research::sources::openalex::Work::doi: core::option::Option<alloc::string::
 pub research::sources::openalex::Work::id: alloc::string::String
 pub research::sources::openalex::Work::is_retracted: bool
 pub research::sources::openalex::Work::primary_location: core::option::Option<research::sources::openalex::Location>
+pub research::sources::openalex::Work::publication_date: core::option::Option<alloc::string::String>
 pub research::sources::openalex::Work::title: core::option::Option<alloc::string::String>
 pub research::sources::openalex::Work::work_type: alloc::string::String
 impl core::clone::Clone for research::sources::openalex::Work
@@ -875,7 +933,7 @@ impl core::fmt::Debug for research::sources::openalex::Work
 pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
-pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work) -> core::option::Option<research::sources::record::Record>
+pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
 pub research::sources::queue::Argument::Id
@@ -1106,6 +1164,7 @@ pub struct research::sources::record::Record
 impl research::sources::record::Record
 pub fn research::sources::record::Record::abstract_excerpt(&self) -> core::option::Option<&str>
 pub fn research::sources::record::Record::authors(&self) -> &[alloc::string::String]
+pub const fn research::sources::record::Record::metadata(&self) -> &research::sources::metadata::SourceMetadata
 pub const fn research::sources::record::Record::retracted(&self) -> bool
 pub const fn research::sources::record::Record::tier(&self) -> research::sources::record::Tier
 pub fn research::sources::record::Record::title(&self) -> core::option::Option<&str>
@@ -1131,6 +1190,8 @@ impl research::sources::request::ArxivRequest
 pub const fn research::sources::request::ArxivRequest::limit(&self) -> research::sources::request::Limit
 pub fn research::sources::request::ArxivRequest::upstream(&self, api: &research::sources::request::Endpoint) -> research::sources::request::UpstreamRequest
 pub const fn research::sources::request::ArxivRequest::verb(&self) -> research::sources::request::Verb
+impl research::sources::request::ArxivRequest
+pub fn research::sources::request::ArxivRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
 impl core::clone::Clone for research::sources::request::ArxivRequest
 pub fn research::sources::request::ArxivRequest::clone(&self) -> research::sources::request::ArxivRequest
 impl core::cmp::Eq for research::sources::request::ArxivRequest
@@ -1142,9 +1203,12 @@ impl core::marker::StructuralPartialEq for research::sources::request::ArxivRequ
 pub enum research::sources::request::Family
 pub research::sources::request::Family::Arxiv
 pub research::sources::request::Family::OpenAlex
+pub research::sources::request::Family::Web
 impl research::sources::request::Family
+pub const research::sources::request::Family::ALL: [Self; 3]
 pub const fn research::sources::request::Family::code(self) -> &'static str
 pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub const fn research::sources::request::Family::verbs(self) -> &'static [research::sources::request::Verb]
 impl core::clone::Clone for research::sources::request::Family
 pub fn research::sources::request::Family::clone(&self) -> research::sources::request::Family
 impl core::cmp::Eq for research::sources::request::Family
@@ -1159,6 +1223,7 @@ impl core::marker::StructuralPartialEq for research::sources::request::Family
 pub enum research::sources::request::FetchRequest
 pub research::sources::request::FetchRequest::Arxiv(research::sources::request::ArxivRequest)
 pub research::sources::request::FetchRequest::OpenAlex(research::sources::request::OpenAlexRequest)
+pub research::sources::request::FetchRequest::Web(research::sources::request::WebRequest)
 impl research::sources::request::FetchRequest
 pub const fn research::sources::request::FetchRequest::family(&self) -> research::sources::request::Family
 pub fn research::sources::request::FetchRequest::parse(family: &str, verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
@@ -1193,6 +1258,8 @@ impl research::sources::request::OpenAlexRequest
 pub const fn research::sources::request::OpenAlexRequest::limit(&self) -> research::sources::request::Limit
 pub fn research::sources::request::OpenAlexRequest::upstream(&self, api: &research::sources::request::Endpoint, key: core::option::Option<&research::sources::request::ApiKey>) -> research::sources::request::UpstreamRequest
 pub const fn research::sources::request::OpenAlexRequest::verb(&self) -> research::sources::request::Verb
+impl research::sources::request::OpenAlexRequest
+pub fn research::sources::request::OpenAlexRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
 impl core::clone::Clone for research::sources::request::OpenAlexRequest
 pub fn research::sources::request::OpenAlexRequest::clone(&self) -> research::sources::request::OpenAlexRequest
 impl core::cmp::Eq for research::sources::request::OpenAlexRequest
@@ -1203,15 +1270,20 @@ pub fn research::sources::request::OpenAlexRequest::fmt(&self, f: &mut core::fmt
 impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexRequest
 pub enum research::sources::request::RequestError
 pub research::sources::request::RequestError::EmptyQuery
+pub research::sources::request::RequestError::LimitNotApplicable
 pub research::sources::request::RequestError::LimitOutOfRange(alloc::string::String)
 pub research::sources::request::RequestError::MalformedArxivId(alloc::string::String)
 pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
+pub research::sources::request::RequestError::MalformedUrl(research::sources::web::page_url::PageUrlError)
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
+pub research::sources::request::RequestError::MissingUrl
 pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
 pub research::sources::request::RequestError::TicketNotQueued
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
-pub research::sources::request::RequestError::UnknownVerb(alloc::string::String)
+pub research::sources::request::RequestError::UnknownVerb
+pub research::sources::request::RequestError::UnknownVerb::family: research::sources::request::Family
+pub research::sources::request::RequestError::UnknownVerb::verb: alloc::string::String
 impl core::clone::Clone for research::sources::request::RequestError
 pub fn research::sources::request::RequestError::clone(&self) -> research::sources::request::RequestError
 impl core::cmp::Eq for research::sources::request::RequestError
@@ -1225,10 +1297,11 @@ pub fn research::sources::request::RequestError::fmt(&self, formatter: &mut core
 impl core::marker::StructuralPartialEq for research::sources::request::RequestError
 pub enum research::sources::request::Verb
 pub research::sources::request::Verb::Lookup
+pub research::sources::request::Verb::Metadata
 pub research::sources::request::Verb::Search
 impl research::sources::request::Verb
 pub const fn research::sources::request::Verb::code(self) -> &'static str
-pub fn research::sources::request::Verb::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::request::Verb::parse(raw: &str) -> core::option::Option<Self>
 impl core::clone::Clone for research::sources::request::Verb
 pub fn research::sources::request::Verb::clone(&self) -> research::sources::request::Verb
 impl core::cmp::Eq for research::sources::request::Verb
@@ -1238,6 +1311,18 @@ impl core::fmt::Debug for research::sources::request::Verb
 pub fn research::sources::request::Verb::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::request::Verb
 impl core::marker::StructuralPartialEq for research::sources::request::Verb
+pub enum research::sources::request::WebRequest
+pub research::sources::request::WebRequest::Metadata(research::sources::web::page_url::PageUrl)
+impl research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::clone(&self) -> research::sources::request::WebRequest
+impl core::cmp::Eq for research::sources::request::WebRequest
+impl core::cmp::PartialEq for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::eq(&self, other: &research::sources::request::WebRequest) -> bool
+impl core::fmt::Debug for research::sources::request::WebRequest
+pub fn research::sources::request::WebRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::WebRequest
 pub struct research::sources::request::ApiKey
 impl research::sources::request::ApiKey
 pub const fn research::sources::request::ApiKey::new(secret: alloc::string::String, source: research::sources::request::KeySource) -> Self
@@ -1280,6 +1365,7 @@ pub fn research::sources::request::ArxivQuery::fmt(&self, f: &mut core::fmt::For
 impl core::marker::StructuralPartialEq for research::sources::request::ArxivQuery
 pub struct research::sources::request::Doi(_)
 impl research::sources::request::Doi
+pub fn research::sources::request::Doi::canonical(&self) -> alloc::string::String
 pub fn research::sources::request::Doi::encoded(&self) -> alloc::string::String
 pub fn research::sources::request::Doi::parse(raw: &str) -> core::option::Option<Self>
 pub fn research::sources::request::Doi::url(&self) -> alloc::string::String
@@ -1377,6 +1463,7 @@ pub fn research::sources::request::WorkId::eq(&self, other: &research::sources::
 impl core::fmt::Debug for research::sources::request::WorkId
 pub fn research::sources::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::request::WorkId
+pub const research::sources::request::USER_AGENT: &str
 pub fn research::sources::request::parse_ticket(family: research::sources::request::Family, raw: core::option::Option<&str>) -> core::result::Result<core::option::Option<research::sources::queue::Ticket>, research::sources::request::RequestError>
 pub mod research::sources::schedule
 pub struct research::sources::schedule::Deadline
@@ -1414,6 +1501,272 @@ pub fn research::sources::schedule::RetrySchedule::wait_before(retry: research::
 pub mod research::sources::tier
 pub const fn research::sources::tier::arxiv_tier(withdrawn: bool) -> research::sources::record::Tier
 pub fn research::sources::tier::openalex_tier(work: &research::sources::openalex::Work) -> research::sources::record::Tier
+pub mod research::sources::web
+pub mod research::sources::web::declarations
+pub enum research::sources::web::declarations::LinkedDataValue
+pub research::sources::web::declarations::LinkedDataValue::List(alloc::vec::Vec<research::sources::web::declarations::LinkedDataValue>)
+pub research::sources::web::declarations::LinkedDataValue::Node(research::sources::web::declarations::LinkedDataNode)
+pub research::sources::web::declarations::LinkedDataValue::Text(alloc::string::String)
+impl core::clone::Clone for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::clone(&self) -> research::sources::web::declarations::LinkedDataValue
+impl core::cmp::Eq for research::sources::web::declarations::LinkedDataValue
+impl core::cmp::PartialEq for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::eq(&self, other: &research::sources::web::declarations::LinkedDataValue) -> bool
+impl core::fmt::Debug for research::sources::web::declarations::LinkedDataValue
+pub fn research::sources::web::declarations::LinkedDataValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::LinkedDataValue
+pub struct research::sources::web::declarations::LinkedDataNode
+pub research::sources::web::declarations::LinkedDataNode::properties: alloc::vec::Vec<(alloc::string::String, research::sources::web::declarations::LinkedDataValue)>
+pub research::sources::web::declarations::LinkedDataNode::types: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::clone(&self) -> research::sources::web::declarations::LinkedDataNode
+impl core::cmp::Eq for research::sources::web::declarations::LinkedDataNode
+impl core::cmp::PartialEq for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::eq(&self, other: &research::sources::web::declarations::LinkedDataNode) -> bool
+impl core::default::Default for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::default() -> research::sources::web::declarations::LinkedDataNode
+impl core::fmt::Debug for research::sources::web::declarations::LinkedDataNode
+pub fn research::sources::web::declarations::LinkedDataNode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::LinkedDataNode
+pub struct research::sources::web::declarations::MetaTag
+pub research::sources::web::declarations::MetaTag::content: alloc::string::String
+pub research::sources::web::declarations::MetaTag::name: alloc::string::String
+impl core::clone::Clone for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::clone(&self) -> research::sources::web::declarations::MetaTag
+impl core::cmp::Eq for research::sources::web::declarations::MetaTag
+impl core::cmp::PartialEq for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::eq(&self, other: &research::sources::web::declarations::MetaTag) -> bool
+impl core::fmt::Debug for research::sources::web::declarations::MetaTag
+pub fn research::sources::web::declarations::MetaTag::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::MetaTag
+pub struct research::sources::web::declarations::PageDeclarations
+pub research::sources::web::declarations::PageDeclarations::linked_data: alloc::vec::Vec<research::sources::web::declarations::LinkedDataNode>
+pub research::sources::web::declarations::PageDeclarations::meta_tags: alloc::vec::Vec<research::sources::web::declarations::MetaTag>
+impl core::clone::Clone for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::clone(&self) -> research::sources::web::declarations::PageDeclarations
+impl core::cmp::Eq for research::sources::web::declarations::PageDeclarations
+impl core::cmp::PartialEq for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::eq(&self, other: &research::sources::web::declarations::PageDeclarations) -> bool
+impl core::default::Default for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::default() -> research::sources::web::declarations::PageDeclarations
+impl core::fmt::Debug for research::sources::web::declarations::PageDeclarations
+pub fn research::sources::web::declarations::PageDeclarations::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::declarations::PageDeclarations
+pub trait research::sources::web::declarations::PageDecoder
+pub fn research::sources::web::declarations::PageDecoder::declarations(&self, html: &[u8]) -> research::sources::web::declarations::PageDeclarations
+pub mod research::sources::web::extract
+pub fn research::sources::web::extract::declared_metadata(page: &research::sources::web::declarations::PageDeclarations, accessed: research::sources::metadata::date::PartialDate) -> research::sources::metadata::SourceMetadata
+pub mod research::sources::web::fetch
+pub enum research::sources::web::fetch::PageResponse
+pub research::sources::web::fetch::PageResponse::ConnectionFailed
+pub research::sources::web::fetch::PageResponse::Received
+pub research::sources::web::fetch::PageResponse::Received::body: alloc::vec::Vec<u8>
+pub research::sources::web::fetch::PageResponse::Received::content_type: core::option::Option<alloc::string::String>
+pub research::sources::web::fetch::PageResponse::Received::location: core::option::Option<alloc::string::String>
+pub research::sources::web::fetch::PageResponse::Received::status: u16
+pub research::sources::web::fetch::PageResponse::Refused
+pub research::sources::web::fetch::PageResponse::TimedOut
+pub research::sources::web::fetch::PageResponse::Unavailable
+impl core::clone::Clone for research::sources::web::fetch::PageResponse
+pub fn research::sources::web::fetch::PageResponse::clone(&self) -> research::sources::web::fetch::PageResponse
+impl core::cmp::Eq for research::sources::web::fetch::PageResponse
+impl core::cmp::PartialEq for research::sources::web::fetch::PageResponse
+pub fn research::sources::web::fetch::PageResponse::eq(&self, other: &research::sources::web::fetch::PageResponse) -> bool
+impl core::fmt::Debug for research::sources::web::fetch::PageResponse
+pub fn research::sources::web::fetch::PageResponse::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::PageResponse
+pub enum research::sources::web::fetch::RejectedReach
+pub research::sources::web::fetch::RejectedReach::LinkLocal
+pub research::sources::web::fetch::RejectedReach::Loopback
+pub research::sources::web::fetch::RejectedReach::Private
+pub research::sources::web::fetch::RejectedReach::Reserved
+pub research::sources::web::fetch::RejectedReach::Unspecified
+impl research::sources::web::fetch::RejectedReach
+pub const fn research::sources::web::fetch::RejectedReach::of(reach: network::host_reach::HostReach) -> core::option::Option<Self>
+impl core::clone::Clone for research::sources::web::fetch::RejectedReach
+pub fn research::sources::web::fetch::RejectedReach::clone(&self) -> research::sources::web::fetch::RejectedReach
+impl core::cmp::Eq for research::sources::web::fetch::RejectedReach
+impl core::cmp::PartialEq for research::sources::web::fetch::RejectedReach
+pub fn research::sources::web::fetch::RejectedReach::eq(&self, other: &research::sources::web::fetch::RejectedReach) -> bool
+impl core::fmt::Debug for research::sources::web::fetch::RejectedReach
+pub fn research::sources::web::fetch::RejectedReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::fetch::RejectedReach
+pub fn research::sources::web::fetch::RejectedReach::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::fetch::RejectedReach
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::RejectedReach
+pub enum research::sources::web::fetch::ResolveFailure
+pub research::sources::web::fetch::ResolveFailure::Refused
+pub research::sources::web::fetch::ResolveFailure::Unresolved
+impl core::clone::Clone for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::clone(&self) -> research::sources::web::fetch::ResolveFailure
+impl core::cmp::Eq for research::sources::web::fetch::ResolveFailure
+impl core::cmp::PartialEq for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::eq(&self, other: &research::sources::web::fetch::ResolveFailure) -> bool
+impl core::fmt::Debug for research::sources::web::fetch::ResolveFailure
+pub fn research::sources::web::fetch::ResolveFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::fetch::ResolveFailure
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::ResolveFailure
+pub enum research::sources::web::fetch::WebFailure
+pub research::sources::web::fetch::WebFailure::ConnectionFailed
+pub research::sources::web::fetch::WebFailure::HostRejected(research::sources::web::fetch::RejectedReach)
+pub research::sources::web::fetch::WebFailure::NotHtml
+pub research::sources::web::fetch::WebFailure::RedirectWithoutLocation
+pub research::sources::web::fetch::WebFailure::Refused
+pub research::sources::web::fetch::WebFailure::Status(u16)
+pub research::sources::web::fetch::WebFailure::TimedOut
+pub research::sources::web::fetch::WebFailure::TooManyRedirects
+pub research::sources::web::fetch::WebFailure::TransportUnavailable
+pub research::sources::web::fetch::WebFailure::UnfollowableRedirect
+pub research::sources::web::fetch::WebFailure::Unresolved
+impl core::clone::Clone for research::sources::web::fetch::WebFailure
+pub fn research::sources::web::fetch::WebFailure::clone(&self) -> research::sources::web::fetch::WebFailure
+impl core::cmp::Eq for research::sources::web::fetch::WebFailure
+impl core::cmp::PartialEq for research::sources::web::fetch::WebFailure
+pub fn research::sources::web::fetch::WebFailure::eq(&self, other: &research::sources::web::fetch::WebFailure) -> bool
+impl core::error::Error for research::sources::web::fetch::WebFailure
+impl core::fmt::Debug for research::sources::web::fetch::WebFailure
+pub fn research::sources::web::fetch::WebFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::fetch::WebFailure
+pub fn research::sources::web::fetch::WebFailure::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::fetch::WebFailure
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::WebFailure
+pub struct research::sources::web::fetch::PageRequest<'a>
+pub research::sources::web::fetch::PageRequest::accept: &'static str
+pub research::sources::web::fetch::PageRequest::addresses: &'a [core::net::socket_addr::SocketAddr]
+pub research::sources::web::fetch::PageRequest::max_body: usize
+pub research::sources::web::fetch::PageRequest::timeout: core::time::Duration
+pub research::sources::web::fetch::PageRequest::url: &'a research::sources::web::page_url::PageUrl
+impl<'a> core::clone::Clone for research::sources::web::fetch::PageRequest<'a>
+pub fn research::sources::web::fetch::PageRequest<'a>::clone(&self) -> research::sources::web::fetch::PageRequest<'a>
+impl<'a> core::cmp::Eq for research::sources::web::fetch::PageRequest<'a>
+impl<'a> core::cmp::PartialEq for research::sources::web::fetch::PageRequest<'a>
+pub fn research::sources::web::fetch::PageRequest<'a>::eq(&self, other: &research::sources::web::fetch::PageRequest<'a>) -> bool
+impl<'a> core::fmt::Debug for research::sources::web::fetch::PageRequest<'a>
+pub fn research::sources::web::fetch::PageRequest<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for research::sources::web::fetch::PageRequest<'a>
+impl<'a> core::marker::StructuralPartialEq for research::sources::web::fetch::PageRequest<'a>
+pub struct research::sources::web::fetch::StepBounds
+pub research::sources::web::fetch::StepBounds::lookup: core::time::Duration
+pub research::sources::web::fetch::StepBounds::request: core::time::Duration
+impl core::clone::Clone for research::sources::web::fetch::StepBounds
+pub fn research::sources::web::fetch::StepBounds::clone(&self) -> research::sources::web::fetch::StepBounds
+impl core::cmp::Eq for research::sources::web::fetch::StepBounds
+impl core::cmp::PartialEq for research::sources::web::fetch::StepBounds
+pub fn research::sources::web::fetch::StepBounds::eq(&self, other: &research::sources::web::fetch::StepBounds) -> bool
+impl core::fmt::Debug for research::sources::web::fetch::StepBounds
+pub fn research::sources::web::fetch::StepBounds::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::fetch::StepBounds
+impl core::marker::StructuralPartialEq for research::sources::web::fetch::StepBounds
+pub struct research::sources::web::fetch::WebPorts<'a>
+pub research::sources::web::fetch::WebPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::web::fetch::WebPorts::decoder: &'a dyn research::sources::web::declarations::PageDecoder
+pub research::sources::web::fetch::WebPorts::resolver: &'a dyn research::sources::web::fetch::HostResolver
+pub research::sources::web::fetch::WebPorts::transport: &'a dyn research::sources::web::fetch::PageTransport
+pub const research::sources::web::fetch::LOOKUP_CAP: core::time::Duration
+pub const research::sources::web::fetch::MAX_PAGE_BODY: usize
+pub const research::sources::web::fetch::MAX_REDIRECTS: usize
+pub const research::sources::web::fetch::PAGE_ACCEPT: &str
+pub trait research::sources::web::fetch::HostResolver
+pub fn research::sources::web::fetch::HostResolver::resolve(&self, host: &network::host::Host, port: u16, within: core::time::Duration) -> core::result::Result<alloc::vec::Vec<core::net::socket_addr::SocketAddr>, research::sources::web::fetch::ResolveFailure>
+pub trait research::sources::web::fetch::PageTransport
+pub fn research::sources::web::fetch::PageTransport::get(&self, request: &research::sources::web::fetch::PageRequest<'_>) -> research::sources::web::fetch::PageResponse
+pub fn research::sources::web::fetch::fetch_page_metadata(url: &research::sources::web::page_url::PageUrl, deadline: &research::sources::schedule::Deadline, ports: &research::sources::web::fetch::WebPorts<'_>) -> core::result::Result<research::sources::metadata::SourceMetadata, research::sources::web::fetch::WebFailure>
+pub const fn research::sources::web::fetch::is_redirect(status: u16) -> bool
+pub fn research::sources::web::fetch::step_bounds(deadline: &research::sources::schedule::Deadline, now: std::time::Instant) -> core::option::Option<research::sources::web::fetch::StepBounds>
+pub mod research::sources::web::page_url
+pub enum research::sources::web::page_url::PageUrlError
+pub research::sources::web::page_url::PageUrlError::Character
+pub research::sources::web::page_url::PageUrlError::Host(network::host::HostError)
+pub research::sources::web::page_url::PageUrlError::Port
+pub research::sources::web::page_url::PageUrlError::Scheme
+impl core::clone::Clone for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::clone(&self) -> research::sources::web::page_url::PageUrlError
+impl core::cmp::Eq for research::sources::web::page_url::PageUrlError
+impl core::cmp::PartialEq for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::eq(&self, other: &research::sources::web::page_url::PageUrlError) -> bool
+impl core::convert::From<network::authority::AuthorityError> for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::from(error: network::authority::AuthorityError) -> Self
+impl core::error::Error for research::sources::web::page_url::PageUrlError
+impl core::fmt::Debug for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::page_url::PageUrlError
+pub fn research::sources::web::page_url::PageUrlError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::page_url::PageUrlError
+pub struct research::sources::web::page_url::PageUrl
+impl research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::follow(&self, location: &str) -> core::result::Result<Self, research::sources::web::page_url::PageUrlError>
+pub const fn research::sources::web::page_url::PageUrl::host(&self) -> &network::host::Host
+pub fn research::sources::web::page_url::PageUrl::parse(raw: &str) -> core::result::Result<Self, research::sources::web::page_url::PageUrlError>
+pub const fn research::sources::web::page_url::PageUrl::port(&self) -> u16
+impl core::clone::Clone for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::clone(&self) -> research::sources::web::page_url::PageUrl
+impl core::cmp::Eq for research::sources::web::page_url::PageUrl
+impl core::cmp::PartialEq for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::eq(&self, other: &research::sources::web::page_url::PageUrl) -> bool
+impl core::fmt::Debug for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::web::page_url::PageUrl
+pub fn research::sources::web::page_url::PageUrl::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::web::page_url::PageUrl
+pub mod research::sources::web::precedence
+pub enum research::sources::web::precedence::Field
+pub research::sources::web::precedence::Field::LinkedData(research::sources::web::precedence::LinkedDataField)
+pub research::sources::web::precedence::Field::Meta(&'static str)
+impl core::clone::Clone for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::clone(&self) -> research::sources::web::precedence::Field
+impl core::cmp::Eq for research::sources::web::precedence::Field
+impl core::cmp::PartialEq for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::eq(&self, other: &research::sources::web::precedence::Field) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::Field
+pub fn research::sources::web::precedence::Field::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::Field
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::Field
+pub enum research::sources::web::precedence::LinkedDataField
+pub research::sources::web::precedence::LinkedDataField::Identifier
+pub research::sources::web::precedence::LinkedDataField::SameAs
+pub research::sources::web::precedence::LinkedDataField::Text(&'static str)
+impl core::clone::Clone for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::clone(&self) -> research::sources::web::precedence::LinkedDataField
+impl core::cmp::Eq for research::sources::web::precedence::LinkedDataField
+impl core::cmp::PartialEq for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::eq(&self, other: &research::sources::web::precedence::LinkedDataField) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::LinkedDataField
+pub fn research::sources::web::precedence::LinkedDataField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::LinkedDataField
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::LinkedDataField
+pub enum research::sources::web::precedence::Scheme
+pub research::sources::web::precedence::Scheme::DublinCore
+pub research::sources::web::precedence::Scheme::Highwire
+pub research::sources::web::precedence::Scheme::LinkedData
+pub research::sources::web::precedence::Scheme::OpenGraph
+impl research::sources::web::precedence::Scheme
+pub const research::sources::web::precedence::Scheme::PRECEDENCE: [Self; 4]
+impl core::clone::Clone for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::clone(&self) -> research::sources::web::precedence::Scheme
+impl core::cmp::Eq for research::sources::web::precedence::Scheme
+impl core::cmp::PartialEq for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::eq(&self, other: &research::sources::web::precedence::Scheme) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::Scheme
+pub fn research::sources::web::precedence::Scheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::Scheme
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::Scheme
+pub enum research::sources::web::precedence::WebKey
+pub research::sources::web::precedence::WebKey::Doi
+pub research::sources::web::precedence::WebKey::Published
+pub research::sources::web::precedence::WebKey::Updated
+impl core::clone::Clone for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::clone(&self) -> research::sources::web::precedence::WebKey
+impl core::cmp::Eq for research::sources::web::precedence::WebKey
+impl core::cmp::PartialEq for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::eq(&self, other: &research::sources::web::precedence::WebKey) -> bool
+impl core::fmt::Debug for research::sources::web::precedence::WebKey
+pub fn research::sources::web::precedence::WebKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::web::precedence::WebKey
+impl core::marker::StructuralPartialEq for research::sources::web::precedence::WebKey
+pub const research::sources::web::precedence::ARTICLE_TYPES: [&str; 11]
+pub const research::sources::web::precedence::WEB_KEYS: [research::sources::web::precedence::KeyPrecedence; 3]
+pub type research::sources::web::precedence::KeyPrecedence = (research::sources::web::precedence::WebKey, &'static [research::sources::web::precedence::SchemeFields])
+pub type research::sources::web::precedence::SchemeFields = (research::sources::web::precedence::Scheme, &'static [research::sources::web::precedence::Field])
 pub mod research::topic
 pub mod research::topic::claims
 pub struct research::topic::claims::ClaimedIndexes(_)

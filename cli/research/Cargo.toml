@@ -13,3 +13,6 @@ kind = "product"
 
 [lints]
 workspace = true
+
+[dependencies]
+network = { path = "../network" }

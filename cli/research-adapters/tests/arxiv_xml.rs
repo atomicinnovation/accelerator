@@ -75,6 +75,33 @@ fn the_recorded_withdrawn_lookup_carries_its_withdrawal_comment() {
 }
 
 #[test]
+fn an_entry_carries_its_own_dates_not_the_feeds() {
+    let entries = entries(&fixture("lookup-2608.21129.xml"));
+
+    assert_eq!(
+        entries[0].published.as_deref(),
+        Some("2026-08-21T14:06:59Z")
+    );
+    assert_eq!(entries[0].updated.as_deref(), Some("2026-08-24T04:57:13Z"));
+}
+
+#[test]
+fn an_entry_without_dates_decodes_them_as_absent() {
+    let feed = br#"<feed xmlns="http://www.w3.org/2005/Atom">
+  <updated>2026-09-24T15:56:45Z</updated>
+  <entry>
+    <id>http://arxiv.org/abs/2601.00001v1</id>
+    <title>Notes</title>
+  </entry>
+</feed>"#;
+
+    let entries = entries(feed);
+
+    assert_eq!(entries[0].published, None);
+    assert_eq!(entries[0].updated, None);
+}
+
+#[test]
 fn an_empty_feed_decodes_to_no_entries() {
     assert!(entries(&fixture("empty.xml")).is_empty());
 }

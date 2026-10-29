@@ -80,12 +80,13 @@ fn a_limit_outside_one_to_twenty_five_is_a_usage_error() {
 fn an_unknown_family_or_verb_is_a_usage_error() {
     assert_usage_error(
         &["openAlex", "search", "graphs"],
-        "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex or \
-         arxiv)",
+        "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex, \
+         arxiv or web)",
     );
     assert_usage_error(
         &["openalex", "find", "graphs"],
-        "E_RESEARCH_USAGE: unknown verb 'find' (expected search or lookup)",
+        "E_RESEARCH_USAGE: unknown verb 'find' (openalex supports search or \
+         lookup)",
     );
 }
 

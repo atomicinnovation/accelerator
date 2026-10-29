@@ -9,9 +9,9 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-relates_to: ["work-item:0280"]
+relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0348"]
 tags: ["research", "visualiser"]
-last_updated: "2026-09-24T12:11:42+00:00"
+last_updated: "2026-10-24T08:35:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -31,7 +31,8 @@ the brief, the outline, its findings, the synthesis, and any reports — and
 navigates into each sub-document, replacing the flat shared `LibraryDocView` for
 topic-research entries. It reads `manifest.md`'s `primary` pointer to choose the
 default sub-document. This is the epic's designated descope candidate if it runs
-long, since the shared flat view still renders each sub-document.
+long, though until it lands no sub-document — findings, synthesis or reports —
+is reachable in the visualiser.
 
 ## Context
 
@@ -64,6 +65,16 @@ umbrella doc type and nested indexing.
   synthesis, or report lists Sources, for web and academic profiles alike,
   including the `(retracted)` and `(withdrawn)` suffixes 0280 appends to
   `tier-3`, and a `None found.` Sources section.
+- Show each report's `question`, and mark a report as stale when its
+  `rounds_covered` is below the manifest's `round_count`.
+- Show each report's `coverage` (`answered` or `partial`) and render a
+  `partial` report's Gaps section, as 0281 defines them.
+- Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
+  weakest tier with the other tiers marked as a distinct element, including
+  the semicolon-joined forms that combine it with `retracted` or
+  `withdrawn`.
+- Treat 0348's optional source metadata block, the nested `key: value` list
+  under a Sources entry, as part of the entry above it.
 
 ## Acceptance Criteria
 
@@ -91,6 +102,20 @@ umbrella doc type and nested indexing.
 - [ ] Given Sources entries reading `— tier-3 (retracted) —` and
       `— tier-3 (withdrawn) —`, then each renders as `tier-3` with its
       retraction or withdrawal marked as a distinct element.
+- [ ] Given a report with `rounds_covered: 2` in a set whose manifest has
+      `round_count: 3`, then the page lists the report under its question
+      and marks it stale; at `rounds_covered: 3` it is not marked.
+- [ ] Given a report with `coverage: partial` and a Gaps section, then the
+      page shows its coverage and its Gaps; given `coverage: answered`, it
+      shows the coverage and no Gaps.
+- [ ] Given a Sources entry reading `— tier-3 (also tier-1) —`, then it
+      renders as `tier-3` with `also tier-1` marked as a distinct element.
+- [ ] Given Sources entries reading `— tier-3 (also tier-2, tier-1) —` and
+      `— tier-3 (retracted; withdrawn; also tier-1) —`, then each renders as
+      `tier-3` with its retraction or withdrawal marker and its `also` tiers
+      as distinct elements.
+- [ ] Given a Sources entry followed by a nested `key: value` metadata list,
+      then the list renders as part of that entry, not as a separate entry.
 
 ## Open Questions
 
@@ -104,7 +129,12 @@ umbrella doc type and nested indexing.
 
 - Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
   `blocks`), 0279 (round/focus-area structure the page shows — recorded on
-  0279's `blocks`).
+  0279's `blocks`), 0281 (the `report` kind and `reports/` layout — recorded
+  on 0281's `blocks`), including its `coverage` extra and Gaps section.
+- Related: 0306 adds the `also` tier suffix; this page renders it once 0306
+  lands, and until then no Sources entry carries it.
+- Related: 0348 adds the optional source metadata block under Sources
+  entries; until it lands, no entry carries one.
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes this page consumes. If this page is built before 0280 lands,
   0280 owns updating it.
@@ -114,8 +144,10 @@ umbrella doc type and nested indexing.
 
 ## Assumptions
 
-- Deferral leaves the other slices fully shippable, since the shared flat
-  `LibraryDocView` still renders each sub-document.
+- Deferral leaves the other slices shippable, but only on disk: the indexer
+  creates one entry per set, keyed on `manifest.md`, so the shared
+  `LibraryDocView` renders the manifest alone and no route reaches a set's
+  sub-documents until this page lands.
 
 ## Technical Notes
 

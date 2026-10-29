@@ -13,7 +13,7 @@ disable-model-invocation: true
 You write **one level note**: your node's answer to its question, and the
 follow-up questions that deepen it. A note is a finding in every respect this
 document does not name. Read `finding-outputter` too: its Shape, Body and
-Sources rules, and its untrusted-content contract, apply to the note
+Sources rules, its Sources metadata block included, apply to the note
 unchanged, with "level note" and the `topic-research-level-note` template in
 place of "finding" and its template.
 

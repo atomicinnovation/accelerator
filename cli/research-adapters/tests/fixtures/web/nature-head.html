@@ -1,0 +1,560 @@
+<!-- https://www.nature.com/articles/s41586-020-2649-2, <head> captured 2026-10-27 -->
+<html lang="en" class="grade-c">
+<head>
+    <title>Array programming with NumPy | Nature</title>
+    
+    <link rel="alternate" type="application/rss+xml" href="https://www.nature.com/nature.rss"/>
+
+
+
+    
+        
+
+        <script id="save-data-connection-testing">
+            function hasConnection() {
+                return navigator.connection || navigator.mozConnection || navigator.webkitConnection || navigator.msConnection;
+            }
+
+            function createLink(src) {
+                var preloadLink = document.createElement("link");
+                preloadLink.rel = "preload";
+                preloadLink.href = src;
+                preloadLink.as = "font";
+                preloadLink.type = "font/woff2";
+                preloadLink.crossOrigin = "";
+                document.head.insertBefore(preloadLink, document.head.firstChild);
+            }
+
+            var connectionDetail = {
+                saveDataEnabled: false,
+                slowConnection: false
+            };
+
+            var connection = hasConnection();
+            if (connection) {
+                connectionDetail.saveDataEnabled = connection.saveData;
+                if (/\slow-2g|2g/.test(connection.effectiveType)) {
+                    connectionDetail.slowConnection = true;
+                }
+            }
+
+            if (!(connectionDetail.saveDataEnabled || connectionDetail.slowConnection)) {
+                createLink("/oscar-static/fonts/HardingText-Regular-Web-cecd90984f.woff2");
+            } else {
+                document.documentElement.classList.add('save-data');
+            }
+        </script>
+    
+
+<link rel="preconnect" href="https://cmp.nature.com" crossorigin>
+
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="applicable-device" content="pc,mobile">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5,user-scalable=yes">
+<meta name="360-site-verification" content="5a2dc4ab3fcb9b0393241ffbbb490480" />
+
+<script data-test="dataLayer">
+    window.dataLayer = [{"content":{"category":{"legacy":{"webtrendsPrimaryArticleType":"reviews","webtrendsSubjectTerms":"computational-neuroscience;solar-physics;computational-science;computer-science;software","webtrendsContentCategory":null,"webtrendsContentCollection":null,"webtrendsContentGroup":"Nature","webtrendsContentGroupType":null,"webtrendsContentSubGroup":"Review Article","status":null},"contentType":"review article"},"article":{"doi":"10.1038/s41586-020-2649-2"},"attributes":{"cms":null,"deliveryPlatform":"oscar","copyright":{"open":true,"legacy":{"webtrendsLicenceType":"http://creativecommons.org/licenses/by/4.0/"}},"articleInPress":"false"},"contentInfo":{"authors":["Charles R. Harris","K. Jarrod Millman","Stéfan J. van der Walt","Ralf Gommers","Pauli Virtanen","David Cournapeau","Eric Wieser","Julian Taylor","Sebastian Berg","Nathaniel J. Smith","Robert Kern","Matti Picus","Stephan Hoyer","Marten H. van Kerkwijk","Matthew Brett","Allan Haldane","Jaime Fernández del Río","Mark Wiebe","Pearu Peterson","Pierre Gérard-Marchant","Kevin Sheppard","Tyler Reddy","Warren Weckesser","Hameer Abbasi","Christoph Gohlke","Travis E. Oliphant"],"publishedAt":1600214400,"publishedAtString":"2020-09-16","title":"Array programming with NumPy","legacy":null,"publishedAtTime":null,"documentType":"aplusplus","subjects":"Computational neuroscience,Solar physics,Computational science,Computer science,Software"},"journal":{"pcode":"nature","title":"nature","volume":"585","issue":"7825","id":41586,"publishingModel":"Hybrid Access"},"authorization":{"status":true},"features":[],"collection":null},"page":{"category":{"pageType":"article"},"attributes":{"template":"mosaic","featureFlags":[{"name":"ab_subjects_position","active":false},{"name":"shared_article_layout","active":false},{"name":"chat_with_paper_nature","active":false}],"testGroup":null},"search":null},"privacy":{},"version":"1.0.0","product":null,"session":null,"user":null,"backHalfContent":true,"country":"GB","hasBody":true,"uneditedManuscript":false,"twitterId":["o3xnx","o43y9","o3ef7"],"baiduId":"d38bce82bcb44717ccc29a90c4b781ea","newApp":true,"japan":false}];
+    window.dataLayer.push({
+        ga4MeasurementId: 'G-ERRNTNZ807',
+        ga360TrackingId: 'UA-71668177-1',
+        twitterId: ['3xnx', 'o43y9', 'o3ef7'],
+        baiduId: 'd38bce82bcb44717ccc29a90c4b781ea',
+        ga4ServerUrl: 'https://sgtm.nature.com',
+        imprint: 'nature'
+    });
+</script>
+
+
+<script>
+    (function(w, d) {
+        w.config = w.config || {};
+        w.config.mustardcut = false;
+
+        
+        if (w.matchMedia && w.matchMedia('only print, only all and (prefers-color-scheme: no-preference), only all and (prefers-color-scheme: light), only all and (prefers-color-scheme: dark)').matches) {
+            w.config.mustardcut = true;
+            d.classList.add('js');
+            d.classList.remove('grade-c');
+            d.classList.remove('no-js');
+        }
+    })(window, document.documentElement);
+</script>
+ 
+
+
+
+     
+    
+    
+        
+    
+    <style>@media only print, only all and (prefers-color-scheme: no-preference), only all and (prefers-color-scheme: light), only all and (prefers-color-scheme: dark) {  html{line-height:1.15;text-size-adjust:100%;height:100%;overflow-y:scroll;font-size:100%}body{margin:0;min-height:100%;font-size:1.125rem;color:#222;background:#fff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;line-height:1.8}details,main{display:block}h1{margin:.67em 0;-webkit-font-smoothing:antialiased;font-size:clamp(1.75rem,4vw,2.25rem)}a{background-color:transparent;color:#424d61;text-decoration:underline .0625rem;text-decoration-skip-ink:auto;text-underline-offset:.25rem}b{font-weight:bolder}sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline;top:-.5em}img{border:0;max-width:100%;height:auto;vertical-align:middle}button,input,select{font-family:inherit;font-size:100%;line-height:1.15;margin:0}button,input{overflow:visible}button,select{text-transform:none}[type=submit],button{appearance:button}[type=checkbox]{box-sizing:border-box;padding:0}summary{display:list-item}[hidden]{display:none}button{cursor:pointer}h2{font-size:clamp(1.5rem,4vw,1.75rem)}h3{font-size:clamp(1.25rem,4vw,1.5rem)}h2,h3{-webkit-font-smoothing:antialiased}h3{font-size:1.25rem}*,html *,html :after,html :before{box-sizing:inherit}p{margin-top:0;margin-bottom:2rem;overflow-wrap:break-word;word-break:break-word}p:last-of-type{margin-bottom:0}.eds-c-status-message{display:flex;gap:.5rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-size:1rem;position:relative;box-sizing:border-box;border-radius:8px;background-color:#fff;border:1px solid #d5d5d5;line-height:1.4;padding:16px 16px 12px}.eds-c-status-message :last-child{margin-bottom:0}.eds-c-status-message__message a{color:inherit}.eds-c-status-message__text{padding-right:12px;margin-top:2px}.eds-c-status-message__text h5{margin-top:0}.eds-c-status-message__icon{fill:currentcolor;transform:translate(0);display:inline-block;vertical-align:text-top;width:24px;height:24px;flex:0 0 auto;margin-right:8px}.eds-c-status-message__icon--top{align-self:flex-start}.eds-c-status-message__dismiss-button{position:absolute;border:0;background:0 0;right:8px;cursor:pointer}.eds-c-status-message__dismiss-icon{fill:currentcolor;transform:translate(0);display:inline-block;vertical-align:text-top;width:24px;height:24px;color:#555}.eds-c-status-message__title{font-weight:700;margin-bottom:8px}.eds-c-status-message--info .eds-c-status-message__icon{color:#17758c}.eds-c-status-message--info{border-bottom:4px solid #17758c}.eds-c-status-message--error .eds-c-status-message__icon{color:#be1818}.eds-c-status-message--error{border-bottom:4px solid #be1818}.eds-c-status-message--success .eds-c-status-message__icon{color:#007a4b}.eds-c-status-message--success{border-bottom:4px solid #007a4b}.eds-c-status-message--warning .eds-c-status-message__icon{color:#daa520}.eds-c-status-message--warning{border-bottom:4px solid #daa520}.c-ad{text-align:center}@media only screen and (min-width:480px){.c-ad{padding:8px}}.c-ad--728x90{display:none;background-color:#ccc}.c-ad--728x90 .c-ad__inner{min-height:calc(1.5em + 94px)}@media only screen and (min-width:876px){.js .c-ad--728x90{display:none}.js .u-show-following-ad+.c-ad--728x90{display:block}}.app-author-list,.c-ad__label{font-size:.875rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;line-height:1.5}.c-ad__label{font-weight:400;margin-bottom:4px;color:#333}.app-author-list{color:#6f6f6f;list-style:none;margin:0;padding:0}.app-author-list>li,.js .app-author-list{display:inline}.app-author-list>li:not(:first-child):not(:last-child):before{content:", "}.app-author-list>li:not(:only-child):last-child:before{content:" & "}.app-author-list--small{font-size:.875rem}.app-author-list--compact{line-height:1.4;font-size:.875rem}.app-author-list--truncated>li:not(:only-child):last-child:before{content:" ... "}.js .app-author-list__hide{display:none;visibility:hidden}.js .app-author-list__hide:first-child+*{margin-block-start:0}.c-article-header{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;margin-bottom:40px}.c-article-identifiers{list-style:none;font-size:1rem;line-height:1.3;display:flex;flex-wrap:wrap;color:#6f6f6f;padding:0;margin:0 0 8px}.c-article-identifiers__item{border-right:1px solid #6f6f6f;margin-right:8px;padding-right:8px;list-style:none}.c-article-identifiers__item:last-child{margin-right:0;padding-right:0;border-right:0}.c-article-title{font-size:min(max(1.75rem,4vw),2.25rem);margin:0 0 8px}.c-article-author-list{width:100%;margin:0 8px 0 0;padding:0;display:inline;list-style:none;font-size:1rem}.c-article-author-list__item{display:inline;padding-right:0}.c-article-author-list svg{margin-left:4px}.c-article-author-list__show-more{display:none;margin-right:4px}.c-article-author-list__button,.js .c-article-author-list__item--hide,.js .c-article-author-list__show-more{display:none}.js .c-article-author-list--long .c-article-author-list__show-more,.js .c-article-author-list--long+.c-article-author-list__button{display:inline}@media only screen and (max-width:767px){.js .c-article-author-list__item--hide-small-screen{display:none}.js .c-article-author-list--short .c-article-author-list__show-more,.js .c-article-author-list--short+.c-article-author-list__button{display:inline}}#uptodate-client,.js .c-article-author-list--expanded .c-article-author-list__show-more{display:none!important}.js .c-article-author-list--expanded .c-article-author-list__item--hide-small-screen{display:inline!important}.c-article-author-list__button,.c-button-author-list{background:#ebf1f5;border:4px solid #ebf1f5;border-radius:20px;color:#666;font-size:.875rem;line-height:1.4;padding:2px 11px 2px 8px;text-decoration:none}.c-article-author-list__button svg,.c-button-author-list svg{margin:1px 4px 0 0}.c-article-author-list__button:hover,.c-button-author-list:hover{background:#069;border-color:transparent;color:#fff}.c-article-info-details{font-size:1rem;margin-bottom:8px;margin-top:16px}.c-article-info-details__cite-as{border-left:1px solid #6f6f6f;margin-left:8px;padding-left:8px}.c-article-metrics-bar{display:flex;flex-wrap:wrap;line-height:1.3;font-size:1rem}.c-article-metrics-bar__wrapper{margin:16px 0}.c-article-metrics-bar__item{align-items:baseline;border-right:1px solid #6f6f6f;margin-right:8px}.c-article-metrics-bar__item:last-child{border-right:0}.c-article-metrics-bar__count{font-weight:700;margin:0}.c-article-metrics-bar__label{color:#626262;font-weight:400;font-style:normal;margin:0 10px 0 5px}.c-article-metrics-bar__details{margin:0}.c-article-main-column{font-family:Harding,Palatino,serif;margin-right:8.6%;width:60.2%}@media only screen and (max-width:1023px){.c-article-main-column{margin-right:0;width:100%}}.c-article-section__title{border-bottom:2px solid #d5d5d5;font-size:min(max(1.5rem,3vw),1.75rem);padding-bottom:8px;margin:0}.c-article-body p{margin-top:0;margin-bottom:24px}.c-article-section{clear:both}.c-article-section__content{padding-top:8px;margin-bottom:40px}@media only screen and (max-width:1023px){.c-article-section__content{padding-left:0}}.c-article-authors-search{margin-top:0;margin-bottom:24px}.c-article-authors-search__item,.c-article-authors-search__title{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif}.c-article-authors-search__title{color:#626262;font-weight:700;margin:0;padding:0;font-size:1.05rem}.c-article-authors-search__item{font-size:1rem}.c-article-authors-search__text{margin:0}.c-code-block{padding:20px;margin:0 0 24px;border:1px solid #fff;font-family:monospace}.c-code-block__heading{margin-bottom:16px;font-weight:400}.c-code-block__line{overflow-wrap:break-word;white-space:pre-wrap;display:block}.c-article-share-box__no-sharelink-info{font-size:.813rem;font-weight:700;padding-top:4px;margin-bottom:24px}.c-article-share-box__only-read-input{border:1px solid #d5d5d5;display:inline-block;box-sizing:content-box;height:24px;margin-bottom:8px;font-size:.875rem;font-weight:700;padding:8px 10px}.c-article-share-box__button--link-like{background-color:transparent;border:0;color:#069;cursor:pointer;font-size:.875rem;margin-bottom:8px;margin-left:10px}.c-article-editorial-summary__container{margin:0 0 32px}.c-article-associated-content__container{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;margin:0 0 32px}.c-article-associated-content__container .app-card-open--compact.app-card-open{border:0;padding:0 0 16px}.c-article-associated-content__container .c-meta__item{line-height:1.5}.c-article-editorial-summary__container{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-size:1rem}.c-article-associated-content__container .c-article-associated-content__collection-label{font-size:.875rem;line-height:1.4}.c-article-associated-content__container .c-article-associated-content__collection-title{line-height:1.5;font-size:1.125rem}.c-reading-companion{clear:both;min-height:389px}.c-reading-companion__sticky{max-width:389px}.c-reading-companion__scroll-pane{overflow:hidden auto;margin:0 -4px;min-height:200px;padding-left:4px;padding-right:4px}.c-reading-companion__tabs{font-size:1rem;list-style:none;display:flex;flex-flow:row;margin:0 0 8px;padding:0}.c-reading-companion__tabs>li{flex-grow:1}.c-reading-companion__tab{color:#424d61;border-style:solid;border-color:#d5d5d5;border-image:none;border-width:1px 1px 1px 0;background-color:#eee;padding:8px 8px 8px 15px;text-align:left;font-size:1rem;width:100%}.c-reading-companion__tabs li:first-child .c-reading-companion__tab{border-left-width:1px}.c-reading-companion__tab--active{color:#222;background-color:#fff;border-bottom:1px solid #fff;font-weight:700}.c-reading-companion__sections-list{list-style:none;padding:0}.c-reading-companion__figures-list,.c-reading-companion__references-list{list-style:none;padding:0;min-height:389px}.c-reading-companion__references-list--numeric{list-style:decimal inside}.c-reading-companion__sections-list{margin:0 0 8px;min-height:50px}.c-reading-companion__section-item{font-size:1rem;padding:0}.c-reading-companion__section-item a{display:block;padding:8px 0 8px 16px;line-height:1.5;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;outline-offset:-4px}.c-reading-companion__figure-item{padding:16px 8px 16px 0;border-top:1px solid #d5d5d5;font-size:1rem}.c-reading-companion__figure-item:first-child{border-top:none;padding-top:8px}.c-reading-companion__reference-item{padding:8px 8px 8px 16px;border-top:1px solid #d5d5d5;font-size:1rem}.c-reading-companion__reference-item:first-child{border-top:none}.c-reading-companion__reference-item a{word-break:break-word}.c-reading-companion__reference-citation{display:inline}.c-reading-companion__reference-links{list-style:none;text-align:right;margin:8px 0 0;padding:0;font-weight:700;font-size:.813rem}.c-reading-companion__reference-links>a{display:inline-block;margin-left:8px}.c-reading-companion__reference-links>a:first-child{display:inline-block}.c-reading-companion__figure-title{font-family:Harding,Palatino,serif;font-weight:700;line-height:1.2;-webkit-font-smoothing:antialiased;font-size:1.25rem;display:block;margin:0 0 8px}.c-reading-companion__figure-links{margin:8px 0 0;display:flex;justify-content:space-between}.c-reading-companion__figure-links>a{display:flex;align-items:center}.c-reading-companion__figure-full-link svg{height:.8em;margin-left:2px}.c-reading-companion__panel{display:none;border-top:none;margin-top:0;padding-top:0}.c-cod,.c-reading-companion__panel--active{display:block}.c-cod{font-size:1rem;width:100%}.c-cod__form{background:#ebf0f3}.c-cod__prompt{margin:0 0 24px;font-size:1.125rem;line-height:1.3}.c-cod__label{display:block;margin:0 0 4px}.c-cod__row{display:flex;margin:0 0 16px}.c-cod__row:last-child{margin:0}.c-cod__input{padding:13px;margin:0;border:1px solid #d5d5d5;border-radius:2px;flex:1 1 auto}.c-cod__input--submit{margin-left:8px;flex-shrink:1;background-color:#069;color:#fff;border:1px solid #069;transition:background-color .2s ease-out,color .2s ease-out}.c-cod__input--submit-single{margin:0;flex-shrink:0;flex-basis:100%}.c-cod__input--submit:focus,.c-cod__input--submit:hover{color:#069;background-color:#fff}.c-pdf-download__link .u-icon{padding-top:2px}.c-pdf-download{display:flex;margin-bottom:24px;max-height:48px}@media only screen and (min-width:768px){.c-pdf-download{max-height:none}}@media only screen and (min-width:1024px){.c-pdf-download{max-height:48px}}.c-pdf-download__link{display:flex;flex:1 1 0%}.c-pdf-download__link:hover{text-decoration:none}.c-pdf-download__text{padding-right:4px}@media only screen and (max-width:767px){.c-pdf-download__text{text-transform:capitalize}}@media only screen and (min-width:768px){.c-pdf-download__text{padding-right:8px}}.c-context-bar--sticky .c-pdf-download{margin-bottom:0;display:block;white-space:nowrap}@media only screen and (max-width:767px){.c-pdf-download .u-sticky-visually-hidden{border:0;clip:rect(0,0,0,0);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;white-space:nowrap;width:1px;position:absolute!important}}.c-pdf-container{display:flex;justify-content:flex-end}@media only screen and (max-width:767px){.c-pdf-container .c-pdf-download{display:flex;flex-basis:100%}}.c-pdf-container .c-pdf-download+.c-pdf-download{margin-left:16px}.c-article-extras .c-pdf-container .c-pdf-download{width:100%}.c-article-extras .c-pdf-container .c-pdf-download+.c-pdf-download{margin-left:0}@media only screen and (min-width:768px){.c-context-bar--sticky .c-pdf-download__link{flex:1 1 183px;align-items:center}}@media only screen and (max-width:320px){.c-context-bar--sticky .c-pdf-download__link{padding:16px}}.article-page--commercial .c-article-main-column .c-pdf-button__container .c-pdf-download{display:none}@media only screen and (max-width:1023px){.article-page--commercial .c-article-main-column .c-pdf-button__container .c-pdf-download{display:block}}.c-recommendations-column-switch .c-meta{margin-top:auto}.c-context-bar{position:relative;width:100%;box-shadow:0 0 10px 0 rgba(51,51,51,.2)}.c-context-bar__container{margin:0 auto;max-width:1280px;padding:0 16px}.c-context-bar__title{display:none}.app-researcher-popup__link.hover,.app-researcher-popup__link.visited,.app-researcher-popup__link:hover,.app-researcher-popup__link:visited,.c-article-metrics__heading a,.c-article-metrics__posts .c-card__title a{color:inherit}.c-article-authors-search__list{display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center}@media only screen and (min-width:480px){.c-article-authors-search__list{justify-content:normal}}.c-article-authors-search__text{display:flex;align-items:center;flex-flow:column wrap;justify-content:center;font-size:14px}@media only screen and (min-width:480px){.c-article-authors-search__text{font-size:16px;flex-direction:row}}.c-article-authors-search__links-text{font-weight:700;margin-right:8px;text-align:center}@media only screen and (min-width:480px){.c-article-authors-search__links-text{text-align:left}}.c-article-authors-search__list-item--left{flex:1 1 100%}@media only screen and (min-width:480px){.c-article-authors-search__list-item--left{flex-basis:auto}}.c-article-authors-search__list-item--right{flex:1 1 auto}.c-article-authors-search__list .c-article-identifiers{margin:0}.c-article-authors-search__list .c-article-identifiers__item{color:#222;border-right:2px solid #c5e0f4;font-size:14px}@media only screen and (min-width:480px){.c-article-authors-search__list .c-article-identifiers__item{font-size:16px}}.c-article-authors-search__list .c-article-identifiers__item:last-child{border-right:none}.eds-l-with-sidebar{display:flex;flex-wrap:wrap}.eds-l-with-sidebar>*{margin:0}.eds-l-with-sidebar__sidebar{flex-grow:1;min-width:var(--eds-l-with-sidebar--min-width,400px);flex-basis:var(--eds-l-with-sidebar--basis,400px)}.eds-l-with-sidebar>:not(.eds-l-with-sidebar__sidebar){flex-basis:0px;flex-grow:999;min-width:var(--eds-l-with-sidebar--min,50%)}.eds-l-with-sidebar>:first-child{padding-right:4rem}@supports (gap:1em){.eds-l-with-sidebar>:first-child{padding-right:0}.eds-l-with-sidebar{gap:var(--eds-l-with-sidebar--gap,4rem)}}.c-article-metrics__posts .c-card__title{font-size:1.05rem}.c-article-metrics__posts .c-card__title+span{color:#6f6f6f;font-size:1rem}.c-status-message{display:flex;align-items:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-size:1rem;position:relative;width:100%;box-sizing:border-box}.c-card__summary>p:last-child,.c-status-message :last-child{margin-bottom:0}.c-status-message--boxed{background-color:#fff;border-radius:2px;border:1px solid #eee;line-height:1.5;padding:16px}.c-status-message__heading{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-size:1rem;font-weight:700}.c-status-message__icon{fill:currentcolor;transform:translate(0);display:inline-block;vertical-align:text-top;width:1.5em;height:1.5em;flex:0 0 auto;margin-right:8px}.c-status-message__icon--top{align-self:flex-start}.c-status-message--info .c-status-message__icon{color:#17758c}.c-status-message--boxed.c-status-message--info{border-bottom:4px solid #17758c}.c-status-message--error .c-status-message__icon{color:#be1818}.c-status-message--boxed.c-status-message--error{border-bottom:4px solid #be1818}.c-status-message--success .c-status-message__icon{color:#007a4b}.c-status-message--boxed.c-status-message--success{border-bottom:4px solid #007a4b}.c-status-message--warning .c-status-message__icon{color:#daa520}.c-status-message--boxed.c-status-message--warning{border-bottom:4px solid #daa520}.c-breadcrumbs{list-style:none;margin:0;padding:0;font-size:1rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;color:#000}.c-breadcrumbs>li{display:inline}.c-breadcrumbs__link{color:#666}svg.c-breadcrumbs__chevron{margin:4px 4px 0;fill:#666;width:10px;height:10px}@media only screen and (max-width:767px){.c-breadcrumbs .c-breadcrumbs__item{display:none}.c-breadcrumbs .c-breadcrumbs__item:last-child,.c-breadcrumbs .c-breadcrumbs__item:nth-last-child(2){display:inline}}.c-card{display:flex;background-color:transparent;flex-direction:column;font-size:.875rem;min-width:0;padding:0;position:relative;border:0;box-shadow:none;overflow:hidden}.c-card--no-shape{border:0;box-shadow:none;background:0 0}.c-card__image{position:relative;display:flex;justify-content:center;overflow:hidden;padding-bottom:56.25%}@supports (aspect-ratio:1/1){.c-card__image{padding-bottom:0;aspect-ratio:var(--card--image-aspect-ratio,16/9)}}.c-card__image img{position:absolute;left:0;min-width:100%;min-height:100%}@supports ((-o-object-fit:cover) or (object-fit:cover)){.c-card__image img{width:100%;height:100%;object-fit:cover}}.c-card__body{padding:16px;flex:1 1 auto}.c-card--no-shape .c-card__body{padding:0}.c-card--no-shape .c-card__body:not(:first-child){padding-top:16px}.c-card__title{font-family:Harding,Palatino,serif;font-weight:700;-webkit-font-smoothing:antialiased;font-size:clamp(1.25rem,4vw,1.5rem);margin-top:0;margin-bottom:8px;letter-spacing:-.01875rem}[lang=de] .c-card__title{hyphens:auto}.c-card__summary{line-height:1.4}.c-card__summary>p{margin-bottom:5px}.c-card__summary a{text-decoration:underline}.c-card__link:not(.c-card__link--no-block-link):before{content:"";position:absolute;inset:0}.c-card--flush .c-card__body{padding:0}.c-card--major{font-size:1rem}.c-card--major .c-card__title{font-family:Harding,Palatino,serif;font-weight:700;line-height:1.2;-webkit-font-smoothing:antialiased;font-size:clamp(1.5rem,4vw,1.75rem)}.c-card--dark{background-color:#29303c;color:#e3e4e5;border-width:0}.c-card--dark .c-card__title,.c-footer{color:#fff}.c-card--dark .c-card__link,.c-card--dark .c-card__summary a,.c-meta{color:inherit}.c-meta{list-style:none;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-size:.875rem;line-height:1.4}.c-meta--large{font-size:1rem}.c-meta--large .c-meta__item{margin-bottom:8px}.c-meta__item{display:inline-block;margin-bottom:4px}.c-meta__item:not(:last-child){border-right:1px solid #f3f3f3;padding-right:4px;margin-right:4px}@media only screen and (max-width:767px){.c-meta__item--block-sm-max{display:block}.c-meta__item--block-sm-max:not(:last-child){border-right:none;margin-right:0;padding-right:0}}@media only screen and (min-width:1024px){.c-meta__item--block-at-lg{display:block}.c-meta__item--block-at-lg:not(:last-child){border-right:none;margin-right:0;padding-right:0}}.c-meta__type{text-transform:none;font-weight:700}.c-skip-link{background:#069;color:#fff;font-size:.875rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;text-align:center;padding:8px;position:absolute;inset:0 0 auto;z-index:9999;transform:translateY(-100%)}@media (prefers-reduced-motion:reduce){.c-skip-link{transition:top .3s ease-in-out}}@media print{.c-skip-link{display:none}}.c-skip-link:link{color:#fff}.c-nature-box{background-color:#fff;border-radius:2px;box-shadow:0 0 5px 0 rgba(51,51,51,.1);border:1px solid #d5d5d5;line-height:1.3;padding:16px 16px 3px;margin-bottom:24px}.c-nature-box__text{font-size:1rem;margin-top:0;margin-bottom:16px!important}.c-nature-box--access-to-pdf{display:none}@media only screen and (min-width:1024px){.c-nature-box--mobile{display:none}}.c-nature-box .c-pdf-download{margin-bottom:16px!important}.c-nature-box svg+.c-article__button-text{margin-left:8px}.c-nature-box--version{background-color:#eee}.c-nature-box:not(:has(*)),.js-context-bar-sticky-point-desktop:not(:has(*)){display:none}.app-masthead-save-research,.app-save-research-buttons{display:flex;gap:8px;align-items:flex-start;flex-direction:column;text-wrap:balance}@media only screen and (min-width:768px){.app-masthead-save-research,.app-save-research-buttons{align-items:center;flex-direction:row;text-align:start}}.app-masthead-save-research__hide-on-lg,.app-masthead__container .app-masthead-save-research__hide-on-lg{display:block;visibility:visible}@media only screen and (min-width:875px){.app-masthead-save-research__hide-on-lg,.app-masthead__container .app-masthead-save-research__hide-on-lg{display:none;visibility:hidden}.app-masthead-save-research__hide-on-lg:first-child+*,.app-masthead__container .app-masthead-save-research__hide-on-lg:first-child+*{margin-block-start:0}}.article-page--news .app-masthead-save-research__hide-on-lg{display:block;visibility:visible}@media only screen and (min-width:768px){.article-page--news .app-masthead-save-research__hide-on-lg{display:none;visibility:hidden}.article-page--news .app-masthead-save-research__hide-on-lg:first-child+*{margin-block-start:0}}.app-masthead-save-research__action-button{cursor:pointer;border:0;background-color:transparent;font-weight:inherit;padding:0;color:#424d61;text-decoration:underline .0625rem;text-decoration-skip-ink:auto;text-underline-offset:.25rem;display:inline-block;font-size:clamp(.875rem,.625rem + 1.25vw,1rem);line-height:2;text-align:left}@media only screen and (min-width:1024px){.app-masthead-save-research__action-button{text-align:center}}.app-masthead-save-research__action-button:hover{color:#29303c;text-decoration-thickness:.25rem;text-underline-offset:.25rem}.app-masthead-save-research__action-link{display:inline-block;font-size:clamp(.875rem,.625rem + 1.25vw,1rem);line-height:2}.app-masthead-save-research__icon{fill:currentcolor;transform:translate(0);display:inline-block;width:24px;height:24px;flex:0 0 auto;vertical-align:middle}*+.app-masthead-save-research__icon,.app-masthead-save-research .app-masthead-save-research__icon+*{margin-left:4px}@media only screen and (min-width:480px){*+.app-masthead-save-research__icon,.app-masthead-save-research .app-masthead-save-research__icon+*{margin-left:8px}}.app-masthead-save-research__icon--small{fill:currentcolor;transform:translate(0);display:inline-block;width:16px;height:16px}.app-journal-saved-research-status-container .eds-c-status-message{background-color:inherit;border:0;border-radius:0;padding:16px 0;gap:10px}.app-journal-saved-research-status-container .eds-c-status-message--success{border-bottom:none}.app-journal-saved-research-status-container .eds-c-status-message__dismiss-button{right:0;padding:0}.app-journal-saved-research-status-container .eds-c-status-message__icon{margin-right:0}.app-journal-saved-research-status-container .eds-c-status-message__message span{font-weight:700;border-right:2px solid #c5e0f4;margin-right:8px;padding-right:8px}.c-meta__link{color:#000}.sans-serif{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif}.article-page{background:#fff}.c-header{background-color:#fff;border-bottom:5px solid #000;font-size:1rem;margin-bottom:16px;line-height:1.4}.c-header__row{position:relative;padding:0}.c-header__row:not(:last-child){border-bottom:1px solid #eee}.c-header__split{display:flex;align-items:center;justify-content:space-between}.c-header__logo-container{flex:1 1 0px;margin:8px 24px 8px 0;line-height:0}.c-header__logo{transform:translateZ(0)}.c-header__logo img{max-height:32px}.c-header__container{margin:0 auto;max-width:1280px}@media print{.c-header__menu{display:none}}.c-header__menu{list-style:none;padding:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:0 1 auto;font-weight:700;line-height:1.4;margin:0 -4px}@media only screen and (max-width:1023px){.c-header__menu--hide-lg-max{display:none;visibility:hidden}}.c-header__menu--global{font-weight:400;justify-content:flex-end}.c-header__menu--global svg{display:none;visibility:hidden}.c-header__menu--global svg:first-child+*{margin-block-start:0}@media only screen and (min-width:768px){.c-header__menu--global svg{display:block;visibility:visible}}.c-header__menu--journal{font-size:.875rem;margin:8px 0 8px -8px}@media only screen and (min-width:768px){.c-header__menu--journal{flex-wrap:nowrap;font-size:1rem}}.c-header__item{position:static;padding-top:0;padding-bottom:0}.c-header__item--pipe{border-left:2px solid #eee;padding-left:8px}.c-header__item--padding{padding-top:8px;padding-bottom:8px}@media only screen and (min-width:768px){.c-header__item--dropdown-menu{position:relative}}@media only screen and (min-width:1024px){.c-header__item--hide-lg{display:none;visibility:hidden}}@media only screen and (max-width:875px){.c-header__item--hide-md-max{display:none;visibility:hidden}.c-header__item--hide-md-max:first-child+*{margin-block-start:0}}.c-header__link{color:inherit;padding:8px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.c-header__link svg{transition-duration:.2s}.c-header__show-text{display:none;visibility:hidden}.has-tethered .c-header__heading--js-hide:first-child+*{margin-block-start:0}@media only screen and (min-width:768px){.c-header__show-text{display:inline;visibility:visible}}.c-header__show-text-sm{display:inline;visibility:visible}@media only screen and (min-width:768px){.c-header__show-text-sm{display:none;visibility:hidden}.c-header__show-text-sm:first-child+*{margin-block-start:0}}@media print{.c-header__dropdown{display:none}}.c-header__dropdown{background-color:#000;border-bottom:1px solid #2f2f2f;color:#eee;padding:16px 0;font-size:.875rem;line-height:1.2}.c-header__heading{display:inline-block;line-height:1.4;font-size:1.25rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;font-weight:400;margin-bottom:8px}.c-header__heading--keyline{border-top:1px solid;border-color:#2f2f2f;padding-top:16px;margin-top:16px;width:100%}.c-header__list{list-style:none;display:flex;flex-wrap:wrap;gap:0 16px;margin:0 -8px}.c-header__flush{margin:0 -8px}.c-header__visually-hidden{border:0;clip:rect(0,0,0,0);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;white-space:nowrap;width:1px;position:absolute!important}.c-header__search-form{margin-bottom:8px}.c-header__search-layout{display:flex;gap:16px;flex-wrap:wrap}.c-header__search-layout>:first-child{flex:999 1 auto}.c-header__search-layout>*{flex:1 1 auto}.c-header__search-layout--max-width{max-width:720px}.c-header__search-button{align-items:center;cursor:pointer;display:flex;width:100%;margin:0;position:relative;text-decoration:none;font-size:1rem;line-height:1.15;justify-content:center;padding:8px 16px;transition:background-color .2s ease-in-out,border-color .2s ease-in-out,color .2s ease-in-out;border-radius:2px;border:1px solid #fff;color:#fff;background-color:transparent;background-image:none}.c-header__input,.c-header__select{padding:8px 16px;border:1px solid;border-radius:3px;font-size:1rem;width:100%;box-sizing:border-box}.c-header__select{display:block;min-width:150px;max-width:100%;margin:0;box-shadow:0 1px 0 1px rgba(0,0,0,.04);appearance:none;background-image:url("data:image/svg+xml,%3Csvg height='16' viewBox='0 0 16 16' width='16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m5.58578644 3-3.29289322-3.29289322c-.39052429-.39052429-.39052429-1.02368927 0-1.41421356s1.02368927-.39052429 1.41421356 0l4 4c.39052429.39052429.39052429 1.02368927 0 1.41421356l-4 4c-.39052429.39052429-1.02368927.39052429-1.41421356 0s-.39052429-1.02368927 0-1.41421356z' fill='%23333' fill-rule='evenodd' transform='matrix(0 1 -1 0 11 3)'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .7em top 50%;background-size:1em auto}.u-button svg,.u-button--primary svg{fill:currentcolor}@media only screen and (min-width:768px){.c-header__menu--journal .c-header__item--dropdown-menu:last-child .c-header__dropdown.has-tethered{left:auto;right:0}}@media only screen and (min-width:876px){.c-header__menu--journal .c-header__item--dropdown-menu:last-child .c-header__dropdown.has-tethered{left:0;right:auto}}.c-header__dropdown.has-tethered{position:absolute;top:100%;transform:translateY(5px);z-index:2;left:0;width:100%;border-radius:0 0 2px 2px;border-bottom:0}@media only screen and (min-width:768px){.c-header__dropdown.has-tethered{transform:translateY(8px);width:auto}}@media only screen and (min-width:876px){.c-header__dropdown.has-tethered{min-width:225px}}.c-header__dropdown--full-width.has-tethered{width:100%;padding:32px 0 24px;transform:none}.has-tethered .c-header__heading--js-hide{display:none;visibility:hidden}.has-tethered .c-header__list--js-stack{flex-direction:column}.has-tethered .c-header__item--keyline,.has-tethered .c-header__list~.c-header__list .c-header__item:first-child{border-top:1px solid #f3f3f3;padding-top:8px;margin-top:8px}.c-header__item--snid-account-widget{display:flex}.c-header__container{padding:0 4px}.c-header__list{padding:0 12px}.c-header__menu .c-header__link{font-size:14px}.c-header__item--snid-account-widget .c-header__link{padding:8px}.c-header__menu--journal{margin-left:0}@media only screen and (min-width:768px){.c-header__container{padding:0 16px}.c-header__menu--journal{margin-left:-8px}.c-header__menu .c-header__link{font-size:16px}.c-header__link--search{gap:13px}}.u-button{align-items:center;cursor:pointer;display:inline-flex;margin:0;position:relative;text-decoration:none;width:auto;font-family:sans-serif;font-size:1rem;line-height:1.3;justify-content:center;padding:8px;transition:.25s,color .25s,border-color .25s;border-radius:2px;background-color:transparent;background-image:none;color:#069;border:1px solid #069}.u-button--primary{color:#fff;background-color:#069;background-image:none;border:1px solid #069}.u-button--full-width{display:flex;width:100%}.u-container{margin:0 auto;max-width:1280px;padding:0 16px}.u-justify-content-space-between{justify-content:space-between}.u-display-none{display:none}.js .u-js-hide,.u-hide{display:none;visibility:hidden}.u-hide:first-child+*{margin-block-start:0}.u-visually-hidden{border:0;clip:rect(0,0,0,0);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;white-space:nowrap;width:1px;position:absolute!important}@media print{.u-hide-print{display:none}}@media only screen and (min-width:1024px){.u-hide-at-lg{display:none;visibility:hidden}.u-hide-at-lg:first-child+*{margin-block-start:0}}.u-icon{fill:currentcolor;transform:translate(0);display:inline-block;vertical-align:text-top;width:1em;height:1em}.u-full-height{height:100%}.u-list-reset{list-style:none;margin:0;padding:0}.c-reading-companion__figure-item figure{margin:0}.u-mt-8{margin-top:8px}.u-mt-24{margin-top:24px}.u-mb-8{margin-bottom:8px}.u-mb-16{margin-bottom:16px}.u-mb-24{margin-bottom:24px}.u-mb-32{margin-bottom:32px}.u-mb-48{margin-bottom:48px}.u-pa-16{padding:16px}.u-h3{font-size:clamp(1.25rem,4vw,1.5rem)}.u-h3,.u-h4{-webkit-font-smoothing:antialiased;font-size:1.25rem}.app-feedback .app-feedback__message--success .eds-c-status-message__icon{color:#007a4b}.u-h3,.u-h4,h1,h2,h3{font-family:Harding,Palatino,serif;font-weight:700;line-height:1.2}h1{letter-spacing:min(max(-.0117156rem,4vw),-.0390625rem)}.u-h3,.u-h4,h2,h3{letter-spacing:-.0117156rem}.c-article-sidebar{display:none}@media only screen and (min-width:1024px){.c-article-sidebar{display:block;margin-top:8px}}.c-article-section__title,.c-article-title{font-weight:700}.c-card__title{line-height:1.4em}.c-article-associated-content__container .c-card__title{font-size:min(max(1.125rem,3vw),1.25rem)}.c-article__button{background-color:#069;border:1px solid #069;border-radius:2px;color:#fff;font-size:.875rem;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;line-height:1.4;margin-bottom:16px;padding:13px;text-decoration:none;transition:background-color .2s ease-out,color .2s ease-out;display:flex}.c-article__button:hover{background-color:#fff;color:#069;text-decoration:none}.c-article__button:visited{color:#fff}.c-article__button--inverted{background-color:#fff;color:#069}.c-article__button--inverted:hover{background-color:#069;color:#fff}.c-article__button--inverted:visited{color:#069}.grade-c-hide{display:block}.c-pdf-download__link{padding:13px 24px}.u-color-open-access{color:#b74616} } </style>
+
+
+
+
+    
+        
+            <link data-test="critical-css-handler" data-inline-css-source="critical-css" rel="stylesheet" href="/oscar-static/css/enhanced-article-nature-branded-f540f341eb.css" media="print" onload="this.media='only print, only all and (prefers-color-scheme: no-preference), only all and (prefers-color-scheme: light), only all and (prefers-color-scheme: dark)';this.onload=null">
+            <noscript>
+                <link rel="stylesheet" type="text/css" href="/oscar-static/css/enhanced-article-nature-branded-f540f341eb.css" media="only print, only all and (prefers-color-scheme: no-preference), only all and (prefers-color-scheme: light), only all and (prefers-color-scheme: dark)">
+            </noscript>
+        
+    
+
+<link rel="stylesheet" type="text/css" href="/oscar-static/css/article-print-e6e3a4b2cf.css" media="print">
+    
+
+
+
+<link rel="apple-touch-icon" sizes="180x180" href=/oscar-static/images/favicons/nature/apple-touch-icon-f39cb19454.png>
+<link rel="icon" type="image/png" sizes="48x48" href=/oscar-static/images/favicons/nature/favicon-48x48-b52890008c.png>
+<link rel="icon" type="image/png" sizes="32x32" href=/oscar-static/images/favicons/nature/favicon-32x32-3fe59ece92.png>
+<link rel="icon" type="image/png" sizes="16x16" href=/oscar-static/images/favicons/nature/favicon-16x16-951651ab72.png>
+<link rel="manifest" href=/oscar-static/manifest.json crossorigin="use-credentials">
+<link rel="mask-icon" href=/oscar-static/images/favicons/nature/safari-pinned-tab-e836a84dfc.svg color="#000000">
+<link rel="shortcut icon" href=/oscar-static/images/favicons/nature/favicon.ico>
+<meta name="msapplication-TileColor" content="#000000">
+<meta name="msapplication-config" content=/oscar-static/browserconfig.xml>
+<meta name="theme-color" content="#000000">
+<meta name="application-name" content="Nature">
+
+
+<script>
+    (function () {
+        if ( typeof window.CustomEvent === "function" ) return false;
+        function CustomEvent ( event, params ) {
+            params = params || { bubbles: false, cancelable: false, detail: null };
+            var evt = document.createEvent( 'CustomEvent' );
+            evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+            return evt;
+        }
+
+        CustomEvent.prototype = window.Event.prototype;
+
+        window.CustomEvent = CustomEvent;
+    })();
+</script>
+
+
+
+    
+    
+
+        
+<!-- Google Tag Manager -->
+<script data-test="gtm-head">
+    window.initGTM = function() {
+        if (window.config.mustardcut) {
+            (function (w, d, s, l, i) {
+                w[l] = w[l] || [];
+                w[l].push({'gtm.start': new Date().getTime(), event: 'gtm.js'});
+                var f = d.getElementsByTagName(s)[0],
+                        j = d.createElement(s),
+                        dl = l != 'dataLayer' ? '&l=' + l : '';
+                j.async = true;
+                j.src = 'https://sgtm.nature.com/gtm.js?id=' + i + dl;
+                f.parentNode.insertBefore(j, f);
+            })(window, document, 'script', 'dataLayer', 'GTM-MRVXSHQ');
+        }
+    }
+</script>
+<!-- End Google Tag Manager -->
+
+        <script>
+    (function(w,d,t) {
+        function cc() {
+            var h = w.location.hostname;
+            if (h === 'preview-www.nature.com') return;
+            var e = d.createElement(t),
+                s = d.getElementsByTagName(t)[0];
+            e.setAttribute('crossorigin', 'anonymous');
+            if (h === 'nature.com' || h.endsWith('.nature.com')) {
+                e.src = 'https://cmp.nature.com/production_live/en/consent-bundle-8-latest.js';
+                
+                    e.setAttribute('onload', "initGTM(window,document,'script','dataLayer','GTM-MRVXSHQ')");
+                
+            } else {
+                e.src = '/oscar-static/js/cookie-consent-es5-bundle-c7e13f01d7.js';
+                e.setAttribute('data-consent', h);
+            }
+            s.insertAdjacentElement('afterend', e);
+        }
+        cc();
+    })(window,document,'script');
+</script>
+
+    
+
+
+<script id="js-position0">
+    (function(w, d) {
+        var moduleSupport = (function() {
+            return 'noModule' in d.createElement('script');
+        })();
+
+        if (w.config.mustardcut === true) {
+            w.loader = {
+                index: 0,
+                registered: [],
+                scripts: [
+                    
+                        {src: '/oscar-static/js/global-article-es6-bundle-a54a3975f9.js', test: 'global-article-js', module: true},
+                        {src: '/oscar-static/js/global-article-es5-bundle-d68fb36b00.js', test: 'global-article-js', nomodule: true},
+                        {src: '/oscar-static/js/shared-es6-bundle-269e7f3e90.js', test: 'shared-js', module: true},
+                        {src: '/oscar-static/js/shared-es5-bundle-88de4f3978.js', test: 'shared-js', nomodule: true},
+                        {src: '/oscar-static/js/header-150-es6-bundle-8395667412.js', test: 'header-150-js', module: true},
+                        {src: '/oscar-static/js/header-150-es5-bundle-95c03c3888.js', test: 'header-150-js', nomodule: true}
+                    
+                ].filter(function (s) {
+                    if (s.src === null) return false;
+                    if (moduleSupport && s.nomodule) return false;
+                    return !(!moduleSupport && s.module);
+                }),
+
+                register: function (value) {
+                    this.registered.push(value);
+                },
+
+                ready: function () {
+                    if (this.registered.length === this.scripts.length) {
+                        this.registered.forEach(function (fn) {
+                            if (typeof fn === 'function') {
+                                setTimeout(fn, 0); 
+                            }
+                        });
+                        this.ready = function () {};
+                    }
+                },
+
+                insert: function (s) {
+                    var t = d.getElementById('js-position' + this.index);
+                    if (t && t.insertAdjacentElement) {
+                        t.insertAdjacentElement('afterend', s);
+                    } else {
+                        d.head.appendChild(s);
+                    }
+                    ++this.index;
+                },
+
+                createScript: function (script, beforeLoad) {
+                    var s = d.createElement('script');
+                    s.id = 'js-position' + (this.index + 1);
+                    s.setAttribute('data-test', script.test);
+                    if (beforeLoad) {
+                        s.defer = 'defer';
+                        s.onload = function () {
+                            if (script.noinit) {
+                                loader.register(true);
+                            }
+                            if (d.readyState === 'interactive' || d.readyState === 'complete') {
+                                loader.ready();
+                            }
+                        };
+                    } else {
+                        s.async = 'async';
+                    }
+                    s.src = script.src;
+                    return s;
+                },
+
+                init: function () {
+                    this.scripts.forEach(function (s) {
+                        loader.insert(loader.createScript(s, true));
+                    });
+
+                    d.addEventListener('DOMContentLoaded', function () {
+                        loader.ready();
+                        var conditionalScripts;
+                        
+                            conditionalScripts = [
+                                {match: 'div[data-pan-container]', src: '/oscar-static/js/pan-zoom-es6-bundle-1a117d29d6.js', test: 'pan-zoom-js',  module: true },
+                                {match: 'div[data-pan-container]', src: '/oscar-static/js/pan-zoom-es5-bundle-1a117d29d6.js', test: 'pan-zoom-js',  nomodule: true },
+                                {match: 'math,span.mathjax-tex', src: '/oscar-static/js/math-es6-bundle-8da0cf81d9.js', test: 'math-js', module: true},
+                                {match: 'math,span.mathjax-tex', src: '/oscar-static/js/math-es5-bundle-8da0cf81d9.js', test: 'math-js', nomodule: true}
+                            ];
+                        
+
+                        if (conditionalScripts) {
+                            conditionalScripts.filter(function (script) {
+                                return !!document.querySelector(script.match) && !((moduleSupport && script.nomodule) || (!moduleSupport && script.module));
+                            }).forEach(function (script) {
+                                loader.insert(loader.createScript(script));
+                            });
+                        }
+                    }, false);
+                }
+            };
+            loader.init();
+        }
+    })(window, document);
+</script>
+
+
+
+
+
+
+
+
+
+
+<meta name="access" content="Yes">
+
+
+<link rel="search" href="https://www.nature.com/search">
+<link rel="search" href="https://www.nature.com/opensearch/opensearch.xml" type="application/opensearchdescription+xml" title="nature.com">
+<link rel="search" href="https://www.nature.com/opensearch/request" type="application/sru+xml" title="nature.com">
+
+    <link rel="canonical" href="https://www.nature.com/articles/s41586-020-2649-2">
+
+
+
+
+
+    
+    <script type="application/ld+json">{"mainEntity":{"headline":"Array programming with NumPy","description":"Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and operating on data in vectors, matrices and higher-dimensional arrays. NumPy is the primary array programming library for the Python language. It has an essential role in research analysis pipelines in fields as diverse as physics, chemistry, astronomy, geoscience, biology, psychology, materials science, engineering, finance and economics. For example, in astronomy, NumPy was an important part of the software stack used in the discovery of gravitational waves1 and in the first imaging of a black hole2. Here we review how a few fundamental array concepts lead to a simple and powerful programming paradigm for organizing, exploring and analysing scientific data. NumPy is the foundation upon which the scientific Python ecosystem is constructed. It is so pervasive that several projects, targeting audiences with specialized needs, have developed their own NumPy-like interfaces and array objects. Owing to its central position in the ecosystem, NumPy increasingly acts as an interoperability layer between such array computation libraries and, together with its application programming interface (API), provides a flexible framework to support the next decade of scientific and industrial analysis. NumPy is the primary array programming library for Python; here its fundamental concepts are reviewed and its evolution into a flexible interoperability layer between increasingly specialized computational libraries is discussed.","datePublished":"2020-09-16T00:00:00Z","dateModified":"2020-09-16T00:00:00Z","pageStart":"357","pageEnd":"362","license":"http://creativecommons.org/licenses/by/4.0/","sameAs":"https://doi.org/10.1038/s41586-020-2649-2","keywords":["Computational neuroscience","Solar physics","Computational science","Computer science","Software","Science","Humanities and Social Sciences","multidisciplinary"],"image":["https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs41586-020-2649-2/MediaObjects/41586_2020_2649_Fig1_HTML.png","https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs41586-020-2649-2/MediaObjects/41586_2020_2649_Fig2_HTML.png","https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs41586-020-2649-2/MediaObjects/41586_2020_2649_Fig3_HTML.png"],"isPartOf":{"name":"Nature","issn":["1476-4687","0028-0836"],"volumeNumber":"585","@type":["Periodical","PublicationVolume"]},"publisher":{"name":"Nature Publishing Group UK","logo":{"url":"https://www.springernature.com/app-sn/public/images/logo-springernature.png","@type":"ImageObject"},"@type":"Organization"},"author":[{"name":"Charles R. Harris","affiliation":[{"name":"Independent researcher","address":{"name":"Independent researcher, Logan, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"K. Jarrod Millman","url":"http://orcid.org/0000-0002-5263-5070","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Brain Imaging Center, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"University of California, Berkeley","address":{"name":"Division of Biostatistics, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"University of California, Berkeley","address":{"name":"Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"}],"email":"millman@berkeley.edu","@type":"Person"},{"name":"Stéfan J. van der Walt","url":"http://orcid.org/0000-0001-9276-1891","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Brain Imaging Center, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"University of California, Berkeley","address":{"name":"Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"Applied Mathematics, Stellenbosch University","address":{"name":"Applied Mathematics, Stellenbosch University, Stellenbosch, South Africa","@type":"PostalAddress"},"@type":"Organization"}],"email":"stefanv@berkeley.edu","@type":"Person"},{"name":"Ralf Gommers","url":"http://orcid.org/0000-0002-0300-3333","affiliation":[{"name":"Quansight","address":{"name":"Quansight, Austin, USA","@type":"PostalAddress"},"@type":"Organization"}],"email":"ralf.gommers@gmail.com","@type":"Person"},{"name":"Pauli Virtanen","affiliation":[{"name":"University of Jyväskylä","address":{"name":"Department of Physics, University of Jyväskylä, Jyväskylä, Finland","@type":"PostalAddress"},"@type":"Organization"},{"name":"University of Jyväskylä","address":{"name":"Nanoscience Center, University of Jyväskylä, Jyväskylä, Finland","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"David Cournapeau","affiliation":[{"name":"Mercari JP","address":{"name":"Mercari JP, Tokyo, Japan","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Eric Wieser","affiliation":[{"name":"University of Cambridge","address":{"name":"Department of Engineering, University of Cambridge, Cambridge, UK","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Julian Taylor","affiliation":[{"name":"Independent researcher","address":{"name":"Independent researcher, Karlsruhe, Germany","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Sebastian Berg","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Nathaniel J. Smith","affiliation":[{"name":"Independent researcher","address":{"name":"Independent researcher, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Robert Kern","affiliation":[{"name":"Enthought","address":{"name":"Enthought, Austin, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Matti Picus","url":"http://orcid.org/0000-0002-1771-9949","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Stephan Hoyer","url":"http://orcid.org/0000-0002-5207-0380","affiliation":[{"name":"Google Research","address":{"name":"Google Research, Mountain View, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Marten H. van Kerkwijk","affiliation":[{"name":"University of Toronto","address":{"name":"Department of Astronomy and Astrophysics, University of Toronto, Toronto, Canada","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Matthew Brett","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Brain Imaging Center, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"University of Birmingham","address":{"name":"School of Psychology, University of Birmingham, Edgbaston, UK","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Allan Haldane","affiliation":[{"name":"Temple University","address":{"name":"Department of Physics, Temple University, Philadelphia, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Jaime Fernández del Río","affiliation":[{"name":"Google","address":{"name":"Google, Zurich, Switzerland","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Mark Wiebe","url":"http://orcid.org/0000-0003-3603-8038","affiliation":[{"name":"The University of British Columbia","address":{"name":"Department of Physics and Astronomy, The University of British Columbia, Vancouver, Canada","@type":"PostalAddress"},"@type":"Organization"},{"name":"Amazon","address":{"name":"Amazon, Seattle, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Pearu Peterson","url":"http://orcid.org/0000-0001-7328-4305","affiliation":[{"name":"Quansight","address":{"name":"Quansight, Austin, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"Independent researcher","address":{"name":"Independent researcher, Saue, Estonia","@type":"PostalAddress"},"@type":"Organization"},{"name":"Institute of Cybernetics at Tallinn Technical University","address":{"name":"Department of Mechanics and Applied Mathematics, Institute of Cybernetics at Tallinn Technical University, Tallinn, Estonia","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Pierre Gérard-Marchant","affiliation":[{"name":"University of Georgia","address":{"name":"Department of Biological and Agricultural Engineering, University of Georgia, Athens, USA","@type":"PostalAddress"},"@type":"Organization"},{"name":"France-IX Services","address":{"name":"France-IX Services, Paris, France","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Kevin Sheppard","url":"http://orcid.org/0000-0001-8700-2292","affiliation":[{"name":"University of Oxford","address":{"name":"Department of Economics, University of Oxford, Oxford, UK","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Tyler Reddy","affiliation":[{"name":"CCS-7, Los Alamos National Laboratory","address":{"name":"CCS-7, Los Alamos National Laboratory, Los Alamos, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Warren Weckesser","affiliation":[{"name":"University of California, Berkeley","address":{"name":"Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Hameer Abbasi","affiliation":[{"name":"Quansight","address":{"name":"Quansight, Austin, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Christoph Gohlke","url":"http://orcid.org/0000-0001-8108-7707","affiliation":[{"name":"University of California, Irvine","address":{"name":"Laboratory for Fluorescence Dynamics, Biomedical Engineering Department, University of California, Irvine, Irvine, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"},{"name":"Travis E. Oliphant","affiliation":[{"name":"Quansight","address":{"name":"Quansight, Austin, USA","@type":"PostalAddress"},"@type":"Organization"}],"@type":"Person"}],"isAccessibleForFree":true,"@type":"ScholarlyArticle"},"@context":"https://schema.org","@type":"WebPage"}</script>
+
+
+
+
+    
+    
+    <meta name="journal_id" content="41586"/>
+    <meta name="dc.title" content="Array programming with NumPy"/>
+    <meta name="dc.source" content="Nature 2020 585:7825"/>
+    <meta name="dc.format" content="text/html"/>
+    <meta name="dc.publisher" content="Nature Publishing Group"/>
+    <meta name="dc.date" content="2020-09-16"/>
+    <meta name="dc.type" content="ReviewPaper"/>
+    <meta name="dc.language" content="En"/>
+    <meta name="dc.copyright" content="2020 The Author(s)"/>
+    <meta name="dc.rights" content="2020 The Author(s)"/>
+    <meta name="dc.rightsAgent" content="journalpermissions@springernature.com"/>
+    <meta name="dc.description" content="Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and operating on data in vectors, matrices and higher-dimensional arrays. NumPy is the primary array programming library for the Python language. It has an essential role in research analysis pipelines in fields as diverse as physics, chemistry, astronomy, geoscience, biology, psychology, materials science, engineering, finance and economics. For example, in astronomy, NumPy was an important part of the software stack used in the discovery of gravitational waves1 and in the first imaging of a black hole2. Here we review how a few fundamental array concepts lead to a simple and powerful programming paradigm for organizing, exploring and analysing scientific data. NumPy is the foundation upon which the scientific Python ecosystem is constructed. It is so pervasive that several projects, targeting audiences with specialized needs, have developed their own NumPy-like interfaces and array objects. Owing to its central position in the ecosystem, NumPy increasingly acts as an interoperability layer between such array computation libraries and, together with its application programming interface (API), provides a flexible framework to support the next decade of scientific and industrial analysis. NumPy is the primary array programming library for Python; here its fundamental concepts are reviewed and its evolution into a flexible interoperability layer between increasingly specialized computational libraries is discussed."/>
+    <meta name="prism.issn" content="1476-4687"/>
+    <meta name="prism.publicationName" content="Nature"/>
+    <meta name="prism.publicationDate" content="2020-09-16"/>
+    <meta name="prism.volume" content="585"/>
+    <meta name="prism.number" content="7825"/>
+    <meta name="prism.section" content="ReviewPaper"/>
+    <meta name="prism.startingPage" content="357"/>
+    <meta name="prism.endingPage" content="362"/>
+    <meta name="prism.copyright" content="2020 The Author(s)"/>
+    <meta name="prism.rightsAgent" content="journalpermissions@springernature.com"/>
+    <meta name="prism.url" content="https://www.nature.com/articles/s41586-020-2649-2"/>
+    <meta name="prism.doi" content="doi:10.1038/s41586-020-2649-2"/>
+    <meta name="citation_pdf_url" content="https://www.nature.com/articles/s41586-020-2649-2.pdf"/>
+    <meta name="citation_fulltext_html_url" content="https://www.nature.com/articles/s41586-020-2649-2"/>
+    <meta name="citation_journal_title" content="Nature"/>
+    <meta name="citation_journal_abbrev" content="Nature"/>
+    <meta name="citation_publisher" content="Nature Publishing Group"/>
+    <meta name="citation_issn" content="1476-4687"/>
+    <meta name="citation_title" content="Array programming with NumPy"/>
+    <meta name="citation_volume" content="585"/>
+    <meta name="citation_issue" content="7825"/>
+    <meta name="citation_publication_date" content="2020/09"/>
+    <meta name="citation_online_date" content="2020/09/16"/>
+    <meta name="citation_firstpage" content="357"/>
+    <meta name="citation_lastpage" content="362"/>
+    <meta name="citation_article_type" content="Review Article"/>
+    <meta name="citation_fulltext_world_readable" content=""/>
+    <meta name="citation_language" content="en"/>
+    <meta name="dc.identifier" content="doi:10.1038/s41586-020-2649-2"/>
+    <meta name="DOI" content="10.1038/s41586-020-2649-2"/>
+    <meta name="size" content="113460"/>
+    <meta name="citation_doi" content="10.1038/s41586-020-2649-2"/>
+    <meta name="citation_springer_api_url" content="http://api.springer.com/xmldata/jats?q=doi:10.1038/s41586-020-2649-2&amp;api_key="/>
+    <meta name="description" content="Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and operating on data in vectors, matrices and higher-dimensional arrays. NumPy is the primary array programming library for the Python language. It has an essential role in research analysis pipelines in fields as diverse as physics, chemistry, astronomy, geoscience, biology, psychology, materials science, engineering, finance and economics. For example, in astronomy, NumPy was an important part of the software stack used in the discovery of gravitational waves1 and in the first imaging of a black hole2. Here we review how a few fundamental array concepts lead to a simple and powerful programming paradigm for organizing, exploring and analysing scientific data. NumPy is the foundation upon which the scientific Python ecosystem is constructed. It is so pervasive that several projects, targeting audiences with specialized needs, have developed their own NumPy-like interfaces and array objects. Owing to its central position in the ecosystem, NumPy increasingly acts as an interoperability layer between such array computation libraries and, together with its application programming interface (API), provides a flexible framework to support the next decade of scientific and industrial analysis. NumPy is the primary array programming library for Python; here its fundamental concepts are reviewed and its evolution into a flexible interoperability layer between increasingly specialized computational libraries is discussed."/>
+    <meta name="dc.creator" content="Harris, Charles R."/>
+    <meta name="dc.creator" content="Millman, K. Jarrod"/>
+    <meta name="dc.creator" content="van der Walt, St&#233;fan J."/>
+    <meta name="dc.creator" content="Gommers, Ralf"/>
+    <meta name="dc.creator" content="Virtanen, Pauli"/>
+    <meta name="dc.creator" content="Cournapeau, David"/>
+    <meta name="dc.creator" content="Wieser, Eric"/>
+    <meta name="dc.creator" content="Taylor, Julian"/>
+    <meta name="dc.creator" content="Berg, Sebastian"/>
+    <meta name="dc.creator" content="Smith, Nathaniel J."/>
+    <meta name="dc.creator" content="Kern, Robert"/>
+    <meta name="dc.creator" content="Picus, Matti"/>
+    <meta name="dc.creator" content="Hoyer, Stephan"/>
+    <meta name="dc.creator" content="van Kerkwijk, Marten H."/>
+    <meta name="dc.creator" content="Brett, Matthew"/>
+    <meta name="dc.creator" content="Haldane, Allan"/>
+    <meta name="dc.creator" content="del R&#237;o, Jaime Fern&#225;ndez"/>
+    <meta name="dc.creator" content="Wiebe, Mark"/>
+    <meta name="dc.creator" content="Peterson, Pearu"/>
+    <meta name="dc.creator" content="G&#233;rard-Marchant, Pierre"/>
+    <meta name="dc.creator" content="Sheppard, Kevin"/>
+    <meta name="dc.creator" content="Reddy, Tyler"/>
+    <meta name="dc.creator" content="Weckesser, Warren"/>
+    <meta name="dc.creator" content="Abbasi, Hameer"/>
+    <meta name="dc.creator" content="Gohlke, Christoph"/>
+    <meta name="dc.creator" content="Oliphant, Travis E."/>
+    <meta name="dc.subject" content="Computational neuroscience"/>
+    <meta name="dc.subject" content="Solar physics"/>
+    <meta name="dc.subject" content="Computational science"/>
+    <meta name="dc.subject" content="Computer science"/>
+    <meta name="dc.subject" content="Software"/>
+    <meta name="citation_reference" content="citation_journal_title=Phys. Rev. Lett.; citation_title=Observation of gravitational waves from a binary black hole merger; citation_author=BP Abbott; citation_volume=116; citation_publication_date=2016; citation_pages=061102; citation_doi=10.1103/PhysRevLett.116.061102; citation_id=CR1"/>
+    <meta name="citation_reference" content="citation_journal_title=Astrophys. J.; citation_title=High-resolution linear polarimetric imaging for the Event Horizon Telescope; citation_author=A Chael; citation_volume=286; citation_publication_date=2016; citation_pages=11; citation_doi=10.3847/0004-637X/829/1/11; citation_id=CR2"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Phys.; citation_title=Numerical Python; citation_author=PF Dubois, K Hinsen, J Hugunin; citation_volume=10; citation_publication_date=1996; citation_pages=262-267; citation_doi=10.1063/1.4822400; citation_id=CR3"/>
+    <meta name="citation_reference" content="Ascher, D., Dubois, P. F., Hinsen, K., Hugunin, J. &amp; Oliphant, T. E. An Open Source Project: Numerical Python (Lawrence Livermore National Laboratory, 2001)."/>
+    <meta name="citation_reference" content="Yang, T.-Y., Furnish, G. &amp; Dubois, P. F. Steering object-oriented scientific computations. In Proc. TOOLS USA 97. Intl Conf. Technology of Object Oriented Systems and Languages (eds Ege,&#160;R., Singh,&#160;M.&#160;&amp; Meyer,&#160;B.) 112&#8211;119 (IEEE, 1997)."/>
+    <meta name="citation_reference" content="Greenfield, P., Miller, J. T., Hsu, J. &amp; White, R. L. numarray: a new scientific array package for Python. In PyCon DC 2003 
+                  http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.112.9899
+                  
+                 (2003)."/>
+    <meta name="citation_reference" content="Oliphant, T. E. Guide to NumPy 1st edn (Trelgol Publishing, 2006)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Python: batteries included; citation_author=PF Dubois; citation_volume=9; citation_publication_date=2007; citation_pages=7-9; citation_doi=10.1109/MCSE.2007.51; citation_id=CR8"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Python for scientific computing; citation_author=TE Oliphant; citation_volume=9; citation_publication_date=2007; citation_pages=10-20; citation_doi=10.1109/MCSE.2007.58; citation_id=CR9"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Python for scientists and engineers; citation_author=KJ Millman, M Aivazis; citation_volume=13; citation_publication_date=2011; citation_pages=9-12; citation_doi=10.1109/MCSE.2011.36; citation_id=CR10"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Python: an ecosystem for scientific computing; citation_author=F P&#233;rez, BE Granger, JD Hunter; citation_volume=13; citation_publication_date=2011; citation_pages=13-21; citation_doi=10.1109/MCSE.2010.119; citation_id=CR11"/>
+    <meta name="citation_reference" content="citation_journal_title=Nat. Methods; citation_title=SciPy 1.0&#8212;fundamental algorithms for scientific computing in Python; citation_author=P Virtanen; citation_volume=17; citation_publication_date=2020; citation_pages=261-272; citation_doi=10.1038/s41592-019-0686-2; citation_id=CR12"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Matplotlib: a 2D graphics environment; citation_author=JD Hunter; citation_volume=9; citation_publication_date=2007; citation_pages=90-95; citation_doi=10.1109/MCSE.2007.55; citation_id=CR13"/>
+    <meta name="citation_reference" content="McKinney, W. Data structures for statistical computing in Python. In Proc. 9th Python in Science Conf. (eds van der&#160;Walt,&#160;S.&#160;&amp; Millman,&#160;K.&#160;J.) 56&#8211;61 (2010)."/>
+    <meta name="citation_reference" content="citation_journal_title=J. Mach. Learn. Res.; citation_title=Scikit-learn: machine learning in Python; citation_author=F Pedregosa; citation_volume=12; citation_publication_date=2011; citation_pages=2825-2830; citation_id=CR15"/>
+    <meta name="citation_reference" content="citation_journal_title=PeerJ; citation_title=scikit-image: image processing in Python; citation_author=S Walt; citation_volume=2; citation_publication_date=2014; citation_pages=e453; citation_doi=10.7717/peerj.453; citation_id=CR16"/>
+    <meta name="citation_reference" content="van der Walt, S., Colbert, S. C. &amp; Varoquaux, G. The NumPy array: a structure for efficient numerical computation. Comput. Sci. Eng. 13, 22&#8211;30 (2011). Discusses the NumPy array data structure with a focus on how it enables efficient computation."/>
+    <meta name="citation_reference" content="Wang, Q., Zhang, X., Zhang, Y. &amp; Yi, Q. AUGEM: automatically generate high performance dense linear algebra kernels on x86 CPUs. In SC&#8217;13: Proc. Intl Conf. High Performance Computing, Networking, Storage and Analysis 25 (IEEE, 2013)."/>
+    <meta name="citation_reference" content="Xianyi, Z., Qian, W. &amp; Yunquan, Z. Model-driven level 3 BLAS performance optimization on Loongson 3A processor. In 2012 IEEE 18th Intl Conf. Parallel and Distributed Systems 684&#8211;691 (IEEE, 2012)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=IPython: a system for interactive scientific computing; citation_author=F P&#233;rez, BE Granger; citation_volume=9; citation_publication_date=2007; citation_pages=21-29; citation_doi=10.1109/MCSE.2007.53; citation_id=CR20"/>
+    <meta name="citation_reference" content="Kluyver, T. et al. Jupyter Notebooks&#8212;a publishing format for reproducible computational workflows. In Positioning and Power in Academic Publishing: Players, Agents and Agendas (eds Loizides,&#160;F.&#160;&amp; Schmidt,&#160;B.) 87&#8211;90 (IOS Press, 2016)."/>
+    <meta name="citation_reference" content="Hagberg, A. A., Schult, D. A. &amp; Swart, P. J. Exploring network structure, dynamics, and function using NetworkX. In Proc. 7th Python in Science Conf. (eds Varoquaux,&#160;G., Vaught,&#160;T.&#160;&amp; Millman,&#160;K.&#160;J.) 11&#8211;15 (2008)."/>
+    <meta name="citation_reference" content="citation_journal_title=Astron. Astrophys.; citation_title=Astropy: a community Python package for astronomy; citation_author=null Astropy Collaboration; citation_volume=558; citation_publication_date=2013; citation_pages=A33; citation_doi=10.1051/0004-6361/201322068; citation_id=CR23"/>
+    <meta name="citation_reference" content="citation_journal_title=Astron. J.; citation_title=The Astropy Project: building an open-science project and status of the v2.0 core package; citation_author=AM Price-Whelan; citation_volume=156; citation_publication_date=2018; citation_pages=123; citation_doi=10.3847/1538-3881/aac387; citation_id=CR24"/>
+    <meta name="citation_reference" content="citation_journal_title=Bioinformatics; citation_title=Biopython: freely available Python tools for computational molecular biology and bioinformatics; citation_author=PJ Cock; citation_volume=25; citation_publication_date=2009; citation_pages=1422-1423; citation_doi=10.1093/bioinformatics/btp163; citation_id=CR25"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Analysis of functional magnetic resonance imaging in Python; citation_author=KJ Millman, M Brett; citation_volume=9; citation_publication_date=2007; citation_pages=52-55; citation_doi=10.1109/MCSE.2007.46; citation_id=CR26"/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Discov.; citation_title=SunPy&#8212;Python for solar physics; citation_author=; citation_volume=8; citation_publication_date=2015; citation_pages=014009; citation_doi=10.1088/1749-4699/8/1/014009; citation_id=CR27"/>
+    <meta name="citation_reference" content="Hamman, J., Rocklin, M. &amp; Abernathy, R. Pangeo: a big-data ecosystem for scalable Earth system science. In EGU General Assembly Conf. Abstracts 12146 (2018)."/>
+    <meta name="citation_reference" content="Chael, A. A. et al. ehtim: imaging, analysis, and simulation software for radio interferometry. Astrophysics Source Code Library 
+                  https://ascl.net/1904.004
+                  
+                 (2019)."/>
+    <meta name="citation_reference" content="Millman, K. J. &amp; P&#233;rez, F. Developing open source scientific practice. In Implementing Reproducible Research (eds Stodden,&#160;V., Leisch,&#160;F.&#160;&amp; Peng,&#160;R.&#160;D.) 149&#8211;183 (CRC Press, 2014). Describes the software engineering practices embraced by the NumPy and SciPy communities with a focus on how these practices improve research."/>
+    <meta name="citation_reference" content="van der Walt, S. The SciPy Documentation Project (technical overview). In Proc. 7th Python in Science Conf. (SciPy 2008) (eds Varoquaux,&#160;G., Vaught,&#160;T.&#160;&amp; Millman,&#160;K.&#160;J.) 27&#8211;28 (2008)."/>
+    <meta name="citation_reference" content="Harrington, J. The SciPy Documentation Project. In Proc. 7th Python in Science Conference (SciPy 2008) (eds Varoquaux,&#160;G., Vaught,&#160;T.&#160;&amp; Millman, K.&#160;J.) 33&#8211;35 (2008)."/>
+    <meta name="citation_reference" content="Harrington, J. &amp; Goldsmith, D. Progress report: NumPy and SciPy documentation in 2009. In Proc. 8th Python in Science Conf. (SciPy 2009) (eds Varoquaux,&#160;G., van der&#160;Walt,&#160;S.&#160;&amp; Millman,&#160;K.&#160;J.) 84&#8211;87 (2009)."/>
+    <meta name="citation_reference" content="Royal Astronomical Society Report of the RAS &#8216;A&#8217; Awards Committee 2020: Astropy Project: 2020 Group Achievement Award (A) 
+                  https://ras.ac.uk/sites/default/files/2020-01/Group%20Award%20-%20Astropy.pdf
+                  
+                 (2020)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Software carpentry: getting scientists to write better code by making them more productive; citation_author=G Wilson; citation_volume=8; citation_publication_date=2006; citation_pages=66-69; citation_doi=10.1109/MCSE.2006.122; citation_id=CR35"/>
+    <meta name="citation_reference" content="Hannay, J. E. et al. How do scientists develop and use scientific software? In Proc. 2009 ICSE Workshop on Software Engineering for Computational Science and Engineering 1&#8211;8 (IEEE, 2009)."/>
+    <meta name="citation_reference" content="citation_journal_title=Front. Neurosci.; citation_title=Teaching computational reproducibility for neuroimaging; citation_author=KJ Millman, M Brett, R Barnowski, J-B Poline; citation_volume=12; citation_publication_date=2018; citation_pages=727; citation_doi=10.3389/fnins.2018.00727; citation_id=CR37"/>
+    <meta name="citation_reference" content="Paszke, A. et al. Pytorch: an imperative style, high-performance deep learning library. In Advances in Neural Information Processing Systems 32 (eds Wallach,&#160;H.&#160;et al.) 8024&#8211;8035 (Neural Information Processing Systems, 2019)."/>
+    <meta name="citation_reference" content="Abadi, M. et al. TensorFlow: a system for large-scale machine learning. In OSDI&#8217;16: Proc. 12th USENIX Conf. Operating Systems Design and Implementation (chairs Keeton, K. &amp; Roscoe, T.) 265&#8211;283 (USENIX Association, 2016)."/>
+    <meta name="citation_reference" content="Chen, T. et al. MXNet: a flexible and efficient machine learning library for heterogeneous distributed systems. Preprint at 
+                  http://www.arxiv.org/abs/1512.01274
+                  
+                 (2015)."/>
+    <meta name="citation_reference" content="citation_journal_title=J. Open Res. Softw.; citation_title=xarray: N&#8211;D labeled arrays and datasets in Python; citation_author=S Hoyer, J Hamman; citation_volume=5; citation_publication_date=2017; citation_pages=10; citation_doi=10.5334/jors.148; citation_id=CR41"/>
+    <meta name="citation_reference" content="Entschev, P. Distributed multi-GPU computing with Dask, CuPy and RAPIDS. In EuroPython 2019 
+                  https://ep2019.europython.eu/media/conference/slides/fX8dJsD-distributed-multi-gpu-computing-with-dask-cupy-and-rapids.pdf
+                  
+                 (2019)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Eng.; citation_title=Cython: the best of both worlds; citation_author=S Behnel; citation_volume=13; citation_publication_date=2011; citation_pages=31-39; citation_doi=10.1109/MCSE.2010.118; citation_id=CR43"/>
+    <meta name="citation_reference" content="Lam, S. K., Pitrou, A. &amp; Seibert, S. Numba: a LLVM-based Python JIT compiler. In Proc. Second Workshop on the LLVM Compiler Infrastructure in HPC, LLVM &#8217;15 7:1&#8211;7:6 (ACM, 2015)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Sci. Discov.; citation_title=Pythran: enabling static optimization of scientific Python programs; citation_author=S Guelton; citation_volume=8; citation_publication_date=2015; citation_pages=014001; citation_doi=10.1088/1749-4680/8/1/014001; citation_id=CR45"/>
+    <meta name="citation_reference" content="citation_journal_title=IEEE Ann. Hist. Comput.; citation_title=Netlib and NA-Net: building a scientific computing community; citation_author=J Dongarra, GH Golub, E Grosse, C Moler, K Moore; citation_volume=30; citation_publication_date=2008; citation_pages=30-41; citation_doi=10.1109/MAHC.2008.29; citation_id=CR46"/>
+    <meta name="citation_reference" content="Barrett, K. A., Chiu, Y. H., Painter, J. F., Motteler, Z. C. &amp; Dubois, P. F. Basis System, Part I: Running a Basis Program&#8212;A Tutorial for Beginners UCRL-MA-118543, Vol.&#160;1 (Lawrence Livermore National Laboratory 1995)."/>
+    <meta name="citation_reference" content="Dubois, P. F. &amp; Motteler, Z. Basis System, Part II: Basis Language Reference Manual UCRL-MA-118543, Vol.&#160;2 (Lawrence Livermore National Laboratory, 1995)."/>
+    <meta name="citation_reference" content="Chiu, Y. H. &amp; Dubois, P. F. Basis System, Part III: EZN User Manual UCRL-MA-118543, Vol.&#160;3 (Lawrence Livermore National Laboratory, 1995)."/>
+    <meta name="citation_reference" content="Chiu, Y. H. &amp; Dubois, P. F. Basis System, Part IV: EZD User Manual UCRL-MA-118543, Vol.&#160;4 (Lawrence Livermore National Laboratory, 1995)."/>
+    <meta name="citation_reference" content="citation_journal_title=Comput. Phys.; citation_title=Using the Yorick interpreted language; citation_author=DH Munro, PF Dubois; citation_volume=9; citation_publication_date=1995; citation_pages=609-615; citation_doi=10.1063/1.4823451; citation_id=CR51"/>
+    <meta name="citation_reference" content="citation_journal_title=J. Comput. Graph. Stat.; citation_title=R: a language for data analysis and graphics; citation_author=R Ihaka, R Gentleman; citation_volume=5; citation_publication_date=1996; citation_pages=299-314; citation_id=CR52"/>
+    <meta name="citation_reference" content="Iverson, K. E. A programming language. In Proc. 1962 Spring Joint Computer Conf. 345&#8211;351 (1962)."/>
+    <meta name="citation_reference" content="Jenness, T. et al. LSST data management software development practices and tools. In Proc. SPIE 10707, Software and Cyberinfrastructure for Astronomy V 1070709 (SPIE and International Society for Optics and Photonics, 2018)."/>
+    <meta name="citation_reference" content="citation_journal_title=Ada Letters; citation_title=The Rust language; citation_author=ND Matsakis, FS Klock; citation_volume=34; citation_publication_date=2014; citation_pages=103-104; citation_doi=10.1145/2692956.2663188; citation_id=CR55"/>
+    <meta name="citation_reference" content="citation_journal_title=SIAM Rev.; citation_title=Julia: a fresh approach to numerical computing; citation_author=J Bezanson, A Edelman, S Karpinski, VB Shah; citation_volume=59; citation_publication_date=2017; citation_pages=65-98; citation_doi=10.1137/141000671; citation_id=CR56"/>
+    <meta name="citation_reference" content="Lattner, C. &amp; Adve, V. LLVM: a compilation framework for lifelong program analysis and transformation. In Proc. 2004 Intl Symp. Code Generation and Optimization (CGO&#8217;04) 75&#8211;88 (IEEE, 2004)."/>
+    <meta name="citation_author" content="Harris, Charles R."/>
+    <meta name="citation_author_institution" content="Independent researcher, Logan, USA"/>
+    <meta name="citation_author" content="Millman, K. Jarrod"/>
+    <meta name="citation_author_institution" content="Brain Imaging Center, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author_institution" content="Division of Biostatistics, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author_institution" content="Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author" content="van der Walt, St&#233;fan J."/>
+    <meta name="citation_author_institution" content="Brain Imaging Center, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author_institution" content="Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author_institution" content="Applied Mathematics, Stellenbosch University, Stellenbosch, South Africa"/>
+    <meta name="citation_author" content="Gommers, Ralf"/>
+    <meta name="citation_author_institution" content="Quansight, Austin, USA"/>
+    <meta name="citation_author" content="Virtanen, Pauli"/>
+    <meta name="citation_author_institution" content="Department of Physics, University of Jyv&#228;skyl&#228;, Jyv&#228;skyl&#228;, Finland"/>
+    <meta name="citation_author_institution" content="Nanoscience Center, University of Jyv&#228;skyl&#228;, Jyv&#228;skyl&#228;, Finland"/>
+    <meta name="citation_author" content="Cournapeau, David"/>
+    <meta name="citation_author_institution" content="Mercari JP, Tokyo, Japan"/>
+    <meta name="citation_author" content="Wieser, Eric"/>
+    <meta name="citation_author_institution" content="Department of Engineering, University of Cambridge, Cambridge, UK"/>
+    <meta name="citation_author" content="Taylor, Julian"/>
+    <meta name="citation_author_institution" content="Independent researcher, Karlsruhe, Germany"/>
+    <meta name="citation_author" content="Berg, Sebastian"/>
+    <meta name="citation_author_institution" content="Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author" content="Smith, Nathaniel J."/>
+    <meta name="citation_author_institution" content="Independent researcher, Berkeley, USA"/>
+    <meta name="citation_author" content="Kern, Robert"/>
+    <meta name="citation_author_institution" content="Enthought, Austin, USA"/>
+    <meta name="citation_author" content="Picus, Matti"/>
+    <meta name="citation_author_institution" content="Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author" content="Hoyer, Stephan"/>
+    <meta name="citation_author_institution" content="Google Research, Mountain View, USA"/>
+    <meta name="citation_author" content="van Kerkwijk, Marten H."/>
+    <meta name="citation_author_institution" content="Department of Astronomy and Astrophysics, University of Toronto, Toronto, Canada"/>
+    <meta name="citation_author" content="Brett, Matthew"/>
+    <meta name="citation_author_institution" content="Brain Imaging Center, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author_institution" content="School of Psychology, University of Birmingham, Edgbaston, UK"/>
+    <meta name="citation_author" content="Haldane, Allan"/>
+    <meta name="citation_author_institution" content="Department of Physics, Temple University, Philadelphia, USA"/>
+    <meta name="citation_author" content="del R&#237;o, Jaime Fern&#225;ndez"/>
+    <meta name="citation_author_institution" content="Google, Zurich, Switzerland"/>
+    <meta name="citation_author" content="Wiebe, Mark"/>
+    <meta name="citation_author_institution" content="Department of Physics and Astronomy, The University of British Columbia, Vancouver, Canada"/>
+    <meta name="citation_author_institution" content="Amazon, Seattle, USA"/>
+    <meta name="citation_author" content="Peterson, Pearu"/>
+    <meta name="citation_author_institution" content="Quansight, Austin, USA"/>
+    <meta name="citation_author_institution" content="Independent researcher, Saue, Estonia"/>
+    <meta name="citation_author_institution" content="Department of Mechanics and Applied Mathematics, Institute of Cybernetics at Tallinn Technical University, Tallinn, Estonia"/>
+    <meta name="citation_author" content="G&#233;rard-Marchant, Pierre"/>
+    <meta name="citation_author_institution" content="Department of Biological and Agricultural Engineering, University of Georgia, Athens, USA"/>
+    <meta name="citation_author_institution" content="France-IX Services, Paris, France"/>
+    <meta name="citation_author" content="Sheppard, Kevin"/>
+    <meta name="citation_author_institution" content="Department of Economics, University of Oxford, Oxford, UK"/>
+    <meta name="citation_author" content="Reddy, Tyler"/>
+    <meta name="citation_author_institution" content="CCS-7, Los Alamos National Laboratory, Los Alamos, USA"/>
+    <meta name="citation_author" content="Weckesser, Warren"/>
+    <meta name="citation_author_institution" content="Berkeley Institute for Data Science, University of California, Berkeley, Berkeley, USA"/>
+    <meta name="citation_author" content="Abbasi, Hameer"/>
+    <meta name="citation_author_institution" content="Quansight, Austin, USA"/>
+    <meta name="citation_author" content="Gohlke, Christoph"/>
+    <meta name="citation_author_institution" content="Laboratory for Fluorescence Dynamics, Biomedical Engineering Department, University of California, Irvine, Irvine, USA"/>
+    <meta name="citation_author" content="Oliphant, Travis E."/>
+    <meta name="citation_author_institution" content="Quansight, Austin, USA"/>
+    <meta name="access_endpoint" content="https://www.nature.com/platform/readcube-access"/>
+    <meta name="twitter:site" content="@nature"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:image:alt" content="Content cover image"/>
+    <meta name="twitter:title" content="Array programming with NumPy"/>
+    <meta name="twitter:description" content="Nature - NumPy is the primary array programming library for Python; here its fundamental concepts are reviewed and its evolution into a flexible interoperability layer between increasingly..."/>
+    <meta name="twitter:image" content="https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fs41586-020-2649-2/MediaObjects/41586_2020_2649_Fig1_HTML.png"/>
+    
+
+    
+    
+    <meta property="og:url" content="https://www.nature.com/articles/s41586-020-2649-2"/>
+    <meta property="og:type" content="article"/>
+    <meta property="og:site_name" content="Nature"/>
+    <meta property="og:title" content="Array programming with NumPy - Nature"/>
+    <meta property="og:description" content="NumPy is the primary array programming library for Python; here its fundamental concepts are reviewed and its evolution into a flexible interoperability layer between increasingly specialized computational libraries is discussed."/>
+    <meta property="og:image" content="https://media.springernature.com/m685/springer-static/image/art%3A10.1038%2Fs41586-020-2649-2/MediaObjects/41586_2020_2649_Fig1_HTML.png"/>
+    
+
+
+
+
+
+
+</head>
+</html>
