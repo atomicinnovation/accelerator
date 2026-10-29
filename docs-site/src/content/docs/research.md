@@ -755,7 +755,7 @@ block: a nested `key: value` list directly under its line.
   line and never appear in the block.
 - **Order.** Keys come in the table's order; the CLI emits no other key. A
   block the composer or `synthesise` writes follows the
-  [`citing-once`](reference/skills/internal/citing-once.md) contract's block
+  [`citing-once`](reference/skills/internal/citing-once.md) rule's block
   order and keeps every value as recorded.
 
 | Key                | Group           | Value form                                                                  |
@@ -798,7 +798,7 @@ At depth 1 the researcher writes the finding itself and no composer runs, so
 a depth-1 finding, like one written before this rule, can cite a source
 twice. `synthesise` merges those duplicates in the dossier.
 
-The [`citing-once`](reference/skills/internal/citing-once.md) contract decides
+The [`citing-once`](reference/skills/internal/citing-once.md) rule decides
 when two citations are one source, and which citation's title, venue, URL
 and metadata the entry keeps.
 
