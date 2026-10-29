@@ -1337,10 +1337,11 @@ def test_conduct_reads_the_halting_fields() -> None:
 SOURCE_METADATA = REPO_ROOT / "cli/research/src/sources/metadata.rs"
 SOURCES_ENTRY = "- [Title](url) — tier-1 — {source domain/venue}"
 METADATA_SLOT = "  - {source-metadata}"
+SYNTHESIS_TEMPLATE = REPO_ROOT / "templates/topic-research-synthesis.md"
 TEMPLATES = [
     FINDING_TEMPLATE,
     REPO_ROOT / "templates/topic-research-level-note.md",
-    REPO_ROOT / "templates/topic-research-synthesis.md",
+    SYNTHESIS_TEMPLATE,
 ]
 
 
@@ -1397,6 +1398,16 @@ def test_every_template_carries_the_metadata_slot_under_its_entry(
     assert lines[entry + 1 : entry + 2] == [METADATA_SLOT], (
         f"{template.name} must carry {METADATA_SLOT!r} under its Sources entry"
     )
+
+
+def test_the_dossier_findings_give_tiers_as_the_sources_entries_do() -> None:
+    findings = _section(
+        _prose(SYNTHESIS_TEMPLATE),
+        "## Findings",
+        "## Open Threads",
+        path=SYNTHESIS_TEMPLATE,
+    )
+    assert "the tier text and venue of that source's Sources entry" in findings
 
 
 CITING_ONCE_PATH = "skills/research/outputters/citing-once/SKILL.md"
