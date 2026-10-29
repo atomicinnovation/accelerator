@@ -324,8 +324,10 @@ fn recipe_guard(
     {
         return Err(format!(
             "recipe {current} was recorded under pulldown-cmark {}, but \
-             {locked} is locked; if every golden digest still holds, append \
-             {locked} to recipe {current}'s pulldown_cmark_versions in \
+             {locked} is locked; if its upstream diff touches nothing but \
+             disabled extensions or non-parse code and every golden digest \
+             still holds, append {locked} to recipe {current}'s \
+             pulldown_cmark_versions in \
              cli/work-adapters/tests/fixtures/golden-digests/recipe.json, \
              or bump the recipe",
             latest.pulldown_cmark_versions.join(", ")
