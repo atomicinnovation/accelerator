@@ -13,7 +13,7 @@ blocks: ["work-item:0281"]
 blocked_by: ["work-item:0348"]
 relates_to: ["work-item:0280", "work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0349"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
-last_updated: "2026-10-28T15:41:09+00:00"
+last_updated: "2026-10-29T16:37:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-892"
@@ -268,8 +268,7 @@ and metadata assertions refer to that entry.
         `tier-3 (retracted; also tier-1)`.
 
       Sources other than eugene-khyst and `brandur.org/notifier` use one URL
-      and one venue throughout, so only their tier text is under test. The
-      fixture is a one-off acceptance check, not a retained eval.
+      and one venue throughout, so only their tier text is under test.
 - [ ] Given two findings citing `brandur.org/notifier` as `tier-2` and
       `tier-3 (also tier-1)`, presented in both orders and synthesised three
       times per order, then all six dossiers cite it as
@@ -344,11 +343,14 @@ and metadata assertions refer to that entry.
       path into every composer it spawns, `synthesise` reads it before
       writing the dossier, and neither the composer agent definition nor
       the `synthesise` instructions restate the rule.
-- [ ] The composer definition states that every tier in merged tier text
-      comes from a note and that **Merge rule** and **Retraction suffixes**
-      are the only changes it makes to tier text; none of the composer
-      definition, the `synthesise` instructions and the rule file retains
-      an instruction to carry a metadata block byte-for-byte or never to
+- [ ] The rule file states that **Merge rule** and **Retraction suffixes**
+      are the only changes to tier text, and **Metadata merge**, **Full
+      ties** and **Block order** the only changes to a metadata block. The
+      composer definition and the `synthesise` instructions each state that
+      every tier in merged tier text comes from a note or finding, and that
+      the citing-once rule makes the only changes to tier text and metadata
+      blocks, without naming its parts. None of the three retains an
+      instruction to carry a metadata block byte-for-byte or never to
       reorder one.
 
 ## Open Questions

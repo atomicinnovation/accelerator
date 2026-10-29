@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 revision: "6ae94e865c9f2250d04af85adc3f253943ff2c3f"
 repository: "accelerator"
-last_updated: "2026-10-29T02:24:31+00:00"
+last_updated: "2026-10-29T16:37:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -107,8 +107,10 @@ Verify with `mise run` (exit 0), then the Phase 3 manual runs.
   merged; only `synthesise` merges its duplicates.
 - No reduction in tier drift between researchers (0311) and no DOI-resolver
   tiering (0305).
-- No retained eval. The Phase 3 fixtures are one-off and live in the
-  scratchpad, not the repository.
+- The Phase 3 fixtures began as one-off scratchpad files. After the PR #173
+  review they became a retained, on-demand eval, `mise run
+  eval:citing-once`: fixtures beside the rule in its `evals/`, and the rule's
+  reading, runner and checker in `tasks/eval/citing_once/`.
 - No change to `templates/topic-research-*.md`: the Sources entry and
   `- {source-metadata}` slot line keep their shape.
 - No conformance or frontmatter allowlist entry for the rule file, despite
@@ -983,6 +985,43 @@ All 36 sessions ran and exited 0, and every criterion held in every run.
   `synthesis.md` and spawned nothing. In 8 of the 9, the read was a `Bash`
   `cat` rather than `Read`, which this machine's permissions allow.
 - Every finding and dossier validates.
+
+#### Re-run after the PR #173 review (2026-10-29)
+
+The review changed the rule and its carriers: `synthesise` reads the rule
+with the Read tool, a DOI read from a URL is percent-decoded, the rule owns
+both change-set closures, `synthesise` never adds a source, identity is
+judged only over the citations read, and the finding outputter keeps only
+the `also` suffix's grammar. All 36 sessions ran again through `mise run
+eval:citing-once`, from the fixtures now committed under the rule's
+`evals/`. C2 gained a sixth criterion: a percent-encoded `doi.org` URL and
+its decoded `doi` key carry one DOI.
+
+| Fixture | Sessions | Passed |
+|---|---|---|
+| C1 | 3 | 7 of 7 criteria, 3/3 |
+| C2 | 3 | 6 of 6 criteria, 3/3 |
+| C3 | 3 | 17 of 17 criteria, 3/3 |
+| C4 | 9 | rows 1 and 5 3/3; rows 2, 3 and 4 1/1 |
+| C5 | 9 | 7 of 7 sources, 9/9 |
+| S1 | 3 | 11 of 11 criteria, 3/3 |
+| S2 | 6 | 6/6 |
+
+- Every session loaded only `accelerator@inline` from this repository, with
+  `accelerator@atomic-innovation-prerelease` disabled through `--settings`,
+  on `claude-opus-5-5`. Six sessions ran at once; the run took 8 minutes.
+- All 9 `synthesise` sessions read the rule with `Read` before writing
+  `synthesis.md`, none read it through `Bash`, and none spawned an agent, so
+  the Read-tool wording holds where Phase 3 saw `cat` in 8 of 9. The eval
+  allows only `accelerator` commands through `Bash`, so a `cat` of the rule
+  would have been denied but still logged; none was attempted. The 26
+  denied calls were directory listings, `git config user.name` and one
+  compound `validate` command.
+- All 27 composers read the rule and made no `Bash` call.
+- Every output matched the rule's reading entry for entry, and every
+  finding and dossier validates. A changed `accessed` value, a duplicated
+  entry and an added source, each planted in a copy of a C3 output, made
+  the check fail; unit tests pin the same three.
 
 ### Success Criteria:
 
