@@ -354,14 +354,32 @@ fn a_scalar_parser_version_is_refused() {
 
 type Verdict = Result<(), &'static str>;
 
+type GuardCase = (
+    &'static str,
+    Vec<RecipeRecord>,
+    Vec<RecipeRecord>,
+    u64,
+    &'static str,
+    Verdict,
+);
+
 #[test]
 fn the_recipe_guard() {
     let one = record(1, &["0.13.4"]);
+    let two = record(2, &["0.13.5"]);
     let rewritten = Err("an earlier recipe's history entry was rewritten");
-    let cases: [(&str, Vec<RecipeRecord>, u64, &str, Verdict); 8] = [
-        ("matching", vec![one.clone()], 1, "0.13.4", Ok(())),
+    let cases: [GuardCase; 10] = [
+        (
+            "matching",
+            vec![one.clone()],
+            vec![one.clone()],
+            1,
+            "0.13.4",
+            Ok(()),
+        ),
         (
             "mismatched version",
+            vec![one.clone()],
             vec![one.clone()],
             1,
             "0.13.5",
@@ -369,13 +387,23 @@ fn the_recipe_guard() {
         ),
         (
             "version added to the current recipe",
+            vec![one.clone()],
             vec![record(1, &["0.13.4", "0.13.5"])],
             1,
             "0.13.5",
             Ok(()),
         ),
         (
+            "locked at an earlier recorded version",
+            vec![one.clone()],
+            vec![record(1, &["0.13.4", "0.13.5"])],
+            1,
+            "0.13.4",
+            Ok(()),
+        ),
+        (
             "recorded version dropped",
+            vec![one.clone()],
             vec![record(1, &["0.13.5"])],
             1,
             "0.13.5",
@@ -383,36 +411,47 @@ fn the_recipe_guard() {
         ),
         (
             "bumped recipe with a new entry",
-            vec![one.clone(), record(2, &["0.13.5"])],
+            vec![one.clone()],
+            vec![one.clone(), two.clone()],
             2,
             "0.13.5",
             Ok(()),
         ),
         (
             "rewritten earlier entry",
-            vec![record(1, &["0.13.5"]), record(2, &["0.13.5"])],
+            vec![one.clone()],
+            vec![record(1, &["0.13.5"]), two.clone()],
             2,
             "0.13.5",
             rewritten,
         ),
         (
             "version added to an earlier recipe",
-            vec![record(1, &["0.13.4", "0.13.6"]), record(2, &["0.13.5"])],
+            vec![one.clone()],
+            vec![record(1, &["0.13.4", "0.13.6"]), two.clone()],
             2,
             "0.13.5",
             rewritten,
         ),
         (
+            "recorded entry removed",
+            vec![one.clone(), two],
+            vec![one.clone()],
+            2,
+            "0.13.4",
+            rewritten,
+        ),
+        (
             "bumped recipe without an entry",
+            vec![one.clone()],
             vec![one],
             2,
             "0.13.4",
             Err("the latest recorded recipe is 1"),
         ),
     ];
-    for (name, history, current, locked, expected) in cases {
-        let outcome =
-            recipe_guard(&[record(1, &["0.13.4"])], &history, current, locked);
+    for (name, recorded, history, current, locked, expected) in cases {
+        let outcome = recipe_guard(&recorded, &history, current, locked);
         assert!(
             match (&outcome, expected) {
                 (Ok(()), Ok(())) => true,
