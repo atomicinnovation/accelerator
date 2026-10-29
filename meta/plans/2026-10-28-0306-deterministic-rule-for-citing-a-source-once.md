@@ -5,7 +5,7 @@ title: "Deterministic Rule for Citing a Source Once Implementation Plan"
 date: "2026-10-28T15:46:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0306"
 parent: "work-item:0306"
 derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-a-source-once"]
