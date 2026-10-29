@@ -748,12 +748,15 @@ block: a nested `key: value` list directly under its line.
   before the block existed stay one-line.
 - **Produced by the CLI.** The researcher copies the `metadata` map of the
   record or page it cites, unchanged and in emitted order, and writes a
-  block from nothing else. The composer and `synthesise` carry each block
-  byte-for-byte.
+  block from nothing else. The composer and `synthesise` cite each source
+  once, so a merged entry's block carries every key its citations carry.
 - **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
   key with no value is omitted. `url`, title and venue stay on the entry
   line and never appear in the block.
-- **Order.** Keys come in the table's order; the CLI emits no other key.
+- **Order.** Keys come in the table's order; the CLI emits no other key. A
+  block the composer or `synthesise` writes follows the
+  [`citing-once`](reference/skills/internal/citing-once.md) contract's block
+  order and keeps every value as recorded.
 
 | Key                | Group           | Value form                                                                  |
 |--------------------|-----------------|-----------------------------------------------------------------------------|
@@ -780,6 +783,18 @@ block: a nested `key: value` list directly under its line.
 The CLI fills the core keys, those with a value form, wherever the source
 provides them. Any other key is allowed; the recommended keys are the ones a
 consumer can rely on when present.
+
+## Citing a source once
+
+A finding the composer writes, and the dossier `synthesise` writes, cite each
+source once, however many notes or findings cite it. The entry takes the
+source's lowest tier and lists the others in an `also` suffix, after any
+retraction mark: `tier-3 (also tier-2, tier-1)`,
+`tier-3 (retracted; withdrawn; also tier-1)`.
+
+The [`citing-once`](reference/skills/internal/citing-once.md) contract decides
+when two citations are one source, and which citation's title, venue, URL
+and metadata the entry keeps.
 
 ## Local development
 

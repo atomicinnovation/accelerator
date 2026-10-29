@@ -1622,6 +1622,19 @@ def test_synthesise_merges_duplicates_within_one_finding() -> None:
     )
 
 
+def test_the_docs_describe_merged_sources() -> None:
+    docs = _section(
+        _prose(DOCS_RESEARCH),
+        "## Sources metadata",
+        "## Local development",
+        path=DOCS_RESEARCH,
+    )
+    assert "byte-for-byte" not in docs
+    assert "(reference/skills/internal/citing-once.md)" in docs
+    for example in MERGED_TIER_EXAMPLES:
+        assert example in docs
+
+
 COPY_THE_MAP = "copy its `metadata` map into the entry's metadata block"
 
 
