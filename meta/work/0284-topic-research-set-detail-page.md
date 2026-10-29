@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:0121"
 relates_to: ["work-item:0280", "work-item:0281", "work-item:0306", "work-item:0348"]
 tags: ["research", "visualiser"]
-last_updated: "2026-10-29T15:18:45+00:00"
+last_updated: "2026-10-29T19:53:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -79,8 +79,9 @@ umbrella doc type and nested indexing.
   source listed twice as two entries: depth-1 and pre-0306 findings, and a
   dossier whose composer dropped a linking URL, can carry one.
 - The tier-text grammar has one owner in `cli/`, a parser whose test cases
-  are the citing-once rule's examples. The visualiser renders what it
-  returns, and 0281's `report` and `ask` reuse it when they parse tier text.
+  are the citing-once rule's examples, and the visualiser renders what it
+  returns. 0281's `report` and `ask`, which land first, read tier text
+  through the citing-once rule instead, as `synthesise` does.
 - Treat 0348's optional source metadata block, the nested `key: value` list
   under a Sources entry, as part of the entry above it.
 
