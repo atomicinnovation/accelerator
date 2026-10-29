@@ -53,8 +53,7 @@ struct FieldsPair {
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct RecipeRecord {
     recipe: u64,
-    /// Every parser version under which this recipe's golden digests hold.
-    pulldown_cmark: Vec<String>,
+    pulldown_cmark_versions: Vec<String>,
 }
 
 fn text(value: &Value, key: &str) -> String {
@@ -216,7 +215,7 @@ fn recipe_history() -> Result<Vec<RecipeRecord>, TestError> {
         .iter()
         .map(|entry| RecipeRecord {
             recipe: entry["recipe"].as_u64().expect("recipe is a number"),
-            pulldown_cmark: entries(entry, "pulldown_cmark")
+            pulldown_cmark_versions: entries(entry, "pulldown_cmark")
                 .iter()
                 .map(|version| {
                     version
@@ -254,7 +253,7 @@ fn recorded_history() -> Vec<RecipeRecord> {
 fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
     RecipeRecord {
         recipe,
-        pulldown_cmark: versions
+        pulldown_cmark_versions: versions
             .iter()
             .map(|&version| version.to_owned())
             .collect(),
@@ -263,11 +262,11 @@ fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
 
 fn extends(entry: &RecipeRecord, recorded: &RecipeRecord) -> bool {
     entry.recipe == recorded.recipe
-        && entry.pulldown_cmark.starts_with(&recorded.pulldown_cmark)
+        && entry
+            .pulldown_cmark_versions
+            .starts_with(&recorded.pulldown_cmark_versions)
 }
 
-/// Whether `history` extends `recorded` one recipe or parser version at a
-/// time and ends at `current`, recorded under the `locked` parser version.
 fn recipe_guard(
     recorded: &[RecipeRecord],
     history: &[RecipeRecord],
@@ -297,7 +296,7 @@ fn recipe_guard(
         ));
     }
     if !latest
-        .pulldown_cmark
+        .pulldown_cmark_versions
         .iter()
         .any(|version| version == locked)
     {
@@ -305,7 +304,7 @@ fn recipe_guard(
             "recipe {current} was recorded under pulldown-cmark {}, but \
              {locked} is locked; record {locked} against recipe {current} if \
              every golden digest still holds, or bump the recipe",
-            latest.pulldown_cmark.join(", ")
+            latest.pulldown_cmark_versions.join(", ")
         ));
     }
     Ok(())
