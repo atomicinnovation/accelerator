@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-relates_to: ["work-item:0319"]
+blocked_by: ["work-item:0319"]
 external_id: "PP-935"
 tags: ["work", "cli", "validation"]
 last_updated: "2026-10-28T19:37:23+00:00"
@@ -97,7 +97,10 @@ None.
 
 ## Dependencies
 
-- Blocked by: none.
+- Blocked by: 0319, which lands first and adds its five `--id` checks to
+  the dry-run path. This story keeps them in its shared validation, in
+  0319's order, and keeps the `--id` 0319 adds to the skill's dry-run
+  call.
 - Blocks: none.
 
 ## Assumptions
@@ -129,7 +132,7 @@ None.
   `extract-work-items`, and unifying with `jira resolve-fields`, which 0171
   decided against.
 - Raised while stress-testing 0319. Both change `run_with`'s early return,
-  so they are independent but likely to conflict at merge.
+  so 0319 lands first and this story builds on its dry-run path.
 
 ## References
 
