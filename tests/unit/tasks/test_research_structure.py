@@ -1657,6 +1657,13 @@ def test_no_carrier_restates_the_citing_once_rule(
 
 
 @CARRIERS
+def test_every_carrier_cites_only_the_sources_it_reads(
+    carrier: Carrier,
+) -> None:
+    assert "Never add a source" in carrier.read()
+
+
+@CARRIERS
 def test_every_carrier_takes_every_tier_from_its_inputs(
     carrier: Carrier,
 ) -> None:
