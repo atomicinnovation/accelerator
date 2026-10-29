@@ -1606,6 +1606,16 @@ def test_the_finding_outputter_defers_composed_blocks_to_the_rule() -> None:
         assert rule in outputter, f"the finding outputter must state {rule!r}"
 
 
+def test_a_composer_override_must_follow_the_citing_once_rule() -> None:
+    warning = _section(
+        _prose(CONFIGURE),
+        "**Warning — `researcher` and `composer` are confined.**",
+        "### review",
+        path=CONFIGURE,
+    )
+    assert "the citing-once rule" in warning
+
+
 def test_synthesise_merges_duplicates_within_one_finding() -> None:
     assert "including two citations of one source in one finding" in (
         _synthesise()
