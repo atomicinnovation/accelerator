@@ -10,7 +10,9 @@ level-note outputter state the run and note rules the planner enforces.
 """
 
 import re
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -1544,16 +1546,35 @@ def _finding_outputter() -> str:
     return _prose(FINDING_OUTPUTTER)
 
 
-CARRIER_READERS = (_composer, _synthesise)
-CARRIER_NAMES = ("composer", "synthesise")
+class Carrier(NamedTuple):
+    name: str
+    read: Callable[[], str]
+    origin: str
+
+
+RULE_CARRIERS = (
+    Carrier("composer", _composer, origin="a note"),
+    Carrier("synthesise", _synthesise, origin="a finding"),
+)
 CARRIERS = pytest.mark.parametrize(
-    "carrier", CARRIER_READERS, ids=CARRIER_NAMES
+    "carrier", RULE_CARRIERS, ids=[carrier.name for carrier in RULE_CARRIERS]
 )
-RULE_READERS = pytest.mark.parametrize(
-    "reader",
-    (*CARRIER_READERS, _finding_outputter),
-    ids=(*CARRIER_NAMES, "finding-outputter"),
-)
+
+
+def _carriers_and(name: str, read: Callable[[], str]) -> pytest.MarkDecorator:
+    return pytest.mark.parametrize(
+        "read",
+        [
+            *(
+                pytest.param(carrier.read, id=carrier.name)
+                for carrier in RULE_CARRIERS
+            ),
+            pytest.param(read, id=name),
+        ],
+    )
+
+
+RULE_READERS = _carriers_and("finding-outputter", _finding_outputter)
 
 
 @pytest.mark.parametrize(
@@ -1583,21 +1604,27 @@ def test_synthesise_reads_the_citing_once_rule_with_the_read_tool() -> None:
 
 
 @CARRIERS
-def test_every_carrier_confines_its_changes_to_the_rule(carrier) -> None:
-    assert CONFINEMENT in carrier()
+def test_every_carrier_confines_its_changes_to_the_rule(
+    carrier: Carrier,
+) -> None:
+    assert CONFINEMENT in carrier.read()
 
 
 @RULE_READERS
 @pytest.mark.parametrize("part", RULE_PARTS)
-def test_only_the_rule_names_its_parts(reader, part: str) -> None:
-    assert f"**{part}**" not in reader(), (
+def test_only_the_rule_names_its_parts(
+    read: Callable[[], str], part: str
+) -> None:
+    assert f"**{part}**" not in read(), (
         f"{part!r} is internal to the citing-once rule"
     )
 
 
 @CARRIERS
-def test_every_carrier_replaces_the_metadata_slot_line(carrier) -> None:
-    text = carrier()
+def test_every_carrier_replaces_the_metadata_slot_line(
+    carrier: Carrier,
+) -> None:
+    text = carrier.read()
     for rule in (
         f"`{METADATA_SLOT.strip()}` slot line under each source",
         "delete that whole line where no citation of the source has a block",
@@ -1605,13 +1632,11 @@ def test_every_carrier_replaces_the_metadata_slot_line(carrier) -> None:
         assert rule in text, f"a carrier must state {rule!r}"
 
 
-@pytest.mark.parametrize(
-    "contract",
-    (*CARRIER_READERS, _citing_once),
-    ids=(*CARRIER_NAMES, "citing-once"),
-)
-def test_no_contract_keeps_a_block_byte_for_byte(contract) -> None:
-    text = contract()
+@_carriers_and("citing-once", _citing_once)
+def test_no_contract_keeps_a_block_byte_for_byte(
+    read: Callable[[], str],
+) -> None:
+    text = read()
     for stale in (
         "byte-for-byte",
         "not in canonical order",
@@ -1624,23 +1649,19 @@ def test_no_contract_keeps_a_block_byte_for_byte(contract) -> None:
 @RULE_READERS
 @pytest.mark.parametrize("signature", RULE_SIGNATURES)
 def test_no_carrier_restates_the_citing_once_rule(
-    reader, signature: str
+    read: Callable[[], str], signature: str
 ) -> None:
-    assert signature not in reader(), (
+    assert signature not in read(), (
         f"{signature!r} belongs to the citing-once rule alone"
     )
 
 
-@pytest.mark.parametrize(
-    ("carrier", "origin"),
-    list(zip(CARRIER_READERS, ("a note", "a finding"), strict=True)),
-    ids=CARRIER_NAMES,
-)
+@CARRIERS
 def test_every_carrier_takes_every_tier_from_its_inputs(
-    carrier, origin: str
+    carrier: Carrier,
 ) -> None:
-    assert f"Every tier in a merged tier text comes from {origin}" in (
-        carrier()
+    assert f"Every tier in a merged tier text comes from {carrier.origin}" in (
+        carrier.read()
     )
 
 
