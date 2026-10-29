@@ -953,31 +953,62 @@ The result is 36 sessions. S2's two orders are two sets whose findings swap
 filename indices (`01-`/`02-`), because `synthesise` reads `findings/` in
 filename order.
 
+### As built
+
+All 36 sessions ran and exited 0, and every criterion held in every run.
+
+| Fixture | Sessions | Passed |
+|---|---|---|
+| C1 | 3 | 7 of 7 criteria, 3/3 |
+| C2 | 3 | 5 of 5 criteria, 3/3 |
+| C3 | 3 | 17 of 17 criteria, 3/3 |
+| C4 | 9 | rows 1 and 5 3/3; rows 2, 3 and 4 1/1 |
+| C5 | 9 | 9/9 |
+| S1 | 3 | 11 of 11 criteria, 3/3 |
+| S2 | 6 | 6/6 |
+
+- A one-off Python reading of the rule, kept in the scratchpad, predicted
+  each fixture's merged entries. It reproduced the rule file's worked
+  example and URL table, matched every criterion's stated result, and found
+  no two criteria in a fixture sharing a normalised URL or DOI. That check
+  ran before any session.
+- Every output matched those predictions entry for entry: title, URL, tier
+  text, venue and block, with no source added or dropped. A changed
+  `accessed` value, a duplicated entry and an added source, each planted in
+  an output, made the check fail.
+- C4 gave both citations in each row one title, so rows 3 and 4 also show
+  that a shared title never merges two URLs.
+- The logs show all 27 composers reading the rule and making no `Bash`
+  call. All 9 `synthesise` sessions read the rule before writing
+  `synthesis.md` and spawned nothing. In 8 of the 9, the read was a `Bash`
+  `cat` rather than `Read`, which this machine's permissions allow.
+- Every finding and dossier validates.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Each written finding and `synthesis.md` validates:
+- [x] Each written finding and `synthesis.md` validates:
       `accelerator corpus frontmatter validate --file <path>`
 
 #### Manual Verification:
 
-- [ ] Before any session runs: no two criteria in a fixture share a
+- [x] Before any session runs: no two criteria in a fixture share a
       normalised URL or a case-folded DOI.
-- [ ] C1–C3 and S1: every criterion they cover holds in all three runs.
+- [x] C1–C3 and S1: every criterion they cover holds in all three runs.
       "Cited once as X" means exactly one Sources entry for the source, with
       tier text X.
-- [ ] C4: each row yields the number of sources its table row shows, in
+- [x] C4: each row yields the number of sources its table row shows, in
       every run.
-- [ ] C5: all nine findings cite each fixture source with the expected tier
+- [x] C5: all nine findings cite each fixture source with the expected tier
       text, and eugene-khyst and `brandur.org/notifier` with the expected
       venue and URL.
-- [ ] S2: all six dossiers cite `brandur.org/notifier` as
+- [x] S2: all six dossiers cite `brandur.org/notifier` as
       `tier-3 (also tier-2, tier-1)`.
-- [ ] The `stream-json` logs show each composer reading the citing-once rule
+- [x] The `stream-json` logs show each composer reading the citing-once rule
       and no `Bash` call, and each `synthesise` session reading the rule
       before it writes `synthesis.md`.
-- [ ] Record the session count, each criterion's pass count (e.g. `3/3`)
+- [x] Record the session count, each criterion's pass count (e.g. `3/3`)
       and any failure in the plan's "As built" notes before closing 0306.
 
 ---
