@@ -788,8 +788,10 @@ consumer can rely on when present.
 
 A finding the composer writes, and the dossier `synthesise` writes, cite each
 source once, however many notes or findings cite it. The entry takes the
-source's lowest tier and lists the others in an `also` suffix, after any
-retraction mark: `tier-3 (also tier-2, tier-1)`,
+source's weakest tier, where `tier-3` is weakest and `tier-1` strongest, so it
+never claims more reputation than a citation gave the source. It lists the
+other tiers in an `also` suffix, after any retraction mark, so a disagreement
+between tiers stays visible: `tier-3 (also tier-2, tier-1)`,
 `tier-3 (retracted; withdrawn; also tier-1)`.
 
 At depth 1 the researcher writes the finding itself and no composer runs, so

@@ -1723,6 +1723,8 @@ def test_the_docs_describe_merged_sources() -> None:
     assert "byte-for-byte" not in docs
     assert "(reference/skills/internal/citing-once.md)" in docs
     assert "At depth 1 the researcher writes the finding itself" in docs
+    assert "`tier-3` is weakest and `tier-1` strongest" in docs
+    assert "lowest tier" not in docs
     for example in MERGED_TIER_EXAMPLES:
         assert example in docs
 
