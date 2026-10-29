@@ -13,7 +13,7 @@ blocks: ["work-item:0284"]
 blocked_by: ["work-item:0277", "work-item:0279", "work-item:0280", "work-item:0282", "work-item:0306"]
 relates_to: ["work-item:0283", "work-item:0284", "work-item:0305", "work-item:0311", "work-item:0347", "work-item:0348"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-10-29T19:53:05+00:00"
+last_updated: "2026-10-30T22:36:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -67,17 +67,18 @@ from the current findings, with the VCS as its history.
     writes nothing:
     - **Status**: the set's status is `synthesised` or `complete`; otherwise
       refuse naming `synthesised`, `complete` and the set's current status,
-      and pointing to `synthesise SLUG` as the step that reaches the required
-      status; earlier states reach it through the verbs `synthesise` itself
-      names.
-    - **Freshness**: `finalise`'s read-only gate — disk-derived `round_count`
-      and `finding_count`, by the count rule in the skill's **Validate every
-      write**, equal the manifest's, and the highest finding `round` does not
-      exceed `synthesis.md`'s `rounds_covered`; otherwise refuse naming the
-      mismatch and pointing to `conduct SLUG` then `synthesise SLUG`.
-    - **Fully conducted**: `accelerator research topic outstanding`'s
-      read-only plan (no `--start` or `--run`) lists no `unanswered` pair
-      and marks every outline item `complete`. It counts only retained
+      and pointing to the verbs that reach the required status from it, each
+      chain ending in `synthesise SLUG`.
+    - **Freshness**: the read-only freshness gate `finalise` also runs —
+      disk-derived `round_count` and `finding_count`, by the count rule in
+      the skill's **Validate every write**, equal the manifest's, and the
+      highest finding `round` does not exceed `synthesis.md`'s
+      `rounds_covered`; otherwise refuse naming the mismatch and pointing to
+      `conduct SLUG` then `synthesise SLUG`.
+    - **Fully conducted**: the round plan `accelerator research topic
+      outstanding` computes in its read-only query mode lists no
+      `unanswered` pair and marks every outline item `complete`. It counts
+      only retained
       findings — visible, not quarantined, passing validation — so a
       straggler (a pair left without a finding in an already-conducted
       round), a quarantined or invalid finding and a focus area never
@@ -89,8 +90,20 @@ from the current findings, with the VCS as its history.
       do: it holds back only an item with no answered pair, and that
       refusal names `conduct`'s skipped-pair recovery (add the profile to
       the brief, or fix its name in the outline) instead of `conduct SLUG`.
-  - Both read `synthesis.md` and every finding `finding_count` counts — each
-    visible `findings/<nn>-*.md` — never `.levels/` or a `.invalid`
+  - The CLI owns the count rule and the gates, so no verb counts files or
+    orders gates itself. Neither command writes anything:
+    - `accelerator research topic counts SLUG` derives `round_count`,
+      `finding_count` and `report_count` from disk, beside the manifest's
+      stored values. It says whether the set is fresh, naming each mismatch
+      as a fixed sentence; a stored count it cannot read is a mismatch, not
+      an error, so it always prints the derived counts. `conduct`,
+      `synthesise` and `report` write its derived counts, and `finalise`
+      runs it as its freshness gate.
+    - `accelerator research topic consultable SLUG` applies the three gates
+      in order and prints the first that fails, with its details, or that
+      the set is consultable, with the finding and report paths to read.
+  - Both read `synthesis.md` and exactly the findings `consultable` lists —
+    those `finding_count` counts — never `.levels/` or a `.invalid`
     quarantine marker.
   - Both split the question into its parts and judge each across every
     finding of the focus areas relevant to it — one finding per source
@@ -127,11 +140,12 @@ from the current findings, with the VCS as its history.
     only) and Sources.
   - Sources list every source the report draws on, including those behind
     its gaps, so each gap's evidence is visible. `report` cites each source
-    once by applying the citing-once rule to every citation across the
-    findings it cites, including two citations of one source in one
-    finding, as `synthesise` does: every tier in merged tier text comes from
-    a finding, and the rule makes the only changes to tier text and metadata
-    blocks. Each source's metadata block replaces the template's
+    once by applying the citing-once rule to every citation of that source
+    across every finding it reads, including two citations of one source in
+    one finding, as `synthesise` does. The tier a report shows for a source
+    is therefore the tier its coverage judgement counted. Every tier in
+    merged tier text comes from a finding, and the rule makes the only
+    changes to tier text and metadata blocks. Each source's metadata block replaces the template's
     `- {source-metadata}` slot line, which is deleted where no citation of
     the source carries a block. Like `synthesise`, `report` judges identity
     only over the findings it reads, so it inherits 0306's accepted gap: a
@@ -161,7 +175,8 @@ from the current findings, with the VCS as its history.
     collision it then takes `-2`, `-3`, …, which may pass 60 characters. A
     question that yields an empty slug takes `report`.
   - Edits `manifest.md` after writing the report to record reports —
-    `report_count` from disk and a `reports/` entry under `## Set` — leaving
+    `report_count` from disk, as `counts` derives it, and a `reports/` entry
+    under `## Set` — leaving
     `status`, `primary`, `round_count` and `finding_count` untouched.
 - **Coverage**
   - The model judges the corpus's coverage of the question as `answered`
@@ -392,13 +407,15 @@ from the current findings, with the VCS as its history.
   `skills/research/outputters/citing-once/SKILL.md`; both verbs read it, so
   a change to the rule changes their coverage judgement and `report`'s
   Sources.
-- Relies on `finalise`'s freshness gate as shipped in the skill's `finalise`
-  step, not as 0279's item text describes it (`status == synthesised`
-  alone); both verbs reuse it, so a change to that gate changes theirs.
-- Relies on `accelerator research topic outstanding` as shipped (0279,
-  extended by 0283, and by 0347 once it lands): its `unanswered` pairs,
-  `skipped` pairs and per-item `complete` decide the fully-conducted gate,
-  so a change to them changes the gate.
+- Moves the count rule from the skill's **Validate every write** into
+  `research topic counts`, the one place that derives every manifest count.
+  `conduct` and `synthesise` change to write its derived counts, and
+  `finalise` changes to take its freshness gate from it.
+- Relies on the round planner behind `accelerator research topic
+  outstanding` (0279, extended by 0283, and by 0347 once it lands):
+  `consultable` plans the same way, so its `unanswered` pairs, `skipped`
+  pairs and per-item `complete` decide the fully-conducted gate, and a
+  change to them changes the gate.
 - Blocks: 0284, which renders reports, including the `coverage` extra, the
   Gaps section and 0306's `also` tier suffix, as its own requirements
   record; until it lands, a report is
@@ -515,10 +532,13 @@ from the current findings, with the VCS as its history.
 - The schema enforces vocabularies only for `status` (`status_vocab`); the
   report row's `coverage ∈ {answered, partial}` needs a new per-extra
   vocabulary mechanism in the validator.
-- The shared precondition reuses `finalise`'s read-only freshness gate
+- The shared precondition is `consultable`'s verdict: the status gate, the
+  freshness gate `finalise` shares through `research topic counts`
   (disk-derived counts against the manifest; highest `round` against
-  `synthesis.md`'s `rounds_covered`) plus a fully-conducted gate over what
-  `outstanding` reports.
+  `synthesis.md`'s `rounds_covered`), and a fully-conducted gate over the
+  plan `outstanding`'s query mode computes. `consultable` reads a later
+  gate's inputs only when the earlier gates pass, so an unreadable outline
+  never masks a status or freshness refusal.
 - Three criteria are not visible in the final disk state. Ordering is
   observed by declining at the proposal confirmation: the report and
   `report_count` are on disk while `outline.md` and `status` are unchanged.
@@ -579,7 +599,27 @@ from the current findings, with the VCS as its history.
 - Tier text is read through the citing-once rule, not a CLI parser, as the
   user chose: both verbs are model-driven like `synthesise`, and 0284's
   parser, which lands after this item, serves the visualiser only.
-- The fully-conducted gate rests on `outstanding` alone, as the user chose.
+- The count rule and the gates moved into the CLI during plan review,
+  following ADR-0045: counting files, taking the highest `round` and
+  ordering three gates is mechanical. `research topic counts` derives every
+  manifest count. `conduct`, `synthesise` and `report` write its counts, and
+  `finalise` takes its freshness gate from it. `research topic consultable`
+  gives both consulting verbs their verdict. The rule and the gates then
+  have one owner instead of several: the prose count rule each verb
+  applied, a restatement in the consulting verbs and a mirror in the eval's
+  pre-flight.
+- `synthesise` stamps `rounds_covered` from the counts on disk rather than
+  from the manifest's `round_count`. A manifest left stale by a crashed
+  `conduct` therefore no longer stamps a synthesis that `finalise` would at
+  once find stale.
+- The status refusal carries its own recovery chain for each status
+  (`briefed`, `outlined`, `researching`), each ending in `synthesise SLUG`.
+  It does not leave earlier states to `synthesise`'s refusal, which names
+  only states: following `synthesise SLUG` alone dead-ends a `briefed` or
+  `outlined` set, and wastes a re-synthesis on a set reopened by a
+  confirmed proposal.
+- The fully-conducted gate rests on `outstanding`'s planner alone, as the
+  user chose.
   A skipped pair is a misconfigured outline or brief, not missing research,
   so it blocks only an item left with no answered pair, as `conduct`'s
   ticking already treats it.
