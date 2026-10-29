@@ -15,6 +15,7 @@ tags: ["research", "deep-research", "sources", "metadata", "cli"]
 last_updated: "2026-10-25T16:33:02+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-936"
 ---
 # 0348: Structured Source Metadata
 
