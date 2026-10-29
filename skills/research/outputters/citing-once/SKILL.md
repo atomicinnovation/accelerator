@@ -78,7 +78,8 @@ only when it applies, joined by `; `: `tier-3 (retracted)`,
 is always tiered `tier-3`, so a mark never changes the chosen tier.
 
 **Merge rule** and **Retraction suffixes** are the only changes to tier text.
-Every tier in the merged tier text comes from a citation.
+Every tier in the merged tier text comes from a citation. **Metadata merge**,
+**Full ties** and **Block order** are the only changes to a metadata block.
 
 ## Citation order
 

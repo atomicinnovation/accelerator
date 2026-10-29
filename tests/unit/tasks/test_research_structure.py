@@ -1410,6 +1410,12 @@ RULE_PARTS = (
     "Full ties",
     "Block order",
 )
+TIER_TEXT_PARTS = ("Merge rule", "Retraction suffixes")
+BLOCK_PARTS = ("Metadata merge", "Full ties", "Block order")
+CONFINEMENT = (
+    "the citing-once rule makes the only changes to tier text and metadata "
+    "blocks"
+)
 RULE_SIGNATURES = (
     "ignores the suffix",
     "every tier its `also` suffix lists",
@@ -1455,6 +1461,27 @@ def test_the_citing_once_rule_states_every_part_under_its_own_heading() -> None:
     headings = re.findall(r"^## (.+)$", _read(CITING_ONCE), re.MULTILINE)
     for part in RULE_PARTS:
         assert part in headings, f"the citing-once rule must state {part!r}"
+
+
+def _named(parts: tuple[str, ...]) -> str:
+    bold = [f"**{part}**" for part in parts]
+    return f"{', '.join(bold[:-1])} and {bold[-1]}"
+
+
+def test_the_closed_change_sets_are_parts_of_the_rule() -> None:
+    assert set(TIER_TEXT_PARTS + BLOCK_PARTS) <= set(RULE_PARTS)
+
+
+@pytest.mark.parametrize(
+    ("parts", "target"),
+    [(TIER_TEXT_PARTS, "tier text"), (BLOCK_PARTS, "a metadata block")],
+    ids=["tier-text", "metadata-block"],
+)
+def test_the_citing_once_rule_closes_each_change_set(
+    parts: tuple[str, ...], target: str
+) -> None:
+    closure = f"{_named(parts)} are the only changes to {target}"
+    assert closure in _prose(CITING_ONCE)
 
 
 @pytest.mark.parametrize("signature", RULE_SIGNATURES)
@@ -1513,6 +1540,10 @@ def _citing_once() -> str:
     return _prose(CITING_ONCE)
 
 
+def _finding_outputter() -> str:
+    return _prose(FINDING_OUTPUTTER)
+
+
 CARRIER_READERS = (_composer, _synthesise)
 CARRIER_NAMES = ("composer", "synthesise")
 CARRIERS = pytest.mark.parametrize(
@@ -1548,13 +1579,19 @@ def test_synthesise_reads_the_citing_once_rule_with_the_read_tool() -> None:
 
 @CARRIERS
 def test_every_carrier_confines_its_changes_to_the_rule(carrier) -> None:
-    text = carrier()
-    for rule in (
-        "**Merge rule** and **Retraction suffixes** are the only changes",
-        "**Metadata merge**, **Full ties** and **Block order** are the only "
-        "changes",
-    ):
-        assert rule in text, f"a carrier must state {rule!r}"
+    assert CONFINEMENT in carrier()
+
+
+@pytest.mark.parametrize(
+    "reader",
+    (*CARRIER_READERS, _finding_outputter),
+    ids=(*CARRIER_NAMES, "finding-outputter"),
+)
+@pytest.mark.parametrize("part", RULE_PARTS)
+def test_only_the_rule_names_its_parts(reader, part: str) -> None:
+    assert f"**{part}**" not in reader(), (
+        f"{part!r} is internal to the citing-once rule"
+    )
 
 
 @CARRIERS
@@ -1612,9 +1649,9 @@ def test_the_finding_outputter_documents_the_also_suffix(example: str) -> None:
 
 
 def test_the_finding_outputter_defers_composed_blocks_to_the_rule() -> None:
-    outputter = _prose(FINDING_OUTPUTTER)
+    outputter = _finding_outputter()
     for rule in (
-        "**Metadata merge**, **Full ties** and **Block order**",
+        "from the notes' blocks instead, under the citing-once rule.",
         "Every line still comes from a block a note carries",
     ):
         assert rule in outputter, f"the finding outputter must state {rule!r}"

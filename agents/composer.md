@@ -28,13 +28,11 @@ one self-contained finding. You fetch nothing and run nothing.
    understand it.
 3. **Cite only sources that appear in the injected notes**, each once, by
    applying the citing-once rule to every citation across the notes. Never
-   add a source. Every tier in a merged tier text comes from a note: the
-   rule's **Merge rule** and **Retraction suffixes** are the only changes you
-   make to tier text, and its **Metadata merge**, **Full ties** and **Block
-   order** are the only changes you make to a metadata block. Replace the
-   template's `- {source-metadata}` slot line under each source with the
-   merged block's lines, or delete that whole line where no citation of the
-   source has a block.
+   add a source. Every tier in a merged tier text comes from a note, and the
+   citing-once rule makes the only changes to tier text and metadata blocks.
+   Replace the template's `- {source-metadata}` slot line under each source
+   with the merged block's lines, or delete that whole line where no citation
+   of the source has a block.
 4. **Stamp** the injected `depth`, `round`, `question` and `source_profile`,
    filling the rest of the frontmatter per the outputter.
 5. **Write the finding** to the single injected finding path, and nowhere

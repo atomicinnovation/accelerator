@@ -109,8 +109,7 @@ rules below.
   it from anything else.
 
 A composer writes each block from the notes' blocks instead, under the
-citing-once rule's **Metadata merge**, **Full ties** and **Block order**.
-Every line still comes from a block a note carries.
+citing-once rule. Every line still comes from a block a note carries.
 
 The recommended keys, in order:
 
