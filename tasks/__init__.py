@@ -21,6 +21,7 @@ from . import (
     types,
     version,
 )
+from . import eval as eval_
 from . import format as format_  # `format` shadows a builtin; alias the import
 from .vendor import commands as vendor_commands
 
@@ -70,6 +71,7 @@ ns.add_collection(Collection.from_module(public_api))
 ns.add_collection(Collection.from_module(pup))
 ns.add_collection(Collection.from_module(test))
 ns.add_collection(Collection.from_module(version))
+ns.add_collection(Collection.from_module(eval_, name="eval"))
 
 ns_vendor = Collection("vendor")
 ns_vendor.add_task(vendor_commands.check_trust_anchors)
