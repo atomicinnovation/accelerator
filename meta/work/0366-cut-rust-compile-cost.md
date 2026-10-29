@@ -9,10 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0362"]
+blocked_by: ["work-item:0362", "work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-10-29T10:10:07+00:00"
+last_updated: "2026-10-30T13:09:40+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -74,12 +74,16 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Acceptance Criteria
 
-- [ ] Given a cold workspace, when a full `mise run` completes, then cargo
-      has compiled fewer than the 2,015 crate units recorded in the research.
+- [ ] Given `measure:build` cold records at the commit before the change
+      and after it, then the total of `Compiling`, `Checking` and
+      `Documenting` units is lower after the change. The research counted
+      2,015 at its commit; `--runs 1` is enough, since unit counts do not
+      vary between runs.
 - [ ] Given the tasks reachable from `default`, when their cargo invocations
       are grouped into compile configurations, then there are fewer than 15.
 - [ ] Given the debug-info trial, when it completes, then its measurements
-      are recorded, and the setting is adopted only if it reduces cold build
+      are recorded as `measure:build` cold `--runs 3` records, and the
+      setting is adopted only if it reduces the median cold build
       wall-clock.
 - [ ] Every feature combination a test, lint or check exercises today
       (`test-loopback`, `dev-frontend`, `embed-dist`, `--all-features`) is
@@ -95,6 +99,13 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Dependencies
 
+- Blocked by: 0368's `measure:build` harness and its warm no-op
+  baseline. 0361 measures its 200 s target against that baseline, so it
+  must be recorded before any part of this item merges. Work may start
+  before then; only merging waits. This item also needs 0368's cold
+  cache state (its Requirement 4) merged first, because its unit-count
+  criterion and debug-info trial compare cold records. Remove the
+  `blocked_by` edge once both the baseline and the cold state are in.
 - Blocked by: 0362, which lands first. Collapsing the debug builds must
   keep `test:integration:hooks`'s launcher and `accelerator-vcs` builds
   working, and the debug-info trial changes the launcher size that 0362's

@@ -8,10 +8,11 @@ producer: "extract-work-items"
 status: "draft"
 kind: "task"
 priority: "medium"
-relates_to: ["work-item:0361"]
+blocked_by: ["work-item:0361"]
+relates_to: ["work-item:0361", "work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "ci"]
-last_updated: "2026-10-28T16:18:46+00:00"
+last_updated: "2026-10-30T15:12:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -97,9 +98,15 @@ much.
 
 ## Dependencies
 
-- Blocked by: none
+- Blocked by: 0361. Merge only after 0361 closes: its 200 s target
+  compares against 0368's baseline, whose `default` predates this
+  item's added lanes and `format:fix` ordering. Re-measuring the
+  baseline commit cannot add them, so merging first would leave the
+  target without a like-for-like baseline.
 - Blocks: none
 - Related: 0361 (this item adds work to a local run, while 0361 removes it)
+- Related: 0368, whose `measure:build` records list the `default` task
+  set, so tasks this item adds show in 0361's closing comparison
 
 ## Assumptions
 

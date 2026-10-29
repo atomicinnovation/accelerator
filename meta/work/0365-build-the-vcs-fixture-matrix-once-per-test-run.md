@@ -9,9 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
+blocked_by: ["work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-10-28T16:18:46+00:00"
+last_updated: "2026-10-30T01:47:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -69,9 +70,9 @@ when the phase ran alone.
       reads the matrix has called `Matrix::build_in`.
 - [ ] Given a test that modifies fixtures, when it runs, then it still
       builds a private matrix.
-- [ ] Given a warm workspace, when `test:unit:cli` runs alone, then its
-      nextest phase is at least 20 s shorter than the baseline recorded
-      before the change.
+- [ ] Given a warm workspace, when `measure:build` runs `test:unit:cli` in
+      isolation mode, then the median nextest phase it reports is at least
+      20 s shorter than at the commit before the change.
 - [ ] Given the zero-spawn lane, when it runs, then it still passes with the
       matrix handed over through `ACCELERATOR_ZERO_SPAWN_MATRIX`.
 
@@ -87,7 +88,14 @@ when the phase ran alone.
 
 ## Dependencies
 
-- Blocked by: none
+- Blocked by: 0368's `measure:build` harness and its warm no-op
+  baseline. 0361 measures its 200 s target against that baseline, so it
+  must be recorded before any part of this item merges. Work may start
+  before then; only merging waits. This item also needs 0368's isolation
+  mode (its Requirement 3) merged first, because its speed criterion
+  compares an isolated nextest phase against the commit before the
+  change. Remove the `blocked_by` edge once both the baseline and
+  isolation mode are in.
 - Blocks: none
 
 ## Assumptions

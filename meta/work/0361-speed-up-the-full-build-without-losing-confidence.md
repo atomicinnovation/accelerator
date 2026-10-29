@@ -8,10 +8,11 @@ producer: "extract-work-items"
 status: "draft"
 kind: "epic"
 priority: "high"
+blocks: ["work-item:0369"]
 relates_to: ["work-item:0369"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "ci"]
-last_updated: "2026-10-29T08:51:57+00:00"
+last_updated: "2026-10-30T15:12:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -93,15 +94,19 @@ Decomposition:
 
 ## Open Questions
 
-- Which machine and conditions count as the reference for the 200 s target?
-  The research machine had 22–30% background CPU load.
+- Resolved by 0368: the reference for the 200 s target is the research
+  workstation, comparing records that are comparable under 0368's
+  Requirement 7. The closing comparison lists the `default` task-set
+  difference from the baseline and names the change behind each task
+  added or removed. That machine idled at 22–30% background CPU load.
 - Should the CI target be measured on a single pull-request run, or as a
   median over several?
 
 ## Dependencies
 
 - Blocked by: none
-- Blocks: none
+- Blocks: 0369, which merges only after this epic's closing comparison,
+  because it changes the `default` build the 200 s target measures.
 - Related: 0369 "Make `default` mirror CI" (adds work to a local run;
   tracked separately)
 
