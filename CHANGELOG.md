@@ -200,10 +200,20 @@
   additive, so callers that ignore unknown fields are unaffected.
 - **A Sources entry may carry a metadata block.** Researchers copy the CLI's
   `metadata` map for each source they cite into a nested `key: value` list
-  under its entry, and the composer and `synthesise` carry each block
-  byte-for-byte. The block is optional, so existing one-line findings stay
+  under its entry. The block is optional, so existing one-line findings stay
   valid. See
   [Sources metadata](https://atomicinnovation.github.io/accelerator/research/#sources-metadata).
+- **The composer and `synthesise` cite each source once.** A finding the
+  composer writes, and the dossier `synthesise` writes, give a source cited
+  by several notes or findings one Sources entry. The entry takes the
+  source's weakest tier, keeps any `retracted` or `withdrawn` mark, and lists
+  its other tiers in an `also` suffix: `tier-3 (also tier-2, tier-1)`,
+  `tier-3 (retracted; also tier-1)`. Its metadata block carries every key
+  its citations carry. Findings written earlier stay valid, and `synthesise`
+  merges their duplicates. An `agents.composer` override must read the
+  injected citing-once rule as well as the finding outputter, or its
+  findings can cite a source more than once. See
+  [Citing a source once](https://atomicinnovation.github.io/accelerator/research/#citing-a-source-once).
 - **The web source profile grants `Bash(accelerator research fetch *)`**, the
   rule `research-topic` already grants, and runs `fetch web metadata` for
   each page it cites. A denied or failed call leaves that entry without a
