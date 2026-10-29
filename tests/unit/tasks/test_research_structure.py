@@ -1437,6 +1437,7 @@ RULE_SIGNATURES = (
     "leading `www.`",
     "drop the path's trailing slash",
     "Matches chain",
+    "Judge identity only over the citations you read",
     "`dx.doi.org`",
     "percent-decoded",
     "case-insensitively",
@@ -1734,6 +1735,7 @@ def test_the_docs_describe_merged_sources() -> None:
     assert "byte-for-byte" not in docs
     assert "(reference/skills/internal/citing-once.md)" in docs
     assert "At depth 1 the researcher writes the finding itself" in docs
+    assert "a merged entry keeps only one URL" in docs
     assert "`tier-3` is weakest and `tier-1` strongest" in docs
     assert "lowest tier" not in docs
     assert "citing-once.md) contract" not in docs

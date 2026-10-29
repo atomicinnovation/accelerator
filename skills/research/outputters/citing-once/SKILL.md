@@ -33,7 +33,9 @@ uses the base tier and ignores the suffix. Tiers rank `tier-3` lowest, then
 
 Two citations are the same source when they carry the same DOI (see
 **Carrying a DOI**) or the same URL after normalisation. Matches chain:
-citations linked by any sequence of DOI or URL matches are one source.
+citations linked by any sequence of DOI or URL matches are one source. Judge
+identity only over the citations you read: a merged entry keeps one URL, so a
+URL an earlier merge dropped links nothing.
 
 To normalise a URL, drop its scheme, drop its fragment, lowercase its host,
 drop a leading `www.` from the host, and drop the path's trailing slash. Keep

@@ -798,6 +798,11 @@ At depth 1 the researcher writes the finding itself and no composer runs, so
 a depth-1 finding, like one written before this rule, can cite a source
 twice. `synthesise` merges those duplicates in the dossier.
 
+A dossier can still list one source twice, because a merged entry keeps only
+one URL and `synthesise` reads only the findings. If a composer kept a
+`doi.org` URL and dropped the publisher URL that linked two citations, a
+finding that cites only the publisher URL stays a separate source.
+
 The [`citing-once`](reference/skills/internal/citing-once.md) rule decides
 when two citations are one source, and which citation's title, venue, URL
 and metadata the entry keeps.
