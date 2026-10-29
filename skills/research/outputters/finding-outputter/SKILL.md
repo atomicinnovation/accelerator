@@ -81,11 +81,17 @@ Tier every source `tier-1`/`tier-2`/`tier-3` by the source profile's vocabulary,
 from venue identity alone. The tier text carries any suffix the profile
 prescribes, such as `tier-3 (retracted)`.
 
+A composed finding or dossier cites each source once, under the citing-once
+rule, and lists the other tiers the source was cited at in an `also` suffix,
+after any `retracted` or `withdrawn` mark: `tier-3 (also tier-2, tier-1)`,
+`tier-3 (retracted; withdrawn; also tier-1)`.
+
 ## Sources Metadata Block
 
 A Sources entry may carry a **metadata block**: a nested `  - key: value`
 list directly under its line. The block is optional, and an entry without one
-is valid.
+is valid. A researcher writes each block from the CLI's output, under the
+rules below.
 
 - Block lines are the CLI's `metadata` entries for the cited source, copied
   unchanged and in emitted order. Never write a block line from anywhere
@@ -101,6 +107,10 @@ is valid.
   of that source's `metadata` map, in emitted order. When the source has no
   map, delete the whole slot line: never leave it as written, and never fill
   it from anything else.
+
+A composer writes each block from the notes' blocks instead, under the
+citing-once rule's **Metadata merge**, **Full ties** and **Block order**.
+Every line still comes from a block a note carries.
 
 The recommended keys, in order:
 

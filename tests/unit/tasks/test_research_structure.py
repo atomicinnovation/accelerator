@@ -693,6 +693,7 @@ def test_research_topic_routes_nodes_to_the_level_note_outputter() -> None:
     [
         "accelerator config agent composer --fail-safe",
         "skills/research/outputters/finding-outputter/SKILL.md",
+        "skills/research/outputters/citing-once/SKILL.md",
     ],
 )
 def test_research_topic_routes_compose_pairs_to_the_composer(
@@ -1494,24 +1495,121 @@ def _synthesise() -> str:
     )
 
 
-@pytest.mark.parametrize(
-    "carrier",
-    [lambda: _prose(COMPOSER), _synthesise],
-    ids=["composer", "synthesise"],
+def _composer() -> str:
+    return _prose(COMPOSER)
+
+
+def _citing_once() -> str:
+    return _prose(CITING_ONCE)
+
+
+CARRIER_READERS = (_composer, _synthesise)
+CARRIER_NAMES = ("composer", "synthesise")
+CARRIERS = pytest.mark.parametrize(
+    "carrier", CARRIER_READERS, ids=CARRIER_NAMES
 )
-def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ("**Read first**", "2. **Compose**"),
+        ("Never read repository files beyond", "Write only to"),
+    ],
+    ids=["read-first", "read-guard"],
+)
+def test_the_composer_admits_the_citing_once_rule_to_its_read_scope(
+    scope: tuple[str, str],
+) -> None:
+    start, end = scope
+    assert "the citing-once rule" in _section(
+        _composer(), start, end, path=COMPOSER
+    )
+
+
+def test_synthesise_reads_the_citing_once_rule_before_writing() -> None:
+    text = _synthesise()
+    assert text.index(CITING_ONCE_PATH) < text.index("write `synthesis.md`")
+
+
+@CARRIERS
+def test_every_carrier_confines_its_changes_to_the_rule(carrier) -> None:
     text = carrier()
     for rule in (
-        "metadata block byte-for-byte",
-        "even when it is not in canonical order",
-        "Never merge, reorder or complete a block",
-        f"`{METADATA_SLOT.strip()}` slot line under each source",
+        "**Merge rule** and **Retraction suffixes** are the only changes",
+        "**Metadata merge**, **Full ties** and **Block order** are the only "
+        "changes",
     ):
         assert rule in text, f"a carrier must state {rule!r}"
 
 
-def test_synthesise_leaves_a_one_line_citation_one_line() -> None:
-    assert "cited one-line in its finding stays one-line" in _synthesise()
+@CARRIERS
+def test_every_carrier_replaces_the_metadata_slot_line(carrier) -> None:
+    text = carrier()
+    for rule in (
+        f"`{METADATA_SLOT.strip()}` slot line under each source",
+        "delete that whole line where no citation of the source has a block",
+    ):
+        assert rule in text, f"a carrier must state {rule!r}"
+
+
+@pytest.mark.parametrize(
+    "contract",
+    (*CARRIER_READERS, _citing_once),
+    ids=(*CARRIER_NAMES, "citing-once"),
+)
+def test_no_contract_keeps_a_block_byte_for_byte(contract) -> None:
+    text = contract()
+    for stale in (
+        "byte-for-byte",
+        "not in canonical order",
+        "Never merge, reorder or complete a block",
+        "stays one-line",
+    ):
+        assert stale not in text, f"no contract may still state {stale!r}"
+
+
+@CARRIERS
+@pytest.mark.parametrize("signature", RULE_SIGNATURES)
+def test_no_carrier_restates_the_citing_once_rule(
+    carrier, signature: str
+) -> None:
+    assert signature not in carrier(), (
+        f"{signature!r} belongs to the citing-once rule alone"
+    )
+
+
+@pytest.mark.parametrize(
+    ("carrier", "origin"),
+    list(zip(CARRIER_READERS, ("a note", "a finding"), strict=True)),
+    ids=CARRIER_NAMES,
+)
+def test_every_carrier_takes_every_tier_from_its_inputs(
+    carrier, origin: str
+) -> None:
+    assert f"Every tier in a merged tier text comes from {origin}" in (
+        carrier()
+    )
+
+
+@pytest.mark.parametrize("example", MERGED_TIER_EXAMPLES)
+def test_the_finding_outputter_documents_the_also_suffix(example: str) -> None:
+    assert example in _prose(FINDING_OUTPUTTER)
+
+
+def test_the_finding_outputter_defers_composed_blocks_to_the_rule() -> None:
+    outputter = _prose(FINDING_OUTPUTTER)
+    for rule in (
+        "**Metadata merge**, **Full ties** and **Block order**",
+        "Every line still comes from a block a note carries",
+    ):
+        assert rule in outputter, f"the finding outputter must state {rule!r}"
+
+
+def test_synthesise_merges_duplicates_within_one_finding() -> None:
+    assert "including two citations of one source in one finding" in (
+        _synthesise()
+    )
 
 
 COPY_THE_MAP = "copy its `metadata` map into the entry's metadata block"
