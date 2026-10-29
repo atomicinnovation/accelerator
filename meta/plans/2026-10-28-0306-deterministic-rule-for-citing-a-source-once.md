@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 revision: "6ae94e865c9f2250d04af85adc3f253943ff2c3f"
 repository: "accelerator"
-last_updated: "2026-10-29T01:48:12+00:00"
+last_updated: "2026-10-29T02:24:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -873,6 +873,9 @@ and metadata the entry keeps.
   worker `Timeout calling "onTaskUpdate"` as an error. Phase 2 changes no
   frontend file. Every task the failure cut short passed when run alone, as
   did `mise run check`.
+- A fourth `mise run` failed the same way at a load average of 345. The
+  default runs eight tasks at once; `mise run --jobs 3` then exited 0 in
+  563 s and reformatted nothing.
 
 ### Success Criteria:
 
@@ -888,7 +891,7 @@ and metadata the entry keeps.
       prints nothing
 - [x] Docs lane passes: `mise run docs:check`
 - [x] Read-only CI set passes: `mise run check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
