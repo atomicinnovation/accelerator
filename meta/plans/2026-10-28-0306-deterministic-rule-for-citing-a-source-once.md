@@ -5,14 +5,14 @@ title: "Deterministic Rule for Citing a Source Once Implementation Plan"
 date: "2026-10-28T15:46:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0306"
 parent: "work-item:0306"
 derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-a-source-once"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 revision: "6ae94e865c9f2250d04af85adc3f253943ff2c3f"
 repository: "accelerator"
-last_updated: "2026-10-28T16:26:16+00:00"
+last_updated: "2026-10-29T00:28:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -426,6 +426,25 @@ Citation order puts the `tier-3` citation first, then `tier-2`, then
   - accessed: 2026-10-02
 ```
 ````
+
+#### 3. As built
+
+- The tests and the rule file landed as written above.
+- `mise run` first failed in `deny:check` on RUSTSEC-2026-0414, a wikilink
+  event blow-up in `pulldown-cmark 0.13.4`. Wikilinks are never enabled,
+  but the advisory fails the gate, so a separate commit upgrades the exact
+  pin to 0.13.5 and regenerates the third-party notices.
+- Every golden digest holds under 0.13.5, so the digest-recipe guard in
+  `cli/work-adapters/tests/golden_digests.rs` now lets a recipe record each
+  parser version its digests hold under, and 0.13.5 joins recipe 1.
+  `DigestRecipe::CURRENT` stays 1, so older binaries still read the
+  baseline entries this one writes.
+- `test:unit:frontend` and the visualiser's
+  `scan_2000_files_does_not_blow_up` (131.8 s against its 30 s bound) each
+  failed once under full-run load, then passed when rerun alone.
+- The generated contract page labels the rule "agent-preloaded". That is the
+  generator's wording for every internal skill, shared with the finding and
+  level-note outputter pages.
 
 ### Success Criteria:
 
