@@ -81,9 +81,8 @@ Tier every source `tier-1`/`tier-2`/`tier-3` by the source profile's vocabulary,
 from venue identity alone. The tier text carries any suffix the profile
 prescribes, such as `tier-3 (retracted)`.
 
-A composed finding or dossier cites each source once, under the citing-once
-rule, and lists the other tiers the source was cited at in an `also` suffix,
-after any `retracted` or `withdrawn` mark: `tier-3 (also tier-2, tier-1)`,
+A source cited at several tiers lists the others in an `also` suffix, after
+any `retracted` or `withdrawn` mark: `tier-3 (also tier-2, tier-1)`,
 `tier-3 (retracted; withdrawn; also tier-1)`.
 
 ## Sources Metadata Block

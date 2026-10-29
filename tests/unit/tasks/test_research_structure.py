@@ -1700,6 +1700,12 @@ def test_the_finding_outputter_documents_the_also_suffix(example: str) -> None:
     assert example in _prose(FINDING_OUTPUTTER)
 
 
+def test_the_finding_outputter_owns_only_the_findings_grammar() -> None:
+    outputter = _finding_outputter()
+    assert "dossier" not in outputter
+    assert "A source cited at several tiers lists the others" in outputter
+
+
 def test_the_finding_outputter_defers_composed_blocks_to_the_rule() -> None:
     outputter = _finding_outputter()
     for rule in (
