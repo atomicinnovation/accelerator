@@ -792,6 +792,10 @@ source's lowest tier and lists the others in an `also` suffix, after any
 retraction mark: `tier-3 (also tier-2, tier-1)`,
 `tier-3 (retracted; withdrawn; also tier-1)`.
 
+At depth 1 the researcher writes the finding itself and no composer runs, so
+a depth-1 finding, like one written before this rule, can cite a source
+twice. `synthesise` merges those duplicates in the dossier.
+
 The [`citing-once`](reference/skills/internal/citing-once.md) contract decides
 when two citations are one source, and which citation's title, venue, URL
 and metadata the entry keeps.
