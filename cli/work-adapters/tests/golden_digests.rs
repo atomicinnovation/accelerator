@@ -324,8 +324,10 @@ fn recipe_guard(
     {
         return Err(format!(
             "recipe {current} was recorded under pulldown-cmark {}, but \
-             {locked} is locked; record {locked} against recipe {current} if \
-             every golden digest still holds, or bump the recipe",
+             {locked} is locked; if every golden digest still holds, append \
+             {locked} to recipe {current}'s pulldown_cmark_versions in \
+             cli/work-adapters/tests/fixtures/golden-digests/recipe.json, \
+             or bump the recipe",
             latest.pulldown_cmark_versions.join(", ")
         ));
     }
@@ -383,7 +385,8 @@ fn the_recipe_guard() {
             vec![one.clone()],
             1,
             "0.13.5",
-            Err("record 0.13.5 against recipe 1"),
+            Err("append 0.13.5 to recipe 1's pulldown_cmark_versions in \
+                 cli/work-adapters/tests/fixtures/golden-digests/recipe.json"),
         ),
         (
             "version added to the current recipe",
