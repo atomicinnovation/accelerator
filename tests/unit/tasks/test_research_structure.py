@@ -1416,6 +1416,7 @@ RULE_SIGNATURES = (
     "leading `www.`",
     "Matches chain",
     "`dx.doi.org`",
+    "percent-decoded",
     "case-insensitively",
     "lowest tier",
     "next-lowest first",

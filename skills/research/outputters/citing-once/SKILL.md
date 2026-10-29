@@ -53,9 +53,11 @@ Normalisation decides identity only; it never rewrites a cited URL.
 
 A citation carries a DOI through the `doi` key of its block, or when its
 normalised URL's host is `doi.org` or `dx.doi.org`: that URL's path, without
-its leading slash, is the DOI. The query and fragment are never part of it.
-Compare DOIs case-insensitively, so `https://dx.doi.org/10.X/Y` and
-`doi.org/10.x/y` carry one DOI.
+its leading slash and percent-decoded, is the DOI. The query and fragment are
+never part of it. Compare DOIs case-insensitively, so
+`https://dx.doi.org/10.X/Y` and `doi.org/10.x/y` carry one DOI, as do
+`doi.org/10.1016/S0140-6736%2820%2930183-5` and
+`doi: 10.1016/s0140-6736(20)30183-5`.
 
 ## Merge rule
 
