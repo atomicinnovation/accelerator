@@ -261,10 +261,9 @@ fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
 }
 
 fn extends(entry: &RecipeRecord, recorded: &RecipeRecord) -> bool {
-    entry.recipe == recorded.recipe
-        && entry
-            .pulldown_cmark_versions
-            .starts_with(&recorded.pulldown_cmark_versions)
+    entry
+        .pulldown_cmark_versions
+        .starts_with(&recorded.pulldown_cmark_versions)
 }
 
 fn recipe_guard(
@@ -273,13 +272,25 @@ fn recipe_guard(
     current: u64,
     locked: &str,
 ) -> Result<(), String> {
+    let (latest, earlier) =
+        history.split_last().ok_or("the history is empty")?;
     if history.len() < recorded.len()
-        || !history
+        || earlier
             .iter()
             .zip(recorded)
-            .all(|(entry, recorded)| extends(entry, recorded))
+            .any(|(entry, recorded)| entry != recorded)
     {
         return Err("an earlier recipe's history entry was rewritten".into());
+    }
+    if let Some(recorded) = recorded.get(earlier.len()) {
+        if !extends(latest, recorded) {
+            return Err(format!(
+                "recipe {} must keep pulldown-cmark {} as recorded; append \
+                 a parser version, never replace one",
+                recorded.recipe,
+                recorded.pulldown_cmark_versions.join(", ")
+            ));
+        }
     }
     if history
         .iter()
@@ -288,7 +299,6 @@ fn recipe_guard(
     {
         return Err("recipes must run 1, 2, 3, … with no gap".into());
     }
-    let latest = history.last().ok_or("the history is empty")?;
     if latest.recipe != current {
         return Err(format!(
             "the latest recorded recipe is {}, but the code is at {current}",
@@ -322,54 +332,74 @@ fn the_current_recipe_records_the_locked_parser_version(
     Ok(())
 }
 
+type Verdict = Result<(), &'static str>;
+
 #[test]
 fn the_recipe_guard() {
     let one = record(1, &["0.13.4"]);
-    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 7] = [
-        ("matching", vec![one.clone()], 1, "0.13.4", true),
-        ("mismatched version", vec![one.clone()], 1, "0.13.5", false),
+    let rewritten = Err("an earlier recipe's history entry was rewritten");
+    let cases: [(&str, Vec<RecipeRecord>, u64, &str, Verdict); 8] = [
+        ("matching", vec![one.clone()], 1, "0.13.4", Ok(())),
+        (
+            "mismatched version",
+            vec![one.clone()],
+            1,
+            "0.13.5",
+            Err("record 0.13.5 against recipe 1"),
+        ),
         (
             "version added to the current recipe",
             vec![record(1, &["0.13.4", "0.13.5"])],
             1,
             "0.13.5",
-            true,
+            Ok(()),
         ),
         (
             "recorded version dropped",
             vec![record(1, &["0.13.5"])],
             1,
             "0.13.5",
-            false,
+            Err("recipe 1 must keep pulldown-cmark 0.13.4 as recorded"),
         ),
         (
             "bumped recipe with a new entry",
             vec![one.clone(), record(2, &["0.13.5"])],
             2,
             "0.13.5",
-            true,
+            Ok(()),
         ),
         (
             "rewritten earlier entry",
             vec![record(1, &["0.13.5"]), record(2, &["0.13.5"])],
             2,
             "0.13.5",
-            false,
+            rewritten,
+        ),
+        (
+            "version added to an earlier recipe",
+            vec![record(1, &["0.13.4", "0.13.6"]), record(2, &["0.13.5"])],
+            2,
+            "0.13.5",
+            rewritten,
         ),
         (
             "bumped recipe without an entry",
             vec![one],
             2,
             "0.13.4",
-            false,
+            Err("the latest recorded recipe is 1"),
         ),
     ];
-    for (name, history, current, locked, passes) in cases {
-        assert_eq!(
-            recipe_guard(&[record(1, &["0.13.4"])], &history, current, locked)
-                .is_ok(),
-            passes,
-            "{name}"
+    for (name, history, current, locked, expected) in cases {
+        let outcome =
+            recipe_guard(&[record(1, &["0.13.4"])], &history, current, locked);
+        assert!(
+            match (&outcome, expected) {
+                (Ok(()), Ok(())) => true,
+                (Err(error), Err(fragment)) => error.contains(fragment),
+                _ => false,
+            },
+            "{name}: {outcome:?}"
         );
     }
 }
