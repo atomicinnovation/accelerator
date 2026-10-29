@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 revision: "6ae94e865c9f2250d04af85adc3f253943ff2c3f"
 repository: "accelerator"
-last_updated: "2026-10-29T00:28:24+00:00"
+last_updated: "2026-10-29T01:48:12+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -852,25 +852,47 @@ when two citations are one source, and which citation's title, venue, URL
 and metadata the entry keeps.
 ```
 
+#### 8. As built
+
+- The tests and prose landed as written above, with two exceptions.
+- The configure warning reads "the injected finding outputter and the
+  citing-once rule". The planned wording dropped the article, so it never
+  contained the phrase its own test asserts.
+- The tier-origin test zips with `strict=True`, which ruff's B905 requires.
+- The guards fired under "Cite each at its lowest tier." in composer step 3
+  and "byte-for-byte" in the rule's opening sentence, one failure each, and
+  passed again once both were reverted.
+- The built `research/index.html` carries the `#citing-a-source-once`
+  section, and both `citing-once` links resolve to the generated contract
+  page. Nobody has yet read the section in a preview.
+- Phase 2 landed as three commits, each green on its own: the carriers
+  switch, the configure warning, and the docs page, each with its tests.
+- `mise run` failed only in `test:unit:frontend`, three times, under a load
+  average of 226 to 258 on 16 cores. The full run lost one heading lookup to
+  a 5.8 s wait; both solo reruns passed all 2615 tests but counted a vitest
+  worker `Timeout calling "onTaskUpdate"` as an error. Phase 2 changes no
+  frontend file. Every task the failure cut short passed when run alone, as
+  did `mise run check`.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] The new tests, other than the two guards named above, fail against
+- [x] The new tests, other than the two guards named above, fail against
       the Phase 1 prose, then pass; each guard fails under its deliberate
       mutation:
       `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] The composer still grants only `Read` and `Write` and names no source
+- [x] The composer still grants only `Read` and `Write` and names no source
       family (the existing tests at `:630-642` pass)
-- [ ] `rg -n "byte-for-byte" agents/composer.md skills/research/research-topic/SKILL.md skills/research/outputters/citing-once/SKILL.md`
+- [x] `rg -n "byte-for-byte" agents/composer.md skills/research/research-topic/SKILL.md skills/research/outputters/citing-once/SKILL.md`
       prints nothing
-- [ ] Docs lane passes: `mise run docs:check`
-- [ ] Read-only CI set passes: `mise run check`
+- [x] Docs lane passes: `mise run docs:check`
+- [x] Read-only CI set passes: `mise run check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] Read `agents/composer.md` step 3 and the `synthesise` paragraph side by
+- [x] Read `agents/composer.md` step 3 and the `synthesise` paragraph side by
       side: each names the rule's parts without restating any.
 - [ ] The rendered docs page's new section reads correctly at
       `docs-site` preview.
