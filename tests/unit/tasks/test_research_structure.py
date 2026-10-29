@@ -1549,6 +1549,11 @@ CARRIER_NAMES = ("composer", "synthesise")
 CARRIERS = pytest.mark.parametrize(
     "carrier", CARRIER_READERS, ids=CARRIER_NAMES
 )
+RULE_READERS = pytest.mark.parametrize(
+    "reader",
+    (*CARRIER_READERS, _finding_outputter),
+    ids=(*CARRIER_NAMES, "finding-outputter"),
+)
 
 
 @pytest.mark.parametrize(
@@ -1582,11 +1587,7 @@ def test_every_carrier_confines_its_changes_to_the_rule(carrier) -> None:
     assert CONFINEMENT in carrier()
 
 
-@pytest.mark.parametrize(
-    "reader",
-    (*CARRIER_READERS, _finding_outputter),
-    ids=(*CARRIER_NAMES, "finding-outputter"),
-)
+@RULE_READERS
 @pytest.mark.parametrize("part", RULE_PARTS)
 def test_only_the_rule_names_its_parts(reader, part: str) -> None:
     assert f"**{part}**" not in reader(), (
@@ -1620,12 +1621,12 @@ def test_no_contract_keeps_a_block_byte_for_byte(contract) -> None:
         assert stale not in text, f"no contract may still state {stale!r}"
 
 
-@CARRIERS
+@RULE_READERS
 @pytest.mark.parametrize("signature", RULE_SIGNATURES)
 def test_no_carrier_restates_the_citing_once_rule(
-    carrier, signature: str
+    reader, signature: str
 ) -> None:
-    assert signature not in carrier(), (
+    assert signature not in reader(), (
         f"{signature!r} belongs to the citing-once rule alone"
     )
 
