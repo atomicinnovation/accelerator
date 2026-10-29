@@ -10,6 +10,7 @@ use corpus::body::equivalent;
 use corpus::body::BodyParser as _;
 use corpus_adapters::CommonMarkBody;
 use jira_client::JiraBodyDialect;
+use serde_json::json;
 use serde_json::Value;
 use tracker::BodyDialect;
 use tracker::PlainDialect;
@@ -211,21 +212,32 @@ fn recipe_history() -> Result<Vec<RecipeRecord>, TestError> {
     let document: Value = serde_json::from_str(&std::fs::read_to_string(
         fixtures().join("recipe.json"),
     )?)?;
-    Ok(entries(&document, "history")
+    Ok(recipe_records(&document))
+}
+
+fn recipe_records(document: &Value) -> Vec<RecipeRecord> {
+    entries(document, "history")
         .iter()
         .map(|entry| RecipeRecord {
             recipe: entry["recipe"].as_u64().expect("recipe is a number"),
-            pulldown_cmark_versions: entries(entry, "pulldown_cmark")
+            pulldown_cmark_versions: entry["pulldown_cmark_versions"]
+                .as_array()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "pulldown_cmark_versions is a list of versions in \
+                         {entry}"
+                    )
+                })
                 .iter()
                 .map(|version| {
                     version
                         .as_str()
-                        .expect("a pulldown_cmark version is a string")
+                        .expect("a pulldown-cmark version is a string")
                         .to_owned()
                 })
                 .collect(),
         })
-        .collect())
+        .collect()
 }
 
 fn locked_version(package: &str) -> Result<String, TestError> {
@@ -330,6 +342,14 @@ fn the_current_recipe_records_the_locked_parser_version(
         &locked_version("pulldown-cmark")?,
     )?;
     Ok(())
+}
+
+#[test]
+#[should_panic(expected = "pulldown_cmark_versions is a list of versions")]
+fn a_scalar_parser_version_is_refused() {
+    recipe_records(&json!({
+        "history": [{"recipe": 1, "pulldown_cmark_versions": "0.13.4"}]
+    }));
 }
 
 type Verdict = Result<(), &'static str>;
