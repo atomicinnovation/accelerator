@@ -5,7 +5,7 @@ title: "Sync Round-Trip Defects Between Local Work Items and the Tracker"
 date: "2026-09-24T22:48:31+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0296: Sync Round-Trip Defects Between Local Work Items and the Tracker
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -519,7 +519,7 @@ Resolved during planning:
 - Related: 0285 — Targeted Pull of Remote-Only Work Items and Resolution
   Normalisation (done); its targeted pull-create is a pull entry point these
   regression tests cover.
-- Coordinated: 0230 — Tracker-Owned Work Item ID Generation (in progress)
+- Coordinated: 0230 — Tracker-Owned Work Item ID Generation (done)
   adds baseline writes and pull paths (pending-push adoption, promotion,
   remote-only pulls). Whichever lands second adapts: 0230's baseline writes
   use the entry shape current at the time, and its pull paths join the

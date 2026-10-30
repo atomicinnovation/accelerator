@@ -5,6 +5,7 @@
 mod support;
 
 use std::fs;
+use std::path::Path;
 
 use vcs_test_support::hermetic::Hermetic;
 
@@ -41,6 +42,66 @@ fn git_reports_a_modified_tracked_file_and_an_untracked_one(
         paths.into_iter().collect::<Vec<_>>(),
         vec!["meta/a.md".to_owned(), "meta/untracked.md".to_owned()]
     );
+    Ok(())
+}
+
+const IN_PATH_ORDER: [&str; 8] = [
+    "meta/.tmp-scratch.md",
+    "meta/alpha.md",
+    "meta/design.lockdir/notes.md",
+    "meta/kappa.md",
+    "meta/notes/beta.md",
+    "meta/omega.md",
+    "meta/sigma.md",
+    "meta/zeta.md",
+];
+
+fn write_in_reverse_path_order(root: &Path) -> Result<(), TestError> {
+    for path in IN_PATH_ORDER.iter().rev() {
+        let path = root.join(path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, "x\n")?;
+    }
+    Ok(())
+}
+
+/// A directory walk yields entries in whatever order the filesystem keeps
+/// them, so a list naming dirty paths would otherwise differ between
+/// machines.
+#[test]
+fn git_lists_dirty_paths_in_path_order() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-order")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &root)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "meta/a.md"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+
+    write_in_reverse_path_order(&root)?;
+
+    assert_eq!(support::dirty_paths_as_listed(&env, &root)?, IN_PATH_ORDER);
+    Ok(())
+}
+
+#[test]
+fn jj_lists_dirty_paths_in_path_order() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempdir("jj-order")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.jj(&["git", "init", "--no-colocate"], &root)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.jj(&["commit", "-m", "init"], &root)?;
+
+    write_in_reverse_path_order(&root)?;
+
+    assert_eq!(support::dirty_paths_as_listed(&env, &root)?, IN_PATH_ORDER);
     Ok(())
 }
 

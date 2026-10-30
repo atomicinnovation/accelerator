@@ -15,6 +15,7 @@ tags: ["rekey", "aliases", "references", "typed-links"]
 last_updated: "2026-10-15T18:22:44+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-931"
 ---
 # 0343: Alias Normalisation for Re-Keyed Work Items
 

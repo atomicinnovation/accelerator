@@ -14,6 +14,7 @@ tags: ["migrate", "deprecation"]
 last_updated: "2026-10-15T18:41:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-934"
 ---
 # 0346: Remove Deprecated ACCELERATOR_MIGRATE_FORCE
 

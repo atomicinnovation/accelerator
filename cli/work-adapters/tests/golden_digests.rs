@@ -238,10 +238,9 @@ fn locked_version(package: &str) -> Result<String, TestError> {
         .ok_or_else(|| format!("{package} is not in cli/Cargo.lock").into())
 }
 
-/// The history as of the most recent recipe; `recipe.json` may only extend
-/// it.
+/// The history as of its latest entry; `recipe.json` may only extend it.
 fn recorded_history() -> Vec<RecipeRecord> {
-    vec![record(1, "0.13.4")]
+    vec![record(1, "0.13.4"), record(1, "0.13.5")]
 }
 
 fn record(recipe: u64, version: &str) -> RecipeRecord {
@@ -251,8 +250,14 @@ fn record(recipe: u64, version: &str) -> RecipeRecord {
     }
 }
 
+/// Whether `next` keeps `previous`'s recipe, re-verified under another
+/// parser version, or bumps it by one.
+const fn follows(previous: &RecipeRecord, next: &RecipeRecord) -> bool {
+    next.recipe == previous.recipe || next.recipe == previous.recipe + 1
+}
+
 /// Whether `history` extends `recorded` one recipe at a time and ends at
-/// `current`, recorded under the `locked` parser version.
+/// `current`, last verified under the `locked` parser version.
 fn recipe_guard(
     recorded: &[RecipeRecord],
     history: &[RecipeRecord],
@@ -262,10 +267,9 @@ fn recipe_guard(
     if !history.starts_with(recorded) {
         return Err("an earlier recipe's history entry was rewritten".into());
     }
-    if history
-        .iter()
-        .zip(1..)
-        .any(|(entry, expected)| entry.recipe != expected)
+    let first = history.first().ok_or("the history is empty")?;
+    if first.recipe != 1
+        || history.windows(2).any(|pair| !follows(&pair[0], &pair[1]))
     {
         return Err("recipes must run 1, 2, 3, … with no gap".into());
     }
@@ -278,8 +282,9 @@ fn recipe_guard(
     }
     if latest.pulldown_cmark != locked {
         return Err(format!(
-            "recipe {current} was recorded under pulldown-cmark {}, but \
-             {locked} is locked; bump the recipe and record the new version",
+            "recipe {current} was last verified under pulldown-cmark {}, but \
+             {locked} is locked; record {locked} against recipe {current} if \
+             every golden digest holds under it, or bump the recipe",
             latest.pulldown_cmark
         ));
     }
@@ -301,9 +306,30 @@ fn the_current_recipe_records_the_locked_parser_version(
 #[test]
 fn the_recipe_guard() {
     let one = record(1, "0.13.4");
-    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 5] = [
+    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 8] = [
         ("matching", vec![one.clone()], 1, "0.13.4", true),
         ("mismatched version", vec![one.clone()], 1, "0.13.5", false),
+        (
+            "recipe re-verified under a new parser",
+            vec![one.clone(), record(1, "0.13.5")],
+            1,
+            "0.13.5",
+            true,
+        ),
+        (
+            "recipe going back",
+            vec![one.clone(), record(2, "0.13.5"), record(1, "0.13.6")],
+            1,
+            "0.13.6",
+            false,
+        ),
+        (
+            "skipped recipe",
+            vec![one.clone(), record(3, "0.13.5")],
+            3,
+            "0.13.5",
+            false,
+        ),
         (
             "bumped recipe with a new entry",
             vec![one.clone(), record(2, "0.13.5")],

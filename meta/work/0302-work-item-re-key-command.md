@@ -5,7 +5,7 @@ title: "Work Item Re-Key Command"
 date: "2026-09-24T22:35:39+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
@@ -21,7 +21,7 @@ schema_version: 1
 # 0302: Work Item Re-Key Command
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

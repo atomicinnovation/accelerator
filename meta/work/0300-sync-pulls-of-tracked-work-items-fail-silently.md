@@ -5,7 +5,7 @@ title: "Sync Pulls of Tracked Work Items Fail Silently"
 date: "2026-10-05T20:03:25+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "in-progress"
 kind: "bug"
 priority: "high"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ schema_version: 1
 # 0300: Sync Pulls of Tracked Work Items Fail Silently
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
