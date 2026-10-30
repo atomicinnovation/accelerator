@@ -278,7 +278,9 @@ work, or that work will be blocked, and never at the same agent, which is
 then confined as the researcher. The researcher needs `Bash` for the academic
 profiles. An `agents.composer` override must grant only `Read` and `Write`:
 the hook confines neither WebFetch nor WebSearch, so the composer's lack of
-network access rests on its tool list alone.
+network access rests on its tool list alone. It must also read the injected
+finding outputter and the citing-once rule, and cite every source once by
+that rule.
 
 ### review
 

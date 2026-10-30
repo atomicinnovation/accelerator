@@ -21,7 +21,10 @@ pub struct DigestRecipe;
 impl DigestRecipe {
     /// Bumped by any change that moves a recorded digest: the canonical
     /// body form, the tracker's pushed-body round trip, the synced field
-    /// set, or the Markdown parser's output.
+    /// set, or the Markdown parser's output. The golden digests only sample
+    /// the parser's output, so a parser release joins the current recipe
+    /// only when its upstream diff touches nothing but disabled extensions
+    /// or non-parse code and every golden digest still holds.
     pub const CURRENT: u64 = 1;
     const KEY: &'static str = "digest_recipe";
 }

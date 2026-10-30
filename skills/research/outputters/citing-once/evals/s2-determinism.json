@@ -1,0 +1,49 @@
+{
+  "family": "S2",
+  "title": "Determinism across finding orders",
+  "compositions": [
+    {
+      "name": "s2",
+      "carrier": "synthesise",
+      "times": 3,
+      "orders": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "b",
+          "a"
+        ]
+      ],
+      "criteria": [
+        {
+          "id": "brandur",
+          "statement": "tier-2 and tier-3 (also tier-1) cite as tier-3 (also tier-2, tier-1) in either order",
+          "markers": [
+            "brandur.org"
+          ],
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Notifier](brandur.org/notifier) — tier-2 — brandur.org"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Notifier](brandur.org/notifier) — tier-3 (also tier-1) — brandur.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

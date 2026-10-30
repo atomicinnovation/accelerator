@@ -748,12 +748,15 @@ block: a nested `key: value` list directly under its line.
   before the block existed stay one-line.
 - **Produced by the CLI.** The researcher copies the `metadata` map of the
   record or page it cites, unchanged and in emitted order, and writes a
-  block from nothing else. The composer and `synthesise` carry each block
-  byte-for-byte.
+  block from nothing else. The composer and `synthesise` cite each source
+  once, so a merged entry's block carries every key its citations carry.
 - **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
   key with no value is omitted. `url`, title and venue stay on the entry
   line and never appear in the block.
-- **Order.** Keys come in the table's order; the CLI emits no other key.
+- **Order.** Keys come in the table's order; the CLI emits no other key. A
+  block the composer or `synthesise` writes follows the
+  [`citing-once`](reference/skills/internal/citing-once.md) rule's block
+  order and keeps every value as recorded.
 
 | Key                | Group           | Value form                                                                  |
 |--------------------|-----------------|-----------------------------------------------------------------------------|
@@ -780,6 +783,29 @@ block: a nested `key: value` list directly under its line.
 The CLI fills the core keys, those with a value form, wherever the source
 provides them. Any other key is allowed; the recommended keys are the ones a
 consumer can rely on when present.
+
+## Citing a source once
+
+A finding the composer writes, and the dossier `synthesise` writes, cite each
+source once, however many notes or findings cite it. The entry takes the
+source's weakest tier, where `tier-3` is weakest and `tier-1` strongest, so it
+never claims more reputation than a citation gave the source. It lists the
+other tiers in an `also` suffix, after any retraction mark, so a disagreement
+between tiers stays visible: `tier-3 (also tier-2, tier-1)`,
+`tier-3 (retracted; withdrawn; also tier-1)`.
+
+At depth 1 the researcher writes the finding itself and no composer runs, so
+a depth-1 finding, like one written before this rule, can cite a source
+twice. `synthesise` merges those duplicates in the dossier.
+
+A dossier can still list one source twice, because a merged entry keeps only
+one URL and `synthesise` reads only the findings. If a composer kept a
+`doi.org` URL and dropped the publisher URL that linked two citations, a
+finding that cites only the publisher URL stays a separate source.
+
+The [`citing-once`](reference/skills/internal/citing-once.md) rule decides
+when two citations are one source, and which citation's title, venue, URL
+and metadata the entry keeps.
 
 ## Local development
 

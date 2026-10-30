@@ -1,0 +1,283 @@
+{
+  "family": "S1",
+  "title": "Dossier",
+  "compositions": [
+    {
+      "name": "s1",
+      "carrier": "synthesise",
+      "times": 3,
+      "orders": [
+        [
+          "a",
+          "b",
+          "c"
+        ]
+      ],
+      "criteria": [
+        {
+          "id": "s01",
+          "statement": "a doi.org URL, a publisher URL carrying that doi and its www. trailing-slash form, in three findings, cite once as tier-3 (also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Paper](https://doi.org/10.s01/y) — tier-1 — doi.org"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Paper](https://pub.s01.example/p) — tier-2 — Example Journal",
+                "  - doi: 10.s01/y"
+              ]
+            },
+            {
+              "in": "c",
+              "entry": [
+                "- [Paper](https://www.pub.s01.example/p/) — tier-3 — pub.s01.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s02",
+          "statement": "tier-2 and tier-3 (also tier-1) cite as tier-3 (also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Paper](https://s02.example/a) — tier-2 — s02.example"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Paper](https://s02.example/a) — tier-3 (also tier-1) — s02.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s03",
+          "statement": "tier-3 (retracted; also tier-2) and tier-2 (also tier-1) cite as tier-3 (retracted; also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Trial](https://s03.example/t) — tier-3 (retracted; also tier-2) — s03.example"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Trial](https://s03.example/t) — tier-2 (also tier-1) — s03.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s04",
+          "statement": "tier-3 (retracted) and tier-2 (also tier-1) cite as tier-3 (retracted; also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Trial](https://s04.example/t) — tier-3 (retracted) — s04.example"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Trial](https://s04.example/t) — tier-2 (also tier-1) — s04.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s05",
+          "statement": "tier-3 (withdrawn; also tier-2) and tier-3 (retracted; also tier-1) cite as tier-3 (retracted; withdrawn; also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Preprint](https://s05.example/p) — tier-3 (withdrawn; also tier-2) — s05.example"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Preprint](https://s05.example/p) — tier-3 (retracted; also tier-1) — s05.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; withdrawn; also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s06",
+          "statement": "a www. URL at tier-2 and its bare trailing-slash form at tier-3 cite once as tier-3 (also tier-2)",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Notifier](https://www.s06.example/notifier) — tier-2 — s06.example"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Notifier](s06.example/notifier/) — tier-3 — s06.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)"
+            }
+          ]
+        },
+        {
+          "id": "s07",
+          "statement": "a doi.org URL at tier-3 and a publisher URL carrying its doi at tier-1 cite once at the doi.org URL",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Paper](https://doi.org/10.s07/y) — tier-3 — doi.org"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Paper](https://pub.s07.example/p) — tier-1 — Example Journal",
+                "  - doi: 10.s07/y"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "url": "https://doi.org/10.s07/y"
+            }
+          ]
+        },
+        {
+          "id": "s08",
+          "statement": "the tier-3 citation is the representative over a tier-1 one",
+          "citations": [
+            {
+              "in": "a",
+              "entry": [
+                "- [Work](https://s08.example/w) — tier-1 — Example Journal",
+                "  - openalex_id: W2"
+              ]
+            },
+            {
+              "in": "b",
+              "entry": [
+                "- [Work](https://s08.example/w) — tier-3 — example.org",
+                "  - openalex_id: W1"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "venue": "example.org",
+              "block": [
+                "openalex_id: W1"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "s09",
+          "statement": "a source one finding cites as tier-3 (also tier-1) stays tier-3 (also tier-1)",
+          "citations": [
+            {
+              "in": "c",
+              "entry": [
+                "- [Survey](https://s09.example/s) — tier-3 (also tier-1) — s09.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "s10",
+          "statement": "a block of zeta, doi and alpha lists doi, alpha, zeta",
+          "citations": [
+            {
+              "in": "c",
+              "entry": [
+                "- [Dataset](https://s10.example/d) — tier-2 — s10.example",
+                "  - zeta: 1",
+                "  - doi: 10.s10/y",
+                "  - alpha: 2"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "doi: 10.s10/y",
+                "alpha: 2",
+                "zeta: 1"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "s11",
+          "statement": "a finding written before the rule, citing one source twice, is merged to tier-3 (also tier-2)",
+          "citations": [
+            {
+              "in": "c",
+              "entry": [
+                "- [Notifier](https://s11.example/notifier) — tier-2 — s11.example"
+              ]
+            },
+            {
+              "in": "c",
+              "entry": [
+                "- [Notifier](s11.example/notifier/) — tier-3 — s11.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -114,9 +114,11 @@ similar = "=2.7.0"
 # CommonMark/GFM parser behind the soft-line-break unwrap and work-item body
 # parsing. Default features off: `getopts` serves only its binary and `html`
 # its renderer. Exact-pinned because which bytes a SoftBreak's offset range
-# covers is observed behaviour, and sync digests hash its parse, so a release
-# must arrive as a deliberate re-run of the fixtures, and a digest-recipe bump
-# if any golden digest moves.
+# covers is observed behaviour, and sync digests hash its parse. The golden
+# digests only sample that parse, so a release joins the current digest recipe
+# only when its upstream diff touches nothing but disabled extensions or
+# non-parse code and every golden digest still holds; any other release bumps
+# the recipe.
 # `markdown` and `document` are the sole permitted wrappers (see deny.toml).
 pulldown-cmark = { version = "=0.13.5", default-features = false }
 # Unicode data for the plain-question gate: NFKC, general categories and

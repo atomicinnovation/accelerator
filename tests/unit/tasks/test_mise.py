@@ -299,6 +299,33 @@ def test_no_measure_reaching_task_is_in_the_ci_mirror(mise, root):
     )
 
 
+# Behavioural evals run headless `claude` sessions: they need the CLI, network
+# egress and model usage, so no local mirror of CI may reach one.
+_EVAL_INVOCATION = "invoke eval."
+
+
+def _tasks_reaching_an_eval(mise: dict) -> set[str]:
+    return {
+        name
+        for name, body in mise["tasks"].items()
+        if _EVAL_INVOCATION in str(body.get("run", ""))
+    }
+
+
+def test_the_citing_once_eval_is_reached_by_its_own_task(mise):
+    assert "eval:citing-once" in _tasks_reaching_an_eval(mise)
+
+
+@pytest.mark.parametrize("root", ["check", "default", "test"])
+def test_no_eval_reaching_task_is_in_the_ci_mirror(mise, root):
+    closure = _transitive_depends(mise, root) | {root}
+    offenders = sorted(closure & _tasks_reaching_an_eval(mise))
+    assert not offenders, (
+        f"{offenders} reach a behavioural eval from {root}.depends — every "
+        f"`mise run {root}` would then spend model usage"
+    )
+
+
 # The pin guard is networked and, with --open-issues, writes GitHub issues; the
 # scheduled runtime-pin-guard workflow owns it.
 _GUARD_INVOCATION = "invoke vendor.guard-pins"

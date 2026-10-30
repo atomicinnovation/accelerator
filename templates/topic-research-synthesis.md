@@ -23,8 +23,8 @@ schema_version: 1
 [The dossier's answer to the brief, in standalone prose. No round narration.]
 
 ## Findings
-[The synthesised findings, carrying each source's reputation tier and recorded
-domain forward.]
+[The synthesised findings. Where the prose names a source's tier or venue, it
+uses the tier text and venue of that source's Sources entry.]
 
 ## Open Threads
 [Questions the research did not close, and where a next round would look.]

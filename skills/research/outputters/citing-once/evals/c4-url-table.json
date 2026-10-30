@@ -1,0 +1,177 @@
+{
+  "family": "C4",
+  "title": "URL table",
+  "compositions": [
+    {
+      "name": "c4-row-1",
+      "carrier": "composer",
+      "times": 3,
+      "criteria": [
+        {
+          "id": "row-1",
+          "statement": "https://WWW.Brandur.org/notifier#x and brandur.org/notifier/ at tier-2 are one source",
+          "markers": [
+            ""
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](https://WWW.Brandur.org/notifier#x) — tier-2 — brandur.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](brandur.org/notifier/) — tier-2 — brandur.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "c4-row-2",
+      "carrier": "composer",
+      "times": 1,
+      "criteria": [
+        {
+          "id": "row-2",
+          "statement": "http://example.org/a and https://example.org/a at tier-2 are one source",
+          "markers": [
+            ""
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](http://example.org/a) — tier-2 — example.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](https://example.org/a) — tier-2 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "c4-row-3",
+      "carrier": "composer",
+      "times": 1,
+      "criteria": [
+        {
+          "id": "row-3",
+          "statement": "example.org/a?id=1 and example.org/a?id=2 at tier-2 are two sources",
+          "markers": [
+            ""
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](example.org/a?id=1) — tier-2 — example.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](example.org/a?id=2) — tier-2 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            },
+            {
+              "tier": "tier-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "c4-row-4",
+      "carrier": "composer",
+      "times": 1,
+      "criteria": [
+        {
+          "id": "row-4",
+          "statement": "example.org/A and example.org/a at tier-2 are two sources",
+          "markers": [
+            ""
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](example.org/A) — tier-2 — example.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](example.org/a) — tier-2 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            },
+            {
+              "tier": "tier-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "c4-row-5",
+      "carrier": "composer",
+      "times": 3,
+      "criteria": [
+        {
+          "id": "row-5",
+          "statement": "example.org/a/?id=1 and example.org/a?id=1 at tier-2 are one source",
+          "markers": [
+            ""
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](example.org/a/?id=1) — tier-2 — example.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](example.org/a?id=1) — tier-2 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

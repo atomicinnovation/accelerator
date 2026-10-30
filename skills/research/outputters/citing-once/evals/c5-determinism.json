@@ -1,0 +1,247 @@
+{
+  "family": "C5",
+  "title": "Determinism across note orders",
+  "compositions": [
+    {
+      "name": "c5",
+      "carrier": "composer",
+      "times": 3,
+      "orders": [
+        [
+          "1",
+          "2-1",
+          "2-2",
+          "2-3"
+        ],
+        [
+          "2-1",
+          "2-2",
+          "2-3",
+          "1"
+        ],
+        [
+          "1",
+          "2-3",
+          "2-2",
+          "2-1"
+        ]
+      ],
+      "criteria": [
+        {
+          "id": "event-driven",
+          "statement": "the event-driven.io article cites as tier-3 (also tier-2)",
+          "markers": [
+            "event-driven.io"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Ordering in Postgres outbox](https://event-driven.io/en/ordering_in_postgres_outbox/) — tier-2 — event-driven.io"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Ordering in Postgres outbox](https://event-driven.io/en/ordering_in_postgres_outbox/) — tier-3 — event-driven.io"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)",
+              "url": "https://event-driven.io/en/ordering_in_postgres_outbox/",
+              "venue": "event-driven.io"
+            }
+          ]
+        },
+        {
+          "id": "eugene-khyst",
+          "statement": "eugene-khyst cites as tier-3 (also tier-2, tier-1) at GitHub and its trailing-slash URL",
+          "markers": [
+            "eugene-khyst"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [postgresql-event-sourcing](https://github.com/eugene-khyst/postgresql-event-sourcing) — tier-1 — github.com"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [postgresql-event-sourcing](https://github.com/eugene-khyst/postgresql-event-sourcing) — tier-2 — github.com"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [postgresql-event-sourcing](github.com/eugene-khyst/postgresql-event-sourcing) — tier-3 — github.com"
+              ]
+            },
+            {
+              "in": "2-3",
+              "entry": [
+                "- [postgresql-event-sourcing](https://github.com/eugene-khyst/postgresql-event-sourcing/) — tier-3 — GitHub"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)",
+              "url": "https://github.com/eugene-khyst/postgresql-event-sourcing/",
+              "venue": "GitHub"
+            }
+          ]
+        },
+        {
+          "id": "psycopg-340",
+          "statement": "psycopg #340 cites as tier-2 (also tier-1)",
+          "markers": [
+            "issues/340"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [psycopg issue #340](https://github.com/psycopg/psycopg/issues/340) — tier-1 — github.com"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [psycopg issue #340](https://github.com/psycopg/psycopg/issues/340) — tier-2 — github.com"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2 (also tier-1)",
+              "url": "https://github.com/psycopg/psycopg/issues/340",
+              "venue": "github.com"
+            }
+          ]
+        },
+        {
+          "id": "psycopg-962",
+          "statement": "psycopg #962 cites as tier-2 (also tier-1)",
+          "markers": [
+            "issues/962"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [psycopg issue #962](https://github.com/psycopg/psycopg/issues/962) — tier-1 — github.com"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [psycopg issue #962](https://github.com/psycopg/psycopg/issues/962) — tier-2 — github.com"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2 (also tier-1)",
+              "url": "https://github.com/psycopg/psycopg/issues/962",
+              "venue": "github.com"
+            }
+          ]
+        },
+        {
+          "id": "psycopg-1091",
+          "statement": "psycopg #1091 cites as tier-2 (also tier-1)",
+          "markers": [
+            "issues/1091"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [psycopg issue #1091](https://github.com/psycopg/psycopg/issues/1091) — tier-1 — github.com"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [psycopg issue #1091](https://github.com/psycopg/psycopg/issues/1091) — tier-2 — github.com"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2 (also tier-1)",
+              "url": "https://github.com/psycopg/psycopg/issues/1091",
+              "venue": "github.com"
+            }
+          ]
+        },
+        {
+          "id": "brandur",
+          "statement": "brandur.org/notifier cites as tier-3 (also tier-2) at https://brandur.org/notifier",
+          "markers": [
+            "brandur.org"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](https://brandur.org/notifier/) — tier-2 — brandur.org"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](brandur.org/notifier/) — tier-3 — brandur.org"
+              ]
+            },
+            {
+              "in": "2-3",
+              "entry": [
+                "- [Notifier](https://brandur.org/notifier) — tier-3 — brandur.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)",
+              "url": "https://brandur.org/notifier",
+              "venue": "brandur.org"
+            }
+          ]
+        },
+        {
+          "id": "retracted",
+          "statement": "the retracted trial cites as tier-3 (retracted; also tier-1)",
+          "markers": [
+            "retracted-trial"
+          ],
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [A retracted trial](https://journals.example/retracted-trial) — tier-1 — Example Journal"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [A retracted trial](https://journals.example/retracted-trial) — tier-3 (retracted) — Example Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; also tier-1)",
+              "url": "https://journals.example/retracted-trial",
+              "venue": "Example Journal"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

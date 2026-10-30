@@ -1,0 +1,174 @@
+{
+  "family": "C2",
+  "title": "Identity",
+  "compositions": [
+    {
+      "name": "c2",
+      "carrier": "composer",
+      "times": 3,
+      "criteria": [
+        {
+          "id": "c01",
+          "statement": "a doi.org URL at tier-3 and a publisher URL carrying its doi at tier-1 cite once as tier-3 (also tier-1) at the doi.org URL",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://doi.org/10.c01/y) — tier-3 — doi.org"
+              ]
+            },
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://pub.c01.example/p) — tier-1 — Example Journal",
+                "  - doi: 10.c01/y"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "url": "https://doi.org/10.c01/y"
+            }
+          ]
+        },
+        {
+          "id": "c02",
+          "statement": "doi.org at tier-3 and dx.doi.org with an upper-case DOI at tier-1 cite once as tier-3 (also tier-1)",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://doi.org/10.c02/y) — tier-3 — doi.org"
+              ]
+            },
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://dx.doi.org/10.C02/Y) — tier-1 — doi.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "c03",
+          "statement": "a doi.org URL, a publisher URL carrying that doi, and the publisher URL with www. and a trailing slash chain into one source",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://doi.org/10.c03/y) — tier-1 — doi.org"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://pub.c03.example/p) — tier-2 — Example Journal",
+                "  - doi: 10.c03/y"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://www.pub.c03.example/p/) — tier-3 — pub.c03.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "c04",
+          "statement": "one URL carrying two DOIs is one source, carrying its first carrier's doi",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Article](https://pub.c04.example/a) — tier-3 — pub.c04.example",
+                "  - doi: 10.c04/y"
+              ]
+            },
+            {
+              "in": "1",
+              "entry": [
+                "- [Article](https://pub.c04.example/a) — tier-1 — pub.c04.example",
+                "  - doi: 10.c04/z"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "block": [
+                "doi: 10.c04/y"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c05",
+          "statement": "two URLs carrying two DOIs stay two sources",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Article A](https://pub.c05.example/a) — tier-2 — pub.c05.example",
+                "  - doi: 10.c05/y"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Article B](https://pub.c05.example/b) — tier-2 — pub.c05.example",
+                "  - doi: 10.c05/z"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2",
+              "title": "Article A"
+            },
+            {
+              "tier": "tier-2",
+              "title": "Article B"
+            }
+          ]
+        },
+        {
+          "id": "c06",
+          "statement": "a percent-encoded doi.org URL and its decoded doi key carry one DOI",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Lancet Study](https://doi.org/10.c06/S0140-6736%2820%2930183-5) — tier-3 — doi.org"
+              ]
+            },
+            {
+              "in": "1",
+              "entry": [
+                "- [Lancet Study](https://pub.c06.example/s) — tier-1 — The Lancet",
+                "  - doi: 10.c06/s0140-6736(20)30183-5"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "url": "https://doi.org/10.c06/S0140-6736%2820%2930183-5"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

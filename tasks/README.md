@@ -359,6 +359,39 @@ verifier::sha256_hex throughput (decimal MB/s) =
     asset_bytes / (median_ms * 1000)
 ```
 
+### The eval namespace
+
+`eval:citing-once` checks that composers and `synthesise` follow the
+citing-once rule (`skills/research/outputters/citing-once/SKILL.md`). It is in
+**neither** the aggregate `check`, the bare `default` task nor the `test`
+roll-up, because each of its 36 sessions is a headless `claude -p` run, so it
+needs the claude CLI, network egress and model usage. A transitive-closure
+guard in `tests/unit/tasks/test_mise.py`, keyed on the `invoke eval.` run
+string, enforces that. Run it after changing the rule, a carrier (the
+`composer` agent, `synthesise`, or the finding outputter), or the model.
+
+- **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
+  its criteria, each criterion its citations, the note or finding each sits
+  in, and the entries it expects. The unit suite runs the rule's reading
+  (`tasks/eval/citing_once/rule.py`) over every fixture, so a fixture whose
+  criteria share a source, or that the rule does not predict, fails `check`
+  rather than a paid run.
+- **Sessions** load this repository with `--plugin-dir` and disable the
+  installed `accelerator@atomic-innovation-prerelease` through `--settings`,
+  so the working tree's agent, skills and rule are the ones under test.
+  Composer sessions spawn `accelerator:composer` as `conduct` does;
+  `synthesise` sessions run `/accelerator:research-topic synthesise`.
+- **Judging** compares every written Sources entry with the predicted one, title
+  to block, and checks the log: a composer reads the rule and runs no
+  command, and `synthesise` reads the rule with `Read` before writing
+  `synthesis.md` and spawns nothing. Each output must also pass
+  `accelerator corpus frontmatter validate`.
+
+`--family C1,S2` narrows a run, `--jobs` sets how many sessions run at once,
+and `--check-only --out <dir>` re-judges a finished run without spending
+anything. Projects, logs and `results.json` go to `--out`, or a new temporary
+directory.
+
 ### The runtime pin guard
 
 `vendor:guard-pins` checks the vendored runtime's pins and trust-anchor

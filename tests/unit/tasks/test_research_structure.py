@@ -10,7 +10,9 @@ level-note outputter state the run and note rules the planner enforces.
 """
 
 import re
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -693,6 +695,7 @@ def test_research_topic_routes_nodes_to_the_level_note_outputter() -> None:
     [
         "accelerator config agent composer --fail-safe",
         "skills/research/outputters/finding-outputter/SKILL.md",
+        "skills/research/outputters/citing-once/SKILL.md",
     ],
 )
 def test_research_topic_routes_compose_pairs_to_the_composer(
@@ -1334,10 +1337,11 @@ def test_conduct_reads_the_halting_fields() -> None:
 SOURCE_METADATA = REPO_ROOT / "cli/research/src/sources/metadata.rs"
 SOURCES_ENTRY = "- [Title](url) — tier-1 — {source domain/venue}"
 METADATA_SLOT = "  - {source-metadata}"
+SYNTHESIS_TEMPLATE = REPO_ROOT / "templates/topic-research-synthesis.md"
 TEMPLATES = [
     FINDING_TEMPLATE,
     REPO_ROOT / "templates/topic-research-level-note.md",
-    REPO_ROOT / "templates/topic-research-synthesis.md",
+    SYNTHESIS_TEMPLATE,
 ]
 
 
@@ -1396,30 +1400,353 @@ def test_every_template_carries_the_metadata_slot_under_its_entry(
     )
 
 
+def test_the_dossier_findings_give_tiers_as_the_sources_entries_do() -> None:
+    findings = _section(
+        _prose(SYNTHESIS_TEMPLATE),
+        "## Findings",
+        "## Open Threads",
+        path=SYNTHESIS_TEMPLATE,
+    )
+    assert "the tier text and venue of that source's Sources entry" in findings
+
+
+CITING_ONCE_PATH = "skills/research/outputters/citing-once/SKILL.md"
+CITING_ONCE = REPO_ROOT / CITING_ONCE_PATH
+RULE_PARTS = (
+    "Same source",
+    "Carrying a DOI",
+    "Merge rule",
+    "Retraction suffixes",
+    "Citation order",
+    "Representative citation",
+    "Metadata merge",
+    "Full ties",
+    "Block order",
+)
+TIER_TEXT_PARTS = ("Merge rule", "Retraction suffixes")
+BLOCK_PARTS = ("Metadata merge", "Full ties", "Block order")
+CONFINEMENT = (
+    "the citing-once rule makes the only changes to tier text and metadata "
+    "blocks"
+)
+RULE_SIGNATURES = (
+    "ignores the suffix",
+    "every tier its `also` suffix lists",
+    "Tiers rank `tier-3` lowest, then `tier-2`, then `tier-1`",
+    "drop its fragment",
+    "leading `www.`",
+    "drop the path's trailing slash",
+    "Matches chain",
+    "Judge identity only over the citations you read",
+    "`dx.doi.org`",
+    "percent-decoded",
+    "case-insensitively",
+    "lowest tier",
+    "next-lowest first",
+    "joined by `; `",
+    "by tier, lowest first, then by venue, then by URL",
+    "named venue",
+    "A named venue sorts before a bare domain",
+    "venues sort case-folded, then byte-wise",
+    "sorts after every venue",
+    "`https://` before `http://`",
+    "case-folded, then byte-wise",
+    "never rewrites a cited URL",
+    "The first citation in citation order is the representative citation",
+    "takes its value from the first citation in citation order that carries",
+    "Never add a key",
+    "identical as recorded",
+    "first in case-folded, then byte-wise order",
+    "never put into canonical form",
+)
+MERGED_TIER_EXAMPLES = (
+    "`tier-3 (also tier-2, tier-1)`",
+    "`tier-3 (retracted; withdrawn; also tier-1)`",
+)
+
+
+def test_the_citing_once_rule_is_an_injected_contract() -> None:
+    frontmatter, _ = _split(_read(CITING_ONCE))
+    assert "user-invocable: false" in frontmatter
+    assert "disable-model-invocation: true" in frontmatter
+
+
+def test_the_citing_once_rule_states_every_part_under_its_own_heading() -> None:
+    headings = re.findall(r"^## (.+)$", _read(CITING_ONCE), re.MULTILINE)
+    for part in RULE_PARTS:
+        assert part in headings, f"the citing-once rule must state {part!r}"
+
+
+def _named(parts: tuple[str, ...]) -> str:
+    bold = [f"**{part}**" for part in parts]
+    return f"{', '.join(bold[:-1])} and {bold[-1]}"
+
+
+def test_the_closed_change_sets_are_parts_of_the_rule() -> None:
+    assert set(TIER_TEXT_PARTS + BLOCK_PARTS) <= set(RULE_PARTS)
+
+
+@pytest.mark.parametrize(
+    ("parts", "target"),
+    [(TIER_TEXT_PARTS, "tier text"), (BLOCK_PARTS, "a metadata block")],
+    ids=["tier-text", "metadata-block"],
+)
+def test_the_citing_once_rule_closes_each_change_set(
+    parts: tuple[str, ...], target: str
+) -> None:
+    closure = f"{_named(parts)} are the only changes to {target}"
+    assert closure in _prose(CITING_ONCE)
+
+
+@pytest.mark.parametrize("signature", RULE_SIGNATURES)
+def test_the_citing_once_rule_carries_each_decision(signature: str) -> None:
+    assert signature in _prose(CITING_ONCE)
+
+
+@pytest.mark.parametrize("example", MERGED_TIER_EXAMPLES)
+def test_the_citing_once_rule_gives_the_merged_tier_examples(
+    example: str,
+) -> None:
+    assert example in _prose(CITING_ONCE)
+
+
+def test_the_citing_once_rule_lists_every_recommended_key_in_order() -> None:
+    assert _key_column(_read(CITING_ONCE)) == _recommended_keys()
+
+
+def _marks_in(text: str) -> set[str]:
+    return {
+        mark
+        for suffix in re.findall(r"`tier-[123] \(([^)`]+)\)`", text)
+        for mark in suffix.split("; ")
+    }
+
+
+def _prescribed_marks() -> set[str]:
+    return {
+        mark
+        for profile in _profiles()
+        for mark in _marks_in(_prose(REPO_ROOT / _profile_skill(profile)))
+    }
+
+
+def test_a_prescribed_mark_may_span_words_and_hyphens() -> None:
+    assert _marks_in(
+        "`tier-2 (expression of concern)` or `tier-3 (pre-print; retracted)`"
+    ) == {"expression of concern", "pre-print", "retracted"}
+
+
+def test_the_profiles_prescribe_the_retraction_marks() -> None:
+    assert {"retracted", "withdrawn"} <= _prescribed_marks()
+
+
+def test_the_citing_once_rule_merges_every_prescribed_mark() -> None:
+    marks = _section(
+        _prose(CITING_ONCE),
+        "## Retraction suffixes",
+        "## Citation order",
+        path=CITING_ONCE,
+    )
+    for mark in _prescribed_marks():
+        assert f"`{mark}`" in marks, f"the rule must say how {mark!r} merges"
+
+
 def _synthesise() -> str:
     return _section(
         _research_topic_prose(), "### synthesise", "### Reopening a closed set"
     )
 
 
-@pytest.mark.parametrize(
-    "carrier",
-    [lambda: _prose(COMPOSER), _synthesise],
-    ids=["composer", "synthesise"],
+def _composer() -> str:
+    return _prose(COMPOSER)
+
+
+def _citing_once() -> str:
+    return _prose(CITING_ONCE)
+
+
+def _finding_outputter() -> str:
+    return _prose(FINDING_OUTPUTTER)
+
+
+class Carrier(NamedTuple):
+    name: str
+    read: Callable[[], str]
+    origin: str
+
+
+RULE_CARRIERS = (
+    Carrier("composer", _composer, origin="a note"),
+    Carrier("synthesise", _synthesise, origin="a finding"),
 )
-def test_every_carrier_keeps_a_metadata_block_byte_for_byte(carrier) -> None:
-    text = carrier()
+CARRIERS = pytest.mark.parametrize(
+    "carrier", RULE_CARRIERS, ids=[carrier.name for carrier in RULE_CARRIERS]
+)
+
+
+def _carriers_and(name: str, read: Callable[[], str]) -> pytest.MarkDecorator:
+    return pytest.mark.parametrize(
+        "read",
+        [
+            *(
+                pytest.param(carrier.read, id=carrier.name)
+                for carrier in RULE_CARRIERS
+            ),
+            pytest.param(read, id=name),
+        ],
+    )
+
+
+RULE_READERS = _carriers_and("finding-outputter", _finding_outputter)
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ("**Read first**", "2. **Compose**"),
+        ("Never read repository files beyond", "Write only to"),
+    ],
+    ids=["read-first", "read-guard"],
+)
+def test_the_composer_admits_the_citing_once_rule_to_its_read_scope(
+    scope: tuple[str, str],
+) -> None:
+    start, end = scope
+    assert "the citing-once rule" in _section(
+        _composer(), start, end, path=COMPOSER
+    )
+
+
+def test_synthesise_reads_the_citing_once_rule_before_writing() -> None:
+    text = _synthesise()
+    assert text.index(CITING_ONCE_PATH) < text.index("write `synthesis.md`")
+
+
+def test_synthesise_reads_the_citing_once_rule_with_the_read_tool() -> None:
+    assert "Read the citing-once rule with the Read tool" in _synthesise()
+
+
+@CARRIERS
+def test_every_carrier_confines_its_changes_to_the_rule(
+    carrier: Carrier,
+) -> None:
+    assert CONFINEMENT in carrier.read()
+
+
+@RULE_READERS
+@pytest.mark.parametrize("part", RULE_PARTS)
+def test_only_the_rule_names_its_parts(
+    read: Callable[[], str], part: str
+) -> None:
+    assert f"**{part}**" not in read(), (
+        f"{part!r} is internal to the citing-once rule"
+    )
+
+
+@CARRIERS
+def test_every_carrier_replaces_the_metadata_slot_line(
+    carrier: Carrier,
+) -> None:
+    text = carrier.read()
     for rule in (
-        "metadata block byte-for-byte",
-        "even when it is not in canonical order",
-        "Never merge, reorder or complete a block",
         f"`{METADATA_SLOT.strip()}` slot line under each source",
+        "delete that whole line where no citation of the source has a block",
     ):
         assert rule in text, f"a carrier must state {rule!r}"
 
 
-def test_synthesise_leaves_a_one_line_citation_one_line() -> None:
-    assert "cited one-line in its finding stays one-line" in _synthesise()
+@_carriers_and("citing-once", _citing_once)
+def test_no_contract_keeps_a_block_byte_for_byte(
+    read: Callable[[], str],
+) -> None:
+    text = read()
+    for stale in (
+        "byte-for-byte",
+        "not in canonical order",
+        "Never merge, reorder or complete a block",
+        "stays one-line",
+    ):
+        assert stale not in text, f"no contract may still state {stale!r}"
+
+
+@RULE_READERS
+@pytest.mark.parametrize("signature", RULE_SIGNATURES)
+def test_no_carrier_restates_the_citing_once_rule(
+    read: Callable[[], str], signature: str
+) -> None:
+    assert signature not in read(), (
+        f"{signature!r} belongs to the citing-once rule alone"
+    )
+
+
+@CARRIERS
+def test_every_carrier_cites_only_the_sources_it_reads(
+    carrier: Carrier,
+) -> None:
+    assert "Never add a source" in carrier.read()
+
+
+@CARRIERS
+def test_every_carrier_takes_every_tier_from_its_inputs(
+    carrier: Carrier,
+) -> None:
+    assert f"Every tier in a merged tier text comes from {carrier.origin}" in (
+        carrier.read()
+    )
+
+
+@pytest.mark.parametrize("example", MERGED_TIER_EXAMPLES)
+def test_the_finding_outputter_documents_the_also_suffix(example: str) -> None:
+    assert example in _prose(FINDING_OUTPUTTER)
+
+
+def test_the_finding_outputter_owns_only_the_findings_grammar() -> None:
+    outputter = _finding_outputter()
+    assert "dossier" not in outputter
+    assert "A source cited at several tiers lists the others" in outputter
+
+
+def test_the_finding_outputter_defers_composed_blocks_to_the_rule() -> None:
+    outputter = _finding_outputter()
+    for rule in (
+        "from the notes' blocks instead, under the citing-once rule.",
+        "Every line still comes from a block a note carries",
+    ):
+        assert rule in outputter, f"the finding outputter must state {rule!r}"
+
+
+def test_a_composer_override_must_follow_the_citing_once_rule() -> None:
+    warning = _section(
+        _prose(CONFIGURE),
+        "**Warning — `researcher` and `composer` are confined.**",
+        "### review",
+        path=CONFIGURE,
+    )
+    assert "the citing-once rule" in warning
+
+
+def test_synthesise_merges_duplicates_within_one_finding() -> None:
+    assert "including two citations of one source in one finding" in (
+        _synthesise()
+    )
+
+
+def test_the_docs_describe_merged_sources() -> None:
+    docs = _section(
+        _prose(DOCS_RESEARCH),
+        "## Sources metadata",
+        "## Local development",
+        path=DOCS_RESEARCH,
+    )
+    assert "byte-for-byte" not in docs
+    assert "(reference/skills/internal/citing-once.md)" in docs
+    assert "At depth 1 the researcher writes the finding itself" in docs
+    assert "a merged entry keeps only one URL" in docs
+    assert "`tier-3` is weakest and `tier-1` strongest" in docs
+    assert "lowest tier" not in docs
+    assert "citing-once.md) contract" not in docs
+    for example in MERGED_TIER_EXAMPLES:
+        assert example in docs
 
 
 COPY_THE_MAP = "copy its `metadata` map into the entry's metadata block"

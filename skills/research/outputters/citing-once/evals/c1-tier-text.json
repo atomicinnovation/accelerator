@@ -1,0 +1,193 @@
+{
+  "family": "C1",
+  "title": "Tier text",
+  "compositions": [
+    {
+      "name": "c1",
+      "carrier": "composer",
+      "times": 3,
+      "criteria": [
+        {
+          "id": "c01",
+          "statement": "https and bare-trailing-slash URLs at tier-2 and tier-3 cite once as tier-3 (also tier-2)",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Notifier](https://c01.example/notifier) — tier-2 — c01.example"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](c01.example/notifier/) — tier-3 — c01.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)"
+            }
+          ]
+        },
+        {
+          "id": "c02",
+          "statement": "tier-1, tier-2 and tier-3 cite as tier-3 (also tier-2, tier-1)",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://c02.example/paper) — tier-1 — c02.example"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c02.example/paper) — tier-2 — c02.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c02.example/paper) — tier-3 — c02.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2, tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "c03",
+          "statement": "two notes at tier-2 cite once as tier-2",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](c03.example/notifier) — tier-2 — c03.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](c03.example/notifier) — tier-2 — c03.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-2"
+            }
+          ]
+        },
+        {
+          "id": "c04",
+          "statement": "tier-1 and tier-3 (retracted) cite as tier-3 (retracted; also tier-1)",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Trial](https://c04.example/trial) — tier-1 — c04.example"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Trial](https://c04.example/trial) — tier-3 (retracted) — c04.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; also tier-1)"
+            }
+          ]
+        },
+        {
+          "id": "c05",
+          "statement": "tier-3, tier-2 and tier-2 cite as tier-3 (also tier-2)",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://c05.example/paper) — tier-2 — c05.example"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c05.example/paper) — tier-2 — c05.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c05.example/paper) — tier-3 — c05.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-2)"
+            }
+          ]
+        },
+        {
+          "id": "c06",
+          "statement": "tier-3 (retracted) at example.org and tier-3 at Example Journal cite as tier-3 (retracted) at Example Journal",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Study](https://c06.example/study) — tier-3 (retracted) — example.org"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Study](https://c06.example/study) — tier-3 — Example Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted)",
+              "venue": "Example Journal"
+            }
+          ]
+        },
+        {
+          "id": "c07",
+          "statement": "tier-1, tier-3 (withdrawn) and tier-3 (retracted) cite as tier-3 (retracted; withdrawn; also tier-1)",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Preprint](https://c07.example/preprint) — tier-1 — c07.example"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Preprint](https://c07.example/preprint) — tier-3 (withdrawn) — c07.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Preprint](https://c07.example/preprint) — tier-3 (retracted) — c07.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (retracted; withdrawn; also tier-1)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

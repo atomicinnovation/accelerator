@@ -1,0 +1,428 @@
+{
+  "family": "C3",
+  "title": "Representative and blocks",
+  "compositions": [
+    {
+      "name": "c3",
+      "carrier": "composer",
+      "times": 3,
+      "criteria": [
+        {
+          "id": "c01",
+          "statement": "a named venue's title wins over a bare domain's",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [The Notifier Pattern](https://c01.example/notifier) — tier-3 — example.org"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](https://c01.example/notifier) — tier-3 — Example Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "title": "Notifier",
+              "venue": "Example Journal"
+            }
+          ]
+        },
+        {
+          "id": "c02",
+          "statement": "Example Journal precedes example.org",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c02.example/p) — tier-3 — example.org"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c02.example/p) — tier-3 — Example Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "venue": "Example Journal"
+            }
+          ]
+        },
+        {
+          "id": "c03",
+          "statement": "a.example.org precedes b.example.org",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c03.example/p) — tier-3 — b.example.org"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c03.example/p) — tier-3 — a.example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "venue": "a.example.org"
+            }
+          ]
+        },
+        {
+          "id": "c04",
+          "statement": "acta Journal precedes Zeta Journal",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c04.example/p) — tier-3 — Zeta Journal"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c04.example/p) — tier-3 — acta Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "venue": "acta Journal"
+            }
+          ]
+        },
+        {
+          "id": "c05",
+          "statement": "Example Journal precedes example journal",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c05.example/p) — tier-3 — example journal"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Paper](https://c05.example/p) — tier-3 — Example Journal"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "venue": "Example Journal"
+            }
+          ]
+        },
+        {
+          "id": "c06",
+          "statement": "tier orders before venue: tier-1 at Example Journal and tier-3 at example.org cite at example.org",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Paper](https://c06.example/p) — tier-1 — Example Journal"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Paper](https://c06.example/p) — tier-3 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "tier": "tier-3 (also tier-1)",
+              "venue": "example.org"
+            }
+          ]
+        },
+        {
+          "id": "c07",
+          "statement": "https://… precedes the bare URL with a trailing slash",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](c07.example/notifier/) — tier-2 — c07.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](https://c07.example/notifier) — tier-2 — c07.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "url": "https://c07.example/notifier"
+            }
+          ]
+        },
+        {
+          "id": "c08",
+          "statement": "http://… precedes the bare URL",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Page](c08.example/a) — tier-2 — c08.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Page](http://c08.example/a) — tier-2 — c08.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "url": "http://c08.example/a"
+            }
+          ]
+        },
+        {
+          "id": "c09",
+          "statement": "https://c09.example/notifier precedes https://www.c09.example/notifier/",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](https://www.c09.example/notifier/) — tier-2 — c09.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](https://c09.example/notifier) — tier-2 — c09.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "url": "https://c09.example/notifier"
+            }
+          ]
+        },
+        {
+          "id": "c10",
+          "statement": "a full tie takes the earliest accessed date",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Notifier](c10.example/notifier) — tier-2 — c10.example",
+                "  - accessed: 2026-10-02"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](c10.example/notifier) — tier-2 — c10.example",
+                "  - accessed: 2026-10-01"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "accessed: 2026-10-01"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c11",
+          "statement": "a full tie takes Notifier over notifier",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [notifier](c11.example/notifier) — tier-2 — c11.example"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Notifier](c11.example/notifier) — tier-2 — c11.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "title": "Notifier"
+            }
+          ]
+        },
+        {
+          "id": "c12",
+          "statement": "a citation with no venue sorts after one with a venue",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [A](https://c12.example/x) — tier-3"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [B](https://c12.example/x) — tier-3 — example.org"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "title": "B",
+              "venue": "example.org"
+            }
+          ]
+        },
+        {
+          "id": "c13",
+          "statement": "the merged block lists doi before openalex_id whatever the citations' order",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Work](https://c13.example/w) — tier-3 — c13.example",
+                "  - openalex_id: W1"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Work](https://c13.example/w) — tier-1 — c13.example",
+                "  - doi: 10.c13/y"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "doi: 10.c13/y",
+                "openalex_id: W1"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c14",
+          "statement": "each key comes from its first carrier in citation order",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Work](https://c14.example/w) — tier-1 — c14.example",
+                "  - doi: 10.c14/y",
+                "  - openalex_id: W2"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Work](https://c14.example/w) — tier-3 — c14.example",
+                "  - openalex_id: W1"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "doi: 10.c14/y",
+                "openalex_id: W1"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c15",
+          "statement": "published comes from the first tier-1 carrier by venue",
+          "citations": [
+            {
+              "in": "1",
+              "entry": [
+                "- [Work](https://c15.example/w) — tier-1 — example.org",
+                "  - published: 2020"
+              ]
+            },
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Work](https://c15.example/w) — tier-1 — Example Journal",
+                "  - published: 2019"
+              ]
+            },
+            {
+              "in": "2-2",
+              "entry": [
+                "- [Work](https://c15.example/w) — tier-3 — c15.example"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "published: 2019"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c16",
+          "statement": "a single citation's block is put in canonical order, each value unchanged",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Work](https://c16.example/w) — tier-2 — c16.example",
+                "  - published: 2019",
+                "  - doi: 10.c16/y"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "doi: 10.c16/y",
+                "published: 2019"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c17",
+          "statement": "a doi keeps its recorded case",
+          "citations": [
+            {
+              "in": "2-1",
+              "entry": [
+                "- [Work](https://c17.example/w) — tier-2 — c17.example",
+                "  - doi: 10.C17/Y"
+              ]
+            }
+          ],
+          "expect": [
+            {
+              "block": [
+                "doi: 10.C17/Y"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

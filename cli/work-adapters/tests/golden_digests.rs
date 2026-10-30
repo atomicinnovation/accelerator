@@ -10,6 +10,7 @@ use corpus::body::equivalent;
 use corpus::body::BodyParser as _;
 use corpus_adapters::CommonMarkBody;
 use jira_client::JiraBodyDialect;
+use serde_json::json;
 use serde_json::Value;
 use tracker::BodyDialect;
 use tracker::PlainDialect;
@@ -53,7 +54,7 @@ struct FieldsPair {
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct RecipeRecord {
     recipe: u64,
-    pulldown_cmark: String,
+    pulldown_cmark_versions: Vec<String>,
 }
 
 fn text(value: &Value, key: &str) -> String {
@@ -211,15 +212,32 @@ fn recipe_history() -> Result<Vec<RecipeRecord>, TestError> {
     let document: Value = serde_json::from_str(&std::fs::read_to_string(
         fixtures().join("recipe.json"),
     )?)?;
-    Ok(entries(&document, "history")
+    Ok(recipe_records(&document))
+}
+
+fn recipe_records(document: &Value) -> Vec<RecipeRecord> {
+    entries(document, "history")
         .iter()
-        .map(|entry| {
-            record(
-                entry["recipe"].as_u64().expect("recipe is a number"),
-                &text(entry, "pulldown_cmark"),
-            )
+        .map(|entry| RecipeRecord {
+            recipe: entry["recipe"].as_u64().expect("recipe is a number"),
+            pulldown_cmark_versions: entry["pulldown_cmark_versions"]
+                .as_array()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "pulldown_cmark_versions is a list of versions in \
+                         {entry}"
+                    )
+                })
+                .iter()
+                .map(|version| {
+                    version
+                        .as_str()
+                        .expect("a pulldown-cmark version is a string")
+                        .to_owned()
+                })
+                .collect(),
         })
-        .collect())
+        .collect()
 }
 
 fn locked_version(package: &str) -> Result<String, TestError> {
@@ -238,54 +256,81 @@ fn locked_version(package: &str) -> Result<String, TestError> {
         .ok_or_else(|| format!("{package} is not in cli/Cargo.lock").into())
 }
 
-/// The history as of its latest entry; `recipe.json` may only extend it.
+/// The history as of the most recent recipe or parser version; `recipe.json`
+/// may only extend it.
 fn recorded_history() -> Vec<RecipeRecord> {
-    vec![record(1, "0.13.4"), record(1, "0.13.5")]
+    vec![record(1, &["0.13.4", "0.13.5"])]
 }
 
-fn record(recipe: u64, version: &str) -> RecipeRecord {
+fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
     RecipeRecord {
         recipe,
-        pulldown_cmark: version.to_owned(),
+        pulldown_cmark_versions: versions
+            .iter()
+            .map(|&version| version.to_owned())
+            .collect(),
     }
 }
 
-/// Whether `next` keeps `previous`'s recipe, re-verified under another
-/// parser version, or bumps it by one.
-const fn follows(previous: &RecipeRecord, next: &RecipeRecord) -> bool {
-    next.recipe == previous.recipe || next.recipe == previous.recipe + 1
+fn extends(entry: &RecipeRecord, recorded: &RecipeRecord) -> bool {
+    entry
+        .pulldown_cmark_versions
+        .starts_with(&recorded.pulldown_cmark_versions)
 }
 
-/// Whether `history` extends `recorded` one recipe at a time and ends at
-/// `current`, last verified under the `locked` parser version.
 fn recipe_guard(
     recorded: &[RecipeRecord],
     history: &[RecipeRecord],
     current: u64,
     locked: &str,
 ) -> Result<(), String> {
-    if !history.starts_with(recorded) {
+    let (latest, earlier) =
+        history.split_last().ok_or("the history is empty")?;
+    if history.len() < recorded.len()
+        || earlier
+            .iter()
+            .zip(recorded)
+            .any(|(entry, recorded)| entry != recorded)
+    {
         return Err("an earlier recipe's history entry was rewritten".into());
     }
-    let first = history.first().ok_or("the history is empty")?;
-    if first.recipe != 1
-        || history.windows(2).any(|pair| !follows(&pair[0], &pair[1]))
+    if let Some(recorded) = recorded.get(earlier.len()) {
+        if !extends(latest, recorded) {
+            return Err(format!(
+                "recipe {} must keep pulldown-cmark {} as recorded; append \
+                 a parser version, never replace one",
+                recorded.recipe,
+                recorded.pulldown_cmark_versions.join(", ")
+            ));
+        }
+    }
+    if history
+        .iter()
+        .zip(1..)
+        .any(|(entry, expected)| entry.recipe != expected)
     {
         return Err("recipes must run 1, 2, 3, … with no gap".into());
     }
-    let latest = history.last().ok_or("the history is empty")?;
     if latest.recipe != current {
         return Err(format!(
             "the latest recorded recipe is {}, but the code is at {current}",
             latest.recipe
         ));
     }
-    if latest.pulldown_cmark != locked {
+    if !latest
+        .pulldown_cmark_versions
+        .iter()
+        .any(|version| version == locked)
+    {
         return Err(format!(
-            "recipe {current} was last verified under pulldown-cmark {}, but \
-             {locked} is locked; record {locked} against recipe {current} if \
-             every golden digest holds under it, or bump the recipe",
-            latest.pulldown_cmark
+            "recipe {current} was recorded under pulldown-cmark {}, but \
+             {locked} is locked; if its upstream diff touches nothing but \
+             disabled extensions or non-parse code and every golden digest \
+             still holds, append {locked} to recipe {current}'s \
+             pulldown_cmark_versions in \
+             cli/work-adapters/tests/fixtures/golden-digests/recipe.json, \
+             or bump the recipe",
+            latest.pulldown_cmark_versions.join(", ")
         ));
     }
     Ok(())
@@ -304,60 +349,121 @@ fn the_current_recipe_records_the_locked_parser_version(
 }
 
 #[test]
+#[should_panic(expected = "pulldown_cmark_versions is a list of versions")]
+fn a_scalar_parser_version_is_refused() {
+    recipe_records(&json!({
+        "history": [{"recipe": 1, "pulldown_cmark_versions": "0.13.4"}]
+    }));
+}
+
+type Verdict = Result<(), &'static str>;
+
+type GuardCase = (
+    &'static str,
+    Vec<RecipeRecord>,
+    Vec<RecipeRecord>,
+    u64,
+    &'static str,
+    Verdict,
+);
+
+#[test]
 fn the_recipe_guard() {
-    let one = record(1, "0.13.4");
-    let cases: [(&str, Vec<RecipeRecord>, u64, &str, bool); 8] = [
-        ("matching", vec![one.clone()], 1, "0.13.4", true),
-        ("mismatched version", vec![one.clone()], 1, "0.13.5", false),
+    let one = record(1, &["0.13.4"]);
+    let two = record(2, &["0.13.5"]);
+    let rewritten = Err("an earlier recipe's history entry was rewritten");
+    let cases: [GuardCase; 10] = [
         (
-            "recipe re-verified under a new parser",
-            vec![one.clone(), record(1, "0.13.5")],
+            "matching",
+            vec![one.clone()],
+            vec![one.clone()],
             1,
-            "0.13.5",
-            true,
+            "0.13.4",
+            Ok(()),
         ),
         (
-            "recipe going back",
-            vec![one.clone(), record(2, "0.13.5"), record(1, "0.13.6")],
+            "mismatched version",
+            vec![one.clone()],
+            vec![one.clone()],
             1,
-            "0.13.6",
-            false,
+            "0.13.5",
+            Err("append 0.13.5 to recipe 1's pulldown_cmark_versions in \
+                 cli/work-adapters/tests/fixtures/golden-digests/recipe.json"),
         ),
         (
-            "skipped recipe",
-            vec![one.clone(), record(3, "0.13.5")],
-            3,
+            "version added to the current recipe",
+            vec![one.clone()],
+            vec![record(1, &["0.13.4", "0.13.5"])],
+            1,
             "0.13.5",
-            false,
+            Ok(()),
+        ),
+        (
+            "locked at an earlier recorded version",
+            vec![one.clone()],
+            vec![record(1, &["0.13.4", "0.13.5"])],
+            1,
+            "0.13.4",
+            Ok(()),
+        ),
+        (
+            "recorded version dropped",
+            vec![one.clone()],
+            vec![record(1, &["0.13.5"])],
+            1,
+            "0.13.5",
+            Err("recipe 1 must keep pulldown-cmark 0.13.4 as recorded"),
         ),
         (
             "bumped recipe with a new entry",
-            vec![one.clone(), record(2, "0.13.5")],
+            vec![one.clone()],
+            vec![one.clone(), two.clone()],
             2,
             "0.13.5",
-            true,
+            Ok(()),
         ),
         (
             "rewritten earlier entry",
-            vec![record(1, "0.13.5"), record(2, "0.13.5")],
+            vec![one.clone()],
+            vec![record(1, &["0.13.5"]), two.clone()],
             2,
             "0.13.5",
-            false,
+            rewritten,
+        ),
+        (
+            "version added to an earlier recipe",
+            vec![one.clone()],
+            vec![record(1, &["0.13.4", "0.13.6"]), two.clone()],
+            2,
+            "0.13.5",
+            rewritten,
+        ),
+        (
+            "recorded entry removed",
+            vec![one.clone(), two],
+            vec![one.clone()],
+            2,
+            "0.13.4",
+            rewritten,
         ),
         (
             "bumped recipe without an entry",
+            vec![one.clone()],
             vec![one],
             2,
             "0.13.4",
-            false,
+            Err("the latest recorded recipe is 1"),
         ),
     ];
-    for (name, history, current, locked, passes) in cases {
-        assert_eq!(
-            recipe_guard(&[record(1, "0.13.4")], &history, current, locked)
-                .is_ok(),
-            passes,
-            "{name}"
+    for (name, recorded, history, current, locked, expected) in cases {
+        let outcome = recipe_guard(&recorded, &history, current, locked);
+        assert!(
+            match (&outcome, expected) {
+                (Ok(()), Ok(())) => true,
+                (Err(error), Err(fragment)) => error.contains(fragment),
+                _ => false,
+            },
+            "{name}: {outcome:?}"
         );
     }
 }
