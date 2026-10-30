@@ -630,6 +630,21 @@ pub fn config::paths::resolve_with_fallback(config: &dyn config::service::Config
 pub fn config::paths::unknown_path_key_error(key: &str) -> config::error::ConfigError
 pub mod config::precedence
 pub fn config::precedence::env_beats_config(from_env: core::option::Option<&str>, from_config: core::option::Option<&str>) -> core::option::Option<alloc::string::String>
+pub mod config::provenance
+pub enum config::provenance::PathSource
+pub config::provenance::PathSource::Default
+pub config::provenance::PathSource::Personal(config::consent::Tracking)
+pub config::provenance::PathSource::Team
+impl core::clone::Clone for config::provenance::PathSource
+pub fn config::provenance::PathSource::clone(&self) -> config::provenance::PathSource
+impl core::cmp::Eq for config::provenance::PathSource
+impl core::cmp::PartialEq for config::provenance::PathSource
+pub fn config::provenance::PathSource::eq(&self, other: &config::provenance::PathSource) -> bool
+impl core::fmt::Debug for config::provenance::PathSource
+pub fn config::provenance::PathSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::provenance::PathSource
+impl core::marker::StructuralPartialEq for config::provenance::PathSource
+pub fn config::provenance::path_source(context: &config::consent::ProvenanceContext<'_>, key: &config::key::Key) -> core::result::Result<config::provenance::PathSource, config::error::ConfigError>
 pub mod config::render
 pub fn config::render::render_value(value: &config::service::Value) -> alloc::string::String
 pub mod config::service

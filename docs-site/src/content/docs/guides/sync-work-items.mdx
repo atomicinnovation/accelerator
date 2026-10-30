@@ -141,7 +141,10 @@ both directions.
      items with allocated IDs and an `external_id`.
    - Conflicts (both sides changed) prompt you to type `remote`,
      `local`, or `skip` per item.
-   - Work items with local uncommitted edits are never overwritten.
+   - Work items with local uncommitted edits are never overwritten
+     unless you choose `remote` for a conflict; edits made since the last
+     sync are then kept at the path the run reports until you merge or
+     delete them (under `.accelerator/state/sync-recovery/`).
 
    Use `--push-only` or `--pull-only` for one-directional syncs (they
    report conflicts without prompting), and `--all` to pull beyond the
@@ -150,9 +153,51 @@ both directions.
 6. **Read the summary.** The skill ends with an ID-by-ID summary —
    pushed, pulled, newly created, conflicts skipped — so nothing
    changes silently. Large operations (more than 25 pulls or
-   creations) ask for confirmation first.
+   creations) ask for confirmation first. The skill reports a sync as
+   complete only when none of these groups needs you:
+
+   - `needs-retry` — the cause is shown; nothing more is lost by syncing
+     again once it is fixed. An unreadable work file is listed by path,
+     and a `sync baseline (not saved)` entry means the run's record could
+     not be written.
+   - `needs-attention` — inspect or repair before re-running, a broken
+     work file listed by path included.
+   - `needs-upgrade` — a newer plugin wrote the item's baseline.
+
+   Two further groups are informational:
+
+   - `recorded` — only the baseline was recorded; nothing was sent or
+     written.
+   - `kept-edits` — local edits a pull replaced, kept until you merge
+     them back by hand (the skill shows the copy beside the item) and run
+     `accelerator work sync --target <id> --discard-kept-edits <id>`.
+
+   A Markdown file in the work directory with no frontmatter or no `id`
+   (a README, say) is listed as `no-frontmatter` or `no-id` on every run
+   but never synced, which is harmless.
 
 </Steps>
+
+## A pending push was refused
+
+A sync that created an issue but could not finish recording it leaves a
+pending-push marker, and the next sync refuses to create the issue again
+until you say whether it exists. The refusal names one reason:
+
+| Reason | Meaning |
+|---|---|
+| `prior-attempt-unknown` | An earlier create had no confirmed outcome. |
+| `fingerprint-mismatch` | An issue was created, and the item changed since. |
+| `marker-unreadable` | The marker could not be read. |
+| `already-written` | Another work item already carries the created issue. |
+
+Search the tracker for the item's title first. If the issue exists,
+settle with `--resolve <id>=adopt:<KEY>`; if it does not, with
+`--resolve <id>=create`. `already-written` needs a person to decide which
+item is the real one; sync accepts neither order for it.
+
+A conflict over a Jira description with no Markdown form can only be
+resolved `local`.
 
 ## Let the tracker own IDs
 
@@ -204,6 +249,7 @@ summary renders one outcome per item:
 | `created <KEY> — local write failed` | The issue exists; the next sync links it. |
 | `draft — push declined` | Saved as a draft; sync promotes it. |
 | `draft — tracker unreachable` | Nothing was sent; sync promotes it. |
+| `draft — sync refused (configuration)` | Nothing was sent; fix the cause shown, since sync refuses until then. |
 | `draft — remote issue may exist` | Check the tracker, then `work promote <draft> --adopt <KEY>` or `--create`. |
 | `draft — request rejected` | Nothing was sent; the request must change. |
 | `created <KEY> — blocked by <holder>` | Another item claims the key; resolve it, then promote. |

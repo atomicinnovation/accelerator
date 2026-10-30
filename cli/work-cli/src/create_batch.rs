@@ -59,6 +59,9 @@ pub struct BatchItem {
     pub resulting_id: Option<String>,
     pub cause: Option<String>,
     pub details: Vec<Detail>,
+    /// A line stderr carries as it is, beside an outcome that is not a
+    /// failure.
+    pub warning: Option<String>,
 }
 
 impl BatchItem {
@@ -80,6 +83,9 @@ impl BatchItem {
 #[derive(Debug)]
 pub struct BatchReport {
     pub lines: Vec<String>,
+    /// Lines stderr carries as they are, each once however many items
+    /// carry it.
+    pub warnings: Vec<String>,
     /// What stderr tells the user, one line per item that has something to
     /// say.
     pub causes: Vec<String>,
@@ -111,8 +117,15 @@ pub fn report(items: &[BatchItem]) -> BatchReport {
             .iter()
             .map(|detail| detail_line(&item.reference, detail))
     }));
+    let mut warnings: Vec<String> = Vec::new();
+    for warning in items.iter().filter_map(|item| item.warning.as_ref()) {
+        if !warnings.contains(warning) {
+            warnings.push(warning.clone());
+        }
+    }
     BatchReport {
         lines,
+        warnings,
         causes: items
             .iter()
             .filter_map(|item| {
@@ -368,6 +381,7 @@ impl Batch<'_> {
                 key: None,
                 cause: Some(message),
                 details: Vec::new(),
+                warning: None,
             },
             Err(CreateFailure::Failed(message)) => return Err(message),
         };
@@ -452,6 +466,7 @@ impl Batch<'_> {
                 resulting_id,
                 cause: None,
                 details: Vec::new(),
+                warning: None,
             };
         let reported = match (holder, recorded.key.clone()) {
             (Some(held), _) if DraftId::parse(&held.id).is_some() => item(
@@ -498,6 +513,7 @@ fn created(reference: &str, outcome: CreationOutcome) -> BatchItem {
             resulting_id: id_on_disk,
             cause: None,
             details: Vec::new(),
+            warning: None,
         };
     };
     let resulting_id = match report.outcome {
@@ -514,6 +530,7 @@ fn created(reference: &str, outcome: CreationOutcome) -> BatchItem {
         resulting_id,
         cause: report.cause,
         details: report.details,
+        warning: report.warning,
     }
 }
 
@@ -615,6 +632,7 @@ mod tests {
                     inner: FileCorpusStore::new(root),
                     applies,
                     left: std::cell::Cell::new(left),
+                    error: crate::test_support::injected,
                 })
             };
             run_with(
@@ -1040,6 +1058,7 @@ mod tests {
             resulting_id: None,
             cause: None,
             details: Vec::new(),
+            warning: None,
         }
     }
 
@@ -1126,6 +1145,42 @@ mod tests {
 
     fn the_journal_file(path: &Path) -> bool {
         path.ends_with("batch-journal/journal.json")
+    }
+
+    #[test]
+    fn a_batch_push_under_a_refused_state_root_saves_each_draft_and_warns_once()
+    {
+        let repo = BatchRepo::tracker_owned();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let state = repo.path(".accelerator/state");
+        std::fs::create_dir_all(&state).expect("mkdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            state.join("retirement-recovery"),
+        )
+        .expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let two = r#"[{"ref": "a", "title": "One", "kind": "task", "priority": "low"},
+                      {"ref": "b", "title": "Two", "kind": "task", "priority": "low"}]"#;
+
+        let report = reported(repo.run(two, true, &tracker));
+
+        assert_eq!(creates(&tracker), 0);
+        for reference in ["a", "b"] {
+            let (draft, keyword, _) = items(&report)[reference].clone();
+            assert_eq!(keyword, "local-save", "{reference}");
+            assert!(repo.path(&draft).exists(), "{reference}: {draft}");
+        }
+        assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
+        assert!(
+            report.warnings[0].starts_with(
+                "warning: -: configure failed: .accelerator/state/\
+                 retirement-recovery is a symlink to "
+            ),
+            "{:?}",
+            report.warnings
+        );
+        assert_eq!(report.code, crate::exit_codes::CLEAN);
     }
 
     #[test]

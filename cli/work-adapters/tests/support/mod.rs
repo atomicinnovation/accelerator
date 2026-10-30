@@ -11,11 +11,17 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
 use corpus::store::KeptRecovery;
+use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
+use corpus::store::RecoveryEntry;
 use corpus::StoreError;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::CommonMarkBody;
@@ -30,6 +36,9 @@ use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
+use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
+use vcs::tracking::RootsAnswer;
 use vcs::RepoFacts;
 use vcs::RepositoryProbe;
 use vcs::VcsKind;
@@ -73,6 +82,10 @@ use work_adapters::sync::baseline::SyncStamps;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::files::SyncStore;
+use work_adapters::sync::recovery_label::RecoveryLabel;
+use work_adapters::sync::recovery_label::RecoveryLabels;
 
 pub type TestError = Box<dyn std::error::Error>;
 
@@ -356,8 +369,32 @@ impl RecoveryCopies for CountingRecovery<'_> {
         self.inner.kept(parent)
     }
 
-    fn copy_settled(&self, dir: &Path, original: &Path) -> bool {
-        self.inner.copy_settled(dir, original)
+    fn all_entries(
+        &self,
+        parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        self.inner.all_entries(parent)
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        self.inner.location(path)
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        self.inner.mirrored_copy(dir, original)
+    }
+
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
+        self.mutations.check(&copy.dir)?;
+        self.inner.mark_copy_pending(copy)
+    }
+
+    fn recorded_copy(&self, dir: &Path) -> Option<RecordedCopy> {
+        self.inner.recorded_copy(dir)
+    }
+
+    fn compare_copy(&self, copy: &RecordedCopy) -> CopyComparison {
+        self.inner.compare_copy(copy)
     }
 }
 
@@ -760,4 +797,160 @@ impl IdentityRun for Unheld {
 /// A held identity run, for use cases that need proof of one.
 pub fn identity_run() -> Result<IdentityRunGuard, NotRekeyed> {
     begin_rekey_run(&Unheld, &|_| {})
+}
+
+/// The file ports of a run whose every write goes through `writer`.
+pub fn sync_files(writer: &dyn SyncStore) -> SyncFiles<'_> {
+    SyncFiles {
+        work_items: writer,
+        integration_state: writer,
+        file_locks: &Unlocked,
+        recovery: &DiscardedCopies,
+        tracking: &CommittedWorkItems {
+            integration_state: FileTracking::Untracked,
+        },
+    }
+}
+
+/// Accepts every recovery copy and keeps none, for runs that never read
+/// one back.
+pub struct DiscardedCopies;
+
+impl RecoveryCopies for DiscardedCopies {
+    fn exists(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn prepare(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn write_once(
+        &self,
+        _dir: &Path,
+        _original: &Path,
+        _bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn mark_restore_pending(
+        &self,
+        _dir: &Path,
+        _unrestored: &[PathBuf],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn is_restore_pending(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn mark_completed(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn remove_dir(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn kept(&self, _parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn all_entries(
+        &self,
+        _parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        path.to_path_buf()
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        RecordedCopy {
+            dir: dir.to_path_buf(),
+            original: original.to_path_buf(),
+            copy: original.file_name().map(PathBuf::from).unwrap_or_default(),
+        }
+    }
+
+    fn mark_copy_pending(
+        &self,
+        _copy: &RecordedCopy,
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+        None
+    }
+
+    fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+        CopyComparison::CopyMissing
+    }
+}
+
+pub struct AllTracked;
+
+impl RepositoryTracking for AllTracked {
+    fn file_tracking(&self, _path: &Path) -> FileTracking {
+        FileTracking::Tracked
+    }
+
+    fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
+        RootsAnswer {
+            roots: Vec::new(),
+            complete: true,
+        }
+    }
+}
+
+/// Answers that every work item is committed, and that the integration
+/// state (pending-push markers and adoption records) is as given.
+pub struct CommittedWorkItems {
+    pub integration_state: FileTracking,
+}
+
+impl RepositoryTracking for CommittedWorkItems {
+    fn file_tracking(&self, path: &Path) -> FileTracking {
+        let is_integration_state = path.components().any(|component| {
+            ["pending-push", "adopted"]
+                .iter()
+                .any(|dir| component.as_os_str() == *dir)
+        });
+        if is_integration_state {
+            self.integration_state
+        } else {
+            FileTracking::Tracked
+        }
+    }
+
+    fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
+        RootsAnswer {
+            roots: Vec::new(),
+            complete: true,
+        }
+    }
+}
+
+pub struct LabelsEveryId;
+
+impl RecoveryLabels for LabelsEveryId {
+    fn label_for(&self, id: &str, epoch: u64) -> Option<RecoveryLabel> {
+        Some(RecoveryLabel::new(epoch, "000000", id))
+    }
+}
+
+/// Grants every lock at once, for runs that never contend.
+pub struct Unlocked;
+
+impl ExclusiveLock for Unlocked {
+    fn acquire(&self, _name: &LockName) -> Result<HeldLock, StoreError> {
+        Ok(HeldLock::new(()))
+    }
+
+    fn clear_abandoned(&self, _name: &LockName) {}
 }

@@ -293,7 +293,40 @@ async fn api_not_found(
     )
 }
 
+/// Moments in a server's start-up a caller can wait on.
+#[derive(Debug, Default)]
+pub struct StartupSignals {
+    /// Sent once the filesystem watches are registered, or registration
+    /// has given up. The server answers HTTP before then, so a file changed
+    /// earlier may never be reported.
+    pub watching: Option<tokio::sync::oneshot::Sender<()>>,
+}
+
 pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
+    run_with(
+        cfg,
+        info_path,
+        StartupSignals::default(),
+        crate::watcher::os_watcher,
+    )
+    .await
+}
+
+/// As [`run`], announcing each [`StartupSignals`] moment as it passes and
+/// learning of file changes through the watcher `open` returns rather than
+/// necessarily the OS's.
+///
+/// # Errors
+///
+/// As [`run`].
+pub async fn run_with<W: crate::watcher::DirectoryWatcher>(
+    cfg: Config,
+    info_path: &Path,
+    signals: StartupSignals,
+    open: impl FnOnce(crate::watcher::EventSink) -> notify::Result<W>
+        + Send
+        + 'static,
+) -> Result<(), ServerError> {
     let host: IpAddr = cfg
         .host
         .parse()
@@ -376,8 +409,8 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     }
     watch_dirs.sort();
     watch_dirs.dedup();
-    let watching = crate::watcher::spawn(
-        crate::watcher::os_watcher,
+    let mut watching = crate::watcher::spawn(
+        open,
         watch_dirs,
         state.indexer.clone(),
         state.clusters.clone(),
@@ -388,6 +421,10 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         crate::watcher::Settings::DEFAULT,
     );
     tokio::spawn(async move {
+        watching.registered().await;
+        if let Some(registered) = signals.watching {
+            let _ = registered.send(());
+        }
         if let Err(e) = watching.finished().await {
             tracing::error!(
                 error = %e,

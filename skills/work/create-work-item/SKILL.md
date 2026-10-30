@@ -610,7 +610,7 @@ concurrently. Please re-run /create-work-item.
    | Second-line keyword | Exit | Action |
    |---|---|---|
    | `write-once` | 0 | The remote issue was created and the file written with its `external_id`. Confirm success (step 8), echoing the returned identifier. |
-   | `local-save` | 0 | The push could not be sent (the tracker is unreachable, retryable and retried once, or not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`. |
+   | `local-save` | 0 | The push could not be sent (the tracker is unreachable, retryable and retried once, or not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`; but if stderr carries a `warning: -: configure failed:` line, relay its cause; the draft cannot be pushed or promoted until it is fixed, and sync will refuse until then. |
    | `loud-terminal` | 71 | A terminal failure **at or after** the create — a remote issue **may already exist**. Print loud non-idempotent guidance naming the saved path: do **not** blindly re-run `/create-work-item`. Under a numeric ID pattern the file was saved unsynced: check the tracker, and if the issue exists reconcile via `/sync-work-items` **or** set `external_id: <KEY>` by hand. Under `{tracker}` the item is a draft whose ID is the `draft-` prefix of its filename: check the tracker, then run `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create`; never set `external_id` by hand on a draft. |
 | `rejected` | 75 | The client refused the request as invalid before sending it, so **no remote issue exists**, but re-sending the same request would be refused again. The file was saved unsynced (a draft under `{tracker}`). Relay the cause printed on stderr and tell the user the request must change (for example, the body) before it is pushed via `/sync-work-items`. |
 | `created-blocked` | 4 | The remote issue **exists**, but a local item already claims its key. The draft is kept. Relay the holder and the remedy printed on stderr; the user resolves the collision, then runs `accelerator work promote <draft>`. |
@@ -641,11 +641,15 @@ Work item created: `<path>`
    (`--push`) — since its slugification is authoritative; do not re-derive it
    or assume it matches step 2's preview path. When the item was saved unsynced
    (decline, `local-save`, or `loud-terminal`), say so: `Work item created
-   (unsynced): … — push later with /sync-work-items`. Under `{tracker}`, report
-   the tracker key on `write-once` (`Work item created: <KEY> at <path>`), and
-   otherwise the draft path and why it is still a draft (`Work item saved as
-   draft: <path> — <reason>; /sync-work-items promotes it`), where the reason
-   is "push declined", "tracker unreachable", or the outcome table's cause.
+   (unsynced): … — push later with /sync-work-items`, or, when a
+   `warning: -: configure failed:` line came with a `local-save`, `Work item
+   created (unsynced): … — fix <cause> before syncing`. Under `{tracker}`,
+   report the tracker key on `write-once` (`Work item created: <KEY> at
+   <path>`), and otherwise the draft path and why it is still a draft (`Work
+   item saved as draft: <path> — <reason>; /sync-work-items promotes it`),
+   where the reason is "push declined", "tracker unreachable", or the outcome
+   table's cause; with that warning it ends `— fix <cause> before syncing`
+   instead.
 
 ### In enrich-existing mode
 

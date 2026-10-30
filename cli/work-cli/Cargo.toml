@@ -46,9 +46,11 @@ clap = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tracing = { workspace = true }
+time = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+store = { path = "../store", features = ["test-support"] }
 graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }

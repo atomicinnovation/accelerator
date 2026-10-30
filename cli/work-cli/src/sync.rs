@@ -1,5 +1,16 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
+mod console;
+mod recovery_labels;
+mod stores;
+mod work_files;
+
+use stores::StoreFactories;
+use stores::SyncStores;
+use work_files::discover_corpus;
+use work_files::ConfiguredNames;
+use work_files::VcsConflicts;
+
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -10,38 +21,57 @@ use work::sync::PendingPush;
 use work_adapters::sync::pending_push::Marker;
 
 use ::config::catalogue::TRACKERS;
+use ::config::consent::ProvenanceContext;
+use ::config::provenance::path_source;
 use ::config::tracker_block::read_block;
 use ::config::tracker_block::BlockName;
 use ::config::ConfigAccess;
-use corpus::store::AtomicWrite;
-use corpus::IdOwnership;
+use ::config::Key;
+use config_adapters::credentials::SystemEnvironment;
+use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
+use config_adapters::TrackedConfigFile;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
-use work::draft_id::DraftId;
+use vcs_adapters::InProcessTracking;
+use work::draft_id::is_token_safe;
 use work::identity::IdentityField;
+use work::identity_run::IdentityRunGuard;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
+use work::sync::NotATrackerKey;
+use work::sync::PendingPushOrder;
+use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
-use work::work_item_files::identity_of;
-use work::work_item_files::WorkItemFiles;
-use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::retirement::sweep_recoveries;
 use work_adapters::retirement::RecoveryNotice;
 use work_adapters::sync::baseline;
+use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
+use work_adapters::sync::dossiers::DossierAuthority;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::files::SyncStore;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
+use work_adapters::sync::kept_edits::KeptCopy;
+use work_adapters::sync::kept_edits::KeptEdits;
+use work_adapters::sync::kept_edits::KeptEditsRetention;
+use work_adapters::sync::kept_edits::KeptEditsReview;
+use work_adapters::sync::kept_edits::Provenance;
+use work_adapters::sync::report::CorpusScope;
+use work_adapters::sync::report::CreateNotice;
+use work_adapters::sync::report::FailureSeverity;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -59,18 +89,28 @@ use work_adapters::sync::settled_run::DiscoveredCorpus;
 use work_adapters::sync::settled_run::SettledRunFailure;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
+use crate::bounded_roots::configure_failure;
+use crate::bounded_roots::ConfiguredRoot;
+use crate::bounded_roots::RootKey;
+use crate::bounded_roots::ValidatedRoots;
 use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
 use crate::finaliser::RunFinaliser;
+use crate::finished_run::StaleDossier;
+use crate::finished_run::StaleDossierCause;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::promotion_report::detail_lines;
 use crate::promotion_report::promotion_exit;
 use crate::promotion_report::promotion_line;
+use crate::report_records::failure_line;
+use crate::report_records::single_line;
+use crate::report_records::TsvRecord;
 use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
+pub use console::Console;
 
 struct SystemClock;
 
@@ -97,7 +137,40 @@ pub fn integrations_dir(
     })
 }
 
-fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
+/// The work and integrations directories as configured, each with who
+/// configured it, which decides whether a root outside the repository may
+/// be written unattended.
+fn configured_roots(
+    config: &dyn ConfigAccess,
+    repo_root: &Path,
+) -> Result<(ConfiguredRoot, ConfiguredRoot), String> {
+    let provenance = ProvenanceContext {
+        config,
+        tracking: &TrackedConfigFile(InProcessTracking),
+        environment: &SystemEnvironment,
+        personal_config: repo_root.join(PERSONAL_CONFIG_RELATIVE),
+    };
+    let configured = |key: RootKey, path: PathBuf| {
+        Key::parse(key.config_key())
+            .and_then(|parsed| path_source(&provenance, &parsed))
+            .map(|source| ConfiguredRoot { key, path, source })
+            .map_err(|error| error.to_string())
+    };
+    let work = crate::config::resolve_work_dir(config, repo_root)
+        .map_err(|error| error.to_string())?;
+    let integrations = integrations_dir(config, repo_root)
+        .map_err(|error| error.to_string())?;
+    Ok((
+        configured(RootKey::Work, work)?,
+        configured(RootKey::Integrations, integrations)?,
+    ))
+}
+
+fn warn_outstanding_pushes(
+    console: &mut Console<'_>,
+    integrations_root: &Path,
+    integration: &str,
+) {
     let Ok(markers) = work_adapters::sync::pending_push::outstanding(
         integrations_root,
         integration,
@@ -108,12 +181,12 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
         let (path, marker) = match entry {
             Ok(readable) => readable,
             Err(unreadable) => {
-                eprintln!(
+                console.warn(format_args!(
                     "warning: {} could not be read ({}); a create or \
                      promotion it recorded may have partially applied",
-                    unreadable.path.display(),
-                    unreadable.detail
-                );
+                    single_line(&unreadable.path.display().to_string()),
+                    single_line(&unreadable.detail)
+                ));
                 continue;
             }
         };
@@ -133,36 +206,21 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
                     .map(work::tracker_key::TrackerKey::as_str),
             ),
         };
-        eprintln!(
+        console.warn(format_args!(
             "warning: {} names a pending push for '{}' attempted at {}{}{}",
-            path.display(),
-            request.title,
-            request.attempted_at,
+            single_line(&path.display().to_string()),
+            single_line(&request.title),
+            single_line(&request.attempted_at.to_string()),
             request
                 .failure
                 .as_deref()
-                .map(|detail| format!(", failure: {detail}"))
+                .map(|detail| format!(", failure: {}", single_line(detail)))
                 .unwrap_or_default(),
             external_id
-                .map(|id| format!(", external_id: {id}"))
+                .map(|id| format!(", external_id: {}", single_line(id)))
                 .unwrap_or_default()
-        );
+        ));
     }
-}
-
-fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
-    let files = FilesystemWorkItemFiles::new(work_dir).files()?;
-    let mut items: Vec<LocalItem> = files
-        .iter()
-        .filter_map(identity_of)
-        .map(|identity| LocalItem {
-            id: identity.id,
-            path: identity.path,
-            external_id: identity.external_id.map(ExternalId::new),
-        })
-        .collect();
-    items.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(items)
 }
 
 /// Where retirement records and recovery copies live, relative to the
@@ -184,12 +242,18 @@ pub fn corpus_roots(
 struct WorkDirDiscovery<'a> {
     work_dir: &'a Path,
     root: &'a Path,
+    names: &'a ConfiguredNames,
+    conflicts: &'a VcsConflicts,
 }
 
 impl CorpusDiscovery for WorkDirDiscovery<'_> {
     fn discover(&self) -> Result<DiscoveredCorpus, RunError> {
+        let (items, inventory) =
+            discover_corpus(self.work_dir, self.names, self.conflicts)
+                .map_err(RunError::Internal)?;
         Ok(DiscoveredCorpus {
-            items: discover_items(self.work_dir).map_err(RunError::Internal)?,
+            items,
+            inventory,
             status: Box::new(VcsWorkingCopyStatus::probed_from(
                 self.root,
                 &InProcessProbe,
@@ -200,11 +264,19 @@ impl CorpusDiscovery for WorkDirDiscovery<'_> {
 
 /// Clears recovery copies nobody needs any more and warns about every
 /// restore still waiting for a person.
-fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
+fn sweep_kept_recoveries(
+    console: &mut Console<'_>,
+    recovery: &FileRecoveryCopies,
+) {
+    use corpus::store::RecoveryCopies as _;
+
     let notices = match sweep_recoveries(recovery) {
         Ok(notices) => notices,
         Err(error) => {
-            eprintln!("warning: recovery copies could not be checked: {error}");
+            console.warn(format_args!(
+                "warning: recovery copies could not be checked: {}",
+                single_line(&error.to_string())
+            ));
             return;
         }
     };
@@ -213,20 +285,22 @@ fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
             RecoveryNotice::StillPending { dir, unrestored } => {
                 let paths =
                     unrestored.iter().fold(String::new(), |listing, path| {
-                        listing + "\n  " + &path.display().to_string()
+                        listing
+                            + "\n  "
+                            + &single_line(&path.display().to_string())
                     });
-                eprintln!(
+                console.warn(format_args!(
                     "warning: {RETIREMENT_INCOMPLETE}: these paths still differ \
                      from their recovery copies in {}:{paths}\ncompare each path \
                      with its recovery copy and merge, then delete the copy",
-                    recovery.location(&dir).display()
-                );
+                    single_line(&recovery.location(&dir).display().to_string())
+                ));
             }
-            RecoveryNotice::Cleared { dir } => eprintln!(
+            RecoveryNotice::Cleared { dir } => console.warn(format_args!(
                 "note: every path an incomplete restore left has been dealt \
                  with; removed {}",
-                recovery.location(&dir).display()
-            ),
+                single_line(&recovery.location(&dir).display().to_string())
+            )),
         }
     }
 }
@@ -246,20 +320,24 @@ pub fn unreadable_promotion_record_warnings(
                     "warning: the promotion record at {} could not be read \
                      ({}); its draft is treated as mid-promotion until the \
                      file is fixed or removed",
-                    unreadable.path.display(),
-                    unreadable.detail
+                    single_line(&unreadable.path.display().to_string()),
+                    single_line(&unreadable.detail)
                 )
             })
             .collect(),
         Err(error) => vec![format!(
-            "warning: the promotion records could not be listed: {error}"
+            "warning: the promotion records could not be listed: {}",
+            single_line(&error.to_string())
         )],
     }
 }
 
 /// Notes each retirement that completed after an incomplete restore; its
 /// copies stay for reference until the next run removes them.
-fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
+fn report_kept_recoveries(
+    console: &mut Console<'_>,
+    recovery: &FileRecoveryCopies,
+) {
     use corpus::store::RecoveryCopies as _;
 
     let Ok(kept) = recovery.kept(Path::new(RECOVERY_PARENT)) else {
@@ -267,42 +345,96 @@ fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
     };
     for kept in kept {
         if kept.state == corpus::store::KeptState::Completed {
-            eprintln!(
+            console.warn(format_args!(
                 "note: the retirement whose restore was incomplete has since \
                  completed; its recovery copies remain in {} for reference \
                  and are removed on the next sync",
-                recovery.location(&kept.dir).display()
-            );
-        }
-    }
-}
-
-fn parse_resolutions(
-    raw: &[(String, String)],
-) -> Result<BTreeMap<String, Resolution>, String> {
-    let mut resolutions = BTreeMap::new();
-    for (id, token) in raw {
-        if resolutions.contains_key(id) {
-            return Err(format!(
-                "--resolve names '{id}' more than once with contradictory \
-                 orders"
+                single_line(
+                    &recovery.location(&kept.dir).display().to_string()
+                )
             ));
         }
-        let resolution = work::sync::resolve_conflict_token(token)
-            .unwrap_or_else(|| {
-                eprintln!(
-                    "warning: --resolve {id}={token} — '{token}' is not a \
-                     recognised order (accepted: remote, local, skip); \
-                     treating as skip"
-                );
-                Resolution::Skip
-            });
-        resolutions.insert(id.clone(), resolution);
     }
-    Ok(resolutions)
 }
 
-const fn action_keyword(action: work::sync::Action) -> &'static str {
+/// The orders `--resolve` gives, one per id: a conflict's resolution or a
+/// refused pending push's settlement.
+struct Orders {
+    resolutions: BTreeMap<String, Resolution>,
+    pending_push: BTreeMap<String, PendingPushOrder>,
+}
+
+/// Once orders can link or create issues, a typo must stop the run rather
+/// than quietly do less, so every malformed order is refused here.
+fn parse_orders(
+    raw: &[(String, String)],
+    integration: &str,
+    scheme: &WorkItemIdScheme,
+) -> Result<Orders, String> {
+    let mut orders = Orders {
+        resolutions: BTreeMap::new(),
+        pending_push: BTreeMap::new(),
+    };
+    for (id, token) in raw {
+        let (shown_id, shown_token) = (single_line(id), single_line(token));
+        if orders.resolutions.contains_key(id)
+            || orders.pending_push.contains_key(id)
+        {
+            return Err(format!("--resolve names '{shown_id}' more than once"));
+        }
+        if let Some(resolution) = work::sync::resolve_conflict_token(token) {
+            orders.resolutions.insert(id.clone(), resolution);
+            continue;
+        }
+        let order = match work::sync::resolve_pending_push_token(token) {
+            Some(Ok(order)) => order,
+            Some(Err(NotATrackerKey(key))) => {
+                return Err(format!(
+                    "--resolve {shown_id}={shown_token}: '{}' is not a \
+                     {integration} key (for example PP-12)",
+                    single_line(&key)
+                ));
+            }
+            None => {
+                return Err(format!(
+                    "--resolve {shown_id}={shown_token}: '{shown_token}' is \
+                     not an order (accepted: remote, local, skip, \
+                     adopt:<KEY>, create)"
+                ));
+            }
+        };
+        if !is_token_safe(scheme, id) {
+            return Err(format!(
+                "--resolve: '{shown_id}' is not a work-item id"
+            ));
+        }
+        orders.pending_push.insert(id.clone(), order);
+    }
+    Ok(orders)
+}
+
+/// A relink's row names the order it carries out.
+fn row_detail(planned: &PlannedAction) -> String {
+    match (planned.action(), planned.order()) {
+        (work::sync::Action::Relink, Some(order)) => order.to_string(),
+        _ => "-".to_owned(),
+    }
+}
+
+/// A local create settled by an adopt order links an issue rather than
+/// creating one, so its row says so.
+const fn action_keyword(planned: &PlannedAction) -> &'static str {
+    match planned.action() {
+        work::sync::Action::CreateFromLocal
+            if matches!(planned.order(), Some(PendingPushOrder::Adopt(_))) =>
+        {
+            "adopt"
+        }
+        action => plain_action_keyword(action),
+    }
+}
+
+const fn plain_action_keyword(action: work::sync::Action) -> &'static str {
     match action {
         work::sync::Action::Push(_)
         | work::sync::Action::Retitle
@@ -315,13 +447,8 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
         work::sync::Action::RecordBaseline => "record-baseline",
         work::sync::Action::CreateFromRemote => "create-from-remote",
         work::sync::Action::CreateFromLocal => "create-from-local",
+        work::sync::Action::Relink => "relink",
     }
-}
-
-/// Collapses tab, newline and carriage return to a space, so a transport
-/// `detail` cannot break the single-record TSV format.
-fn single_line(text: &str) -> String {
-    text.replace(['\t', '\n', '\r'], " ")
 }
 
 fn discovery_line(discovery: &DiscoveryStatus) -> String {
@@ -341,6 +468,12 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
         }
+        DiscoveryStatus::SkippedIncompleteCorpus => {
+            "#\tdiscovery\tskipped\tincomplete-corpus".to_owned()
+        }
+        DiscoveryStatus::SkippedPendingPush => {
+            "#\tdiscovery\tskipped\tpending-push".to_owned()
+        }
     }
 }
 
@@ -350,7 +483,7 @@ fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == row.settled_id)
+        .find(|item| item.planned.id() == row.settled_id)
         .map_or_else(
             || match row.action {
                 work::sync::IdentityAction::NotFound => {
@@ -359,7 +492,7 @@ fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
                 work::sync::IdentityAction::KeyChanged
                 | work::sync::IdentityAction::Resumed => "-".to_owned(),
             },
-            |item| item.planned.state.to_string(),
+            |item| item.planned.state().to_string(),
         )
 }
 
@@ -376,10 +509,17 @@ pub fn standalone_identity_line(row: &IdentityRow) -> String {
 fn identity_line_in_state(row: &IdentityRow, state: &str) -> String {
     match &row.outcome {
         IdentityOutcome::Refused(reason) | IdentityOutcome::Failed(reason) => {
-            format!("{}\tfailed\t{state}\t{}", row.id, single_line(reason))
+            TsvRecord::of([row.id.as_str(), "failed", state, reason])
+                .to_string()
         }
         IdentityOutcome::Applied | IdentityOutcome::NotApplied => {
-            format!("{}\t{}\t{state}\t{}", row.id, row.action, row.detail)
+            TsvRecord::of([
+                row.id.clone(),
+                row.action.to_string(),
+                state.to_owned(),
+                row.detail.clone(),
+            ])
+            .to_string()
         }
     }
 }
@@ -402,7 +542,8 @@ fn stopped_run_lines(failure: &SettledRunFailure) -> Vec<String> {
     lines
 }
 
-fn render_report(report: &RunReport) -> String {
+fn render_report(finished: &FinishedRun<'_>) -> String {
+    let report = finished.report;
     let settled_ids: BTreeSet<&str> = report
         .identity
         .iter()
@@ -416,62 +557,70 @@ fn render_report(report: &RunReport) -> String {
         .collect();
     let mut synced_count = 0usize;
     for item in &report.reported {
-        if settled_ids.contains(item.planned.id.as_str()) {
+        let failed = matches!(item.outcome, ItemOutcome::Failed(_));
+        if settled_ids.contains(item.planned.id()) && !failed {
             continue;
         }
-        if matches!(item.planned.state, work::sync::SyncState::Synced)
+        if matches!(item.planned.state(), work::sync::SyncState::Synced)
             && !matches!(item.outcome, ItemOutcome::Failed(_))
         {
             synced_count += 1;
             continue;
         }
         let (action_field, detail) = match &item.outcome {
-            ItemOutcome::Failed(error) => (
-                "failed",
-                match error.class() {
-                    work_adapters::sync::apply::FailureClass::Retryable => {
-                        "retryable"
-                    }
-                    work_adapters::sync::apply::FailureClass::Terminal => {
-                        "terminal"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unconfigured => {
-                        "unconfigured"
-                    }
-                    work_adapters::sync::apply::FailureClass::Rejected => {
-                        "rejected"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unrenderable => {
-                        "unrenderable"
-                    }
-                    work_adapters::sync::apply::FailureClass::PullResidue => {
-                        "pull-residue"
-                    }
-                    work_adapters::sync::apply::FailureClass::Unparseable => {
-                        "unparseable"
-                    }
-                    work_adapters::sync::apply::FailureClass::WriteRefused => {
-                        "local-write-refused"
-                    }
-                },
-            ),
-            ItemOutcome::UnsupportedRecipe => {
-                (action_keyword(item.planned.action), "unsupported-recipe")
+            ItemOutcome::Failed(error) => {
+                ("failed", error.class().keyword().to_owned())
             }
+            ItemOutcome::UnsupportedRecipe => (
+                action_keyword(&item.planned),
+                "unsupported-recipe".to_owned(),
+            ),
             ItemOutcome::Applied | ItemOutcome::NotApplied => {
-                (action_keyword(item.planned.action), "-")
+                (action_keyword(&item.planned), row_detail(&item.planned))
             }
         };
-        lines.push(format!(
-            "{}\t{}\t{}\t{}",
-            item.planned.id, action_field, item.planned.state, detail
-        ));
+        lines.push(
+            TsvRecord::of([
+                item.planned.id().to_owned(),
+                action_field.to_owned(),
+                item.planned.state().to_string(),
+                detail,
+            ])
+            .to_string(),
+        );
     }
+    lines.extend(report.unclassifiable.iter().map(|item| {
+        TsvRecord::of([item.id.as_str(), "failed", "-", "retryable"])
+            .to_string()
+    }));
+    lines.extend(report.refused_orders.iter().map(|error| {
+        TsvRecord::of([error.item_id(), "failed", "-", error.class().keyword()])
+            .to_string()
+    }));
     // Capture before appending the always-present discovery line, which would
     // otherwise make `is_empty()` false and drop the empty-run summary.
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    lines.extend(report.inventory.unidentified.iter().map(|entry| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "unidentified".to_owned(),
+            entry.path.display().to_string(),
+            entry.reason.keyword().to_owned(),
+        ])
+        .to_string()
+    }));
+    lines.extend(report.adoptions.iter().map(|adoption| {
+        TsvRecord::of([
+            "#",
+            "adopt",
+            adoption.id.as_str(),
+            adoption.key.as_str(),
+            adoption.title.as_str(),
+        ])
+        .to_string()
+    }));
     let mut promotions: Vec<_> = report.promotions.iter().collect();
     promotions.sort_by(|left, right| left.draft.cmp(&right.draft));
     lines.extend(promotions.into_iter().flat_map(detail_lines));
@@ -481,10 +630,187 @@ fn render_report(report: &RunReport) -> String {
             report.deferred
         ));
     }
+    lines.extend(kept_edits_records(&finished.kept_edits));
+    lines.extend(finished.stale_dossiers.iter().map(|dossier| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "stale-dossier".to_owned(),
+            dossier.id.clone(),
+            dossier.path.display().to_string(),
+        ])
+        .to_string()
+    }));
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
     lines.join("\n")
+}
+
+/// One `#\tkept-edits` record per copy a person may need: kept this run,
+/// kept earlier, or in a directory this tool does not trust.
+fn kept_edits_records(review: &KeptEditsReview) -> Vec<String> {
+    review
+        .entries
+        .iter()
+        .filter_map(kept_edits_record)
+        .collect()
+}
+
+fn kept_edits_record(entry: &KeptEdits) -> Option<String> {
+    let copy_record = |kept: &KeptCopy, when: &str| {
+        TsvRecord::of([
+            "#".to_owned(),
+            "kept-edits".to_owned(),
+            kept.id.clone(),
+            when.to_owned(),
+            kept.item.display().to_string(),
+            kept.copy.display().to_string(),
+        ])
+        .to_string()
+    };
+    match entry {
+        KeptEdits::KeptThisRun(kept) => Some(copy_record(kept, "this-run")),
+        KeptEdits::KeptEarlier(kept) | KeptEdits::NotRemoved { kept, .. } => {
+            Some(copy_record(kept, "earlier"))
+        }
+        KeptEdits::Unrecorded { id, directory, .. } => Some(
+            TsvRecord::of([
+                "#".to_owned(),
+                "kept-edits".to_owned(),
+                id.clone().unwrap_or_else(|| "-".to_owned()),
+                "unrecorded".to_owned(),
+                "-".to_owned(),
+                directory.display().to_string(),
+            ])
+            .to_string(),
+        ),
+        KeptEdits::Discarding { entry, .. }
+        | KeptEdits::NotDiscarded { entry, .. } => kept_edits_record(entry),
+        KeptEdits::Settled { .. }
+        | KeptEdits::Discarded { .. }
+        | KeptEdits::NothingToDiscard { .. } => None,
+    }
+}
+
+/// The stderr notes for kept copies: one per copy kept this run, one
+/// summary of every earlier copy, and one per directory that needs a
+/// person's attention.
+fn kept_edits_notes(review: &KeptEditsReview) -> Vec<String> {
+    let mut notes = Vec::new();
+    let mut earlier: Vec<&KeptCopy> = Vec::new();
+    for entry in &review.entries {
+        match entry {
+            KeptEdits::KeptThisRun(kept) => notes.push(format!(
+                "note: {id}: kept-edits: local edits kept at {copy}; merge \
+                 them, then run accelerator work sync --target {id} \
+                 --discard-kept-edits {id}",
+                id = single_line(&kept.id),
+                copy = single_line(&kept.copy.display().to_string()),
+            )),
+            KeptEdits::KeptEarlier(kept) => earlier.push(kept),
+            KeptEdits::NotRemoved { kept, reason } => {
+                earlier.push(kept);
+                notes.push(format!(
+                    "note: {}: kept-edits: settled copy at {} could not be \
+                     removed: {}",
+                    single_line(&kept.id),
+                    single_line(&kept.directory.display().to_string()),
+                    single_line(reason)
+                ));
+            }
+            KeptEdits::Unrecorded {
+                id,
+                directory,
+                provenance,
+            } => notes.extend(unrecorded_note(
+                id.as_deref(),
+                directory,
+                *provenance,
+            )),
+            KeptEdits::Settled { .. } => {}
+            KeptEdits::Discarding { .. }
+            | KeptEdits::Discarded { .. }
+            | KeptEdits::NotDiscarded { .. }
+            | KeptEdits::NothingToDiscard { .. } => {
+                notes.push(discard_note(entry));
+            }
+        }
+    }
+    if !earlier.is_empty() {
+        notes.push(earlier_copies_note(&earlier));
+    }
+    notes
+}
+
+fn discard_note(entry: &KeptEdits) -> String {
+    let id = single_line(entry.id().unwrap_or("-"));
+    let directory = entry
+        .directory()
+        .map(|directory| single_line(&directory.display().to_string()))
+        .unwrap_or_default();
+    match entry {
+        KeptEdits::Discarding { .. } => {
+            format!("note: {id}: kept-edits: {directory} would be discarded")
+        }
+        KeptEdits::Discarded { .. } => {
+            format!("note: {id}: kept-edits: discarded {directory}")
+        }
+        KeptEdits::NotDiscarded { reason, .. } => format!(
+            "note: {id}: kept-edits: {directory} could not be discarded: {}",
+            single_line(reason)
+        ),
+        _ => format!("note: {id}: kept-edits: no kept copy to discard"),
+    }
+}
+
+fn unrecorded_note(
+    id: Option<&str>,
+    directory: &Path,
+    provenance: Provenance,
+) -> Option<String> {
+    let id = single_line(id.unwrap_or("-"));
+    let directory = single_line(&directory.display().to_string());
+    match provenance {
+        Provenance::Unknown => None,
+        Provenance::Tracked => Some(format!(
+            "note: {id}: kept-edits: {directory} is tracked by version \
+             control and was not made by this tool; untrack it (git rm \
+             --cached -r {directory} or jj file untrack {directory}), then \
+             sync"
+        )),
+        Provenance::TrackingUnknown => Some(format!(
+            "note: {id}: kept-edits: could not confirm {directory} is \
+             untracked; it is kept but not compared"
+        )),
+    }
+}
+
+fn earlier_copies_note(earlier: &[&KeptCopy]) -> String {
+    let oldest = earlier
+        .iter()
+        .filter_map(|kept| kept.kept_since)
+        .min()
+        .and_then(utc_date)
+        .unwrap_or_else(|| "an unknown date".to_owned());
+    let mut ids: Vec<String> =
+        earlier.iter().map(|kept| single_line(&kept.id)).collect();
+    ids.dedup();
+    format!(
+        "note: -: kept-edits-earlier: {} earlier copies still kept (oldest \
+         since {oldest}) for {}; discard each with accelerator work sync \
+         --target <id> --discard-kept-edits <id>",
+        earlier.len(),
+        ids.join(", ")
+    )
+}
+
+/// `epoch` as an RFC 3339 instant in UTC.
+fn utc_date(epoch: u64) -> Option<String> {
+    let seconds = i64::try_from(epoch).ok()?;
+    let instant = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
+    instant
+        .format(&time::format_description::well_known::Rfc3339)
+        .ok()
 }
 
 /// Where one run yields several outcomes, the most severe wins:
@@ -516,7 +842,8 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
         | work_adapters::sync::apply::FailureClass::Unrenderable
         | work_adapters::sync::apply::FailureClass::PullResidue
         | work_adapters::sync::apply::FailureClass::Unparseable
-        | work_adapters::sync::apply::FailureClass::WriteRefused => {
+        | work_adapters::sync::apply::FailureClass::WriteRefused
+        | work_adapters::sync::apply::FailureClass::OrderRefused => {
             exit_codes::REJECTED
         }
     }
@@ -529,7 +856,7 @@ pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
         .reported
         .iter()
         .filter(|item| matches!(item.outcome, ItemOutcome::UnsupportedRecipe))
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     (!untouched.is_empty()).then(|| {
         format!(
@@ -542,38 +869,109 @@ pub fn unsupported_recipe_warning(report: &RunReport) -> Option<String> {
     })
 }
 
+/// One stderr line per failure the run reports, built from its parts so a
+/// cause can never forge a second line.
+fn failure_lines(report: &RunReport) -> Vec<String> {
+    let failed = match report.mode {
+        RunMode::Preview => "would fail",
+        RunMode::Apply => "failed",
+    };
+    report
+        .failures()
+        .map(|failure| failure_line(&failure, failed))
+        .collect()
+}
+
+/// A linked item never creates again, so its leftover marker is harmless;
+/// it is named so a person can remove it.
+fn leftover_marker_warnings(report: &RunReport) -> Vec<String> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| {
+            item.leftover_marker.as_ref().map(|leftover| {
+                format!(
+                    "warning: {}: could not clear marker {}: {}; the item is \
+                     linked, so remove the marker by hand",
+                    single_line(item.planned.id()),
+                    single_line(&leftover.path.display().to_string()),
+                    single_line(&leftover.reason)
+                )
+            })
+        })
+        .collect()
+}
+
+/// A confirmed link no longer needs its adoption record, so one that
+/// cannot be removed is harmless; it is named so a person can remove it.
+fn unretired_adoption_warnings(report: &RunReport) -> Vec<String> {
+    report
+        .unretired_adoptions
+        .iter()
+        .map(|unretired| {
+            format!(
+                "warning: {}: could not remove adoption record {}: {}; its \
+                 link is confirmed, so remove the record by hand",
+                single_line(&unretired.id),
+                single_line(&unretired.path.display().to_string()),
+                single_line(&unretired.reason)
+            )
+        })
+        .collect()
+}
+
+/// What a person should know of a local create an order settled.
+fn create_notices(report: &RunReport) -> Vec<String> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| {
+            let id = single_line(item.planned.id());
+            item.notice.as_ref().map(|notice| match notice {
+                CreateNotice::DifferingAdoption(key) => {
+                    let key = single_line(key.as_str());
+                    format!(
+                        "note: {id}: adopt: linked {key}, whose title or body \
+                         differ from the item; the next sync reports a \
+                         conflict. If {key} is the wrong issue, run --resolve \
+                         {id}=adopt:<RIGHT-KEY>, or --resolve {id}=create if \
+                         none exists"
+                    )
+                }
+                CreateNotice::NothingToSettle => format!(
+                    "warning: {id}: --resolve {id}=create had no pending push \
+                     to settle"
+                ),
+            })
+        })
+        .collect()
+}
+
 fn exit_code_for_report(report: &RunReport) -> u8 {
-    let failures =
-        report
-            .reported
-            .iter()
-            .filter_map(|item| match &item.outcome {
-                ItemOutcome::Failed(error) => Some(failure_code(error.class())),
-                ItemOutcome::Applied
-                | ItemOutcome::NotApplied
-                | ItemOutcome::UnsupportedRecipe => None,
-            });
+    let failures = report
+        .failures()
+        .filter(|failure| failure.severity == FailureSeverity::Error)
+        .map(|failure| failure_code(failure.class));
     let awaiting_human = (report.awaiting_human().next().is_some()
         || report.identity.iter().any(IdentityRow::awaits_human))
     .then_some(exit_codes::UNRESOLVED);
-    let read_failed = (report.read_failure.is_some()
-        || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
-    .then_some(exit_codes::RETRYABLE);
     failures
         .chain(awaiting_human)
-        .chain(read_failed)
         .chain(report.promotions.iter().map(promotion_exit))
         .max_by_key(|&code| severity(code))
         .unwrap_or(exit_codes::CLEAN)
 }
 
-fn id_is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
-    scheme.is_canonical_id_token(id)
-        || (scheme.ownership() == IdOwnership::Tracker
-            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
+fn dossier_path(dir: &Path, id: &str) -> PathBuf {
+    dir.join(format!("{id}.md"))
 }
 
-fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
+fn retire_dossiers(
+    store: &dyn SyncStore,
+    dir: &Path,
+    scheme: &WorkItemIdScheme,
+    authority: &DossierAuthority<'_>,
+) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -583,85 +981,152 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
         else {
             continue;
         };
-        let is_stale_dossier = name
-            .strip_suffix(".md")
-            .is_some_and(|stem| id_is_token_safe(scheme, stem));
-        let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
-        if is_stale_dossier || is_write_artefact {
-            let _ = std::fs::remove_file(&path);
+        let retired_dossier = name.strip_suffix(".md").is_some_and(|id| {
+            is_token_safe(scheme, id) && authority.may_retire(id)
+        });
+        let retired_artefact = authority.retires_artefacts()
+            && name.starts_with(kernel::TEMP_PREFIX);
+        if retired_dossier || retired_artefact {
+            let _ = store.remove(&path);
         }
     }
 }
 
-/// Fail-closed: creates the directory and writes a directory-local
-/// `.gitignore` of `*`, verifying it before clearing anything, so a run that
-/// cannot prove the dossiers ignored never writes one and never destroys the
-/// prior run's. The stale-clear removes only canonical-id `<id>.md` dossiers
-/// and this surface's own `.tmp-*` write artefacts, so anything else a user
-/// placed under `conflicts/` survives.
+/// Fail-closed: a dossier holds both sides of a conflict, so none is
+/// written until the directory's own `.gitignore` of `*` is proven in
+/// place.
 fn prepare_conflicts_dir(
+    store: &dyn SyncStore,
     dir: &Path,
-    scheme: &WorkItemIdScheme,
-) -> std::io::Result<()> {
-    std::fs::create_dir_all(dir)?;
+) -> Result<(), String> {
     let gitignore = dir.join(".gitignore");
-    std::fs::write(&gitignore, "*\n")?;
-    if !std::fs::read_to_string(&gitignore)?.contains('*') {
-        return Err(std::io::Error::other(
-            "the conflicts .gitignore could not be verified",
-        ));
+    store
+        .write(&gitignore, b"*\n")
+        .map_err(|error| error.to_string())?;
+    let verified = std::fs::read_to_string(&gitignore)
+        .map_err(|error| error.to_string())?
+        .contains('*');
+    if !verified {
+        return Err("the conflicts .gitignore could not be verified".to_owned());
     }
-    clear_stale_dossiers(dir, scheme);
     Ok(())
 }
 
+fn stale_dossier_warning(dossier: &StaleDossier) -> String {
+    let why = match dossier.cause {
+        StaleDossierCause::PartialResolution => {
+            "predates a partial resolution and is stale"
+        }
+        StaleDossierCause::NotRefreshed => "is stale and was not refreshed",
+    };
+    format!(
+        "warning: {}: conflict dossier at {} {why}",
+        single_line(&dossier.id),
+        single_line(&dossier.path.display().to_string())
+    )
+}
+
 fn persist_dossiers(
+    console: &mut Console<'_>,
+    store: &dyn SyncStore,
     dossiers: &[ConflictDossier],
     dir: &Path,
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
-) {
-    let store = FileCorpusStore::new(dir);
+) -> Vec<StaleDossier> {
+    let mut stale = Vec::new();
     for dossier in dossiers {
-        if !id_is_token_safe(scheme, &dossier.id) {
-            eprintln!(
+        if !is_token_safe(scheme, &dossier.id) {
+            console.warn(format_args!(
                 "warning: skipping dossier for unsafe id {:?}",
                 dossier.id
-            );
+            ));
             continue;
         }
         let body = match render_dossier(dossier, render) {
             DossierRender::Renderable(text)
             | DossierRender::Unrenderable(text) => text,
         };
-        let path = dir.join(format!("{}.md", dossier.id));
+        let path = dossier_path(dir, &dossier.id);
         if let Err(error) = store.write(&path, body.as_bytes()) {
-            eprintln!(
-                "warning: could not write conflict dossier {}: {error}",
-                path.display()
-            );
+            console.warn(format_args!(
+                "warning: could not write conflict dossier {}: {}",
+                single_line(&path.display().to_string()),
+                single_line(&error.to_string())
+            ));
+            if store.remove(&path).is_err() {
+                let unrefreshed = StaleDossier {
+                    id: dossier.id.clone(),
+                    path,
+                    cause: StaleDossierCause::NotRefreshed,
+                };
+                console.warn(stale_dossier_warning(&unrefreshed));
+                stale.push(unrefreshed);
+            }
         }
     }
+    stale
 }
 
-/// The reset-then-write over the shared `conflicts/` directory is not
-/// lock-guarded here: `/sync-work-items` issues one `work sync` at a time and
-/// the two-invocation shape is sequential, so a stale file from a racing run
-/// is overwritten before it is read.
-fn persist_conflict_dossiers(
+fn partially_resolved_dossiers(
+    console: &mut Console<'_>,
+    ids: &[String],
     dir: &Path,
-    dossiers: &[ConflictDossier],
+    scheme: &WorkItemIdScheme,
+) -> Vec<StaleDossier> {
+    ids.iter()
+        .filter(|id| is_token_safe(scheme, id))
+        .map(|id| StaleDossier {
+            id: id.clone(),
+            path: dossier_path(dir, id),
+            cause: StaleDossierCause::PartialResolution,
+        })
+        .filter(|dossier| dossier.path.exists())
+        .inspect(|dossier| console.warn(stale_dossier_warning(dossier)))
+        .collect()
+}
+
+/// Not lock-guarded: `/sync-work-items` issues one `work sync` at a time,
+/// so no two runs write `conflicts/` together.
+fn persist_conflict_dossiers(
+    console: &mut Console<'_>,
+    store: &dyn SyncStore,
+    dir: &Path,
+    report: &RunReport,
     scheme: &WorkItemIdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
-) {
-    match prepare_conflicts_dir(dir, scheme) {
-        Ok(()) => persist_dossiers(dossiers, dir, scheme, render),
-        Err(error) => eprintln!(
+) -> Vec<StaleDossier> {
+    let mut stale = partially_resolved_dossiers(
+        console,
+        &report.stale_dossier_ids,
+        dir,
+        scheme,
+    );
+    match prepare_conflicts_dir(store, dir) {
+        Ok(()) => {
+            stale.extend(persist_dossiers(
+                console,
+                store,
+                &report.dossiers,
+                dir,
+                scheme,
+                render,
+            ));
+            retire_dossiers(
+                store,
+                dir,
+                scheme,
+                &DossierAuthority::for_run(report),
+            );
+        }
+        Err(error) => console.warn(format_args!(
             "warning: conflict dossiers not written — could not guarantee an \
-             ignored {} ({error})",
-            dir.display()
-        ),
+             ignored {} ({})",
+            single_line(&dir.display().to_string()),
+            single_line(&error)
+        )),
     }
+    stale
 }
 
 #[derive(Debug)]
@@ -857,13 +1322,8 @@ fn resolve_targets(
     })
 }
 
-enum Scope {
-    All,
-    Targeted,
-}
-
 struct SelectedTargets {
-    scope: Scope,
+    scope: CorpusScope,
     items: Vec<LocalItem>,
     remote_candidates: Vec<ExternalId>,
 }
@@ -894,6 +1354,7 @@ fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
 /// candidate under `--push-only` is contradictory and fails here, before any
 /// tracker contact, so the abort stays credential-free.
 fn build_selection(
+    console: &mut Console<'_>,
     corpus: &[LocalItem],
     targets: &[String],
     direction: SyncDirection,
@@ -901,7 +1362,7 @@ fn build_selection(
 ) -> Result<SelectedTargets, ExitCode> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
-            scope: Scope::All,
+            scope: CorpusScope::WholeCorpus,
             items: Vec::new(),
             remote_candidates: Vec::new(),
         });
@@ -912,19 +1373,19 @@ fn build_selection(
                 && !found.remote_candidates.is_empty()
             {
                 for candidate in &found.remote_candidates {
-                    eprintln!("{}", push_only_remote_only(candidate).message());
+                    console.warn(push_only_remote_only(candidate).message());
                 }
                 return Err(ExitCode::from(exit_codes::USAGE));
             }
             Ok(SelectedTargets {
-                scope: Scope::Targeted,
+                scope: CorpusScope::Targeted,
                 items: found.items,
                 remote_candidates: found.remote_candidates,
             })
         }
         Err(failures) => {
             for failure in &failures {
-                eprintln!("{}", failure.message());
+                console.warn(failure.message());
             }
             Err(ExitCode::from(highest_precedence_code(&failures)))
         }
@@ -1384,11 +1845,19 @@ fn run_error_outcome(
     }
 }
 
+/// What `run_sync_with` takes from its caller beyond the request: the
+/// tracker, what runs once the report is out, and where the run prints.
+pub struct SyncSeams<'a> {
+    pub registry: &'a dyn TrackerRegistry,
+    pub finaliser: &'a dyn RunFinaliser,
+    pub console: Console<'a>,
+    pub stores: StoreFactories<'a>,
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn run_sync(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -1396,6 +1865,35 @@ pub fn run_sync(
     registry: &dyn TrackerRegistry,
     finaliser: &dyn RunFinaliser,
 ) -> ExitCode {
+    let (mut out, mut err) =
+        (std::io::stdout().lock(), std::io::stderr().lock());
+    run_sync_with(
+        start,
+        config,
+        args,
+        &mut SyncSeams {
+            registry,
+            finaliser,
+            console: Console::new(&mut out, &mut err),
+            stores: StoreFactories::production(),
+        },
+    )
+}
+
+#[must_use]
+#[allow(clippy::too_many_lines)]
+pub fn run_sync_with(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    args: &SyncArgs,
+    seams: &mut SyncSeams<'_>,
+) -> ExitCode {
+    let SyncSeams {
+        registry,
+        finaliser,
+        console,
+        stores,
+    } = seams;
     let direction = if args.push_only {
         SyncDirection::PushOnly
     } else if args.pull_only {
@@ -1404,94 +1902,127 @@ pub fn run_sync(
         SyncDirection::Bidirectional
     };
 
-    let resolutions = match parse_resolutions(&args.resolutions) {
-        Ok(resolutions) => resolutions,
-        Err(message) => {
-            eprintln!("{message}");
-            return ExitCode::from(exit_codes::USAGE);
-        }
-    };
-
     let integration =
         match crate::config::effective_nonempty(config, "work.integration") {
             Ok(value) => value,
             Err(error) => {
-                eprintln!("{error}");
+                console.warn(error);
                 return ExitCode::from(exit_codes::ERROR);
             }
         };
 
     if let Err(message) = validate_pull_config(config, &integration) {
-        eprintln!("{message}");
+        console.warn(message);
         return ExitCode::from(exit_codes::ERROR);
     }
 
     if let Err(message) = validate_push_config(config, &integration) {
-        eprintln!("{message}");
+        console.warn(message);
         return ExitCode::from(exit_codes::ERROR);
     }
 
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
-    let root = config_adapters::FileConfigStore::discover_root(start);
-    let repo_root = root.clone();
+    let repo_root = config_adapters::FileConfigStore::discover_root(start);
+    let scheme = match crate::config::resolve_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => {
+            console.warn(error);
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let discarding = match ids_to_discard(&scheme, &args.discard_kept_edits) {
+        Ok(ids) => ids,
+        Err(message) => {
+            console.warn(message);
+            return ExitCode::from(exit_codes::USAGE);
+        }
+    };
+    let (work, integrations) = match configured_roots(config, &repo_root) {
+        Ok(roots) => roots,
+        Err(error) => {
+            console.warn(error);
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let roots = match ValidatedRoots::check(&work, &integrations, &repo_root) {
+        Ok(roots) => roots,
+        Err(refusal) => {
+            console.warn(configure_failure(&refusal));
+            return ExitCode::from(exit_codes::UNCONFIGURED);
+        }
+    };
+    let integration_state = match roots.integration_state(&integration) {
+        Ok(state) => state,
+        Err(refusal) => {
+            console.warn(configure_failure(&refusal));
+            return ExitCode::from(exit_codes::UNCONFIGURED);
+        }
+    };
     let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
         Ok(guard) => guard,
         Err(refusal) => {
             let (message, code) =
                 crate::identity_run::refused(refusal, &repo_root);
-            eprintln!("{message}");
+            console.warn(message);
             return ExitCode::from(code);
         }
     };
-    let work_dir = match crate::config::resolve_work_dir(config, &root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let integrations_root = match integrations_dir(config, &root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
+    let work_dir = roots.work_items.root().to_path_buf();
+    let integrations_root = roots.integrations.root().to_path_buf();
 
-    let items = match discover_items(&work_dir) {
-        Ok(items) => items,
+    let orders = match parse_orders(&args.resolutions, &integration, &scheme) {
+        Ok(orders) => orders,
+        Err(message) => {
+            console.warn(message);
+            return ExitCode::from(exit_codes::USAGE);
+        }
+    };
+    let names = match ConfiguredNames::for_scheme(&scheme) {
+        Ok(names) => names,
         Err(error) => {
-            eprintln!("{error}");
+            console.warn(error);
             return ExitCode::from(exit_codes::ERROR);
         }
     };
+    let (conflicts, conflicts_unread) =
+        VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
+    if let Some(warning) = conflicts_unread {
+        console.warn(warning);
+    }
+    let (items, inventory) =
+        match discover_corpus(&work_dir, &names, &conflicts) {
+            Ok(corpus) => corpus,
+            Err(error) => {
+                console.warn(error);
+                return ExitCode::from(exit_codes::ERROR);
+            }
+        };
 
-    let scheme = match crate::config::resolve_scheme(config) {
-        Ok(scheme) => scheme,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
     let canonical_work_dir = match work_dir.canonicalize() {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!(
-                "could not resolve the work directory {}: {error}",
-                work_dir.display()
-            );
+            console.warn(format_args!(
+                "could not resolve the work directory {}: {}",
+                single_line(&work_dir.display().to_string()),
+                single_line(&error.to_string())
+            ));
             return ExitCode::from(exit_codes::ERROR);
         }
     };
     let resolver = |token: &str| {
         crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
     };
-    let selected =
-        match build_selection(&items, &args.targets, direction, &resolver) {
-            Ok(selected) => selected,
-            Err(code) => return code,
-        };
+    let selected = match build_selection(
+        console,
+        &items,
+        &args.targets,
+        direction,
+        &resolver,
+    ) {
+        Ok(selected) => selected,
+        Err(code) => return code,
+    };
 
     let tracker = match registry.resolve(&integration) {
         Ok(tracker) => tracker,
@@ -1499,15 +2030,15 @@ pub fn run_sync(
             error @ (SelectionError::Unset
             | SelectionError::Unrecognised { .. }),
         ) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::UNRECOGNISED);
         }
         Err(error @ SelectionError::NotAvailable { .. }) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::NOT_AVAILABLE);
         }
         Err(error @ SelectionError::Unconfigured { .. }) => {
-            eprintln!("{}", error.message());
+            console.warn(error.message());
             return ExitCode::from(exit_codes::UNCONFIGURED);
         }
     };
@@ -1522,77 +2053,31 @@ pub fn run_sync(
             Ok(found) => found,
             Err(failures) => {
                 for failure in &failures {
-                    eprintln!("{}", failure.message());
+                    console.warn(failure.message());
                 }
                 return ExitCode::from(highest_precedence_code(&failures));
             }
         }
     };
 
-    let workspace = match IdentityWorkspace::open(
+    let workspace = match IdentityWorkspace::for_sync(
         config,
         &repo_root,
-        &work_dir,
-        &integrations_root,
+        &roots,
         &integration,
     ) {
         Ok(workspace) => workspace,
         Err(message) => {
-            eprintln!("{message}");
+            console.warn(message);
             return ExitCode::from(exit_codes::ERROR);
         }
-    };
-    let baseline_path = workspace.baseline_path();
-    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
-    let corpus_store = FileCorpusStore::new(baseline_dir);
-    let project_store = FileCorpusStore::new(&repo_root);
-    let state_store = FileCorpusStore::new(workspace.state_dir());
-    let integrations_store = FileCorpusStore::new(&integrations_root);
-    let mut baseline_store = workspace.baseline(&corpus_store);
-    let retirement_baseline = workspace.baseline(&corpus_store);
-    let retirement =
-        workspace.retirement_ports(&project_store, &retirement_baseline);
-    let records = workspace.retirement_records(&state_store);
-    let promotions = workspace.promotion_records(&integrations_store);
-    let probe_status = || -> Box<dyn WorkingCopyStatus> {
-        Box::new(VcsWorkingCopyStatus::probed_from(
-            &repo_root,
-            &InProcessProbe,
-        ))
-    };
-    let settlement = SettlementPorts {
-        retirement: &retirement,
-        records: &records,
-        promotions: &promotions,
-        ownership: scheme.ownership(),
-        state_dir: workspace.state_dir(),
-        probe_status: &probe_status,
-        remote: work_adapters::promotion::RemoteReading {
-            tracker: tracker.as_ref(),
-            parser: &CommonMarkBody,
-        },
-        identity_run: &identity_run,
     };
     let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {
         work_dir: &work_dir,
         root: &repo_root,
-    };
-    let clock = SystemClock;
-    let author = crate::sync_author::ConfiguredLocalAuthor::new(
-        config,
-        root,
-        work_dir.clone(),
-        &identity_run,
-    );
-
-    let ports = SyncPorts {
-        tracker: tracker.as_ref(),
-        parser: &CommonMarkBody,
-        status: workspace.status(),
-        writer: &corpus_store,
-        clock: &clock,
-        author: &author,
+        names: &names,
+        conflicts: &conflicts,
     };
     let mode = if args.preview {
         RunMode::Preview
@@ -1621,8 +2106,8 @@ pub fn run_sync(
         filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
-        Scope::All => ItemSelection::All,
-        Scope::Targeted => ItemSelection::Targeted {
+        CorpusScope::WholeCorpus => ItemSelection::All,
+        CorpusScope::Targeted => ItemSelection::Targeted {
             items: &selected.items,
             pull_ids: &pull_ids,
         },
@@ -1638,15 +2123,17 @@ pub fn run_sync(
         work_adapters::sync::scope::is_broadened(&scope),
         args.allow_unbounded,
     ) {
-        eprintln!("{}", unbounded_gate_message(&integration));
+        console.warn(unbounded_gate_message(&integration));
         return ExitCode::from(exit_codes::REFUSED_UNBOUNDED);
     }
     let request = SyncRequest {
         corpus: &items,
+        inventory: &inventory,
         selection,
         direction,
         strategy,
-        resolutions: &resolutions,
+        resolutions: &orders.resolutions,
+        pending_push_orders: &orders.pending_push,
         max_pulls,
         max_pushes,
         mode,
@@ -1656,98 +2143,335 @@ pub fn run_sync(
         promote: !args.no_promote,
     };
 
-    sweep_kept_recoveries(recovery);
-    for warning in unreadable_promotion_record_warnings(&promotions) {
-        eprintln!("{warning}");
-    }
-    match run_settled(
-        &request,
-        &ports,
-        &settlement,
-        &mut baseline_store,
-        &discovery,
-    ) {
-        Ok(report) => {
-            if let work_adapters::sync::baseline::Degradation::Unparseable {
-                detail,
-            } = &report.baseline_degradation
+    sweep_kept_recoveries(console, recovery);
+    let stores =
+        SyncStores::bounded(&roots.work_items, &integration_state, stores);
+    let outcome = assemble_run(
+        &RunAssembly {
+            stores: &stores,
+            config,
+            workspace: &workspace,
+            repo_root: &repo_root,
+            work_dir: &work_dir,
+            integrations_root: &integrations_root,
+            tracker: tracker.as_ref(),
+            identity_run: &identity_run,
+            scheme: &scheme,
+        },
+        |ports, settlement, baseline| {
+            for warning in
+                unreadable_promotion_record_warnings(settlement.promotions)
             {
-                eprintln!(
-                    "warning: {} could not be parsed ({detail}); treating \
-                     as empty",
-                    baseline::path(&integrations_root, &integration).display()
-                );
+                console.warn(warning);
             }
-            if let work_adapters::sync::baseline::Degradation::EntriesDiscarded {
-                ids,
-            } = &report.baseline_degradation
-            {
-                eprintln!(
-                    "warning: baseline entries discarded (malformed): {}",
-                    ids.join(", ")
-                );
+            run_settled(&request, ports, settlement, baseline, &discovery)
+        },
+    );
+    match outcome {
+        Ok(report) => report_finished_run(
+            console,
+            &FinishedRunContext {
+                config,
+                integration: &integration,
+                integrations_root: &integrations_root,
+                repo_root: &repo_root,
+                corpus: &items,
+                workspace: &workspace,
+                work_dir: &work_dir,
+                scheme: &scheme,
+                discarding: &discarding,
+                finaliser: *finaliser,
+                dossier_store: stores.integration_state.as_ref(),
+            },
+            &report,
+        ),
+        Err(failure) => report_stopped_run(
+            console,
+            &failure,
+            &RunErrorContext {
+                config,
+                integration: &integration,
+                max_pulls_source,
+                max_pushes_source,
+            },
+            recovery,
+        ),
+    }
+}
+
+/// The items whose kept edits `--discard-kept-edits` names, each one an id
+/// that can name a directory.
+fn ids_to_discard(
+    scheme: &WorkItemIdScheme,
+    named: &[String],
+) -> Result<BTreeSet<String>, String> {
+    named
+        .iter()
+        .map(|id| {
+            if is_token_safe(scheme, id) {
+                Ok(id.clone())
+            } else {
+                Err(format!(
+                    "--discard-kept-edits '{}' is not a work-item id",
+                    single_line(id)
+                ))
             }
-            if report.keyed_read_budget_limited {
-                eprintln!(
-                    "warning: the keyed reconcile read was cut short by a \
-                     transient budget limit (a deadline or wire failure); the \
-                     affected items are indeterminate this run and will \
-                     reconcile on a retry."
-                );
-            }
-            let conflicts_dir =
-                integrations_root.join(&integration).join("conflicts");
-            match crate::config::resolve_scheme(config) {
-                Ok(scheme) => persist_conflict_dossiers(
-                    &conflicts_dir,
-                    &report.dossiers,
-                    &scheme,
-                    &work_adapters::diff::render,
-                ),
-                Err(error) => eprintln!(
-                    "warning: conflict dossiers not written — could not \
-                     resolve the work-item id scheme ({error})"
-                ),
-            }
-            println!("{}", render_report(&report));
-            if let Some(warning) = unsupported_recipe_warning(&report) {
-                eprintln!("{warning}");
-            }
-            finaliser.finalise(
-                &FinishedRun {
-                    report: &report,
-                    mode,
-                    corpus_external_ids: items
-                        .iter()
-                        .filter_map(|item| item.external_id.clone())
-                        .collect(),
-                    integrations_root: &integrations_root,
-                    repo_root: &repo_root,
-                },
-                &mut std::io::stderr(),
-            );
-            warn_outstanding_pushes(&integrations_root, &integration);
-            report_kept_recoveries(recovery);
-            ExitCode::from(exit_code_for_report(&report))
-        }
-        Err(failure) => {
-            for line in stopped_run_lines(&failure) {
-                println!("{line}");
-            }
-            let (message, code) = run_error_outcome(
-                &failure.error,
-                &RunErrorContext {
-                    config,
-                    integration: &integration,
-                    max_pulls_source,
-                    max_pushes_source,
-                },
-            );
-            eprintln!("{message}");
-            report_kept_recoveries(recovery);
-            ExitCode::from(code)
+        })
+        .collect()
+}
+
+struct RunAssembly<'a> {
+    stores: &'a SyncStores,
+    config: &'a dyn ConfigAccess,
+    workspace: &'a IdentityWorkspace,
+    repo_root: &'a Path,
+    work_dir: &'a Path,
+    integrations_root: &'a Path,
+    tracker: &'a dyn tracker::RemoteTracker,
+    identity_run: &'a IdentityRunGuard,
+    scheme: &'a WorkItemIdScheme,
+}
+
+/// Builds the stores and ports a run writes through and hands them to
+/// `run`. They borrow one another, so they live only as long as it does.
+fn assemble_run<T>(
+    assembly: &RunAssembly<'_>,
+    run: impl for<'p> FnOnce(
+        &SyncPorts<'p>,
+        &SettlementPorts<'_>,
+        &mut BaselineStore<'p>,
+    ) -> T,
+) -> T {
+    let workspace = assembly.workspace;
+    let stores = assembly.stores;
+    let project_store = FileCorpusStore::new(assembly.repo_root);
+    let state_store = FileCorpusStore::new(workspace.state_dir());
+    let integrations_store = FileCorpusStore::new(assembly.integrations_root);
+    let mut baseline_store =
+        workspace.baseline(stores.integration_state.as_ref());
+    let retirement_baseline =
+        workspace.baseline(stores.integration_state.as_ref());
+    let retirement =
+        workspace.retirement_ports(&project_store, &retirement_baseline);
+    let records = workspace.retirement_records(&state_store);
+    let promotions = workspace.promotion_records(&integrations_store);
+    let probe_status = || -> Box<dyn WorkingCopyStatus> {
+        Box::new(VcsWorkingCopyStatus::probed_from(
+            assembly.repo_root,
+            &InProcessProbe,
+        ))
+    };
+    let settlement = SettlementPorts {
+        retirement: &retirement,
+        records: &records,
+        promotions: &promotions,
+        ownership: assembly.scheme.ownership(),
+        state_dir: workspace.state_dir(),
+        probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker: assembly.tracker,
+            parser: &CommonMarkBody,
+        },
+        identity_run: assembly.identity_run,
+    };
+    let clock = SystemClock;
+    let author = crate::sync_author::ConfiguredLocalAuthor::new(
+        assembly.config,
+        assembly.repo_root.to_path_buf(),
+        assembly.work_dir.to_path_buf(),
+        assembly.identity_run,
+    );
+    let ports = SyncPorts {
+        tracker: assembly.tracker,
+        parser: &CommonMarkBody,
+        status: workspace.status(),
+        files: SyncFiles {
+            work_items: stores.work_items.as_ref(),
+            integration_state: stores.integration_state.as_ref(),
+            file_locks: workspace.locks(),
+            recovery: workspace.recovery(),
+            tracking: workspace.tracking(),
+        },
+        clock: &clock,
+        author: &author,
+        recovery_labels: &recovery_labels::DrawnRecoveryLabels::new(
+            assembly.scheme,
+            RandomSuffixDraws,
+        ),
+    };
+    run(&ports, &settlement, &mut baseline_store)
+}
+
+struct FinishedRunContext<'a> {
+    config: &'a dyn ConfigAccess,
+    integration: &'a str,
+    integrations_root: &'a Path,
+    repo_root: &'a Path,
+    corpus: &'a [LocalItem],
+    workspace: &'a IdentityWorkspace,
+    work_dir: &'a Path,
+    scheme: &'a WorkItemIdScheme,
+    discarding: &'a BTreeSet<String>,
+    finaliser: &'a dyn RunFinaliser,
+    dossier_store: &'a dyn SyncStore,
+}
+
+impl FinishedRunContext<'_> {
+    fn kept_edits_retention(&self) -> KeptEditsRetention<'_> {
+        KeptEditsRetention {
+            recovery: self.workspace.recovery(),
+            tracking: self.workspace.tracking(),
+            locks: self.workspace.locks(),
+            work_root: self.work_dir.to_path_buf(),
+            scheme: self.scheme,
+            corpus: self.corpus,
+            discarding: self.discarding,
         }
     }
+}
+
+/// The review of every kept copy, and on an apply run the sweep of those
+/// that settled; a review that cannot list the copies is warned about and
+/// reports none.
+fn review_kept_edits(
+    console: &mut Console<'_>,
+    context: &FinishedRunContext<'_>,
+    report: &RunReport,
+) -> KeptEditsReview {
+    let retention = context.kept_edits_retention();
+    let this_run: BTreeSet<PathBuf> = report
+        .reported
+        .iter()
+        .filter_map(|item| item.kept_edits.clone())
+        .collect();
+    match retention.review(&this_run) {
+        Ok(review) if report.mode == RunMode::Apply => retention.sweep(review),
+        Ok(review) => review,
+        Err(error) => {
+            console.warn(format_args!(
+                "warning: kept edits could not be checked: {}",
+                single_line(&error.to_string())
+            ));
+            KeptEditsReview {
+                entries: Vec::new(),
+            }
+        }
+    }
+}
+
+fn report_finished_run(
+    console: &mut Console<'_>,
+    context: &FinishedRunContext<'_>,
+    report: &RunReport,
+) -> ExitCode {
+    match &report.baseline_degradation {
+        baseline::Degradation::Unparseable { detail } => {
+            console.warn(format_args!(
+                "warning: {} could not be parsed ({}); treating as empty",
+                single_line(
+                    &baseline::path(
+                        context.integrations_root,
+                        context.integration
+                    )
+                    .display()
+                    .to_string()
+                ),
+                single_line(detail)
+            ));
+        }
+        baseline::Degradation::EntriesDiscarded { ids } => {
+            console.warn(format_args!(
+                "warning: baseline entries discarded (malformed): {}",
+                single_line(&ids.join(", "))
+            ));
+        }
+        baseline::Degradation::None => {}
+    }
+    if report.keyed_read_budget_limited {
+        console.warn(
+            "warning: the keyed reconcile read was cut short by a transient \
+             budget limit (a deadline or wire failure); the affected items \
+             are indeterminate this run and will reconcile on a retry.",
+        );
+    }
+    let conflicts_dir = context
+        .integrations_root
+        .join(context.integration)
+        .join("conflicts");
+    let stale_dossiers = match crate::config::resolve_scheme(context.config) {
+        Ok(scheme) => persist_conflict_dossiers(
+            console,
+            context.dossier_store,
+            &conflicts_dir,
+            report,
+            &scheme,
+            &work_adapters::diff::render,
+        ),
+        Err(error) => {
+            console.warn(format_args!(
+                "warning: conflict dossiers not written — could not resolve \
+                 the work-item id scheme ({})",
+                single_line(&error.to_string())
+            ));
+            Vec::new()
+        }
+    };
+    let finished = FinishedRun {
+        report,
+        corpus_external_ids: context
+            .corpus
+            .iter()
+            .filter_map(|item| item.external_id.clone())
+            .collect(),
+        integrations_root: context.integrations_root,
+        repo_root: context.repo_root,
+        kept_edits: review_kept_edits(console, context, report),
+        stale_dossiers,
+    };
+    console.report(render_report(&finished));
+    for failure in failure_lines(report) {
+        console.warn(failure);
+    }
+    for warning in leftover_marker_warnings(report) {
+        console.warn(warning);
+    }
+    for notice in create_notices(report) {
+        console.warn(notice);
+    }
+    for warning in unretired_adoption_warnings(report) {
+        console.warn(warning);
+    }
+    for note in kept_edits_notes(&finished.kept_edits) {
+        console.warn(note);
+    }
+    if let Some(warning) = unsupported_recipe_warning(report) {
+        console.warn(warning);
+    }
+    context
+        .finaliser
+        .finalise(&finished, &mut console.warnings());
+    warn_outstanding_pushes(
+        console,
+        context.integrations_root,
+        context.integration,
+    );
+    report_kept_recoveries(console, context.workspace.recovery());
+    ExitCode::from(exit_code_for_report(report))
+}
+
+fn report_stopped_run(
+    console: &mut Console<'_>,
+    failure: &SettledRunFailure,
+    context: &RunErrorContext<'_>,
+    recovery: &FileRecoveryCopies,
+) -> ExitCode {
+    for line in stopped_run_lines(failure) {
+        console.report(line);
+    }
+    let (message, code) = run_error_outcome(&failure.error, context);
+    console.warn(message);
+    report_kept_recoveries(console, recovery);
+    ExitCode::from(code)
 }
 
 #[cfg(test)]
@@ -1755,23 +2479,33 @@ pub fn run_sync(
     clippy::expect_used,
     clippy::unwrap_used,
     clippy::unnecessary_wraps,
-    clippy::unimplemented
+    clippy::unimplemented,
+    clippy::panic
 )]
 mod tests {
+    use crate::finished_run::StaleDossier;
+    use crate::finished_run::StaleDossierCause;
     use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
+    use work::sync::PendingPushOrder;
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
-    use work_adapters::sync::baseline::Degradation;
+    use work_adapters::sync::apply::ItemProgress;
+    use work_adapters::sync::apply::LeftoverMarker;
+    use work_adapters::sync::dossiers::DossierAuthority;
+    use work_adapters::sync::operation::SyncOperation;
+    use work_adapters::sync::report::FailureSeverity;
+    use work_adapters::sync::report::Finalisation;
     use work_adapters::sync::run::ConflictDossier;
     use work_adapters::sync::run::DiscoveryStatus;
     use work_adapters::sync::run::ItemOutcome;
     use work_adapters::sync::run::ReportedItem;
+    use work_adapters::sync::run::RunMode;
     use work_adapters::sync::run::RunReport;
     use work_adapters::sync::run::UnrenderableReason;
 
@@ -1785,14 +2519,17 @@ mod tests {
 
     use super::build_selection;
     use super::highest_precedence_code;
+    use super::leftover_marker_warnings;
     use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
     use super::unbounded_gate_fires;
-    use super::Scope;
+    use super::unretired_adoption_warnings;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
+    use work::inventory::UnidentifiedReason;
+    use work_adapters::sync::report::CorpusScope;
 
     #[test]
     fn the_unbounded_gate_fires_only_on_unlimited_over_a_broadened_scope() {
@@ -1853,7 +2590,19 @@ mod tests {
         }
 
         fn items(&self) -> Vec<LocalItem> {
-            super::discover_items(&self.work_dir).expect("discover items")
+            let (conflicts, _) = super::work_files::VcsConflicts::read(
+                &self.work_dir,
+                &vcs_adapters::library::InProcessProbe,
+                &vcs_adapters::library::InProcessProbe,
+            );
+            super::work_files::discover_corpus(
+                &self.work_dir,
+                &super::work_files::ConfiguredNames::for_scheme(&scheme())
+                    .expect("the scheme compiles"),
+                &conflicts,
+            )
+            .expect("discover items")
+            .0
         }
 
         fn resolve(&self, targets: &[&str]) -> ResolveResult {
@@ -2224,7 +2973,10 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
         let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         let outcome = build_selection(
+            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &["PP-999".to_owned()],
             SyncDirection::PushOnly,
@@ -2257,7 +3009,10 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", None)];
         let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         let selected = build_selection(
+            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &[],
             SyncDirection::Bidirectional,
@@ -2265,7 +3020,7 @@ mod tests {
         )
         .expect("no targets is a whole-corpus run");
 
-        assert!(matches!(selected.scope, Scope::All));
+        assert!(matches!(selected.scope, CorpusScope::WholeCorpus));
         assert!(selected.items.is_empty());
     }
 
@@ -2289,18 +3044,18 @@ mod tests {
             }],
             unrenderable: local_unreadable
                 .then_some(UnrenderableReason::LocalUnreadable),
+            unconfirmed_link: None,
         }
     }
 
     fn reported(id: &str, state: SyncState, action: Action) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state,
-                action,
-            },
+            planned: PlannedAction::new(id.to_owned(), state, action),
             outcome: ItemOutcome::NotApplied,
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -2310,26 +3065,63 @@ mod tests {
         source: TrackerError,
     ) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state,
-                action: Action::Noop,
-            },
+            planned: PlannedAction::new(id.to_owned(), state, Action::Noop),
             outcome: ItemOutcome::Failed(ApplyError::Tracker {
                 item_id: id.to_owned(),
-                operation: "update",
+                operation:
+                    work_adapters::sync::operation::SyncOperation::Update,
                 source,
             }),
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }
+    }
+
+    #[test]
+    fn a_linked_items_leftover_marker_is_a_warning_naming_it() {
+        let report = report_of(vec![ReportedItem {
+            leftover_marker: Some(LeftoverMarker {
+                path: PathBuf::from("/s/pending-push/0001.json"),
+                reason: "not writable".to_owned(),
+            }),
+            ..reported("0001", SyncState::Unsynced, Action::CreateFromLocal)
+        }]);
+
+        assert_eq!(
+            leftover_marker_warnings(&report),
+            vec!["warning: 0001: could not clear marker \
+                 /s/pending-push/0001.json: not writable; the item is \
+                 linked, so remove the marker by hand"
+                .to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_confirmed_records_removal_failure_is_a_warning_naming_it() {
+        let report = RunReport {
+            unretired_adoptions: vec![
+                work_adapters::sync::adoption_records::UnretiredRecord {
+                    id: "0001".to_owned(),
+                    path: PathBuf::from("/s/adopted/0001.json"),
+                    reason: "not writable".to_owned(),
+                },
+            ],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert_eq!(
+            unretired_adoption_warnings(&report),
+            ["warning: 0001: could not remove adoption record \
+              /s/adopted/0001.json: not writable; its link is confirmed, so \
+              remove the record by hand"]
+        );
     }
 
     #[test]
     fn render_report_sorts_fixed_width_ids_numerically() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![
                 reported(
                     "0001",
@@ -2361,6 +3153,7 @@ mod tests {
                     "0011",
                     ApplyError::RemoteUnrenderable {
                         item_id: "0011".to_owned(),
+                        operation: SyncOperation::Update,
                         cause: tracker::Unrenderable {
                             detail: "panel".to_owned(),
                         },
@@ -2370,6 +3163,7 @@ mod tests {
                     "0012",
                     ApplyError::LocalPullResidue {
                         item_id: "0012".to_owned(),
+                        operation: SyncOperation::Update,
                         external_id: tracker::ExternalId::new(
                             "ENG-12".to_owned(),
                         ),
@@ -2393,12 +3187,7 @@ mod tests {
                     Action::RecordBaseline,
                 ),
             ],
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
-            discovery: DiscoveryStatus::Ran { found: 0 },
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -2407,26 +3196,93 @@ mod tests {
         ))
         .expect("golden readable");
 
-        assert_eq!(render_report(&report), golden);
+        assert_eq!(
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report
+            )),
+            golden
+        );
+    }
+
+    #[test]
+    fn render_report_orders_every_record_family_as_the_golden_does() {
+        use work_adapters::sync::kept_edits::KeptCopy;
+        use work_adapters::sync::kept_edits::KeptEdits;
+        use work_adapters::sync::kept_edits::KeptEditsReview;
+
+        let report = RunReport {
+            reported: vec![
+                reported("0003", SyncState::RemotelyModified, Action::Pull),
+                reported("0001", SyncState::Synced, Action::Noop),
+            ],
+            refused_orders: vec![refused_order("0009")],
+            inventory: work::inventory::CorpusInventory {
+                ids: std::collections::BTreeSet::new(),
+                unidentified: vec![
+                    work::inventory::Unidentified {
+                        path: PathBuf::from("meta/work/0004-broken.md"),
+                        reason: work::inventory::UnidentifiedReason::Malformed(
+                            work::inventory::MalformedCause::UnclosedFence,
+                        ),
+                    },
+                    work::inventory::Unidentified {
+                        path: PathBuf::from("meta/work/README.md"),
+                        reason: work::inventory::UnidentifiedReason::NoId,
+                    },
+                ],
+            },
+            adoptions: vec![work_adapters::sync::report::Adoption {
+                id: "0005".to_owned(),
+                key: ExternalId::new("ENG-7".to_owned()),
+                title: "The adopted issue".to_owned(),
+            }],
+            discovery: DiscoveryStatus::SkippedPendingPush,
+            ..crate::test_support::run_report()
+        };
+        let finished = crate::finished_run::FinishedRun {
+            kept_edits: KeptEditsReview {
+                entries: vec![KeptEdits::KeptThisRun(KeptCopy {
+                    id: "0003".to_owned(),
+                    item: PathBuf::from("meta/work/0003-pulled.md"),
+                    copy: PathBuf::from(
+                        ".accelerator/state/sync-recovery/x/0003-pulled.md",
+                    ),
+                    directory: PathBuf::from(
+                        ".accelerator/state/sync-recovery/x",
+                    ),
+                    kept_since: Some(1),
+                })],
+            },
+            stale_dossiers: vec![StaleDossier {
+                id: "0006".to_owned(),
+                path: PathBuf::from(
+                    ".accelerator/state/integrations/jira/conflicts/0006.md",
+                ),
+                cause: StaleDossierCause::PartialResolution,
+            }],
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        };
+
+        let golden = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/sync-report-records.golden"
+        ))
+        .expect("golden readable");
+
+        assert_eq!(render_report(&finished), golden);
     }
 
     #[test]
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery: DiscoveryStatus::SkippedPushOnly,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         };
 
         assert_eq!(
-            render_report(&report),
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report
+            )),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
     }
@@ -2518,7 +3374,9 @@ mod tests {
             )],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.lines().any(|line| line
@@ -2543,7 +3401,9 @@ mod tests {
             vec![reported("PP-76", SyncState::RemoteAbsent, Action::Noop)],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         let line = rendered
             .lines()
@@ -2573,7 +3433,9 @@ mod tests {
             )],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert_eq!(
             rendered
@@ -2601,7 +3463,9 @@ mod tests {
             vec![reported("0230", SyncState::Synced, Action::Noop)],
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains("0230\tkey-changed\tsynced\tPP-760->ENG-42"),
@@ -2629,7 +3493,9 @@ mod tests {
             Vec::new(),
         );
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains(
@@ -2669,9 +3535,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(
-            render_report(&report).contains("#\tnote\tdeferred-to-next-run\t2"),
-        );
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("#\tnote\tdeferred-to-next-run\t2"),);
     }
 
     #[test]
@@ -2750,18 +3617,248 @@ mod tests {
         }
     }
 
+    #[test]
+    fn an_unclassifiable_item_renders_a_class_keyword() {
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = RunReport {
+            identity: vec![identity_row(
+                "0001",
+                "0001",
+                work::sync::IdentityAction::KeyChanged,
+                "ENG-1->ENG-2",
+                IdentityOutcome::Applied,
+            )],
+            unclassifiable: vec![work::sync::Unclassifiable {
+                id: "0001".to_owned(),
+                reason: "could not\tread it".to_owned(),
+            }],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line == "0001\tfailed\t-\tretryable"),
+            "{rendered}"
+        );
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line.starts_with("0001\tkey-changed")),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("could not"), "{rendered}");
+        assert_eq!(
+            super::failure_lines(&report),
+            vec!["error: 0001: classify-local failed: could not read it"]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
+    fn kept(id: &str, kept_since: Option<u64>) -> super::KeptCopy {
+        super::KeptCopy {
+            id: id.to_owned(),
+            item: PathBuf::from(format!("/repo/meta/work/{id}.md")),
+            copy: PathBuf::from(format!(
+                "/repo/.accelerator/state/sync-recovery/1-k7mq3x-{id}/\
+                 meta/work/{id}.md"
+            )),
+            directory: PathBuf::from(format!(
+                "/repo/.accelerator/state/sync-recovery/1-k7mq3x-{id}"
+            )),
+            kept_since,
+        }
+    }
+
+    fn review_of(entries: Vec<super::KeptEdits>) -> super::KeptEditsReview {
+        super::KeptEditsReview { entries }
+    }
+
+    #[test]
+    fn every_kept_copy_but_a_settled_one_gets_a_record_before_the_summary() {
+        use super::KeptEdits;
+        use super::Provenance;
+
+        let report = report_with(DiscoveryStatus::Ran { found: 0 });
+        let finished = crate::finished_run::FinishedRun {
+            kept_edits: review_of(vec![
+                KeptEdits::KeptThisRun(kept("0001", Some(1))),
+                KeptEdits::KeptEarlier(kept("0002", Some(1))),
+                KeptEdits::Settled {
+                    kept: kept("0003", Some(1)),
+                    recorded: corpus::store::RecordedCopy {
+                        dir: PathBuf::from("sync-recovery/1-k7mq3x-0003"),
+                        original: PathBuf::from("/repo/meta/work/0003.md"),
+                        copy: PathBuf::from("meta/work/0003.md"),
+                    },
+                },
+                KeptEdits::Unrecorded {
+                    id: Some("0004".to_owned()),
+                    directory: PathBuf::from("/state/sync-recovery/x-0004"),
+                    provenance: Provenance::Unknown,
+                },
+                KeptEdits::Unrecorded {
+                    id: None,
+                    directory: PathBuf::from("/state/sync-recovery/stray"),
+                    provenance: Provenance::Unknown,
+                },
+            ]),
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        };
+
+        let rendered = render_report(&finished);
+
+        let kept_lines: Vec<&str> = rendered
+            .lines()
+            .filter(|line| line.starts_with("#\tkept-edits"))
+            .collect();
+        assert_eq!(
+            kept_lines,
+            vec![
+                "#\tkept-edits\t0001\tthis-run\t/repo/meta/work/0001.md\t\
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0001/meta/\
+                 work/0001.md",
+                "#\tkept-edits\t0002\tearlier\t/repo/meta/work/0002.md\t\
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0002/meta/\
+                 work/0002.md",
+                "#\tkept-edits\t0004\tunrecorded\t-\t\
+                 /state/sync-recovery/x-0004",
+                "#\tkept-edits\t-\tunrecorded\t-\t/state/sync-recovery/stray",
+            ]
+        );
+        assert!(
+            rendered.ends_with("#\tsummary\tsynced\t0"),
+            "the records precede the summary: {rendered}"
+        );
+    }
+
+    #[test]
+    fn each_kept_copy_note_names_what_to_do() {
+        use super::KeptEdits;
+        use super::Provenance;
+
+        let notes = super::kept_edits_notes(&review_of(vec![
+            KeptEdits::KeptThisRun(kept("0001", Some(1_700_000_000))),
+            KeptEdits::KeptEarlier(kept("0002", Some(1_700_000_000))),
+            KeptEdits::NotRemoved {
+                kept: kept("0003", Some(1_600_000_000)),
+                reason: "Permission denied".to_owned(),
+            },
+            KeptEdits::Unrecorded {
+                id: Some("0004".to_owned()),
+                directory: PathBuf::from("/state/sync-recovery/d4"),
+                provenance: Provenance::Tracked,
+            },
+            KeptEdits::Unrecorded {
+                id: Some("0005".to_owned()),
+                directory: PathBuf::from("/state/sync-recovery/d5"),
+                provenance: Provenance::TrackingUnknown,
+            },
+        ]));
+
+        assert_eq!(
+            notes,
+            vec![
+                "note: 0001: kept-edits: local edits kept at \
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0001/meta/\
+                 work/0001.md; merge them, then run accelerator work sync \
+                 --target 0001 --discard-kept-edits 0001",
+                "note: 0003: kept-edits: settled copy at \
+                 /repo/.accelerator/state/sync-recovery/1-k7mq3x-0003 could \
+                 not be removed: Permission denied",
+                "note: 0004: kept-edits: /state/sync-recovery/d4 is tracked by \
+                 version control and was not made by this tool; untrack it \
+                 (git rm --cached -r /state/sync-recovery/d4 or jj file \
+                 untrack /state/sync-recovery/d4), then sync",
+                "note: 0005: kept-edits: could not confirm \
+                 /state/sync-recovery/d5 is untracked; it is kept but not \
+                 compared",
+                "note: -: kept-edits-earlier: 2 earlier copies still kept \
+                 (oldest since 2020-09-13T12:26:40Z) for 0002, 0003; discard \
+                 each with accelerator work sync --target <id> \
+                 --discard-kept-edits <id>",
+            ]
+        );
+    }
+
+    #[test]
+    fn each_discard_says_what_became_of_it() {
+        use super::KeptEdits;
+
+        let earlier = || KeptEdits::KeptEarlier(kept("0001", Some(1)));
+        let directory = "/repo/.accelerator/state/sync-recovery/1-k7mq3x-0001";
+        let review = review_of(vec![
+            KeptEdits::Discarding {
+                entry: Box::new(earlier()),
+                dir: PathBuf::from("sync-recovery/1-k7mq3x-0001"),
+                item: None,
+            },
+            KeptEdits::Discarded {
+                id: "0001".to_owned(),
+                directory: PathBuf::from(directory),
+            },
+            KeptEdits::NotDiscarded {
+                entry: Box::new(earlier()),
+                reason: "Permission denied".to_owned(),
+            },
+            KeptEdits::NothingToDiscard {
+                id: "0009".to_owned(),
+            },
+        ]);
+
+        assert_eq!(
+            super::kept_edits_notes(&review),
+            vec![
+                format!(
+                    "note: 0001: kept-edits: {directory} would be discarded"
+                ),
+                format!("note: 0001: kept-edits: discarded {directory}"),
+                format!(
+                    "note: 0001: kept-edits: {directory} could not be \
+                     discarded: Permission denied"
+                ),
+                "note: 0009: kept-edits: no kept copy to discard".to_owned(),
+            ]
+        );
+        let report = report_with(DiscoveryStatus::Ran { found: 0 });
+        let rendered = render_report(&crate::finished_run::FinishedRun {
+            kept_edits: review,
+            ..crate::finished_run::FinishedRun::for_report(&report)
+        });
+        assert_eq!(
+            rendered
+                .lines()
+                .filter(|line| line.starts_with("#\tkept-edits\t0001\tearlier"))
+                .count(),
+            2,
+            "a copy still kept is still recorded: {rendered}"
+        );
+    }
+
+    #[test]
+    fn earlier_copies_of_unknown_age_are_kept_since_an_unknown_date() {
+        let notes = super::kept_edits_notes(&review_of(vec![
+            super::KeptEdits::KeptEarlier(kept("0002", None)),
+        ]));
+
+        assert!(
+            notes[0].contains("(oldest since an unknown date) for 0002"),
+            "{notes:?}"
+        );
+    }
+
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         }
     }
 
@@ -2833,7 +3930,10 @@ mod tests {
         }
 
         fn lines(report: &RunReport) -> Vec<String> {
-            render_report(report).lines().map(str::to_owned).collect()
+            render_report(&crate::finished_run::FinishedRun::for_report(report))
+                .lines()
+                .map(str::to_owned)
+                .collect()
         }
 
         #[test]
@@ -3168,25 +4268,32 @@ mod tests {
 
     #[test]
     fn render_report_emits_each_discovery_status_line() {
-        assert!(
-            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
-                .contains("#\tdiscovery\tran\tfound=3")
-        );
-        assert!(
-            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
-                .contains("#\tdiscovery\tskipped\tpush-only")
-        );
-        assert!(
-            render_report(&report_with(DiscoveryStatus::SkippedTargeted))
-                .contains("#\tdiscovery\tskipped\ttargeted")
-        );
-        assert!(render_report(&report_with(DiscoveryStatus::TargetedPull {
-            attempted: 2
-        }))
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::Ran { found: 3 })
+        ))
+        .contains("#\tdiscovery\tran\tfound=3"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedPushOnly)
+        ))
+        .contains("#\tdiscovery\tskipped\tpush-only"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedTargeted)
+        ))
+        .contains("#\tdiscovery\tskipped\ttargeted"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::TargetedPull { attempted: 2 })
+        ))
         .contains("#\tdiscovery\ttargeted-pull\t2"));
-        let failed = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "connection refused".to_owned(),
-        }));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report_with(DiscoveryStatus::SkippedPendingPush)
+        ))
+        .contains("#\tdiscovery\tskipped\tpending-push"));
+        let failed =
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report_with(DiscoveryStatus::Failed {
+                    detail: "connection refused".to_owned(),
+                }),
+            ));
         assert!(
             failed.contains("#\tdiscovery\tfailed\tconnection refused"),
             "{failed}"
@@ -3195,9 +4302,12 @@ mod tests {
 
     #[test]
     fn a_failed_discovery_detail_is_flattened_to_one_record() {
-        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "line one\tsplit\nline two\r".to_owned(),
-        }));
+        let rendered =
+            render_report(&crate::finished_run::FinishedRun::for_report(
+                &report_with(DiscoveryStatus::Failed {
+                    detail: "line one\tsplit\nline two\r".to_owned(),
+                }),
+            ));
         let discovery = rendered
             .lines()
             .find(|line| line.starts_with("#\tdiscovery\tfailed"))
@@ -3222,9 +4332,6 @@ mod tests {
     #[test]
     fn render_report_renders_an_unconfigured_failure() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::LocallyModified,
@@ -3233,8 +4340,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tlocally-modified\tunconfigured"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tlocally-modified\tunconfigured"));
     }
 
     fn rejected(detail: &str) -> TrackerError {
@@ -3246,9 +4355,6 @@ mod tests {
     #[test]
     fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
         let report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::Unsynced,
@@ -3257,9 +4363,10 @@ mod tests {
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         };
 
-        assert!(
-            render_report(&report).contains("0001\tfailed\tunsynced\trejected")
-        );
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tunsynced\trejected"));
     }
 
     #[test]
@@ -3271,9 +4378,6 @@ mod tests {
             || failed("0003", SyncState::LocallyModified, unconfigured(""));
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
-                identity: Vec::new(),
-                promotions: Vec::new(),
-                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -3286,6 +4390,45 @@ mod tests {
         assert_eq!(
             exit_for(vec![rejection(), refused()]),
             super::exit_codes::REJECTED
+        );
+    }
+
+    fn refused_order(id: &str) -> ApplyError {
+        ApplyError::OrderRefused {
+            item_id: id.to_owned(),
+            order: PendingPushOrder::Create,
+            refusal: Box::new(
+                work_adapters::sync::apply::OrderRefusal::NoSuchItem {
+                    id: id.to_owned(),
+                },
+            ),
+        }
+    }
+
+    #[test]
+    fn a_refused_order_renders_a_failed_row_and_exits_75() {
+        let report = RunReport {
+            refused_orders: vec![refused_order("0009")],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line == "0009\tfailed\t-\torder-refused"),
+            "{rendered}"
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+        assert_eq!(
+            super::failure_lines(&report),
+            ["error: 0009: create failed: no work item 0009 in this run"]
         );
     }
 
@@ -3314,9 +4457,6 @@ mod tests {
         };
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
-                identity: Vec::new(),
-                promotions: Vec::new(),
-                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -3341,15 +4481,407 @@ mod tests {
         }
     }
 
+    #[test]
+    fn exit_code_for_report_ranks_local_failures_by_landing() {
+        let conflict = || reported("0002", SyncState::Conflict, Action::Prompt);
+        let exit_for = |items: Vec<ReportedItem>| {
+            super::exit_code_for_report(&report_of(items))
+        };
+
+        for (items, expected) in [
+            (
+                vec![io_failed("0001", ItemProgress::NothingLanded)],
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                vec![io_failed("0001", ItemProgress::MayHaveLanded)],
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                vec![
+                    conflict(),
+                    io_failed("0001", ItemProgress::MayHaveLanded),
+                ],
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                vec![
+                    conflict(),
+                    io_failed("0001", ItemProgress::NothingLanded),
+                ],
+                super::exit_codes::UNRESOLVED,
+            ),
+        ] {
+            assert_eq!(exit_for(items), expected);
+        }
+    }
+
+    fn unclassifiable(id: &str) -> work::sync::Unclassifiable {
+        work::sync::Unclassifiable {
+            id: id.to_owned(),
+            reason: "could not read it".to_owned(),
+        }
+    }
+
+    #[test]
+    fn an_unclassifiable_item_fails_a_targeted_run_and_yields_to_a_conflict() {
+        let targeted = RunReport {
+            scope: CorpusScope::Targeted,
+            unclassifiable: vec![unclassifiable("0001")],
+            ..crate::test_support::run_report()
+        };
+        let beside_a_conflict = RunReport {
+            reported: vec![reported(
+                "0002",
+                SyncState::Conflict,
+                Action::Prompt,
+            )],
+            unclassifiable: vec![unclassifiable("0001")],
+            ..crate::test_support::run_report()
+        };
+
+        let failures: Vec<_> = targeted.failures().collect();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].severity, FailureSeverity::Error);
+        assert_eq!(
+            super::exit_code_for_report(&targeted),
+            super::exit_codes::RETRYABLE
+        );
+        assert_eq!(
+            super::exit_code_for_report(&beside_a_conflict),
+            super::exit_codes::UNRESOLVED
+        );
+    }
+
+    #[test]
+    fn failed_tracker_reads_are_retryable_run_level_failures() {
+        let report = RunReport {
+            read_failure: Some(TrackerError::Retryable {
+                detail: "rate limited".to_owned(),
+            }),
+            discovery: DiscoveryStatus::Failed {
+                detail: "connection refused".to_owned(),
+            },
+            ..crate::test_support::run_report()
+        };
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec![
+                "error: -: show failed: tracker call failed with no remote \
+                 change: rate limited",
+                "error: -: discover failed: connection refused",
+            ]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
+    #[test]
+    fn a_failed_finalise_is_a_retryable_run_level_failure() {
+        let failed = RunReport {
+            finalisation: Finalisation::Failed("disk full".to_owned()),
+            ..crate::test_support::run_report()
+        };
+        let preview = RunReport {
+            mode: RunMode::Preview,
+            finalisation: Finalisation::NotAttempted,
+            ..crate::test_support::run_report()
+        };
+
+        assert_eq!(
+            super::failure_lines(&failed),
+            vec!["error: -: baseline-set failed: disk full"]
+        );
+        assert_eq!(
+            super::exit_code_for_report(&failed),
+            super::exit_codes::RETRYABLE
+        );
+        assert!(super::failure_lines(&preview).is_empty());
+        assert_eq!(
+            super::exit_code_for_report(&preview),
+            super::exit_codes::CLEAN
+        );
+    }
+
+    #[test]
+    fn every_failed_row_gets_an_error_line_naming_its_operation() {
+        let report = report_of(vec![
+            io_failed("0001", ItemProgress::NothingLanded),
+            failed_with(
+                "0002",
+                ApplyError::RemoteBodyUnavailable {
+                    item_id: "0002".to_owned(),
+                    operation: SyncOperation::Pull,
+                },
+            ),
+            failed(
+                "0003",
+                SyncState::LocallyModified,
+                TrackerError::Retryable {
+                    detail: "offline".to_owned(),
+                },
+            ),
+            ReportedItem {
+                outcome: ItemOutcome::UnsupportedRecipe,
+                ..reported("0004", SyncState::Synced, Action::Noop)
+            },
+        ]);
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert_eq!(lines[0], "error: 0001: write-local failed: disk full");
+        assert!(
+            lines[1].starts_with(
+                "error: 0002: pull failed: the remote description was not \
+                 fetched"
+            ),
+            "{lines:?}"
+        );
+        assert!(
+            lines[2].starts_with("error: 0003: update failed: "),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_preview_says_would_fail() {
+        let report = RunReport {
+            mode: RunMode::Preview,
+            finalisation: Finalisation::NotAttempted,
+            ..report_of(vec![failed_with(
+                "0002",
+                ApplyError::RemoteBodyUnavailable {
+                    item_id: "0002".to_owned(),
+                    operation: SyncOperation::Pull,
+                },
+            )])
+        };
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].starts_with("error: 0002: pull would fail: "),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_newline_in_a_tracker_cause_cannot_forge_an_error_line() {
+        let report = report_of(vec![failed(
+            "0001",
+            SyncState::LocallyModified,
+            TrackerError::Retryable {
+                detail: "offline\nerror: -: baseline-set failed:\rforged"
+                    .to_owned(),
+            },
+        )]);
+
+        let lines = super::failure_lines(&report);
+
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].lines().count(), 1, "{lines:?}");
+        assert!(!lines[0].contains('\r'), "{lines:?}");
+    }
+
+    #[test]
+    fn a_failed_item_with_an_identity_row_keeps_its_failed_row() {
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = RunReport {
+            identity: vec![identity_row(
+                "0001",
+                "0001",
+                work::sync::IdentityAction::KeyChanged,
+                "ENG-1->ENG-2",
+                IdentityOutcome::Applied,
+            )],
+            reported: vec![io_failed("0001", ItemProgress::NothingLanded)],
+            ..crate::test_support::run_report()
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line.starts_with("0001\tkey-changed")),
+            "{rendered}"
+        );
+        assert!(
+            rendered.lines().any(
+                |line| line == "0001\tfailed\tremotely-modified\tretryable"
+            ),
+            "{rendered}"
+        );
+    }
+
+    fn inventory_holding(
+        reasons: Vec<UnidentifiedReason>,
+    ) -> work::inventory::CorpusInventory {
+        work::inventory::CorpusInventory {
+            ids: std::iter::once("0001".to_owned()).collect(),
+            unidentified: reasons
+                .into_iter()
+                .enumerate()
+                .map(|(index, reason)| work::inventory::Unidentified {
+                    path: PathBuf::from(format!(
+                        "meta/work/000{}-x.md",
+                        index + 2
+                    )),
+                    reason,
+                })
+                .collect(),
+        }
+    }
+
+    fn reporting(
+        scope: CorpusScope,
+        reasons: Vec<UnidentifiedReason>,
+    ) -> RunReport {
+        RunReport {
+            scope,
+            inventory: inventory_holding(reasons),
+            ..crate::test_support::run_report()
+        }
+    }
+
+    fn unreadable() -> UnidentifiedReason {
+        UnidentifiedReason::Unreadable("Permission denied".to_owned())
+    }
+
+    fn malformed() -> UnidentifiedReason {
+        UnidentifiedReason::Malformed(
+            work::inventory::MalformedCause::UnclosedFence,
+        )
+    }
+
+    #[test]
+    fn every_unidentified_file_gets_a_record() {
+        let report = reporting(
+            CorpusScope::WholeCorpus,
+            vec![
+                unreadable(),
+                UnidentifiedReason::Undecodable,
+                malformed(),
+                UnidentifiedReason::NoFrontmatter,
+                UnidentifiedReason::NoId,
+            ],
+        );
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        for (index, kind) in [
+            "unreadable",
+            "undecodable",
+            "malformed",
+            "no-frontmatter",
+            "no-id",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(
+                rendered.lines().any(|line| line
+                    == format!(
+                        "#\tunidentified\tmeta/work/000{}-x.md\t{kind}",
+                        index + 2
+                    )),
+                "{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn unusable_files_fail_a_whole_corpus_run_by_what_is_wrong() {
+        let report = reporting(
+            CorpusScope::WholeCorpus,
+            vec![
+                unreadable(),
+                UnidentifiedReason::Undecodable,
+                malformed(),
+                UnidentifiedReason::NoId,
+            ],
+        );
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec![
+                "error: meta/work/0002-x.md: read-local failed: Permission denied",
+                "error: meta/work/0003-x.md: read-local failed: not UTF-8",
+                "error: meta/work/0004-x.md: identify-local failed: frontmatter \
+                 opened but never closed",
+            ]
+        );
+    }
+
+    #[test]
+    fn exit_code_for_report_ranks_unusable_files() {
+        for (scope, reasons, expected) in [
+            (
+                CorpusScope::WholeCorpus,
+                vec![UnidentifiedReason::NoId],
+                super::exit_codes::CLEAN,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![unreadable()],
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![UnidentifiedReason::Undecodable],
+                super::exit_codes::REJECTED,
+            ),
+            (
+                CorpusScope::WholeCorpus,
+                vec![malformed()],
+                super::exit_codes::REJECTED,
+            ),
+            (
+                CorpusScope::Targeted,
+                vec![unreadable(), malformed()],
+                super::exit_codes::CLEAN,
+            ),
+        ] {
+            assert_eq!(
+                super::exit_code_for_report(&reporting(scope, reasons.clone())),
+                expected,
+                "{scope:?} {reasons:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_targeted_run_only_warns_about_unusable_files() {
+        let report = reporting(CorpusScope::Targeted, vec![unreadable()]);
+
+        assert_eq!(
+            super::failure_lines(&report),
+            vec!["warning: meta/work/0002-x.md: read-local failed: Permission denied"]
+        );
+    }
+
     fn failed_with(id: &str, error: ApplyError) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::RemotelyModified,
-                action: Action::Pull,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::RemotelyModified,
+                Action::Pull,
+            ),
             outcome: ItemOutcome::Failed(error),
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -3362,13 +4894,16 @@ mod tests {
 
     fn record(id: &str, outcome: ItemOutcome) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::Synced,
-                action: Action::RecordBaseline,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::Synced,
+                Action::RecordBaseline,
+            ),
             outcome,
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -3381,7 +4916,9 @@ mod tests {
             }),
         )]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
         assert!(
             rendered.contains("0001\tfailed\tsynced\tretryable"),
             "{rendered}"
@@ -3396,16 +4933,21 @@ mod tests {
     #[test]
     fn a_recorded_locally_modified_item_reports_a_record_baseline_row() {
         let report = report_of(vec![ReportedItem {
-            planned: PlannedAction {
-                id: "0001".to_owned(),
-                state: SyncState::LocallyModified,
-                action: Action::RecordBaseline,
-            },
+            planned: PlannedAction::new(
+                "0001".to_owned(),
+                SyncState::LocallyModified,
+                Action::RecordBaseline,
+            ),
             outcome: ItemOutcome::Applied,
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
 
         assert!(
             rendered.contains("0001\trecord-baseline\tlocally-modified\t-"),
@@ -3418,7 +4960,9 @@ mod tests {
     fn a_recorded_baseline_counts_as_synced_with_no_row() {
         let report = report_of(vec![record("0001", ItemOutcome::Applied)]);
 
-        let rendered = render_report(&report);
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
         assert!(!rendered.contains("0001\t"), "{rendered}");
         assert!(rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
         assert_eq!(
@@ -3427,22 +4971,46 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_local_io_failure_reports_terminal_and_exits_71() {
-        let report = report_of(vec![failed_with(
-            "0001",
+    fn io_failed(id: &str, progress: ItemProgress) -> ReportedItem {
+        failed_with(
+            id,
             ApplyError::Io {
-                item_id: "0001".to_owned(),
-                operation: "write-local",
+                item_id: id.to_owned(),
+                operation: SyncOperation::WriteLocal,
+                progress,
                 detail: "disk full".to_owned(),
             },
-        )]);
+        )
+    }
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tterminal"));
+    #[test]
+    fn a_local_io_failure_after_a_landing_reports_terminal_and_exits_71() {
+        let report =
+            report_of(vec![io_failed("0001", ItemProgress::MayHaveLanded)]);
+
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tterminal"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::TERMINAL
+        );
+    }
+
+    #[test]
+    fn a_local_io_failure_before_anything_landed_reports_retryable_and_exits_70(
+    ) {
+        let report =
+            report_of(vec![io_failed("0001", ItemProgress::NothingLanded)]);
+
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
         );
     }
 
@@ -3452,11 +5020,14 @@ mod tests {
             "0001",
             ApplyError::RemoteBodyUnavailable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Pull,
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tretryable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
@@ -3473,8 +5044,10 @@ mod tests {
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tlocal-write-refused"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tlocal-write-refused"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3510,12 +5083,15 @@ mod tests {
             "0001",
             ApplyError::LocalUnparseable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::ParseLocal,
                 detail: "no frontmatter".to_owned(),
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tunparseable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tunparseable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3528,12 +5104,15 @@ mod tests {
             "0001",
             ApplyError::LocalPullResidue {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Update,
                 external_id: tracker::ExternalId::new("ENG-1".to_owned()),
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tpull-residue"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tpull-residue"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3546,14 +5125,17 @@ mod tests {
             "0001",
             ApplyError::RemoteUnrenderable {
                 item_id: "0001".to_owned(),
+                operation: SyncOperation::Pull,
                 cause: tracker::Unrenderable {
                     detail: "panel".to_owned(),
                 },
             },
         )]);
 
-        assert!(render_report(&report)
-            .contains("0001\tfailed\tremotely-modified\tunrenderable"));
+        assert!(render_report(&crate::finished_run::FinishedRun::for_report(
+            &report
+        ))
+        .contains("0001\tfailed\tremotely-modified\tunrenderable"));
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::REJECTED
@@ -3585,17 +5167,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn id_is_token_safe_admits_only_canonical_ids() {
-        let scheme = scheme();
-        assert!(super::id_is_token_safe(&scheme, "0001"));
-        assert!(!super::id_is_token_safe(&scheme, "../foo"));
-        assert!(!super::id_is_token_safe(&scheme, "a/b"));
-        assert!(!super::id_is_token_safe(&scheme, "0001; rm -rf ~"));
-        assert!(!super::id_is_token_safe(&scheme, "1"));
-        assert!(!super::id_is_token_safe(&scheme, ""));
-    }
-
     fn tracker_scheme() -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: corpus::TRACKER_TOKEN.to_owned(),
@@ -3613,7 +5184,11 @@ mod tests {
             conflict_dossier("../ENG-1", false),
         ];
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &dossiers,
             dir.path(),
             &tracker_scheme(),
@@ -3630,7 +5205,11 @@ mod tests {
     fn a_conflict_dossier_is_written_for_a_draft() {
         let dir = tempfile::tempdir().expect("tempdir");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &[conflict_dossier("draft-k7mq3x", false)],
             dir.path(),
             &tracker_scheme(),
@@ -3638,12 +5217,6 @@ mod tests {
         );
 
         assert_eq!(md_files(dir.path()), vec!["draft-k7mq3x.md"]);
-    }
-
-    #[test]
-    fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
-        assert!(!super::id_is_token_safe(&scheme(), "ENG-42"));
-        assert!(!super::id_is_token_safe(&scheme(), "draft-k7mq3x"));
     }
 
     fn md_files(dir: &std::path::Path) -> Vec<String> {
@@ -3670,7 +5243,16 @@ mod tests {
             conflict_dossier("../evil", false),
         ];
 
-        super::persist_dossiers(&dossiers, dir.path(), &scheme(), &ok_render);
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
+        super::persist_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
+            &dossiers,
+            dir.path(),
+            &scheme(),
+            &ok_render,
+        );
 
         assert_eq!(md_files(dir.path()), vec!["0001.md", "0002.md"]);
         let renderable =
@@ -3689,9 +5271,13 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let conflicts = dir.path().join("somewhere").join("conflicts");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_conflict_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0001", false)],
+            &dossiers_report(vec![conflict_dossier("0001", false)]),
             &scheme(),
             &ok_render,
         );
@@ -3702,41 +5288,62 @@ mod tests {
         assert!(conflicts.join("0001.md").exists());
     }
 
-    #[test]
-    fn the_stale_clear_removes_only_canonical_dossiers_and_artefacts() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let conflicts = dir.path().join("conflicts");
+    fn dossiers_report(dossiers: Vec<ConflictDossier>) -> RunReport {
+        RunReport {
+            dossiers,
+            ..crate::test_support::run_report()
+        }
+    }
+
+    fn seeded_conflicts_dir(dir: &std::path::Path) -> PathBuf {
+        let conflicts = dir.join("conflicts");
         std::fs::create_dir_all(&conflicts).expect("mkdir");
-        std::fs::write(conflicts.join("0001.md"), "stale").expect("seed");
-        std::fs::write(conflicts.join("notes.md"), "mine").expect("seed");
-        std::fs::write(
-            conflicts.join(format!("{}sweep", kernel::TEMP_PREFIX)),
-            "artefact",
-        )
-        .expect("seed");
+        for name in ["0001.md", "0002.md", "notes.md"] {
+            std::fs::write(conflicts.join(name), "prior").expect("seed");
+        }
+        std::fs::write(conflicts.join(".tmp-sweep"), "artefact").expect("seed");
+        conflicts
+    }
 
-        super::persist_conflict_dossiers(
+    fn retiring_under(
+        mode: RunMode,
+    ) -> (tempfile::TempDir, PathBuf, Vec<&'static str>) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let conflicts = seeded_conflicts_dir(dir.path());
+        let report = RunReport {
+            mode,
+            inventory: work::inventory::CorpusInventory::complete([
+                "0002".to_owned()
+            ]),
+            ..crate::test_support::run_report()
+        };
+
+        super::retire_dossiers(
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0002", false)],
             &scheme(),
-            &ok_render,
+            &DossierAuthority::for_run(&report),
         );
 
-        assert!(
-            conflicts.join("notes.md").exists(),
-            "a user's own notes.md must survive the stale-clear"
-        );
-        assert!(
-            !conflicts.join("0001.md").exists(),
-            "a resolved conflict's dossier is cleared"
-        );
-        assert!(
-            !conflicts
-                .join(format!("{}sweep", kernel::TEMP_PREFIX))
-                .exists(),
-            "a stray write artefact is swept"
-        );
-        assert!(conflicts.join("0002.md").exists());
+        let survivors = ["0001.md", "0002.md", "notes.md", ".tmp-sweep"]
+            .into_iter()
+            .filter(|name| conflicts.join(name).exists())
+            .collect();
+        (dir, conflicts, survivors)
+    }
+
+    #[test]
+    fn retiring_removes_only_canonical_dossiers_the_run_may_retire() {
+        let (_dir, _conflicts, survivors) = retiring_under(RunMode::Apply);
+
+        assert_eq!(survivors, ["0002.md", "notes.md"]);
+    }
+
+    #[test]
+    fn a_preview_retires_no_dossier_and_no_artefact() {
+        let (_dir, _conflicts, survivors) = retiring_under(RunMode::Preview);
+
+        assert_eq!(survivors, ["0001.md", "0002.md", "notes.md", ".tmp-sweep"]);
     }
 
     #[test]
@@ -3779,9 +5386,13 @@ mod tests {
         )
         .expect("chmod");
 
+        let (mut out, mut err) = (std::io::sink(), std::io::sink());
+
         super::persist_conflict_dossiers(
+            &mut super::Console::new(&mut out, &mut err),
+            &corpus_adapters::FileCorpusStore::new(dir.path()),
             &conflicts,
-            &[conflict_dossier("0002", false)],
+            &dossiers_report(vec![conflict_dossier("0002", false)]),
             &scheme(),
             &ok_render,
         );
@@ -3802,13 +5413,12 @@ mod tests {
         );
     }
 
-    // --- run_sync end-to-end over a stub tracker registry -------------------
-    //
     // `accelerator-work` is bin-only, so these in-crate tests are the only seam
     // that can exercise the post-credential `fetch_all` gate without live
-    // Linear/Jira. `run_sync` returns an opaque `ExitCode`, so they assert the
-    // observable effects — files written or not, the fetch_all call made or not
-    // — while the exit-code chain is proven by the pure-logic tests above.
+    // Linear/Jira. `run_sync_with` returns an opaque `ExitCode`, so they
+    // assert the observable effects — files written, tracker calls made, and
+    // what the captured console printed — while the exit-code chain is proven
+    // by the pure-logic tests above.
 
     use std::cell::RefCell;
     use std::process::ExitCode;
@@ -3818,6 +5428,11 @@ mod tests {
     use tracker::RemoteTracker;
     use tracker_test_support::Call;
     use tracker_test_support::RecordingTracker;
+
+    use corpus_adapters::CommonMarkBody;
+    use corpus_adapters::FileCorpusStore;
+    use work_adapters::sync::baseline_store::BaselineStore;
+    use work_adapters::sync::files::SyncStore;
 
     use crate::cli::SyncArgs;
     use crate::finaliser::FinishedRun;
@@ -4130,25 +5745,28 @@ mod tests {
 
     fn sync_repo() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
+        init_sync_repo(dir.path());
+        dir
+    }
+
+    fn init_sync_repo(root: &Path) {
         let git = |args: &[&str]| {
             std::process::Command::new("git")
                 .args(args)
-                .current_dir(dir.path())
+                .current_dir(root)
                 .status()
                 .expect("git invocation");
         };
         git(&["init", "-q"]);
         git(&["config", "user.name", "Test User"]);
         git(&["config", "user.email", "test@example.com"]);
-        std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
-        std::fs::create_dir_all(dir.path().join(".accelerator"))
-            .expect("mkdir");
+        std::fs::create_dir_all(root.join("meta/work")).expect("mkdir");
+        std::fs::create_dir_all(root.join(".accelerator")).expect("mkdir");
         std::fs::write(
-            dir.path().join(".accelerator/config.md"),
+            root.join(".accelerator/config.md"),
             "---\nwork:\n  integration: jira\n---\n",
         )
         .expect("write config");
-        dir
     }
 
     /// Whether the run persisted a baseline for the integration — proof the
@@ -4184,6 +5802,7 @@ mod tests {
             allow_unbounded: false,
             no_promote: false,
             targets,
+            discard_kept_edits: Vec::new(),
         }
     }
 
@@ -4201,13 +5820,68 @@ mod tests {
         args: &SyncArgs,
         finaliser: &dyn RunFinaliser,
     ) -> ExitCode {
+        capture_sync_finalising(dir, tracker, args, finaliser).code
+    }
+
+    struct CapturedRun {
+        out: String,
+        err: String,
+        code: ExitCode,
+    }
+
+    fn drive_sync_captured(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+    ) -> CapturedRun {
+        capture_sync_finalising(dir, tracker, args, &NoFinaliser)
+    }
+
+    fn capture_sync_finalising(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        finaliser: &dyn RunFinaliser,
+    ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            args,
+            finaliser,
+            super::stores::StoreFactories::production(),
+        )
+    }
+
+    fn capture_sync_over(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        finaliser: &dyn RunFinaliser,
+        stores: super::stores::StoreFactories<'_>,
+    ) -> CapturedRun {
         let composed = config_adapters::compose(
             dir,
             config_adapters::LegacyPolicy::Reject,
         )
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
-        super::run_sync(dir, &composed.service, args, &registry, finaliser)
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::run_sync_with(
+            dir,
+            &composed.service,
+            args,
+            &mut super::SyncSeams {
+                registry: &registry,
+                finaliser,
+                console: super::Console::new(&mut out, &mut err),
+                stores,
+            },
+        );
+        CapturedRun {
+            out: String::from_utf8(out).expect("stdout is UTF-8"),
+            err: String::from_utf8(err).expect("stderr is UTF-8"),
+            code,
+        }
     }
 
     fn tracker_sync_repo_with_a_draft() -> tempfile::TempDir {
@@ -4428,7 +6102,7 @@ mod tests {
     struct RecordingFinaliser {
         corpus: RefCell<Vec<String>>,
         imports: RefCell<Vec<String>>,
-        complains: bool,
+        complaint: Option<&'static str>,
     }
 
     impl RunFinaliser for RecordingFinaliser {
@@ -4447,8 +6121,8 @@ mod tests {
                     .iter()
                     .map(|id| id.as_str().to_owned()),
             );
-            if self.complains {
-                let _ = writeln!(diagnostics, "warning: finaliser failed");
+            if let Some(complaint) = self.complaint {
+                let _ = writeln!(diagnostics, "{complaint}");
             }
         }
     }
@@ -4548,12 +6222,1914 @@ mod tests {
             &tracker(),
             &sync_args(Vec::new()),
             &RecordingFinaliser {
-                complains: true,
+                complaint: Some("warning: finaliser failed"),
                 ..RecordingFinaliser::default()
             },
         );
 
         assert_eq!(observed, expected);
+    }
+
+    fn unparseable_baseline(root: &Path) {
+        let baseline =
+            root.join(".accelerator/state/integrations/jira/last-sync.json");
+        std::fs::create_dir_all(baseline.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(baseline, "not json").expect("seed the baseline");
+    }
+
+    const CLEAN_ITEM: &str = "---\nid: \"0001\"\ntitle: \"Title\"\n\
+                              external_id: \"PP-1\"\n---\n\nOld body\n";
+
+    fn item_path(dir: &Path) -> PathBuf {
+        dir.join("meta/work/0001-title.md")
+    }
+
+    fn baseline_path_in(dir: &Path) -> PathBuf {
+        baseline_under(&dir.join(".accelerator/state/integrations"))
+    }
+
+    fn baseline_under(integrations: &Path) -> PathBuf {
+        integrations.join("jira/last-sync.json")
+    }
+
+    fn git_in(dir: &Path, args: &[&str]) {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git invocation");
+        assert!(status.success(), "git {args:?}");
+    }
+
+    fn commit_all(dir: &Path) {
+        git_in(dir, &["add", "-A"]);
+        git_in(dir, &["commit", "-q", "-m", "seed"]);
+    }
+
+    /// Item `0001` tracked as `PP-1`, holding `local`, with a recipe-1
+    /// baseline entry recording `local` against `remote_body` as of the
+    /// start of 2026.
+    fn synced_item(
+        dir: &Path,
+        tracker: &RecordingTracker,
+        local: &str,
+        remote_body: &str,
+    ) {
+        synced_item_recorded_at(
+            &baseline_path_in(dir),
+            dir,
+            tracker,
+            local,
+            remote_body,
+        );
+    }
+
+    fn synced_item_recorded_at(
+        baseline_path: &Path,
+        dir: &Path,
+        tracker: &RecordingTracker,
+        local: &str,
+        remote_body: &str,
+    ) {
+        std::fs::write(item_path(dir), local).expect("write the item");
+        let baseline_path = baseline_path.to_path_buf();
+        std::fs::create_dir_all(baseline_path.parent().expect("parent"))
+            .expect("mkdir");
+        let writer = FileCorpusStore::new(
+            baseline_path.parent().expect("the baseline's directory"),
+        );
+        let baseline = BaselineStore::new(
+            baseline_path,
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        let fingerprints =
+            work_adapters::sync::baseline_digester::BaselineDigester::new(
+                tracker,
+                &CommonMarkBody,
+            )
+            .digests(local, Some(remote_body))
+            .expect("the item is well formed");
+        baseline
+            .set(
+                "0001",
+                work_adapters::sync::baseline::Entry::recorded(
+                    work_adapters::sync::baseline::SyncStamps {
+                        remote_updated_at: tracker::RemoteTimestamp::Reported(
+                            "2026-01-01T00:00:00Z".to_owned(),
+                        ),
+                        local_synced_at: 0,
+                    },
+                    fingerprints,
+                ),
+            )
+            .expect("seed the baseline");
+    }
+
+    fn edited_remotely(body: &str) -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-1".to_owned()),
+            RemoteIssue {
+                key: ExternalId::new("PP-1".to_owned()),
+                updated: tracker::RemoteTimestamp::Reported(
+                    "2026-02-01T00:00:00Z".to_owned(),
+                ),
+                body: body.to_owned(),
+            },
+        )]))
+    }
+
+    fn frontmatter_of(content: &str) -> &str {
+        let end = content[4..].find("\n---\n").expect("a closing fence") + 4;
+        &content[..end]
+    }
+
+    fn assert_recorded_as_pulled(
+        dir: &Path,
+        tracker: &RecordingTracker,
+        remote_body: &str,
+    ) {
+        assert_recorded_as_pulled_at(
+            &baseline_path_in(dir),
+            dir,
+            tracker,
+            remote_body,
+        );
+    }
+
+    fn assert_recorded_as_pulled_at(
+        baseline_path: &Path,
+        dir: &Path,
+        tracker: &RecordingTracker,
+        remote_body: &str,
+    ) {
+        let content =
+            std::fs::read_to_string(item_path(dir)).expect("read the item");
+        let unused_writer = FileCorpusStore::new(dir);
+        let baseline = BaselineStore::new(
+            baseline_path.to_path_buf(),
+            &corpus_adapters::RealFs,
+            &unused_writer,
+        );
+        let (loaded, _) = baseline.load().expect("the baseline loads");
+        let expected =
+            work_adapters::sync::baseline_digester::BaselineDigester::new(
+                tracker,
+                &CommonMarkBody,
+            )
+            .digests(&content, Some(remote_body))
+            .expect("the pulled item is well formed");
+        let Some(work_adapters::sync::baseline::Entry::Split {
+            legacy,
+            split,
+            ..
+        }) = loaded.get("0001")
+        else {
+            panic!("expected a recipe-1 entry for 0001");
+        };
+        assert_eq!(split, &expected.split, "the split fingerprints");
+        assert_eq!(legacy, &expected.legacy, "the legacy hashes");
+    }
+
+    #[test]
+    fn a_remote_edit_to_a_clean_tracked_item_is_pulled() {
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        let content = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert_eq!(frontmatter_of(&content), frontmatter_of(CLEAN_ITEM));
+        assert_eq!(
+            &content[frontmatter_of(&content).len()..],
+            "\n---\n\nPulled body\n"
+        );
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert!(!run.err.contains("note:"), "{}", run.err);
+        assert!(!run.err.contains("error:"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::SUCCESS);
+
+        let preview = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..sync_args(vec![])
+            },
+        );
+        assert!(!preview.out.contains("0001\t"), "{}", preview.out);
+        assert!(
+            preview.out.contains("#\tsummary\tsynced\t1"),
+            "{}",
+            preview.out
+        );
+        assert_eq!(preview.code, ExitCode::SUCCESS);
+    }
+
+    fn kept_edits_record<'a>(out: &'a str, id: &str) -> Option<Vec<&'a str>> {
+        out.lines()
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .find(|fields| {
+                fields.get(1) == Some(&"kept-edits")
+                    && fields.get(2) == Some(&id)
+            })
+    }
+
+    #[test]
+    fn a_resolve_to_remote_pull_lands_and_keeps_the_local_edits() {
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+        let edited = CLEAN_ITEM.replace("Old body", "Local edit");
+        std::fs::write(item_path(dir.path()), &edited).expect("edit");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                resolutions: vec![("0001".to_owned(), "remote".to_owned())],
+                ..sync_args(vec![])
+            },
+        );
+
+        let content = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert!(content.ends_with("\n---\n\nPulled body\n"), "{content}");
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+        assert!(run.out.contains("0001\tpull\tconflict\t-"), "{}", run.out);
+        let record = kept_edits_record(&run.out, "0001")
+            .unwrap_or_else(|| panic!("no kept-edits record: {}", run.out));
+        assert_eq!(record[3], "this-run", "{record:?}");
+        assert_eq!(
+            Path::new(record[4]).canonicalize().expect("the item"),
+            item_path(dir.path()).canonicalize().expect("the item")
+        );
+        let copy = record[5];
+        assert_eq!(std::fs::read_to_string(copy).expect("the copy"), edited);
+        assert!(
+            run.err.contains(&format!(
+                "note: 0001: kept-edits: local edits kept at {copy}; merge \
+                 them, then run accelerator work sync --target 0001 \
+                 --discard-kept-edits 0001"
+            )),
+            "{}",
+            run.err
+        );
+    }
+
+    fn kept_copy_settles_over_three_runs(dir: &Path) {
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir, &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        let edited = CLEAN_ITEM.replace("Old body", "Local edit");
+        std::fs::write(item_path(dir), &edited).expect("edit");
+        let resolving = SyncArgs {
+            resolutions: vec![("0001".to_owned(), "remote".to_owned())],
+            ..sync_args(vec![])
+        };
+
+        let first = drive_sync_captured(dir, &tracker, &resolving);
+        let kept = kept_edits_record(&first.out, "0001")
+            .unwrap_or_else(|| panic!("no kept copy: {}", first.out));
+        assert_eq!(kept[3], "this-run");
+        let copy = PathBuf::from(kept[5]);
+
+        let second = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        let carried = kept_edits_record(&second.out, "0001")
+            .unwrap_or_else(|| panic!("no carried copy: {}", second.out));
+        assert_eq!(carried[3], "earlier", "{}", second.out);
+        assert!(
+            !second.err.contains("tracked by version control"),
+            "{}",
+            second.err
+        );
+
+        std::fs::write(item_path(dir), &edited).expect("restore the edit");
+        let third = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        assert!(
+            kept_edits_record(&third.out, "0001").is_none(),
+            "{}",
+            third.out
+        );
+        assert!(!copy.exists(), "the settled copy is swept");
+    }
+
+    #[test]
+    fn a_kept_copy_is_read_as_untracked_and_settles_over_three_runs_under_git()
+    {
+        let dir = sync_repo();
+        commit_all(dir.path());
+
+        kept_copy_settles_over_three_runs(dir.path());
+    }
+
+    #[test]
+    fn a_kept_copy_is_read_as_untracked_and_settles_over_three_runs_under_jj() {
+        vcs_test_support::hermetic::assert_jj_matches("0.43.0")
+            .expect("the pinned jj");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let config = tempfile::tempdir().expect("tempdir");
+        let env =
+            vcs_test_support::hermetic::Hermetic::rooted_at(config.path())
+                .expect("an isolated VCS config");
+        env.jj(&["git", "init", "--no-colocate"], dir.path())
+            .expect("jj init");
+        std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join(".accelerator"))
+            .expect("mkdir");
+        team_config(dir.path(), "");
+
+        kept_copy_settles_over_three_runs(dir.path());
+    }
+
+    struct FailingFirstBaselineWrite {
+        inner: Box<dyn SyncStore>,
+        failed: std::cell::Cell<bool>,
+    }
+
+    impl corpus::store::AtomicWrite for FailingFirstBaselineWrite {
+        fn write(
+            &self,
+            path: &Path,
+            bytes: &[u8],
+        ) -> Result<(), corpus::store::StoreError> {
+            if path.ends_with("last-sync.json") && !self.failed.replace(true) {
+                return Err(corpus::store::StoreError::Io {
+                    path: path.display().to_string(),
+                    detail: "injected baseline failure".to_owned(),
+                });
+            }
+            self.inner.write(path, bytes)
+        }
+    }
+
+    impl corpus::store::FileRemove for FailingFirstBaselineWrite {
+        fn remove(&self, path: &Path) -> Result<(), corpus::store::StoreError> {
+            self.inner.remove(path)
+        }
+    }
+
+    struct RecordingWrites {
+        inner: Box<dyn SyncStore>,
+        written: Rc<RefCell<Vec<PathBuf>>>,
+    }
+
+    impl corpus::store::AtomicWrite for RecordingWrites {
+        fn write(
+            &self,
+            path: &Path,
+            bytes: &[u8],
+        ) -> Result<(), corpus::store::StoreError> {
+            self.written.borrow_mut().push(path.to_path_buf());
+            self.inner.write(path, bytes)
+        }
+    }
+
+    impl corpus::store::FileRemove for RecordingWrites {
+        fn remove(&self, path: &Path) -> Result<(), corpus::store::StoreError> {
+            self.inner.remove(path)
+        }
+    }
+
+    fn mutations(tracker: &RecordingTracker) -> Vec<Call> {
+        tracker
+            .calls()
+            .into_iter()
+            .filter(|call| {
+                matches!(
+                    call,
+                    Call::Update { .. }
+                        | Call::Retitle { .. }
+                        | Call::Create { .. }
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_terminal_baseline_set_after_a_pull_records_the_baseline_on_the_next_run(
+    ) {
+        use super::stores::rooted_store;
+        use super::stores::StoreFactories;
+
+        let dir = sync_repo();
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+        let failing_baseline = |root: &crate::bounded_roots::BoundedRoot| {
+            Box::new(FailingFirstBaselineWrite {
+                inner: rooted_store(root),
+                failed: std::cell::Cell::new(false),
+            }) as Box<dyn SyncStore>
+        };
+        let first = capture_sync_over(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            StoreFactories {
+                work_items: &rooted_store,
+                integration_state: &failing_baseline,
+            },
+        );
+        assert!(
+            first
+                .out
+                .contains("0001\tfailed\tremotely-modified\tterminal"),
+            "{}",
+            first.out
+        );
+        let pulled = std::fs::read_to_string(item_path(dir.path()))
+            .expect("read the item");
+        assert!(pulled.ends_with("\n---\n\nPulled body\n"), "{pulled}");
+        let mutations_before = mutations(&tracker).len();
+
+        let written = Rc::new(RefCell::new(Vec::new()));
+        let recording_items = |root: &crate::bounded_roots::BoundedRoot| {
+            Box::new(RecordingWrites {
+                inner: rooted_store(root),
+                written: Rc::clone(&written),
+            }) as Box<dyn SyncStore>
+        };
+        let second = capture_sync_over(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            StoreFactories {
+                work_items: &recording_items,
+                integration_state: &rooted_store,
+            },
+        );
+
+        assert!(!second.out.contains("0001\t"), "{}", second.out);
+        assert!(
+            second.out.contains("#\tsummary\tsynced\t1"),
+            "{}",
+            second.out
+        );
+        assert!(
+            !written
+                .borrow()
+                .iter()
+                .any(|path| path.ends_with("0001-title.md")),
+            "{:?}",
+            written.borrow()
+        );
+        assert_eq!(mutations(&tracker).len(), mutations_before);
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+
+        let third = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..sync_args(vec![])
+            },
+        );
+        assert!(!third.out.contains("0001\t"), "{}", third.out);
+        assert_eq!(third.code, ExitCode::SUCCESS);
+    }
+
+    fn numbered_item(id: &str, key: &str, body: &str) -> String {
+        format!(
+            "---\nid: \"{id}\"\ntitle: \"Title\"\nexternal_id: \"{key}\"\n\
+             ---\n\n{body}"
+        )
+    }
+
+    fn numbered_path(dir: &Path, id: &str) -> PathBuf {
+        dir.join(format!("meta/work/{id}-title.md"))
+    }
+
+    /// Items each tracked under their key, recorded in sync with the
+    /// remote's old body, whose remote side now holds a new body.
+    fn edited_remotely_numbered(
+        dir: &Path,
+        items: &[(&str, &str)],
+    ) -> Rc<RecordingTracker> {
+        let tracker = Rc::new(RecordingTracker::holding(
+            items
+                .iter()
+                .map(|(_, key)| {
+                    (
+                        ExternalId::new((*key).to_owned()),
+                        RemoteIssue {
+                            key: ExternalId::new((*key).to_owned()),
+                            updated: tracker::RemoteTimestamp::Reported(
+                                "2026-02-01T00:00:00Z".to_owned(),
+                            ),
+                            body: "Title\nPulled body\n".to_owned(),
+                        },
+                    )
+                })
+                .collect(),
+        ));
+        let writer = FileCorpusStore::new(
+            baseline_path_in(dir)
+                .parent()
+                .expect("a baseline directory"),
+        );
+        std::fs::create_dir_all(
+            baseline_path_in(dir)
+                .parent()
+                .expect("a baseline directory"),
+        )
+        .expect("mkdir");
+        let baseline = BaselineStore::new(
+            baseline_path_in(dir),
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        for (id, key) in items {
+            let local = numbered_item(id, key, "Old body\n");
+            std::fs::write(numbered_path(dir, id), &local)
+                .expect("write the item");
+            let fingerprints =
+                work_adapters::sync::baseline_digester::BaselineDigester::new(
+                    tracker.as_ref(),
+                    &CommonMarkBody,
+                )
+                .digests(&local, Some("Title\nOld body\n"))
+                .expect("the item is well formed");
+            baseline
+                .set(
+                    id,
+                    work_adapters::sync::baseline::Entry::recorded(
+                        work_adapters::sync::baseline::SyncStamps {
+                            remote_updated_at:
+                                tracker::RemoteTimestamp::Reported(
+                                    "2026-01-01T00:00:00Z".to_owned(),
+                                ),
+                            local_synced_at: 0,
+                        },
+                        fingerprints,
+                    ),
+                )
+                .expect("seed the baseline");
+        }
+        commit_all(dir);
+        tracker
+    }
+
+    fn recorded_entry(
+        dir: &Path,
+        id: &str,
+    ) -> Option<work_adapters::sync::baseline::Entry> {
+        let unused_writer = FileCorpusStore::new(dir);
+        let baseline = BaselineStore::new(
+            baseline_path_in(dir),
+            &corpus_adapters::RealFs,
+            &unused_writer,
+        );
+        let (loaded, _) = baseline.load().expect("the baseline loads");
+        loaded.get(id).cloned()
+    }
+
+    type StoreFactory =
+        dyn Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore>;
+
+    fn failing_work_items(
+        applies: fn(&Path) -> bool,
+        error: fn(&Path) -> corpus::store::StoreError,
+    ) -> impl Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore> {
+        move |root| {
+            Box::new(crate::test_support::Faults {
+                inner: super::stores::rooted_store(root),
+                applies,
+                left: std::cell::Cell::new(1),
+                error,
+            }) as Box<dyn SyncStore>
+        }
+    }
+
+    fn not_writable(path: &Path) -> corpus::store::StoreError {
+        corpus::store::StoreError::NotWritable {
+            path: path.display().to_string(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        }
+    }
+
+    fn capture_with_stores(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        work_items: &StoreFactory,
+        integration_state: &StoreFactory,
+    ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            &sync_args(vec![]),
+            &NoFinaliser,
+            super::stores::StoreFactories {
+                work_items,
+                integration_state,
+            },
+        )
+    }
+
+    fn error_lines(err: &str) -> Vec<&str> {
+        err.lines()
+            .filter(|line| line.starts_with("error:"))
+            .collect()
+    }
+
+    #[test]
+    fn a_write_refused_for_permission_after_the_lock_is_retryable() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                not_writable,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(errors[0].starts_with("error: 0001: write-local failed: "));
+        assert!(errors[0].contains("Permission denied"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_failed_work_item_write_is_retryable() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(errors[0].contains("write-local"), "{}", run.err);
+        assert!(errors[0].contains("injected"), "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_failed_baseline_write_after_a_pull_is_terminal() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let before = recorded_entry(dir.path(), "0001");
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &super::stores::rooted_store,
+            &failing_work_items(
+                |path| path.ends_with("last-sync.json"),
+                crate::test_support::injected,
+            ),
+        );
+
+        let content =
+            std::fs::read_to_string(numbered_path(dir.path(), "0001"))
+                .expect("read the item");
+        assert!(content.ends_with("\n---\n\nPulled body\n"), "{content}");
+        assert_eq!(recorded_entry(dir.path(), "0001"), before);
+        assert!(
+            run.out
+                .contains("0001\tfailed\tremotely-modified\tterminal"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert!(
+            errors.iter().any(|line| line
+                .starts_with("error: 0001: baseline-set failed: after pull: ")
+                && line.contains("injected")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn another_items_successful_pull_does_not_make_a_failure_terminal() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(
+            dir.path(),
+            &[("0001", "PP-1"), ("0002", "PP-2")],
+        );
+
+        let run = capture_with_stores(
+            dir.path(),
+            &tracker,
+            &failing_work_items(
+                |path| path.ends_with("0002-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out
+                .contains("0002\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_conflict_beside_a_local_failure_shows_both_rows() {
+        for (applies, row, code) in [
+            (
+                (|path: &Path| path.ends_with("0002-title.md"))
+                    as fn(&Path) -> bool,
+                "0002\tfailed\tremotely-modified\tretryable",
+                super::exit_codes::UNRESOLVED,
+            ),
+            (
+                |path: &Path| path.ends_with("last-sync.json"),
+                "0002\tfailed\tremotely-modified\tterminal",
+                super::exit_codes::TERMINAL,
+            ),
+        ] {
+            let dir = sync_repo();
+            let tracker = edited_remotely_numbered(
+                dir.path(),
+                &[("0001", "PP-1"), ("0002", "PP-2")],
+            );
+            std::fs::write(
+                numbered_path(dir.path(), "0001"),
+                numbered_item("0001", "PP-1", "Local edit\n"),
+            )
+            .expect("edit the item");
+            let faulty =
+                failing_work_items(applies, crate::test_support::injected);
+            let (work_items, integration_state): (
+                &StoreFactory,
+                &StoreFactory,
+            ) = if code == super::exit_codes::UNRESOLVED {
+                (&faulty, &super::stores::rooted_store)
+            } else {
+                (&super::stores::rooted_store, &faulty)
+            };
+
+            let run = capture_with_stores(
+                dir.path(),
+                &tracker,
+                work_items,
+                integration_state,
+            );
+
+            assert!(
+                run.out.contains("0001\tunresolved\tconflict\t-"),
+                "{}",
+                run.out
+            );
+            assert!(run.out.contains(row), "{}", run.out);
+            assert!(
+                error_lines(&run.err)
+                    .iter()
+                    .any(|line| line.starts_with("error: 0002: ")),
+                "{}",
+                run.err
+            );
+            assert_eq!(run.code, ExitCode::from(code));
+        }
+    }
+
+    #[test]
+    fn a_read_only_work_directory_fails_the_pull_as_retryable_then_pulls() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let work = dir.path().join("meta/work");
+        let item_before = std::fs::read(numbered_path(dir.path(), "0001"))
+            .expect("read the item");
+        let baseline_before = recorded_entry(dir.path(), "0001");
+        std::fs::set_permissions(&work, std::fs::Permissions::from_mode(0o555))
+            .expect("make the work directory read-only");
+        let probe = work.join(".probe");
+        let enforced = std::fs::write(&probe, "").is_err();
+        let _ = std::fs::remove_file(&probe);
+
+        let refused =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+        std::fs::set_permissions(&work, std::fs::Permissions::from_mode(0o755))
+            .expect("restore the work directory");
+        if !enforced {
+            return;
+        }
+
+        assert!(
+            refused
+                .out
+                .contains("0001\tfailed\tremotely-modified\tretryable"),
+            "{}",
+            refused.out
+        );
+        let errors = error_lines(&refused.err);
+        assert_eq!(errors.len(), 1, "{}", refused.err);
+        assert!(errors[0].contains("0001"), "{}", refused.err);
+        assert!(errors[0].contains("lock-local"), "{}", refused.err);
+        assert!(errors[0].contains("Permission denied"), "{}", refused.err);
+        assert_eq!(
+            std::fs::read(numbered_path(dir.path(), "0001")).expect("read"),
+            item_before
+        );
+        assert_eq!(recorded_entry(dir.path(), "0001"), baseline_before);
+        assert_eq!(refused.code, ExitCode::from(super::exit_codes::RETRYABLE));
+
+        let pulled =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            pulled.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            pulled.out
+        );
+        assert_ne!(recorded_entry(dir.path(), "0001"), baseline_before);
+    }
+
+    #[test]
+    fn each_tracker_failure_kind_reports_its_class_detail_and_exit() {
+        for (error, detail, code) in [
+            (
+                TrackerError::Retryable {
+                    detail: "offline".to_owned(),
+                },
+                "retryable",
+                super::exit_codes::RETRYABLE,
+            ),
+            (
+                TrackerError::Terminal {
+                    detail: "timed out after sending".to_owned(),
+                },
+                "terminal",
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                TrackerError::Unconfigured {
+                    detail: "no such field".to_owned(),
+                },
+                "unconfigured",
+                super::exit_codes::UNCONFIGURED,
+            ),
+            (
+                TrackerError::Rejected {
+                    detail: "the body has a table".to_owned(),
+                },
+                "rejected",
+                super::exit_codes::REJECTED,
+            ),
+        ] {
+            let dir = sync_repo();
+            let local = numbered_item("0001", "PP-1", "Old body\n");
+            let tracker = Rc::new(
+                RecordingTracker::holding(vec![(
+                    ExternalId::new("PP-1".to_owned()),
+                    RemoteIssue {
+                        key: ExternalId::new("PP-1".to_owned()),
+                        updated: tracker::RemoteTimestamp::Reported(
+                            "2026-01-01T00:00:00Z".to_owned(),
+                        ),
+                        body: "Title\nOld body\n".to_owned(),
+                    },
+                )])
+                .failing_update(
+                    ExternalId::new("PP-1".to_owned()),
+                    error.clone(),
+                ),
+            );
+            synced_item(dir.path(), &tracker, &local, "Title\nOld body\n");
+            std::fs::write(
+                item_path(dir.path()),
+                numbered_item("0001", "PP-1", "Local edit\n"),
+            )
+            .expect("edit the item");
+            commit_all(dir.path());
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(
+                run.out.contains(&format!(
+                    "0001\tfailed\tlocally-modified\t{detail}"
+                )),
+                "{detail}: {}",
+                run.out
+            );
+            let errors = error_lines(&run.err);
+            assert!(
+                errors.iter().any(|line| {
+                    line.starts_with("error: 0001: update failed: ")
+                        && line.contains(&error.to_string())
+                }),
+                "{detail}: {}",
+                run.err
+            );
+            assert_eq!(run.code, ExitCode::from(code), "{detail}");
+        }
+    }
+
+    #[test]
+    fn a_pending_push_refusal_reports_terminal_and_names_its_reason() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join("meta/work/0001-title.md"),
+            "---\nid: \"0001\"\ntitle: \"Title\"\nkind: task\n---\n\nBody\n",
+        )
+        .expect("write the draft");
+        let marker = dir.path().join(
+            ".accelerator/state/integrations/jira/pending-push/0001.json",
+        );
+        std::fs::create_dir_all(marker.parent().expect("a parent"))
+            .expect("mkdir");
+        std::fs::write(&marker, "{ not a marker").expect("seed the marker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out.contains("0001\tfailed\tunsynced\tterminal"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                "error: 0001: create failed: pending push refused \
+                 (marker-unreadable): "
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_pending_push_refusal_names_its_remedy() {
+        let dir = sync_repo();
+        unsynced_draft(dir.path());
+        let marker = dir.path().join(
+            ".accelerator/state/integrations/jira/pending-push/0001.json",
+        );
+        std::fs::create_dir_all(marker.parent().expect("a parent"))
+            .expect("mkdir");
+        std::fs::write(&marker, "{ not a marker").expect("seed the marker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        let suffix = format!(
+            "(marker {}); search the tracker for this item, then settle with \
+             --resolve 0001=adopt:<KEY> if it exists or --resolve \
+             0001=create if it does not",
+            marker.display()
+        );
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.ends_with(&suffix)),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
+    fn an_already_written_refusal_offers_no_order() {
+        let refusal = ApplyError::PendingPushRefused {
+            item_id: "0001".to_owned(),
+            reason: work::sync::RefusalReason::AlreadyWritten,
+            detail: "PP-5 is already carried by work item 0002 (marker \
+                     /s/pending-push/0001.json)"
+                .to_owned(),
+        };
+
+        assert!(!refusal.cause().contains("--resolve"), "{refusal}");
+    }
+
+    fn unidentified_record(out: &str, path: &Path, kind: &str) -> bool {
+        out.lines().any(|line| {
+            line == format!("#\tunidentified\t{}\t{kind}", path.display())
+        })
+    }
+
+    #[test]
+    fn an_undecodable_work_file_is_reported_by_path() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let garbled = dir.path().join("meta/work/0002-garbled.md");
+        std::fs::write(&garbled, [0xff, 0xfe, b'\n']).expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &garbled, "undecodable"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}",
+            run.out
+        );
+        assert_eq!(
+            error_lines(&run.err),
+            vec![format!(
+                "error: {}: read-local failed: not UTF-8",
+                garbled.display()
+            )]
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn an_unreadable_work_file_is_reported_by_path() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let sealed = dir.path().join("meta/work/0002-sealed.md");
+        std::fs::write(&sealed, "---\nid: \"0002\"\n---\n").expect("write");
+        let Some(_guard) =
+            store::test_support::UnreadableFile::new(&sealed).expect("seal")
+        else {
+            return;
+        };
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &sealed, "unreadable"),
+            "{}",
+            run.out
+        );
+        let errors = error_lines(&run.err);
+        assert_eq!(errors.len(), 1, "{}", run.err);
+        assert!(
+            errors[0].starts_with(&format!(
+                "error: {}: read-local failed: ",
+                sealed.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_readme_in_the_work_directory_does_not_fail_sync() {
+        for (content, kind) in [
+            ("---\ntitle: About\n---\n\n# About\n", "no-id"),
+            ("# About\n", "no-frontmatter"),
+        ] {
+            let dir = sync_repo();
+            let tracker =
+                edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+            let readme = dir.path().join("meta/work/README.md");
+            std::fs::write(&readme, content).expect("write the readme");
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(
+                unidentified_record(&run.out, &readme, kind),
+                "{}",
+                run.out
+            );
+            assert!(!run.err.contains("README"), "{}", run.err);
+            assert_eq!(run.code, ExitCode::SUCCESS, "{kind}: {}", run.err);
+        }
+    }
+
+    #[test]
+    fn a_conflicted_work_item_file_fails_the_run() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let conflicted = dir.path().join("meta/work/0002-two.md");
+        std::fs::write(
+            &conflicted,
+            "<<<<<<< Conflict 1 of 1\n%%%%%%% Changes from base to side #1\n\
+             -id: \"0002\"\n+id: \"0002\"\n+++++++ Contents of side #2\n\
+             id: \"0002\"\n>>>>>>> Conflict 1 of 1 ends\n---\n\nBody\n",
+        )
+        .expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            unidentified_record(&run.out, &conflicted, "malformed"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                &format!(
+                    "error: {}: identify-local failed: ",
+                    conflicted.display()
+                )
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_run_reports_but_does_not_fail_on_an_unrelated_unreadable_file(
+    ) {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let garbled = dir.path().join("meta/work/0002-garbled.md");
+        std::fs::write(&garbled, [0xff, 0xfe, b'\n']).expect("write the file");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["0001".to_owned()]),
+        );
+
+        assert!(
+            unidentified_record(&run.out, &garbled, "undecodable"),
+            "{}",
+            run.out
+        );
+        assert!(error_lines(&run.err).is_empty(), "{}", run.err);
+        assert!(
+            run.err.contains(&format!(
+                "warning: {}: read-local failed: not UTF-8",
+                garbled.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn a_newline_in_a_filename_cannot_forge_an_error_line() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        std::fs::write(
+            dir.path()
+                .join("meta/work/0002-\nerror: -: baseline-set failed:.md"),
+            "# no frontmatter\n",
+        )
+        .expect("write the file");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(error_lines(&run.err).len(), 1, "{}", run.err);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_body_with_conflict_markers_is_neither_pushed_nor_pulled() {
+        let dir = sync_repo();
+        let tracker = edited_remotely_numbered(dir.path(), &[("0001", "PP-1")]);
+        let conflicted = numbered_item(
+            "0001",
+            "PP-1",
+            "<<<<<<< HEAD\nOld body\n=======\nOther body\n>>>>>>> side\n",
+        );
+        std::fs::write(numbered_path(dir.path(), "0001"), &conflicted)
+            .expect("write the item");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(
+            std::fs::read_to_string(numbered_path(dir.path(), "0001"))
+                .expect("read the item"),
+            conflicted
+        );
+        assert!(mutations(&tracker).is_empty());
+        assert!(!run.out.contains("0001\t"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    fn discovering_remote(keys: &[&str]) -> Rc<RecordingTracker> {
+        Rc::new(
+            RecordingTracker::holding(
+                keys.iter()
+                    .map(|key| {
+                        (
+                            ExternalId::new((*key).to_owned()),
+                            issue("Imported\nRemote body"),
+                        )
+                    })
+                    .collect(),
+            )
+            .discovering(
+                keys.iter()
+                    .map(|key| {
+                        (
+                            ExternalId::new((*key).to_owned()),
+                            tracker::RemoteTimestamp::Reported(
+                                "2026-01-01T00:00:00Z".to_owned(),
+                            ),
+                        )
+                    })
+                    .collect(),
+                true,
+            ),
+        )
+    }
+
+    const CONFLICTED_ITEM: &str = "<<<<<<< Conflict 1 of 1\n%%%%%%% Changes \
+                                   from base to side #1\n-title: a\n+title: \
+                                   b\n+++++++ Contents of side #2\ntitle: \
+                                   c\n>>>>>>> Conflict 1 of 1 ends\n---\nid: \
+                                   \"0042\"\nexternal_id: \"PP-42\"\n---\n";
+
+    #[test]
+    fn a_conflicted_tracked_item_is_not_re_imported() {
+        let dir = sync_repo();
+        let conflicted = dir.path().join("meta/work/0042-tracked.md");
+        std::fs::write(&conflicted, CONFLICTED_ITEM).expect("write the item");
+        let tracker = discovering_remote(&["PP-42"]);
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(new_work_files(dir.path()), vec!["0042-tracked.md"]);
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tdiscovery\tskipped\tincomplete-corpus"),
+            "{}",
+            run.out
+        );
+        assert!(
+            unidentified_record(&run.out, &conflicted, "malformed"),
+            "{}",
+            run.out
+        );
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.contains("identify-local failed")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_pull_is_deferred_while_the_corpus_is_incomplete() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join("meta/work/0002-broken.md"),
+            "---\nid: \"0002\"\n",
+        )
+        .expect("write the broken item");
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-9".to_owned()),
+            issue("Imported\nRemote body"),
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["PP-9".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(dir.path()), vec!["0002-broken.md"]);
+        assert_eq!(
+            error_lines(&run.err),
+            vec![
+                "error: -: discover failed: the work directory holds \
+                 unreadable or malformed files, so PP-9 cannot be shown to be \
+                 untracked"
+            ]
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::REJECTED));
+    }
+
+    #[test]
+    fn a_targeted_pull_deferred_by_an_unreadable_file_is_retryable() {
+        let dir = sync_repo();
+        let sealed = dir.path().join("meta/work/0002-sealed.md");
+        std::fs::write(&sealed, "---\nid: \"0002\"\n---\n").expect("write");
+        let Some(_guard) =
+            store::test_support::UnreadableFile::new(&sealed).expect("seal")
+        else {
+            return;
+        };
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-9".to_owned()),
+            issue("Imported\nRemote body"),
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["PP-9".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(dir.path()), vec!["0002-sealed.md"]);
+        assert!(
+            error_lines(&run.err)
+                .iter()
+                .any(|line| line.starts_with("error: -: discover failed: ")),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn an_empty_healthy_corpus_imports_remote_issues() {
+        let full = sync_repo();
+        let targeted = sync_repo();
+
+        drive_sync(
+            full.path(),
+            &discovering_remote(&["PP-7"]),
+            &sync_args(vec![]),
+        );
+        drive_sync(
+            targeted.path(),
+            &discovering_remote(&["PP-7"]),
+            &sync_args(vec!["PP-7".to_owned()]),
+        );
+
+        assert_eq!(new_work_files(full.path()).len(), 1);
+        assert_eq!(new_work_files(targeted.path()).len(), 1);
+    }
+
+    fn team_config(dir: &Path, extra: &str) {
+        std::fs::write(
+            dir.join(".accelerator/config.md"),
+            format!("---\nwork:\n  integration: jira\n{extra}---\n"),
+        )
+        .expect("write the team config");
+    }
+
+    fn personal_config(dir: &Path, yaml: &str) {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join(".accelerator/config.local.md");
+        std::fs::write(&path, format!("---\n{yaml}---\n"))
+            .expect("write the personal config");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .expect("chmod");
+    }
+
+    fn integrations_at(path: &Path) -> String {
+        format!("paths:\n  integrations: \"{}\"\n", path.display())
+    }
+
+    fn assert_refused_before_any_tracker_call(
+        run: &CapturedRun,
+        tracker: &RecordingTracker,
+        cause: &str,
+    ) {
+        assert_eq!(run.code, ExitCode::from(exit_codes::UNCONFIGURED));
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        assert!(
+            run.err
+                .contains(&format!("error: -: configure failed: {cause}")),
+            "{}",
+            run.err
+        );
+    }
+
+    fn is_empty_dir(path: &Path) -> bool {
+        std::fs::read_dir(path)
+            .expect("read the directory")
+            .next()
+            .is_none()
+    }
+
+    #[test]
+    fn a_symlinked_work_root_refuses_the_run_before_any_tracker_call() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let work = dir.path().join("meta/work");
+        std::fs::remove_dir(&work).expect("rmdir");
+        std::os::unix::fs::symlink(elsewhere.path(), &work).expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            &format!(
+                "work directory {} is a symlink outside the repository; move \
+                 it inside the repository",
+                work.display()
+            ),
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_integrations_root_refuses_the_run_before_any_tracker_call() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let state = dir.path().join(".accelerator/state");
+        std::fs::create_dir_all(&state).expect("mkdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            state.join("integrations"),
+        )
+        .expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "integrations directory ",
+        );
+        assert!(
+            run.err.contains(
+                "is a symlink outside the repository; set paths.integrations \
+                 to its absolute target in .accelerator/config.local.md to \
+                 sync it"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_state_root_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            dir.path().join(".accelerator/state"),
+        )
+        .expect("symlink");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            ".accelerator/state is a symlink outside the repository; move it \
+             back inside the repository",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_symlinked_recovery_parent_refuses_the_run() {
+        for parent in ["sync-recovery", "retirement-recovery"] {
+            let dir = sync_repo();
+            let elsewhere = tempfile::tempdir().expect("tempdir");
+            let state = dir.path().join(".accelerator/state");
+            std::fs::create_dir_all(&state).expect("mkdir");
+            std::os::unix::fs::symlink(elsewhere.path(), state.join(parent))
+                .expect("symlink");
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert_refused_before_any_tracker_call(
+                &run,
+                &tracker,
+                &format!(
+                    ".accelerator/state/{parent} is a symlink to {}; move its \
+                     contents back into .accelerator/state/{parent}/, then \
+                     remove the link",
+                    elsewhere.path().display()
+                ),
+            );
+            assert!(is_empty_dir(elsewhere.path()), "{parent}");
+        }
+    }
+
+    #[test]
+    fn a_tracker_state_directory_symlinked_out_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let integrations = dir.path().join(".accelerator/state/integrations");
+        std::fs::create_dir_all(&integrations).expect("mkdir");
+        std::os::unix::fs::symlink(elsewhere.path(), integrations.join("jira"))
+            .expect("symlink");
+        work_file(dir.path(), "0001", None);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            &format!(
+                "{jira} is a symlink to {}; move its contents back into \
+                 {jira}/, then remove the link",
+                elsewhere.path().display(),
+                jira = integrations.join("jira").display()
+            ),
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn a_nested_integrations_root_inside_the_work_root_refuses_the_run() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  integrations: meta/work/state\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work and paths.integrations overlap; configure them as \
+             separate directories",
+        );
+    }
+
+    #[test]
+    fn overlapping_work_and_integrations_roots_refuse_the_run() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  integrations: meta/work\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work and paths.integrations overlap",
+        );
+    }
+
+    #[test]
+    fn a_work_root_containing_the_state_root_refuses_the_run() {
+        let dir = sync_repo();
+        team_config(
+            dir.path(),
+            "paths:\n  work: .accelerator\n  integrations: integrations\n",
+        );
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.work contains .accelerator/state; configure it as a \
+             directory beside it",
+        );
+    }
+
+    #[test]
+    fn a_team_config_root_outside_the_repository_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        team_config(dir.path(), &integrations_at(elsewhere.path()));
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.integrations points outside the repository from the team \
+             config; set it in .accelerator/config.local.md to sync there",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    #[test]
+    fn an_outside_root_from_a_tracked_personal_config_refuses_the_run() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        personal_config(dir.path(), &integrations_at(elsewhere.path()));
+        git_in(dir.path(), &["add", "-f", ".accelerator/config.local.md"]);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_refused_before_any_tracker_call(
+            &run,
+            &tracker,
+            "paths.integrations points outside the repository from a \
+             config.local.md tracked by version control; untrack it",
+        );
+        assert!(is_empty_dir(elsewhere.path()));
+    }
+
+    fn assert_pulled(run: &CapturedRun) {
+        assert!(
+            run.out.contains("0001\tpull\tremotely-modified\t-"),
+            "{}\n{}",
+            run.out,
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn an_absolute_integrations_root_outside_the_repository_syncs() {
+        let dir = sync_repo();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let integrations = elsewhere.path().join("integrations");
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item_recorded_at(
+            &baseline_under(&integrations),
+            dir.path(),
+            &tracker,
+            CLEAN_ITEM,
+            "Title\nOld body\n",
+        );
+        commit_all(dir.path());
+        personal_config(dir.path(), &integrations_at(&integrations));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_pulled(&run);
+        assert_recorded_as_pulled_at(
+            &baseline_under(&integrations),
+            dir.path(),
+            &tracker,
+            remote_body,
+        );
+        assert!(!baseline_path_in(dir.path()).exists());
+    }
+
+    #[test]
+    fn a_dotdot_configured_integrations_root_pulls() {
+        let dir = sync_repo();
+        team_config(
+            dir.path(),
+            "paths:\n  integrations: \
+             .accelerator/../.accelerator/state/integrations\n",
+        );
+        let remote_body = "Title\nPulled body\n";
+        let tracker = edited_remotely(remote_body);
+        synced_item(dir.path(), &tracker, CLEAN_ITEM, "Title\nOld body\n");
+        commit_all(dir.path());
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_pulled(&run);
+        assert_recorded_as_pulled(dir.path(), &tracker, remote_body);
+    }
+
+    #[test]
+    fn a_team_in_repo_paths_work_raises_no_consent_warning() {
+        let dir = sync_repo();
+        team_config(dir.path(), "paths:\n  work: meta/work\n");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        assert!(!run.err.contains("consent"), "{}", run.err);
+        assert!(!run.err.contains("E_CONSENT"), "{}", run.err);
+    }
+
+    #[test]
+    fn a_captured_run_prints_its_report_to_the_console() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(run.out.contains("#\tsummary\tsynced\t0"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn an_unsafe_discard_id_exits_2_before_any_write() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let args = SyncArgs {
+            discard_kept_edits: vec!["../0001".to_owned()],
+            ..sync_args(vec![])
+        };
+
+        let run = drive_sync_captured(dir.path(), &tracker, &args);
+
+        assert_eq!(run.code, ExitCode::from(exit_codes::USAGE));
+        assert!(run.err.contains("../0001"), "{}", run.err);
+        assert!(tracker.calls().is_empty());
+        assert!(!dir.path().join(".accelerator/state").exists());
+    }
+
+    #[test]
+    fn a_warning_reaches_err_and_not_out() {
+        let dir = sync_repo();
+        unparseable_baseline(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(run.err.contains("could not be parsed"), "{}", run.err);
+        assert!(!run.out.contains("could not be parsed"), "{}", run.out);
+    }
+
+    #[test]
+    fn a_warning_with_control_characters_is_printed_safely() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                resolutions: vec![(
+                    "0001".to_owned(),
+                    "\x1b[2J\rremote".to_owned(),
+                )],
+                ..sync_args(vec![])
+            },
+        );
+
+        assert!(run.err.contains("is not an order"), "{}", run.err);
+        assert!(!run.err.contains(['\x1b', '\r']), "{:?}", run.err);
+    }
+
+    fn resolving(orders: &[(&str, &str)]) -> SyncArgs {
+        SyncArgs {
+            resolutions: orders
+                .iter()
+                .map(|(id, order)| ((*id).to_owned(), (*order).to_owned()))
+                .collect(),
+            ..sync_args(vec![])
+        }
+    }
+
+    fn assert_refused_before_running(orders: &[(&str, &str)], expected: &str) {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", None);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &resolving(orders));
+
+        assert_eq!(run.code, ExitCode::from(exit_codes::USAGE), "{}", run.err);
+        assert!(run.err.contains(expected), "{}", run.err);
+        assert!(run.out.is_empty(), "{}", run.out);
+        assert!(!baseline_written(dir.path()));
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn an_unrecognised_resolve_order_exits_2() {
+        assert_refused_before_running(
+            &[("0001", "remot")],
+            "--resolve 0001=remot: 'remot' is not an order (accepted: \
+             remote, local, skip, adopt:<KEY>, create)",
+        );
+    }
+
+    #[test]
+    fn two_orders_for_one_id_exit_2() {
+        assert_refused_before_running(
+            &[("0001", "create"), ("0001", "adopt:PP-12")],
+            "--resolve names '0001' more than once",
+        );
+    }
+
+    #[test]
+    fn a_conflict_order_and_a_pending_push_order_for_one_id_exit_2() {
+        assert_refused_before_running(
+            &[("0001", "remote"), ("0001", "create")],
+            "--resolve names '0001' more than once",
+        );
+    }
+
+    #[test]
+    fn a_malformed_adopt_key_exits_2_before_any_write() {
+        assert_refused_before_running(
+            &[("0001", "adopt:../last-sync")],
+            "--resolve 0001=adopt:../last-sync: '../last-sync' is not a jira \
+             key (for example PP-12)",
+        );
+    }
+
+    #[test]
+    fn a_pending_push_order_for_an_id_that_names_no_file_exits_2() {
+        assert_refused_before_running(
+            &[("../0001", "create")],
+            "--resolve: '../0001' is not a work-item id",
+        );
+    }
+
+    #[test]
+    fn a_newline_in_a_warning_path_is_collapsed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().join("forged\nwarning: injected");
+        std::fs::create_dir_all(&root).expect("mkdir");
+        init_sync_repo(&root);
+        unparseable_baseline(&root);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(&root, &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.err.contains(
+                "forged warning: injected/.accelerator/state/integrations/\
+                 jira/last-sync.json could not be parsed"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(
+            !run.err
+                .lines()
+                .any(|line| line.starts_with("warning: injected")),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
+    fn a_still_pending_restore_warning_keeps_its_layout() {
+        use corpus::store::RecoveryCopies as _;
+
+        let dir = sync_repo();
+        let root = config_adapters::FileConfigStore::discover_root(dir.path());
+        let recovery = corpus_adapters::FileRecoveryCopies::new(
+            root.join(super::STATE_DIR),
+            &root,
+        );
+        let kept = Path::new(work::retirement::RECOVERY_PARENT).join("0001");
+        let child = root.join("meta/notes/child.md");
+        std::fs::create_dir_all(child.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(&child, "edited after the retirement").expect("write");
+        recovery.prepare(&kept).expect("prepare");
+        recovery
+            .write_once(&kept, &child, b"as the retirement left it")
+            .expect("copy");
+        recovery
+            .mark_restore_pending(&kept, std::slice::from_ref(&child))
+            .expect("mark");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = drive_sync_captured(&root, &tracker, &sync_args(vec![]));
+
+        let expected = format!(
+            "warning: retirement-incomplete: these paths still differ from \
+             their recovery copies in {}:\n  {}\ncompare each path with its \
+             recovery copy and merge, then delete the copy\n",
+            recovery.location(&kept).display(),
+            child.display()
+        );
+        assert!(run.err.contains(&expected), "{}", run.err);
+    }
+
+    #[test]
+    fn a_finaliser_warning_is_printed_safely() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run = capture_sync_finalising(
+            dir.path(),
+            &tracker,
+            &sync_args(vec![]),
+            &RecordingFinaliser {
+                complaint: Some("warning: \x1b[31mred\rover"),
+                ..RecordingFinaliser::default()
+            },
+        );
+
+        assert!(run.err.contains("red"), "{}", run.err);
+        assert!(!run.err.contains(['\x1b', '\r']), "{:?}", run.err);
     }
 
     fn issue(body: &str) -> RemoteIssue {
@@ -4564,6 +8140,311 @@ mod tests {
             ),
             body: body.to_owned(),
         }
+    }
+
+    fn keyed_issue(key: &str, body: &str) -> (ExternalId, RemoteIssue) {
+        let key = ExternalId::new(key.to_owned());
+        (key.clone(), RemoteIssue { key, ..issue(body) })
+    }
+
+    fn unsynced_draft(dir: &Path) {
+        std::fs::write(
+            dir.join("meta/work/0001-draft-one.md"),
+            "---\nid: \"0001\"\ntitle: \"Draft one\"\nkind: task\n---\n\n\
+             Body\n",
+        )
+        .expect("write work item");
+    }
+
+    fn ordering(order: &str) -> SyncArgs {
+        resolving(&[("0001", order)])
+    }
+
+    #[test]
+    fn an_adopt_row_reads_adopt() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Draft one\nBody\n",
+        )]));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "0001\tadopt\tunsynced\t-"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tadopt\t0001\tENG-7\tDraft one"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_preview_order_names_the_adopted_issue_and_changes_nothing() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let draft = dir.path().join("meta/work/0001-draft-one.md");
+        let before = std::fs::read_to_string(&draft).expect("read the draft");
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..ordering("adopt:ENG-7")
+            },
+        );
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line
+                    == "#\tadopt\t0001\tENG-7\tSomeone else's issue"),
+            "{}",
+            run.out
+        );
+        assert_eq!(
+            std::fs::read_to_string(&draft).expect("read the draft"),
+            before
+        );
+        assert!(!baseline_written(dir.path()));
+    }
+
+    #[test]
+    fn an_adopted_title_with_a_newline_and_tab_yields_one_record() {
+        let report = RunReport {
+            adoptions: vec![work_adapters::sync::report::Adoption {
+                id: "0001".to_owned(),
+                key: ExternalId::new("ENG-7".to_owned()),
+                title: "Evil\ttitle\nerror: forged".to_owned(),
+            }],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        let rendered = render_report(
+            &crate::finished_run::FinishedRun::for_report(&report),
+        );
+
+        let records: Vec<&str> = rendered
+            .lines()
+            .filter(|line| line.starts_with("#\tadopt\t"))
+            .collect();
+        assert_eq!(
+            records,
+            ["#\tadopt\t0001\tENG-7\tEvil title error: forged"]
+        );
+        assert!(!rendered.lines().any(|line| line.starts_with("error:")));
+    }
+
+    fn unconfirmed_link_to(dir: &Path, key: &str) {
+        std::fs::write(
+            dir.join("meta/work/0001-draft-one.md"),
+            format!(
+                "---\nid: \"0001\"\ntitle: \"Draft one\"\nkind: task\n\
+                 external_id: \"{key}\"\n---\n\nBody\n"
+            ),
+        )
+        .expect("write work item");
+        let record = dir.join(".accelerator/state/integrations/linear/adopted");
+        std::fs::create_dir_all(&record).expect("mkdir");
+        std::fs::write(
+            record.join("0001.json"),
+            format!(
+                "{{\"previous_key\":null,\"key\":\"{key}\",\
+                 \"adopted_at\":1}}\n"
+            ),
+        )
+        .expect("write the adoption record");
+    }
+
+    #[test]
+    fn a_differing_adopt_is_followed_by_a_conflict_with_the_banner() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+        drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line.starts_with("0001\tunresolved\tconflict")),
+            "{}",
+            run.out
+        );
+        let dossier =
+            std::fs::read_to_string(dir.path().join(
+                ".accelerator/state/integrations/linear/conflicts/0001.md",
+            ))
+            .expect("the conflict dossier");
+        assert!(
+            dossier.starts_with(
+                "This item was linked to ENG-7 without a recorded sync; if \
+                 ENG-7 is the wrong issue, re-adopt or create instead of \
+                 resolving\n"
+            ),
+            "{dossier}"
+        );
+    }
+
+    #[test]
+    fn a_confirmed_link_stays_confirmed_after_its_entry_is_lost() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+        drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+        drive_sync_captured(dir.path(), &tracker, &ordering("remote"));
+        std::fs::remove_file(
+            dir.path()
+                .join(".accelerator/state/integrations/linear/last-sync.json"),
+        )
+        .expect("lose the baseline");
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("create"));
+
+        assert!(
+            error_lines(&run.err).iter().any(|line| line.starts_with(
+                "error: 0001: create failed: 0001 already carries \
+                 external_id ENG-7"
+            )),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::UNRESOLVED));
+    }
+
+    #[test]
+    fn a_relink_row_names_its_order_on_preview_and_apply() {
+        for preview in [true, false] {
+            let dir = sync_repo_integrated_with("linear");
+            unconfirmed_link_to(dir.path(), "ENG-7");
+            let tracker = Rc::new(RecordingTracker::holding(vec![
+                keyed_issue("ENG-7", "Someone else's issue\nBody\n"),
+                keyed_issue("ENG-8", "Draft one\nBody\n"),
+            ]));
+
+            let run = drive_sync_captured(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    preview,
+                    ..ordering("adopt:ENG-8")
+                },
+            );
+
+            assert!(
+                run.out
+                    .lines()
+                    .any(|line| line.starts_with("0001\trelink\t")
+                        && line.ends_with("\tadopt:ENG-8")),
+                "{}",
+                run.out
+            );
+            assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        }
+    }
+
+    #[test]
+    fn a_relinked_items_dossier_is_retired_and_kept_on_preview() {
+        for preview in [true, false] {
+            let dir = sync_repo_integrated_with("linear");
+            unconfirmed_link_to(dir.path(), "ENG-7");
+            let dossier = dir.path().join(
+                ".accelerator/state/integrations/linear/conflicts/0001.md",
+            );
+            std::fs::create_dir_all(dossier.parent().expect("a parent"))
+                .expect("mkdir");
+            std::fs::write(&dossier, "the prior dossier").expect("seed");
+            let tracker = Rc::new(RecordingTracker::holding(vec![
+                keyed_issue("ENG-7", "Someone else's issue\nBody\n"),
+                keyed_issue("ENG-8", "Draft one\nBody\n"),
+            ]));
+
+            let run = drive_sync_captured(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    preview,
+                    ..ordering("adopt:ENG-8")
+                },
+            );
+
+            assert_eq!(dossier.exists(), preview, "{}{}", run.out, run.err);
+            assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        }
+    }
+
+    #[test]
+    fn a_differing_adopt_says_a_conflict_follows() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(vec![keyed_issue(
+            "ENG-7",
+            "Someone else's issue\nBody\n",
+        )]));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("adopt:ENG-7"));
+
+        assert!(
+            run.err.contains(
+                "note: 0001: adopt: linked ENG-7, whose title or body differ \
+                 from the item; the next sync reports a conflict. If ENG-7 is \
+                 the wrong issue, run --resolve 0001=adopt:<RIGHT-KEY>, or \
+                 --resolve 0001=create if none exists"
+            ),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_create_order_with_no_marker_warns() {
+        let dir = sync_repo_integrated_with("linear");
+        unsynced_draft(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &ordering("create"));
+
+        assert!(
+            run.err.contains(
+                "warning: 0001: --resolve 0001=create had no pending push to \
+                 settle"
+            ),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "0001\tcreate-from-local\tunsynced\t-"),
+            "{}",
+            run.out
+        );
     }
 
     fn new_work_files(dir: &Path) -> Vec<String> {
@@ -5093,6 +8974,460 @@ mod tests {
             );
             assert_eq!(ceiling, Ceiling::Unlimited);
             assert_eq!(level, Some(::config::Level::Personal));
+        }
+    }
+
+    fn conflict_dossier_path(dir: &Path, id: &str) -> PathBuf {
+        dir.join(format!(
+            ".accelerator/state/integrations/jira/conflicts/{id}.md"
+        ))
+    }
+
+    fn dossier_text(dir: &Path, id: &str) -> String {
+        std::fs::read_to_string(conflict_dossier_path(dir, id))
+            .unwrap_or_else(|error| panic!("the {id} dossier: {error}"))
+    }
+
+    fn edit_locally(dir: &Path, id: &str, key: &str) {
+        std::fs::write(
+            numbered_path(dir, id),
+            numbered_item(id, key, "Local edit\n"),
+        )
+        .expect("edit the item");
+    }
+
+    fn edit_remote(tracker: &RecordingTracker, key: &str, body: &str) {
+        tracker.edit_remotely(RemoteIssue {
+            key: ExternalId::new(key.to_owned()),
+            updated: tracker::RemoteTimestamp::Reported(
+                "2026-03-01T00:00:00Z".to_owned(),
+            ),
+            body: format!("Title\n{body}\n"),
+        });
+    }
+
+    const CONFLICTED: [(&str, &str); 2] = [("0001", "PP-1"), ("0002", "PP-2")];
+
+    fn conflicts_with_dossiers(dir: &Path) -> Rc<RecordingTracker> {
+        let tracker = edited_remotely_numbered(dir, &CONFLICTED);
+        for (id, key) in CONFLICTED {
+            edit_locally(dir, id, key);
+        }
+        let seeding = drive_sync_captured(dir, &tracker, &sync_args(vec![]));
+        assert_eq!(
+            seeding.code,
+            ExitCode::from(super::exit_codes::UNRESOLVED),
+            "{}{}",
+            seeding.out,
+            seeding.err
+        );
+        for (id, _) in CONFLICTED {
+            assert!(conflict_dossier_path(dir, id).exists(), "{id}");
+        }
+        tracker
+    }
+
+    fn targeting(id: &str, resolution: Option<&str>) -> SyncArgs {
+        SyncArgs {
+            resolutions: resolution
+                .map(|side| vec![(id.to_owned(), side.to_owned())])
+                .unwrap_or_default(),
+            ..sync_args(vec![id.to_owned()])
+        }
+    }
+
+    fn capture_targeted_with_stores(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        work_items: &StoreFactory,
+        integration_state: &StoreFactory,
+    ) -> CapturedRun {
+        capture_sync_over(
+            dir,
+            tracker,
+            args,
+            &NoFinaliser,
+            super::stores::StoreFactories {
+                work_items,
+                integration_state,
+            },
+        )
+    }
+
+    #[test]
+    fn a_targeted_run_keeps_the_dossiers_it_did_not_plan() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_targeted_resolution_retires_only_its_own_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+        );
+
+        assert!(run.out.contains("0001\tpull\tconflict"), "{}", run.out);
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+    }
+
+    #[test]
+    fn a_previewed_resolution_refreshes_its_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..targeting("0001", Some("remote"))
+            },
+        );
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}{}", run.out, run.err);
+    }
+
+    #[test]
+    fn a_targeted_run_refreshes_its_unresolved_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_resolution_failing_before_it_lands_refreshes_its_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        edit_remote(&tracker, "PP-1", "Newer remote body");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+            &failing_work_items(
+                |path| path.ends_with("0001-title.md"),
+                crate::test_support::injected,
+            ),
+            &super::stores::rooted_store,
+        );
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Newer remote body"), "{dossier}");
+        assert!(
+            run.out.contains("0001\tfailed\tconflict\tretryable"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_resolution_failing_after_its_pull_keeps_a_stale_dossier() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let before = dossier_text(dir.path(), "0001");
+        let path = conflict_dossier_path(dir.path(), "0001");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("remote")),
+            &super::stores::rooted_store,
+            &failing_work_items(
+                |path| path.ends_with("last-sync.json"),
+                crate::test_support::injected,
+            ),
+        );
+
+        assert_eq!(dossier_text(dir.path(), "0001"), before);
+        assert!(
+            run.err.contains(&format!(
+                "warning: 0001: conflict dossier at {} predates a partial \
+                 resolution and is stale",
+                path.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out.contains(&format!(
+                "#\tstale-dossier\t0001\t{}",
+                path.display()
+            )),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out.contains("0001\tfailed\tconflict\tterminal"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_failed_local_overwrite_keeps_its_dossier() {
+        let dir = sync_repo();
+        let seeded = conflicts_with_dossiers(dir.path());
+        let tracker = Rc::new(
+            RecordingTracker::holding(
+                CONFLICTED
+                    .iter()
+                    .map(|(_, key)| {
+                        let key = ExternalId::new((*key).to_owned());
+                        let issue = seeded.show(&key).expect("seeded issue");
+                        (key, issue)
+                    })
+                    .collect(),
+            )
+            .failing_update(
+                ExternalId::new("PP-1".to_owned()),
+                TrackerError::Terminal {
+                    detail: "timed out after sending".to_owned(),
+                },
+            ),
+        );
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &targeting("0001", Some("local")),
+        );
+
+        assert!(conflict_dossier_path(dir.path(), "0001").exists());
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_one_direction_run_keeps_the_dossier_of_a_skipped_conflict() {
+        for direction in [
+            SyncArgs {
+                pull_only: true,
+                ..targeting("0001", None)
+            },
+            SyncArgs {
+                push_only: true,
+                ..targeting("0001", None)
+            },
+        ] {
+            let dir = sync_repo();
+            let tracker = conflicts_with_dossiers(dir.path());
+            let before = dossier_text(dir.path(), "0001");
+
+            drive_sync_captured(dir.path(), &tracker, &direction);
+
+            assert_eq!(dossier_text(dir.path(), "0001"), before);
+        }
+    }
+
+    #[test]
+    fn a_new_conflict_gets_a_dossier_without_touching_the_others() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let other = dossier_text(dir.path(), "0002");
+        std::fs::remove_file(conflict_dossier_path(dir.path(), "0001"))
+            .expect("forget the dossier");
+
+        drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        let dossier = dossier_text(dir.path(), "0001");
+        assert!(dossier.contains("Local edit"), "{dossier}");
+        assert_eq!(dossier_text(dir.path(), "0002"), other);
+    }
+
+    #[test]
+    fn a_converged_conflict_loses_its_dossier_once_recorded() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(
+            numbered_path(dir.path(), "0001"),
+            numbered_item("0001", "PP-1", "Pulled body\n"),
+        )
+        .expect("match the remote");
+
+        let preview = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                preview: true,
+                ..targeting("0001", None)
+            },
+        );
+        assert!(
+            conflict_dossier_path(dir.path(), "0001").exists(),
+            "{}",
+            preview.out
+        );
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &targeting("0001", None));
+
+        assert!(!run.out.contains("0001\t"), "{}", run.out);
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(conflict_dossier_path(dir.path(), "0002").exists());
+    }
+
+    fn failing_dossier_writes(
+        left: usize,
+    ) -> impl Fn(&crate::bounded_roots::BoundedRoot) -> Box<dyn SyncStore> {
+        move |root| {
+            Box::new(crate::test_support::Faults {
+                inner: super::stores::rooted_store(root),
+                applies: |path: &Path| path.ends_with("conflicts/0001.md"),
+                left: std::cell::Cell::new(left),
+                error: crate::test_support::injected,
+            }) as Box<dyn SyncStore>
+        }
+    }
+
+    #[test]
+    fn a_dossier_that_cannot_be_refreshed_is_removed() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", None),
+            &super::stores::rooted_store,
+            &failing_dossier_writes(1),
+        );
+
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(
+            run.err
+                .contains("warning: could not write conflict dossier"),
+            "{}",
+            run.err
+        );
+        assert!(!run.out.contains("stale-dossier"), "{}", run.out);
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::UNRESOLVED));
+    }
+
+    #[test]
+    fn a_dossier_that_can_be_neither_refreshed_nor_removed_is_stale() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        let path = conflict_dossier_path(dir.path(), "0001");
+
+        let run = capture_targeted_with_stores(
+            dir.path(),
+            &tracker,
+            &targeting("0001", None),
+            &super::stores::rooted_store,
+            &failing_dossier_writes(2),
+        );
+
+        assert!(path.exists());
+        assert!(
+            run.err.contains(&format!(
+                "warning: 0001: conflict dossier at {} is stale and was not \
+                 refreshed",
+                path.display()
+            )),
+            "{}",
+            run.err
+        );
+        assert!(
+            run.out.contains(&format!(
+                "#\tstale-dossier\t0001\t{}",
+                path.display()
+            )),
+            "{}",
+            run.out
+        );
+    }
+
+    #[test]
+    fn a_whole_corpus_run_retires_settled_and_orphaned_dossiers() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(
+            numbered_path(dir.path(), "0001"),
+            numbered_item("0001", "PP-1", "Pulled body\n"),
+        )
+        .expect("match the remote");
+        std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+            .expect("seed an orphan");
+
+        drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(!conflict_dossier_path(dir.path(), "0001").exists());
+        assert!(!conflict_dossier_path(dir.path(), "0009").exists());
+        assert!(conflict_dossier_path(dir.path(), "0002").exists());
+    }
+
+    #[test]
+    fn a_readme_does_not_block_orphan_retirement() {
+        let dir = sync_repo();
+        let tracker = conflicts_with_dossiers(dir.path());
+        std::fs::write(dir.path().join("meta/work/README.md"), "# Work\n")
+            .expect("write a readme");
+        std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+            .expect("seed an orphan");
+
+        let run = drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+        assert!(
+            run.out.contains("#\tunidentified\t")
+                && run.out.contains("no-frontmatter"),
+            "{}",
+            run.out
+        );
+        assert!(!conflict_dossier_path(dir.path(), "0009").exists());
+    }
+
+    #[test]
+    fn an_unusable_work_file_keeps_every_dossier() {
+        for content in [
+            b"id: \"0001\"\nexternal_id: \"PP-1\"\n---\n\nNo opening fence\n"
+                .to_vec(),
+            b"---\nid: \"0001\"\n---\n\n\xff\xfe\n".to_vec(),
+        ] {
+            let dir = sync_repo();
+            let tracker = conflicts_with_dossiers(dir.path());
+            std::fs::write(conflict_dossier_path(dir.path(), "0009"), "orphan")
+                .expect("seed an orphan");
+            let before = dossier_text(dir.path(), "0001");
+            std::fs::write(numbered_path(dir.path(), "0001"), content)
+                .expect("break the item");
+
+            let run =
+                drive_sync_captured(dir.path(), &tracker, &sync_args(vec![]));
+
+            assert!(run.out.contains("#\tunidentified\t"), "{}", run.out);
+            assert!(
+                run.err.contains("identify-local")
+                    || run.err.contains("read-local"),
+                "{}",
+                run.err
+            );
+            assert_eq!(dossier_text(dir.path(), "0001"), before);
+            assert!(conflict_dossier_path(dir.path(), "0009").exists());
         }
     }
 }

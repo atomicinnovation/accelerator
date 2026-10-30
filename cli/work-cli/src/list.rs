@@ -180,9 +180,8 @@ pub fn apply_filter<'a>(
 
 /// Classifies every item's sync state through the sync engine, keyed by id.
 ///
-/// A classifier read failure leaves an item out of the map; the caller then
-/// falls back to the presence-only label. Returns an empty map when the
-/// plan cannot be built at all.
+/// An item whose classification fails is left out of the map; the caller
+/// then falls back to the presence-only label for it alone.
 #[must_use]
 pub fn classify(
     items: &[LocalItem],
@@ -210,14 +209,15 @@ pub fn classify(
         })
         .collect();
     let inputs = facts.plan_inputs(items, &snapshots, baseline);
-    match plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new()) {
-        Ok(computed) => computed
-            .actions
-            .into_iter()
-            .map(|action| (action.id, action.state))
-            .collect(),
-        Err(_) => BTreeMap::new(),
-    }
+    plan::plan(
+        &inputs,
+        SyncDirection::Bidirectional,
+        &work::sync::PlanOrders::resolving(&BTreeMap::new()),
+    )
+    .actions
+    .into_iter()
+    .map(|action| (action.id().to_owned(), action.state()))
+    .collect()
 }
 
 /// The rendered `<glyph> <text>` label for one item, mapping a classified
@@ -1170,6 +1170,48 @@ mod tests {
         assert_eq!(states.get("0003"), Some(&SyncState::Unsynced));
     }
 
+    #[test]
+    fn an_unclassifiable_item_keeps_every_other_label() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stamp = RemoteTimestamp::Reported("2026-06-01".to_owned());
+        let key = ExternalId::new("ENG-1".to_owned());
+        let tracker = RecordingTracker::holding(vec![(
+            key.clone(),
+            RemoteIssue {
+                key: key.clone(),
+                updated: stamp.clone(),
+                body: "Item\nbody\n".to_owned(),
+            },
+        )]);
+        let mut baseline = Baseline::read(None).0;
+        baseline.set(
+            "0001",
+            Entry::persisted_legacy(
+                stamp,
+                "unused".to_owned(),
+                "unused".to_owned(),
+                0,
+            ),
+        );
+        let items = vec![
+            LocalItem {
+                id: "0001".to_owned(),
+                path: dir.path().join("0001-vanished.md"),
+                external_id: Some(key),
+            },
+            LocalItem {
+                id: "0002".to_owned(),
+                path: write_item(dir.path(), "0002", "body"),
+                external_id: None,
+            },
+        ];
+
+        let states = classify(&items, &tracker, &baseline, &AlwaysClean);
+
+        assert_eq!(states.get("0001"), None);
+        assert_eq!(states.get("0002"), Some(&SyncState::Unsynced));
+    }
+
     struct UnusedAuthor;
 
     impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
@@ -1190,12 +1232,84 @@ mod tests {
         }
     }
 
+    struct NoRecoveryLabels;
+
+    impl work_adapters::sync::recovery_label::RecoveryLabels for NoRecoveryLabels {
+        fn label_for(
+            &self,
+            _id: &str,
+            _epoch: u64,
+        ) -> Option<work_adapters::sync::recovery_label::RecoveryLabel>
+        {
+            unreachable!("a preview keeps no edits")
+        }
+    }
+
     struct FixedClock;
 
     impl work::sync::RunClock for FixedClock {
         fn run_start_epoch(&self) -> Result<u64, kernel::Error> {
             Ok(1_700_000_000)
         }
+    }
+
+    /// Each item's state as `work sync --preview` reports it.
+    fn previewed_states(
+        dir: &Path,
+        items: &[LocalItem],
+        tracker: &RecordingTracker,
+        baseline: &Baseline,
+    ) -> BTreeMap<String, SyncState> {
+        let baseline_path = dir.join("last-sync.json");
+        std::fs::write(&baseline_path, baseline.render()).unwrap();
+        let writer = corpus_adapters::FileCorpusStore::new(dir);
+        let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
+            baseline_path,
+            &corpus_adapters::RealFs,
+            &writer,
+        );
+        let previewed = work_adapters::sync::run::run(
+            &work_adapters::sync::run::SyncPorts {
+                tracker,
+                parser: &CommonMarkBody,
+                status: &AlwaysClean,
+                files: work_adapters::sync::files::SyncFiles {
+                    work_items: &writer,
+                    integration_state: &writer,
+                    file_locks: &corpus_adapters::LockdirLock::new(dir),
+                    recovery: &corpus_adapters::FileRecoveryCopies::new(
+                        dir, dir,
+                    ),
+                    tracking: &vcs_adapters::InProcessTracking,
+                },
+                clock: &FixedClock,
+                author: &UnusedAuthor,
+                recovery_labels: &NoRecoveryLabels,
+            },
+            &mut store,
+            &work_adapters::sync::run::SyncRequest {
+                corpus: items,
+                inventory: &work_adapters::sync::fetch::inventory_of(items),
+                selection: work_adapters::sync::run::ItemSelection::All,
+                direction: SyncDirection::Bidirectional,
+                strategy: RetrievalStrategy::Bulk,
+                resolutions: &BTreeMap::new(),
+                pending_push_orders: &BTreeMap::new(),
+                max_pulls: tracker::Ceiling::Unlimited,
+                max_pushes: tracker::Ceiling::Unlimited,
+                mode: work_adapters::sync::run::RunMode::Preview,
+                integrations_root: dir,
+                integration: "linear",
+                promote: false,
+                scope: tracker::SearchScope::default(),
+            },
+        )
+        .unwrap_or_else(|_| unreachable!("the preview runs"));
+        previewed
+            .reported
+            .into_iter()
+            .map(|item| (item.planned.id().to_owned(), item.planned.state()))
+            .collect()
     }
 
     #[test]
@@ -1250,48 +1364,10 @@ mod tests {
                 ),
             );
         }
-        let baseline_path = dir.path().join("last-sync.json");
-        std::fs::write(&baseline_path, baseline.render()).unwrap();
-        let writer = corpus_adapters::FileCorpusStore::new(dir.path());
-        let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
-            baseline_path,
-            &corpus_adapters::RealFs,
-            &writer,
-        );
-
         let listed = classify(&items, &tracker, &baseline, &AlwaysClean);
-        let previewed = work_adapters::sync::run::run(
-            &work_adapters::sync::run::SyncPorts {
-                tracker: &tracker,
-                parser: &CommonMarkBody,
-                status: &AlwaysClean,
-                writer: &writer,
-                clock: &FixedClock,
-                author: &UnusedAuthor,
-            },
-            &mut store,
-            &work_adapters::sync::run::SyncRequest {
-                corpus: &items,
-                selection: work_adapters::sync::run::ItemSelection::All,
-                direction: SyncDirection::Bidirectional,
-                strategy: RetrievalStrategy::Bulk,
-                resolutions: &BTreeMap::new(),
-                max_pulls: tracker::Ceiling::Unlimited,
-                max_pushes: tracker::Ceiling::Unlimited,
-                mode: work_adapters::sync::run::RunMode::Preview,
-                integrations_root: dir.path(),
-                integration: "linear",
-                promote: false,
-                scope: tracker::SearchScope::default(),
-            },
-        )
-        .unwrap_or_else(|_| unreachable!("the preview runs"));
+        let reported =
+            previewed_states(dir.path(), &items, &tracker, &baseline);
 
-        let reported: BTreeMap<String, SyncState> = previewed
-            .reported
-            .into_iter()
-            .map(|item| (item.planned.id, item.planned.state))
-            .collect();
         assert_eq!(listed, reported);
         assert_eq!(listed.get("0001"), Some(&SyncState::Synced));
     }

@@ -4,10 +4,12 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use work::sync::plan;
+use work::sync::AppliedResolution;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
 use work::sync::BodyEquivalence;
@@ -17,7 +19,9 @@ use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
 use work::sync::LocalFingerprints;
+use work::sync::PendingPushOrder;
 use work::sync::PlanInput;
+use work::sync::PlanOrders;
 use work::sync::PullResidue;
 use work::sync::RemoteFacts;
 use work::sync::RemoteFingerprints;
@@ -226,8 +230,7 @@ fn digests_agreeing_with(hash: &'static str) -> impl ItemDigests {
 }
 
 #[test]
-fn an_absent_item_plans_as_remote_absent_and_noop() -> Result<(), kernel::Error>
-{
+fn an_absent_item_plans_as_remote_absent_and_noop() {
     let updated = RemoteTimestamp::NotReported;
     let digests = NeverCalled;
     let id = ExternalId::new("ENG-4".to_owned());
@@ -245,18 +248,19 @@ fn an_absent_item_plans_as_remote_absent_and_noop() -> Result<(), kernel::Error>
         comparison: &DifferingBodies,
     };
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new())?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(result.actions.len(), 1);
-    assert_eq!(result.actions[0].state, SyncState::RemoteAbsent);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
-    Ok(())
+    assert_eq!(result.actions[0].state(), SyncState::RemoteAbsent);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 #[test]
-fn an_indeterminate_item_plans_as_indeterminate_and_noop(
-) -> Result<(), kernel::Error> {
+fn an_indeterminate_item_plans_as_indeterminate_and_noop() {
     let updated = RemoteTimestamp::NotReported;
     let digests = NeverCalled;
     let id = ExternalId::new("ENG-5".to_owned());
@@ -274,13 +278,15 @@ fn an_indeterminate_item_plans_as_indeterminate_and_noop(
         comparison: &DifferingBodies,
     };
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &BTreeMap::new())?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(result.actions.len(), 1);
-    assert_eq!(result.actions[0].state, SyncState::Indeterminate);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
-    Ok(())
+    assert_eq!(result.actions[0].state(), SyncState::Indeterminate);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 fn conflicting_item<'a>(
@@ -309,8 +315,7 @@ fn conflicting_item<'a>(
 }
 
 #[test]
-fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull(
-) -> Result<(), kernel::Error> {
+fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull() {
     let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
     let subject_updated = RemoteTimestamp::Reported("new".to_owned());
     let digests = digests_agreeing_with("does-not-matter");
@@ -325,17 +330,17 @@ fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull(
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0006".to_owned(), Resolution::AcceptRemote);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
-    assert_eq!(result.actions[0].state, SyncState::Conflict);
-    assert_eq!(result.actions[0].action, work::sync::Action::Pull);
-    Ok(())
+    assert_eq!(result.actions[0].state(), SyncState::Conflict);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
 }
 
-fn resolved_conflict(
-    resolution: Resolution,
-) -> Result<work::sync::SyncPlan, kernel::Error> {
+fn resolved_conflict(resolution: Resolution) -> work::sync::SyncPlan {
     let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
     let subject_updated = RemoteTimestamp::Reported("new".to_owned());
     let digests = digests_agreeing_with("does-not-matter");
@@ -349,24 +354,25 @@ fn resolved_conflict(
     );
     let resolutions = BTreeMap::from([("0007".to_owned(), resolution)]);
 
-    plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)
+    plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    )
 }
 
 #[test]
-fn a_resolved_local_push_is_an_overwrite() -> Result<(), kernel::Error> {
-    let result = resolved_conflict(Resolution::PushLocal)?;
+fn a_resolved_local_push_is_an_overwrite() {
+    let result = resolved_conflict(Resolution::PushLocal);
 
-    assert_eq!(result.actions[0].action, work::sync::Action::Overwrite);
-    Ok(())
+    assert_eq!(result.actions[0].action(), work::sync::Action::Overwrite);
 }
 
 #[test]
-fn a_resolved_local_overwrite_counts_against_max_pushes(
-) -> Result<(), kernel::Error> {
-    let result = resolved_conflict(Resolution::PushLocal)?;
+fn a_resolved_local_overwrite_counts_against_max_pushes() {
+    let result = resolved_conflict(Resolution::PushLocal);
 
     assert_eq!(result.push_count(), 1);
-    Ok(())
 }
 
 #[test]
@@ -405,19 +411,19 @@ fn only_a_push_a_retitle_or_an_overwrite_sends_to_the_tracker() {
 #[test]
 fn a_retitle_counts_against_max_pushes() {
     let retitling = work::sync::SyncPlan {
-        actions: vec![work::sync::PlannedAction {
-            id: "0013".to_owned(),
-            state: SyncState::LocallyModified,
-            action: work::sync::Action::Retitle,
-        }],
+        actions: vec![work::sync::PlannedAction::new(
+            "0013".to_owned(),
+            SyncState::LocallyModified,
+            work::sync::Action::Retitle,
+        )],
+        unclassifiable: Vec::new(),
     };
 
     assert_eq!(retitling.push_count(), 1);
 }
 
 #[test]
-fn a_resolution_of_skip_leaves_the_prompt_unresolved(
-) -> Result<(), kernel::Error> {
+fn a_resolution_of_skip_leaves_the_prompt_unresolved() {
     let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
     let subject_updated = RemoteTimestamp::Reported("new".to_owned());
     let digests = digests_agreeing_with("does-not-matter");
@@ -432,16 +438,17 @@ fn a_resolution_of_skip_leaves_the_prompt_unresolved(
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0008".to_owned(), Resolution::Skip);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
-    assert_eq!(result.actions[0].action, work::sync::Action::Prompt);
-    Ok(())
+    assert_eq!(result.actions[0].action(), work::sync::Action::Prompt);
 }
 
 #[test]
-fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert(
-) -> Result<(), kernel::Error> {
+fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert() {
     let updated = RemoteTimestamp::Reported("same".to_owned());
     let digests = digests_agreeing_with("h");
     let id = ExternalId::new("ENG-9".to_owned());
@@ -464,17 +471,18 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert(
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0009".to_owned(), Resolution::AcceptRemote);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
-    assert_eq!(result.actions[0].state, SyncState::Synced);
-    assert_eq!(result.actions[0].action, work::sync::Action::Noop);
-    Ok(())
+    assert_eq!(result.actions[0].state(), SyncState::Synced);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
 }
 
 #[test]
-fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert(
-) -> Result<(), kernel::Error> {
+fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert() {
     let updated = RemoteTimestamp::Reported("old".to_owned());
     let moved = RemoteTimestamp::Reported("new".to_owned());
     let digests = digests_agreeing_with("h");
@@ -498,17 +506,145 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert(
     let resolutions =
         BTreeMap::from([("0011".to_owned(), Resolution::PushLocal)]);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
 
-    assert_eq!(result.actions[0].state, SyncState::RemotelyModified);
-    assert_eq!(result.actions[0].action, work::sync::Action::Pull);
-    Ok(())
+    assert_eq!(result.actions[0].state(), SyncState::RemotelyModified);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Pull);
+}
+
+fn dirty_remotely_modified_item<'a>(
+    id: &'a str,
+    external_id: &'a ExternalId,
+    updated: &'a RemoteTimestamp,
+    baseline_updated: &'a RemoteTimestamp,
+    digests: &'a dyn ItemDigests,
+) -> PlanInput<'a> {
+    PlanInput {
+        id: id.to_owned(),
+        external_id: Some(external_id),
+        facts: RemoteFacts {
+            presence: RemotePresence::Present,
+            remote_updated: updated,
+        },
+        dirty: work::sync::Dirtiness::Dirty,
+        baseline: BaselineEntry {
+            remote_updated_at: baseline_updated,
+            fingerprints: legacy(Some("h"), Some("stale")),
+        },
+        baseline_timestamp: 0,
+        digests,
+        comparison: &DifferingBodies,
+    }
+}
+
+fn plan_resolving(
+    item: PlanInput<'_>,
+    resolution: Resolution,
+) -> work::sync::PlannedAction {
+    let resolutions = BTreeMap::from([(item.id.clone(), resolution)]);
+    let mut result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&resolutions),
+    );
+    result.actions.remove(0)
 }
 
 #[test]
-fn pull_and_push_counts_reflect_only_their_own_action(
-) -> Result<(), kernel::Error> {
+fn a_remote_resolution_of_a_conflict_is_recorded_on_its_pull() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-21".to_owned());
+    let item =
+        conflicting_item("0021", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::AcceptRemote));
+}
+
+#[test]
+fn a_remote_resolution_of_a_dirty_remote_change_is_recorded_on_its_pull() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-22".to_owned());
+    let item = dirty_remotely_modified_item(
+        "0022",
+        &id,
+        &updated,
+        &baseline_updated,
+        &digests,
+    );
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.state(), SyncState::RemotelyModified);
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::AcceptRemote));
+}
+
+#[test]
+fn a_local_resolution_is_recorded_on_its_overwrite() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-23".to_owned());
+    let item =
+        conflicting_item("0023", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::PushLocal);
+
+    assert_eq!(planned.action(), work::sync::Action::Overwrite);
+    assert_eq!(planned.resolution(), Some(AppliedResolution::PushLocal));
+}
+
+#[test]
+fn a_skip_resolution_leaves_an_unresolved_prompt() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("does-not-matter");
+    let id = ExternalId::new("ENG-24".to_owned());
+    let item =
+        conflicting_item("0024", &id, &updated, &baseline_updated, &digests);
+
+    let planned = plan_resolving(item, Resolution::Skip);
+
+    assert_eq!(planned.action(), work::sync::Action::Prompt);
+    assert_eq!(planned.resolution(), None);
+}
+
+#[test]
+fn a_plain_remote_change_pulls_without_a_resolution() {
+    let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
+    let updated = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-25".to_owned());
+    let item = PlanInput {
+        dirty: work::sync::Dirtiness::Clean,
+        ..dirty_remotely_modified_item(
+            "0025",
+            &id,
+            &updated,
+            &baseline_updated,
+            &digests,
+        )
+    };
+
+    let planned = plan_resolving(item, Resolution::AcceptRemote);
+
+    assert_eq!(planned.action(), work::sync::Action::Pull);
+    assert_eq!(planned.resolution(), None);
+}
+
+#[test]
+fn pull_and_push_counts_reflect_only_their_own_action() {
     let updated = RemoteTimestamp::Reported("same".to_owned());
     let digests = digests_agreeing_with("h");
     let id = ExternalId::new("ENG-10".to_owned());
@@ -532,17 +668,15 @@ fn pull_and_push_counts_reflect_only_their_own_action(
     let result = plan::plan(
         &[synced_item],
         SyncDirection::Bidirectional,
-        &BTreeMap::new(),
-    )?;
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
 
     assert_eq!(result.pull_count(), 0);
     assert_eq!(result.push_count(), 0);
-    Ok(())
 }
 
 #[test]
-fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction(
-) -> Result<(), kernel::Error> {
+fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction() {
     let updated = RemoteTimestamp::Reported("same".to_owned());
     let digests = digests_agreeing_with("h");
     let id = ExternalId::new("ENG-12".to_owned());
@@ -568,14 +702,197 @@ fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction(
             comparison: &DifferingBodies,
         };
 
-        let result = plan::plan(&[item], direction, &BTreeMap::new())?;
+        let result = plan::plan(
+            &[item],
+            direction,
+            &PlanOrders::resolving(&BTreeMap::new()),
+        );
 
-        assert_eq!(result.actions[0].state, SyncState::Synced);
+        assert_eq!(result.actions[0].state(), SyncState::Synced);
         assert_eq!(
-            result.actions[0].action,
+            result.actions[0].action(),
             work::sync::Action::RecordBaseline,
             "{direction:?}"
         );
     }
-    Ok(())
+}
+
+struct UnreadableSinceWatermark;
+
+impl ItemDigests for UnreadableSinceWatermark {
+    fn mtime(&self) -> Result<Option<u64>, kernel::Error> {
+        Ok(Some(u64::MAX))
+    }
+
+    fn legacy_local(&self) -> Result<String, kernel::Error> {
+        Err(kernel::Error::Failed("the file vanished".to_owned()))
+    }
+
+    fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
+        Err(kernel::Error::Failed("the file vanished".to_owned()))
+    }
+
+    fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
+        Err(kernel::Error::Failed("the file vanished".to_owned()))
+    }
+
+    fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+        Err(kernel::Error::Failed("the file vanished".to_owned()))
+    }
+}
+
+#[test]
+fn a_classification_error_fails_only_its_item() {
+    let updated = RemoteTimestamp::Reported("2026-02-01".to_owned());
+    let baseline_updated = RemoteTimestamp::Reported("2026-01-01".to_owned());
+    let unreadable = UnreadableSinceWatermark;
+    let absent = NeverCalled;
+    let failing_key = ExternalId::new("ENG-1".to_owned());
+    let neighbour_key = ExternalId::new("ENG-2".to_owned());
+    let items = [
+        PlanInput {
+            id: "0001".to_owned(),
+            external_id: Some(&failing_key),
+            facts: RemoteFacts {
+                presence: RemotePresence::Present,
+                remote_updated: &updated,
+            },
+            dirty: work::sync::Dirtiness::Clean,
+            baseline: BaselineEntry {
+                remote_updated_at: &baseline_updated,
+                fingerprints: agreeing_split(),
+            },
+            baseline_timestamp: 0,
+            digests: &unreadable,
+            comparison: &DifferingBodies,
+        },
+        PlanInput {
+            id: "0002".to_owned(),
+            external_id: Some(&neighbour_key),
+            facts: RemoteFacts {
+                presence: RemotePresence::Absent,
+                remote_updated: &updated,
+            },
+            dirty: work::sync::Dirtiness::Clean,
+            baseline: empty_baseline(),
+            baseline_timestamp: 0,
+            digests: &absent,
+            comparison: &DifferingBodies,
+        },
+    ];
+
+    let result = plan::plan(
+        &items,
+        SyncDirection::Bidirectional,
+        &PlanOrders::resolving(&BTreeMap::new()),
+    );
+
+    assert_eq!(
+        result.unclassifiable,
+        vec![work::sync::Unclassifiable {
+            id: "0001".to_owned(),
+            reason: "the file vanished".to_owned(),
+        }]
+    );
+    let planned: Vec<&str> = result
+        .actions
+        .iter()
+        .map(work::sync::PlannedAction::id)
+        .collect();
+    assert_eq!(planned, vec!["0002"]);
+}
+
+fn unsynced_item<'a>(
+    id: &str,
+    updated: &'a RemoteTimestamp,
+    digests: &'a NeverCalled,
+) -> PlanInput<'a> {
+    PlanInput {
+        id: id.to_owned(),
+        external_id: None,
+        facts: RemoteFacts {
+            presence: RemotePresence::Absent,
+            remote_updated: updated,
+        },
+        dirty: work::sync::Dirtiness::Clean,
+        baseline: empty_baseline(),
+        baseline_timestamp: 0,
+        digests,
+        comparison: &DifferingBodies,
+    }
+}
+
+fn adopt(key: &str) -> PendingPushOrder {
+    PendingPushOrder::Adopt(
+        work::tracker_key::TrackerKey::parse(key).expect("a tracker key"),
+    )
+}
+
+#[test]
+fn an_order_is_recorded_on_its_planned_action() {
+    let updated = RemoteTimestamp::NotReported;
+    let pending_push = BTreeMap::from([("0007".to_owned(), adopt("PP-12"))]);
+
+    let result = plan::plan(
+        &[unsynced_item("0007", &updated, &NeverCalled)],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::new(),
+        },
+    );
+
+    assert_eq!(result.actions[0].state(), SyncState::Unsynced);
+    assert_eq!(result.actions[0].action(), work::sync::Action::Noop);
+    assert_eq!(result.actions[0].order(), Some(&adopt("PP-12")));
+}
+
+#[test]
+fn an_order_on_an_unconfirmed_link_plans_a_relink() {
+    let updated = RemoteTimestamp::NotReported;
+    let key = ExternalId::new("PP-1".to_owned());
+    let pending_push =
+        BTreeMap::from([("0008".to_owned(), PendingPushOrder::Create)]);
+    let item = PlanInput {
+        external_id: Some(&key),
+        ..unsynced_item("0008", &updated, &NeverCalled)
+    };
+
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::from(["0008".to_owned()]),
+        },
+    );
+
+    assert_eq!(result.actions[0].action(), work::sync::Action::Relink);
+    assert_eq!(result.actions[0].order(), Some(&PendingPushOrder::Create));
+}
+
+#[test]
+fn an_order_on_a_confirmed_link_is_not_recorded() {
+    let updated = RemoteTimestamp::NotReported;
+    let key = ExternalId::new("PP-1".to_owned());
+    let pending_push =
+        BTreeMap::from([("0009".to_owned(), PendingPushOrder::Create)]);
+    let item = PlanInput {
+        external_id: Some(&key),
+        ..unsynced_item("0009", &updated, &NeverCalled)
+    };
+
+    let result = plan::plan(
+        &[item],
+        SyncDirection::Bidirectional,
+        &PlanOrders {
+            resolutions: &BTreeMap::new(),
+            pending_push: &pending_push,
+            unconfirmed_links: &BTreeSet::new(),
+        },
+    );
+
+    assert_eq!(result.actions[0].order(), None);
 }

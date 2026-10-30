@@ -48,6 +48,7 @@ impl Composition {
             frontmatter: &YamlFrontmatter,
             canonicaliser: &PatternCanonicaliser,
             sync_baselines: &NoBaselines,
+            version_control: None,
         }
     }
 }

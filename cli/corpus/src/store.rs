@@ -17,21 +17,23 @@ use crate::record::Record;
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StoreError {
-    NotWritable { path: String },
+    NotWritable { path: String, detail: String },
     LockTimeout { path: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
     AlreadyExists { path: String },
     Validation { detail: String },
     Io { path: String, detail: String },
+    NotDurable { path: String, detail: String },
 }
 
 impl Display for StoreError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotWritable { path } => {
-                write!(formatter, "cannot write under '{path}': not writable")
-            }
+            Self::NotWritable { path, detail } => write!(
+                formatter,
+                "cannot write under '{path}': not writable: {detail}"
+            ),
             Self::LockTimeout { path } => {
                 write!(formatter, "lock acquisition timed out on '{path}'")
             }
@@ -52,6 +54,10 @@ impl Display for StoreError {
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")
             }
+            Self::NotDurable { path, detail } => write!(
+                formatter,
+                "'{path}' was replaced but may not survive a crash: {detail}"
+            ),
         }
     }
 }
@@ -103,6 +109,52 @@ pub enum KeptState {
 pub struct KeptRecovery {
     pub dir: PathBuf,
     pub state: KeptState,
+}
+
+/// The files a recovery directory keeps about its copies rather than as
+/// copies: its ignore rule and its restore-pending record.
+pub const RECOVERY_BOOKKEEPING: [&str; 2] = [".gitignore", "RESTORE-PENDING"];
+
+/// One copy a record names: the original it was taken from, and where in
+/// its directory it was written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordedCopy {
+    pub dir: PathBuf,
+    pub original: PathBuf,
+    pub copy: PathBuf,
+}
+
+impl RecordedCopy {
+    /// The copy's path under the recovery-state root.
+    #[must_use]
+    pub fn copy_path(&self) -> PathBuf {
+        self.dir.join(&self.copy)
+    }
+}
+
+/// How a copy compares with its original. The copy is read first, so a
+/// copy that cannot be read is reported whatever the original holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CopyComparison {
+    Equal,
+    Different,
+    CopyMissing,
+    CopyUnreadable,
+    OriginalUnreadable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryKind {
+    Directory,
+    File,
+    Symlink,
+}
+
+/// One entry of a recovery directory, never followed if it is a link.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecoveryEntry {
+    pub path: PathBuf,
+    pub kind: EntryKind,
 }
 
 /// Write-once copies of files a change is about to overwrite, kept in a
@@ -161,9 +213,35 @@ pub trait RecoveryCopies {
     /// [`StoreError`] when `parent` exists but cannot be listed.
     fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError>;
 
-    /// Whether a person has dealt with `original`'s copy in `dir`: the
-    /// original matches it again, or the copy has been deleted.
-    fn copy_settled(&self, dir: &Path, original: &Path) -> bool;
+    /// Every entry directly under `parent`, recorded or not, in name order;
+    /// none when `parent` does not exist.
+    ///
+    /// # Errors
+    /// [`StoreError`] when `parent` would reach outside the recovery-state
+    /// root or cannot be listed.
+    fn all_entries(
+        &self,
+        parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError>;
+
+    /// Where `path`, relative to the recovery-state root, is on disk.
+    fn location(&self, path: &Path) -> PathBuf;
+
+    /// Where [`Self::write_once`] puts `original`'s copy in `dir`.
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy;
+
+    /// Records in `copy.dir` that `copy` still holds what its original held
+    /// before a change overwrote it.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the record cannot be written.
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError>;
+
+    /// The one copy `dir`'s record names; `None` when there is no such
+    /// record, or the directory or its record is a link.
+    fn recorded_copy(&self, dir: &Path) -> Option<RecordedCopy>;
+
+    fn compare_copy(&self, copy: &RecordedCopy) -> CopyComparison;
 }
 
 /// Canonical-order JSONL append, anchored-prefix remove-by-key, and read.
@@ -197,10 +275,25 @@ mod tests {
     fn not_writable_names_the_path() {
         let error = StoreError::NotWritable {
             path: "/x/log".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
         };
         assert_eq!(
             error.to_string(),
-            "cannot write under '/x/log': not writable"
+            "cannot write under '/x/log': not writable: Permission denied \
+             (os error 13)"
+        );
+    }
+
+    #[test]
+    fn not_durable_names_the_path_and_the_cause() {
+        let error = StoreError::NotDurable {
+            path: "/x/log".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "'/x/log' was replaced but may not survive a crash: Input/output \
+             error (os error 5)"
         );
     }
 

@@ -32,6 +32,7 @@ use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
 use migrate_adapters::context::Capabilities;
 use migrate_adapters::context::FileMigrationContext;
+use migrate_adapters::context::VersionControlled;
 use migrate_adapters::decisions_file_decision_source::DecisionsFileDecisionSource;
 use migrate_adapters::ledger_store::FileLedgerStore;
 use migrate_adapters::manifest_store::FileManifestStore;
@@ -42,7 +43,9 @@ use migrate_adapters::working_copy::VcsWorkingCopy;
 use time::UtcOffset;
 use vcs::guarded_working_copy::forces;
 use vcs::guarded_working_copy::FORCE_VARIABLE;
+use vcs::VcsProbe as _;
 use vcs_adapters::library::InProcessProbe;
+use vcs_adapters::InProcessTracking;
 
 use crate::cli::Cli;
 use crate::render::StdoutReporter;
@@ -71,7 +74,7 @@ fn compose_config(root: &Path) -> Result<Composed, kernel::Error> {
     Ok(composed)
 }
 
-fn capabilities(composed: &Composed) -> Capabilities<'_> {
+fn capabilities<'a>(composed: &'a Composed, root: &Path) -> Capabilities<'a> {
     Capabilities {
         config: &composed.service,
         walker: &RealFs,
@@ -79,6 +82,10 @@ fn capabilities(composed: &Composed) -> Capabilities<'_> {
         frontmatter: &YamlFrontmatter,
         canonicaliser: &PatternCanonicaliser,
         sync_baselines: &WorkSyncBaselines,
+        version_control: Some(VersionControlled {
+            kind: InProcessProbe.kind(root),
+            tracking: &InProcessTracking,
+        }),
     }
 }
 
@@ -195,7 +202,7 @@ fn run_list(
     ledger_store: &FileLedgerStore,
 ) -> Result<(), kernel::Error> {
     let composed = compose_config(root)?;
-    let ctx = FileMigrationContext::new(root, capabilities(&composed));
+    let ctx = FileMigrationContext::new(root, capabilities(&composed, root));
     let records = FileCorpusStore::new(root);
     let clock = session_log_clock();
     let session_logs = FileSessionLogFactory::new(root, &records, &clock);
@@ -260,7 +267,7 @@ fn run_default(
 
     let composed = compose_config(root)?;
     composed.require_readable_personal_file()?;
-    let ctx = FileMigrationContext::new(root, capabilities(&composed));
+    let ctx = FileMigrationContext::new(root, capabilities(&composed, root));
     let manifest_store = FileManifestStore::new(root);
     let working_copy = VcsWorkingCopy::new(root, &InProcessProbe);
     let session_log_decisions = session_log_decision_count(root);

@@ -17,6 +17,7 @@ use std::path::PathBuf;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::StoreError;
 use jira_client::JiraBodyDialect;
 use tracker::ExternalId;
@@ -35,6 +36,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::report::Finalisation;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -60,9 +62,15 @@ const MOVED_STAMP: &str = "2026-07-01T00:00:00Z";
 struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
+    removals: RefCell<Vec<PathBuf>>,
+    refuse_writes_to: RefCell<Option<PathBuf>>,
 }
 
 impl Spy {
+    fn refuse_writes_to(&self, path: &str) {
+        *self.refuse_writes_to.borrow_mut() = Some(PathBuf::from(path));
+    }
+
     fn seed(&self, path: &str, content: &str) {
         self.files
             .borrow_mut()
@@ -97,10 +105,24 @@ impl FileReader for Spy {
 
 impl AtomicWrite for Spy {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        if self.refuse_writes_to.borrow().as_deref() == Some(path) {
+            return Err(StoreError::Io {
+                path: path.display().to_string(),
+                detail: "injected finalise failure".to_owned(),
+            });
+        }
         self.writes.borrow_mut().push(path.to_path_buf());
         self.files
             .borrow_mut()
             .insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+}
+
+impl FileRemove for Spy {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.removals.borrow_mut().push(path.to_path_buf());
+        self.files.borrow_mut().remove(path);
         Ok(())
     }
 }
@@ -269,8 +291,13 @@ fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
     })
 }
 
+static NO_PENDING_PUSH_ORDERS: BTreeMap<String, work::sync::PendingPushOrder> =
+    BTreeMap::new();
+
+#[allow(clippy::too_many_arguments)]
 fn request<'a>(
     corpus: &'a [LocalItem],
+    inventory: &'a work::inventory::CorpusInventory,
     selection: ItemSelection<'a>,
     resolutions: &'a BTreeMap<String, Resolution>,
     integrations_root: &'a Path,
@@ -280,10 +307,12 @@ fn request<'a>(
 ) -> SyncRequest<'a> {
     SyncRequest {
         corpus,
+        inventory,
         selection,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
+        pending_push_orders: &NO_PENDING_PUSH_ORDERS,
         max_pulls: tracker::Ceiling::Bounded(max_pulls),
         max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
@@ -307,9 +336,10 @@ fn execute(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -317,11 +347,13 @@ fn execute(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     run(
         &ports,
         &mut store,
         &request(
             &scenario.items,
+            &inventory,
             ItemSelection::All,
             &resolutions,
             scenario.dir.path(),
@@ -347,9 +379,10 @@ fn execute_ceilings(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -357,8 +390,10 @@ fn execute_ceilings(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),
@@ -386,9 +421,10 @@ fn execute_targeted(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -396,8 +432,10 @@ fn execute_targeted(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::Targeted {
             items: targeted,
             pull_ids: &[],
@@ -419,7 +457,7 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == id)
+        .find(|item| item.planned.id() == id)
         .map(|item| {
             let outcome = match &item.outcome {
                 ItemOutcome::Applied => "applied".to_owned(),
@@ -430,7 +468,11 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
                 ItemOutcome::Failed(error) => format!("failed:{error:?}"),
             };
             (
-                format!("{:?}/{:?}", item.planned.action, item.planned.state),
+                format!(
+                    "{:?}/{:?}",
+                    item.planned.action(),
+                    item.planned.state()
+                ),
                 outcome,
             )
         })
@@ -454,18 +496,21 @@ fn run_with<'a>(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let resolutions = BTreeMap::new();
     let request = SyncRequest {
         corpus,
+        inventory: &work_adapters::sync::fetch::inventory_of(corpus),
         selection,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
+        pending_push_orders: &BTreeMap::new(),
         max_pulls: tracker::Ceiling::Bounded(25),
         max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,
@@ -566,10 +611,10 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
     let a = report
         .reported
         .iter()
-        .find(|item| item.planned.id == "0001")
+        .find(|item| item.planned.id() == "0001")
         .expect("A is reconciled by the final full sync");
     assert_eq!(
-        a.planned.state,
+        a.planned.state(),
         SyncState::LocallyModified,
         "the targeted run must not advance A's watermark past its edit, so \
          the later full sync still detects the local change"
@@ -602,7 +647,7 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
     let report = execute(&scenario, 25, 25, RunMode::Apply).map_err(|_| {
         "an indeterminate item is not a write, so bounds cannot refuse it"
     })?;
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
 
     let written = scenario
         .spy
@@ -688,7 +733,7 @@ fn a_transient_keyed_read_degrades_to_indeterminate_and_proceeds(
         "a transient keyed read is not a write, so it must not abort the run"
     })?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
     assert!(
         report.keyed_read_budget_limited,
         "a transient keyed read surfaces a soft budget-limited signal"
@@ -716,7 +761,7 @@ fn a_targeted_run_reconciles_only_the_named_item() -> Result<(), TestError> {
     .map_err(|_| "a single targeted pull within bounds must proceed")?;
 
     assert_eq!(report.reported.len(), 1, "only the named item is reported");
-    assert_eq!(report.reported[0].planned.id, "0002");
+    assert_eq!(report.reported[0].planned.id(), "0002");
     assert!(
         scenario.spy.content_of(&scenario.items[0].path).is_none(),
         "a non-targeted item must not be written"
@@ -878,13 +923,13 @@ fn the_fixtures_classify_as_intended() -> Result<(), TestError> {
     let pulls = report
         .reported
         .iter()
-        .filter(|item| item.planned.action == work::sync::Action::Pull)
+        .filter(|item| item.planned.action() == work::sync::Action::Pull)
         .count();
     let pushes = report
         .reported
         .iter()
         .filter(|item| {
-            matches!(item.planned.action, work::sync::Action::Push(_))
+            matches!(item.planned.action(), work::sync::Action::Push(_))
         })
         .count();
 
@@ -928,8 +973,9 @@ fn preview_reports_the_plan_without_writing_anything() -> Result<(), TestError>
         0,
         "preview must perform no write at all, baseline included"
     );
-    assert!(
-        !report.finalised,
+    assert_eq!(
+        report.finalisation,
+        Finalisation::NotAttempted,
         "preview must not advance the baseline timestamp"
     );
     assert_eq!(
@@ -948,7 +994,7 @@ fn a_plan_exactly_on_the_pull_bound_proceeds() -> Result<(), TestError> {
         .map_err(|_| "three pulls against a bound of three must proceed")?;
 
     assert_eq!(report.reported.len(), 3);
-    assert!(report.finalised);
+    assert_eq!(report.finalisation, Finalisation::Finalised);
     Ok(())
 }
 
@@ -1137,7 +1183,11 @@ fn an_applied_pull_writes_the_item_and_advances_the_baseline(
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a single pull within bounds must proceed")?;
 
-    assert!(report.finalised, "the run must finalise");
+    assert_eq!(
+        report.finalisation,
+        Finalisation::Finalised,
+        "the run must finalise"
+    );
     assert!(
         scenario.spy.write_count() >= 1,
         "an applied pull must write the baseline"
@@ -1185,7 +1235,7 @@ fn a_failed_show_after_a_stamp_change_is_indeterminate_and_writes_nothing(
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a single item within bounds must proceed")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Indeterminate);
     assert_eq!(
         scenario.spy.content_of(&item.path),
         None,
@@ -1232,7 +1282,7 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
 
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt
     );
     assert_eq!(
@@ -1240,7 +1290,7 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
         1,
         "an unresolved conflict must be reported as awaiting a human"
     );
-    assert!(report.finalised);
+    assert_eq!(report.finalisation, Finalisation::Finalised);
 
     let baseline = scenario
         .spy
@@ -1393,20 +1443,23 @@ fn execute_resolving_in(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
         &scenario.spy,
         &scenario.spy,
     );
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     run(
         &ports,
         &mut store,
         &request(
             &scenario.items,
+            &inventory,
             ItemSelection::All,
             resolutions,
             scenario.dir.path(),
@@ -1438,7 +1491,7 @@ fn a_local_resolution_overwrites_the_remote_title_and_description(
         .map_err(|_| "a resolved conflict is within the bounds")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Overwrite
     );
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
@@ -1477,7 +1530,7 @@ fn a_previewed_overwrite_carries_a_payload_check() -> Result<(), TestError> {
     .map_err(|_| "a resolved conflict is within the bounds")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Overwrite
     );
     assert_eq!(
@@ -1616,12 +1669,21 @@ fn an_unreadable_local_file_fails_the_pull_and_writes_nothing(
     let report = execute_resolving(&scenario, &accepting_remote("0009"))
         .map_err(|_| "a blank baseline local_hash needs no local read")?;
 
+    let failure = only_failure(&report);
     assert!(
         matches!(
-            only_failure(&report),
-            work_adapters::sync::apply::ApplyError::Io { .. }
+            failure,
+            work_adapters::sync::apply::ApplyError::Io {
+                operation:
+                    work_adapters::sync::operation::SyncOperation::ReadLocal,
+                ..
+            }
         ),
         "an unreadable local file must not pull over empty frontmatter"
+    );
+    assert_eq!(
+        failure.class(),
+        work_adapters::sync::apply::FailureClass::Retryable
     );
     assert_eq!(scenario.spy.content_of(&path), None);
     Ok(())
@@ -1678,7 +1740,7 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
         .map_err(|_| "a blank baseline local_hash needs no local read")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt,
         "the item still awaits a human"
     );
@@ -1712,7 +1774,7 @@ fn preview_lists_every_action_and_validates_push_entries_only(
     );
     for item in &report.reported {
         let is_push =
-            matches!(item.planned.action, work::sync::Action::Push(_));
+            matches!(item.planned.action(), work::sync::Action::Push(_));
         assert_eq!(
             item.validation.is_some(),
             is_push,
@@ -1763,7 +1825,9 @@ fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
     let push = report
         .reported
         .iter()
-        .find(|item| matches!(item.planned.action, work::sync::Action::Push(_)))
+        .find(|item| {
+            matches!(item.planned.action(), work::sync::Action::Push(_))
+        })
         .expect("one push entry");
     assert!(
         matches!(
@@ -1803,20 +1867,24 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         tracker: &tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &spy,
+        files: support::sync_files(&spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &spy, &spy);
     let resolutions = BTreeMap::new();
     let integrations_root = dir.path().to_path_buf();
+    let inventory =
+        work_adapters::sync::fetch::inventory_of(std::slice::from_ref(&item));
 
     let report = run(
         &ports,
         &mut store,
         &request(
             std::slice::from_ref(&item),
+            &inventory,
             ItemSelection::All,
             &resolutions,
             &integrations_root,
@@ -1828,7 +1896,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
     .map_err(|_| "a dirty conflict is not a write, so bounds cannot refuse")?;
 
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt,
         "a dirty remotely-modified item must decide Prompt, not Pull"
     );
@@ -1853,9 +1921,10 @@ fn execute_with_scope(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -1863,8 +1932,10 @@ fn execute_with_scope(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),
@@ -2139,9 +2210,10 @@ fn execute_with_scope_bounded(
         tracker: &scenario.tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &scenario.spy,
+        files: support::sync_files(&scenario.spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -2149,8 +2221,10 @@ fn execute_with_scope_bounded(
         &scenario.spy,
     );
     let resolutions = BTreeMap::new();
+    let inventory = work_adapters::sync::fetch::inventory_of(&scenario.items);
     let mut req = request(
         &scenario.items,
+        &inventory,
         ItemSelection::All,
         &resolutions,
         scenario.dir.path(),
@@ -2454,9 +2528,9 @@ fn a_local_edit_over_an_unrenderable_jira_description_is_a_conflict_and_sends_no
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a conflict is within the bounds")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Conflict);
     assert_eq!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Prompt
     );
     assert!(sent_nothing(&scenario.tracker));
@@ -2479,7 +2553,7 @@ fn resolve_local_overwrites_an_unrenderable_jira_description(
     let report = execute_resolving(&scenario, &pushing_local("0009"))
         .map_err(|_| "a resolved conflict is within the bounds")?;
 
-    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
+    assert_eq!(report.reported[0].planned.state(), SyncState::Conflict);
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
     assert!(scenario.tracker.calls().iter().any(|call| matches!(
         call,
@@ -2538,7 +2612,7 @@ fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
         .map_err(|_| "a push within bounds must proceed")?;
 
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     assert_eq!(
@@ -2573,5 +2647,51 @@ fn a_previewed_residue_overwrite_reports_pull_residue() -> Result<(), TestError>
         work_adapters::sync::apply::FailureClass::PullResidue
     );
     assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn an_unclassifiable_item_is_reported_as_a_failed_row() -> Result<(), TestError>
+{
+    let scenario = scenario(2, 0)?;
+    std::fs::remove_file(&scenario.items[0].path)?;
+
+    let report = execute(&scenario, 10, 10, RunMode::Apply)
+        .unwrap_or_else(|_| panic!("the run completes"));
+
+    let unclassifiable: Vec<&str> = report
+        .unclassifiable
+        .iter()
+        .map(|item| item.id.as_str())
+        .collect();
+    assert_eq!(unclassifiable, vec!["0001"]);
+    assert!(report
+        .reported
+        .iter()
+        .all(|item| item.planned.id() != "0001"));
+    assert!(report
+        .awaiting_human()
+        .all(|item| item.planned.id() != "0001"));
+    let neighbour = report
+        .reported
+        .iter()
+        .find(|item| item.planned.id() == "0002")
+        .expect("the neighbour is planned");
+    assert!(matches!(neighbour.outcome, ItemOutcome::Applied));
+    Ok(())
+}
+
+#[test]
+fn a_failed_finalise_is_reported_as_failed() -> Result<(), TestError> {
+    let scenario = scenario(0, 0)?;
+    scenario.spy.refuse_writes_to(BASELINE_PATH);
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "an empty run proceeds")?;
+
+    let Finalisation::Failed(reason) = &report.finalisation else {
+        panic!("the finalise write failed: {:?}", report.finalisation);
+    };
+    assert!(reason.contains("injected finalise failure"), "{reason}");
     Ok(())
 }

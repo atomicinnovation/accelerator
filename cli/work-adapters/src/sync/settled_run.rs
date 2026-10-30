@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 
 use tracker::Ceiling;
 
+use work::inventory::CorpusInventory;
+
 use crate::promotion::PromotionRow;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::fetch::GatheredFacts;
@@ -30,6 +32,7 @@ use crate::sync::run::SyncRequest;
 pub struct DiscoveredCorpus {
     pub items: Vec<LocalItem>,
     pub status: Box<dyn WorkingCopyStatus>,
+    pub inventory: CorpusInventory,
 }
 
 /// Reads the corpus afresh, so the engine plans over what the identity pass
@@ -98,15 +101,17 @@ fn retargeted<'a>(
 /// `request` over `corpus`, reconciling `selection`.
 fn rescoped<'a>(
     request: &SyncRequest<'a>,
-    corpus: &'a [LocalItem],
+    corpus: &'a DiscoveredCorpus,
     selection: ItemSelection<'a>,
 ) -> SyncRequest<'a> {
     SyncRequest {
-        corpus,
+        corpus: &corpus.items,
+        inventory: &corpus.inventory,
         selection,
         direction: request.direction,
         strategy: request.strategy,
         resolutions: request.resolutions,
+        pending_push_orders: request.pending_push_orders,
         max_pulls: request.max_pulls,
         max_pushes: request.max_pushes,
         mode: request.mode,
@@ -190,7 +195,7 @@ pub fn run_settled<'a>(
                 ItemSelection::All
             }
         };
-        rescoped(request, &current.items, selection)
+        rescoped(request, current, selection)
     });
     let request = resumed_request.as_ref().unwrap_or(request);
     let settled = settle_identities(request, ports, settlement, resumed)
@@ -225,7 +230,7 @@ pub fn run_settled<'a>(
     let engine_request = SyncRequest {
         max_pulls: remaining(request.max_pulls, settled.pulls_used),
         max_pushes: remaining(request.max_pushes, settled.pushes_used),
-        ..rescoped(request, &rediscovered.items, selection)
+        ..rescoped(request, &rediscovered, selection)
     };
     let SettlementReport {
         rows,

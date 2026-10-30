@@ -643,6 +643,7 @@ before completing.
    | `created-unwritten` | `created <KEY> — local write failed` |
    | `declined` | `draft — push declined` |
    | `local-save` | `draft — tracker unreachable` |
+   | `local-save` with a `warning: -: configure failed:` line | `draft — sync refused (configuration)` |
    | `loud-terminal` | `draft — remote issue may exist` |
    | `rejected` | `draft — request rejected` |
    | `retirement-incomplete` | `created <KEY> — local write incomplete; restore from VCS or <recovery-dir>` |
@@ -661,6 +662,7 @@ before completing.
    | Keyword | Recovery |
    |---|---|
    | `declined`, `local-save` | none; `/sync-work-items` promotes the draft |
+   | `local-save` with a `warning: -: configure failed:` line | if stderr carries a `warning: -: configure failed:` line, relay its cause; the draft cannot be pushed or promoted until it is fixed, and sync will refuse until then. The batch prints each distinct warning once, so it is relayed once, not under each item |
    | `loud-terminal` | check the tracker, then `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create` |
    | `rejected` | edit the draft to remove the cause stderr names, then `accelerator work promote <draft-id>` or `/sync-work-items` |
    | `created-unwritten` | none; the next `/sync-work-items` links the issue |

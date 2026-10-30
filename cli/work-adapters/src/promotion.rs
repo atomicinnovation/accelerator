@@ -211,7 +211,11 @@ fn unpromoted_subjects(
                 .iter()
                 .map(|path| {
                     let copied = recovery_dir.as_ref().filter(|dir| {
-                        !ports.files.recovery.copy_settled(dir, path)
+                        !crate::retirement::copy_settled(
+                            ports.files.recovery,
+                            dir,
+                            path,
+                        )
                     });
                     detail(
                         copied.map_or(DetailSource::Vcs, |dir| {

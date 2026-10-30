@@ -8,6 +8,7 @@
 
 use std::path::Path;
 
+use crate::migrations::text::ensure_lines;
 use crate::migrations::text::filter_lines;
 use crate::ports::MigrationContext;
 use crate::ports::MigrationError;
@@ -107,36 +108,6 @@ fn is_no_op_pending(
 fn exists(ctx: &dyn MigrationContext, path: &Path) -> bool {
     ctx.dir_exists(path)
         || ctx.read(path).is_ok_and(|content| content.is_some())
-}
-
-/// `touch`-then-append-each-rule-if-absent: creates `path` (empty) when it
-/// does not exist, whether or not `lines` is empty, then appends any of
-/// `lines` not already present as a whole line — mirrors
-/// `accelerator_ensure_inner_gitignore`/`accelerator_ensure_root_gitignore_rule`'s
-/// `touch` + `grep -qFx || append` shape.
-fn ensure_lines(
-    ctx: &dyn MigrationContext,
-    path: &Path,
-    lines: &[&str],
-) -> Result<(), MigrationError> {
-    let existing = ctx.read(path)?;
-    let content = existing.clone().unwrap_or_default();
-    let mut updated = content.clone();
-    for line in lines {
-        let already_present =
-            content.lines().any(|existing_line| existing_line == *line);
-        if !already_present {
-            if !updated.is_empty() && !updated.ends_with('\n') {
-                updated.push('\n');
-            }
-            updated.push_str(line);
-            updated.push('\n');
-        }
-    }
-    if existing.is_none() || updated != content {
-        ctx.write(path, &updated)?;
-    }
-    Ok(())
 }
 
 fn init_scaffold(

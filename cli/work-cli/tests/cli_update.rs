@@ -443,7 +443,8 @@ fn a_read_only_work_directory_refuses_the_update_lock() -> Result<(), TestError>
     assert_eq!(
         String::from_utf8(output.stderr)?,
         "could not acquire the update lock: cannot write under \
-         'meta/work/0001-existing.md.lockdir': not writable\n"
+         'meta/work/0001-existing.md.lockdir': not writable: Permission \
+         denied (os error 13)\n"
     );
     assert_eq!(fs::read_to_string(&path)?, BASIC_FIXTURE);
     Ok(())

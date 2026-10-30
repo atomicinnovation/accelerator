@@ -45,7 +45,8 @@ fn already_applied_except_0008(dir: &Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0010-strip-research-title-prefix\n",
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n",
     )
 }
 
@@ -209,7 +210,8 @@ fn only_0008_pending(dir: &Path) -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n",
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n",
     )
 }
 

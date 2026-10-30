@@ -10,7 +10,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:0146"
 blocks: ["work-item:0290", "work-item:0320", "work-item:0337", "work-item:0335"]
-relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
+relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0300", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
 last_updated: "2026-10-15T08:29:53+00:00"
@@ -501,6 +501,12 @@ Resolved during planning:
 ## Dependencies
 
 - Blocked by: none.
+- Ships with: 0300 — Sync Pulls of Tracked Work Items Fail Silently. Today
+  every pull into a tracked item fails before writing, so this item's
+  pull-content defects cannot reach local files; once 0300 lands they would.
+  The two land in one combined change, and this item's pull and
+  resolve-to-remote criteria can only be verified end to end with 0300 in
+  place.
 - Blocks: 0320 — Linear Push Corrupts Markdown Content; its criteria compare
   by this item's equivalence.
 - Blocks: 0290 — it extends the baseline `Entry` and digest recipe this item

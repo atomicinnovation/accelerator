@@ -3,24 +3,31 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::path::PathBuf;
 
 use corpus::body::BodyParser;
-use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracker::Ceiling;
 use tracker::Completeness;
 use tracker::ExternalId;
+use tracker::Located;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::Unrenderable;
 use work::draft_id::DraftId;
+use work::inventory::CorpusInventory;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
 use work::sync::FieldDelivery;
+use work::sync::ItemDigests;
+use work::sync::LocalFingerprints;
+use work::sync::PendingPush;
+use work::sync::PendingPushOrder;
+use work::sync::PlanOrders;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -29,14 +36,23 @@ use work::sync::SyncPlan;
 use work::sync::SyncState;
 
 use crate::create_request_fields;
-use crate::promotion::PromotionRow;
+use crate::sync::adoption_records::AdoptionRecords;
+use crate::sync::adoption_records::UnretiredRecord;
+use crate::sync::apply::issue_title;
+use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
+use crate::sync::apply::IncompleteCorpusDeferral;
 use crate::sync::apply::ItemApplier;
+use crate::sync::apply::KeyCarrier;
+use crate::sync::apply::OrderRefusal;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
 use crate::sync::apply::RetitleRequest;
+use crate::sync::apply::UnchangedSinceSync;
+use crate::sync::attempt::ItemAttempt;
+use crate::sync::attempt::StepError;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
@@ -44,15 +60,30 @@ use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
 use crate::sync::create::LocalAuthor;
+use crate::sync::dossiers::dossiers_gone_stale;
+use crate::sync::dossiers::dossiers_to_refresh;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::GatheredRemote;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
-use crate::sync::identity_settlement::IdentityRow;
+use crate::sync::files::SyncFiles;
 use crate::sync::item_snapshot::ItemSnapshot;
+use crate::sync::item_snapshot::UnreadContent;
+use crate::sync::operation::SyncOperation;
 use crate::sync::ordering;
+use crate::sync::pending_push::Marker;
+use crate::sync::recovery_label::RecoveryLabel;
+use crate::sync::recovery_label::RecoveryLabels;
+use crate::sync::report::Adoption;
+use crate::sync::report::CorpusScope;
+use crate::sync::report::DiscoveryDeferral;
+use crate::sync::report::Finalisation;
+pub use crate::sync::report::ItemOutcome;
+use crate::sync::report::PendingPushDeferral;
+pub use crate::sync::report::ReportedItem;
+pub use crate::sync::report::RunReport;
 use crate::sync::scope;
 use crate::sync::send_refusal::legacy_unrenderable;
 use crate::sync::send_refusal::send_refusal;
@@ -116,13 +147,14 @@ pub struct SyncPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
     pub parser: &'a dyn BodyParser,
     pub status: &'a dyn WorkingCopyStatus,
-    pub writer: &'a dyn AtomicWrite,
+    pub files: SyncFiles<'a>,
     pub clock: &'a dyn RunClock,
     /// Authors the local files the two create paths need: a work-item file
     /// for a discovered remote issue, and the `external_id` write-back for an
     /// unsynced local draft. Behind a port because both need config, an id
     /// scheme, and a frontmatter renderer that live in the binary layer.
     pub author: &'a dyn LocalAuthor,
+    pub recovery_labels: &'a dyn RecoveryLabels,
 }
 
 /// Which of the discovered corpus a run reconciles.
@@ -156,12 +188,16 @@ pub struct SyncRequest<'a> {
     /// selection, or a narrowed run would misjudge what the corpus already
     /// carries.
     pub corpus: &'a [LocalItem],
+    /// What discovery found beside `corpus`: the files it could not use.
+    pub inventory: &'a CorpusInventory,
     /// The reconciliation scope. Reconciliation reads go through
     /// [`SyncRequest::reconciled`].
     pub selection: ItemSelection<'a>,
     pub direction: SyncDirection,
     pub strategy: RetrievalStrategy,
     pub resolutions: &'a BTreeMap<String, Resolution>,
+    /// How a person settled each refused pending push, by item id.
+    pub pending_push_orders: &'a BTreeMap<String, PendingPushOrder>,
     pub max_pulls: Ceiling,
     pub max_pushes: Ceiling,
     pub mode: RunMode,
@@ -175,6 +211,16 @@ pub struct SyncRequest<'a> {
     pub scope: SearchScope,
     /// Whether a run under a tracker-owned pattern promotes its drafts.
     pub promote: bool,
+}
+
+impl ItemSelection<'_> {
+    #[must_use]
+    pub const fn corpus_scope(&self) -> CorpusScope {
+        match self {
+            Self::All | Self::Settled { .. } => CorpusScope::WholeCorpus,
+            Self::Targeted { .. } => CorpusScope::Targeted,
+        }
+    }
 }
 
 impl<'a> SyncRequest<'a> {
@@ -194,28 +240,6 @@ impl<'a> SyncRequest<'a> {
     pub const fn discovery_search_suppressed(&self) -> bool {
         matches!(self.selection, ItemSelection::Targeted { .. })
     }
-}
-
-pub enum ItemOutcome {
-    Applied,
-    NotApplied,
-    /// Nothing was read or written: the item's baseline entry was recorded
-    /// under a digest recipe newer than this binary knows.
-    UnsupportedRecipe,
-    Failed(ApplyError),
-}
-
-pub struct ReportedItem {
-    pub planned: PlannedAction,
-    pub outcome: ItemOutcome,
-    /// The local payload-composition check attached to a `Push` entry during
-    /// a preview. `None` outside preview, and for every non-`Push` action.
-    ///
-    /// A `Rejected` outcome surfaces a locally-detectable missing required
-    /// field before any mutation. It does not reproduce a live-tracker field
-    /// check — a `Valid` preview does not guarantee the tracker accepts the
-    /// push.
-    pub validation: Option<tracker::ValidationOutcome>,
 }
 
 /// What untracked-remote discovery did on a run that got past the pre-flight
@@ -242,6 +266,12 @@ pub enum DiscoveryStatus {
     /// The search failed transiently (network). Maps to `RETRYABLE` (70), the
     /// fate a failed read carries.
     Failed { detail: String },
+    /// The corpus held a work file the run could not use, so its
+    /// `external_id`s are not all known and nothing was imported.
+    SkippedIncompleteCorpus,
+    /// A pending push was unsettled or its issue unchecked, so an issue it
+    /// created might be imported as a second item; nothing was imported.
+    SkippedPendingPush,
 }
 
 /// What the identity pass settled before the engine planned, so the engine
@@ -293,68 +323,27 @@ impl SettledView {
     }
 }
 
-pub struct RunReport {
-    /// The identity pass's rows, each keyed by the item's id when the run
-    /// started. The engine's row for the same item is not rendered.
-    pub identity: Vec<IdentityRow>,
-    /// Every draft the run set out to promote, in id order.
-    pub promotions: Vec<PromotionRow>,
-    /// Items that appeared after the identity pass read the remote, left
-    /// for the next run.
-    pub deferred: usize,
-    pub reported: Vec<ReportedItem>,
-    pub read_failure: Option<TrackerError>,
-    pub baseline_degradation: Degradation,
-    pub finalised: bool,
-    pub dossiers: Vec<ConflictDossier>,
-    pub discovery: DiscoveryStatus,
-    /// The bulk keyed read was cut short by a transient condition (a deadline,
-    /// rate limit, or wire failure), so the affected items degraded to
-    /// indeterminate and the run proceeded. A soft signal, not the fatal
-    /// [`RunError::KeyedReadCapped`]: the operator sees the read was
-    /// budget-limited rather than the incompleteness passing silently.
-    pub keyed_read_budget_limited: bool,
-}
-
-impl RunReport {
-    /// Items this run left for a human. Derived, never stored: a stored
-    /// field could disagree with the report, yielding a run that prints
-    /// conflicts and exits 0.
-    pub fn awaiting_human(&self) -> impl Iterator<Item = &ReportedItem> {
-        self.reported.iter().filter(|item| {
-            matches!(
-                item.planned.action,
-                Action::Prompt | Action::SkipConflict | Action::SkipDirty
-            ) || matches!(
-                item.planned.state,
-                SyncState::RemoteAbsent | SyncState::Indeterminate
-            )
-        })
-    }
-}
-
-/// Whether an item was reconciled to a definite, up-to-date state this run, so
-/// its change-detection watermark may advance. An item left for a human
-/// (conflict, skipped-dirty, remote-absent), one whose remote read was
-/// indeterminate, or one whose apply failed keeps the watermark of the last run
-/// that did reconcile it, so a local edit predating this run is not buried.
 /// Writes the run's baseline bookkeeping: blanks each unreconciled conflict's
 /// local hash, advances the reconciled items' watermarks, and — only for a
-/// whole-corpus run — advances the document-level fallback watermark. Returns
-/// whether the write succeeded.
+/// whole-corpus run — advances the document-level fallback watermark.
+///
+/// An item left for a human (conflict, skipped-dirty, remote-absent), one
+/// whose remote read was indeterminate, or one whose apply failed keeps the
+/// watermark of the last run that did reconcile it, so a local edit predating
+/// this run is not buried.
 fn finalise_baseline(
     baseline: &mut BaselineStore<'_>,
     reported: &[ReportedItem],
     blank_local_hash: &[String],
     run_start_epoch: u64,
     selection: &ItemSelection<'_>,
-) -> bool {
+) -> Finalisation {
     let blank_refs: Vec<&str> =
         blank_local_hash.iter().map(String::as_str).collect();
     let advance_ids: Vec<&str> = reported
         .iter()
         .filter(|item| definitively_reconciled(item))
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     let advance_document = matches!(
         selection,
@@ -367,26 +356,29 @@ fn finalise_baseline(
             run_start_epoch,
             advance_document,
         )
-        .is_ok()
+        .map_or_else(
+            |error| Finalisation::Failed(error.to_string()),
+            |()| Finalisation::Finalised,
+        )
 }
 
 /// Whether a run settled `item`, so its watermark may move. A change the run
 /// leaves pending, such as a local edit under `--pull-only`, keeps the old
 /// watermark, or the next run's mtime pre-filter would hide it.
 const fn definitively_reconciled(item: &ReportedItem) -> bool {
-    let deferred = matches!(item.planned.action, Action::Noop)
+    let deferred = matches!(item.planned.action(), Action::Noop)
         && matches!(
-            item.planned.state,
+            item.planned.state(),
             SyncState::LocallyModified | SyncState::RemotelyModified
         );
     !deferred
         && !matches!(item.outcome, ItemOutcome::Failed(_))
         && !matches!(
-            item.planned.action,
+            item.planned.action(),
             Action::Prompt | Action::SkipConflict | Action::SkipDirty
         )
         && !matches!(
-            item.planned.state,
+            item.planned.state(),
             SyncState::RemoteAbsent | SyncState::Indeterminate
         )
 }
@@ -422,6 +414,7 @@ impl LocalWorkItem {
 fn unparseable_local(item_id: &str, detail: String) -> ApplyError {
     ApplyError::LocalUnparseable {
         item_id: item_id.to_owned(),
+        operation: SyncOperation::ParseLocal,
         detail,
     }
 }
@@ -439,6 +432,9 @@ pub struct ConflictDossier {
     pub remote_updated: RemoteTimestamp,
     pub sections: Vec<SectionDiff>,
     pub unrenderable: Option<UnrenderableReason>,
+    /// The key an adopt linked that no sync has recorded, so resolving
+    /// against it may be resolving against the wrong issue.
+    pub unconfirmed_link: Option<ExternalId>,
 }
 
 /// Why a dossier's sections cannot be shown. A remote-side reason carries
@@ -560,9 +556,20 @@ fn render_titles(dossier: &ConflictDossier) -> String {
 }
 
 fn dossier_header(dossier: &ConflictDossier, status_lines: &str) -> String {
+    let banner = dossier
+        .unconfirmed_link
+        .as_ref()
+        .map(|key| {
+            format!(
+                "This item was linked to {key} without a recorded sync; if \
+                 {key} is the wrong issue, re-adopt or create instead of \
+                 resolving\n\n"
+            )
+        })
+        .unwrap_or_default();
     format!(
-        "# Conflict: {}\n{status_lines}title: {}\nlocal modified: {}\nremote \
-         updated: {}\n\n",
+        "{banner}# Conflict: {}\n{status_lines}title: {}\nlocal modified: \
+         {}\nremote updated: {}\n\n",
         dossier.id,
         render_titles(dossier),
         render_local_modified(dossier.local_modified),
@@ -647,6 +654,64 @@ impl EntryShapes {
     }
 }
 
+/// What an item's baseline entry recorded of its local file at the last
+/// sync, under the entry's own recipe.
+enum RecordedLocal {
+    RecipeOne(LocalFingerprints),
+    Legacy(String),
+}
+
+/// Each reconciled item's recorded local digest, read once per run; an item
+/// without one has no entry, a blanked local hash, or an unknown recipe.
+struct RecordedLocals(BTreeMap<String, RecordedLocal>);
+
+impl RecordedLocals {
+    fn read(
+        items: &[LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+    ) -> Self {
+        Self(
+            items
+                .iter()
+                .filter_map(|item| {
+                    let recorded = match baseline.get(&item.id)? {
+                        Entry::Split { split, .. } => {
+                            RecordedLocal::RecipeOne(split.local.clone()?)
+                        }
+                        Entry::Legacy { legacy, .. } => {
+                            RecordedLocal::Legacy(legacy.local.clone()?)
+                        }
+                        Entry::Unsupported { .. } => return None,
+                    };
+                    Some((item.id.clone(), recorded))
+                })
+                .collect(),
+        )
+    }
+
+    fn unchanged_since_sync(
+        &self,
+        id: &str,
+        snapshot: &ItemSnapshot<'_>,
+    ) -> UnchangedSinceSync {
+        match self.0.get(id) {
+            Some(RecordedLocal::RecipeOne(recorded))
+                if snapshot.local().is_ok_and(|now| now == *recorded) =>
+            {
+                UnchangedSinceSync::RecipeOne
+            }
+            Some(RecordedLocal::Legacy(recorded))
+                if snapshot
+                    .legacy_local()
+                    .is_ok_and(|now| now == *recorded) =>
+            {
+                UnchangedSinceSync::Legacy
+            }
+            _ => UnchangedSinceSync::No,
+        }
+    }
+}
+
 /// Whether `item` is a conflict that keeps its local hash: one with no safe
 /// local overwrite, whose remedy is to revert a metadata edit so the entry
 /// migrates, which needs the hash it was recorded with.
@@ -675,6 +740,7 @@ struct RunKnowledge<'a> {
     items: &'a [LocalItem],
     snapshots: Vec<ItemSnapshot<'a>>,
     shapes: EntryShapes,
+    recorded_locals: RecordedLocals,
     by_id: BTreeMap<&'a str, usize>,
 }
 
@@ -706,6 +772,7 @@ impl<'a> RunKnowledge<'a> {
             items,
             snapshots,
             shapes: EntryShapes::read(items, baseline),
+            recorded_locals: RecordedLocals::read(items, baseline),
             by_id,
         }
     }
@@ -714,12 +781,20 @@ impl<'a> RunKnowledge<'a> {
         &self,
         baseline: &crate::sync::baseline::Baseline,
         request: &SyncRequest<'_>,
-    ) -> Result<SyncPlan, RunError> {
+        unconfirmed_links: &BTreeSet<String>,
+    ) -> SyncPlan {
         let plan_inputs =
             self.facts
                 .plan_inputs(self.items, &self.snapshots, baseline);
-        compute_plan(&plan_inputs, request.direction, request.resolutions)
-            .map_err(RunError::Internal)
+        compute_plan(
+            &plan_inputs,
+            request.direction,
+            &PlanOrders {
+                resolutions: request.resolutions,
+                pending_push: request.pending_push_orders,
+                unconfirmed_links,
+            },
+        )
     }
 
     fn item(&self, id: &str) -> Option<&'a LocalItem> {
@@ -738,6 +813,13 @@ impl<'a> RunKnowledge<'a> {
         self.shapes.of(id)
     }
 
+    fn unchanged_since_sync(&self, id: &str) -> UnchangedSinceSync {
+        self.snapshot(id)
+            .map_or(UnchangedSinceSync::No, |snapshot| {
+                self.recorded_locals.unchanged_since_sync(id, snapshot)
+            })
+    }
+
     fn remote(&self, id: &str) -> Option<&GatheredRemote> {
         self.facts.per_id.get(id).map(|(remote, _)| remote)
     }
@@ -748,17 +830,23 @@ impl<'a> RunKnowledge<'a> {
 
     /// `item`'s file as the run read it, before classifying it.
     fn local_content(&self, item: &LocalItem) -> Result<&str, ApplyError> {
-        let snapshot =
-            self.snapshot(&item.id).ok_or_else(|| ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: "read-local",
-                detail: "the run took no snapshot of the file".to_owned(),
-            })?;
-        snapshot.content().map_err(|error| ApplyError::Io {
-            item_id: item.id.clone(),
-            operation: "read-local",
-            detail: error.to_string(),
-        })
+        ItemAttempt::begin(&item.id).observe_local(
+            SyncOperation::ReadLocal,
+            || match self.snapshot(&item.id).map(ItemSnapshot::read) {
+                None => Err(StepError::Failed(
+                    "the run took no snapshot of the file".to_owned(),
+                )),
+                Some(Ok(content)) => Ok(content),
+                Some(Err(UnreadContent::Undecodable)) => {
+                    Err(StepError::Refused(ApplyError::LocalUnparseable {
+                        item_id: item.id.clone(),
+                        operation: SyncOperation::ReadLocal,
+                        detail: UnreadContent::Undecodable.to_string(),
+                    }))
+                }
+                Some(Err(unread)) => Err(StepError::Failed(unread.to_string())),
+            },
+        )
     }
 
     fn remote_updated(&self, id: &str) -> RemoteTimestamp {
@@ -769,16 +857,29 @@ impl<'a> RunKnowledge<'a> {
 }
 
 fn build_dossiers(
-    plan: &SyncPlan,
+    items: &[ReportedItem],
     knowledge: &RunKnowledge<'_>,
+    unconfirmed_links: &BTreeSet<String>,
 ) -> Vec<ConflictDossier> {
-    plan.actions
-        .iter()
-        .filter(|planned| planned.action == Action::Prompt)
-        .filter_map(|planned| {
-            let item = knowledge.item(&planned.id)?;
-            Some(dossier_for(&planned.id, item, knowledge))
+    dossiers_to_refresh(items)
+        .into_iter()
+        .filter_map(|id| {
+            let item = knowledge.item(id)?;
+            Some(ConflictDossier {
+                unconfirmed_link: item
+                    .external_id
+                    .clone()
+                    .filter(|_| unconfirmed_links.contains(&item.id)),
+                ..dossier_for(id, item, knowledge)
+            })
         })
+        .collect()
+}
+
+fn stale_dossier_ids(items: &[ReportedItem]) -> Vec<String> {
+    dossiers_gone_stale(items)
+        .into_iter()
+        .map(str::to_owned)
         .collect()
 }
 
@@ -817,6 +918,7 @@ fn unreadable_dossier(
         remote_updated,
         sections: Vec::new(),
         unrenderable: Some(reason),
+        unconfirmed_link: None,
     }
 }
 
@@ -868,6 +970,7 @@ fn readable_dossier(
         remote_updated: knowledge.remote_updated(id),
         sections,
         unrenderable,
+        unconfirmed_link: None,
     }
 }
 
@@ -888,11 +991,11 @@ fn validate_pushes(
     plan.actions
         .iter()
         .map(|planned| {
-            let checked = if planned.action == Action::Pull {
+            let checked = if planned.action() == Action::Pull {
                 check_pull(planned, knowledge)
             } else {
                 planned
-                    .action
+                    .action()
                     .sends_to_tracker()
                     .then(|| check_send(planned, tracker, knowledge))
                     .flatten()
@@ -902,11 +1005,17 @@ fn validate_pushes(
                     planned: planned.clone(),
                     outcome: ItemOutcome::Failed(refused),
                     validation: None,
+                    kept_edits: None,
+                    leftover_marker: None,
+                    notice: None,
                 },
                 validated => ReportedItem {
                     planned: planned.clone(),
                     outcome: ItemOutcome::NotApplied,
                     validation: validated.and_then(Result::ok),
+                    kept_edits: None,
+                    leftover_marker: None,
+                    notice: None,
                 },
             }
         })
@@ -918,7 +1027,7 @@ fn check_pull(
     planned: &PlannedAction,
     knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = knowledge.item(&planned.id)?;
+    let item = knowledge.item(planned.id())?;
     pulled_file(item, knowledge).err().map(Err)
 }
 
@@ -978,15 +1087,20 @@ fn prepare_send<'k>(
         .map_err(|detail| unparseable_local(&item.id, detail))?;
     if let Some(refusal) = send_refusal(
         knowledge.comparison,
-        planned.action,
+        planned.action(),
         knowledge.shape(&item.id),
         &local.body,
         knowledge.projection(&item.id),
     ) {
-        return Err(refused_send(&item.id, external_id, refusal));
+        return Err(refused_send(
+            &item.id,
+            planned.action(),
+            external_id,
+            refusal,
+        ));
     }
     Ok(PreparedSend {
-        action: planned.action,
+        action: planned.action(),
         content,
         local,
     })
@@ -999,7 +1113,7 @@ fn check_send(
     tracker: &dyn RemoteTracker,
     knowledge: &RunKnowledge<'_>,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
-    let item = knowledge.item(&planned.id)?;
+    let item = knowledge.item(planned.id())?;
     let external_id = item.external_id.as_ref()?;
     let prepared = match prepare_send(planned, item, external_id, knowledge) {
         Ok(prepared) => prepared,
@@ -1013,22 +1127,36 @@ fn check_send(
     )))
 }
 
+const fn sending_operation(action: Action) -> SyncOperation {
+    match action {
+        Action::Retitle => SyncOperation::Retitle,
+        _ => SyncOperation::Update,
+    }
+}
+
 fn refused_send(
     item_id: &str,
+    action: Action,
     external_id: &ExternalId,
     refusal: SendRefusal,
 ) -> ApplyError {
     let item_id = item_id.to_owned();
+    let operation = sending_operation(action);
     match refusal {
         SendRefusal::PullResidue => ApplyError::LocalPullResidue {
             item_id,
+            operation,
             external_id: external_id.clone(),
         },
         SendRefusal::RemoteUnrenderable(cause) => {
-            ApplyError::RemoteUnrenderable { item_id, cause }
+            ApplyError::RemoteUnrenderable {
+                item_id,
+                operation,
+                cause,
+            }
         }
         SendRefusal::RemoteUnfetched => {
-            ApplyError::RemoteBodyUnavailable { item_id }
+            ApplyError::RemoteBodyUnavailable { item_id, operation }
         }
     }
 }
@@ -1038,22 +1166,28 @@ struct Discovered {
     completeness: Completeness,
 }
 
-/// Whether any local item in `corpus` already carries `candidate` as its
-/// `external_id`, compared by canonical key so a cosmetic spelling difference
-/// folds equal — the same folding untracked discovery applies. Shared by the
-/// targeted-pull filter (so a `pull_id` already bound locally is never
-/// re-imported) and the create-from-local double-binding guard.
-fn corpus_carries(
+/// Who in `corpus` already carries `candidate` as its `external_id`,
+/// compared by canonical key so a cosmetic spelling difference folds equal —
+/// the same folding untracked discovery applies. Shared by the targeted-pull
+/// filter (so a `pull_id` already bound locally is never re-imported) and
+/// the create-from-local double-binding guard.
+fn carrier_of(
     corpus: &[LocalItem],
     settled: &SettledView,
     candidate: &ExternalId,
-) -> bool {
+) -> Option<KeyCarrier> {
+    if settled.follows(candidate) {
+        return Some(KeyCarrier::FollowedThisRun);
+    }
     let key = canonical_external_key(candidate);
-    settled.follows(candidate)
-        || corpus
-            .iter()
-            .filter_map(|item| item.external_id.as_ref())
-            .any(|external| canonical_external_key(external) == key)
+    corpus
+        .iter()
+        .find(|item| {
+            item.external_id
+                .as_ref()
+                .is_some_and(|external| canonical_external_key(external) == key)
+        })
+        .map(|item| KeyCarrier::WorkItem(item.id.clone()))
 }
 
 /// The untracked remote issues: a `search` over `scope` minus the
@@ -1090,6 +1224,99 @@ fn discover_untracked(
     })
 }
 
+/// An unsynced item the run creates from local, with the planned action
+/// that carries any order settling its pending push.
+struct LocalCreate<'a> {
+    item: &'a LocalItem,
+    planned: PlannedAction,
+}
+
+impl LocalCreate<'_> {
+    const fn relinks(&self) -> bool {
+        matches!(self.planned.action(), Action::Relink)
+    }
+
+    const fn adopts(&self) -> bool {
+        matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
+    }
+
+    /// The create's report line, carrying the order that settled it; a
+    /// relink keeps its planned state.
+    fn report(&self, outcome: ItemOutcome) -> ReportedItem {
+        let row = create_report(
+            self.item.id.clone(),
+            Action::CreateFromLocal,
+            outcome,
+        );
+        ReportedItem {
+            planned: if self.relinks() {
+                self.planned.clone()
+            } else {
+                row.planned.with_order_of(&self.planned)
+            },
+            ..row
+        }
+    }
+}
+
+/// Takes the planned relinks out of `plan`, since they are applied beside
+/// the creates; under `--pull-only` none is applied, and each order is
+/// refused instead.
+fn relinks<'a>(
+    plan: &mut SyncPlan,
+    items: &'a [LocalItem],
+    direction: SyncDirection,
+) -> Vec<LocalCreate<'a>> {
+    let (relinks, actions): (Vec<PlannedAction>, Vec<PlannedAction>) =
+        std::mem::take(&mut plan.actions)
+            .into_iter()
+            .partition(|planned| planned.action() == Action::Relink);
+    plan.actions = actions;
+    if matches!(direction, SyncDirection::PullOnly) {
+        return Vec::new();
+    }
+    relinks
+        .into_iter()
+        .filter_map(|planned| {
+            items
+                .iter()
+                .find(|item| item.id == planned.id())
+                .map(|item| LocalCreate { item, planned })
+        })
+        .collect()
+}
+
+/// The issues a preview's adopt orders would link, read but not linked.
+/// An issue the tracker cannot find under its key is left for the apply to
+/// refuse.
+fn previewed_adoptions(
+    tracker: &dyn RemoteTracker,
+    creates: &[LocalCreate<'_>],
+) -> Vec<Adoption> {
+    creates
+        .iter()
+        .filter_map(|create| match create.planned.order() {
+            Some(PendingPushOrder::Adopt(key)) => {
+                let key = ExternalId::from(key);
+                match tracker.locate(&key) {
+                    Ok(Located::Found(issue))
+                        if canonical_external_key(&issue.key)
+                            == canonical_external_key(&key) =>
+                    {
+                        Some(Adoption {
+                            id: create.item.id.clone(),
+                            title: issue_title(&issue),
+                            key,
+                        })
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// The unsynced local items eligible for create-from-local: state `Unsynced`
 /// (no `external_id`), under a push-capable direction. A draft is excluded:
 /// it reaches the tracker only through promotion, which retires its ID.
@@ -1097,43 +1324,127 @@ fn unsynced_creates<'a>(
     plan: &work::sync::SyncPlan,
     items: &'a [LocalItem],
     direction: SyncDirection,
-) -> Vec<&'a LocalItem> {
+) -> Vec<LocalCreate<'a>> {
     if matches!(direction, SyncDirection::PullOnly) {
         return Vec::new();
     }
     plan.actions
         .iter()
-        .filter(|planned| planned.state == SyncState::Unsynced)
-        .filter_map(|planned| items.iter().find(|item| item.id == planned.id))
-        .filter(|item| DraftId::parse(&item.id).is_none())
+        .filter(|planned| planned.state() == SyncState::Unsynced)
+        .filter_map(|planned| {
+            items
+                .iter()
+                .find(|item| item.id == planned.id())
+                .map(|item| LocalCreate {
+                    item,
+                    planned: planned.clone(),
+                })
+        })
+        .filter(|create| DraftId::parse(&create.item.id).is_none())
         .collect()
 }
 
+/// One refusal per pending-push order that reaches no create, so an order
+/// is never silently ignored. An unclassifiable item already fails on its
+/// own row.
+fn refused_orders(
+    request: &SyncRequest<'_>,
+    plan: &SyncPlan,
+    creates_from_local: &[LocalCreate<'_>],
+) -> Vec<ApplyError> {
+    request
+        .pending_push_orders
+        .iter()
+        .filter(|(id, _)| {
+            !creates_from_local
+                .iter()
+                .any(|create| &create.item.id == *id)
+        })
+        .filter(|(id, _)| {
+            !plan.unclassifiable.iter().any(|item| &item.id == *id)
+        })
+        .map(|(id, order)| ApplyError::OrderRefused {
+            item_id: id.clone(),
+            order: order.clone(),
+            refusal: Box::new(why_no_create(request, id)),
+        })
+        .collect()
+}
+
+fn why_no_create(request: &SyncRequest<'_>, id: &str) -> OrderRefusal {
+    let named = || id.to_owned();
+    if matches!(request.direction, SyncDirection::PullOnly) {
+        return OrderRefusal::PullOnly;
+    }
+    let Some(item) = request.corpus.iter().find(|item| item.id == id) else {
+        return OrderRefusal::NoSuchItem { id: named() };
+    };
+    if !request.reconciled().iter().any(|item| item.id == id) {
+        return match request.selection {
+            ItemSelection::Targeted { .. } => {
+                OrderRefusal::TargetedOut { id: named() }
+            }
+            ItemSelection::All | ItemSelection::Settled { .. } => {
+                OrderRefusal::DeferredByIdentity { id: named() }
+            }
+        };
+    }
+    if DraftId::parse(id).is_some() {
+        return OrderRefusal::Draft { id: named() };
+    }
+    item.external_id.as_ref().map_or_else(
+        || OrderRefusal::NoSuchItem { id: named() },
+        |key| OrderRefusal::ConfirmedLink {
+            id: named(),
+            key: key.clone(),
+            path: item.path.clone(),
+        },
+    )
+}
+
 /// The `(title, body, kind)` a create-from-local needs, read from the draft's
-/// own frontmatter and body. `None` when the file is unreadable or malformed.
-fn create_inputs(path: &Path) -> Option<(String, String, String)> {
-    let content = std::fs::read_to_string(path).ok()?;
+/// own frontmatter and body.
+fn create_inputs(
+    item: &LocalItem,
+) -> Result<(String, String, String), ApplyError> {
+    let content = ItemAttempt::begin(&item.id).observe_local(
+        SyncOperation::ReadLocal,
+        || {
+            std::fs::read_to_string(&item.path).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidData {
+                    StepError::Refused(ApplyError::LocalUnparseable {
+                        item_id: item.id.clone(),
+                        operation: SyncOperation::ReadLocal,
+                        detail: UnreadContent::Undecodable.to_string(),
+                    })
+                } else {
+                    StepError::Failed(error)
+                }
+            })
+        },
+    )?;
     let (_, body) =
-        crate::sync::digest::split_frontmatter_and_body(&content).ok()?;
-    let fields = create_request_fields::read(&content).ok()?;
-    Some((fields.title, body, fields.kind))
+        crate::sync::digest::split_frontmatter_and_body(&content)
+            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+    let fields = create_request_fields::read(&content)
+        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+    Ok((fields.title, body, fields.kind))
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
 /// row rather than folding into the synced count, and never awaiting-human.
-const fn create_report(
+fn create_report(
     id: String,
     action: Action,
     outcome: ItemOutcome,
 ) -> ReportedItem {
     ReportedItem {
-        planned: PlannedAction {
-            id,
-            state: SyncState::Unsynced,
-            action,
-        },
+        planned: PlannedAction::new(id, SyncState::Unsynced, action),
         outcome,
         validation: None,
+        kept_edits: None,
+        leftover_marker: None,
+        notice: None,
     }
 }
 
@@ -1170,8 +1481,12 @@ fn send_outcome(
         }),
         _ => return ItemOutcome::NotApplied,
     };
-    match sent {
-        Ok(()) => ItemOutcome::Applied,
+    outcome_of(sent.result)
+}
+
+fn outcome_of<T>(result: Result<T, ApplyError>) -> ItemOutcome {
+    match result {
+        Ok(_) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
     }
 }
@@ -1192,6 +1507,7 @@ fn pulled_file<'a>(
     let projected_body = knowledge.projection(&item.id).ok_or_else(|| {
         ApplyError::RemoteBodyUnavailable {
             item_id: item.id.clone(),
+            operation: SyncOperation::Pull,
         }
     })?;
     let remote_body =
@@ -1200,6 +1516,7 @@ fn pulled_file<'a>(
             .local_body(projected_body)
             .map_err(|cause| ApplyError::RemoteUnrenderable {
                 item_id: item.id.clone(),
+                operation: SyncOperation::Pull,
                 cause,
             })?;
     let classified_content = knowledge.local_content(item)?;
@@ -1217,49 +1534,64 @@ fn pull_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     knowledge: &RunKnowledge<'_>,
-) -> ItemOutcome {
+    labels: &RunLabels<'_>,
+) -> (ItemOutcome, Option<PathBuf>) {
     let pulled = match pulled_file(item, knowledge) {
         Ok(pulled) => pulled,
-        Err(error) => return ItemOutcome::Failed(error),
+        Err(error) => return (ItemOutcome::Failed(error), None),
     };
-    match applier.pull(&PullRequest {
+    let attempt = applier.pull(&PullRequest {
         id: &item.id,
         file_path: &item.path,
         classified_content: pulled.classified_content,
         content: &pulled.content,
         projected_body: pulled.projected_body,
         remote_updated: pulled.remote_updated,
-    }) {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
+        unchanged_since_sync: knowledge.unchanged_since_sync(&item.id),
+        recovery_label: labels.label_for(&item.id),
+    });
+    (outcome_of(attempt.result), attempt.kept_edits)
+}
+
+/// This run's way of naming the directory a pull keeps an item's edits in.
+struct RunLabels<'a> {
+    labels: &'a dyn RecoveryLabels,
+    run_start_epoch: u64,
+}
+
+impl RunLabels<'_> {
+    fn label_for(&self, id: &str) -> Option<RecoveryLabel> {
+        self.labels.label_for(id, self.run_start_epoch)
     }
 }
 
 fn record_outcome(
-    applier: &ItemApplier<'_, '_>,
+    applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     snapshot: &ItemSnapshot<'_>,
     knowledge: &RunKnowledge<'_>,
 ) -> ItemOutcome {
-    let fingerprints = match snapshot.recorded() {
+    let fingerprints = match ItemAttempt::begin(&item.id).observe_local(
+        SyncOperation::HashLocal,
+        || {
+            snapshot
+                .recorded()
+                .map_err(|error| StepError::Failed(error.to_string()))
+        },
+    ) {
         Ok(fingerprints) => fingerprints,
-        Err(error) => {
-            return ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: "hash-local",
-                detail: error.to_string(),
-            })
-        }
+        Err(error) => return ItemOutcome::Failed(error),
     };
-    match applier.record_baseline(&RecordRequest {
-        id: &item.id,
-        file_path: &item.path,
-        fingerprints,
-        remote_updated: knowledge.remote_updated(&item.id),
-    }) {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
-    }
+    outcome_of(
+        applier
+            .record_baseline(&RecordRequest {
+                id: &item.id,
+                file_path: &item.path,
+                fingerprints,
+                remote_updated: knowledge.remote_updated(&item.id),
+            })
+            .result,
+    )
 }
 
 /// `item` reported as untouched for want of a known digest recipe, when its
@@ -1268,7 +1600,7 @@ fn noting_unsupported_recipe(
     item: ReportedItem,
     unsupported_recipe: &BTreeSet<String>,
 ) -> ReportedItem {
-    if unsupported_recipe.contains(&item.planned.id)
+    if unsupported_recipe.contains(item.planned.id())
         && matches!(item.outcome, ItemOutcome::NotApplied)
     {
         ReportedItem {
@@ -1285,6 +1617,9 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
         planned,
         outcome: ItemOutcome::NotApplied,
         validation: None,
+        kept_edits: None,
+        leftover_marker: None,
+        notice: None,
     }
 }
 
@@ -1296,12 +1631,14 @@ fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
     knowledge: &RunKnowledge<'_>,
+    labels: &RunLabels<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
-    let item = knowledge.item(&planned.id);
-    let outcome = match planned.action {
+    let item = knowledge.item(planned.id());
+    let mut kept_edits = None;
+    let outcome = match planned.action() {
         Action::RecordBaseline => {
-            match item.zip(knowledge.snapshot(&planned.id)) {
+            match item.zip(knowledge.snapshot(planned.id())) {
                 Some((item, snapshot)) => {
                     record_outcome(applier, item, snapshot, knowledge)
                 }
@@ -1317,70 +1654,108 @@ fn apply_planned_action(
             None => return not_applied(planned),
         },
         Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, knowledge),
+            Some(item) => {
+                let (outcome, kept) =
+                    pull_outcome(applier, item, knowledge, labels);
+                kept_edits = kept;
+                outcome
+            }
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
             let keeps_hash =
                 item.is_some_and(|item| keeps_local_hash(item, knowledge));
-            if matches!(planned.state, SyncState::Conflict) && !keeps_hash {
-                blank_local_hash.push(planned.id.clone());
+            if matches!(planned.state(), SyncState::Conflict) && !keeps_hash {
+                blank_local_hash.push(planned.id().to_owned());
             }
             ItemOutcome::NotApplied
         }
         Action::Noop => ItemOutcome::NotApplied,
-        Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
-            "the two create actions are applied out-of-band by the create \
-             paths, never through the id-keyed plan loop, and decide() never \
-             produces them"
-        ),
+        Action::CreateFromRemote | Action::CreateFromLocal | Action::Relink => {
+            unreachable!(
+                "the create and relink actions are applied out-of-band beside \
+             the creates, never through the id-keyed plan loop, and decide() \
+             never produces them"
+            )
+        }
     };
     ReportedItem {
         planned,
         outcome,
         validation: None,
+        kept_edits,
+        leftover_marker: None,
+        notice: None,
     }
 }
 
 fn apply_local_create(
     applier: &mut ItemApplier<'_, '_>,
-    item: &LocalItem,
+    create: &LocalCreate<'_>,
     request: &SyncRequest<'_>,
     author: &dyn LocalAuthor,
-    corpus_carries: &dyn Fn(&ExternalId) -> bool,
+    carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
-) -> ReportedItem {
-    let Some((title, body, kind)) = create_inputs(&item.path) else {
-        return create_report(
-            item.id.clone(),
-            Action::CreateFromLocal,
-            ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: "read-local",
-                detail: "unreadable or malformed frontmatter".to_owned(),
-            }),
-        );
+) -> (ReportedItem, Option<Adoption>) {
+    let item = create.item;
+    let (title, body, kind) = match create_inputs(item) {
+        Ok(inputs) => inputs,
+        Err(error) => return (create.report(ItemOutcome::Failed(error)), None),
     };
-    let marker_path = crate::sync::pending_push::path(
+    let Some(marker_path) = crate::sync::pending_push::for_item(
         request.integrations_root,
         request.integration,
         &item.id,
-    );
-    let outcome = match applier.create_from_local(&CreateFromLocalRequest {
+    ) else {
+        return (
+            create.report(ItemOutcome::Failed(
+                ItemAttempt::begin(&item.id).io_failure(
+                    SyncOperation::MarkerWrite,
+                    "id cannot name a pending-push marker",
+                ),
+            )),
+            None,
+        );
+    };
+    let Some(adoption_record_path) = crate::sync::adoption_records::path(
+        request.integrations_root,
+        request.integration,
+        &item.id,
+    ) else {
+        unreachable!("an id that names a marker names an adoption record")
+    };
+    let local_create = CreateFromLocalRequest {
         item_id: &item.id,
         file_path: &item.path,
         title: &title,
         body: &body,
         kind: &kind,
         marker_path: &marker_path,
+        adoption_record_path: &adoption_record_path,
         author,
-        corpus_carries,
+        carrier_of,
+        corpus_blocked_by: request.inventory.blocking_fault(),
+        order: create.planned.order(),
+        linked: item.external_id.as_ref(),
+        tracker_name: request.integration,
         attempted_at,
-    }) {
-        Ok(()) => ItemOutcome::Applied,
-        Err(error) => ItemOutcome::Failed(error),
     };
-    create_report(item.id.clone(), Action::CreateFromLocal, outcome)
+    let attempted = if create.relinks() {
+        applier.relink(&local_create)
+    } else {
+        applier.create_from_local(&local_create)
+    };
+    match attempted.result {
+        Ok(created) => (
+            ReportedItem {
+                leftover_marker: created.leftover_marker,
+                notice: created.notice,
+                ..create.report(ItemOutcome::Applied)
+            },
+            created.adopted,
+        ),
+        Err(error) => (create.report(ItemOutcome::Failed(error)), None),
+    }
 }
 
 /// The gathered facts and bounded plan a run acts on, shared verbatim by the
@@ -1395,8 +1770,11 @@ struct PreparedRun<'a> {
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
     discovery: DiscoveryStatus,
-    creates_from_local: Vec<&'a LocalItem>,
-    dossiers: Vec<ConflictDossier>,
+    discovery_deferral: Option<DiscoveryDeferral>,
+    creates_from_local: Vec<LocalCreate<'a>>,
+    refused_orders: Vec<ApplyError>,
+    leftover_attempts: Vec<PathBuf>,
+    unconfirmed_links: BTreeSet<String>,
 }
 
 /// Maps the bulk keyed read's completeness to the run's fate. A cap-hit is the
@@ -1411,6 +1789,165 @@ const fn classify_keyed_read(
         Completeness::Complete => Ok(false),
         Completeness::Transient => Ok(true),
         Completeness::CapHit => Err(RunError::KeyedReadCapped),
+    }
+}
+
+/// The remote issues a run imports, how discovery found them, and why it
+/// imported none it would otherwise have.
+struct Imports {
+    ids: Vec<ExternalId>,
+    discovery: DiscoveryStatus,
+    deferral: Option<DiscoveryDeferral>,
+}
+
+impl Imports {
+    const fn none(discovery: DiscoveryStatus) -> Self {
+        Self {
+            ids: Vec::new(),
+            discovery,
+            deferral: None,
+        }
+    }
+
+    fn deferred_by(deferral: Option<PendingPushDeferral>) -> Self {
+        Self {
+            deferral: deferral.map(DiscoveryDeferral::PendingPush),
+            ..Self::none(DiscoveryStatus::SkippedPendingPush)
+        }
+    }
+}
+
+/// What the pending pushes outstanding when a run starts say about its
+/// untracked import.
+struct PendingPushes {
+    /// Issues a create may have made for an item: the keys created markers
+    /// record, by item id.
+    created: Vec<(String, ExternalId)>,
+    adopted: Vec<ExternalId>,
+    /// Why import must wait, before any search is worth running.
+    unsettled: Option<PendingPushDeferral>,
+    /// Attempt markers left on items that have since been linked, which
+    /// never create again.
+    leftover: Vec<PathBuf>,
+}
+
+impl PendingPushes {
+    fn outstanding(request: &SyncRequest<'_>) -> Self {
+        let adopted = request
+            .pending_push_orders
+            .values()
+            .filter_map(|order| match order {
+                PendingPushOrder::Adopt(key) => Some(ExternalId::from(key)),
+                PendingPushOrder::Create => None,
+            })
+            .collect();
+        let mut pending = Self {
+            created: Vec::new(),
+            adopted,
+            unsettled: None,
+            leftover: Vec::new(),
+        };
+        let entries = match crate::sync::pending_push::outstanding(
+            request.integrations_root,
+            request.integration,
+        ) {
+            Ok(entries) => entries,
+            Err(error) => {
+                pending.unsettled =
+                    Some(PendingPushDeferral::Unlisted(error.to_string()));
+                return pending;
+            }
+        };
+        let mut unsettled = Vec::new();
+        for entry in entries {
+            let (path, attempted, created) = match entry {
+                Ok((
+                    path,
+                    Marker::Legacy(PendingPush::Created {
+                        external_id, ..
+                    }),
+                )) => (path, false, Some(external_id)),
+                Ok((path, Marker::Legacy(PendingPush::Attempted { .. }))) => {
+                    (path, true, None)
+                }
+                Ok((_, Marker::Promotion(_))) => continue,
+                Err(unreadable) => (unreadable.path, true, None),
+            };
+            let Some(id) = path.file_stem().and_then(|stem| stem.to_str())
+            else {
+                continue;
+            };
+            if let Some(key) = created {
+                pending.created.push((id.to_owned(), key));
+            }
+            let Some(item) = request.corpus.iter().find(|item| item.id == id)
+            else {
+                continue;
+            };
+            if item.external_id.is_some() {
+                if attempted {
+                    pending.leftover.push(path);
+                }
+            } else if attempted && !request.pending_push_orders.contains_key(id)
+            {
+                unsettled.push(id.to_owned());
+            }
+        }
+        if !unsettled.is_empty() {
+            pending.unsettled = Some(PendingPushDeferral::Unsettled(unsettled));
+        }
+        pending
+    }
+
+    /// `discovered` without any issue a pending push may have made or an
+    /// adopt order links: a marker's key, or the key its issue moved to.
+    fn excluding(
+        &self,
+        tracker: &dyn RemoteTracker,
+        request: &SyncRequest<'_>,
+        discovered: Discovered,
+    ) -> Result<Discovered, PendingPushDeferral> {
+        let found: BTreeSet<String> =
+            discovered.ids.iter().map(canonical_external_key).collect();
+        let carried: BTreeSet<String> = request
+            .corpus
+            .iter()
+            .filter_map(|item| item.external_id.as_ref())
+            .map(canonical_external_key)
+            .collect();
+        let mut excluded: BTreeSet<String> = self
+            .adopted
+            .iter()
+            .chain(self.created.iter().map(|(_, key)| key))
+            .map(canonical_external_key)
+            .collect();
+        for (id, key) in &self.created {
+            let canonical = canonical_external_key(key);
+            if found.contains(&canonical) || carried.contains(&canonical) {
+                continue;
+            }
+            match tracker.locate(key) {
+                Ok(Located::Found(issue)) => {
+                    excluded.insert(canonical_external_key(&issue.key));
+                }
+                Ok(Located::NotFound) => {}
+                Err(error) => {
+                    return Err(PendingPushDeferral::Unchecked {
+                        id: id.clone(),
+                        key: key.clone(),
+                        cause: error.into_detail(),
+                    });
+                }
+            }
+        }
+        Ok(Discovered {
+            ids: discovered
+                .ids
+                .into_iter()
+                .filter(|id| !excluded.contains(&canonical_external_key(id)))
+                .collect(),
+            ..discovered
+        })
     }
 }
 
@@ -1432,76 +1969,124 @@ fn untracked_to_import(
     ports: &SyncPorts<'_>,
     request: &SyncRequest<'_>,
     settled: &SettledView,
-) -> Result<(Vec<ExternalId>, DiscoveryStatus), RunError> {
+    pending: &PendingPushes,
+) -> Result<Imports, RunError> {
+    let blocked_by = request.inventory.blocking_fault();
     Ok(match &request.selection {
         ItemSelection::Targeted { pull_ids, .. } => {
             let confirmed: Vec<ExternalId> = pull_ids
                 .iter()
-                .filter(|id| !corpus_carries(request.corpus, settled, id))
+                .filter(|id| carrier_of(request.corpus, settled, id).is_none())
                 .cloned()
                 .collect();
-            if confirmed.is_empty() {
-                (Vec::new(), DiscoveryStatus::SkippedTargeted)
-            } else {
-                let attempted = confirmed.len();
-                (confirmed, DiscoveryStatus::TargetedPull { attempted })
+            match blocked_by {
+                _ if confirmed.is_empty() => {
+                    Imports::none(DiscoveryStatus::SkippedTargeted)
+                }
+                Some(blocking) => Imports {
+                    ids: Vec::new(),
+                    discovery: DiscoveryStatus::SkippedIncompleteCorpus,
+                    deferral: Some(DiscoveryDeferral::CorpusIncomplete(
+                        ApplyError::CorpusIncomplete {
+                            subject: "-".to_owned(),
+                            deferred: IncompleteCorpusDeferral::Import(
+                                confirmed,
+                            ),
+                            blocking,
+                        },
+                    )),
+                },
+                None => {
+                    let attempted = confirmed.len();
+                    Imports {
+                        ids: confirmed,
+                        discovery: DiscoveryStatus::TargetedPull { attempted },
+                        deferral: None,
+                    }
+                }
             }
         }
         ItemSelection::All | ItemSelection::Settled { .. }
             if matches!(request.direction, SyncDirection::PushOnly) =>
         {
-            (Vec::new(), DiscoveryStatus::SkippedPushOnly)
+            Imports::none(DiscoveryStatus::SkippedPushOnly)
+        }
+        ItemSelection::All | ItemSelection::Settled { .. }
+            if blocked_by.is_some() =>
+        {
+            Imports::none(DiscoveryStatus::SkippedIncompleteCorpus)
+        }
+        ItemSelection::All | ItemSelection::Settled { .. }
+            if pending.unsettled.is_some() =>
+        {
+            Imports::deferred_by(pending.unsettled.clone())
         }
         ItemSelection::All | ItemSelection::Settled { .. } => {
-            let prepared = resolve_discovery_scope(ports, request)?;
-            let resolved = if scope::is_broadened(&request.scope) {
-                match scope::resolve_entities(ports.tracker, &prepared) {
-                    Ok(resolved) => resolved,
-                    Err(scope::EntityResolution::Unconfigured(error)) => {
-                        return Err(RunError::DiscoveryUnconfigured {
-                            detail: error.detail,
-                        });
-                    }
-                    Err(scope::EntityResolution::Transient(error)) => {
-                        return Ok((
-                            Vec::new(),
-                            DiscoveryStatus::Failed {
-                                detail: error.into_detail(),
-                            },
-                        ));
-                    }
-                }
-            } else {
-                prepared
-            };
-            match discover_untracked(
-                ports.tracker,
-                &resolved,
-                request.corpus,
-                settled,
-            ) {
-                Ok(discovered) if !discovered.completeness.is_complete() => {
-                    return Err(RunError::DiscoveryIncomplete {
-                        found: discovered.ids.len(),
-                        completeness: discovered.completeness,
-                    });
-                }
-                Ok(discovered) => {
-                    let found = discovered.ids.len();
-                    (discovered.ids, DiscoveryStatus::Ran { found })
-                }
-                Err(TrackerError::Unconfigured { detail }) => {
-                    return Err(RunError::DiscoveryUnconfigured { detail });
-                }
-                Err(error) => (
-                    Vec::new(),
-                    DiscoveryStatus::Failed {
-                        detail: error.into_detail(),
-                    },
-                ),
-            }
+            searched_imports(ports, request, settled, pending)?
         }
     })
+}
+
+/// A whole-corpus run's untracked import: a search of the resolved scope,
+/// less every issue a pending push may have made.
+fn searched_imports(
+    ports: &SyncPorts<'_>,
+    request: &SyncRequest<'_>,
+    settled: &SettledView,
+    pending: &PendingPushes,
+) -> Result<Imports, RunError> {
+    let prepared = resolve_discovery_scope(ports, request)?;
+    let resolved = if scope::is_broadened(&request.scope) {
+        match scope::resolve_entities(ports.tracker, &prepared) {
+            Ok(resolved) => resolved,
+            Err(scope::EntityResolution::Unconfigured(error)) => {
+                return Err(RunError::DiscoveryUnconfigured {
+                    detail: error.detail,
+                });
+            }
+            Err(scope::EntityResolution::Transient(error)) => {
+                return Ok(Imports::none(DiscoveryStatus::Failed {
+                    detail: error.into_detail(),
+                }));
+            }
+        }
+    } else {
+        prepared
+    };
+    Ok(
+        match discover_untracked(
+            ports.tracker,
+            &resolved,
+            request.corpus,
+            settled,
+        ) {
+            Ok(discovered) if !discovered.completeness.is_complete() => {
+                return Err(RunError::DiscoveryIncomplete {
+                    found: discovered.ids.len(),
+                    completeness: discovered.completeness,
+                });
+            }
+            Ok(discovered) => {
+                match pending.excluding(ports.tracker, request, discovered) {
+                    Ok(discovered) => {
+                        let found = discovered.ids.len();
+                        Imports {
+                            ids: discovered.ids,
+                            discovery: DiscoveryStatus::Ran { found },
+                            deferral: None,
+                        }
+                    }
+                    Err(deferral) => Imports::deferred_by(Some(deferral)),
+                }
+            }
+            Err(TrackerError::Unconfigured { detail }) => {
+                return Err(RunError::DiscoveryUnconfigured { detail });
+            }
+            Err(error) => Imports::none(DiscoveryStatus::Failed {
+                detail: error.into_detail(),
+            }),
+        },
+    )
 }
 
 /// The configuration-only half of discovery's pre-flight: the scope must name
@@ -1582,7 +2167,15 @@ fn prepare_run<'a>(
         &loaded_baseline,
         digester,
     );
-    let plan = knowledge.plan(&loaded_baseline, request)?;
+    let unconfirmed_links = AdoptionRecords::new(
+        request.integrations_root,
+        request.integration,
+        ports.files.tracking,
+    )
+    .unconfirmed(request.reconciled(), &loaded_baseline);
+    let mut plan =
+        knowledge.plan(&loaded_baseline, request, &unconfirmed_links);
+    let relinks = relinks(&mut plan, request.reconciled(), request.direction);
 
     let read_failure = knowledge.facts.read_failure.clone();
     let unsupported_recipe = request
@@ -1597,15 +2190,25 @@ fn prepare_run<'a>(
         .map(|item| item.id.clone())
         .collect();
 
-    let (untracked, discovery) = untracked_to_import(ports, request, settled)?;
-    let creates_from_local =
+    let pending_pushes = PendingPushes::outstanding(request);
+    let Imports {
+        ids: untracked,
+        discovery,
+        deferral: discovery_deferral,
+    } = untracked_to_import(ports, request, settled, &pending_pushes)?;
+    let mut creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
+    creates_from_local.extend(relinks);
 
     // A create-from-remote authors a new local file (pull-direction); a
     // create-from-local issues a new remote issue (push-direction). Each folds
     // into the existing directional bound rather than a third knob.
     let pulls = plan.pull_count() + untracked.len();
-    let pushes = plan.push_count() + creates_from_local.len();
+    let new_remote_issues = creates_from_local
+        .iter()
+        .filter(|create| !create.adopts())
+        .count();
+    let pushes = plan.push_count() + new_remote_issues;
     if request.max_pulls.exceeds(pulls) || request.max_pushes.exceeds(pushes) {
         return Err(RunError::Refused {
             pulls,
@@ -1613,11 +2216,11 @@ fn prepare_run<'a>(
             max_pulls: request.max_pulls,
             max_pushes: request.max_pushes,
             new_local_files: untracked.len(),
-            new_remote_issues: creates_from_local.len(),
+            new_remote_issues,
         });
     }
 
-    let dossiers = build_dossiers(&plan, &knowledge);
+    let refused_orders = refused_orders(request, &plan, &creates_from_local);
 
     Ok(PreparedRun {
         run_start_epoch,
@@ -1629,8 +2232,11 @@ fn prepare_run<'a>(
         plan,
         untracked,
         discovery,
+        discovery_deferral,
         creates_from_local,
-        dossiers,
+        refused_orders,
+        leftover_attempts: pending_pushes.leftover,
+        unconfirmed_links,
     })
 }
 
@@ -1671,6 +2277,21 @@ pub fn run_with<'a>(
     execute(ports, baseline, request, Some(facts), settled)
 }
 
+/// Removes the adoption records whose items now have a baseline entry; a
+/// baseline that cannot be read retires nothing.
+fn retire_confirmed_adoptions(
+    records: &AdoptionRecords<'_>,
+    ports: &SyncPorts<'_>,
+    baseline: &BaselineStore<'_>,
+) -> Vec<UnretiredRecord> {
+    baseline.load().map_or_else(
+        |_| Vec::new(),
+        |(loaded, _)| {
+            records.retire_confirmed(ports.files.integration_state, &loaded)
+        },
+    )
+}
+
 #[allow(clippy::too_many_lines)]
 fn execute<'a>(
     ports: &SyncPorts<'a>,
@@ -1690,8 +2311,11 @@ fn execute<'a>(
         plan,
         untracked,
         discovery,
+        discovery_deferral,
         creates_from_local,
-        dossiers,
+        refused_orders,
+        leftover_attempts,
+        unconfirmed_links,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
     let reported_as = |item: ReportedItem| {
@@ -1710,50 +2334,71 @@ fn execute<'a>(
                 ItemOutcome::NotApplied,
             ));
         }
-        for item in &creates_from_local {
-            reported.push(create_report(
-                item.id.clone(),
-                Action::CreateFromLocal,
-                ItemOutcome::NotApplied,
-            ));
+        for create in &creates_from_local {
+            reported.push(create.report(ItemOutcome::NotApplied));
         }
+        let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
+        let dossiers =
+            build_dossiers(&reported, &knowledge, &unconfirmed_links);
+        let stale_dossier_ids = stale_dossier_ids(&reported);
         return Ok(RunReport {
+            scope: request.selection.corpus_scope(),
+            mode: request.mode,
+            inventory: request.inventory.clone(),
             identity: Vec::new(),
             promotions: Vec::new(),
             deferred: 0,
             reported,
+            unclassifiable: plan.unclassifiable,
+            refused_orders,
+            adoptions,
+            unretired_adoptions: Vec::new(),
             read_failure,
             baseline_degradation: degradation,
-            finalised: false,
+            finalisation: Finalisation::NotAttempted,
             dossiers,
+            stale_dossier_ids,
             discovery,
+            discovery_deferral,
             keyed_read_budget_limited,
         });
     }
+
+    for marker in &leftover_attempts {
+        let _ = ports.files.integration_state.remove(marker);
+    }
+    let adoption_records = AdoptionRecords::new(
+        request.integrations_root,
+        request.integration,
+        ports.files.tracking,
+    );
+    let mut unretired =
+        retire_confirmed_adoptions(&adoption_records, ports, baseline);
 
     let mut reported = Vec::with_capacity(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
-    let carries = |candidate: &ExternalId| {
-        corpus_carries(request.corpus, settled, candidate)
-    };
+    let mut adoptions = Vec::new();
+    let carrier =
+        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
 
     {
         let mut applier = ItemApplier::new(
-            ports.tracker,
-            ports.parser,
-            ports.writer,
+            ApplierPorts {
+                tracker: ports.tracker,
+                parser: ports.parser,
+                status: ports.status,
+                files: ports.files,
+            },
             baseline,
             run_start_epoch,
         );
 
         for external_id in &untracked {
-            let outcome =
-                match applier.create_from_remote(external_id, ports.author) {
-                    Ok(_) => ItemOutcome::Applied,
-                    Err(error) => ItemOutcome::Failed(error),
-                };
+            let outcome = outcome_of(
+                applier.create_from_remote(external_id, ports.author).result,
+            );
             reported.push(create_report(
                 external_id.as_str().to_owned(),
                 Action::CreateFromRemote,
@@ -1761,45 +2406,68 @@ fn execute<'a>(
             ));
         }
 
+        let labels = RunLabels {
+            labels: ports.recovery_labels,
+            run_start_epoch,
+        };
         for planned in plan.actions {
             reported.push(reported_as(apply_planned_action(
                 &mut applier,
                 planned,
                 &knowledge,
+                &labels,
                 &mut blank_local_hash,
             )));
         }
 
-        for item in &creates_from_local {
-            reported.push(apply_local_create(
+        for create in &creates_from_local {
+            let (row, adopted) = apply_local_create(
                 &mut applier,
-                item,
+                create,
                 request,
                 ports.author,
-                &carries,
+                &carrier,
                 run_start_epoch,
-            ));
+            );
+            reported.push(row);
+            adoptions.extend(adopted);
         }
     }
 
-    let finalised = finalise_baseline(
+    let finalisation = finalise_baseline(
         baseline,
         &reported,
         &blank_local_hash,
         run_start_epoch,
         &request.selection,
     );
+    if finalisation == Finalisation::Finalised {
+        unretired =
+            retire_confirmed_adoptions(&adoption_records, ports, baseline);
+    }
+    let unretired_adoptions = unretired;
+    let dossiers = build_dossiers(&reported, &knowledge, &unconfirmed_links);
+    let stale_dossier_ids = stale_dossier_ids(&reported);
 
     Ok(RunReport {
+        scope: request.selection.corpus_scope(),
+        mode: request.mode,
+        inventory: request.inventory.clone(),
         identity: Vec::new(),
         promotions: Vec::new(),
         deferred: 0,
         reported,
+        unclassifiable: plan.unclassifiable,
+        refused_orders,
+        adoptions,
+        unretired_adoptions,
         read_failure,
         baseline_degradation: degradation,
-        finalised,
+        finalisation,
         dossiers,
+        stale_dossier_ids,
         discovery,
+        discovery_deferral,
         keyed_read_budget_limited,
     })
 }
@@ -1840,6 +2508,7 @@ mod tests {
             remote_updated,
             sections,
             unrenderable: None,
+            unconfirmed_link: None,
         }
     }
 
@@ -1948,11 +2617,11 @@ mod tests {
             path: missing.path().join("0009-gone.md"),
             external_id: None,
         };
-        let planned = work::sync::PlannedAction {
-            id: "0009".to_owned(),
-            state: work::sync::SyncState::LocallyModified,
-            action: work::sync::Action::Push(work::sync::FieldDelivery::Send),
-        };
+        let planned = work::sync::PlannedAction::new(
+            "0009".to_owned(),
+            work::sync::SyncState::LocallyModified,
+            work::sync::Action::Push(work::sync::FieldDelivery::Send),
+        );
         let facts = super::GatheredFacts {
             per_id: std::collections::BTreeMap::new(),
             identity: std::collections::BTreeMap::new(),
@@ -1982,12 +2651,157 @@ mod tests {
             matches!(
                 prepared,
                 Err(super::ApplyError::Io {
-                    operation: "read-local",
+                    operation: super::SyncOperation::ReadLocal,
                     ..
                 })
             ),
             "the send fails as the run's own read does"
         );
+    }
+
+    fn knowledge_of<'a>(
+        item: &'a super::LocalItem,
+        digester: &'a super::BaselineDigester<'a>,
+    ) -> super::RunKnowledge<'a> {
+        super::RunKnowledge::gather(
+            super::GatheredFacts {
+                per_id: std::collections::BTreeMap::new(),
+                identity: std::collections::BTreeMap::new(),
+                read_failure: None,
+                keyed_read: tracker::Completeness::Complete,
+            },
+            std::slice::from_ref(item),
+            &crate::sync::baseline::Baseline::read(None).0,
+            digester,
+        )
+    }
+
+    fn item_holding(dir: &std::path::Path, bytes: &[u8]) -> super::LocalItem {
+        let path = dir.join("0009-item.md");
+        std::fs::write(&path, bytes).expect("the item is written");
+        super::LocalItem {
+            id: "0009".to_owned(),
+            path,
+            external_id: Some(tracker::ExternalId::new("ENG-9".to_owned())),
+        }
+    }
+
+    fn planned(action: work::sync::Action) -> work::sync::PlannedAction {
+        work::sync::PlannedAction::new(
+            "0009",
+            work::sync::SyncState::LocallyModified,
+            action,
+        )
+    }
+
+    #[test]
+    fn a_send_from_an_undecodable_file_is_unparseable_at_its_read() {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let item = item_holding(dir.path(), &[0xff, 0xfe, b'\n']);
+        let digester = super::BaselineDigester::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
+        );
+        let knowledge = knowledge_of(&item, &digester);
+
+        let refused = super::prepare_send(
+            &planned(work::sync::Action::Push(work::sync::FieldDelivery::Send)),
+            &item,
+            &tracker::ExternalId::new("ENG-9".to_owned()),
+            &knowledge,
+        )
+        .err()
+        .expect("an undecodable file cannot be sent");
+
+        assert_eq!(
+            refused.class(),
+            crate::sync::apply::FailureClass::Unparseable
+        );
+        assert_eq!(refused.operation(), super::SyncOperation::ReadLocal);
+        assert!(refused.cause().contains("not UTF-8"), "{refused}");
+    }
+
+    #[test]
+    fn each_refusal_names_the_operation_it_refused() {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let unparseable = item_holding(dir.path(), b"---\nid: 0009\n");
+        let digester = super::BaselineDigester::new(
+            &tracker::PlainDialect,
+            &corpus_adapters::CommonMarkBody,
+        );
+        let knowledge = knowledge_of(&unparseable, &digester);
+        let external_id = tracker::ExternalId::new("ENG-9".to_owned());
+
+        let unfetched = super::pulled_file(&unparseable, &knowledge)
+            .err()
+            .expect("a pull needs the remote body");
+        assert_eq!(unfetched.operation(), super::SyncOperation::Pull);
+
+        for (action, operation) in [
+            (
+                work::sync::Action::Push(work::sync::FieldDelivery::Send),
+                super::SyncOperation::ParseLocal,
+            ),
+            (
+                work::sync::Action::Retitle,
+                super::SyncOperation::ParseLocal,
+            ),
+        ] {
+            let refused = super::prepare_send(
+                &planned(action),
+                &unparseable,
+                &external_id,
+                &knowledge,
+            )
+            .err()
+            .expect("unparseable frontmatter cannot be sent");
+            assert_eq!(refused.operation(), operation, "{action:?}");
+        }
+
+        for (action, operation) in [
+            (
+                work::sync::Action::Push(work::sync::FieldDelivery::Send),
+                super::SyncOperation::Update,
+            ),
+            (work::sync::Action::Overwrite, super::SyncOperation::Update),
+            (work::sync::Action::Retitle, super::SyncOperation::Retitle),
+        ] {
+            let refused = super::refused_send(
+                "0009",
+                action,
+                &external_id,
+                super::SendRefusal::RemoteUnfetched,
+            );
+            assert_eq!(refused.operation(), operation, "{action:?}");
+        }
+    }
+
+    #[test]
+    fn an_unconfirmed_link_dossier_says_so() {
+        for unrenderable in
+            [None, Some(super::UnrenderableReason::LocalUnreadable)]
+        {
+            let linked = ConflictDossier {
+                unconfirmed_link: Some(tracker::ExternalId::new(
+                    "ENG-7".to_owned(),
+                )),
+                unrenderable,
+                ..dossier(None, RemoteTimestamp::NotRead, Vec::new())
+            };
+
+            let (DossierRender::Renderable(text)
+            | DossierRender::Unrenderable(text)) =
+                render_dossier(&linked, &ok_renderer);
+
+            assert!(
+                text.starts_with(
+                    "This item was linked to ENG-7 without a recorded sync; \
+                     if ENG-7 is the wrong issue, re-adopt or create instead \
+                     of resolving\n\n# Conflict: 0009\n"
+                ),
+                "{text}"
+            );
+        }
     }
 
     #[test]

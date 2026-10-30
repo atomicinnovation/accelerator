@@ -15,13 +15,43 @@ pub struct WorkItemFile {
     pub content: String,
 }
 
+/// Why a listed file holds no content: its bytes are not UTF-8, which a
+/// retry reproduces, or the read itself failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReadFailure {
+    Undecodable,
+    Io(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnreadableFile {
+    pub path: PathBuf,
+    pub reason: ReadFailure,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkItemListing {
+    pub files: Vec<WorkItemFile>,
+    pub unreadable: Vec<UnreadableFile>,
+}
+
 pub trait WorkItemFiles {
-    /// Every work-item file, drafts included, sorted by path.
+    /// Every work-item file, drafts included, sorted by path; a file that
+    /// cannot be read is listed as unreadable rather than dropped.
     ///
     /// # Errors
     ///
     /// A [`kernel::Error`] when the corpus cannot be listed.
-    fn files(&self) -> Result<Vec<WorkItemFile>, kernel::Error>;
+    fn listing(&self) -> Result<WorkItemListing, kernel::Error>;
+
+    /// Every readable work-item file, drafts included, sorted by path.
+    ///
+    /// # Errors
+    ///
+    /// A [`kernel::Error`] when the corpus cannot be listed.
+    fn files(&self) -> Result<Vec<WorkItemFile>, kernel::Error> {
+        self.listing().map(|listing| listing.files)
+    }
 
     /// The work-item files outside the drafts directory, sorted by path.
     ///

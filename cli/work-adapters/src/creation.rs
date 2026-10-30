@@ -122,9 +122,17 @@ pub type Drafted<'a> = dyn FnMut(&DraftId) -> Result<(), String> + 'a;
 pub type LegacyTracker<'a> =
     dyn Fn() -> Result<Box<dyn RemoteTracker>, PushOutcome> + 'a;
 
-/// Promotes the just-written draft, or `None` when no tracker can be had.
+pub enum DraftPromotionOutcome {
+    NoTracker,
+    /// Refused before anything reached the tracker.
+    Refused {
+        warning: String,
+    },
+    Attempted(PromotionRow),
+}
+
 pub type DraftPromotion<'a> =
-    dyn FnMut(&DraftId, PathBuf) -> Result<Option<PromotionRow>, String> + 'a;
+    dyn FnMut(&DraftId, PathBuf) -> Result<DraftPromotionOutcome, String> + 'a;
 
 /// The corpus one item is created in.
 pub struct Creation<'a> {
@@ -148,6 +156,9 @@ pub struct PushReport {
     /// The blocking item, or each path to restore, for a caller that
     /// reports them as data.
     pub details: Vec<Detail>,
+    /// A line stderr carries as it is, beside an outcome that is not a
+    /// failure.
+    pub warning: Option<String>,
 }
 
 /// What a creation strategy left on disk, and what became of its push.
@@ -194,6 +205,7 @@ fn pushed(
             external_id: key.map(|key| key.as_str().to_owned()),
             cause,
             details: Vec::new(),
+            warning: None,
         }),
     }
 }
@@ -1034,11 +1046,22 @@ pub fn create_tracker_keyed_item(
             Some(cause),
         ));
     }
-    let promoted = promotion(&draft, draft_path.clone())?;
-    Ok(promoted.map_or_else(
-        || pushed(Some(draft_path), PushOutcome::LocalSave, None, None),
-        |row| promotion_outcome(row, creation, &draft),
-    ))
+    Ok(match promotion(&draft, draft_path.clone())? {
+        DraftPromotionOutcome::NoTracker => {
+            pushed(Some(draft_path), PushOutcome::LocalSave, None, None)
+        }
+        DraftPromotionOutcome::Refused { warning } => {
+            let mut saved =
+                pushed(Some(draft_path), PushOutcome::LocalSave, None, None);
+            if let Some(report) = saved.push.as_mut() {
+                report.warning = Some(warning);
+            }
+            saved
+        }
+        DraftPromotionOutcome::Attempted(row) => {
+            promotion_outcome(row, creation, &draft)
+        }
+    })
 }
 
 #[cfg(test)]

@@ -32,6 +32,12 @@ const TICKET_REVIEW: &str =
 
 const RELOCATED_GITIGNORE: &str = "config.local.md\n.tmp-*\n";
 
+const FULLY_MIGRATED_GITIGNORE: &str = "config.local.md\n.tmp-*\n\
+     state/retirement-recovery/\nstate/sync-recovery/\n\
+     state/integrations/*/pending-push/\n\
+     state/integrations/*/conflicts/\n\
+     state/integrations/*/adopted/\n";
+
 const NO_PROJECT_PATTERN_LOG: [&str; 4] = [
     "[0001-rename-tickets-to-work] running",
     "[0001-rename-tickets-to-work] applied",
@@ -107,7 +113,7 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
     assert_eq!(outcome.code, 0, "{}", outcome.stderr);
     assert!(
         outcome.stdout.ends_with(
-            "\nMigration complete. applied: 9; pending (no-op): 1.\n"
+            "\nMigration complete. applied: 10; pending (no-op): 1.\n"
         ),
         "{}",
         outcome.stdout
@@ -136,6 +142,8 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
              meta/research/codebase",
             "0010: rewrote 0 file(s) under meta/research/codebase",
             "[0010-strip-research-title-prefix] applied",
+            "[0011-ignore-machine-local-sync-state] running",
+            "[0011-ignore-machine-local-sync-state] applied",
         ]),
     ]
     .concat();
@@ -154,7 +162,10 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
         read(&root, ".accelerator/config.md")?,
         "---\npaths:\n  work: \"meta/work\"\n---\n"
     );
-    assert_eq!(read(&root, ".accelerator/.gitignore")?, RELOCATED_GITIGNORE);
+    assert_eq!(
+        read(&root, ".accelerator/.gitignore")?,
+        FULLY_MIGRATED_GITIGNORE
+    );
     assert_eq!(
         common::applied_ledger(&root)?,
         "0001-rename-tickets-to-work\n\
@@ -165,7 +176,8 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n"
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n"
     );
     assert!(!root.join(MANIFEST_FILE).exists());
     assert!(!root.join(RUN_BASE_FILE).exists());

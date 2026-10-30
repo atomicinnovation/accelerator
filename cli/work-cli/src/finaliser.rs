@@ -2,7 +2,6 @@
 //! change the run's outcome.
 
 use std::io::Write;
-use std::path::Path;
 use std::sync::Arc;
 
 use linear_client::cache::CacheError;
@@ -13,40 +12,10 @@ use linear_client::healing::CatalogueHealing;
 use linear_client::healing::FetchUnavailable;
 use linear_client::healing::HealOutcome;
 use linear_client::healing::SyncedTeams;
-use tracker::ExternalId;
 use work_adapters::sync::run::DiscoveryStatus;
-use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunMode;
-use work_adapters::sync::run::RunReport;
 
-pub struct FinishedRun<'a> {
-    pub report: &'a RunReport,
-    pub mode: RunMode,
-    /// The `external_id` of every tracked work item in the corpus.
-    pub corpus_external_ids: Vec<ExternalId>,
-    pub integrations_root: &'a Path,
-    pub repo_root: &'a Path,
-}
-
-impl FinishedRun<'_> {
-    /// The remote issues this run imported as new work items. A
-    /// create-from-remote item is planned under its external id, having no
-    /// local id until it is authored.
-    #[must_use]
-    pub fn applied_imports(&self) -> Vec<ExternalId> {
-        self.report
-            .reported
-            .iter()
-            .filter(|item| {
-                matches!(
-                    item.planned.action,
-                    work::sync::Action::CreateFromRemote
-                ) && matches!(item.outcome, ItemOutcome::Applied)
-            })
-            .map(|item| ExternalId::new(item.planned.id.clone()))
-            .collect()
-    }
-}
+pub use crate::finished_run::FinishedRun;
 
 pub trait RunFinaliser {
     /// Runs after the report is rendered, writing anything worth saying to
@@ -84,7 +53,7 @@ impl<'a> LinearCatalogueFinaliser<'a> {
 
 impl RunFinaliser for LinearCatalogueFinaliser<'_> {
     fn finalise(&self, run: &FinishedRun<'_>, diagnostics: &mut dyn Write) {
-        if run.mode == RunMode::Preview
+        if run.report.mode == RunMode::Preview
             || matches!(run.report.discovery, DiscoveryStatus::SkippedPushOnly)
         {
             return;
@@ -167,8 +136,13 @@ mod tests {
     use linear_client::SurfaceError;
     use serde_json::json;
     use work::sync::{Action, PlannedAction, SyncState};
-    use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ReportedItem;
+
+    use std::path::Path;
+
+    use tracker::ExternalId;
+    use work_adapters::sync::run::ItemOutcome;
+    use work_adapters::sync::run::RunReport;
 
     use super::*;
 
@@ -287,7 +261,6 @@ mod tests {
             &self,
             linear: Result<Linear, FetchUnavailable>,
             report: &RunReport,
-            mode: RunMode,
             corpus: &[&str],
         ) -> String {
             let factory = move || match linear.clone() {
@@ -303,13 +276,17 @@ mod tests {
             finaliser.finalise(
                 &FinishedRun {
                     report,
-                    mode,
                     corpus_external_ids: corpus
                         .iter()
                         .map(|id| ExternalId::new((*id).to_owned()))
                         .collect(),
                     integrations_root: &integrations,
                     repo_root: self.root.path(),
+                    kept_edits:
+                        work_adapters::sync::kept_edits::KeptEditsReview {
+                            entries: Vec::new(),
+                        },
+                    stale_dossiers: Vec::new(),
                 },
                 &mut diagnostics,
             );
@@ -319,28 +296,23 @@ mod tests {
 
     fn report(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
-            reported: Vec::new(),
-            read_failure: None,
-            baseline_degradation: Degradation::None,
-            finalised: true,
-            dossiers: Vec::new(),
             discovery,
-            keyed_read_budget_limited: false,
+            ..crate::test_support::run_report()
         }
     }
 
     fn imported(id: &str, outcome: ItemOutcome) -> ReportedItem {
         ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::Unsynced,
-                action: Action::CreateFromRemote,
-            },
+            planned: PlannedAction::new(
+                id.to_owned(),
+                SyncState::Unsynced,
+                Action::CreateFromRemote,
+            ),
             outcome,
             validation: None,
+            kept_edits: None,
+            leftover_marker: None,
+            notice: None,
         }
     }
 
@@ -376,8 +348,10 @@ mod tests {
 
             let diagnostics = repo.finalise(
                 Ok(Linear::default().team("t-eng", "ENG")),
-                &report(status.clone()),
-                mode,
+                &RunReport {
+                    mode,
+                    ..report(status.clone())
+                },
                 &[],
             );
 
@@ -409,7 +383,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(linear),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &["OPS-1"],
         );
 
@@ -426,7 +399,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(Linear::default()),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &["PROJ-12"],
         );
 
@@ -449,7 +421,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(linear),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &[],
         );
 
@@ -470,14 +441,8 @@ mod tests {
         let complete = Repo::seeded(&complete_catalogue());
         let apply = report(DiscoveryStatus::Ran { found: 0 });
 
-        let warned =
-            needs_healing.finalise(unavailable(), &apply, RunMode::Apply, &[]);
-        let quiet = complete.finalise(
-            unavailable(),
-            &apply,
-            RunMode::Apply,
-            &["ENG-1"],
-        );
+        let warned = needs_healing.finalise(unavailable(), &apply, &[]);
+        let quiet = complete.finalise(unavailable(), &apply, &["ENG-1"]);
 
         assert!(warned.contains("no Linear token"), "{warned}");
         assert_eq!(quiet, "");
@@ -493,7 +458,6 @@ mod tests {
         let diagnostics = repo.finalise(
             Ok(Linear::default()),
             &report(DiscoveryStatus::Ran { found: 0 }),
-            RunMode::Apply,
             &[],
         );
 
@@ -505,9 +469,6 @@ mod tests {
     #[test]
     fn an_applied_import_names_a_synced_team_and_a_failed_one_does_not() {
         let run_report = RunReport {
-            identity: Vec::new(),
-            promotions: Vec::new(),
-            deferred: 0,
             reported: vec![
                 imported("OPS-7", ItemOutcome::Applied),
                 imported("QA-3", ItemOutcome::NotApplied),
@@ -517,10 +478,13 @@ mod tests {
         let integrations = Path::new("/unused");
         let run = FinishedRun {
             report: &run_report,
-            mode: RunMode::Apply,
             corpus_external_ids: Vec::new(),
             integrations_root: integrations,
             repo_root: integrations,
+            kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
+                entries: Vec::new(),
+            },
+            stale_dossiers: Vec::new(),
         };
 
         assert_eq!(
@@ -548,10 +512,13 @@ mod tests {
         finaliser.finalise(
             &FinishedRun {
                 report: &report(DiscoveryStatus::Ran { found: 0 }),
-                mode: RunMode::Apply,
                 corpus_external_ids: vec![ExternalId::new("ENG-1".to_owned())],
                 integrations_root: &integrations,
                 repo_root: repo.root.path(),
+                kept_edits: work_adapters::sync::kept_edits::KeptEditsReview {
+                    entries: Vec::new(),
+                },
+                stale_dossiers: Vec::new(),
             },
             &mut Vec::new(),
         );

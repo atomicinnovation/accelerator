@@ -15,13 +15,15 @@
 //! `kernel::Error`.
 
 pub mod lock;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 
 use std::fs;
 use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::io::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use kernel::TEMP_PREFIX;
 use tempfile::{Builder, NamedTempFile};
@@ -30,19 +32,23 @@ use tempfile::{Builder, NamedTempFile};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum WriteError {
-    NotWritable { path: String },
+    NotWritable { path: String, detail: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
     AlreadyExists { path: String },
     Io { path: String, detail: String },
     InsecurePermissions { path: String, mode: u32 },
+    NotDurable { path: String, detail: String },
 }
 
 impl std::fmt::Display for WriteError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotWritable { path } => {
-                write!(formatter, "cannot write '{path}': not writable")
+            Self::NotWritable { path, detail } => {
+                write!(
+                    formatter,
+                    "cannot write '{path}': not writable: {detail}"
+                )
             }
             Self::CrossFilesystem { path } => write!(
                 formatter,
@@ -63,6 +69,10 @@ impl std::fmt::Display for WriteError {
                 "refusing to read '{path}': mode {mode:03o} is wider than \
                  0600 or the path is a symlink; run 'chmod 600 {path}' to \
                  fix it"
+            ),
+            Self::NotDurable { path, detail } => write!(
+                formatter,
+                "'{path}' was replaced but may not survive a crash: {detail}"
             ),
         }
     }
@@ -95,12 +105,26 @@ pub struct WriteBounds<'a> {
 ///
 /// # Errors
 /// Returns [`WriteError`] on a containment refusal, cross-filesystem staging, an
-/// unwritable target, or any underlying I/O failure.
+/// unwritable target, or any underlying I/O failure, or
+/// [`WriteError::NotDurable`] when the new content was published but its
+/// directory entry could not be synced.
 pub fn atomic_write(
     path: &Path,
     bytes: &[u8],
     bounds: &WriteBounds<'_>,
     mode: NewFileMode,
+) -> Result<(), WriteError> {
+    write_with_directory_sync(path, bytes, bounds, mode, sync_directory)
+}
+
+type DirectorySync = fn(&Path) -> Result<(), IoError>;
+
+fn write_with_directory_sync(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+    sync_dir: DirectorySync,
 ) -> Result<(), WriteError> {
     let (parent, target) = contained_target(path, bounds)?;
     let staged = stage(&parent, &target, bytes, mode)?;
@@ -109,7 +133,7 @@ pub fn atomic_write(
         .sync_all()
         .map_err(|error| io(staged.path(), &error))?;
     publish(staged, &target)?;
-    sync_parent_dir(&target)
+    sync_parent_dir(&target, sync_dir)
 }
 
 /// [`atomic_write`] without either fsync: a reader still never observes a
@@ -166,7 +190,7 @@ pub fn atomic_create(
             classify_persist_error(&target, &error.error)
         }
     })?;
-    sync_parent_dir(&target)
+    sync_parent_dir(&target, sync_directory)
 }
 
 /// Resolves `path` against `bounds` and returns the canonical directory a temp
@@ -257,18 +281,13 @@ pub fn require_owner_only_permissions(path: &Path) -> Result<(), WriteError> {
 }
 
 /// Canonicalises `path` by resolving its deepest existing ancestor and
-/// re-appending the not-yet-existing tail verbatim, so a target under a
-/// not-yet-created permitted root still resolves for the containment check.
+/// re-appending the not-yet-existing tail, so a target under a not-yet-created
+/// permitted root still resolves for the containment check.
 fn canonicalize_allowing_missing(path: &Path) -> Result<PathBuf, WriteError> {
     for ancestor in path.ancestors() {
         match fs::canonicalize(ancestor) {
             Ok(canonical) => {
-                let tail = path.strip_prefix(ancestor).map_err(|_| {
-                    WriteError::Io {
-                        path: show(path),
-                        detail: "path is not under its ancestor".to_owned(),
-                    }
-                })?;
+                let tail = unresolved_tail(path, ancestor)?;
                 return Ok(canonical.join(tail));
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {}
@@ -279,6 +298,24 @@ fn canonicalize_allowing_missing(path: &Path) -> Result<PathBuf, WriteError> {
         path: show(path),
         detail: "no existing ancestor".to_owned(),
     })
+}
+
+/// The part of `path` below its deepest existing `ancestor`. A `..` in it is
+/// refused rather than resolved lexically: nothing under the ancestor exists
+/// yet, so where the `..` would land cannot be known until the directories
+/// are created.
+fn unresolved_tail<'a>(
+    path: &'a Path,
+    ancestor: &Path,
+) -> Result<&'a Path, WriteError> {
+    let tail = path.strip_prefix(ancestor).map_err(|_| WriteError::Io {
+        path: show(path),
+        detail: "path is not under its ancestor".to_owned(),
+    })?;
+    if tail.components().any(|part| part == Component::ParentDir) {
+        return Err(unsafe_path(path));
+    }
+    Ok(tail)
 }
 
 fn is_symlink(path: &Path) -> Result<bool, WriteError> {
@@ -313,7 +350,10 @@ fn stage(
         .tempfile_in(dir)
         .map_err(|error| {
             if error.kind() == ErrorKind::PermissionDenied {
-                WriteError::NotWritable { path: show(dir) }
+                WriteError::NotWritable {
+                    path: show(dir),
+                    detail: error.to_string(),
+                }
             } else {
                 io(dir, &error)
             }
@@ -351,12 +391,21 @@ fn publish(temp: NamedTempFile, target: &Path) -> Result<(), WriteError> {
 /// Fsyncs the target's parent directory so the rename that published the file
 /// survives a crash — a `fsync` of the file's data alone does not persist the
 /// directory entry the rename created.
-fn sync_parent_dir(target: &Path) -> Result<(), WriteError> {
+fn sync_parent_dir(
+    target: &Path,
+    sync_dir: DirectorySync,
+) -> Result<(), WriteError> {
     let Some(parent) = target.parent() else {
         return Ok(());
     };
-    let dir = fs::File::open(parent).map_err(|error| io(parent, &error))?;
-    dir.sync_all().map_err(|error| io(parent, &error))
+    sync_dir(parent).map_err(|error| WriteError::NotDurable {
+        path: show(target),
+        detail: error.to_string(),
+    })
+}
+
+fn sync_directory(dir: &Path) -> Result<(), IoError> {
+    fs::File::open(dir)?.sync_all()
 }
 
 fn classify_persist_error(target: &Path, error: &IoError) -> WriteError {
@@ -409,9 +458,10 @@ mod tests {
     use super::{
         atomic_create, atomic_write, classify_persist_error, ensure_contained,
         is_atomic_temporary, read_within, replace_without_sync,
-        require_owner_only_permissions, stage, NewFileMode, WriteBounds,
-        WriteError,
+        require_owner_only_permissions, stage, write_with_directory_sync,
+        DirectorySync, NewFileMode, WriteBounds, WriteError,
     };
+    use crate::test_support::ReadOnlyDir;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -699,6 +749,180 @@ mod tests {
             ensure_contained(&target, &bounds(&permitted, project.path())),
             Err(WriteError::UnsafePath { .. })
         ));
+        Ok(())
+    }
+
+    fn write_under(
+        permitted: &Path,
+        project: &Path,
+        target: &Path,
+    ) -> Result<(), WriteError> {
+        atomic_write(
+            target,
+            b"x",
+            &bounds(permitted, project),
+            NewFileMode::Set(0o600),
+        )
+    }
+
+    #[test]
+    fn a_dotdot_through_a_missing_directory_is_refused() -> Result<(), TestError>
+    {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("r");
+        fs::create_dir_all(&permitted)?;
+        let target = permitted.join("missing/../../escaped.md");
+
+        let outcome = write_under(&permitted, project.path(), &target);
+
+        assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
+        assert!(!project.path().join("escaped.md").exists());
+        assert!(!permitted.join("missing").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_dotdot_under_an_existing_parent_is_refused() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("r");
+        fs::create_dir_all(permitted.join("sub"))?;
+        let target = permitted.join("sub/../../escaped.md");
+
+        let outcome = write_under(&permitted, project.path(), &target);
+
+        assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
+        assert!(!project.path().join("escaped.md").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_dotdot_that_stays_inside_the_root_is_refused() -> Result<(), TestError>
+    {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("r");
+        fs::create_dir_all(&permitted)?;
+        let target = permitted.join("missing/../inside.md");
+
+        let outcome = write_under(&permitted, project.path(), &target);
+
+        assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
+        assert!(!permitted.join("inside.md").exists());
+        assert!(!permitted.join("missing").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_missing_tail_without_dotdot_still_resolves() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("r");
+        fs::create_dir_all(&permitted)?;
+        let target = permitted.join("new/dir/file.md");
+
+        write_under(&permitted, project.path(), &target)?;
+
+        assert_eq!(fs::read(&target)?, b"x");
+        Ok(())
+    }
+
+    #[test]
+    fn reading_through_a_dotdot_in_a_missing_directory_is_refused(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("r");
+        fs::create_dir_all(&permitted)?;
+        fs::write(project.path().join("x"), b"secret")?;
+        let target = permitted.join("missing/../../x");
+
+        let outcome = read_within(&target, &bounds(&permitted, project.path()));
+
+        assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
+        Ok(())
+    }
+
+    #[test]
+    fn a_permitted_root_with_dotdot_through_existing_directories_resolves(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let root = project.path().join("r");
+        fs::create_dir_all(root.join("sub"))?;
+        fs::create_dir_all(root.join("other"))?;
+        let permitted = root.join("sub/../other");
+
+        write_under(&permitted, project.path(), &permitted.join("file.md"))?;
+
+        assert_eq!(fs::read(root.join("other/file.md"))?, b"x");
+        Ok(())
+    }
+
+    #[test]
+    fn a_permitted_root_with_dotdot_through_a_missing_directory_is_refused(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let root = project.path().join("r");
+        fs::create_dir_all(root.join("other"))?;
+        let permitted = root.join("missing/../other");
+
+        let outcome =
+            write_under(&permitted, project.path(), &permitted.join("file.md"));
+
+        assert!(matches!(outcome, Err(WriteError::UnsafePath { .. })));
+        assert!(!root.join("missing").exists());
+        assert!(!root.join("other/file.md").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn a_write_refused_for_permission_keeps_the_os_message(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let sealed = project.path().join("sealed");
+        fs::create_dir(&sealed)?;
+        let Some(_guard) = ReadOnlyDir::new(&sealed)? else {
+            return Ok(());
+        };
+
+        let outcome =
+            write_under(&sealed, project.path(), &sealed.join("file.md"));
+
+        let Err(error @ WriteError::NotWritable { .. }) = outcome else {
+            return Err(format!("expected NotWritable, got {outcome:?}").into());
+        };
+        let rendered = error.to_string();
+        let today =
+            format!("cannot write '{}", fs::canonicalize(&sealed)?.display());
+        assert!(rendered.starts_with(&today), "{rendered}");
+        assert!(
+            rendered.contains("': not writable: Permission denied"),
+            "{rendered}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_parent_sync_failure_after_the_rename_is_not_durable(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let target = project.path().join("file.md");
+        let failing_sync: DirectorySync =
+            |_| Err(std::io::Error::other("injected fsync failure"));
+
+        let outcome = write_with_directory_sync(
+            &target,
+            b"new",
+            &bounds(project.path(), project.path()),
+            NewFileMode::Set(0o600),
+            failing_sync,
+        );
+
+        assert!(
+            matches!(
+                &outcome,
+                Err(WriteError::NotDurable { detail, .. })
+                    if detail.contains("injected fsync failure")
+            ),
+            "{outcome:?}"
+        );
+        assert_eq!(fs::read(&target)?, b"new");
         Ok(())
     }
 

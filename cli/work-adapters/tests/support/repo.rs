@@ -6,8 +6,17 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::CopyComparison;
+use corpus::store::FileRemove;
+use corpus::store::KeptRecovery;
+use corpus::store::RecordedCopy;
+use corpus::store::RecoveryCopies;
+use corpus::store::RecoveryEntry;
 use corpus::store::StoreError;
 use corpus_adapters::CommonMarkBody;
 use tracker::BodyDialect;
@@ -18,6 +27,7 @@ use tracker::RemoteTimestamp;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use tracker_test_support::Rewrite;
+use vcs::tracking::RepositoryTracking;
 use work::sync::Action;
 use work::sync::Dirtiness;
 use work::sync::LegacyHashes;
@@ -33,6 +43,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::ReportedItem;
@@ -61,34 +72,182 @@ impl Tracker {
     }
 }
 
-/// The baseline in memory and the work items on disk, recording every write.
+/// The work items on disk, recording every write.
 #[derive(Default)]
-struct Store {
-    baseline: RefCell<Option<String>>,
+struct WorkItems {
     writes: RefCell<Vec<PathBuf>>,
 }
 
-impl FileReader for Store {
-    fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
-        if path == Path::new(BASELINE_PATH) {
-            return Ok(self.baseline.borrow().clone());
-        }
-        Ok(std::fs::read_to_string(path).ok())
+impl AtomicWrite for WorkItems {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        self.writes.borrow_mut().push(path.to_path_buf());
+        std::fs::write(path, bytes).map_err(|error| io(path, &error))
     }
 }
 
-impl AtomicWrite for Store {
-    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-        self.writes.borrow_mut().push(path.to_path_buf());
+impl FileRemove for WorkItems {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        std::fs::remove_file(path).map_err(|error| io(path, &error))
+    }
+}
+
+/// The integration state, of which a run here writes only the baseline,
+/// held in memory.
+#[derive(Default)]
+struct IntegrationState {
+    baseline: RefCell<Option<String>>,
+}
+
+impl IntegrationState {
+    fn refuse_other_than_the_baseline(path: &Path) -> Result<(), StoreError> {
         if path == Path::new(BASELINE_PATH) {
-            *self.baseline.borrow_mut() =
-                Some(String::from_utf8_lossy(bytes).into_owned());
-            return Ok(());
+            Ok(())
+        } else {
+            Err(StoreError::UnsafePath {
+                path: path.display().to_string(),
+            })
         }
-        std::fs::write(path, bytes).map_err(|error| StoreError::Io {
-            path: path.display().to_string(),
-            detail: error.to_string(),
-        })
+    }
+}
+
+impl FileReader for IntegrationState {
+    fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+        Self::refuse_other_than_the_baseline(path)
+            .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+        Ok(self.baseline.borrow().clone())
+    }
+}
+
+impl AtomicWrite for IntegrationState {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        Self::refuse_other_than_the_baseline(path)?;
+        *self.baseline.borrow_mut() =
+            Some(String::from_utf8_lossy(bytes).into_owned());
+        Ok(())
+    }
+}
+
+impl FileRemove for IntegrationState {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        Self::refuse_other_than_the_baseline(path)?;
+        *self.baseline.borrow_mut() = None;
+        Ok(())
+    }
+}
+
+fn io(path: &Path, error: &std::io::Error) -> StoreError {
+    StoreError::Io {
+        path: path.display().to_string(),
+        detail: error.to_string(),
+    }
+}
+
+/// The lock and recovery ports of a run, recording each kept copy and able
+/// to edit an item at the moment its lock is taken or its copy is kept, as
+/// an editor saving mid-pull would.
+#[derive(Default)]
+struct FileEvents {
+    edit_on_lock: RefCell<Option<(PathBuf, String)>>,
+    edit_on_kept: RefCell<Option<(PathBuf, String)>>,
+    kept: RefCell<Vec<PathBuf>>,
+}
+
+#[allow(clippy::expect_used)]
+fn edit_once(edit: &RefCell<Option<(PathBuf, String)>>, path: &Path) {
+    let due = edit
+        .borrow()
+        .as_ref()
+        .is_some_and(|(edited, _)| edited == path);
+    if due {
+        let (edited, content) = edit.borrow_mut().take().expect("due");
+        std::fs::write(edited, content).expect("the item is edited");
+    }
+}
+
+impl ExclusiveLock for FileEvents {
+    fn acquire(&self, name: &LockName) -> Result<HeldLock, StoreError> {
+        if let LockName::ForFile(path) = name {
+            edit_once(&self.edit_on_lock, path);
+        }
+        Ok(HeldLock::new(()))
+    }
+
+    fn clear_abandoned(&self, _name: &LockName) {}
+}
+
+impl RecoveryCopies for FileEvents {
+    fn exists(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn prepare(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn write_once(
+        &self,
+        _dir: &Path,
+        _original: &Path,
+        _bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn mark_restore_pending(
+        &self,
+        _dir: &Path,
+        _unrestored: &[PathBuf],
+    ) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn is_restore_pending(&self, _dir: &Path) -> bool {
+        false
+    }
+
+    fn mark_completed(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn remove_dir(&self, _dir: &Path) -> Result<(), StoreError> {
+        Ok(())
+    }
+
+    fn kept(&self, _parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn all_entries(
+        &self,
+        _parent: &Path,
+    ) -> Result<Vec<RecoveryEntry>, StoreError> {
+        Ok(Vec::new())
+    }
+
+    fn location(&self, path: &Path) -> PathBuf {
+        path.to_path_buf()
+    }
+
+    fn mirrored_copy(&self, dir: &Path, original: &Path) -> RecordedCopy {
+        RecordedCopy {
+            dir: dir.to_path_buf(),
+            original: original.to_path_buf(),
+            copy: original.file_name().map(PathBuf::from).unwrap_or_default(),
+        }
+    }
+
+    fn mark_copy_pending(&self, copy: &RecordedCopy) -> Result<(), StoreError> {
+        self.kept.borrow_mut().push(copy.dir.clone());
+        edit_once(&self.edit_on_kept, &copy.original);
+        Ok(())
+    }
+
+    fn recorded_copy(&self, _dir: &Path) -> Option<RecordedCopy> {
+        None
+    }
+
+    fn compare_copy(&self, _copy: &RecordedCopy) -> CopyComparison {
+        CopyComparison::CopyMissing
     }
 }
 
@@ -216,7 +375,10 @@ pub struct Repo {
     tracker_kind: Tracker,
     pub items: Vec<LocalItem>,
     pub tracker: RecordingTracker,
-    store: Store,
+    work_items: WorkItems,
+    integration_state: IntegrationState,
+    events: FileEvents,
+    tracking: Option<Box<dyn RepositoryTracking>>,
 }
 
 #[allow(clippy::expect_used, clippy::panic)]
@@ -345,8 +507,8 @@ impl Repo {
         paths: Vec<(usize, PathBuf)>,
         entries: &[String],
     ) -> Self {
-        let store = Store::default();
-        *store.baseline.borrow_mut() = Some(format!(
+        let integration_state = IntegrationState::default();
+        *integration_state.baseline.borrow_mut() = Some(format!(
             "{{\"timestamp\":0,\"items\":{{{}}}}}\n",
             entries.join(",")
         ));
@@ -362,7 +524,10 @@ impl Repo {
                 })
                 .collect(),
             tracker,
-            store,
+            work_items: WorkItems::default(),
+            integration_state,
+            events: FileEvents::default(),
+            tracking: None,
         }
     }
 
@@ -377,24 +542,38 @@ impl Repo {
             tracker: &self.tracker,
             parser: &CommonMarkBody,
             status: &Clean,
-            writer: &self.store,
+            files: SyncFiles {
+                work_items: &self.work_items,
+                integration_state: &self.integration_state,
+                file_locks: &self.events,
+                recovery: &self.events,
+                tracking: self
+                    .tracking
+                    .as_deref()
+                    .unwrap_or(&super::AllTracked),
+            },
             clock: &FixedClock,
             author: &author,
+            recovery_labels: &super::LabelsEveryId,
         };
         let mut store = BaselineStore::new(
             PathBuf::from(BASELINE_PATH),
-            &self.store,
-            &self.store,
+            &self.integration_state,
+            &self.integration_state,
         );
         run(
             &ports,
             &mut store,
             &SyncRequest {
                 corpus: &self.items,
+                inventory: &work_adapters::sync::fetch::inventory_of(
+                    &self.items,
+                ),
                 selection: ItemSelection::All,
                 direction,
                 strategy: RetrievalStrategy::Bulk,
                 resolutions,
+                pending_push_orders: &BTreeMap::new(),
                 max_pulls: tracker::Ceiling::Bounded(25),
                 max_pushes: tracker::Ceiling::Bounded(25),
                 mode,
@@ -431,6 +610,40 @@ impl Repo {
         )
     }
 
+    /// Asks the repositories enclosing the items whether each is tracked,
+    /// rather than answering that every one is.
+    #[must_use]
+    pub fn asking_the_repository(mut self) -> Self {
+        self.tracking = Some(Box::new(vcs_adapters::InProcessTracking));
+        self
+    }
+
+    pub fn root(&self) -> &Path {
+        self.dir.path()
+    }
+
+    /// Rewrites item `index` to `content` once, when a pull takes its lock.
+    #[must_use]
+    pub fn editing_when_locked(self, index: usize, content: &str) -> Self {
+        *self.events.edit_on_lock.borrow_mut() =
+            Some((self.path(index).to_path_buf(), content.to_owned()));
+        self
+    }
+
+    /// Rewrites item `index` to `content` once, when a pull has kept its
+    /// edits.
+    #[must_use]
+    pub fn editing_when_kept(self, index: usize, content: &str) -> Self {
+        *self.events.edit_on_kept.borrow_mut() =
+            Some((self.path(index).to_path_buf(), content.to_owned()));
+        self
+    }
+
+    /// Every directory a run kept local edits in, in the order kept.
+    pub fn kept_edits(&self) -> Vec<PathBuf> {
+        self.events.kept.borrow().clone()
+    }
+
     pub fn read(&self, index: usize) -> String {
         std::fs::read_to_string(self.path(index)).expect("the item is readable")
     }
@@ -449,7 +662,7 @@ impl Repo {
     }
 
     pub fn baseline_text(&self) -> Option<String> {
-        self.store.baseline.borrow().clone()
+        self.integration_state.baseline.borrow().clone()
     }
 
     pub fn entry(&self, index: usize) -> Option<Entry> {
@@ -461,15 +674,11 @@ impl Repo {
 
     /// Whether the run wrote any work-item file.
     pub fn wrote_an_item(&self) -> bool {
-        self.store
-            .writes
-            .borrow()
-            .iter()
-            .any(|path| path != Path::new(BASELINE_PATH))
+        !self.work_items.writes.borrow().is_empty()
     }
 
     pub fn forget_writes(&self) {
-        self.store.writes.borrow_mut().clear();
+        self.work_items.writes.borrow_mut().clear();
     }
 
     pub fn dialect(&self) -> Box<dyn BodyDialect + Send> {
@@ -545,7 +754,7 @@ fn fragment(
 #[allow(clippy::panic)]
 pub fn outcome_of(report: &RunReport, index: usize) -> (SyncState, Action) {
     let row = row(report, index);
-    (row.planned.state, row.planned.action)
+    (row.planned.state(), row.planned.action())
 }
 
 #[allow(clippy::panic)]
@@ -553,6 +762,6 @@ pub fn row(report: &RunReport, index: usize) -> &ReportedItem {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == id(index))
+        .find(|item| item.planned.id() == id(index))
         .unwrap_or_else(|| panic!("item {index} is reported"))
 }

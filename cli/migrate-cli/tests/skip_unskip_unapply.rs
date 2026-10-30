@@ -136,7 +136,8 @@ fn unskipping_a_real_migration_lets_a_subsequent_run_actually_apply_it(
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n",
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n",
     )?;
     run(&dir, &["--skip", "0001-rename-tickets-to-work"])?;
 

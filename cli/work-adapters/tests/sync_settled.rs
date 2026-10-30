@@ -76,6 +76,7 @@ use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
+use work_adapters::sync::report::CorpusScope;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
@@ -180,6 +181,14 @@ impl Repo {
         let store = FileCorpusStore::new(self.root());
         let baseline = BaselineStore::new(self.path(BASELINE), &RealFs, &store);
         baseline.set(id, entry).unwrap();
+    }
+
+    /// Forgets `id`'s baseline entry, as a link no sync has recorded.
+    fn baseline_forget(&self, id: &str) {
+        let store = FileCorpusStore::new(self.root());
+        BaselineStore::new(self.path(BASELINE), &RealFs, &store)
+            .remove(id)
+            .unwrap();
     }
 
     fn baseline_entry(&self, id: &str) -> Option<Entry> {
@@ -392,8 +401,10 @@ impl CorpusDiscovery for FileDiscovery<'_> {
         if let Some(before) = &self.before {
             before();
         }
+        let items = self.repo.items();
         Ok(DiscoveredCorpus {
-            items: self.repo.items(),
+            inventory: work_adapters::sync::fetch::inventory_of(&items),
+            items,
             status: Box::new(EveryPath(self.dirtiness)),
         })
     }
@@ -463,8 +474,8 @@ impl Outcome {
         self.report()
             .reported
             .iter()
-            .find(|reported| reported.planned.id == id)
-            .map(|reported| reported.planned.state)
+            .find(|reported| reported.planned.id() == id)
+            .map(|reported| reported.planned.state())
     }
 
     fn promotion(&self, draft: &str) -> &PromotionOutcome {
@@ -500,8 +511,12 @@ fn targeted(items: &[LocalItem], targets: Option<&[&str]>) -> Vec<LocalItem> {
     })
 }
 
+static NO_PENDING_PUSH_ORDERS: BTreeMap<String, work::sync::PendingPushOrder> =
+    BTreeMap::new();
+
 fn request<'a>(
     items: &'a [LocalItem],
+    inventory: &'a work::inventory::CorpusInventory,
     targeted: Option<&'a [LocalItem]>,
     options: &Options,
     resolutions: &'a BTreeMap<String, work::sync::Resolution>,
@@ -509,6 +524,7 @@ fn request<'a>(
 ) -> SyncRequest<'a> {
     SyncRequest {
         corpus: items,
+        inventory,
         selection: targeted.map_or(ItemSelection::All, |targeted| {
             ItemSelection::Targeted {
                 items: targeted,
@@ -518,6 +534,7 @@ fn request<'a>(
         direction: options.direction,
         strategy: options.strategy,
         resolutions,
+        pending_push_orders: &NO_PENDING_PUSH_ORDERS,
         max_pulls: options.max_pulls,
         max_pushes: options.max_pushes,
         mode: options.mode,
@@ -528,6 +545,7 @@ fn request<'a>(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let root = repo.root();
     let work_dir = repo.work_dir();
@@ -600,17 +618,20 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: &plain,
+        files: support::sync_files(&plain),
         clock: &FixedClock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &plain);
     let items = repo.items();
     let targeted = targeted(&items, options.targets.as_deref());
     let resolutions = BTreeMap::new();
     let integrations_root = repo.path(".accelerator/state/integrations");
+    let inventory = work_adapters::sync::fetch::inventory_of(&items);
     let request = request(
         &items,
+        &inventory,
         options.targets.is_some().then_some(targeted.as_slice()),
         &options,
         &resolutions,
@@ -1006,7 +1027,7 @@ fn preview_does_not_offer_to_import_a_moved_key() {
             .report()
             .reported
             .iter()
-            .all(|reported| reported.planned.id != "ENG-42"),
+            .all(|reported| reported.planned.id() != "ENG-42"),
         "the moved key is not offered for import"
     );
 }
@@ -1607,10 +1628,10 @@ fn the_engine_sees_dirtiness_reprobed_after_the_pass() {
         .report()
         .reported
         .iter()
-        .find(|reported| reported.planned.id == "0001")
+        .find(|reported| reported.planned.id() == "0001")
         .expect("the item is planned");
     assert_eq!(
-        reported.planned.action,
+        reported.planned.action(),
         work::sync::Action::Prompt,
         "a dirty, remotely modified item is not pulled over"
     );
@@ -2201,4 +2222,102 @@ fn a_failed_promotion_retirement_then_sync_then_sync_creates_one_issue() {
 
     assert_eq!(creates(&tracker), 1);
     assert!(repo.promoted_file(&key).is_some());
+}
+
+#[test]
+fn the_report_records_the_runs_scope_and_mode() {
+    let repo = Repo::new();
+    repo.item("0001-one.md", "0001", Some("ENG-1"));
+    let tracker = RecordingTracker::holding(vec![held("ENG-1")]);
+
+    for (options, scope, mode) in [
+        (Options::default(), CorpusScope::WholeCorpus, RunMode::Apply),
+        (
+            Options {
+                targets: Some(vec!["0001"]),
+                ..Options::default()
+            },
+            CorpusScope::Targeted,
+            RunMode::Apply,
+        ),
+        (
+            Options {
+                mode: RunMode::Preview,
+                ..Options::default()
+            },
+            CorpusScope::WholeCorpus,
+            RunMode::Preview,
+        ),
+    ] {
+        let outcome = sync(&repo, &tracker, options);
+
+        assert_eq!(outcome.report().scope, scope);
+        assert_eq!(outcome.report().mode, mode);
+    }
+}
+
+#[test]
+fn the_report_carries_the_inventory_of_the_last_discovery() {
+    let repo = Repo::new();
+    moved_tracker_owned_item(&repo);
+
+    let outcome = sync(&repo, &moved("PP-760", "ENG-42"), Options::default());
+
+    let ids = &outcome.report().inventory.ids;
+    assert!(ids.contains("ENG-42"), "{ids:?}");
+    assert!(!ids.contains("PP-760"), "{ids:?}");
+}
+
+const ADOPTED: &str = ".accelerator/state/integrations/linear/adopted";
+
+fn adoption_record(repo: &Repo, id: &str, key: &str) {
+    repo.write(
+        &format!("{ADOPTED}/{id}.json"),
+        &work_adapters::sync::adoption_records::render(
+            &work_adapters::sync::adoption_records::AdoptionRecord {
+                previous_key: None,
+                key: ExternalId::new(key.to_owned()),
+                adopted_at: 1,
+            },
+        ),
+    );
+}
+
+fn recorded_key(repo: &Repo, id: &str) -> Option<String> {
+    let content = repo.read(&format!("{ADOPTED}/{id}.json"))?;
+    let record = work_adapters::sync::adoption_records::read(&content)
+        .expect("a readable adoption record");
+    Some(record.key.as_str().to_owned())
+}
+
+#[test]
+fn a_followed_key_carries_its_adoption_record() {
+    let repo = Repo::new();
+    repo.item("0230-add-search.md", "0230", Some("PP-760"));
+    repo.baseline_forget("0230");
+    adoption_record(&repo, "0230", "PP-760");
+
+    sync(
+        &repo,
+        &moved("PP-760", "ENG-42"),
+        Options {
+            ownership: IdOwnership::Local,
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(recorded_key(&repo, "0230").as_deref(), Some("ENG-42"));
+}
+
+#[test]
+fn a_renamed_item_carries_its_adoption_record() {
+    let repo = Repo::new();
+    moved_tracker_owned_item(&repo);
+    repo.baseline_forget("PP-760");
+    adoption_record(&repo, "PP-760", "PP-760");
+
+    sync(&repo, &moved("PP-760", "ENG-42"), Options::default());
+
+    assert_eq!(recorded_key(&repo, "PP-760"), None);
+    assert_eq!(recorded_key(&repo, "ENG-42").as_deref(), Some("ENG-42"));
 }
