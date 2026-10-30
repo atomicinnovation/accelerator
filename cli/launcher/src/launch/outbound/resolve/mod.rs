@@ -4,19 +4,43 @@
 pub mod cache;
 pub mod cache_root;
 pub mod fetcher;
+pub mod filesystem;
 pub mod keys;
 pub mod manifest;
+pub mod ownership;
+pub mod prune_report;
+pub mod retention;
+pub mod retention_windows;
+pub mod single_flight;
 pub mod tree;
 pub mod verifier;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use crate::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
+use crate::launch::core::{
+    ExternalCommand, ReResolution, ResolutionError, ResolveBinary,
+};
 
 use self::cache::CachedBinary;
 use self::fetcher::{FetchError, Fetcher};
+use self::filesystem::CacheFilesystem;
 use self::keys::TrustedKeys;
 use self::manifest::Manifest;
+use self::tree::lease::HeldLeases;
+
+/// What follows a successful store, before the stored path returns to `exec`.
+pub trait AfterStore {
+    /// `held_leases` are the generations this process leases, which nothing
+    /// that follows may probe.
+    fn after_store(&self, held_leases: &HeldLeases);
+}
+
+pub struct NothingAfterStore;
+
+impl AfterStore for NothingAfterStore {
+    fn after_store(&self, _held_leases: &HeldLeases) {}
+}
 
 /// The platform alias this launcher was built for.
 #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
@@ -63,6 +87,15 @@ pub struct FetchVerifyCacheResolver {
     config: ResolverConfig,
     keys: TrustedKeys,
     fetcher: Fetcher,
+    filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    after_store: Arc<dyn AfterStore + Send + Sync>,
+    held_leases: HeldLeases,
+}
+
+pub struct ResolverPorts {
+    pub filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    pub after_store: Arc<dyn AfterStore + Send + Sync>,
+    pub held_leases: HeldLeases,
 }
 
 impl FetchVerifyCacheResolver {
@@ -72,39 +105,42 @@ impl FetchVerifyCacheResolver {
     pub fn new(
         config: ResolverConfig,
         keys: TrustedKeys,
+        ports: ResolverPorts,
     ) -> Result<Self, ResolutionError> {
         let fetcher = Fetcher::new().map_err(|detail| {
             ResolutionError::CacheRootUnavailable { detail }
         })?;
-        Ok(Self {
-            config,
-            keys,
-            fetcher,
-        })
+        Ok(Self::with_fetcher(config, keys, fetcher, ports))
     }
 
     /// Construct with a caller-supplied fetcher.
     #[must_use]
-    pub const fn with_fetcher(
+    pub fn with_fetcher(
         config: ResolverConfig,
         keys: TrustedKeys,
         fetcher: Fetcher,
+        ports: ResolverPorts,
     ) -> Self {
         Self {
             config,
             keys,
             fetcher,
+            filesystem: ports.filesystem,
+            after_store: ports.after_store,
+            held_leases: ports.held_leases,
         }
     }
 
     fn reverify(&self, cached: &CachedBinary) -> Result<(), ResolutionError> {
-        let bytes = std::fs::read(&cached.path).map_err(|error| {
+        let bytes = self.filesystem.read(&cached.path).map_err(|error| {
             ResolutionError::Cache {
                 path: cached.path.clone(),
                 detail: error.to_string(),
             }
         })?;
-        let signature = std::fs::read_to_string(&cached.signature_path)
+        let signature = self
+            .filesystem
+            .read_to_string(&cached.signature_path)
             .map_err(|error| ResolutionError::Cache {
                 path: cached.signature_path.clone(),
                 detail: error.to_string(),
@@ -176,6 +212,7 @@ impl FetchVerifyCacheResolver {
         )?;
 
         let cached = cache::store(
+            self.filesystem.as_ref(),
             &self.config.cache_root,
             name,
             &self.config.expected_version,
@@ -183,6 +220,7 @@ impl FetchVerifyCacheResolver {
             &bytes,
             &entry.signature,
         )?;
+        self.after_store.after_store(&self.held_leases);
         Ok(cached.path)
     }
 }
@@ -192,13 +230,10 @@ impl ResolveBinary for FetchVerifyCacheResolver {
         &self,
         command: &ExternalCommand,
     ) -> Result<PathBuf, ResolutionError> {
-        let name = command.name.to_str().ok_or_else(|| {
-            ResolutionError::Unresolved {
-                name: command.name.clone(),
-            }
-        })?;
+        let name = dispatched_name(command)?;
 
         if let Some(cached) = cache::find(
+            self.filesystem.as_ref(),
             &self.config.cache_root,
             name,
             &self.config.expected_version,
@@ -241,6 +276,34 @@ impl ResolveBinary for FetchVerifyCacheResolver {
         }
         self.fetch_verify_store(name)
     }
+
+    /// Declines when `missing` is still there: a binary that exists yet cannot
+    /// run, as with a missing ELF interpreter, would not run after a re-fetch
+    /// either.
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution {
+        if self.filesystem.exists(missing) {
+            return ReResolution::Declined;
+        }
+        match dispatched_name(command)
+            .and_then(|name| self.fetch_verify_store(name))
+        {
+            Ok(path) => ReResolution::Resolved(path),
+            Err(error) => ReResolution::Failed(error),
+        }
+    }
+}
+
+fn dispatched_name(command: &ExternalCommand) -> Result<&str, ResolutionError> {
+    command
+        .name
+        .to_str()
+        .ok_or_else(|| ResolutionError::Unresolved {
+            name: command.name.clone(),
+        })
 }
 
 fn file_name(path: &std::path::Path) -> String {

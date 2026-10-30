@@ -28,23 +28,20 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
-use super::layout::{Artifact, TreePaths, LAYOUT_VERSION};
-use super::lease::{
-    probe_single_flight, Liveness, LivenessProbe, SingleFlight,
-    SingleFlightProbe,
+use super::super::filesystem::SystemFilesystem;
+use super::super::retention_windows::AGE_BACKSTOP;
+use super::after_materialise::ReapPermit;
+use super::layout::{
+    parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
 };
+use super::lease::{Liveness, LivenessProbe};
+use super::locks::{TreeLockProbe, TreeLocks};
 use super::tree_lock::HeldTreeLock;
-
-/// Generations younger than this with no live lease are spared, so a generation
-/// briefly between its rename and its pointer write is never mistaken for
-/// crash residue. Sized well beyond a fetch-plus-extract.
-const AGE_BACKSTOP: Duration = Duration::from_secs(60 * 60);
 
 /// Which digest each artifact pins, so a partial archive is judged against
 /// its own artifact's pin rather than the reaping caller's.
@@ -66,7 +63,7 @@ impl RemovalObserver for UnobservedRemovals {
 
 enum OwnerLock {
     HeldByCaller,
-    Taken { _guard: SingleFlight },
+    Taken { _held: HeldTreeLock },
     Absent,
     HeldElsewhere,
     Unprobeable(TreeError),
@@ -90,6 +87,7 @@ impl OwnerLock {
 /// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
     held: &'a HeldTreeLock,
+    locks: TreeLocks<'a>,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
@@ -100,12 +98,14 @@ impl<'a> Reaper<'a> {
     #[must_use]
     pub const fn new(
         held: &'a HeldTreeLock,
+        locks: TreeLocks<'a>,
         clock: &'a dyn Clock,
         liveness: &'a dyn LivenessProbe,
         pins: &'a dyn PinnedDigests,
     ) -> Self {
         Self {
             held,
+            locks,
             clock,
             liveness,
             pins,
@@ -119,7 +119,7 @@ impl<'a> Reaper<'a> {
     }
 
     /// Reclaim orphan temp residue and unreferenced generations under
-    /// `trees/`.
+    /// `trees/`, when `permit` was granted for this root.
     ///
     /// A partial archive whose digest is pinned for its own artifact is
     /// spared, so a resumable download is not reclaimed before the next run
@@ -134,7 +134,13 @@ impl<'a> Reaper<'a> {
     /// # Errors
     ///
     /// [`TreeError::Pointer`] if `trees/` cannot be read.
-    pub fn reap_orphans(&self) -> Result<Reclaimed, TreeError> {
+    pub fn reap_orphans(
+        &self,
+        permit: &ReapPermit,
+    ) -> Result<Reclaimed, TreeError> {
+        if permit.paths().root() != self.paths().root() {
+            return Ok(Reclaimed::default());
+        }
         let names = entry_names(self.paths().root())?;
         let referenced = referenced_generations(self.paths().root());
         let mut reclaimed = Reclaimed::default();
@@ -173,12 +179,10 @@ impl<'a> Reaper<'a> {
         if owner == self.held.artifact() {
             return OwnerLock::HeldByCaller;
         }
-        match probe_single_flight(&self.paths().single_flight_lock(owner)) {
-            Ok(SingleFlightProbe::Taken(guard)) => {
-                OwnerLock::Taken { _guard: guard }
-            }
-            Ok(SingleFlightProbe::Absent) => OwnerLock::Absent,
-            Ok(SingleFlightProbe::Held) => OwnerLock::HeldElsewhere,
+        match self.locks.probe_tree(self.paths(), owner) {
+            Ok(TreeLockProbe::Taken(held)) => OwnerLock::Taken { _held: held },
+            Ok(TreeLockProbe::Absent) => OwnerLock::Absent,
+            Ok(TreeLockProbe::Held) => OwnerLock::HeldElsewhere,
             Err(error) => OwnerLock::Unprobeable(error),
         }
     }
@@ -276,18 +280,12 @@ fn is_resumable(
     })
 }
 
-/// A generation directory: the fixed grammar, no sidecar suffix, and never a
+/// A generation directory of this layout: the full name grammar, and never a
 /// temp entry, which only the temp arm may judge.
 fn is_generation(name: &str) -> bool {
     !name.starts_with(TEMP_PREFIX)
-        && name.contains(&format!("-{LAYOUT_VERSION}-"))
-        && !has_sidecar_suffix(name)
-}
-
-fn has_sidecar_suffix(name: &str) -> bool {
-    [".ref", ".sealed", ".sealed.sig", lease::LEASE_SUFFIX]
-        .iter()
-        .any(|suffix| name.ends_with(suffix))
+        && parse_generation_name(name)
+            .is_some_and(|generation| generation.layout == LAYOUT_VERSION)
 }
 
 /// The generation directory names any pointer currently references.
@@ -301,7 +299,9 @@ fn referenced_generations(root: &Path) -> BTreeSet<String> {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
         if name.ends_with(".ref") {
-            if let Ok(contents) = std::fs::read_to_string(entry.path()) {
+            if let Some(contents) =
+                read_pointer(&entry.path(), &SystemFilesystem)
+            {
                 referenced.insert(contents.trim().to_owned());
             }
         }
@@ -360,7 +360,10 @@ pub(super) const fn superseded_disposition(
 /// Unlike an unclaimed generation, an unreferenced one is reclaimed only once
 /// aged even when free, since a young one may sit between its rename and its
 /// pointer write.
-const fn orphan_is_reclaimable(liveness: Liveness, aged: bool) -> bool {
+pub(super) const fn orphan_is_reclaimable(
+    liveness: Liveness,
+    aged: bool,
+) -> bool {
     !matches!(liveness, Liveness::Held) && aged
 }
 
@@ -456,6 +459,7 @@ mod tests {
 
     use crate::launch::core::tree::{Clock, TreeError};
 
+    use super::super::after_materialise::ReapPermit;
     use super::super::layout::{
         generation_name, Artifact, TreePaths, LAYOUT_VERSION,
     };
@@ -463,8 +467,8 @@ mod tests {
         probe_single_flight, take_single_flight, FlockProbe, Liveness,
         SingleFlight, SingleFlightProbe,
     };
+    use super::super::locks::{FlockLocks, TreeLocks};
     use super::super::testing::{logged, within, BLOCKING_BOUND};
-    use super::super::tree_lock::HeldTreeLock;
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
         sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
@@ -551,12 +555,20 @@ mod tests {
         observer: impl RemovalObserver + Send + 'static,
     ) -> Result<Reclaimed, TreeError> {
         let paths = TreePaths::under(root);
-        let caller_holds = HeldTreeLock::take(&paths, y()).expect("Y's lock");
+        let locks = TreeLocks::over(&FlockLocks);
+        let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
         let locks_before = lock_files(&paths);
+        let permit = ReapPermit::trusting(paths.clone());
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
-            Reaper::new(&caller_holds, &clock, &FlockProbe, &pins)
-                .observed_by(&observer)
-                .reap_orphans()
+            Reaper::new(
+                &caller_holds,
+                TreeLocks::over(&FlockLocks),
+                &clock,
+                &FlockProbe,
+                &pins,
+            )
+            .observed_by(&observer)
+            .reap_orphans(&permit)
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome

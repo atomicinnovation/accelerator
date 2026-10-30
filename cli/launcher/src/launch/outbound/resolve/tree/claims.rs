@@ -8,92 +8,195 @@
 //! instead: `trees/claims/<digest>.<launcher-id>`, refreshed on every resolve,
 //! and `prune` reads only that directory.
 
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::launch::core::tree::Clock;
 
-use super::layout::TreePaths;
+use super::super::filesystem::{
+    CacheFilesystem, EntryMetadata, FileKind, SystemFilesystem,
+};
+use super::super::ownership::{
+    is_trusted_directory, is_trusted_directory_entry, Ownership,
+    ProcessOwnership,
+};
+pub use super::super::retention_windows::CLAIM_WINDOW;
+use super::super::retention_windows::REFRESH_FRACTION;
+use super::layout::{is_wellformed_digest, TreePaths};
 
-/// A digest with no claim refreshed inside this window is reclaimable. Sized to
-/// a ~14-day orphan sweep, so a merely-idle install is not evicted.
-pub const CLAIM_WINDOW: Duration = Duration::from_secs(14 * 24 * 60 * 60);
-
-/// Below this fraction of the window, a fresh claim is not rewritten, so a crawl
-/// of 100-200 invocations does at most one claim write rather than one each.
-const REFRESH_FRACTION: u64 = 10;
+const LAUNCHER_ID_LENGTH: usize = 16;
 
 /// Refresh this install's claim on `digest`, best-effort.
 ///
 /// Never fails a resolution: a populated cache root may be read-only on a warm
 /// start, so `EROFS`/`EACCES` are ignored. The write is skipped when a claim
 /// already exists with a recent mtime, which is what turns per-invocation writes
-/// into at most one per crawl.
+/// into at most one per crawl. Nothing is written through a symlink, nor into a
+/// claims directory another user could rename into.
 pub fn refresh(
     paths: &TreePaths,
     digest: &str,
     launcher_id: &str,
     clock: &dyn Clock,
 ) {
-    let claim = paths.claims().join(format!("{digest}.{launcher_id}"));
+    let claims = paths.claims();
+    let claim = claims.join(format!("{digest}.{launcher_id}"));
     if is_fresh_enough(&claim, clock) {
         return;
     }
-    if std::fs::create_dir_all(paths.claims()).is_err() {
+    match SystemFilesystem.create_private_dir(&claims) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(_) => return,
+    }
+    if !is_trusted_directory(
+        &claims,
+        &SystemFilesystem,
+        &ProcessOwnership::default(),
+    ) {
         return;
     }
-    write_private(&claim);
+    write_private(&claim, clock);
 }
 
-/// Whether any valid claim on `digest` was refreshed within `window`.
-///
-/// A claim that is a symlink, or not owned by the effective uid, is ignored
-/// rather than trusted — otherwise a planted claim would pin a generation
-/// forever.
+#[derive(Debug, Clone)]
+pub struct ListedTreeClaim {
+    pub digest: String,
+    pub path: PathBuf,
+    /// Only a claim whose launcher id is the launcher's own sixteen-hex shape
+    /// is ever swept; any other id still protects its digest.
+    pub sweepable: bool,
+    pub entry: EntryMetadata,
+}
+
+impl ListedTreeClaim {
+    /// An unreadable or future mtime counts as fresh, so it can only protect.
+    #[must_use]
+    pub fn protects_within(
+        &self,
+        window: Duration,
+        now: u64,
+        uid: u32,
+    ) -> bool {
+        is_valid_claim_entry(&self.entry, uid)
+            && self.entry.modified_seconds.is_none_or(|modified| {
+                now.saturating_sub(modified) < window.as_secs()
+            })
+    }
+}
+
 #[must_use]
-pub fn claimed_within(
-    paths: &TreePaths,
-    digest: &str,
+pub fn is_stale_claim_entry(
+    entry: &EntryMetadata,
     window: Duration,
-    clock: &dyn Clock,
+    now: u64,
+    uid: u32,
 ) -> bool {
-    let prefix = format!("{digest}.");
-    let Ok(entries) = std::fs::read_dir(paths.claims()) else {
-        return false;
-    };
-    let now = clock.now_seconds();
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if !name.starts_with(&prefix) {
-            continue;
-        }
-        let path = entry.path();
-        if !is_valid_claim(&path) {
-            continue;
-        }
-        if let Some(modified) = modified_seconds(&path) {
-            if now.saturating_sub(modified) < window.as_secs() {
-                return true;
-            }
-        }
-    }
-    false
+    is_valid_claim_entry(entry, uid)
+        && entry.modified_seconds.is_some_and(|modified| {
+            now.saturating_sub(modified) >= window.as_secs()
+        })
 }
 
-/// Remove every claim on `digest` — used when the digest's generation is
-/// reclaimed, so a stale pointer's claims do not linger.
-pub fn drop_all(paths: &TreePaths, digest: &str) {
-    let prefix = format!("{digest}.");
-    let Ok(entries) = std::fs::read_dir(paths.claims()) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        if name.to_str().is_some_and(|name| name.starts_with(&prefix)) {
-            let _ = std::fs::remove_file(entry.path());
-        }
+const fn is_valid_claim_entry(entry: &EntryMetadata, uid: u32) -> bool {
+    matches!(entry.kind, FileKind::File) && entry.owner == uid
+}
+
+/// The tree claims read once, so every keep decision shares one view.
+#[derive(Debug, Default)]
+pub struct TreeClaimIndex {
+    claims: Vec<ListedTreeClaim>,
+}
+
+impl TreeClaimIndex {
+    #[must_use]
+    pub fn claims(&self) -> &[ListedTreeClaim] {
+        &self.claims
     }
+
+    pub fn on<'a>(
+        &'a self,
+        digest: &'a str,
+    ) -> impl Iterator<Item = &'a ListedTreeClaim> {
+        self.claims
+            .iter()
+            .filter(move |claim| claim.digest == digest)
+    }
+
+    #[must_use]
+    pub fn protects(
+        &self,
+        digest: &str,
+        window: Duration,
+        now: u64,
+        uid: u32,
+    ) -> bool {
+        self.on(digest)
+            .any(|claim| claim.protects_within(window, now, uid))
+    }
+}
+
+#[derive(Debug)]
+pub enum TreeClaimsListing {
+    Read(TreeClaimIndex),
+    /// Distinct from an empty listing, so a prune never reads "no claims"
+    /// into a directory it could not read.
+    Unreadable(io::ErrorKind),
+    /// A directory another user could rename claims into.
+    Untrusted,
+}
+
+pub fn list(
+    paths: &TreePaths,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+) -> TreeClaimsListing {
+    let directory = paths.claims();
+    match filesystem.entry(&directory) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return TreeClaimsListing::Read(TreeClaimIndex::default());
+        }
+        Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
+        Ok(entry)
+            if !is_trusted_directory_entry(
+                &directory, &entry, filesystem, ownership,
+            ) =>
+        {
+            return TreeClaimsListing::Untrusted;
+        }
+        Ok(_) => {}
+    }
+    let names = match filesystem.list(&directory) {
+        Ok(names) => names,
+        Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
+    };
+    let claims = names
+        .iter()
+        .filter_map(|name| name.to_str())
+        .filter_map(|name| {
+            let (digest, launcher_id) = name.split_once('.')?;
+            if !is_wellformed_digest(digest) || launcher_id.is_empty() {
+                return None;
+            }
+            let path = directory.join(name);
+            let entry = filesystem.entry(&path).ok()?;
+            Some(ListedTreeClaim {
+                digest: digest.to_owned(),
+                sweepable: is_launcher_id(launcher_id),
+                entry,
+                path,
+            })
+        })
+        .collect();
+    TreeClaimsListing::Read(TreeClaimIndex { claims })
+}
+
+fn is_launcher_id(candidate: &str) -> bool {
+    candidate.len() == LAUNCHER_ID_LENGTH
+        && candidate
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn is_fresh_enough(claim: &Path, clock: &dyn Clock) -> bool {
@@ -102,21 +205,6 @@ fn is_fresh_enough(claim: &Path, clock: &dyn Clock) -> bool {
     };
     clock.now_seconds().saturating_sub(modified)
         < CLAIM_WINDOW.as_secs() / REFRESH_FRACTION
-}
-
-#[cfg(unix)]
-fn is_valid_claim(path: &Path) -> bool {
-    use std::os::unix::fs::MetadataExt as _;
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    !metadata.file_type().is_symlink()
-        && metadata.uid() == rustix::process::geteuid().as_raw()
-}
-
-#[cfg(not(unix))]
-fn is_valid_claim(_path: &Path) -> bool {
-    false
 }
 
 fn modified_seconds(path: &Path) -> Option<u64> {
@@ -129,31 +217,42 @@ fn modified_seconds(path: &Path) -> Option<u64> {
         .map(|since| since.as_secs())
 }
 
+/// Sets the mtime explicitly rather than relying on `O_TRUNC` of an empty
+/// claim to advance it.
 #[cfg(unix)]
-fn write_private(path: &Path) {
+fn write_private(path: &Path, clock: &dyn Clock) {
     use std::os::unix::fs::OpenOptionsExt as _;
-    let _ = std::fs::OpenOptions::new()
+    let Ok(file) = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .mode(0o600)
-        .open(path);
+        .custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
+        .open(path)
+    else {
+        return;
+    };
+    let _ = file.set_modified(
+        std::time::UNIX_EPOCH + Duration::from_secs(clock.now_seconds()),
+    );
 }
 
 #[cfg(not(unix))]
-fn write_private(path: &Path) {
+fn write_private(path: &Path, _clock: &dyn Clock) {
     let _ = std::fs::File::create(path);
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use std::time::Duration;
 
     use crate::launch::core::tree::Clock;
 
+    use super::super::super::filesystem::SystemFilesystem;
+    use super::super::super::ownership::{Ownership as _, ProcessOwnership};
     use super::super::layout::TreePaths;
-    use super::{claimed_within, refresh, CLAIM_WINDOW};
+    use super::{list, refresh, TreeClaimsListing, CLAIM_WINDOW};
 
     struct AtClock(u64);
     impl Clock for AtClock {
@@ -173,6 +272,21 @@ mod tests {
     const DIGEST: &str =
         "abc0000000000000000000000000000000000000000000000000000000000123";
 
+    fn protected(paths: &TreePaths, window: Duration, clock: &AtClock) -> bool {
+        let ownership = ProcessOwnership::default();
+        let TreeClaimsListing::Read(claims) =
+            list(paths, &SystemFilesystem, &ownership)
+        else {
+            panic!("the claims were not read");
+        };
+        claims.protects(
+            DIGEST,
+            window,
+            clock.now_seconds(),
+            ownership.effective_uid(),
+        )
+    }
+
     fn trees(root: &std::path::Path) -> TreePaths {
         let paths = TreePaths::under(root);
         std::fs::create_dir_all(paths.root()).expect("trees");
@@ -185,11 +299,10 @@ mod tests {
         let paths = trees(dir.path());
         let present = AtClock(now());
         refresh(&paths, DIGEST, "install-a", &present);
-        assert!(claimed_within(&paths, DIGEST, CLAIM_WINDOW, &present));
+        assert!(protected(&paths, CLAIM_WINDOW, &present));
 
-        // A clock a fortnight on sees the same claim as stale.
         let later = AtClock(now() + CLAIM_WINDOW.as_secs() + 1);
-        assert!(!claimed_within(&paths, DIGEST, CLAIM_WINDOW, &later));
+        assert!(!protected(&paths, CLAIM_WINDOW, &later));
     }
 
     #[test]
@@ -246,12 +359,82 @@ mod tests {
             paths.claims().join(format!("{DIGEST}.planted")),
         )
         .expect("symlink");
-        let clock = AtClock(now());
-        assert!(!claimed_within(
-            &paths,
-            DIGEST,
-            Duration::from_secs(60),
-            &clock
-        ));
+        assert!(!protected(&paths, Duration::from_secs(60), &AtClock(now())));
+    }
+
+    fn back_date(path: &std::path::Path, seconds: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open claim")
+            .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds))
+            .expect("back-date claim");
+    }
+
+    fn modified(path: &std::path::Path) -> u64 {
+        std::fs::metadata(path)
+            .expect("claim metadata")
+            .modified()
+            .expect("mtime")
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("after epoch")
+            .as_secs()
+    }
+
+    fn due() -> AtClock {
+        AtClock(now() + CLAIM_WINDOW.as_secs() / super::REFRESH_FRACTION + 60)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_tree_claim_leaves_its_target_unmodified() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        std::fs::create_dir_all(paths.claims()).expect("claims dir");
+        let target = dir.path().join("target");
+        std::fs::write(&target, b"untouched").expect("target");
+        std::os::unix::fs::symlink(
+            &target,
+            paths.claims().join(format!("{DIGEST}.install-a")),
+        )
+        .expect("symlink");
+
+        refresh(&paths, DIGEST, "install-a", &due());
+
+        assert_eq!(std::fs::read(&target).expect("target"), b"untouched");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refreshing_an_empty_back_dated_tree_claim_moves_its_mtime_to_now() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        std::fs::create_dir_all(paths.claims()).expect("claims dir");
+        let claim = paths.claims().join(format!("{DIGEST}.install-a"));
+        std::fs::write(&claim, b"").expect("empty claim");
+        back_date(&claim, now());
+        let clock = due();
+
+        refresh(&paths, DIGEST, "install-a", &clock);
+
+        assert_eq!(modified(&claim), clock.now_seconds());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_tree_claims_directory_is_not_written_through() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir(&elsewhere).expect("elsewhere");
+        std::os::unix::fs::symlink(&elsewhere, paths.claims())
+            .expect("symlink");
+
+        refresh(&paths, DIGEST, "install-a", &AtClock(now()));
+
+        assert_eq!(
+            std::fs::read_dir(&elsewhere).expect("elsewhere").count(),
+            0
+        );
     }
 }

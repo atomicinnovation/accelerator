@@ -8,6 +8,12 @@
     clippy::format_push_string
 )]
 
+pub mod recording_filesystem;
+pub mod recording_locks;
+pub mod scripted_filesystem;
+pub mod signed_release;
+pub mod trees;
+
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};

@@ -158,6 +158,10 @@ rand = "0.9"
 # Two consumers: the process crate's sysconf/sysctl start-time reads, and the
 # visualiser server, which delegated its own copy of that read to it.
 libc = "0.2"
+# macOS keeps ACLs out of a directory's mode bits, so the cache root's safety
+# walk reads them through this. Linux reads its ACL xattrs through rustix, since
+# exacl links libacl there, which the static musl launcher cannot.
+exacl = { version = "0.13", default-features = false }
 rustix = { version = "1", features = ["process", "fs"] }
 # The command runner forwards interrupts to a helper's process group. Kept at
 # 0.4 with default features off to match the optional copy gix declares, so

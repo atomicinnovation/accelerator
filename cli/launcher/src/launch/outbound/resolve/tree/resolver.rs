@@ -19,6 +19,7 @@ use super::super::cache_root;
 use super::super::fetcher::Fetcher;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
+use super::after_materialise::{AfterMaterialise, ReapPermit};
 use super::attestation::Attestation;
 use super::download::Resumption;
 use super::layout::{
@@ -26,6 +27,7 @@ use super::layout::{
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::LivenessProbe;
+use super::locks::TreeLocks;
 use super::table::{FileTable, TABLE_NAME};
 use super::tree_lock::HeldTreeLock;
 use super::{claims, download, extract, pins, reap, seal};
@@ -108,6 +110,7 @@ pub struct TreeResolver<'a> {
     pub fetcher: &'a Fetcher,
     pub clock: &'a dyn Clock,
     pub liveness: &'a dyn LivenessProbe,
+    pub locks: TreeLocks<'a>,
     /// A per-install identity for the retention claim, so two installs sharing
     /// a cache root each write their own claim file.
     pub launcher_id: String,
@@ -120,6 +123,9 @@ pub struct TreeResolver<'a> {
     pub waiter_bound: Duration,
     /// The crash-injection seam; production is [`NoSteps`].
     pub steps: &'a dyn StepObserver,
+    /// Decides whether this root may be reaped, and prunes after a
+    /// materialise.
+    pub after_materialise: &'a dyn AfterMaterialise,
 }
 
 impl reap::PinnedDigests for ExpectedDigests {
@@ -140,6 +146,7 @@ impl TreeResolver<'_> {
     fn reaper<'r>(&'r self, held: &'r HeldTreeLock) -> reap::Reaper<'r> {
         reap::Reaper::new(
             held,
+            self.locks,
             self.clock,
             self.liveness,
             &self.expected_digests,
@@ -152,10 +159,9 @@ impl TreeResolver<'_> {
         self.expected_digests.digest_for(artifact, &self.platform)
     }
 
-    /// Steps 1-5: the side-effect-free query behind both `query` and `acquire`.
+    /// The side-effect-free query behind both `query` and `acquire`.
     ///
-    /// Returns the validated generation name and the verified attestation, or
-    /// `None` for any miss. No I/O error propagates: within design a broken
+    /// No I/O error propagates: within design a broken
     /// cache path is a miss, not a failure, so the crawl re-materialises rather
     /// than aborting.
     fn locate(&self, artifact: &str, digest: &str) -> Option<Located> {
@@ -624,7 +630,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                 ));
             }
             if let Some(held) =
-                HeldTreeLock::try_take(&paths, tree_artifact.clone())?
+                self.locks.try_take_tree(&paths, &tree_artifact)?
             {
                 // Won the lock; re-check, then materialise.
                 if let Some(located) = self.locate(artifact, digest) {
@@ -636,7 +642,10 @@ impl MaterialiseTree for TreeResolver<'_> {
                     ));
                 }
                 let sealed = self.materialise_locked(artifact, digest)?;
-                let _ = self.reaper(&held).reap_orphans();
+                if let Some(permit) = self.after_materialise.reap_permit() {
+                    let _ = self.reaper(&held).reap_orphans(&permit);
+                }
+                self.after_materialise.after_materialise(held);
                 return Ok(sealed);
             }
 
@@ -705,8 +714,9 @@ impl TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let _held =
-            HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
+        let _held = self
+            .locks
+            .take_tree(&paths, &self.on_this_platform(artifact))?;
 
         let superseded = self
             .locate(artifact, digest)
@@ -722,18 +732,26 @@ impl TreeResolver<'_> {
         // reaper would otherwise spare it as too young.
         if let Some(old) = superseded {
             if paths.generation(&old) != sealed.path {
-                Self::reap_superseded(&paths, self.liveness, self.clock, &old);
+                if let Some(permit) = self.after_materialise.reap_permit() {
+                    Self::reap_superseded(
+                        &permit,
+                        self.liveness,
+                        self.clock,
+                        &old,
+                    );
+                }
             }
         }
         Ok(sealed)
     }
 
     fn reap_superseded(
-        paths: &TreePaths,
+        permit: &ReapPermit,
         liveness: &dyn LivenessProbe,
         clock: &dyn Clock,
         generation: &str,
     ) {
+        let paths = permit.paths();
         match reap::superseded_disposition(
             liveness.probe(&paths.lease(generation)),
         ) {
@@ -748,107 +766,6 @@ impl TreeResolver<'_> {
             }
             reap::SupersededDisposition::Keep => {}
         }
-    }
-
-    /// Reclaim residue for one artifact under its single-flight lock.
-    ///
-    /// Another artifact's temp residue is removed only under that artifact's
-    /// tree lock, taken without blocking, or, all but its partial archives,
-    /// when that artifact has no lock file; the reap module records why.
-    /// Every artifact's pinned partial archive is spared, so a resumable
-    /// download survives.
-    ///
-    /// # Errors
-    ///
-    /// [`TreeError`] if the lock cannot be taken or the directory cannot be
-    /// read.
-    pub fn prune(
-        &self,
-        artifact: &str,
-        older_than: Option<Duration>,
-    ) -> Result<reap::Reclaimed, TreeError> {
-        let paths = self.paths();
-        let held = HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
-
-        // First reclaim any pointed-at generation whose digest no installed
-        // launcher has claimed inside the window — the running launcher's own
-        // expected digest is spared, since it just refreshed its claim.
-        let mut reclaimed =
-            self.reclaim_unclaimed(&paths, artifact, older_than);
-
-        let orphans = self.reaper(&held).reap_orphans()?;
-        reclaimed.entries += orphans.entries;
-        Ok(reclaimed)
-    }
-
-    /// Remove pointers, and the generations they name, whose digest has no
-    /// fresh claim — the running launcher's own expected digest excepted.
-    fn reclaim_unclaimed(
-        &self,
-        paths: &TreePaths,
-        artifact: &str,
-        older_than: Option<Duration>,
-    ) -> reap::Reclaimed {
-        let window = older_than.unwrap_or(claims::CLAIM_WINDOW);
-        let own = self.expected_digest(artifact);
-        let mut reclaimed = reap::Reclaimed::default();
-        for (pointer, digest, generation) in
-            self.artifact_pointers(paths, artifact)
-        {
-            if own.as_deref() == Some(digest.as_str()) {
-                continue;
-            }
-            if claims::claimed_within(paths, &digest, window, self.clock) {
-                continue;
-            }
-            if !reap::unclaimed_is_reclaimable(
-                self.liveness.probe(&paths.lease(&generation)),
-                reap::generation_is_aged(paths, &generation, self.clock),
-            ) {
-                continue;
-            }
-            let _ = std::fs::remove_file(&pointer);
-            if std::fs::remove_dir_all(paths.generation(&generation)).is_ok() {
-                reclaimed.entries += 1;
-            }
-            for sidecar in reap::sidecars_of(paths, &generation) {
-                let _ = std::fs::remove_file(sidecar);
-            }
-            claims::drop_all(paths, &digest);
-        }
-        reclaimed
-    }
-
-    /// The `(pointer path, digest, generation name)` of every pointer this
-    /// artifact currently publishes.
-    fn artifact_pointers(
-        &self,
-        paths: &TreePaths,
-        artifact: &str,
-    ) -> Vec<(PathBuf, String, String)> {
-        let prefix = format!("{artifact}-{}-", self.platform);
-        let Ok(entries) = std::fs::read_dir(paths.root()) else {
-            return Vec::new();
-        };
-        let mut pointers = Vec::new();
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            let Some(digest) = name
-                .strip_prefix(&prefix)
-                .and_then(|rest| rest.strip_suffix(".ref"))
-            else {
-                continue;
-            };
-            if let Ok(generation) = std::fs::read_to_string(entry.path()) {
-                pointers.push((
-                    entry.path(),
-                    digest.to_owned(),
-                    generation.trim().to_owned(),
-                ));
-            }
-        }
-        pointers
     }
 }
 

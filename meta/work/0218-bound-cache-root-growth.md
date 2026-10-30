@@ -5,7 +5,7 @@ title: "Bound a relocated cache root's growth"
 date: "2026-08-17T20:36:50+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "low"
 parent: "work-item:0136"
@@ -13,7 +13,7 @@ derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 blocked_by: ["work-item:0334", "adr:ADR-0072", "work-item:0339"]
 relates_to: ["work-item:0189", "work-item:0164", "work-item:0223", "work-item:0196", "work-item:0214", "work-item:0222", "adr:ADR-0063", "adr:ADR-0064"]
 tags: ["cli", "launcher", "performance", "bootstrap", "cache"]
-last_updated: "2026-10-16T00:06:45+00:00"
+last_updated: "2026-10-25T07:01:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-747"
@@ -22,7 +22,7 @@ external_id: "PP-747"
 # 0218: Bound a relocated cache root's growth
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
@@ -123,8 +123,11 @@ leases orphaned by a crash before the generation rename are never reaped.
 - Single-file prune removes a stale version-claim file independently of the
   version's other claims; when it is that version's last claim, only after
   every unclaimed entry it protected has been removed.
-- Single-file prune removes every staged verifier shim copy, and shim staging
-  residue older than `AGE_BACKSTOP`.
+- Single-file prune removes every staged verifier shim copy except the
+  running plugin's own for each platform (a copy whose digest equals that of
+  `${plugin_root}/bin/accelerator-verify-<platform>`), and shim staging
+  residue older than `AGE_BACKSTOP`. When a platform's source cannot be
+  hashed, every copy for that platform is kept.
 - Single-file prune removes the plugin's own top-level `.tmp-` staging
   entries — `.tmp-<name>-<version>-<64hex>-<pid>-<seq>[.minisig]` and
   `.tmp-launcher-<pid>[.minisig]` — older than `AGE_BACKSTOP`, and never
@@ -218,37 +221,39 @@ leases orphaned by a crash before the generation rename are never reaped.
   `docs-site/src/content/docs/design.md` and `internals.md` state that a
   relocated root is pruned automatically on cold paths, that a version idle
   for `CLAIM_WINDOW` (14 days) loses its entries and re-fetches, what
-  `accelerator cache prune` now covers, and that a root shared by several
-  users is not protected.
+  `accelerator cache prune` now covers, and that a root is pruned only when
+  it is writable by its owner alone, or through the owner's private group,
+  and no directory above it is writable by others without the sticky bit,
+  so a shared host gives each user `<shared>/$USER`.
 - A post-change `mise run measure:warm-dispatch` run is recorded under
   `meta/measurements/`, whatever its gating result, as a record rather than
   as evidence of this change's cost.
 
 ## Acceptance Criteria
 
-- [ ] Given an override root holding entries for versions A and B, where only B
+- [x] Given an override root holding entries for versions A and B, where only B
       has a claim refreshed within `CLAIM_WINDOW`, when single-file prune runs,
       then A's sub-binaries, launcher entry and `.minisig` sidecars are
       removed and B's are kept.
-- [ ] Given versions A and B both claimed within `CLAIM_WINDOW`, when
+- [x] Given versions A and B both claimed within `CLAIM_WINDOW`, when
       single-file prune runs, then no entry is removed.
-- [ ] Given a cold dispatch in an override root that stores a new version's
+- [x] Given a cold dispatch in an override root that stores a new version's
       sub-binary alongside an unclaimed version's entries, when the store
       succeeds, then those entries are already absent when a test hook at
       `exec` runs.
-- [ ] Given an override root whose root lock is held, when a cold dispatch's
+- [x] Given an override root whose root lock is held, when a cold dispatch's
       store succeeds, then that dispatch skips single-file prune and the
       residue sweep and proceeds to `exec` without waiting.
-- [ ] Given a dispatch in an override root whose version has no claim, or a
+- [x] Given a dispatch in an override root whose version has no claim, or a
       claim older than `CLAIM_WINDOW/10`, then
       `<root>/claims/<version>.<launcher-id>` is written before `find` runs —
       shown by a test recording the dispatch's filesystem calls.
-- [ ] Given a dispatch in an override root whose version claim is younger than
+- [x] Given a dispatch in an override root whose version claim is younger than
       `CLAIM_WINDOW/10`, then the claim is not rewritten.
-- [ ] Given a version whose only claims are a symlink and a file owned by
+- [x] Given a version whose only claims are a symlink and a file owned by
       another user (through the uid seam), when single-file prune runs, then
       that version's entries are removed.
-- [ ] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` — directly, or
+- [x] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` — directly, or
       via `ACCELERATOR_CACHE_DIR` naming it through a symlink or trailing
       slash — seeded with an unclaimed older version's paired entries, an old
       `.tmp-` entry, a staged shim copy, an old probe file, an orphan tree
@@ -258,114 +263,117 @@ leases orphaned by a crash before the generation rename are never reaped.
       `pid`, when a cold dispatch, a tree materialise and
       `accelerator cache prune` run, then no version claim is written and
       every seeded entry survives.
-- [ ] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` holding an
+- [x] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` holding an
       unreferenced generation older than `AGE_BACKSTOP` and an unheld one
       younger, when a tree materialise runs, then the orphan reap removes the
       older and keeps the younger, as today.
-- [ ] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin`, then the
+- [x] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin`, then the
       `ENOENT` re-resolve, corrupt-entry replacement and no-new-tree-lock
       criteria each hold there as they do in an override root.
-- [ ] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` holding an
+- [x] Given the cache root is `${ACCELERATOR_PLUGIN_ROOT}/bin` holding an
       unclaimed superseded tree for a currently pinned artifact on the host
       platform, when `accelerator cache prune` runs, then that tree is
       removed, as today.
-- [ ] Given a dispatch whose entry a test hook removes between `find` and
+- [x] Given a dispatch whose entry a test hook removes between `find` and
       `exec`, when `exec` fails with `ENOENT`, then the dispatch re-resolves
       once through the cold path and succeeds — shown by a named test.
-- [ ] Given the re-resolved `exec` also fails, then the second error surfaces as
+- [x] Given the re-resolved `exec` also fails, then the second error surfaces as
       `ResolutionError::Exec`; given a first `exec` failure other than
       `ENOENT`, then no re-resolve occurs.
-- [ ] Given an override root containing names the plugin does not produce —
+- [x] Given an override root containing names the plugin does not produce —
       foreign `.tmp-*` files older than `AGE_BACKSTOP`, `*-*-<64hex>` names
       with no matching `.minisig`, a foreign dotfile, and under `trees/` a
       foreign file, a foreign directory and a `.ref` naming no generation
       shape — when a root prune runs from the cold path and from the verb,
       then they are kept.
-- [ ] Given an override root holding an unclaimed version's entries alongside an
+- [x] Given an override root holding an unclaimed version's entries alongside an
       `.accelerator-lock-<platform>/` whose `pid` is live, a probe file younger
       than `AGE_BACKSTOP`, `.accelerator-unverified.log`, `trees/`,
       `accelerator-launcher-<version>-<unknown-platform>` and a `.minisig` with
       no matching entry, when a root prune runs from the cold path and from the
       verb, then only the unclaimed version's entries are removed.
-- [ ] Given the plugin's own `.tmp-` staging entries
+- [x] Given the plugin's own `.tmp-` staging entries
       (`.tmp-<name>-<version>-<64hex>-<pid>-<seq>[.minisig]`,
       `.tmp-launcher-<pid>[.minisig]`) younger than `AGE_BACKSTOP`, when
       single-file prune runs, then they are kept; given ones older than
       `AGE_BACKSTOP`, they are removed.
-- [ ] Given staged shim copies `accelerator-verify-<platform>-<sha>` in an
-      override root, when single-file prune runs, then every copy is removed;
-      given `accelerator-verify-*.staging.<pid>` residue, it is removed only
-      when older than `AGE_BACKSTOP`.
-- [ ] Given an override root holding a version claim and a tree-claim file
+- [x] Given staged shim copies `accelerator-verify-<platform>-<sha>` in an
+      override root, when single-file prune runs, then the running plugin's
+      own copy for each platform is kept and every other copy is removed;
+      given an unreadable shim source, every copy for that platform is kept;
+      given
+      `accelerator-verify-*.staging.<pid>` residue, it is removed only when
+      older than `AGE_BACKSTOP`.
+- [x] Given an override root holding a version claim and a tree-claim file
       each refreshed 2 days ago, when
       `accelerator cache prune --older-than 86400` runs, then that version's
       entries, its version claim and the tree-claim file are removed; without
       the flag, all are kept.
-- [ ] Given `accelerator cache prune` in an override root holding an
+- [x] Given `accelerator cache prune` in an override root holding an
       unclaimed version's single-file entries and an unclaimed tree, then
       both are removed.
-- [ ] Given the root lock and a tree lock are held, when
+- [x] Given the root lock and a tree lock are held, when
       `accelerator cache prune` runs, then it waits for each and prunes once
       each is released.
-- [ ] Given an override root whose root lock is held, holding an unclaimed
+- [x] Given an override root whose root lock is held, holding an unclaimed
       version's single-file entries, an old probe file and an unclaimed tree
       for a second artifact whose tree lock is free, when a tree materialise
       runs, then it does not wait, the single-file entries and probe file
       survive, and
       the second artifact's unclaimed tree is removed.
-- [ ] Given an override root holding unclaimed trees for artifacts X and Y,
+- [x] Given an override root holding unclaimed trees for artifacts X and Y,
       with X's tree lock held, when a cold dispatch's store succeeds, then it
       proceeds to `exec` without waiting, X's unclaimed tree survives, and
       Y's is removed.
-- [ ] Given an override root holding unclaimed, unpinned trees whose lease
+- [x] Given an override root holding unclaimed, unpinned trees whose lease
       probe reports held, unknown and younger than `AGE_BACKSTOP`, unknown and
       older, and free, plus an unclaimed tree with a free lease whose digest
       the running launcher pins (lease results through the lease-liveness
       seam), when tree prune runs, then only the unknown-and-older and free
       unpinned trees are removed.
-- [ ] Given an override root holding an unreferenced generation older than
+- [x] Given an override root holding an unreferenced generation older than
       `AGE_BACKSTOP` and an unheld one younger, and orphan sidecars and a tree
       lock for a retired artifact with no pointer or generation, when tree
       prune runs, then the older generation, the old sidecars and the old
       tree lock are removed and the younger generation is kept.
-- [ ] Given unclaimed trees for a retired artifact and for another platform,
+- [x] Given unclaimed trees for a retired artifact and for another platform,
       and a claimed tree for another platform, when tree prune runs, then the
       unclaimed two are removed and the claimed one is kept.
-- [ ] Given claim files older and younger than `CLAIM_WINDOW` on a live
+- [x] Given claim files older and younger than `CLAIM_WINDOW` on a live
       digest, when tree prune runs, then only the older ones are removed.
-- [ ] Given sidecars with no generation, older and younger than
+- [x] Given sidecars with no generation, older and younger than
       `AGE_BACKSTOP`, and one whose lease is held, when tree prune runs, then
       only the old, unheld ones are removed.
-- [ ] Given a lock file for an artifact and platform with no remaining pointer
+- [x] Given a lock file for an artifact and platform with no remaining pointer
       or generation, older than `AGE_BACKSTOP`, when tree prune runs, then it
       is removed; one younger than `AGE_BACKSTOP` is kept; a lock for a
       current tree is kept; and the verb creates no lock for an artifact it
       never materialised.
-- [ ] Given an override root holding an unclaimed, unpinned, free-lease pointer
+- [x] Given an override root holding an unclaimed, unpinned, free-lease pointer
       and generation of another layout version older than `AGE_BACKSTOP`,
       beside an otherwise identical tree of this launcher's layout version,
       when tree prune runs, then the other-layout pointer and generation are
       kept and the same-layout tree is removed.
-- [ ] Given probe files older and younger than `AGE_BACKSTOP`, when the residue
+- [x] Given probe files older and younger than `AGE_BACKSTOP`, when the residue
       sweep runs, then only the older ones are removed.
-- [ ] Given lock directories older than `AGE_BACKSTOP` with an empty `pid` and
+- [x] Given lock directories older than `AGE_BACKSTOP` with an empty `pid` and
       with a dead `pid`, one with a live `pid`, and one younger than
       `AGE_BACKSTOP` with a dead `pid` (through the `pid`-liveness seam), when
       the residue sweep runs, then only the first two are removed.
-- [ ] Given a tree materialise in an override root holding an unclaimed
+- [x] Given a tree materialise in an override root holding an unclaimed
       superseded tree for the same artifact and platform, an unclaimed
       version's single-file entries older than `AGE_BACKSTOP` and an old probe
       file, then the materialise has run a root prune that removed all three
       and kept the new tree.
-- [ ] Given a single-file prune paused, through a test hook, after listing
+- [x] Given a single-file prune paused, through a test hook, after listing
       entries and before reading claims, when a dispatch for a version with no
       prior claim writes its claim and stores its entry, then that entry
       survives; and given the prune paused before listing, the same holds.
-- [ ] Given one root prune paused inside the root lock through a test hook,
+- [x] Given one root prune paused inside the root lock through a test hook,
       when a second root prune starts on the same override root, then a
       cold-path second prune returns without touching seeded prunable
       entries, and a verb second prune blocks until the first is released.
-- [ ] Given an override root after dispatches and tree materialises from
+- [x] Given an override root after dispatches and tree materialises from
       versions A, B and C, each pinning distinct digests for distinct
       artifacts, including for each a store interrupted after its temporary
       write (seeded as `.tmp-` files), with every file A and B created
@@ -376,69 +384,72 @@ leases orphaned by a crash before the generation rename are never reaped.
       only: C's single-file entries and launcher entry with their `.minisig`
       sidecars; C's version claim; the trees whose digests C pins, with their
       pointers, tree claims, leases, `.sealed` and `.sealed.sig` sidecars and
-      tree locks; the root lock; `.accelerator-unverified.log`; and the
-      `claims/` and `trees/` directories.
-- [ ] Given version V with one stale and one fresh version claim, and
+      tree locks; the running plugin's staged shim copy; the root lock;
+      `.accelerator-unverified.log` if present; and the `claims/` and `trees/`
+      directories.
+- [x] Given version V with one stale and one fresh version claim, and
       version W whose only claim is stale, with W's entries older than
       `AGE_BACKSTOP`, when single-file prune runs, then V's stale claim is
       removed and its fresh claim and entries kept, and W's entries are
       removed before W's claim — shown by a test recording the prune's
       filesystem calls.
-- [ ] Given an override root holding entries for version W with no version
+- [x] Given an override root holding entries for version W with no version
       claim, where W's launcher entry and one sub-binary are younger than
       `AGE_BACKSTOP` and another sub-binary is older, when single-file prune
       runs, then only the older sub-binary and its `.minisig` are removed.
-- [ ] Given entries `x-1.24.0-pre.78-<64hex>` and `x-y-1.24.0-<64hex>` with
+- [x] Given entries `x-1.24.0-pre.78-<64hex>` and `x-y-1.24.0-<64hex>` with
       matching `.minisig` files older than `AGE_BACKSTOP`, and fresh version
       claims only for `1.24.0-pre.78`, when single-file prune runs, then the
       first is kept and the second removed.
-- [ ] Given a read-only override root whose version claim is missing or
+- [x] Given a read-only override root whose version claim is missing or
       older than `CLAIM_WINDOW/10`, when a warm dispatch tries and fails to
       write its claim, then the dispatch succeeds.
-- [ ] Given an entry that `find` locates but re-verification rejects, when the
+- [x] Given an entry that `find` locates but re-verification rejects, when the
       dispatch falls through to the cold path and stores a verified
       replacement, then the only operation on the entry path is a rename onto
       it — no unlink precedes it — and the entry then holds the verified
       bytes — shown by a test recording the store's filesystem calls.
-- [ ] Given `ACCELERATOR_CACHE_DIR` is unset, when a warm dispatch runs, then
+- [x] Given `ACCELERATOR_CACHE_DIR` is unset, when a warm dispatch runs, then
       it performs exactly the fixed pre-change filesystem-call list — shown by
       a test recording the dispatch's filesystem calls.
-- [ ] Given `ACCELERATOR_CACHE_DIR` naming `${ACCELERATOR_PLUGIN_ROOT}/bin`,
+- [x] Given `ACCELERATOR_CACHE_DIR` naming `${ACCELERATOR_PLUGIN_ROOT}/bin`,
       when a warm dispatch runs, then beyond the fixed pre-change list it
       performs only the canonical resolution of the two roots, with no claim
       read or write — shown by a test recording the dispatch's filesystem
       calls.
-- [ ] Given the lock-failure seam makes the root lock fail with `ENOLCK`,
+- [x] Given the lock-failure seam makes the root lock fail with `ENOLCK`,
       when a cold dispatch's store succeeds in an override root, then it
       skips single-file prune and the residue sweep and proceeds to `exec`;
       and when `accelerator cache prune` runs, then it reports the failure
       and exits non-zero.
-- [ ] Given the lock-failure seam makes artifact X's tree lock fail with
+- [x] Given the lock-failure seam makes artifact X's tree lock fail with
       `ENOLCK` in an override root holding unclaimed trees for X and Y, when
       a cold store and a tree materialise of Y each run, then both proceed,
       X's tree survives and Y's unclaimed tree is removed; and when
       `accelerator cache prune` runs, then it reports the failure and exits
       non-zero.
-- [ ] Given `ACCELERATOR_CACHE_DIR` set from a development checkout to a
+- [x] Given `ACCELERATOR_CACHE_DIR` set from a development checkout to a
       path other than its `bin/`, when a dispatch runs, then it writes a
       version claim and its cold path runs a root prune.
-- [ ] Given an override root holding `trees/.tmp-<generation>` older than
+- [x] Given an override root holding `trees/.tmp-<generation>` older than
       `AGE_BACKSTOP` whose lease is held, when single-file prune runs, then it
       is untouched.
-- [ ] Given an override root whose version claim is fresh, when a warm
+- [x] Given an override root whose version claim is fresh, when a warm
       dispatch runs, then beyond the fixed pre-change list it performs only
       the canonical resolution of the two roots and one metadata read of its
       version claim — no write and no directory listing — shown by a test
       recording the dispatch's filesystem calls.
-- [ ] The `ACCELERATOR_CACHE_DIR` entries in
+- [x] The `ACCELERATOR_CACHE_DIR` entries in
       `docs-site/src/content/docs/design.md` and `internals.md` each state
       that a relocated root is pruned automatically on cold paths, that a
       version idle for 14 days loses its entries and re-fetches, what
-      `accelerator cache prune` now removes, and that a root shared by
-      several users is not protected.
-- [ ] A post-change `mise run measure:warm-dispatch` run's JSON is committed
+      `accelerator cache prune` now removes, and that a root is pruned only
+      when it is writable by its owner alone, or through the owner's private
+      group, and no directory above it is writable by others without the
+      sticky bit, so a shared host gives each user `<shared>/$USER`.
+- [x] A post-change `mise run measure:warm-dispatch` run's JSON is committed
       under `meta/measurements/`, whatever its gating result.
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
+- [x] `mise run` (bare default task) exits 0 end-to-end.
 
 ## Open Questions
 
@@ -512,10 +523,12 @@ None remaining.
 - Versions whose launchers predate version claims have no claim, so the first
   prune by a claim-aware launcher evicts their entries. A live pre-upgrade
   session re-fetches; this one-off cost is accepted.
-- A prune that removes a staged shim copy between the bootstrap's staging check
-  (`bin/accelerator:336`) and its use in `verify_launcher` (`:435`) fails that
-  one bootstrap with `fail_integrity`; the next invocation restages and
-  succeeds. Accepted.
+- A prune that removes another version's staged shim copy between that
+  bootstrap's staging check (`bin/accelerator:336`) and its use in
+  `verify_launcher` (`:435`) fails that bootstrap with `fail_integrity`. The
+  failure is appended to `.accelerator-unverified.log`, which the SessionStart
+  hook reports until the user clears it. It arises only across releases that
+  change the vendored shim. Accepted.
 - A prune that removes an unclaimed version's launcher entry older than
   `AGE_BACKSTOP` between the bootstrap's verification and its `exec` fails
   that one dispatch; the next invocation re-fetches. Accepted.
@@ -551,9 +564,17 @@ None remaining.
   Accepted for the rollout window; no compatibility gating is in scope.
 - A final uninstall leaves a relocated root unpruned, since no launcher runs to
   prune it. Accepted.
-- An override root shared by several users is not protected: foreign-owned
-  claims are ignored, so one user's prune can evict another user's live
-  version, which then re-fetches. Accepted.
+- An override root that any other user can create names in, sticky or not,
+  or one under a directory others can write to without the sticky bit, is
+  not pruned, automatically or by the verb. A root writable only through
+  the user's private group counts as safe, and a symlinked root is judged by
+  its canonical target. Another user could otherwise swap a subdirectory,
+  or the root, for a symlink, or plant a name the bootstrap's predictable
+  writes follow, and redirect removals or writes outside the root. Such a
+  root still works as a cache but is no longer pruned at all, where today
+  the verb prunes its pinned trees. A shared host gives each user their own
+  root, such as `/var/cache/accelerator/$USER`. A pruned shared cache is
+  out of scope: 0340 covers it. Accepted.
 
 ## Technical Notes
 
@@ -650,11 +671,36 @@ None remaining.
   and sidecar suffixes (`tree/reap.rs:117-135`); and claims are dropped only
   by `drop_all` with their digest (`tree/claims.rs:86-97`).
 - Staged shim copies carry the shim's sha, not a version, so no claim covers
-  them. Prune removes them all: the bootstrap restages a missing copy locally
-  from `${plugin_root}/bin` (`bin/accelerator:336-352`). An age guard would not
-  help, since an in-use copy's mtime is its first staging time.
+  them. Prune keeps the running plugin's own copy for each platform and
+  removes the rest: the
+  bootstrap restages a missing copy locally from `${plugin_root}/bin`
+  (`bin/accelerator:336-352`). An age guard would not help, since an in-use
+  copy's mtime is its first staging time.
 
 ## Drafting Notes
+
+- Amended on 2026-10-21 during plan review: prune runs only in a root writable
+  by its owner alone, or through the owner's private group, under ancestors
+  no other user can rename entries in. The private-group exception exists
+  because a umask of 002 under user-private groups makes every new root
+  group-writable. Ancestors are checked because another user could
+  otherwise swap the root itself. A sticky shared root is refused too:
+  the sticky bit stops renames but not other users planting names that the
+  bootstrap's predictable writes follow. A shared root still works as a
+  cache; it is just not pruned, and a per-user root beneath it is the
+  supported layout. An ancestor owned by another uid, as in a container's
+  bind mount or a CI workspace, is refused unless the operator lists that
+  uid in `ACCELERATOR_CACHE_TRUSTED_OWNERS`: relaxing ownership for root
+  automatically would let an ordinary user steer root's deletions.
+
+- Amended on 2026-10-20 during plan review: prune now keeps the running
+  plugin's own shim copy. Removing it raced every live bootstrap into
+  `fail_integrity`, whose `.accelerator-unverified.log` entry the SessionStart
+  hook reports indefinitely, so a routine prune became a lasting trust-chain
+  alarm. Removing it also freed no space, because the copy is restaged at
+  once. The rule covers every platform, not only the host's, because a root
+  shared across platforms would otherwise delete the other platform's live
+  copy on every prune. The A/B/C end state gains the kept shim copy.
 
 - Narrowed from "every cache root" to the shared `ACCELERATOR_CACHE_DIR` root
   after 0223 showed the default root is bounded by Claude Code's orphan sweep.
@@ -703,4 +749,5 @@ None remaining.
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
 - `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` —
   where tree claims and the lease were built
-- Related: 0136, 0164, 0189, 0196, 0214, 0222, 0223, 0334
+- Related: 0136, 0164, 0189, 0196, 0214, 0222, 0223, 0334, 0340 (shared cache
+  roots on multi-user systems: sharing trees and pruning a group-shared root)

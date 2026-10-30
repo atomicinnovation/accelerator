@@ -47,6 +47,12 @@ def entrypoint(context: Context) -> None:
 
 
 @task
+def release_guard(context: Context) -> None:
+    """Prove the test-loopback guard rejects a real stripped release binary."""
+    context.run("uv run pytest tests/integration/release_guard -v")
+
+
+@task
 def skill_invocation(context: Context) -> None:
     """Run every SKILL.md `!`-site config command in the production shape."""
     context.run("uv run pytest tests/integration/skill-invocation -v")

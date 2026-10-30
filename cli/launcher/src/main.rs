@@ -6,8 +6,9 @@
 //! is composed here and handed to `dispatch` behind `config`-crate traits.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory as _, FromArgMatches as _};
@@ -17,8 +18,8 @@ use accelerator::launch::cache;
 use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
     acquire_trees, consumes_trees, tree_var, DispatchFailureExit,
-    DispatchFailurePolicy, ExternalCommand, ResolutionError, ResolveBinary,
-    LAUNCHER_PATH_VAR,
+    DispatchFailurePolicy, ExternalCommand, ReResolution, ResolutionError,
+    ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::{self, augment_with_subbinaries};
@@ -27,20 +28,31 @@ use accelerator::launch::inbound::cli::{
 };
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
-use accelerator::launch::outbound::resolve::cache_root::{
-    self, CacheRootConfig,
-};
+use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
-use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
+use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
+use accelerator::launch::outbound::resolve::ownership::ProcessOwnership;
+use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
+use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
+use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
+use accelerator::launch::outbound::resolve::tree::lease::{
+    FlockProbe, HeldLeases,
+};
+use accelerator::launch::outbound::resolve::tree::locks::FlockLocks;
+use accelerator::launch::outbound::resolve::tree::reap::UnobservedRemovals;
 use accelerator::launch::outbound::resolve::tree::{
-    pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
+    pins, ExpectedDigests, NoSteps, SystemClock,
 };
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+    FetchVerifyCacheResolver, NothingAfterStore, ResolverConfig, ResolverPorts,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
+use accelerator::launch::start_up::{
+    start_up, DispatchConfig, StartUp, TreeConfig,
+};
 use accelerator::version::core::VersionReporter;
 use accelerator::version::outbound::build_metadata::VergenBuildMetadata;
 use config::ConfigError;
@@ -49,6 +61,99 @@ use config_adapters::credentials::{
 };
 use config_adapters::{FileConfigStore, LegacyPolicy, TrackedConfigFile};
 use vcs_adapters::InProcessTracking;
+
+// A release build that turns debug assertions back on slips past this guard, so
+// `main` reads the marker below: stripping and LTO then keep its bytes in the
+// binary, where a scan can find them.
+#[cfg(all(feature = "test-loopback", not(debug_assertions)))]
+compile_error!("test-loopback must never be enabled in a release build");
+
+#[cfg(feature = "test-loopback")]
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_LAUNCHER_TEST_LOOPBACK_MARKER";
+
+#[derive(Debug, PartialEq, Eq)]
+enum ReleaseTrust {
+    Embedded,
+    #[cfg(feature = "test-loopback")]
+    TestKey {
+        path: PathBuf,
+        contents: String,
+    },
+}
+
+/// Only a plain-`http` release on `127.0.0.1` may be a test release, so no
+/// host a user could name, and no lookalike of loopback, is ever admitted.
+#[cfg(feature = "test-loopback")]
+fn admits_test_release(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url).is_ok_and(|url| {
+        url.scheme() == "http" && url.host_str() == Some("127.0.0.1")
+    })
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_trust_for(base_url: &str, key: Option<&Path>) -> ReleaseTrust {
+    let Some(key) = key else {
+        return ReleaseTrust::Embedded;
+    };
+    if admits_test_release(base_url) {
+        if let Ok(contents) = std::fs::read_to_string(key) {
+            return ReleaseTrust::TestKey {
+                path: key.to_path_buf(),
+                contents,
+            };
+        }
+    }
+    tracing::warn!(
+        key = %key.display(),
+        "ignoring ACCELERATOR_TEST_RELEASE_PUBLIC_KEY"
+    );
+    ReleaseTrust::Embedded
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_trust() -> ReleaseTrust {
+    let key = std::env::var_os("ACCELERATOR_TEST_RELEASE_PUBLIC_KEY")
+        .map(PathBuf::from);
+    release_trust_for(&release_base_url(), key.as_deref())
+}
+
+#[cfg(not(feature = "test-loopback"))]
+const fn release_trust() -> ReleaseTrust {
+    ReleaseTrust::Embedded
+}
+
+fn release_keys() -> Result<TrustedKeys, ResolutionError> {
+    match release_trust() {
+        ReleaseTrust::Embedded => TrustedKeys::embedded(),
+        #[cfg(feature = "test-loopback")]
+        ReleaseTrust::TestKey { path, contents } => {
+            tracing::warn!(
+                "{TEST_LOOPBACK_MARKER}: trusting the test release key at {}",
+                path.display()
+            );
+            TrustedKeys::from_public_key_files(&[contents.as_str()])
+        }
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_fetcher_for(base_url: &str) -> Result<Fetcher, String> {
+    if admits_test_release(base_url) {
+        Fetcher::admitting_loopback_http()
+    } else {
+        Fetcher::new()
+    }
+}
+
+#[cfg(feature = "test-loopback")]
+fn release_fetcher() -> Result<Fetcher, String> {
+    release_fetcher_for(&release_base_url())
+}
+
+#[cfg(not(feature = "test-loopback"))]
+fn release_fetcher() -> Result<Fetcher, String> {
+    Fetcher::new()
+}
 
 /// The release-download base URL, pinned to the `v{version}` tag and overridable
 /// by `ACCELERATOR_RELEASE_BASE_URL`.
@@ -63,13 +168,15 @@ fn release_base_url() -> String {
     )
 }
 
-/// The override first, else the real resolver built lazily so built-ins never
-/// touch the cache root, TLS, or the network. The rustls crypto provider is
-/// installed here rather than in `main`, so a `version` or `config` built-in
-/// never pays for capability it does not use.
-struct LazyProductionResolver;
+/// Built lazily, so a built-in never touches TLS or the network; that is
+/// also why the rustls crypto provider is installed here rather than in
+/// `main`.
+struct LazyProductionResolver<'a> {
+    start: &'a StartUp,
+    consumed: &'a [AcquiredTree],
+}
 
-impl ResolveBinary for LazyProductionResolver {
+impl ResolveBinary for LazyProductionResolver<'_> {
     fn resolve(
         &self,
         command: &ExternalCommand,
@@ -77,18 +184,55 @@ impl ResolveBinary for LazyProductionResolver {
         if let Some(path) = override_path(&command.name)? {
             return Ok(path);
         }
-        let _ = install_crypto_provider();
-        let cache = cache_root::candidate(&CacheRootConfig::from_env(
-            config_adapters::plugin_root_from_env(),
-        ))?;
-        let keys = TrustedKeys::embedded()?;
-        let config = ResolverConfig::production(release_base_url(), cache);
-        let fetcher = Fetcher::new().map_err(|detail| {
-            ResolutionError::CacheRootUnavailable { detail }
-        })?;
-        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher)
-            .resolve(command)
+        production_resolver(self.start, self.consumed)?.resolve(command)
     }
+
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution {
+        match override_path(&command.name) {
+            Ok(Some(_)) => ReResolution::Declined,
+            Ok(None) => match production_resolver(self.start, self.consumed) {
+                Ok(resolver) => resolver.re_resolve(command, missing),
+                Err(error) => ReResolution::Failed(error),
+            },
+            Err(error) => ReResolution::Failed(error),
+        }
+    }
+}
+
+fn production_resolver(
+    start: &StartUp,
+    consumed: &[AcquiredTree],
+) -> Result<FetchVerifyCacheResolver, ResolutionError> {
+    let _ = install_crypto_provider();
+    let keys = release_keys()?;
+    let fetcher = release_fetcher()
+        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
+    start.dispatch_resolver(
+        DispatchConfig {
+            base_url: release_base_url(),
+            keys,
+            fetcher,
+        },
+        consumed,
+    )
+}
+
+fn production_ports() -> Arc<CachePorts> {
+    Arc::new(CachePorts {
+        filesystem: Arc::new(SystemFilesystem),
+        ownership: Arc::new(ProcessOwnership::default()),
+        clock: Arc::new(SystemClock),
+        locks: Arc::new(FlockLocks),
+        steps: Arc::new(NoPruneSteps),
+        bootstrap_holders: Arc::new(KillZeroProbe),
+        lease_liveness: Arc::new(FlockProbe),
+        pins: Arc::new(ExpectedDigests::Compiled),
+        removals: Arc::new(UnobservedRemovals),
+    })
 }
 
 /// The signature-verified release manifest, or `None` on any failure so the
@@ -104,8 +248,16 @@ fn load_help_manifest() -> Option<Manifest> {
     let keys = TrustedKeys::embedded().ok()?;
     let fetcher = Fetcher::for_help().ok()?;
     let config = ResolverConfig::production(release_base_url(), PathBuf::new());
-    let resolver =
-        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher);
+    let resolver = FetchVerifyCacheResolver::with_fetcher(
+        config,
+        keys,
+        fetcher,
+        ResolverPorts {
+            filesystem: Arc::new(SystemFilesystem),
+            after_store: Arc::new(NothingAfterStore),
+            held_leases: HeldLeases::none(),
+        },
+    );
     resolver.load_manifest().ok()
 }
 
@@ -318,51 +470,33 @@ fn resolution_start(command: &Command) -> Option<PathBuf> {
 /// rather than at `run`'s top, so a `version` or `config` dispatch never
 /// constructs it. The dependencies are locals the resolver borrows, so they
 /// outlive the `cache::run` call inside this function.
-fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
+fn run_cache(
+    action: &CacheAction,
+    start: &StartUp,
+) -> Result<(), kernel::Error> {
     let _ = install_crypto_provider();
-    let cache = cache_root::candidate(&CacheRootConfig::from_env(
-        config_adapters::plugin_root_from_env(),
-    ))?;
-    let keys = TrustedKeys::embedded()?;
-    let fetcher = Fetcher::new()
+    let keys = release_keys()?;
+    let fetcher = release_fetcher()
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
-    let clock = SystemClock;
-    let steps = NoSteps;
-    let liveness = FlockProbe;
-    let resolver = TreeResolver {
-        cache_root: cache,
-        base_url: release_base_url(),
-        platform: HOST_PLATFORM.to_owned(),
-        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
-        keys: &keys,
-        fetcher: &fetcher,
-        clock: &clock,
-        liveness: &liveness,
-        launcher_id: launcher_id(),
-        expected_digests: ExpectedDigests::Compiled,
-        waiter_bound: WAITER_BOUND,
-        steps: &steps,
-    };
+    let resolver =
+        start.tree_resolver(production_tree_config(&keys, &fetcher))?;
     let mut out = std::io::stdout().lock();
-    cache::run(action, &resolver, &mut out)
+    let mut err = std::io::stderr().lock();
+    cache::run(action, &resolver, start.retention(), &mut out, &mut err)
 }
 
-/// A per-install identity for the retention claim, derived from the launcher's
-/// own content-addressed path so two installs sharing a cache root write
-/// distinct claim files. Falls back to the version when the path is unavailable.
-fn launcher_id() -> String {
-    use std::fmt::Write as _;
-
-    use sha2::{Digest as _, Sha256};
-    let seed = std::env::current_exe().map_or_else(
-        |_| env!("CARGO_PKG_VERSION").to_owned(),
-        |path| path.to_string_lossy().into_owned(),
-    );
-    let digest = Sha256::digest(seed.as_bytes());
-    digest.iter().take(8).fold(String::new(), |mut acc, byte| {
-        let _ = write!(acc, "{byte:02x}");
-        acc
-    })
+fn production_tree_config<'a>(
+    keys: &'a TrustedKeys,
+    fetcher: &'a Fetcher,
+) -> TreeConfig<'a> {
+    TreeConfig {
+        base_url: release_base_url(),
+        keys,
+        fetcher,
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &NoSteps,
+    }
 }
 
 /// The single-flight waiter's deadline: a loser gives up after this rather than
@@ -380,7 +514,10 @@ const WAITER_BOUND: std::time::Duration = std::time::Duration::from_secs(20);
 /// after which the consumer reaches `cache ensure` exactly as on a cold cache.
 /// Best-effort: a tree that is absent, unpointed or failing its checks simply
 /// yields no variable, because "not materialised yet" is the normal state.
-fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
+fn export_consumed_trees(
+    command: &Command,
+    start: &StartUp,
+) -> Vec<AcquiredTree> {
     let Command::External(raw) = command else {
         return Vec::new();
     };
@@ -399,7 +536,7 @@ fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
         std::env::set_var(LAUNCHER_PATH_VAR, exe);
     }
 
-    let acquired = acquire_consumed_trees().unwrap_or_default();
+    let acquired = acquire_consumed_trees(start).unwrap_or_default();
     for tree in &acquired {
         std::env::set_var(tree_var(&tree.tree.artifact), &tree.tree.path);
     }
@@ -412,54 +549,44 @@ fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
 /// The `Fetcher` is unused on the `acquire` path (local reads and `lstat`s
 /// only, no network, no cache-root write probe) and is dropped before the
 /// caller mutates the environment, so the mutation is single-threaded.
-fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
+fn acquire_consumed_trees(start: &StartUp) -> Option<Vec<AcquiredTree>> {
     let _ = install_crypto_provider();
-    let cache = cache_root::candidate(&CacheRootConfig::from_env(
-        config_adapters::plugin_root_from_env(),
-    ))
-    .ok()?;
-    let keys = TrustedKeys::embedded().ok()?;
-    let fetcher = Fetcher::new().ok()?;
-    let clock = SystemClock;
-    let steps = NoSteps;
-    let liveness = FlockProbe;
-    let resolver = TreeResolver {
-        cache_root: cache,
-        base_url: release_base_url(),
-        platform: HOST_PLATFORM.to_owned(),
-        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
-        keys: &keys,
-        fetcher: &fetcher,
-        clock: &clock,
-        liveness: &liveness,
-        launcher_id: launcher_id(),
-        expected_digests: ExpectedDigests::Compiled,
-        waiter_bound: WAITER_BOUND,
-        steps: &steps,
-    };
+    let keys = release_keys().ok()?;
+    let fetcher = release_fetcher().ok()?;
+    let resolver = start
+        .tree_resolver(production_tree_config(&keys, &fetcher))
+        .ok()?;
     let names: Vec<&str> = pins::artifact_names();
     acquire_trees(&resolver, &names).ok()
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
+    let start = start_up(
+        &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+        TrustedOwners::from_env(),
+        production_ports(),
+    );
     // Held until `dispatch` execs the consumer: on success the process image is
     // replaced and no destructor runs, so the leases pin their trees against
     // reclamation right up to the handover.
-    let _tree_leases = export_consumed_trees(&cli.command);
+    let consumed = export_consumed_trees(&cli.command, &start);
     let reporter = VersionReporter::new(VergenBuildMetadata);
-    let resolver = LazyProductionResolver;
+    let resolver = LazyProductionResolver {
+        start: &start,
+        consumed: &consumed,
+    };
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
-    let start = resolution_start(&cli.command);
+    let resolution_root = resolution_start(&cli.command);
     let warning = personal_file_warning(&cli.command);
     dispatch(
         cli,
         &reporter,
         &resolver,
         &executor,
-        move || compose_stack(policy, start, warning),
-        run_cache,
+        move || compose_stack(policy, resolution_root, warning),
+        |action| run_cache(action, &start),
     )
 }
 
@@ -510,6 +637,8 @@ fn parse_cli() -> Result<Cli, clap::Error> {
 }
 
 fn main() -> ExitCode {
+    #[cfg(feature = "test-loopback")]
+    std::hint::black_box(TEST_LOOPBACK_MARKER);
     // A fallible parse so the top-level `--help` can be intercepted and
     // augmented, and a usage error re-mapped from clap's exit 2 to 1; a
     // `foo --help` routes to External and is delegated to the child. The root
@@ -534,10 +663,13 @@ mod tests {
     use std::process::ExitCode;
 
     use accelerator::launch::core::{
-        run_external, ExecBinary, ExternalCommand, ResolutionError,
-        ResolveBinary,
+        run_external, ExecBinary, ExternalCommand, ReResolution,
+        ResolutionError, ResolveBinary,
     };
-    use accelerator::launch::inbound::cli::Command;
+    use accelerator::launch::inbound::cli::{CacheAction, Command};
+    use accelerator::launch::outbound::resolve::cache_root::CacheRootConfig;
+    use accelerator::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
+    use accelerator::launch::start_up::{start_up, StartUp};
     use clap::error::ErrorKind;
 
     use super::{
@@ -657,6 +789,14 @@ mod tests {
         ) -> Result<PathBuf, ResolutionError> {
             Err((self.0)())
         }
+
+        fn re_resolve(
+            &self,
+            _command: &ExternalCommand,
+            _missing: &Path,
+        ) -> ReResolution {
+            ReResolution::Declined
+        }
     }
 
     struct UnreachableExec;
@@ -698,6 +838,17 @@ mod tests {
         let error = dispatch_error(availability_failure);
         let command = Command::External(vec![OsString::from("--fail-safe")]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn an_unfinished_prune_exits_failure() {
+        let error = kernel::Error::Failed(
+            "the prune did not finish; see the failures above".to_owned(),
+        );
+        let command = Command::Cache {
+            action: CacheAction::Prune { older_than: None },
+        };
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::FAILURE);
     }
 
     #[test]
@@ -743,6 +894,224 @@ mod tests {
         let error = dispatch_error(integrity_failure);
         let command = Command::External(vec![]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    static ENVIRONMENT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct ScopedVariable {
+        name: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl ScopedVariable {
+        fn set(name: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::set_var(name, value);
+            Self { name, previous }
+        }
+
+        fn unset(name: &'static str) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::remove_var(name);
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedVariable {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.name, value),
+                None => std::env::remove_var(self.name),
+            }
+        }
+    }
+
+    fn production_start_up() -> StartUp {
+        start_up(
+            &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+            TrustedOwners::none(),
+            super::production_ports(),
+        )
+    }
+
+    fn frobnicate() -> ExternalCommand {
+        ExternalCommand {
+            name: OsString::from("frobnicate"),
+            args: vec![],
+        }
+    }
+
+    #[test]
+    fn an_override_path_is_never_re_resolved() {
+        let _serial = ENVIRONMENT.lock();
+        let _override =
+            ScopedVariable::set("ACCELERATOR_FROBNICATE_BIN", "/absent/tool");
+
+        let start = production_start_up();
+        let outcome = super::LazyProductionResolver {
+            start: &start,
+            consumed: &[],
+        }
+        .re_resolve(&frobnicate(), Path::new("/absent/tool"));
+
+        assert!(matches!(outcome, ReResolution::Declined), "{outcome:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_unwritable_cache_root_is_re_resolved_through_the_cold_path(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let _serial = ENVIRONMENT.lock();
+        let root = tempfile::Builder::new().prefix("re-resolve-").tempdir()?;
+        let read_only = root.path().join("cache");
+        std::fs::create_dir(&read_only)?;
+        std::fs::set_permissions(
+            &read_only,
+            std::fs::Permissions::from_mode(0o555),
+        )?;
+        let _no_override = ScopedVariable::unset("ACCELERATOR_FROBNICATE_BIN");
+        let _cache = ScopedVariable::set("ACCELERATOR_CACHE_DIR", &read_only);
+
+        let start = production_start_up();
+        let outcome = super::LazyProductionResolver {
+            start: &start,
+            consumed: &[],
+        }
+        .re_resolve(&frobnicate(), &read_only.join("frobnicate-entry"));
+
+        std::fs::set_permissions(
+            &read_only,
+            std::fs::Permissions::from_mode(0o755),
+        )?;
+        assert!(
+            matches!(
+                outcome,
+                ReResolution::Failed(
+                    ResolutionError::CacheRootUnavailable { .. }
+                )
+            ),
+            "{outcome:?}"
+        );
+        Ok(())
+    }
+
+    #[cfg(feature = "test-loopback")]
+    #[allow(clippy::expect_used)]
+    mod test_release {
+        use std::path::{Path, PathBuf};
+
+        use accelerator::launch::outbound::resolve::fetcher::FetchError;
+
+        use super::super::{
+            release_fetcher_for, release_trust_for, ReleaseTrust,
+        };
+
+        const LOOPBACK: &str = "http://127.0.0.1:8123/releases";
+
+        struct KeyFile {
+            _directory: tempfile::TempDir,
+            path: PathBuf,
+        }
+
+        impl KeyFile {
+            fn path(&self) -> &Path {
+                &self.path
+            }
+        }
+
+        fn key_file() -> KeyFile {
+            let directory = tempfile::tempdir().expect("key directory");
+            let path = directory.path().join("release.pub");
+            std::fs::write(&path, "untrusted comment: test\nKEY\n")
+                .expect("key contents");
+            KeyFile {
+                _directory: directory,
+                path,
+            }
+        }
+
+        #[test]
+        fn a_loopback_base_url_trusts_the_test_key() {
+            let key = key_file();
+
+            assert_eq!(
+                release_trust_for(LOOPBACK, Some(key.path())),
+                ReleaseTrust::TestKey {
+                    path: key.path().to_path_buf(),
+                    contents: "untrusted comment: test\nKEY\n".to_owned(),
+                }
+            );
+        }
+
+        #[test]
+        fn a_non_loopback_base_url_ignores_the_test_key() {
+            let key = key_file();
+
+            for base_url in [
+                "https://github.com/atomicinnovation/accelerator/releases",
+                "https://127.0.0.1:8123",
+                "http://localhost:8123",
+                "http://10.0.0.1:8123",
+            ] {
+                assert_eq!(
+                    release_trust_for(base_url, Some(key.path())),
+                    ReleaseTrust::Embedded,
+                    "{base_url}"
+                );
+            }
+        }
+
+        #[test]
+        fn a_lookalike_host_is_not_loopback() {
+            let key = key_file();
+
+            for base_url in
+                ["http://127.0.0.1.example", "http://127.0.0.1@example"]
+            {
+                assert_eq!(
+                    release_trust_for(base_url, Some(key.path())),
+                    ReleaseTrust::Embedded,
+                    "{base_url}"
+                );
+            }
+        }
+
+        #[test]
+        fn a_missing_key_file_falls_back_to_the_embedded_key() {
+            assert_eq!(
+                release_trust_for(LOOPBACK, Some(Path::new("/absent/key.pub"))),
+                ReleaseTrust::Embedded
+            );
+            assert_eq!(
+                release_trust_for(LOOPBACK, None),
+                ReleaseTrust::Embedded
+            );
+        }
+
+        #[test]
+        fn a_non_loopback_base_url_keeps_https_only() {
+            for base_url in [
+                "https://github.com/atomicinnovation/accelerator/releases",
+                "http://127.0.0.1.example",
+                "http://127.0.0.1@example",
+            ] {
+                let refused = release_fetcher_for(base_url)
+                    .expect("fetcher")
+                    .get("http://127.0.0.1:1/manifest.json")
+                    .expect_err("an http fetch");
+
+                assert!(
+                    matches!(
+                        &refused,
+                        FetchError::Unreachable(detail)
+                            if detail.contains("refusing non-https")
+                    ),
+                    "{base_url}: {refused:?}"
+                );
+            }
+        }
     }
 
     #[cfg(unix)]
