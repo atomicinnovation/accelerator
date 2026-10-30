@@ -10,10 +10,10 @@ kind: "task"
 priority: "high"
 parent: "work-item:0361"
 blocks: ["work-item:0362", "work-item:0363", "work-item:0364", "work-item:0365", "work-item:0366", "work-item:0367"]
-relates_to: ["work-item:0369"]
+relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
-last_updated: "2026-10-30T15:29:20+00:00"
+last_updated: "2026-10-30T17:19:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -105,10 +105,14 @@ Web research since adds three facts:
    operator overrides the name patterns. A process never seen during a
    run's build is recorded as absent for that run, not 0.
 
-   Every task that started is reported with its exit status; a task that
-   never started because a dependency failed is marked not run. The task
-   exits 0 whenever it writes a record, printing a summary that names any
-   failed task, and non-zero only when it cannot measure.
+   Every task that ran is reported with its exit status. Under
+   `--continue-on-error`, mise still runs a failed task's dependants, so
+   each task downstream of a failure in the `default` DAG is flagged as
+   having run after a failed dependency. A task mise skips because its
+   sources are up to date is marked skipped, with no duration; for its
+   dependants' queueing delay it ends at its skip line. The task exits 0
+   whenever it writes a record, printing a summary that names any failed
+   task, and non-zero only when it cannot measure.
 
    The record lists fetch failures as `fetch_failures`: each line of a
    timed run's output that matches a fetch-failure pattern for an
@@ -122,12 +126,14 @@ Web research since adds three facts:
    timed runs (default 3). Keep the priming run's wall-clock in the
    record, marked as discarded. Report the median, min and max of each
    task's duration and nextest phase, of the wall-clock and of each
-   tracked process's CPU-seconds. A task that fails in any timed run gets
-   per-run values and a failure flag but no median, min or max. Each run
-   containing a failure is marked, and the wall-clock median still covers
-   every timed run. A tracked process absent from every timed run is
-   absent for the record; one absent from only some gets per-run values
-   and a flag but no median, min or max, as a failed task does.
+   tracked process's CPU-seconds. A task skipped in every timed run is
+   reported as skipped. Any other task that failed, ran after a failed
+   dependency or was skipped in any timed run gets per-run values and a
+   flag saying which, but no median, min or max. Each run containing a
+   failure is marked, and the wall-clock median still covers every timed
+   run. A tracked process absent from every timed run is absent for the
+   record; one absent from only some gets per-run values and a flag but
+   no median, min or max, as a failed task does.
 3. Isolation mode: run named tasks alone with `--skip-deps`, one at a
    time, under Requirement 2's priming and repeat rules, reporting
    Requirement 1's per-task figures and each task's start and end in each
@@ -153,11 +159,11 @@ Web research since adds three facts:
    cites. The metadata includes a host-settings label, given with
    `--host-settings` as `none`, `devtools` or `devtools+ide-exclusion`,
    and `unspecified` by default. The recorded commit is the nearest
-   committed revision behind the working copy that changes anything
-   outside `meta/measurements/`. The working copy matched it when neither
-   the working copy nor any commit since changes anything outside that
-   directory. A kept record, committed or not, therefore never changes
-   the commit the next run names.
+   commit on the first-parent chain behind the working copy that differs
+   from its own first parent outside `meta/measurements/`. The working
+   copy matched it when its tree outside that directory equals the
+   recorded commit's. A kept record, committed or not, therefore never
+   changes the commit the next run names.
 6. Support macOS only.
 7. Record a warm no-op baseline before the first speed change merges, from
    a clean working copy on the reference host: the research workstation,
@@ -171,9 +177,9 @@ Web research since adds three facts:
    from `mise tasks --json` at the measured commit, which the epic's own
    changes alter and so is reported rather than matched.
    Retake, rather than keep, a baseline or condition record whose
-   `fetch_failures` list is not empty. Other failures, such as `deny:check` on
-   RUSTSEC-2026-0414 today, do not stop a record being kept: the record
-   marks the task failed and gives it no median.
+   `fetch_failures` list is not empty. Other failures, such as a newly
+   published advisory failing `deny:check`, do not stop a record being
+   kept: the record marks the task failed and gives it no median.
 8. Document the host settings in `CONTRIBUTING.md`:
    - add the terminal, the IDE, and any tmux or zellij to Developer Tools,
      then restart them;
@@ -220,6 +226,12 @@ JetBrains, and gating `check` or CI on any figure.
       it reports the stated values for:
       - duration from a `Finished in` line, and from first to last line
         where none is printed;
+      - a failed task's exit status from mise's end-of-run
+        `exited with status <n>` line, which does not extend its
+        duration;
+      - a task skipped as up to date, marked skipped with no duration,
+        and the tasks downstream of a failure, flagged from the `default`
+        DAG;
       - queueing delay, including for a task with no dependencies and for
         one whose dependency printed nothing;
       - lock wait, including a wait still open at the task's last line;
@@ -243,14 +255,16 @@ JetBrains, and gating `check` or CI on any figure.
       commit.
 - [ ] Given an injected task that exits non-zero mid-run, when the run
       completes, then the record marks it failed with no median, reports
-      every task that started with its exit status, and marks the tasks
-      downstream of it as not run. The harness exits 0 and prints a
-      summary naming the failed task.
+      every task that ran with its exit status, and flags each task
+      downstream of it as having run after a failed dependency, with no
+      median. The harness exits 0, although `mise` exited non-zero, and
+      prints a summary naming the failed task.
 - [ ] Given `--runs 3`, when it runs, then it records the priming run's
       wall-clock marked as discarded, the per-run values, and the median,
       min and max of the wall-clock, of each tracked process's
       CPU-seconds, and of the duration and nextest phase of each task that
-      did not fail.
+      ran, without failing or running after a failure, in every timed
+      run.
 - [ ] Given three timed runs in which one task fails in the second run
       only, then the record keeps that task's three per-run values and
       flags it failed with no median, min or max, marks the second run as
@@ -277,10 +291,10 @@ JetBrains, and gating `check` or CI on any figure.
       each timed run, `deps:install:node` ran in every timed run, the
       record holds no priming run, and its cache state is `cold`.
 - [ ] Given any record, then it states the commit, whether the working copy
-      matched it, hostname, host model, OS version, core count, mise job
-      limit, idle load before the priming run, cache state, host-settings
-      label, and its task set: the `default` closure from
-      `mise tasks --json` at the measured commit.
+      matched it, hostname, host model, OS version, core count, mise
+      version and job limit, idle load before the priming run, cache
+      state, host-settings label, and its task set: the `default`
+      closure from `mise tasks --json` at the measured commit.
 - [ ] Given a record kept by a previous run, whether or not it has since
       been committed, when the next run starts, then it reports the same
       commit and a matching working copy.
@@ -400,10 +414,20 @@ None.
   `mise run --output prefix --continue-on-error default`, or
   `--skip-deps <task>` in isolation mode. Tests substitute a stub build
   that follows a scripted per-run plan (which tasks run, what they
-  print, which fails in which run) and records the workspace it sees at
-  each run's start: sentinels, the `cli/kernel/src/lib.rs` mtime and the
-  `node_modules` present. That makes per-run setup observable without a
-  full build.
+  print, which fails in which run, which is skipped as up to date) and
+  records the workspace it sees at each run's start: sentinels, the
+  `cli/kernel/src/lib.rs` mtime and the `node_modules` present. That
+  makes per-run setup observable without a full build. Like mise, the
+  stub still runs a failed task's dependants.
+- Under `--output prefix`, mise 2026.10.8 prints `[t] $ <run>` when a
+  task spawns, `[t] Finished in <n>ms` or `<n>s` when it succeeds, and
+  `[t] sources up-to-date, skipping` when it skips it. A failed task
+  prints no `Finished in`. Its `exited with status <n>` and
+  `ERROR task failed` lines come only after the run-level `Finished in`,
+  so they give its status but not its end. A roll-up with no `run`
+  prints nothing. `mise run` exits with the failed task's status even
+  under `--continue-on-error`. The behaviour is version-specific and
+  mise is unpinned, hence the recorded mise version.
 - One-second sampling misses short-lived processes, and the post-build
   tail, when `syspolicyd` and the IDE stay busy for minutes, is not
   counted. Per-process CPU is therefore a lower bound.
@@ -415,7 +439,10 @@ None.
   working-copy commit's ID changes on every snapshot, while its
   ancestors can be checked out and re-measured. Under git the search
   starts at `HEAD`. Either way, a commit that only adds records is
-  skipped.
+  skipped. A merge counts by its difference from its first parent:
+  jj's `files()` revset treats a clean merge as changing nothing, so a
+  search built on it names the commit before a PR merge and reports a
+  clean checkout of `main` as not matching.
 - A cold run at the default of 3 takes about 25 minutes and fetches npm
   packages each time. Cargo unit counts do not vary between runs, so
   `--runs 1` is enough for 0366's counts.
@@ -447,10 +474,20 @@ None.
 - Added cold and incremental cache states because the research measured
   all three and 0366 counts cold compile units. Cold is behind a flag
   because it is destructive.
-- The harness exits 0 when a measured task fails, because every run today
-  fails `deny:check` on RUSTSEC-2026-0414; a non-zero exit would make
-  every measurement look broken. The record and summary carry the
-  failure.
+- The harness exits 0 when a measured task fails, because a live input
+  such as the advisory database can fail a task in any run; a non-zero
+  exit would make such a measurement look broken. When the research ran,
+  every run failed `deny:check` on RUSTSEC-2026-0414; pinning
+  pulldown-cmark to 0.13.5 has since cleared it. The record and summary
+  carry the failure.
+- Replaced "not run" after probing mise 2026.10.8: under
+  `--continue-on-error` it still runs a failed task's dependants, so no
+  task in a real `default` run is left unrun. Those tasks are flagged
+  and given no median instead, since they ran against a failed task's
+  outputs.
+- Added the skipped state: mise skips a task whose `sources` are up to
+  date, as the four docs tasks in `default` do today and
+  `build:frontend` and `deps:install:node` will once 0367 lands.
 - The harness records idle load rather than refusing a busy host. The
   research host idled at 22–30%, so a quiet-host gate would refuse the
   machine that produced every figure.
@@ -463,6 +500,8 @@ None.
 ## References
 
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
+- Implementation research, including the mise probes:
+  `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
 - Related: 0361, 0362, 0363, 0364, 0365, 0366, 0367, 0369
 - Precedent: 0189 (`measure:warm-dispatch` records under
   `meta/measurements/`)

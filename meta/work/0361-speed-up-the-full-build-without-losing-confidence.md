@@ -12,7 +12,7 @@ blocks: ["work-item:0369"]
 relates_to: ["work-item:0369"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "ci"]
-last_updated: "2026-10-30T15:12:31+00:00"
+last_updated: "2026-10-30T16:25:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -82,9 +82,11 @@ Decomposition:
 ## Acceptance Criteria
 
 - [ ] Every child work item is done or explicitly abandoned.
-- [ ] Given a `measure:build` baseline recorded before the first child
-      lands, when all children are done, then a warm no-op `mise run` on
-      the same machine completes in under 200 s.
+- [ ] Given 0368's warm no-op `measure:build` baseline, recorded before
+      the first of 0362–0367 merges, when all children are done, then a
+      warm no-op `measure:build --runs 3` record that is comparable with
+      the baseline under 0368's Requirement 7 has a median wall-clock
+      under 200 s.
 - [ ] Given the main workflow's job timings, when all children are done,
       then no job in a pull-request run takes longer than 12 minutes.
 - [ ] Every test that runs today still runs, except for the deliberately
@@ -118,16 +120,18 @@ Decomposition:
 ## Technical Notes
 
 The research document holds the measurement workflow, the harness scripts
-and per-finding evidence. The combined what-if result is the baseline for
-the 200 s target: 244 s with five quick wins, and 170–190 s projected once
-the log-rotation tests are fixed.
+and per-finding evidence. The combined what-if result is what the 200 s
+target was set from: 244 s with five quick wins, and 170–190 s projected
+once the log-rotation tests are fixed.
 
 ## Drafting Notes
 
 - Grouped the research's A/B/C recommendations into seven children, as
-  agreed in conversation. The RUSTSEC-2026-0414 fix is deliberately excluded
-  from this batch, and minor observations without a recommendation were
-  dropped.
+  agreed in conversation. Minor observations without a recommendation
+  were dropped. The RUSTSEC-2026-0414 fix was deliberately kept out of
+  this batch; it has since landed on `main` separately (`56cba4e8de`,
+  pulldown-cmark 0.13.5), so `deny:check` passes and a bare `mise run` no
+  longer stops there.
 - Set priority to high because the research was prompted by the build
   becoming very long, and the CI critical path is 23 minutes. The source
   does not state a priority.
