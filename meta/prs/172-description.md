@@ -12,9 +12,9 @@ relates_to: ["work-item:0218", "work-item:0296", "work-item:0300", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/172"
 pr_number: 172
 tags: []
-revision: "5c77a83a25a57886df321a0e6d1cd9ecfdc696af"
+revision: "be0c0493c43f181e7291b66ae0e84a74b78ae134"
 repository: "accelerator"
-last_updated: "2026-10-30T01:17:39+00:00"
+last_updated: "2026-10-30T02:35:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -27,10 +27,15 @@ Epic 0146's Stories section listed 17 of its 23 children. The six it left
 out (0294, 0300, 0319, 0335, 0336 and 0338) are all still open, so the epic
 under-reported the work left to do. This PR adds them and brings six work
 items' statuses up to date. It also records two Linear syncs, which leave
-every work item in sync with Linear. It changes only `meta/work/` and the
-Linear sync state; there is no code change.
+every work item in sync with Linear.
+
+It also fixes the two CI failures `main` has had since PR #171 merged: a
+`cargo-deny` advisory against `pulldown-cmark` 0.13.4, and a re-key test
+that fails on Linux only.
 
 ## Changes
+
+### Work items and sync state
 
 - **Stories list on 0146.** Adds a one-line entry for each missing child,
   with its blockers, in the style of the existing entries. 0294 sits next to
@@ -57,6 +62,25 @@ Linear sync state; there is no code change.
   split body, field and frontmatter digests (`digest_recipe: 1`), and every
   baseline is re-recorded at the second sync.
 
+### CI fixes
+
+- **Dirty paths in path order.** `InProcessProbe::working_copy_state` now
+  sorts the dirty paths both backends return. git's status walk yielded
+  untracked files in the filesystem's directory order, so
+  `a_user_file_named_like_rekeys_machinery_is_dirt` passed on APFS and
+  failed on ext4. The probe's contract now says the paths come in path
+  order, and new tests in `vcs-adapters/tests/dirty_paths.rs` pin it for
+  git and jj.
+- **`pulldown-cmark` 0.13.5.** RUSTSEC-2026-0414 reports exponential event
+  growth in 0.13.4's wikilink parsing. We never enable wikilinks, but
+  `deny.toml` takes every vulnerability through an upgrade, never an
+  ignore. The third-party notices are regenerated.
+- **Recipe guard.** The guard in `golden_digests.rs` used to demand a
+  digest-recipe bump for any new parser version. It now also accepts a
+  recipe re-verified under a new version: `recipe.json` records
+  `(1, "0.13.5")` after `(1, "0.13.4")`. Recipe numbers still can't skip
+  or go back, and every golden digest still has to hold.
+
 ## Context
 
 The gap turned up while working out 0146's dependency tree from every work
@@ -75,20 +99,42 @@ The second sync ran after the rebase. It pushed 0278, 0305 and 0306, linked
 changed since the last sync, so the local file held the only edits; for 0332
 and 0347, Linear held an older version than the local file.
 
+`main`'s "Check supply chain" and "Run unit tests (ubuntu-latest)" jobs have
+failed since the PR #171 merge (run 40970873387), as have the 0218, 0300 and
+0306 branches. The fixes ride on this PR at the author's request rather than
+in a PR of their own.
+
+Bumping the digest recipe for 0.13.5 would have needed a designed recipe
+1 → 2 re-baseline that doesn't exist yet. Without one, any item whose parse
+moved would show changed digests on both sides at once and become a
+conflict.
+
 ## Testing
 
+- [x] `mise run check` passes.
+- [x] `mise run test:unit:cli` passes: 6,608 tests, 2 skipped.
+- [x] `mise run deny:check` reports advisories, bans, licences and sources
+      ok, and `mise run notices:check` passes.
+- [x] `git_lists_dirty_paths_in_path_order` failed before the sort, listing
+      eight files in APFS hash order; it and the jj counterpart pass after.
+- [x] Every golden digest pair matches under 0.13.5; before the recipe
+      history recorded it, only the version guard failed.
 - [x] `accelerator work list` reports all 347 work items as synced, and a
       `accelerator work sync --preview` afterwards plans nothing.
 - [x] `accelerator work list --parent 0146` lists all 23 children.
-- [x] `accelerator corpus frontmatter validate` passes for 0348, the only
-      work item the second sync wrote.
 - [x] After the rebase merge, the sync state kept every one of `main`'s 341
       entries, with `main`'s four newer ones byte-identical.
-- [ ] `mise run check` not run: the change touches only Markdown under
-      `meta/work/` and the sync-state JSON, which no check lane covers.
+- [ ] Linux CI: the ordering fix is verified on APFS locally, but not yet
+      on ext4.
 
 ## Notes for Reviewers
 
+- The recipe-guard change relaxes the pin policy in `cli/Cargo.toml`. A
+  parser release now needs a recipe bump only if a golden digest moves, not
+  always. The risk this accepts: a document shape the golden pairs don't
+  cover could parse differently under 0.13.5. Its digests would then move
+  on both sides at once, and it would show as a spurious conflict at the
+  next sync.
 - Linear already reflects this branch. The second sync overwrote 21 Linear
   issues with their local versions, among them PP-167 (0146), which now
   carries the full Stories list. If this PR doesn't merge, Linear is ahead
@@ -96,5 +142,3 @@ and 0347, Linear held an older version than the local file.
 - The two Linear issues edited after their last sync were PP-885 (0332) and
   PP-923 (0347). Both held earlier drafts of their work items, so nothing in
   them was newer than the local file.
-- A work item changed on `main` before this merges shows as locally
-  modified at the next sync, as usual.
