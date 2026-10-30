@@ -52,7 +52,7 @@ members = [
 exclude = ["patches/include-flate-compress"]
 
 [workspace.package]
-version = "1.24.0-pre.88"
+version = "1.24.0-pre.89"
 edition = "2021"
 rust-version = "1.90.0"
 license = "MIT"
