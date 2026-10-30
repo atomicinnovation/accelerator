@@ -557,7 +557,8 @@ impl UserIdentityProbe for InProcessProbe {
 
 /// `HEAD` is the base on git (none while it is unborn), and the working-copy
 /// commit's parents on jj. Dirty paths come from `gix::Repository::status` on
-/// git and a real snapshot-then-diff on jj.
+/// git and a real snapshot-then-diff on jj; git's walk yields them in the
+/// filesystem's order, so both are sorted here.
 impl WorkingCopyStateProbe for InProcessProbe {
     fn working_copy_state(
         &self,
@@ -569,6 +570,10 @@ impl WorkingCopyStateProbe for InProcessProbe {
             VcsKind::Jj => dirty_paths::jj_working_copy_state(root),
             VcsKind::None => Ok(WorkingCopyState::default()),
         }
+        .map(|mut state| {
+            state.dirty_paths.sort();
+            state
+        })
         .map_err(Into::into)
     }
 }

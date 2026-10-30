@@ -46,6 +46,16 @@ pub fn dirty_paths(
         .collect())
 }
 
+pub fn dirty_paths_as_listed(
+    env: &Hermetic,
+    root: &Path,
+) -> Result<Vec<String>, TestError> {
+    Ok(succeeded(query(env, "dirty_paths", root)?)?
+        .lines()
+        .map(str::to_owned)
+        .collect())
+}
+
 pub struct WorkingCopyState {
     pub base_commits: Vec<String>,
     pub dirty_paths: BTreeSet<String>,

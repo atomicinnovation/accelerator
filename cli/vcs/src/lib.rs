@@ -155,8 +155,8 @@ impl WorkingCopyState {
 /// Reads a working copy's base commits and dirty paths together.
 pub trait WorkingCopyStateProbe {
     /// The commits the working copy at `root` is based on, and the
-    /// repo-relative paths that differ from them, read in one pass so the two
-    /// cannot disagree. Untracked files count as dirty and ignored files do
+    /// repo-relative paths that differ from them in path order, read in one
+    /// pass so the two cannot disagree. Untracked files count as dirty and ignored files do
     /// not, in either idiom: an untracked file is the least recoverable thing
     /// in a working copy, so a caller gating a destructive write must see it.
     ///
