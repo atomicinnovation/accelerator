@@ -17,6 +17,14 @@ use crate::retirement::relative_to;
 use crate::retirement::RetirementCause;
 use crate::retirement::RetirementRefusal;
 
+/// The `external_id` a re-key target would read as, and `work.key` when it
+/// is the tracker's own key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkedClash {
+    pub external_id: String,
+    pub shared_key: Option<String>,
+}
+
 /// Why an item's `id` cannot be re-keyed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnclassifiableCause {
@@ -57,6 +65,7 @@ pub enum NotRekeyed {
         first: PathBuf,
         second: PathBuf,
         target: String,
+        linked: Option<LinkedClash>,
     },
     Unclassifiable {
         item: PathBuf,
@@ -141,10 +150,12 @@ impl NotRekeyed {
                 first,
                 second,
                 target,
+                linked,
             } => Self::Collision {
                 first: under(first),
                 second: under(second),
                 target,
+                linked,
             },
             Self::Unclassifiable { item, cause } => Self::Unclassifiable {
                 item: under(item),
@@ -256,11 +267,8 @@ impl NotRekeyed {
                 first,
                 second,
                 target,
-            } => format!(
-                "{target} is claimed by both {} and {}",
-                first.display(),
-                second.display()
-            ),
+                linked,
+            } => collision(first, second, target, linked.as_ref()),
             Self::Unclassifiable { item, cause } => unclassifiable(item, cause),
             Self::FreshNumbersExhausted { pattern, .. } => format!(
                 "re-keying needs more fresh numbers than `{pattern}` has left"
@@ -363,9 +371,7 @@ impl NotRekeyed {
             Self::PendingPush(_) => {
                 "Run `accelerator work sync` to settle the push".to_owned()
             }
-            Self::Collision { .. } => {
-                "Rename or merge one of the named items".to_owned()
-            }
+            Self::Collision { linked, .. } => collision_remedy(linked.as_ref()),
             Self::Unclassifiable { cause, .. } => unclassifiable_remedy(cause),
             Self::FreshNumbersExhausted {
                 needed,
@@ -534,6 +540,45 @@ impl fmt::Display for NotRekeyed {
 
 impl std::error::Error for NotRekeyed {}
 
+fn shown(path: &Path) -> String {
+    escaped(&path.to_string_lossy())
+}
+
+fn collision(
+    first: &Path,
+    second: &Path,
+    target: &str,
+    linked: Option<&LinkedClash>,
+) -> String {
+    let (first, second, target) =
+        (shown(first), shown(second), escaped(target));
+    match linked {
+        Some(LinkedClash {
+            external_id,
+            shared_key: Some(key),
+        }) => format!(
+            "{first}'s target {target} would read as {second}'s linked \
+             tracker key {}, because `work.key` `{}` is the tracker's own key",
+            escaped(external_id),
+            escaped(key)
+        ),
+        _ => format!("{target} is claimed by both {first} and {second}"),
+    }
+}
+
+fn collision_remedy(linked: Option<&LinkedClash>) -> String {
+    match linked {
+        Some(LinkedClash {
+            shared_key: Some(_),
+            ..
+        }) => "Either choose a `work.key` the tracker does not use, or set \
+               `work.id_pattern` to `{tracker}` if items should carry the \
+               tracker's keys"
+            .to_owned(),
+        _ => "Rename or merge one of the named items".to_owned(),
+    }
+}
+
 fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
     match cause {
         UnclassifiableCause::AmbiguousDigitRuns {
@@ -597,6 +642,7 @@ mod tests {
     use corpus::StoreError;
 
     use super::Holder;
+    use super::LinkedClash;
     use super::NotRekeyed;
     use super::SyncBlocker;
     use super::UnclassifiableCause;
@@ -767,8 +813,23 @@ mod tests {
                     first: path("meta/work/0042-a.md"),
                     second: path("meta/work/ACC-0042-b.md"),
                     target: "ACC-0042".to_owned(),
+                    linked: None,
                 },
                 "Rename or merge one of the named items",
+            ),
+            (
+                NotRekeyed::Collision {
+                    first: path("meta/work/0043-a.md"),
+                    second: path("meta/work/0021-b.md"),
+                    target: "PP-0043".to_owned(),
+                    linked: Some(LinkedClash {
+                        external_id: "PP-43".to_owned(),
+                        shared_key: Some("PP".to_owned()),
+                    }),
+                },
+                "Either choose a `work.key` the tracker does not use, or set \
+                 `work.id_pattern` to `{tracker}` if items should carry the \
+                 tracker's keys",
             ),
             (
                 NotRekeyed::Unclassifiable {
@@ -951,6 +1012,7 @@ mod tests {
                 first: item(),
                 second: at("meta/work/ACC-0042-b.md"),
                 target: "ACC-0042".to_owned(),
+                linked: None,
             },
             NotRekeyed::Unclassifiable {
                 item: item(),

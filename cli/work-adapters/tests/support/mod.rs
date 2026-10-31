@@ -89,6 +89,9 @@ use work_adapters::sync::files::SyncStore;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 use work_adapters::sync::recovery_label::RecoveryLabels;
 
+static SCHEME: std::sync::LazyLock<WorkItemIdScheme> =
+    std::sync::LazyLock::new(scheme);
+
 pub type TestError = Box<dyn std::error::Error>;
 
 pub const FIRST: &str = "meta/work/0041-first.md";
@@ -478,6 +481,7 @@ impl<'r> Ports<'r> {
                 layout: CorpusLayout {
                     roots: &self.roots,
                     work_dir: &self.work_dir,
+                    scheme: &SCHEME,
                 },
                 walker: &RealFs,
                 status: &Clean,

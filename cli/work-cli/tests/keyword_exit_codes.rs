@@ -255,6 +255,7 @@ fn every_not_rekeyed() -> Vec<NotRekeyed> {
             first: item.clone(),
             second: item.clone(),
             target: "ACC-0042".to_owned(),
+            linked: None,
         },
         NotRekeyed::Unclassifiable {
             item: item.clone(),

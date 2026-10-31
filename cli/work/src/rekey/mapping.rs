@@ -81,7 +81,7 @@ pub fn numeric_mapping(
         .iter()
         .map(|candidate| candidate.identity.clone())
         .collect();
-    refuse_collisions(&entries, &items)?;
+    refuse_collisions(&entries, &items, scheme)?;
     Ok(entries)
 }
 
@@ -251,6 +251,7 @@ pub fn keys_to_refresh(
 /// [`NotRekeyed`] when an `external_id` is not shaped like a tracker key,
 /// no free draft ID can be drawn, or a target collides.
 pub fn tracker_mapping(
+    scheme: &WorkItemIdScheme,
     candidates: &[RekeyCandidate],
     refreshed: &RefreshedKeys,
     draws: &mut dyn SuffixDraws,
@@ -298,7 +299,7 @@ pub fn tracker_mapping(
         }
     }));
     entries.sort_by(|left, right| left.old.cmp(&right.old));
-    refuse_collisions(&entries, &items)?;
+    refuse_collisions(&entries, &items, scheme)?;
     Ok(entries)
 }
 
@@ -720,11 +721,15 @@ mod tests {
         use crate::draft_id::DraftId;
         use crate::draft_id::SuffixDraws;
         use crate::draft_id::ALPHABET;
+        use crate::id_pattern::IdPattern;
+        use crate::id_scheme::WorkItemIdScheme;
+        use crate::id_scheme::TRACKER_TOKEN;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
         use crate::rekey::mapping::keys_to_refresh;
         use crate::rekey::mapping::tracker_mapping;
         use crate::rekey::mapping::RefreshedKeys;
+        use crate::rekey::outcome::LinkedClash;
         use crate::rekey::outcome::NotRekeyed;
         use crate::rekey::outcome::UnclassifiableCause;
         use crate::tracker_key::TrackerKey;
@@ -780,7 +785,20 @@ mod tests {
             candidates: &[RekeyCandidate],
             refreshed: &RefreshedKeys,
         ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
-            tracker_mapping(candidates, refreshed, &mut drawing(&["k3x9mq"]))
+            tracker_mapping(
+                &tracker_scheme(),
+                candidates,
+                refreshed,
+                &mut drawing(&["k3x9mq"]),
+            )
+        }
+
+        fn tracker_scheme() -> WorkItemIdScheme {
+            WorkItemIdScheme::new(
+                IdPattern::parse(TRACKER_TOKEN)
+                    .unwrap_or_else(|error| unreachable!("{error}")),
+                None,
+            )
         }
 
         fn collision(first: &str, second: &str, target: &str) -> NotRekeyed {
@@ -788,6 +806,7 @@ mod tests {
                 first: path_of(first),
                 second: path_of(second),
                 target: target.to_owned(),
+                linked: None,
             }
         }
 
@@ -884,7 +903,15 @@ mod tests {
             let corpus = [linked("0041", "PP-760"), linked("0042", "PP-760")];
             assert_eq!(
                 mapped(&corpus, &RefreshedKeys::default()),
-                Err(collision("0041", "0042", "PP-760"))
+                Err(NotRekeyed::Collision {
+                    first: path_of("0041"),
+                    second: path_of("0042"),
+                    target: "PP-760".to_owned(),
+                    linked: Some(LinkedClash {
+                        external_id: "PP-760".to_owned(),
+                        shared_key: None,
+                    }),
+                })
             );
         }
 
@@ -970,6 +997,7 @@ mod tests {
             let corpus = [unlinked("draft-k3x9mq"), unlinked("0042")];
             assert!(matches!(
                 tracker_mapping(
+                    &tracker_scheme(),
                     &corpus,
                     &RefreshedKeys::default(),
                     &mut drawing(&["k3x9mq"; 16]),
