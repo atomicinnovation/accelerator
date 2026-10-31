@@ -473,6 +473,7 @@ def _row_for_template(template: str) -> dict[str, Any]:
         ("topic-research-finding.md", "finding"),
         ("topic-research-level-note.md", "level-note"),
         ("topic-research-manifest.md", "manifest"),
+        ("topic-research-report.md", "report"),
     ],
 )
 def test_a_topic_research_template_declares_exactly_its_schema_row(

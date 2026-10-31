@@ -1,9 +1,5 @@
-//! The violation taxonomy.
-//!
-//! Sixteen short codes carried by the frontmatter wire contract, plus two
-//! later additions — `DuplicateId` (a whole-corpus collision the appending
-//! index detects) and `UnquotedString` (added with the canonical-quoting
-//! standard).
+//! The violation taxonomy: one short wire code per way a document can break
+//! the frontmatter contract, each rendered as `<CODE> — <message>`.
 
 use std::fmt;
 
@@ -39,6 +35,11 @@ pub enum Violation {
         value: String,
     },
     BadStatus {
+        value: String,
+        vocab: String,
+    },
+    BadExtraValue {
+        extra: &'static str,
         value: String,
         vocab: String,
     },
@@ -99,6 +100,7 @@ impl Violation {
             Self::BadSchemaVersion => "BAD-SCHEMA-VERSION",
             Self::BadTimestamp { .. } => "BAD-TIMESTAMP",
             Self::BadStatus { .. } => "BAD-STATUS",
+            Self::BadExtraValue { .. } => "BAD-EXTRA-VALUE",
             Self::MissingProvenance { .. } => "MISSING-PROVENANCE",
             Self::ProvenanceOnNonAnchored { .. } => "PROVENANCE-ON-NONANCHORED",
             Self::ForbiddenProvenance { .. } => "FORBIDDEN-PROVENANCE",
@@ -126,6 +128,7 @@ impl Violation {
             Self::BadSchemaVersion => Some("schema_version"),
             Self::BadStatus { .. } => Some("status"),
             Self::BadTimestamp { field, .. }
+            | Self::BadExtraValue { extra: field, .. }
             | Self::MissingBaseField { field }
             | Self::MissingProvenance { field }
             | Self::ProvenanceOnNonAnchored { field }
@@ -167,6 +170,11 @@ impl Violation {
             Self::BadStatus { value, vocab } => {
                 format!("status: '{value}' not in vocab ({vocab})")
             }
+            Self::BadExtraValue {
+                extra,
+                value,
+                vocab,
+            } => format!("{extra}: '{value}' not in vocab ({vocab})"),
             Self::MissingProvenance { field } => {
                 format!("anchored type missing provenance field '{field}'")
             }
@@ -260,6 +268,20 @@ mod tests {
     }
 
     #[test]
+    fn a_bad_extra_value_names_its_vocab() {
+        assert_eq!(
+            Violation::BadExtraValue {
+                extra: "coverage",
+                value: "unanswered".to_owned(),
+                vocab: "answered | partial".to_owned(),
+            }
+            .to_string(),
+            "BAD-EXTRA-VALUE — coverage: 'unanswered' not in vocab \
+             (answered | partial)"
+        );
+    }
+
+    #[test]
     fn a_violation_names_the_schema_key_it_concerns() {
         let cases = [
             (Violation::NoFence, None),
@@ -288,6 +310,14 @@ mod tests {
                     vocab: "complete".to_owned(),
                 },
                 Some("status"),
+            ),
+            (
+                Violation::BadExtraValue {
+                    extra: "coverage",
+                    value: "x".to_owned(),
+                    vocab: "answered | partial".to_owned(),
+                },
+                Some("coverage"),
             ),
             (
                 Violation::MissingExtra {
