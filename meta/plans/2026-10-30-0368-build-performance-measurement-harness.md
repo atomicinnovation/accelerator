@@ -756,14 +756,14 @@ wording changes.
 
 #### Automated Verification:
 
-- [ ] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement -v`
-- [ ] The tasks unit lane passes: `mise run test:unit:tasks`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement -v`
+- [x] The tasks unit lane passes: `mise run test:unit:tasks`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] The advisory fixture is the text cargo-deny actually printed offline,
+- [x] The advisory fixture is the text cargo-deny actually printed offline,
       not a guess.
 
 ---
