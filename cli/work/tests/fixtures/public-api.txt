@@ -579,7 +579,7 @@ pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey)
 impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
-pub fn work::next_number::allocate(pattern: &work::id_pattern::IdPattern, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocate(scheme: &work::id_scheme::WorkItemIdScheme, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
 pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&work::id_pattern::IdKey>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
