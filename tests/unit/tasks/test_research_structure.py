@@ -709,11 +709,58 @@ def test_research_topic_routes_compose_pairs_to_the_composer(
     )
 
 
-def test_research_topic_never_counts_level_notes() -> None:
-    assert (
-        "files directly in `findings/`; `.levels/` is never counted"
-        in _research_topic_prose()
-    ), "the manifest counts must exclude level notes"
+COUNTS = "accelerator research topic counts SLUG"
+STOP_ON_A_FAILED_COUNT = "If it exits non-zero, report its error and stop"
+
+
+def _finalise() -> str:
+    return _section(
+        _research_topic_prose(), "### finalise", "## Populate frontmatter"
+    )
+
+
+def test_conduct_writes_the_cli_s_counts() -> None:
+    manifest_edit = _section(
+        _conduct(), "**Edit `manifest.md`**", "**Summarise**"
+    )
+    assert COUNTS in manifest_edit, "conduct must take its counts from the CLI"
+    assert "`derived`" in manifest_edit
+    assert "stop before the manifest edit" in manifest_edit
+    assert "count rule" not in manifest_edit, (
+        "conduct must no longer count files itself"
+    )
+
+
+def test_synthesise_writes_the_cli_s_counts() -> None:
+    synthesise = _synthesise()
+    assert COUNTS in synthesise, "synthesise must take its counts from the CLI"
+    assert STOP_ON_A_FAILED_COUNT in synthesise
+    assert "Stamp `rounds_covered` with its `derived.round_count`" in synthesise
+    assert "its `derived` round and finding counts" in synthesise
+
+
+def test_finalise_takes_its_freshness_gate_from_the_cli() -> None:
+    finalise = _finalise()
+    assert COUNTS in finalise, "finalise must gate on the CLI's counts"
+    assert "If `fresh` is false" in finalise
+    assert "`mismatches`" in finalise
+    assert STOP_ON_A_FAILED_COUNT in finalise
+    for restated in ("rounds_covered", "highest"):
+        assert restated not in finalise, (
+            f"finalise must not restate the count rule's {restated!r}"
+        )
+
+
+def test_only_the_cli_derives_the_counts() -> None:
+    validate = _section(
+        _research_topic_prose(),
+        "## Validate every write",
+        "## Deferred hardening",
+    )
+    assert f"only `{COUNTS}` derives them" in validate
+    assert "<nn>-*.md" not in validate, (
+        "the count rule lives in the CLI, not the prose"
+    )
 
 
 def test_research_topic_reports_unexpected_notes_in_its_summary() -> None:
