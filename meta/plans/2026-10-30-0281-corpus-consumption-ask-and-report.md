@@ -1770,10 +1770,10 @@ Every skill run below uses the dev launcher, as **Dev launcher setup** in
 Testing Strategy lists it.
 
 - [x] On a scratch copy of the multiround fixture, `<repo>/cli/target/debug/accelerator-research topic counts example-multiround-subject` prints `"fresh": true`. After `finding_count` is edited to 9, it prints the finding-count sentence.
-- [ ] On the same copy, `/accelerator:research-topic finalise example-multiround-subject` refuses naming that sentence and mutates nothing.
-- [ ] On a fresh copy, `/accelerator:research-topic synthesise example-multiround-subject` leaves `round_count`, `finding_count` and `rounds_covered` equal to `counts`' `derived` values.
-- [ ] On a fresh copy with one finding removed, `/accelerator:research-topic conduct example-multiround-subject` gap-fills it and leaves `round_count` at 2. With a `## Round 3` item appended, a second `conduct` raises `round_count` to 3. Both runs need live web or OpenAlex access.
-- [ ] `mise run eval:citing-once` passes its `synthesise` families as it did before this phase, now on the dev toolchain.
+- [x] On the same copy, `/accelerator:research-topic finalise example-multiround-subject` refuses naming that sentence and mutates nothing.
+- [x] On a fresh copy, `/accelerator:research-topic synthesise example-multiround-subject` leaves `round_count`, `finding_count` and `rounds_covered` equal to `counts`' `derived` values.
+- [x] On a fresh copy with one finding removed, `/accelerator:research-topic conduct example-multiround-subject` gap-fills it and leaves `round_count` at 2. With a `## Round 3` item appended, a second `conduct` raises `round_count` to 3. Both runs need live web or OpenAlex access.
+- [x] `mise run eval:citing-once` passes its `synthesise` families as it did before this phase, now on the dev toolchain.
 
 ### As built
 
@@ -1791,8 +1791,21 @@ Testing Strategy lists it.
   `ACCELERATOR_RESEARCH_BIN`.
 - **Docs.** Each new command's exit-code table gives a failure without its
   own code a row whose code reads "none; the message names" the path.
-- **Manual checks.** The four skill and eval runs need the dev launcher's
-  marker, live sources and model usage, and were not run.
+- **Manual checks.** The skill runs were headless `claude -p` sessions
+  (Claude Code 2.1.316) on the dev launcher, one per scratch copy, each
+  calling `research topic counts` as its verb prescribes:
+  - `finalise` refused naming
+    `manifest.md records finding_count 9 but 3 findings are on disk`, and
+    the scratch repository showed no change;
+  - `synthesise` left `round_count` 2, `finding_count` 3 and
+    `rounds_covered` 2, and `counts` then printed `"fresh": true`;
+  - `conduct` gap-filled `03-what-is-the-third-focus-area-web.md` over live
+    web, leaving `round_count` at 2; after `- [ ] What is the fourth focus
+    area?` was appended under `## Round 3`, a second `conduct` wrote a round-3
+    finding and raised `round_count` to 3.
+- **`eval:citing-once`.** All 36 sessions passed on the dev toolchain:
+  C1 3/3, C2 3/3, C3 3/3, C4 9/9, C5 9/9, S1 3/3, S2 6/6, in about 7.5
+  minutes at the default 6 jobs. Each `synthesise` session ran `counts`.
 
 ---
 
