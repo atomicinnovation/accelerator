@@ -635,21 +635,21 @@ Under `## [Unreleased]` in `CHANGELOG.md`:
 
 #### Automated Verification:
 
-- [ ] New Rust tests fail before the change, then pass: `mise run test:unit:cli`
-- [ ] Public API snapshots match: `mise run public-api:check`
-- [ ] Conformance passes with the report and manifest parameters: `mise run test:integration:conformance`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Frontend tests pass: `mise run test:unit:frontend`
-- [ ] The read-only gate passes: `mise run check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] New Rust tests fail before the change, then pass: `mise run test:unit:cli`
+- [x] Public API snapshots match: `mise run public-api:check`
+- [x] Conformance passes with the report and manifest parameters: `mise run test:integration:conformance`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Frontend tests pass: `mise run test:unit:frontend`
+- [x] The read-only gate passes: `mise run check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
 Both checks run under the dev launcher, as **Dev launcher setup** in Testing
 Strategy lists it.
 
-- [ ] `<repo>/bin/accelerator config template topic-research --kind report` prints the new template.
-- [ ] `<repo>/bin/accelerator corpus frontmatter print-schema | jq '.rows[] | select(.kind=="report")'` shows the `coverage` vocab.
+- [x] `<repo>/bin/accelerator config template topic-research --kind report` prints the new template.
+- [x] `<repo>/bin/accelerator corpus frontmatter print-schema | jq '.rows[] | select(.kind=="report")'` shows the `coverage` vocab.
 
 ---
 
