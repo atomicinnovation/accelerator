@@ -1,9 +1,12 @@
 import json
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from tasks.eval.ask_and_report import formats, turns
+from tasks.eval.ask_and_report import conversation, formats, turns
+from tasks.eval.headless.claude import common_flags
 from tasks.eval.headless.transcript import (
     Init,
     Result,
@@ -12,6 +15,7 @@ from tasks.eval.headless.transcript import (
     ToolResult,
     events,
 )
+from tasks.eval.toolchain import Toolchain
 
 
 def _assistant(*blocks: dict, parent: str | None = None) -> str:
@@ -269,3 +273,205 @@ def test_the_main_text_leaves_out_subagent_text() -> None:
     )
 
     assert record.text == "Mine.\nAlso mine."
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+GRANT = (
+    "Bash(accelerator config *),"
+    "Bash(accelerator corpus resolve *),"
+    "Bash(accelerator corpus metadata derive),"
+    "Bash(accelerator corpus frontmatter validate *),"
+    "Bash(accelerator research topic *),"
+    "Read(/<plugin_root>/skills/research/outputters/citing-once/**),"
+    "Skill"
+)
+
+
+def _flag(command: list[str], name: str) -> str:
+    return command[command.index(name) + 1]
+
+
+def test_the_grant_is_the_skill_s_less_fetch_plus_the_rule_and_skill() -> None:
+    grant = ",".join(conversation.research_topic_grant(REPO_ROOT))
+
+    assert grant == GRANT.replace("<plugin_root>", str(REPO_ROOT))
+
+
+def test_every_turn_passes_the_common_and_session_flags() -> None:
+    flags = conversation.turn_flags(REPO_ROOT, model=None)
+    common = common_flags(
+        REPO_ROOT, conversation.research_topic_grant(REPO_ROOT)
+    )
+
+    assert flags == [
+        *common,
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+    ]
+    assert "--model" not in flags
+
+
+def test_a_model_reaches_every_turn() -> None:
+    flags = conversation.turn_flags(REPO_ROOT, model="claude-test")
+
+    assert _flag(flags, "--model") == "claude-test"
+
+
+def test_the_opening_turn_names_the_session_and_later_turns_resume_it() -> None:
+    flags = conversation.turn_flags(REPO_ROOT, model=None)
+    opening = conversation.opening_turn("hello", "s-1", flags)
+    resumed = conversation.resumed_turn("accept", "s-1", flags)
+
+    assert opening[:3] == ["claude", "-p", "hello"]
+    assert _flag(opening, "--session-id") == "s-1"
+    assert "--resume" not in opening
+    assert resumed[:3] == ["claude", "-p", "accept"]
+    assert _flag(resumed, "--resume") == "s-1"
+    assert "--session-id" not in resumed
+    for command in (opening, resumed):
+        assert "--no-session-persistence" not in command
+        assert _flag(command, "--allowedTools") == ",".join(
+            conversation.research_topic_grant(REPO_ROOT)
+        )
+
+
+def test_the_opening_prompt_invokes_the_verb_on_the_reference_set() -> None:
+    assert conversation.opening_prompt("ask", "Why?") == (
+        "/accelerator:research-topic ask llm-agent-planning Why?"
+    )
+
+
+def test_a_config_dir_reaches_the_session_env(tmp_path: Path) -> None:
+    toolchain = Toolchain.debug(tmp_path)
+
+    env = conversation.session_env(toolchain, tmp_path / "config")
+    inherited = conversation.session_env(toolchain, None)
+
+    assert env["CLAUDE_CONFIG_DIR"] == str(tmp_path / "config")
+    assert env["ACCELERATOR_LAUNCHER_BIN"] == str(toolchain.launcher)
+    assert inherited.get("CLAUDE_CONFIG_DIR") == os.environ.get(
+        "CLAUDE_CONFIG_DIR"
+    )
+
+
+class FakeClaude:
+    """Run each turn by writing a distinct file and a canned log."""
+
+    def __init__(self, exits: dict[int, int | str] | None = None) -> None:
+        self.commands: list[list[str]] = []
+        self.exits = exits or {}
+
+    def __call__(
+        self, command: list[str], root: Path, log: Path, env: dict[str, str]
+    ) -> int:
+        self.commands.append(command)
+        turn = len(self.commands)
+        (root / f"wrote-{turn}.md").write_text(str(turn))
+        log.write_text(_init() + "\n")
+        log.with_suffix(".err").write_text("")
+        outcome = self.exits.get(turn, 0)
+        if outcome == "timeout":
+            raise subprocess.TimeoutExpired(command, 1)
+        return int(outcome)
+
+
+def _conversation(
+    tmp_path: Path, replies: int = 2
+) -> conversation.Conversation:
+    root = tmp_path / "project"
+    root.mkdir()
+    return conversation.Conversation(
+        prompt="/accelerator:research-topic ask llm-agent-planning Why?",
+        replies=tuple(["reject", "decline"][:replies]),
+        writes=((), (), ())[: replies + 1],
+        session_id="s-1",
+        root=root,
+        directory=tmp_path,
+    )
+
+
+def _run(
+    tmp_path: Path,
+    fake: FakeClaude,
+    stops_after=lambda record: False,
+    replies: int = 2,
+) -> list[turns.TurnRecord]:
+    return conversation.run_conversation(
+        _conversation(tmp_path, replies),
+        flags=["--flag"],
+        env={},
+        stops_after=stops_after,
+        run=fake,
+    )
+
+
+def test_replies_go_out_in_order_on_one_session(tmp_path: Path) -> None:
+    fake = FakeClaude()
+
+    records = _run(tmp_path, fake)
+
+    assert [command[2] for command in fake.commands] == [
+        "/accelerator:research-topic ask llm-agent-planning Why?",
+        "reject",
+        "decline",
+    ]
+    assert _flag(fake.commands[0], "--session-id") == "s-1"
+    assert [_flag(c, "--resume") for c in fake.commands[1:]] == ["s-1", "s-1"]
+    assert [record.reply for record in records] == [None, "reject", "decline"]
+
+
+def test_each_turn_s_snapshot_is_taken_after_it(tmp_path: Path) -> None:
+    _run(tmp_path, FakeClaude())
+
+    assert "wrote-1.md" not in turns.load_snapshot(tmp_path / "turn-0.json")
+    for turn in (1, 2, 3):
+        after = turns.load_snapshot(tmp_path / f"turn-{turn}.json")
+        assert f"wrote-{turn}.md" in after
+        assert f"wrote-{turn + 1}.md" not in after
+
+
+def test_a_turn_s_exit_status_is_written_as_it_ends(tmp_path: Path) -> None:
+    seen: list[str] = []
+
+    def stops_after(record: turns.TurnRecord) -> bool:
+        seen.append((tmp_path / f"turn-{record.number}.exit").read_text())
+        return False
+
+    _run(tmp_path, FakeClaude(), stops_after)
+
+    assert seen == ["0", "0", "0"]
+
+
+@pytest.mark.parametrize("outcome", [1, "timeout"])
+def test_an_errored_turn_ends_the_conversation(
+    tmp_path: Path, outcome: int | str
+) -> None:
+    fake = FakeClaude(exits={2: outcome})
+
+    records = _run(tmp_path, fake)
+
+    assert len(fake.commands) == 2
+    assert [record.exit_status for record in records] == ["0", str(outcome)]
+    assert (tmp_path / "turn-2.exit").read_text() == str(outcome)
+    assert (tmp_path / "turn-3.exit").read_text() == "not-run"
+    assert not (tmp_path / "turn-3.jsonl").exists()
+
+
+def test_a_turn_that_breaks_a_turn_check_ends_the_conversation(
+    tmp_path: Path,
+) -> None:
+    fake = FakeClaude()
+
+    _run(tmp_path, fake, stops_after=lambda record: record.number == 1)
+
+    assert len(fake.commands) == 1
+    for turn in (2, 3):
+        assert (tmp_path / f"turn-{turn}.exit").read_text() == "not-run"
+
+
+def test_a_record_carries_each_earlier_turn_s_events(tmp_path: Path) -> None:
+    records = _run(tmp_path, FakeClaude())
+
+    assert [len(record.earlier) for record in records] == [0, 1, 2]
+    assert records[2].initial == turns.load_snapshot(tmp_path / "turn-0.json")
