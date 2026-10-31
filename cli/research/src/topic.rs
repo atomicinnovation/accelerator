@@ -1,7 +1,9 @@
 //! A topic-research set: its outline, the findings and level notes on disk,
-//! each pair's research tree, and the round plan derived from them.
+//! each pair's research tree, the round plan derived from them, and the
+//! counts its files give.
 
 pub mod claims;
+pub mod counts;
 pub mod evidence;
 pub mod layout;
 pub mod outline;
