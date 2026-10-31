@@ -30,6 +30,7 @@ from tasks.eval.citing_once.verdicts import (
     isolation_conflicts,
     predict,
 )
+from tasks.eval.toolchain import Toolchain
 
 LOG = "session.jsonl"
 EXIT_CODE = "exit-code"
@@ -136,7 +137,9 @@ def _load_layout(directory: Path) -> Project:
     )
 
 
-def run_planned(plan: SessionPlan, plugin_root: Path, seed: Path) -> None:
+def run_planned(
+    plan: SessionPlan, plugin_root: Path, seed: Path, toolchain: Toolchain
+) -> None:
     plan.directory.mkdir(parents=True, exist_ok=False)
     project = build_project(
         plan.composition, plan.order, plan.directory / "project", seed
@@ -149,7 +152,10 @@ def run_planned(plan: SessionPlan, plugin_root: Path, seed: Path) -> None:
         else synthesise_prompt(project)
     )
     code = run_session(
-        session_command(prompt, plugin_root), project, plan.directory / LOG
+        session_command(prompt, plugin_root),
+        project,
+        plan.directory / LOG,
+        toolchain.session_env(),
     )
     (plan.directory / EXIT_CODE).write_text(f"{code}\n")
 
@@ -159,11 +165,10 @@ def _exit_code(directory: Path) -> int | None:
     return int(recorded.read_text()) if recorded.exists() else None
 
 
-def _validation_failure(project: Project) -> str | None:
+def _validation_failure(project: Project, toolchain: Toolchain) -> str | None:
     validated = subprocess.run(
         [
-            "accelerator",
-            "corpus",
+            str(toolchain.corpus),
             "frontmatter",
             "validate",
             "--file",
@@ -180,7 +185,10 @@ def _validation_failure(project: Project) -> str | None:
 
 
 def judge(
-    plan: SessionPlan, plugin_root: Path, recommended: Sequence[str]
+    plan: SessionPlan,
+    plugin_root: Path,
+    recommended: Sequence[str],
+    toolchain: Toolchain,
 ) -> SessionResult:
     project = _load_layout(plan.directory)
     result = SessionResult(
@@ -205,7 +213,7 @@ def judge(
         if plan.composition.carrier == "composer"
         else synthesise_log_failures(calls, rule)
     )
-    result.validation_failure = _validation_failure(project)
+    result.validation_failure = _validation_failure(project, toolchain)
     return result
 
 
@@ -217,10 +225,16 @@ def run_eval(
     check_only: bool,
 ) -> list[SessionResult]:
     recommended = key_order((plugin_root / RULE).read_text())
+    toolchain = Toolchain.debug(plugin_root)
     if not check_only:
         with ThreadPoolExecutor(max_workers=jobs) as pool:
-            list(pool.map(lambda p: run_planned(p, plugin_root, seed), plans))
-    return [judge(plan, plugin_root, recommended) for plan in plans]
+            list(
+                pool.map(
+                    lambda p: run_planned(p, plugin_root, seed, toolchain),
+                    plans,
+                )
+            )
+    return [judge(plan, plugin_root, recommended, toolchain) for plan in plans]
 
 
 def summary(

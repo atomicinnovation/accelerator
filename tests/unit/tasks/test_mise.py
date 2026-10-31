@@ -73,6 +73,17 @@ _CLI_DEV_BUILDS = {
     "test:integration:visualiser": {_LAUNCHER},
 }
 
+# Eval tasks that run compiled cli/ binaries, each with exactly the debug
+# builds its sessions and judge run. A separate dict, because _CLI_DEV_BUILDS
+# must classify exactly the test:integration:* lanes.
+_EVAL_CLI_DEV_BUILDS = {
+    "eval:citing-once": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
+}
+
 # Integration tasks that deliberately need no prebuilt launcher, each with a
 # reason. Every test:integration:* task must appear in exactly one of the two.
 _NO_LAUNCHER_NEEDED = {
@@ -170,6 +181,11 @@ def _cli_dev_builds(mise: dict, task: str) -> set[str]:
 @pytest.mark.parametrize("task", sorted(_CLI_DEV_BUILDS))
 def test_a_lane_depends_on_exactly_the_cli_builds_it_runs(mise, task):
     assert _cli_dev_builds(mise, task) == _CLI_DEV_BUILDS[task]
+
+
+@pytest.mark.parametrize("task", sorted(_EVAL_CLI_DEV_BUILDS))
+def test_an_eval_depends_on_exactly_the_cli_builds_it_runs(mise, task):
+    assert _cli_dev_builds(mise, task) == _EVAL_CLI_DEV_BUILDS[task]
 
 
 @pytest.mark.parametrize("task", sorted(_NO_LAUNCHER_NEEDED))
