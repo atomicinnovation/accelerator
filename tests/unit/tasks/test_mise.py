@@ -82,6 +82,11 @@ _CLI_DEV_BUILDS = {
 # builds its sessions and judge run. A separate dict, because _CLI_DEV_BUILDS
 # must classify exactly the test:integration:* lanes.
 _EVAL_CLI_DEV_BUILDS = {
+    "eval:ask-and-report": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
     "eval:citing-once": {
         _LAUNCHER,
         "build:cli:corpus:dev",
@@ -346,6 +351,10 @@ def _tasks_reaching_an_eval(mise: dict) -> set[str]:
 
 def test_the_citing_once_eval_is_reached_by_its_own_task(mise):
     assert "eval:citing-once" in _tasks_reaching_an_eval(mise)
+
+
+def test_the_ask_and_report_eval_is_reached_by_its_own_task(mise):
+    assert "eval:ask-and-report" in _tasks_reaching_an_eval(mise)
 
 
 @pytest.mark.parametrize("root", ["check", "default", "test"])
