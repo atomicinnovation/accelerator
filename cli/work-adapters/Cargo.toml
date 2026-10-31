@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 work = { path = "../work" }
+config = { path = "../config" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
@@ -31,7 +32,6 @@ serde_json = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]
-config = { path = "../config" }
 tempfile = { workspace = true }
 corpus-adapters = { path = "../corpus-adapters" }
 store = { path = "../store", features = ["test-support"] }
