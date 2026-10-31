@@ -902,6 +902,10 @@ pub fn blocked_remedy(
         RetirementRefusal::ItemNotFound(_) => {
             format!("the draft {draft} is gone; the issue {key} is unlinked")
         }
+        RetirementRefusal::IdNotOnePathComponent { .. } => format!(
+            "{key} cannot name a work-item file; link the draft {draft} to \
+             it by hand"
+        ),
     }
 }
 
