@@ -160,6 +160,19 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     })
 }
 
+/// The name of every entry under the set's `reports/`, of whatever kind, or
+/// none when it has no `reports/`.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when `reports/` exists but cannot be listed.
+pub fn list_reports<F: DirReader>(
+    set_root: &Path,
+    fs: &F,
+) -> Result<Vec<String>, kernel::Error> {
+    Ok(fs.list(&set_root.join("reports"))?.unwrap_or_default())
+}
+
 struct FindingsListing {
     findings: Vec<Finding>,
     quarantined: Vec<IndexClaim>,
@@ -424,6 +437,7 @@ mod tests {
 
     use corpus_adapters::YamlFrontmatter;
 
+    use super::list_reports;
     use super::read_round_inputs;
     use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
@@ -847,6 +861,28 @@ mod tests {
 
             assert_eq!(!plan.shallow.is_empty(), shallow, "{field:?}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn a_set_without_reports_lists_none() -> Result<(), TestError> {
+        let fs = set_with(StubFs::default());
+
+        assert!(list_reports(Path::new(SET), &fs)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn every_entry_under_reports_is_listed() -> Result<(), TestError> {
+        let fs = set_with(StubFs::default())
+            .with_file("/set/reports/a.md", "")
+            .with_file("/set/reports/.draft.md", "")
+            .with_dir("/set/reports/b.md");
+
+        assert_eq!(
+            list_reports(Path::new(SET), &fs)?,
+            [".draft.md", "a.md", "b.md"]
+        );
         Ok(())
     }
 }
