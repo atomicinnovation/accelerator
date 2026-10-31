@@ -1918,6 +1918,9 @@ impl core::fmt::Debug for research::topic::evidence::LevelsDirectory
 pub fn research::topic::evidence::LevelsDirectory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::evidence::LevelsDirectory
 pub mod research::topic::layout
+pub mod research::topic::layout::entry
+pub fn research::topic::layout::entry::is_finding_entry(name: &str) -> bool
+pub fn research::topic::layout::entry::is_report_entry(name: &str) -> bool
 pub mod research::topic::layout::finding_path
 pub fn research::topic::layout::finding_path::is_finding_path(relative: &str) -> bool
 pub fn research::topic::layout::finding_path::is_level_note_path(relative: &str) -> bool
