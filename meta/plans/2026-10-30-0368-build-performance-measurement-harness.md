@@ -864,7 +864,7 @@ This phase covers Requirement 1's CPU and process figures and Requirement
 - `test_a_task_silent_in_every_run_is_absent_as_silent`.
 - `test_a_task_silent_in_some_runs_is_flagged`.
 - `test_a_task_not_run_in_any_run_is_flagged_with_no_spread`.
-- `test_a_task_failing_in_one_run_and_skipped_in_another_carries_both_flags`.
+- `test_failing_in_one_run_and_skipped_in_another_carries_both_flags`.
 - `test_a_nextest_spread_needs_a_phase_in_every_run`.
 - `test_a_run_with_a_failure_is_marked_and_still_counts_for_the_wall_clock`.
 - `test_a_process_present_in_every_run_has_a_spread`: 51.3, 44.0, 78.2 →
@@ -948,6 +948,7 @@ DEFAULT_TRACKED_PROCESSES = (
 @dataclass(frozen=True, slots=True)
 class ObservedProcess:
     pid: int
+    parent_pid: int
     cpu_seconds: float
     command: str
 
@@ -1139,23 +1140,28 @@ tracked+='|.*/fsnotifier)(\s|$)'
 grep -cE "^\s*\S+\s+\S+\s+\S+\s+${tracked}" "$golden"
 ```
 
-Write the count beside the test's constant. The golden is never
-hand-edited: the module docstring of `test_tracked_processes.py` records
-these commands, split as above to fit 80 columns, with the IDE-open
-precondition and the macOS version, so it can be re-captured.
+Write the count beside the test's constant. A full tick lists every
+process on the host with its arguments, so only whole lines are kept:
+every tracked line, plus untracked near-misses (the IDEs' bundle helpers,
+a non-tracked IDE's main executable, the other Xprotect services) and a
+few system daemons. No kept line is edited. The module docstring of
+`test_tracked_processes.py` records these commands, split as above to fit
+80 columns, with the trimming rule, the IDE-open precondition and the
+macOS version, so it can be re-captured.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `ps-tick.golden` is a real tick from the reference host with the IDE
-      open, and holds `syspolicyd`, `idea` and at least one `fsnotifier`.
+- [x] `ps-tick.golden` is a real tick from the reference host with the IDE
+      open, trimmed to whole lines, and holds `syspolicyd`, `idea` and at
+      least one `fsnotifier`.
 
 ---
 
