@@ -3,9 +3,9 @@
   "title": "report finds equivalent reports",
   "scenarios": [
     {
-      "name": "e1-break-down-rewrite",
+      "name": "e1-work-out-plans-rewrite",
       "verb": "report",
-      "question": "How do agents break down multi-step tasks?",
+      "question": "How do LLM agents work out plans for multi-step tasks?",
       "times": 3,
       "setup": {
         "variant": "equivalence"
@@ -13,9 +13,9 @@
       "gate": "open"
     },
     {
-      "name": "e1-break-down-bare-accept",
+      "name": "e1-work-out-plans-bare-accept",
       "verb": "report",
-      "question": "How do agents break down multi-step tasks?",
+      "question": "How do LLM agents work out plans for multi-step tasks?",
       "times": 3,
       "setup": {
         "variant": "equivalence"
