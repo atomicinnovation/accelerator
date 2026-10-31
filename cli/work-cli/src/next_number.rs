@@ -136,7 +136,7 @@ pub fn run(
     }
 
     let filenames = FilesystemLister::new(&work_dir).filenames();
-    match allocate(pattern, key.as_ref(), count, &filenames) {
+    match allocate(&scheme, key.as_ref(), count, &filenames) {
         Ok(ids) => RunOutcome::Allocated(ids),
         Err(AllocationError::Overflow {
             partial,
