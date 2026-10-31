@@ -8,7 +8,7 @@ use common::TestError;
 #[allow(clippy::literal_string_with_formatting_args)]
 fn the_compiled_scan_regex_drives_slug_and_id_extraction(
 ) -> Result<(), TestError> {
-    use corpus::{DocTypeKey, WorkItemIdScheme};
+    use corpus::{DocTypeKey, SchemeConvention, WorkItemIdScheme};
     use corpus_adapters::compile_scan_regex;
     use corpus_adapters::RegexScanner;
 
@@ -19,8 +19,10 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
         corpus::slug::derive(
             DocTypeKey::WorkItems,
             "0001-three-layer-review.md",
-            &scheme,
-            &scanner
+            &SchemeConvention {
+                scheme: &scheme,
+                scanner: &scanner
+            }
         )
         .as_deref(),
         Some("three-layer-review")
@@ -42,8 +44,10 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
         corpus::slug::derive(
             DocTypeKey::WorkItems,
             "PROJ-0042-ship-it.md",
-            &scheme,
-            &scanner
+            &SchemeConvention {
+                scheme: &scheme,
+                scanner: &scanner
+            }
         )
         .as_deref(),
         Some("ship-it")
@@ -54,8 +58,10 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
         corpus::slug::derive(
             DocTypeKey::WorkItems,
             "0042-legacy.md",
-            &scheme,
-            &scanner
+            &SchemeConvention {
+                scheme: &scheme,
+                scanner: &scanner
+            }
         )
         .as_deref(),
         Some("legacy")

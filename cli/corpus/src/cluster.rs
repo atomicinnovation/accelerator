@@ -4,8 +4,8 @@
 //! frontmatter back to a canonical work-item id, with a slug-equivalence bridge
 //! for artifacts that carry no typed linkage. The algorithm is pure and
 //! infra-free: it reads each artifact through the [`ClusterEntry`] view, takes
-//! the id convention as an injected [`WorkItemIdScheme`] + [`IdScanner`], and
-//! returns records keyed by path so the caller can back-fill its own store.
+//! the id convention as an injected [`IdConvention`], and returns records
+//! keyed by path so the caller can back-fill its own store.
 
 // The convention functions thread the caller's concrete `HashMap`s (default
 // hasher) verbatim; generalising every signature over the hasher would bloat
@@ -18,10 +18,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::doc_type::DocTypeKey;
+use crate::id_convention::IdConvention;
 use crate::typed_ref::parse_typed_ref;
 use crate::typed_ref::TypedRef;
-use crate::work_item_id::IdScanner;
-use crate::work_item_id::WorkItemIdScheme;
 
 /// A read-only view over a corpus artifact, exposing exactly the fields the
 /// clustering algorithm reads. Implemented by the caller over its own index
@@ -94,8 +93,7 @@ pub struct ClusterContext<'a, E: ClusterEntry> {
     pub work_item_by_id: &'a HashMap<String, PathBuf>,
     pub plans_by_id: &'a HashMap<String, PathBuf>,
     pub project_root: &'a Path,
-    pub scheme: &'a WorkItemIdScheme,
-    pub scanner: &'a dyn IdScanner,
+    pub identity: &'a dyn IdConvention,
 }
 
 impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
@@ -107,8 +105,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
         work_item_by_id: &'a HashMap<String, PathBuf>,
         plans_by_id: &'a HashMap<String, PathBuf>,
         project_root: &'a Path,
-        scheme: &'a WorkItemIdScheme,
-        scanner: &'a dyn IdScanner,
+        identity: &'a dyn IdConvention,
     ) -> Self {
         let entries_by_path = entries
             .iter()
@@ -119,8 +116,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
             work_item_by_id,
             plans_by_id,
             project_root,
-            scheme,
-            scanner,
+            identity,
         }
     }
 }
@@ -156,8 +152,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
     work_item_by_id: &HashMap<String, PathBuf>,
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
-    scheme: &WorkItemIdScheme,
-    scanner: &dyn IdScanner,
+    identity: &dyn IdConvention,
 ) -> Option<String> {
     walk(
         entry,
@@ -165,8 +160,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
         work_item_by_id,
         plans_by_id,
         project_root,
-        scheme,
-        scanner,
+        identity,
         0,
     )
 }
@@ -178,8 +172,7 @@ fn walk<E: ClusterEntry>(
     work_item_by_id: &HashMap<String, PathBuf>,
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
-    scheme: &WorkItemIdScheme,
-    scanner: &dyn IdScanner,
+    identity: &dyn IdConvention,
     depth: u8,
 ) -> Option<String> {
     if depth >= MAX_DEPTH {
@@ -190,7 +183,7 @@ fn walk<E: ClusterEntry>(
         DocTypeKey::Plans
         | DocTypeKey::Research
         | DocTypeKey::PrDescriptions => {
-            cluster_key_from_parent(entry, scheme, scanner)
+            cluster_key_from_parent(entry, identity)
         }
         DocTypeKey::PlanReviews
         | DocTypeKey::WorkItemReviews
@@ -198,7 +191,7 @@ fn walk<E: ClusterEntry>(
         | DocTypeKey::Validations => {
             if let Some(s) = entry.target() {
                 if let Some(TypedRef::WorkItem(id)) = parse_typed_ref(s) {
-                    return scheme.canonicalise_id(&id);
+                    return identity.identity_key(&id);
                 }
             }
             let target_path = target_path_from_entry(
@@ -206,7 +199,7 @@ fn walk<E: ClusterEntry>(
                 entry.target(),
                 plans_by_id,
                 work_item_by_id,
-                scheme,
+                identity,
                 project_root,
             )?;
             let target_entry: &E = *entries_by_path.get(&target_path)?;
@@ -216,8 +209,7 @@ fn walk<E: ClusterEntry>(
                 work_item_by_id,
                 plans_by_id,
                 project_root,
-                scheme,
-                scanner,
+                identity,
                 depth + 1,
             )
         }
@@ -233,31 +225,24 @@ fn walk<E: ClusterEntry>(
 
 fn cluster_key_from_parent<E: ClusterEntry>(
     entry: &E,
-    scheme: &WorkItemIdScheme,
-    scanner: &dyn IdScanner,
+    identity: &dyn IdConvention,
 ) -> Option<String> {
-    entry
-        .parent()
-        .and_then(|raw| id_from_value(raw, scheme, scanner))
+    entry.parent().and_then(|raw| id_from_value(raw, identity))
 }
 
-fn id_from_value(
-    raw: &str,
-    scheme: &WorkItemIdScheme,
-    scanner: &dyn IdScanner,
-) -> Option<String> {
+fn id_from_value(raw: &str, identity: &dyn IdConvention) -> Option<String> {
     let s = raw.trim();
     if s.is_empty() {
         return None;
     }
     match parse_typed_ref(s) {
-        Some(TypedRef::WorkItem(id)) => scheme.canonicalise_id(&id),
+        Some(TypedRef::WorkItem(id)) => identity.identity_key(&id),
         Some(TypedRef::Path(p)) => {
             let stem = p.file_stem()?.to_str()?;
-            scheme.extract_id(&format!("{stem}.md"), scanner)
+            identity.id_in_filename(&format!("{stem}.md"))
         }
         Some(_) => None,
-        None => scheme.canonicalise_id(s),
+        None => identity.identity_key(s),
     }
 }
 
@@ -271,7 +256,7 @@ pub fn target_path_from_entry(
     target: Option<&str>,
     plans_by_id: &HashMap<String, PathBuf>,
     work_item_by_id: &HashMap<String, PathBuf>,
-    scheme: &WorkItemIdScheme,
+    identity: &dyn IdConvention,
     project_root: &Path,
 ) -> Option<PathBuf> {
     if !doc_type.carries_target_frontmatter() {
@@ -281,7 +266,7 @@ pub fn target_path_from_entry(
     match parse_typed_ref(raw)? {
         TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
         TypedRef::WorkItem(id) => {
-            let canon = scheme.canonicalise_id(&id)?;
+            let canon = identity.identity_key(&id)?;
             work_item_by_id.get(&canon).cloned()
         }
         TypedRef::Path(p) => {
@@ -365,8 +350,7 @@ pub fn compute<E: ClusterEntry>(
             ctx.work_item_by_id,
             ctx.plans_by_id,
             ctx.project_root,
-            ctx.scheme,
-            ctx.scanner,
+            ctx.identity,
         );
         cluster_key_by_path.insert(e.path().to_path_buf(), key);
     }
@@ -592,21 +576,7 @@ fn derive_completeness<E: ClusterEntry>(entries: &[&E]) -> Completeness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::work_item_id::IdScan;
-
-    struct DigitRunScanner;
-
-    impl IdScanner for DigitRunScanner {
-        fn scan(&self, text: &str) -> Option<IdScan> {
-            let digits: String =
-                text.chars().take_while(char::is_ascii_digit).collect();
-            if digits.is_empty() || !text[digits.len()..].starts_with('-') {
-                return None;
-            }
-            let match_end = digits.len() + 1;
-            Some(IdScan { digits, match_end })
-        }
-    }
+    use crate::id_convention::test_ids::{FourDigitIds, NUMERIC};
 
     #[derive(Clone)]
     struct TestEntry {
@@ -670,7 +640,7 @@ mod tests {
         entries: &HashMap<PathBuf, &TestEntry>,
         work_item_by_id: &HashMap<String, PathBuf>,
         plans_by_id: &HashMap<String, PathBuf>,
-        scheme: &WorkItemIdScheme,
+        identity: &dyn IdConvention,
     ) -> Option<String> {
         resolve_cluster_key(
             entry,
@@ -678,8 +648,7 @@ mod tests {
             work_item_by_id,
             plans_by_id,
             Path::new("/repo"),
-            scheme,
-            &DigitRunScanner,
+            identity,
         )
     }
 
@@ -691,9 +660,8 @@ mod tests {
     fn work_item_returns_its_own_work_item_id() {
         let mut wi = TestEntry::new(DocTypeKey::WorkItems, "pipeline");
         wi.work_item_id = Some("0040".into());
-        let scheme = WorkItemIdScheme::numeric();
         assert_eq!(
-            resolve(&wi, &empty(), &HashMap::new(), &HashMap::new(), &scheme)
+            resolve(&wi, &empty(), &HashMap::new(), &HashMap::new(), &NUMERIC)
                 .as_deref(),
             Some("0040")
         );
@@ -701,7 +669,6 @@ mod tests {
 
     #[test]
     fn typed_and_bare_parent_resolve_equally() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut typed = TestEntry::new(DocTypeKey::Plans, "pipeline");
         typed.parent = Some("work-item:0042".into());
         let mut bare = TestEntry::new(DocTypeKey::Plans, "pipeline");
@@ -711,29 +678,38 @@ mod tests {
             &empty(),
             &HashMap::new(),
             &HashMap::new(),
-            &scheme,
+            &NUMERIC,
         );
-        let b =
-            resolve(&bare, &empty(), &HashMap::new(), &HashMap::new(), &scheme);
+        let b = resolve(
+            &bare,
+            &empty(),
+            &HashMap::new(),
+            &HashMap::new(),
+            &NUMERIC,
+        );
         assert_eq!(t, b);
         assert_eq!(t.as_deref(), Some("0042"));
     }
 
     #[test]
-    fn path_shape_parent_resolves_via_extract_id() {
-        let scheme = WorkItemIdScheme::numeric();
+    fn path_shape_parent_resolves_via_the_filename_id() {
         let mut plan = TestEntry::new(DocTypeKey::Plans, "pipeline");
         plan.parent = Some("meta/work/0033-foo.md".into());
         assert_eq!(
-            resolve(&plan, &empty(), &HashMap::new(), &HashMap::new(), &scheme)
-                .as_deref(),
+            resolve(
+                &plan,
+                &empty(),
+                &HashMap::new(),
+                &HashMap::new(),
+                &NUMERIC
+            )
+            .as_deref(),
             Some("0033")
         );
     }
 
     #[test]
     fn review_target_path_resolves_transitively_via_plan() {
-        let scheme = WorkItemIdScheme::numeric();
         let plan_path =
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
         let mut plan = TestEntry::new(DocTypeKey::Plans, "pipeline");
@@ -749,7 +725,7 @@ mod tests {
                 &entries,
                 &HashMap::new(),
                 &HashMap::new(),
-                &scheme
+                &NUMERIC
             )
             .as_deref(),
             Some("0040")
@@ -758,7 +734,6 @@ mod tests {
 
     #[test]
     fn work_item_review_typed_target_short_circuits() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut review = TestEntry::new(DocTypeKey::WorkItemReviews, "rev");
         review.target = Some("work-item:0033".into());
         assert_eq!(
@@ -767,7 +742,7 @@ mod tests {
                 &empty(),
                 &HashMap::new(),
                 &HashMap::new(),
-                &scheme
+                &NUMERIC
             )
             .as_deref(),
             Some("0033")
@@ -776,7 +751,6 @@ mod tests {
 
     #[test]
     fn cycle_between_two_reviews_terminates() {
-        let scheme = WorkItemIdScheme::numeric();
         let path_a = PathBuf::from("/repo/meta/reviews/plans/a.md");
         let path_b = PathBuf::from("/repo/meta/reviews/plans/b.md");
         let mut a = TestEntry::new(DocTypeKey::PlanReviews, "a");
@@ -789,14 +763,13 @@ mod tests {
         entries.insert(path_a, &a);
         entries.insert(path_b, &b);
         assert_eq!(
-            resolve(&a, &entries, &HashMap::new(), &HashMap::new(), &scheme),
+            resolve(&a, &entries, &HashMap::new(), &HashMap::new(), &NUMERIC),
             None
         );
     }
 
     #[test]
     fn orphan_by_design_types_resolve_none() {
-        let scheme = WorkItemIdScheme::numeric();
         for kind in [
             DocTypeKey::Notes,
             DocTypeKey::DesignGaps,
@@ -811,7 +784,7 @@ mod tests {
                     &empty(),
                     &HashMap::new(),
                     &HashMap::new(),
-                    &scheme
+                    &NUMERIC
                 ),
                 None,
                 "{kind:?}"
@@ -821,27 +794,34 @@ mod tests {
 
     #[test]
     fn project_pattern_bare_id_gains_prefix() {
-        #[allow(clippy::literal_string_with_formatting_args)]
-        let scheme = WorkItemIdScheme {
-            id_pattern: "{project}-{number:04d}".into(),
-            key: Some("PROJ".into()),
-        };
+        let project = FourDigitIds { key: Some("PROJ") };
         let mut plan = TestEntry::new(DocTypeKey::Plans, "p");
         plan.parent = Some("42".into());
         assert_eq!(
-            resolve(&plan, &empty(), &HashMap::new(), &HashMap::new(), &scheme)
-                .as_deref(),
+            resolve(
+                &plan,
+                &empty(),
+                &HashMap::new(),
+                &HashMap::new(),
+                &project
+            )
+            .as_deref(),
             Some("PROJ-0042")
         );
     }
 
     #[test]
     fn malformed_empty_typed_parent_resolves_none() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut plan = TestEntry::new(DocTypeKey::Plans, "p");
         plan.parent = Some("work-item:".into());
         assert_eq!(
-            resolve(&plan, &empty(), &HashMap::new(), &HashMap::new(), &scheme),
+            resolve(
+                &plan,
+                &empty(),
+                &HashMap::new(),
+                &HashMap::new(),
+                &NUMERIC
+            ),
             None
         );
     }
@@ -850,21 +830,18 @@ mod tests {
         entries: &'a [TestEntry],
         work_item_by_id: &'a HashMap<String, PathBuf>,
         plans_by_id: &'a HashMap<String, PathBuf>,
-        scheme: &'a WorkItemIdScheme,
     ) -> ClusterContext<'a, TestEntry> {
         ClusterContext::from_entries(
             entries,
             work_item_by_id,
             plans_by_id,
             Path::new("/repo"),
-            scheme,
-            &DigitRunScanner,
+            &NUMERIC,
         )
     }
 
     #[test]
     fn same_slug_clusters_into_one_ordered_bucket() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut plan = TestEntry::new(DocTypeKey::Plans, "foo");
         plan.path = PathBuf::from("/repo/plan.md");
         plan.mtime_ms = 10;
@@ -877,7 +854,7 @@ mod tests {
         let entries = vec![plan, review, wi];
         let wib = HashMap::new();
         let plb = HashMap::new();
-        let out = compute(&entries, &ctx_for(&entries, &wib, &plb, &scheme));
+        let out = compute(&entries, &ctx_for(&entries, &wib, &plb));
         assert_eq!(out.clusters.len(), 1);
         let c = &out.clusters[0];
         assert_eq!(c.slug, "foo");
@@ -892,7 +869,6 @@ mod tests {
 
     #[test]
     fn templates_are_excluded() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut plan = TestEntry::new(DocTypeKey::Plans, "shared");
         plan.path = PathBuf::from("/repo/plan.md");
         let mut tmpl = TestEntry::new(DocTypeKey::Templates, "shared");
@@ -900,14 +876,13 @@ mod tests {
         let entries = vec![plan, tmpl];
         let wib = HashMap::new();
         let plb = HashMap::new();
-        let out = compute(&entries, &ctx_for(&entries, &wib, &plb, &scheme));
+        let out = compute(&entries, &ctx_for(&entries, &wib, &plb));
         assert_eq!(out.clusters.len(), 1);
         assert_eq!(out.clusters[0].members.len(), 1);
     }
 
     #[test]
     fn orphan_types_with_colliding_slugs_do_not_merge() {
-        let scheme = WorkItemIdScheme::numeric();
         let mut a = TestEntry::new(DocTypeKey::Notes, "shared");
         a.path = PathBuf::from("/repo/a.md");
         let mut b = TestEntry::new(DocTypeKey::Notes, "shared");
@@ -915,7 +890,7 @@ mod tests {
         let entries = vec![a, b];
         let wib = HashMap::new();
         let plb = HashMap::new();
-        let out = compute(&entries, &ctx_for(&entries, &wib, &plb, &scheme));
+        let out = compute(&entries, &ctx_for(&entries, &wib, &plb));
         assert_eq!(out.clusters.len(), 2);
     }
 

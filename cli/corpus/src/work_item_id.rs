@@ -8,6 +8,8 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::id_convention::IdConvention;
+
 /// A match produced by an [`IdScanner`] over a filename.
 pub struct IdScan {
     pub digits: String,
@@ -255,6 +257,30 @@ impl WorkItemIdScheme {
             return None;
         }
         Some(format!("{code}-{prefix}"))
+    }
+}
+
+/// The [`IdConvention`] a [`WorkItemIdScheme`] and its compiled scanner give.
+pub struct SchemeConvention<'a> {
+    pub scheme: &'a WorkItemIdScheme,
+    pub scanner: &'a dyn IdScanner,
+}
+
+impl IdConvention for SchemeConvention<'_> {
+    fn slug_start(&self, stem: &str) -> Option<usize> {
+        self.scanner.scan(stem).map(|scan| scan.match_end)
+    }
+
+    fn is_id(&self, token: &str) -> bool {
+        self.scheme.is_canonical_id_token(token)
+    }
+
+    fn identity_key(&self, reference: &str) -> Option<String> {
+        self.scheme.canonicalise_id(reference)
+    }
+
+    fn id_in_filename(&self, filename: &str) -> Option<String> {
+        self.scheme.extract_id(filename, self.scanner)
     }
 }
 
