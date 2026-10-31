@@ -503,7 +503,7 @@ signatures, and `SchemeConvention` change.
 
 #### Manual Verification
 
-- [ ] The visualiser's lifecycle view of this repository shows the same
+- [x] The visualiser's lifecycle view of this repository shows the same
       clusters before and after.
 
 ---
