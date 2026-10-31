@@ -111,6 +111,7 @@ pub const TEMPLATE_KEYS: &[&str] = &[
     "templates.topic-research-outline",
     "templates.topic-research-finding",
     "templates.topic-research-synthesis",
+    "templates.topic-research-report",
 ];
 
 pub const WORK_KEYS: &[(&str, Default)] = &[
@@ -515,7 +516,7 @@ mod tests {
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_sixty_seven_keys_across_seven_groups() {
+    fn the_catalogue_holds_sixty_eight_keys_across_seven_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
@@ -523,7 +524,7 @@ mod tests {
             + RESEARCH_KEYS.len()
             + AGENT_KEYS.len()
             + VISUALISER_KEYS.len();
-        assert_eq!(count, 67);
+        assert_eq!(count, 68);
         assert_eq!(DOC_TYPES.len(), 14);
     }
 
