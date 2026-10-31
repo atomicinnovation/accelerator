@@ -16,10 +16,10 @@ use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
 use corpus::store::StoreError;
 use corpus::store::RECOVERY_BOOKKEEPING;
-use corpus::WorkItemIdScheme;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use work::draft_id::is_token_safe;
+use work::id_scheme::WorkItemIdScheme;
 
 use crate::sync::fetch::LocalItem;
 use crate::sync::recovery_label::RecoveryLabel;

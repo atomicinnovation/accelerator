@@ -8,7 +8,6 @@ use std::path::Path;
 
 use ::config::ConfigAccess;
 use work::draft_id::mint_draft_ids;
-use work::id_pattern::IdPattern;
 use work::next_number::allocate;
 use work::next_number::allocation_key;
 use work::next_number::AllocationError;
@@ -19,7 +18,7 @@ use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::config::resolve_scheme;
+use crate::config::announced_scheme_with_key;
 use crate::config::resolve_work_dir;
 
 pub enum RunOutcome {
@@ -103,18 +102,11 @@ pub fn run(
     project: Option<&str>,
     count: u32,
 ) -> RunOutcome {
-    let scheme = match resolve_scheme(config) {
+    let scheme = match announced_scheme_with_key(config) {
         Ok(scheme) => scheme,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
-    let pattern = match IdPattern::parse(&scheme.id_pattern) {
-        Ok(pattern) => pattern,
-        Err(error) => {
-            return RunOutcome::Failed(format!(
-                "E_WORK_ID_PATTERN_INVALID: {error}"
-            ))
-        }
-    };
+    let pattern = scheme.pattern();
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir = match resolve_work_dir(config, &root) {
         Ok(dir) => dir,
@@ -127,12 +119,12 @@ pub fn run(
             return RunOutcome::Refused { message, code };
         }
     };
-    let key = match allocation_key(&pattern, project, scheme.key.as_deref()) {
+    let key = match allocation_key(pattern, project, scheme.key()) {
         Ok(key) => key,
         Err(error) => {
             return RunOutcome::Failed(allocation_message(
                 &error,
-                &scheme.id_pattern,
+                pattern.as_str(),
             ))
         }
     };
@@ -141,7 +133,7 @@ pub fn run(
     }
 
     let filenames = FilesystemLister::new(&work_dir).filenames();
-    match allocate(&pattern, key.as_ref(), count, &filenames) {
+    match allocate(pattern, key.as_ref(), count, &filenames) {
         Ok(ids) => RunOutcome::Allocated(ids),
         Err(AllocationError::Overflow {
             partial,
@@ -154,11 +146,11 @@ pub fn run(
                 highest,
                 highest_file.as_deref(),
                 cap,
-                &scheme.id_pattern,
+                pattern.as_str(),
             ),
         },
         Err(other) => {
-            RunOutcome::Failed(allocation_message(&other, &scheme.id_pattern))
+            RunOutcome::Failed(allocation_message(&other, pattern.as_str()))
         }
     }
 }

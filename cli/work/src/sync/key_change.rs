@@ -1,6 +1,6 @@
 //! What a work item does when its remote issue now answers to another key.
 
-use corpus::IdOwnership;
+use crate::id_scheme::IdOwnership;
 use tracker::ExternalId;
 
 use crate::tracker_key::TrackerKey;
@@ -81,7 +81,7 @@ pub fn decide_key_change(
 
 #[cfg(test)]
 mod tests {
-    use corpus::IdOwnership;
+    use crate::id_scheme::IdOwnership;
     use tracker::ExternalId;
 
     use super::decide_key_change;
