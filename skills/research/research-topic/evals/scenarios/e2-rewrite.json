@@ -1,0 +1,16 @@
+{
+  "family": "E2",
+  "title": "report rewrites a report the corpus has outgrown",
+  "scenarios": [
+    {
+      "name": "e2-rewrite",
+      "verb": "report",
+      "question": "How do agents plan tasks, and how do they recover from failed steps?",
+      "times": 3,
+      "setup": {
+        "variant": "rewrite"
+      },
+      "gate": "open"
+    }
+  ]
+}

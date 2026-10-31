@@ -1,0 +1,33 @@
+{
+  "family": "N2",
+  "title": "report follows the resolved template",
+  "scenarios": [
+    {
+      "name": "n2-user",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "templates": [
+          "user"
+        ]
+      },
+      "gate": "open"
+    },
+    {
+      "name": "n2-user-and-config",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "templates": [
+          "user",
+          "config"
+        ]
+      },
+      "gate": "open"
+    }
+  ]
+}

@@ -506,6 +506,10 @@ sessions, so it needs the claude CLI, network egress and model usage. Every
 eval is in **neither** the aggregate `check`, the bare `default` task nor the
 `test` roll-up. A transitive-closure guard in `tests/unit/tasks/test_mise.py`,
 keyed on the `invoke eval.` run string, enforces that for any new eval task.
+The `test:integration:eval-fixtures` lane, not an eval, runs the reference
+corpus's pre-flight: with the debug CLI builds and no model, it checks that
+every variant of `skills/research/research-topic/evals/` validates and that
+every scenario reaches the gate and setup it declares.
 
 #### eval:citing-once
 

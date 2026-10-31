@@ -389,3 +389,14 @@ def test_an_override_otherwise_equals_the_plugin_template(
     plugin = (REPO_ROOT / "templates/topic-research-report.md").read_text()
     method = override.read_text().split("## Method\n", 1)[1].split("## ", 1)[0]
     assert override.read_text().replace(f"## Method\n{method}", "") == plugin
+
+
+def test_every_shipped_scenario_parses_under_a_unique_name() -> None:
+    names = [
+        scenario.name
+        for scenario_file in load_scenario_files(EVALS / "scenarios")
+        for scenario in scenario_file.scenarios
+    ]
+
+    assert names
+    assert len(names) == len(set(names))

@@ -74,6 +74,12 @@ def skill_invocation(context: Context) -> None:
 
 
 @task
+def eval_fixtures(context: Context) -> None:
+    """Pre-flight the ask-and-report reference corpus on debug CLI builds."""
+    context.run("uv run pytest tests/integration/eval-fixtures -v")
+
+
+@task
 def deny(context: Context) -> None:
     """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""
     context.run("uv run pytest tests/integration/deny -v")
