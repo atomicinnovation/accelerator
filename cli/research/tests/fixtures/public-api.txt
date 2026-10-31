@@ -1800,6 +1800,134 @@ pub fn research::topic::claims::IndexClaim::eq(&self, other: &research::topic::c
 impl core::fmt::Debug for research::topic::claims::IndexClaim
 pub fn research::topic::claims::IndexClaim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::claims::IndexClaim
+pub mod research::topic::counts
+pub enum research::topic::counts::CountField
+pub research::topic::counts::CountField::Manifest(research::topic::counts::ManifestCount)
+pub research::topic::counts::CountField::RoundsCovered
+impl research::topic::counts::CountField
+pub const fn research::topic::counts::CountField::document(self) -> &'static str
+pub const fn research::topic::counts::CountField::key(self) -> &'static str
+impl core::clone::Clone for research::topic::counts::CountField
+pub fn research::topic::counts::CountField::clone(&self) -> research::topic::counts::CountField
+impl core::cmp::Eq for research::topic::counts::CountField
+impl core::cmp::PartialEq for research::topic::counts::CountField
+pub fn research::topic::counts::CountField::eq(&self, other: &research::topic::counts::CountField) -> bool
+impl core::fmt::Debug for research::topic::counts::CountField
+pub fn research::topic::counts::CountField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::counts::CountField
+impl core::marker::StructuralPartialEq for research::topic::counts::CountField
+pub enum research::topic::counts::ManifestCount
+pub research::topic::counts::ManifestCount::FindingCount
+pub research::topic::counts::ManifestCount::RoundCount
+impl core::clone::Clone for research::topic::counts::ManifestCount
+pub fn research::topic::counts::ManifestCount::clone(&self) -> research::topic::counts::ManifestCount
+impl core::cmp::Eq for research::topic::counts::ManifestCount
+impl core::cmp::PartialEq for research::topic::counts::ManifestCount
+pub fn research::topic::counts::ManifestCount::eq(&self, other: &research::topic::counts::ManifestCount) -> bool
+impl core::fmt::Debug for research::topic::counts::ManifestCount
+pub fn research::topic::counts::ManifestCount::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::counts::ManifestCount
+impl core::marker::StructuralPartialEq for research::topic::counts::ManifestCount
+pub enum research::topic::counts::Mismatch
+pub research::topic::counts::Mismatch::Disagrees
+pub research::topic::counts::Mismatch::Disagrees::count: research::topic::counts::ManifestCount
+pub research::topic::counts::Mismatch::Disagrees::derived: u32
+pub research::topic::counts::Mismatch::Disagrees::stored: u32
+pub research::topic::counts::Mismatch::Missing
+pub research::topic::counts::Mismatch::Missing::count: research::topic::counts::ManifestCount
+pub research::topic::counts::Mismatch::UncoveredRound
+pub research::topic::counts::Mismatch::UncoveredRound::covered: u32
+pub research::topic::counts::Mismatch::UncoveredRound::derived: u32
+pub research::topic::counts::Mismatch::Unreadable
+pub research::topic::counts::Mismatch::Unreadable::field: research::topic::counts::CountField
+pub research::topic::counts::Mismatch::Unreadable::raw: alloc::string::String
+impl core::clone::Clone for research::topic::counts::Mismatch
+pub fn research::topic::counts::Mismatch::clone(&self) -> research::topic::counts::Mismatch
+impl core::cmp::Eq for research::topic::counts::Mismatch
+impl core::cmp::PartialEq for research::topic::counts::Mismatch
+pub fn research::topic::counts::Mismatch::eq(&self, other: &research::topic::counts::Mismatch) -> bool
+impl core::fmt::Debug for research::topic::counts::Mismatch
+pub fn research::topic::counts::Mismatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::Mismatch
+pub enum research::topic::counts::StoredCount
+pub research::topic::counts::StoredCount::Count(u32)
+pub research::topic::counts::StoredCount::Missing
+pub research::topic::counts::StoredCount::Unreadable(alloc::string::String)
+impl core::clone::Clone for research::topic::counts::StoredCount
+pub fn research::topic::counts::StoredCount::clone(&self) -> research::topic::counts::StoredCount
+impl core::cmp::Eq for research::topic::counts::StoredCount
+impl core::cmp::PartialEq for research::topic::counts::StoredCount
+pub fn research::topic::counts::StoredCount::eq(&self, other: &research::topic::counts::StoredCount) -> bool
+impl core::fmt::Debug for research::topic::counts::StoredCount
+pub fn research::topic::counts::StoredCount::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::StoredCount
+pub struct research::topic::counts::CountedFindings
+impl research::topic::counts::CountedFindings
+pub fn research::topic::counts::CountedFindings::finding_count(&self) -> u32
+pub fn research::topic::counts::CountedFindings::names(&self) -> &[alloc::string::String]
+pub fn research::topic::counts::CountedFindings::of<E>(entries: &[&str], round_of: impl core::ops::function::FnMut(&str) -> core::result::Result<core::option::Option<u32>, E>) -> core::result::Result<Self, E>
+pub const fn research::topic::counts::CountedFindings::round_count(&self) -> u32
+impl core::clone::Clone for research::topic::counts::CountedFindings
+pub fn research::topic::counts::CountedFindings::clone(&self) -> research::topic::counts::CountedFindings
+impl core::cmp::Eq for research::topic::counts::CountedFindings
+impl core::cmp::PartialEq for research::topic::counts::CountedFindings
+pub fn research::topic::counts::CountedFindings::eq(&self, other: &research::topic::counts::CountedFindings) -> bool
+impl core::fmt::Debug for research::topic::counts::CountedFindings
+pub fn research::topic::counts::CountedFindings::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::CountedFindings
+pub struct research::topic::counts::CountedReports
+impl research::topic::counts::CountedReports
+pub fn research::topic::counts::CountedReports::names(&self) -> &[alloc::string::String]
+pub fn research::topic::counts::CountedReports::of(entries: &[&str]) -> Self
+pub fn research::topic::counts::CountedReports::report_count(&self) -> u32
+impl core::clone::Clone for research::topic::counts::CountedReports
+pub fn research::topic::counts::CountedReports::clone(&self) -> research::topic::counts::CountedReports
+impl core::cmp::Eq for research::topic::counts::CountedReports
+impl core::cmp::PartialEq for research::topic::counts::CountedReports
+pub fn research::topic::counts::CountedReports::eq(&self, other: &research::topic::counts::CountedReports) -> bool
+impl core::fmt::Debug for research::topic::counts::CountedReports
+pub fn research::topic::counts::CountedReports::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::CountedReports
+pub struct research::topic::counts::CountsReading
+pub research::topic::counts::CountsReading::findings: research::topic::counts::CountedFindings
+pub research::topic::counts::CountsReading::reports: research::topic::counts::CountedReports
+pub research::topic::counts::CountsReading::stored: research::topic::counts::StoredCounts
+impl research::topic::counts::CountsReading
+pub fn research::topic::counts::CountsReading::freshness(&self) -> research::topic::counts::Freshness
+impl core::clone::Clone for research::topic::counts::CountsReading
+pub fn research::topic::counts::CountsReading::clone(&self) -> research::topic::counts::CountsReading
+impl core::cmp::Eq for research::topic::counts::CountsReading
+impl core::cmp::PartialEq for research::topic::counts::CountsReading
+pub fn research::topic::counts::CountsReading::eq(&self, other: &research::topic::counts::CountsReading) -> bool
+impl core::fmt::Debug for research::topic::counts::CountsReading
+pub fn research::topic::counts::CountsReading::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::CountsReading
+pub struct research::topic::counts::Freshness
+pub research::topic::counts::Freshness::mismatches: alloc::vec::Vec<research::topic::counts::Mismatch>
+impl research::topic::counts::Freshness
+pub fn research::topic::counts::Freshness::assess(stored: &research::topic::counts::StoredCounts, findings: &research::topic::counts::CountedFindings) -> Self
+pub const fn research::topic::counts::Freshness::is_fresh(&self) -> bool
+impl core::clone::Clone for research::topic::counts::Freshness
+pub fn research::topic::counts::Freshness::clone(&self) -> research::topic::counts::Freshness
+impl core::cmp::Eq for research::topic::counts::Freshness
+impl core::cmp::PartialEq for research::topic::counts::Freshness
+pub fn research::topic::counts::Freshness::eq(&self, other: &research::topic::counts::Freshness) -> bool
+impl core::fmt::Debug for research::topic::counts::Freshness
+pub fn research::topic::counts::Freshness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::Freshness
+pub struct research::topic::counts::StoredCounts
+pub research::topic::counts::StoredCounts::finding_count: research::topic::counts::StoredCount
+pub research::topic::counts::StoredCounts::report_count: research::topic::counts::StoredCount
+pub research::topic::counts::StoredCounts::round_count: research::topic::counts::StoredCount
+pub research::topic::counts::StoredCounts::rounds_covered: research::topic::counts::StoredCount
+impl core::clone::Clone for research::topic::counts::StoredCounts
+pub fn research::topic::counts::StoredCounts::clone(&self) -> research::topic::counts::StoredCounts
+impl core::cmp::Eq for research::topic::counts::StoredCounts
+impl core::cmp::PartialEq for research::topic::counts::StoredCounts
+pub fn research::topic::counts::StoredCounts::eq(&self, other: &research::topic::counts::StoredCounts) -> bool
+impl core::fmt::Debug for research::topic::counts::StoredCounts
+pub fn research::topic::counts::StoredCounts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::StoredCounts
 pub mod research::topic::evidence
 pub enum research::topic::evidence::NoteRejection
 pub research::topic::evidence::NoteRejection::FailsValidation
