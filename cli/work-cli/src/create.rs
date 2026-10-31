@@ -224,7 +224,7 @@ pub fn allocate_id(
     let key = allocation_key(pattern, project, scheme.key())
         .map_err(|error| allocation_message(&error, pattern.as_str()))?;
     let filenames = FilesystemLister::new(work_dir).filenames();
-    let allocated = allocate(pattern, key.as_ref(), 1, &filenames)
+    let allocated = allocate(scheme, key.as_ref(), 1, &filenames)
         .map_err(|error| allocation_message(&error, pattern.as_str()))?;
     allocated
         .into_iter()

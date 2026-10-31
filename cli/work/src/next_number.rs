@@ -5,6 +5,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::KeyError;
 use crate::id_pattern::MissingKey;
+use crate::id_scheme::WorkItemIdScheme;
 use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +60,8 @@ pub fn allocation_key(
 /// Allocates `count` sequential IDs following the highest number `key`
 /// already holds among `filenames`, ignoring the key's letter case.
 ///
+/// A file named by a bare legacy number counts under the scheme's own key.
+///
 /// # Errors
 ///
 /// [`AllocationError::MissingKey`] when the pattern has a key token and
@@ -66,11 +69,12 @@ pub fn allocation_key(
 /// would exceed the pattern's numeric cap — the error still carries every ID
 /// that fit before the boundary.
 pub fn allocate(
-    pattern: &IdPattern,
+    scheme: &WorkItemIdScheme,
     key: Option<&IdKey>,
     count: u32,
     filenames: &[String],
 ) -> Result<Vec<String>, AllocationError> {
+    let pattern = scheme.pattern();
     if pattern.references_key() && key.is_none() {
         return Err(AllocationError::MissingKey);
     }
@@ -82,7 +86,8 @@ pub fn allocate(
         .iter()
         .filter(|filename| is_md_filename(filename))
         .filter_map(|filename| {
-            IdParts::parse_prefix(pattern, filename)
+            scheme
+                .read_held_prefix(filename)
                 .map(|(parts, _)| parts)
                 .filter(in_sequence)
                 .map(|parts| (parts.number(), Some(filename.clone())))
@@ -141,6 +146,7 @@ fn allocate_above(
 mod tests {
     use super::{allocate, allocate_above, allocation_key, AllocationError};
     use crate::id_pattern::{IdKey, IdPattern, KeyError};
+    use crate::id_scheme::WorkItemIdScheme;
 
     fn pattern(text: &str) -> IdPattern {
         IdPattern::parse(text).unwrap()
@@ -150,8 +156,12 @@ mod tests {
         IdKey::parse(text).unwrap()
     }
 
-    fn numeric() -> IdPattern {
-        pattern("{number:04d}")
+    fn scheme(text: &str, configured: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(pattern(text), configured.map(key))
+    }
+
+    fn numeric() -> WorkItemIdScheme {
+        WorkItemIdScheme::numeric()
     }
 
     fn names(filenames: &[&str]) -> Vec<String> {
@@ -186,7 +196,7 @@ mod tests {
     #[test]
     fn missing_key_is_rejected() {
         assert_eq!(
-            allocate(&pattern("{project}-{number:04d}"), None, 1, &[]),
+            allocate(&scheme("{project}-{number:04d}", None), None, 1, &[]),
             Err(AllocationError::MissingKey)
         );
     }
@@ -226,12 +236,26 @@ mod tests {
 
     #[test]
     fn a_holder_under_another_key_is_not_in_the_sequence() {
-        let keyed = pattern("{key}-{number:04d}");
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
         let filenames =
             names(&["XY-0400-a.md", "pp-0007-b.md", "PP-0003-c.MD"]);
         assert_eq!(
             allocate(&keyed, Some(&key("PP")), 1, &filenames),
             Ok(vec!["PP-0008".to_owned()])
+        );
+    }
+
+    #[test]
+    fn allocation_counts_a_legacy_number_under_the_configured_key() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let filenames = names(&["PP-0001-a.md", "0400-b.md"]);
+        assert_eq!(
+            allocate(&keyed, Some(&key("PP")), 1, &filenames),
+            Ok(vec!["PP-0401".to_owned()])
+        );
+        assert_eq!(
+            allocate(&keyed, Some(&key("XY")), 1, &filenames),
+            Ok(vec!["XY-0001".to_owned()])
         );
     }
 
@@ -293,7 +317,7 @@ mod tests {
     #[test]
     fn allocation_above_the_largest_floor_overflows_with_nothing_allocated() {
         assert_eq!(
-            allocate_above(&numeric(), None, u64::MAX, 2),
+            allocate_above(&pattern("{number:04d}"), None, u64::MAX, 2),
             Err(AllocationError::Overflow {
                 partial: Vec::new(),
                 highest: u64::MAX,
