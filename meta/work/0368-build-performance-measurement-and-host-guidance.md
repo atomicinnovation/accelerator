@@ -153,8 +153,11 @@ Web research since adds three facts:
      `dist/` once 0367 lands, is skipped.
 5. Write each record as JSON, with the metadata needed to compare runs,
    beside its raw logs in a gitignored run directory. With `--keep`, also
-   write it under `meta/measurements/` for the operator to commit; the
-   harness never commits. Keep the baseline, the three host-settings
+   write it under `meta/measurements/` for the operator to commit, unless
+   the record holds a fetch failure; the harness never commits. That holds
+   for every `--keep` run, not only baseline and condition records: under
+   jj a kept file joins the working-copy commit at once, and a
+   fetch-failed record is never one to commit. Keep the baseline, the three host-settings
    condition records, and any record a consumer's acceptance criterion
    cites. The metadata includes a host-settings label, given with
    `--host-settings` as `none`, `devtools` or `devtools+ide-exclusion`,
@@ -215,7 +218,7 @@ JetBrains, and gating `check` or CI on any figure.
 ## Acceptance Criteria
 
 - [ ] Given a macOS host and a warm workspace, when `mise run measure:build`
-      runs with `--keep`, then it writes a JSON record to its run
+      runs with `--keep` and no fetch failure, then it writes a JSON record to its run
       directory and under `meta/measurements/` with,
       per task, duration, queueing delay, cargo `Compiling`, `Checking`
       and `Documenting` unit counts and lock-wait seconds; CPU busy and
@@ -253,6 +256,9 @@ JetBrains, and gating `check` or CI on any figure.
 - [ ] Given no `--keep`, when it runs, then nothing is written under
       `meta/measurements/`, and in either case the harness makes no
       commit.
+- [ ] Given `--keep` and a fetch failure, when it runs, then nothing is
+      written under `meta/measurements/`, the run directory still holds
+      `record.json`, and the summary says the record was not kept.
 - [ ] Given an injected task that exits non-zero mid-run, when the run
       completes, then the record marks it failed with no median, reports
       every task that ran with its exit status, and flags each task
