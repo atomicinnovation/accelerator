@@ -638,6 +638,17 @@
   unless `ACCELERATOR_FORCE=1` is set. `/accelerator:rekey-work-items`
   previews, asks which other keys to re-key onto `work.key`, then applies or
   discards.
+- **A topic-research report template.** `topic-research-report.md` is the
+  skeleton for a standalone answer to one question asked of a set:
+  `kind: report`, its `question`, `rounds_covered` and `coverage`, and an
+  Answer, Coverage, Gaps and Sources body.
+  `templates.topic-research-report` points it at a project's own file, as
+  the other topic-research keys do. A manifest may now record an optional
+  `report_count`.
+- **`BAD-EXTRA-VALUE` flags an extra outside its closed vocabulary.** A
+  report's `coverage` must be `answered` or `partial`; any other value fails
+  `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
+  its vocabulary fails with `BAD-STATUS`.
 
 ### Changed
 
@@ -961,6 +972,11 @@
   consistently.** The one at the lower path is the item a reference or
   cluster joins, whatever order the files are read in, and removing it
   hands the key to the other.
+- **`corpus frontmatter print-schema` rows carry `extra_vocabs`**, an object
+  mapping each extra that takes a closed set of values to those values. It
+  is `{}` on every row but the report's, which holds
+  `{"coverage": ["answered", "partial"]}`. A consumer that reads rows by key
+  is unaffected.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
@@ -1245,6 +1261,11 @@
   `search_budget` line after `depth`.** Web level notes record their search
   budget there; the field is optional, so an override without it still
   writes valid notes, but they do not record the budget.
+- **Add `report_count: 0` to an overridden manifest template.** A project
+  that overrides `topic-research-manifest.md` adds the line after
+  `finding_count`, so the sets `brief` starts record their report count from
+  the outset. The field is optional, so an override without it still writes
+  valid manifests.
 
 - **Reload every session sharing a relocated root within 14 days of
   upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
