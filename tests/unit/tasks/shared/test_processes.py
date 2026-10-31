@@ -196,6 +196,28 @@ class TestReapSession:
         reap_session(100, procs, FakeClock(), 5.0)
         assert procs.group_signals == []
 
+    def test_a_group_outliving_its_leader_is_terminated_then_killed(self):
+        procs = FakeProcs()
+        procs.caller_group = 1
+        procs.add(105, pgid=100, ignore_sigterm=True)
+        clock = FakeClock()
+        reap_session(100, procs, clock, 5.0)
+        assert procs.group_signals == [
+            (100, signal.SIGTERM),
+            (100, signal.SIGKILL),
+        ]
+        assert clock.t >= 5.0
+        assert not procs.group_alive(100)
+
+    def test_a_group_outliving_its_leader_that_obeys_sigterm_is_not_killed(
+        self,
+    ):
+        procs = FakeProcs()
+        procs.caller_group = 1
+        procs.add(105, pgid=100)
+        reap_session(100, procs, FakeClock(), 5.0)
+        assert procs.group_signals == [(100, signal.SIGTERM)]
+
 
 def _deadline_wait(predicate, seconds=5.0):
     deadline = time.monotonic() + seconds

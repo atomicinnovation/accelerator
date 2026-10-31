@@ -183,9 +183,14 @@ def reap_session(
     reach those that left the group with ``setsid``. The closing SIGKILL to
     the group reaches members reparented after the leader died. A leader that
     does not lead its own group, or leads the caller's, is reaped as a tree so
-    the caller never signals itself.
+    the caller never signals itself. A group outliving its leader is still
+    signalled by the leader's pid, which cannot be reused while the group
+    exists.
     """
     group = procs.group_of(leader)
+    if group is None and procs.group_alive(leader):
+        _reap_leaderless_group(leader, procs, clock, grace)
+        return
     if group != leader or group == procs.own_group():
         reap_tree(leader, procs, clock, grace)
         return
@@ -197,3 +202,16 @@ def reap_session(
     procs.signal_group(leader, signal.SIGTERM)
     escalate([leader, *snapshot], procs, clock, grace, relist=descendants)
     procs.signal_group(leader, signal.SIGKILL)
+
+
+def _reap_leaderless_group(
+    pgid: int, procs: ProcessOps, clock: Clock, grace: float
+) -> None:
+    procs.signal_group(pgid, signal.SIGTERM)
+    deadline = clock.now() + grace
+    while (remaining := deadline - clock.now()) > 0:
+        if not procs.group_alive(pgid):
+            return
+        clock.sleep(min(_POLL_INTERVAL, remaining))
+    if procs.group_alive(pgid):
+        procs.signal_group(pgid, signal.SIGKILL)

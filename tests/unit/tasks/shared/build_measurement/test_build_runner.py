@@ -79,6 +79,17 @@ _SPAWNS_A_GRANDCHILD = _python(
     time.sleep(30)
     """
 )
+_LEAVES_A_GRANDCHILD_BEHIND = _python(
+    """
+    import subprocess, sys
+    grandchild = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    print(f"pid {grandchild.pid}")
+    """
+)
 _IGNORES_SIGTERM = _python(
     """
     import os, signal, time
@@ -208,6 +219,28 @@ class TestBuildGroupFile:
         [child] = _pids_in(log)
         assert seen[0].split()[0] == str(child)
         assert not (tmp_path / BUILD_PGID).exists()
+
+    def test_a_group_member_outliving_the_build_is_reaped_and_forgotten(
+        self, tmp_path
+    ):
+        log = tmp_path / "run-1.log"
+        result = _runner(tmp_path).run(
+            _LEAVES_A_GRANDCHILD_BEHIND, epoch=Clock().now(), log=log
+        )
+        [grandchild] = _pids_in(log)
+        assert result.exit_status == 0
+        _wait_until(lambda: _all_dead([grandchild]))
+        assert not (tmp_path / BUILD_PGID).exists()
+
+    def test_a_group_that_survives_the_reap_stays_remembered(self, tmp_path):
+        log = tmp_path / "run-1.log"
+        log.mkdir()
+        procs = SurvivingGroup()
+        with pytest.raises(BuildLeftRunningError):
+            _runner(tmp_path, procs=procs).run(
+                _IGNORES_SIGTERM, epoch=Clock().now(), log=log
+            )
+        assert (tmp_path / BUILD_PGID).exists()
 
     def test_the_builds_group_is_forgotten_after_an_interrupt(self, tmp_path):
         log = tmp_path / "run-1.log"

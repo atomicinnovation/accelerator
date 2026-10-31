@@ -96,18 +96,21 @@ class SubprocessBuildRunner:
         self, child: subprocess.Popen[bytes], interruption: Interruption
     ) -> None:
         if interruption.arrived:
-            self._reap(child)
+            self._settle(child)
         else:
             with deferred_signals(UNWIND_SIGNALS):
-                self._reap(child)
+                self._settle(child)
+
+    def _settle(self, child: subprocess.Popen[bytes]) -> None:
+        self._reap(child)
         if self.procs.group_alive(child.pid):
             raise BuildLeftRunningError(child.pid)
+        self.build_group.forget()
 
     def _reap(self, child: subprocess.Popen[bytes]) -> None:
-        if child.poll() is None:
+        if child.poll() is None or self.procs.group_alive(child.pid):
             reap_session(child.pid, self.procs, self.clock, self.grace)
             with contextlib.suppress(subprocess.TimeoutExpired):
                 child.wait(timeout=self.grace)
         if child.stdout is not None:
             child.stdout.close()
-        self.build_group.forget()
