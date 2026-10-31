@@ -17,6 +17,7 @@ pub mod inventory;
 pub mod next_number;
 pub mod normalise;
 pub mod own_identity;
+pub mod path_component;
 pub mod promotion;
 pub mod rekey;
 pub mod resolve;
