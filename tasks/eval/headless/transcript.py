@@ -85,7 +85,10 @@ def _flattened(content: object) -> str:
 
 
 def _blocks(record: dict[str, Any]) -> list[dict[str, Any]]:
-    content = record.get("message", {}).get("content", [])
+    message = record.get("message")
+    if not isinstance(message, dict):
+        return []
+    content = message.get("content")
     if not isinstance(content, list):
         return []
     return [block for block in content if isinstance(block, dict)]
