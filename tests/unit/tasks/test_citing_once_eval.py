@@ -318,6 +318,10 @@ def test_a_session_loads_the_repository_and_not_the_installed_plugin(
     assert command[command.index("--output-format") + 1] == "stream-json"
 
 
+def test_a_citing_once_session_persists_nothing() -> None:
+    assert "--no-session-persistence" in session_command("Reply OK.", REPO_ROOT)
+
+
 def test_each_planned_session_has_its_own_directory(tmp_path: Path) -> None:
     from tasks.eval.citing_once.runs import plan_sessions
 
