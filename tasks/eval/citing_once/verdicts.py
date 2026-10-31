@@ -9,12 +9,12 @@ from tasks.eval.citing_once.fixtures import (
     Criterion,
     Expectation,
 )
-from tasks.eval.citing_once.rule import (
+from tasks.eval.documents.rule import (
     carried_dois,
     cite_once,
     normalised_url,
 )
-from tasks.eval.citing_once.sources import Citation
+from tasks.eval.documents.sources import Citation
 
 
 def predict(

@@ -525,7 +525,7 @@ citing-once rule (`skills/research/outputters/citing-once/SKILL.md`) across
 - **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
   its criteria, each criterion its citations, the note or finding each sits
   in, and the entries it expects. The unit suite runs the rule's reading
-  (`tasks/eval/citing_once/rule.py`) over every fixture, so a fixture whose
+  (`tasks/eval/documents/rule.py`) over every fixture, so a fixture whose
   criteria share a source, or that the rule does not predict, fails `check`
   rather than a paid run.
 - **Sessions** load this repository with `--plugin-dir` and disable the
