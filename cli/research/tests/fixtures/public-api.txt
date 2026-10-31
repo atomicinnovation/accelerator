@@ -1800,6 +1800,58 @@ pub fn research::topic::claims::IndexClaim::eq(&self, other: &research::topic::c
 impl core::fmt::Debug for research::topic::claims::IndexClaim
 pub fn research::topic::claims::IndexClaim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::claims::IndexClaim
+pub mod research::topic::consultation
+pub enum research::topic::consultation::Consultation
+pub research::topic::consultation::Consultation::Open(research::topic::consultation::Documents)
+pub research::topic::consultation::Consultation::Refused(research::topic::consultation::Refusal)
+impl research::topic::consultation::Consultation
+pub fn research::topic::consultation::Consultation::judge<E>(status: &str, read_counts: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::counts::CountsReading, E>, read_plan: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::plan::RoundPlan, E>) -> core::result::Result<Self, E>
+impl core::clone::Clone for research::topic::consultation::Consultation
+pub fn research::topic::consultation::Consultation::clone(&self) -> research::topic::consultation::Consultation
+impl core::cmp::Eq for research::topic::consultation::Consultation
+impl core::cmp::PartialEq for research::topic::consultation::Consultation
+pub fn research::topic::consultation::Consultation::eq(&self, other: &research::topic::consultation::Consultation) -> bool
+impl core::fmt::Debug for research::topic::consultation::Consultation
+pub fn research::topic::consultation::Consultation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::consultation::Consultation
+pub enum research::topic::consultation::Refusal
+pub research::topic::consultation::Refusal::Conducted
+pub research::topic::consultation::Refusal::Conducted::held_back: alloc::vec::Vec<research::topic::consultation::HeldBackItem>
+pub research::topic::consultation::Refusal::Conducted::unanswered: alloc::vec::Vec<research::topic::outline::Pair>
+pub research::topic::consultation::Refusal::Freshness
+pub research::topic::consultation::Refusal::Freshness::mismatches: alloc::vec::Vec<research::topic::counts::Mismatch>
+pub research::topic::consultation::Refusal::Status
+pub research::topic::consultation::Refusal::Status::status: alloc::string::String
+impl core::clone::Clone for research::topic::consultation::Refusal
+pub fn research::topic::consultation::Refusal::clone(&self) -> research::topic::consultation::Refusal
+impl core::cmp::Eq for research::topic::consultation::Refusal
+impl core::cmp::PartialEq for research::topic::consultation::Refusal
+pub fn research::topic::consultation::Refusal::eq(&self, other: &research::topic::consultation::Refusal) -> bool
+impl core::fmt::Debug for research::topic::consultation::Refusal
+pub fn research::topic::consultation::Refusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::consultation::Refusal
+pub struct research::topic::consultation::Documents
+pub research::topic::consultation::Documents::findings: alloc::vec::Vec<alloc::string::String>
+pub research::topic::consultation::Documents::reports: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::topic::consultation::Documents
+pub fn research::topic::consultation::Documents::clone(&self) -> research::topic::consultation::Documents
+impl core::cmp::Eq for research::topic::consultation::Documents
+impl core::cmp::PartialEq for research::topic::consultation::Documents
+pub fn research::topic::consultation::Documents::eq(&self, other: &research::topic::consultation::Documents) -> bool
+impl core::fmt::Debug for research::topic::consultation::Documents
+pub fn research::topic::consultation::Documents::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::consultation::Documents
+pub struct research::topic::consultation::HeldBackItem
+pub research::topic::consultation::HeldBackItem::question: alloc::string::String
+pub research::topic::consultation::HeldBackItem::skips: alloc::vec::Vec<research::topic::plan::Skip>
+impl core::clone::Clone for research::topic::consultation::HeldBackItem
+pub fn research::topic::consultation::HeldBackItem::clone(&self) -> research::topic::consultation::HeldBackItem
+impl core::cmp::Eq for research::topic::consultation::HeldBackItem
+impl core::cmp::PartialEq for research::topic::consultation::HeldBackItem
+pub fn research::topic::consultation::HeldBackItem::eq(&self, other: &research::topic::consultation::HeldBackItem) -> bool
+impl core::fmt::Debug for research::topic::consultation::HeldBackItem
+pub fn research::topic::consultation::HeldBackItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::consultation::HeldBackItem
 pub mod research::topic::counts
 pub enum research::topic::counts::CountField
 pub research::topic::counts::CountField::Manifest(research::topic::counts::ManifestCount)
