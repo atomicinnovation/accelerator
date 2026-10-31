@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, get_args
 
 from tasks.eval.ask_and_report import formats
-from tasks.eval.ask_and_report.projects import SET, SLUG
+from tasks.eval.ask_and_report.layout import SET, SLUG
 from tasks.eval.ask_and_report.turns import (
     Snapshot,
     TurnRecord,

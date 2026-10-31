@@ -3,11 +3,10 @@
 import shutil
 from pathlib import Path
 
+from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.scenarios import Setup, TemplateTier
 from tasks.shared.sources import repo_root
 
-SLUG = "llm-agent-planning"
-SET = Path("meta/research/topics") / SLUG
 CONFIG = Path(".accelerator/config.md")
 REPORT_TEMPLATE = "topic-research-report"
 OVERRIDES: dict[TemplateTier, Path] = {
