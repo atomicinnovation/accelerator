@@ -15,6 +15,8 @@ use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
 use work::id_scheme::WorkItemIdScheme;
 use work::identity::ItemIdentity;
+use work::path_component::is_one_path_component;
+use work::path_component::is_relative_path_of_components;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
 use work::rekey::fingerprint::IdentityFingerprint;
@@ -198,7 +200,7 @@ impl<'a> FileRunPlanStore<'a> {
             self.decode_fingerprint(field(&value, "fingerprint")?)?;
         let entries = array(&value, "entries")?
             .iter()
-            .map(decode_entry)
+            .map(|entry| decode_entry(entry, fingerprint.scheme()))
             .collect::<Result<Vec<_>, _>>()?;
         match text(&value, "state")? {
             "proposed" => {
@@ -228,7 +230,7 @@ impl<'a> FileRunPlanStore<'a> {
             .iter()
             .map(|item| {
                 Ok(ItemIdentity {
-                    path: self.rooted(text(item, "path")?),
+                    path: self.rooted(relative_path(item, "path")?),
                     id: text(item, "id")?.to_owned(),
                     aliases: array(item, "aliases")?
                         .iter()
@@ -309,13 +311,40 @@ fn encode_entry(entry: &RekeyEntry) -> Value {
     })
 }
 
-fn decode_entry(value: &Value) -> Result<RekeyEntry, Unreadability> {
+fn relative_path<'v>(
+    value: &'v Value,
+    name: &str,
+) -> Result<&'v str, Unreadability> {
+    let path = text(value, name)?;
+    if is_relative_path_of_components(path) {
+        Ok(path)
+    } else {
+        Err(malformed(&format!(
+            "'{path}' is not a path in the repository"
+        )))
+    }
+}
+
+fn decode_entry(
+    value: &Value,
+    scheme: &WorkItemIdScheme,
+) -> Result<RekeyEntry, Unreadability> {
     let target = field(value, "target")?;
     let id = text(target, "id")?;
     let unparseable =
         |kind: &str| malformed(&format!("'{id}' is not a {kind}"));
+    let old = text(value, "old")?;
+    if !is_one_path_component(old) {
+        return Err(malformed(&format!("'{old}' is not one path component")));
+    }
     let target = match text(target, "kind")? {
-        "renumbered" => RekeyTarget::Renumbered(id.to_owned()),
+        "renumbered" => RekeyTarget::Renumbered(
+            scheme
+                .pattern()
+                .read_exact(id)
+                .map(|_| id.to_owned())
+                .ok_or_else(|| unparseable("work-item ID"))?,
+        ),
         "tracker_key" => RekeyTarget::TrackerKey(
             TrackerKey::parse(id).ok_or_else(|| unparseable("tracker key"))?,
         ),
@@ -325,7 +354,7 @@ fn decode_entry(value: &Value) -> Result<RekeyEntry, Unreadability> {
         other => return Err(malformed(&format!("unknown target '{other}'"))),
     };
     Ok(RekeyEntry {
-        old: text(value, "old")?.to_owned(),
+        old: old.to_owned(),
         target,
     })
 }
@@ -403,7 +432,7 @@ fn decode_write_set(value: &Value) -> Result<WriteSet, Unreadability> {
                 )),
                 Some(_) => return Err(malformed("'base' is not a list")),
             };
-            let path = text(entry, "path")?;
+            let path = relative_path(entry, "path")?;
             intended.extend(decode_intended(path, entry)?);
             Ok((path.to_owned(), Recorded { state, base }))
         })

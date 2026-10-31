@@ -15,11 +15,13 @@ use corpus::StoreError;
 
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
+use crate::id_pattern::escaped;
 use crate::id_scheme::WorkItemIdScheme;
 use crate::identity::holder_of_under;
 use crate::identity::linker_of_under;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
+use crate::path_component::is_one_path_component;
 use crate::show::read_field_raw;
 use crate::tracker_key::TrackerKey;
 use crate::work_item_files::frontmatter_of;
@@ -177,6 +179,9 @@ pub enum RetirementRefusal {
     },
     TargetExists(PathBuf),
     ItemNotFound(String),
+    IdNotOnePathComponent {
+        id: String,
+    },
 }
 
 /// `path` relative to `root` when it lies under it, else as it is.
@@ -202,6 +207,9 @@ impl RetirementRefusal {
                 Self::TargetExists(relative_to(path, root))
             }
             Self::ItemNotFound(id) => Self::ItemNotFound(id),
+            Self::IdNotOnePathComponent { id } => {
+                Self::IdNotOnePathComponent { id }
+            }
         }
     }
 
@@ -212,6 +220,7 @@ impl RetirementRefusal {
             Self::KeyLinked { .. } => "key-linked",
             Self::TargetExists(_) => "target-exists",
             Self::ItemNotFound(_) => "item-not-found",
+            Self::IdNotOnePathComponent { .. } => "id-not-one-path-component",
         }
     }
 
@@ -238,6 +247,11 @@ impl RetirementRefusal {
             Self::ItemNotFound(id) => {
                 format!("cannot retire {id}: no work item has that id")
             }
+            Self::IdNotOnePathComponent { id } => format!(
+                "cannot retire {old_id} for {new_id}: '{}' is not one path \
+                 component",
+                escaped(id)
+            ),
         }
     }
 }
@@ -448,9 +462,10 @@ fn directory_of(path: &Path) -> &Path {
 
 /// # Errors
 ///
-/// A [`RetirementRefusal`] when no item holds `old_id`, another item already
-/// holds `new_id` or is linked to `new_external_id`, or a file other than an
-/// interrupted retirement's already occupies the target path.
+/// A [`RetirementRefusal`] when either ID is not one path component, no item
+/// holds `old_id`, another item already holds `new_id` or is linked to
+/// `new_external_id`, or a file other than an interrupted retirement's
+/// already occupies the target path.
 pub fn plan_retirement(
     retirement: &Retirement<'_>,
     scheme: &WorkItemIdScheme,
@@ -458,6 +473,13 @@ pub fn plan_retirement(
     items: &[ItemIdentity],
     corpus: &[CorpusFile],
 ) -> Result<RetirementPlan, RetirementRefusal> {
+    for id in [retirement.old_id, retirement.new_id] {
+        if !is_one_path_component(id) {
+            return Err(RetirementRefusal::IdNotOnePathComponent {
+                id: id.to_owned(),
+            });
+        }
+    }
     let retiring = items
         .iter()
         .find(|item| same_id(&item.id, retirement.old_id));
@@ -1598,6 +1620,34 @@ mod tests {
         ];
 
         assert!(plan(&promotion(), &corpus).is_ok());
+    }
+
+    #[test]
+    fn retirement_refuses_an_id_that_is_not_one_path_component() {
+        for (old_id, new_id, refused) in [
+            ("draft-k7mq3x", "..", ".."),
+            ("draft-k7mq3x", "a/b", "a/b"),
+            ("draft-k7mq3x", "", ""),
+            ("../x", "PP-900", "../x"),
+        ] {
+            let retirement = Retirement {
+                old_id,
+                new_id,
+                new_external_id: None,
+            };
+            let refusal = plan(&retirement, &[draft()]);
+            assert_eq!(
+                refusal,
+                Err(RetirementRefusal::IdNotOnePathComponent {
+                    id: refused.to_owned()
+                }),
+                "{old_id} {new_id}"
+            );
+            assert_eq!(
+                refusal.err().map(|refusal| refusal.keyword()),
+                Some("id-not-one-path-component")
+            );
+        }
     }
 
     #[test]

@@ -308,6 +308,36 @@ fn a_stored_pattern_that_no_longer_parses_is_malformed() -> Result<(), TestError
 }
 
 #[test]
+fn a_run_plan_with_a_path_escaping_target_is_unreadable(
+) -> Result<(), TestError> {
+    let tamperings = [
+        ("\"id\": \"ACC-0042\" }", "\"id\": \"../../x-0001\" }"),
+        ("\"id\": \"ACC-0042\" }", "\"id\": \"/tmp/x\" }"),
+        ("{ \"old\": \"0042\"", "{ \"old\": \"../x\""),
+        ("{ \"old\": \"0042\"", "{ \"old\": \"a/b\""),
+        ("\"path\": \"meta/notes/forced.md\"", "\"path\": \"../x\""),
+        ("\"path\": \"meta/notes/forced.md\"", "\"path\": \"/tmp/x\""),
+        (
+            "\"path\": \"meta/work/0042-search.md\",\n        \"id\"",
+            "\"path\": \"../x\",\n        \"id\"",
+        ),
+    ];
+    for (original, tampered) in tamperings {
+        let plan = schema_one_plan_with(original, tampered);
+        assert_ne!(
+            plan,
+            include_str!("fixtures/rekey/run-plan-schema-1.json"),
+            "{tampered}"
+        );
+        let repo = Repo::new()?;
+        write_plan(&repo, &plan)?;
+
+        assert_malformed(&repo);
+    }
+    Ok(())
+}
+
+#[test]
 fn a_plan_of_a_newer_schema_is_unreadable_naming_the_version(
 ) -> Result<(), TestError> {
     let repo = Repo::new()?;

@@ -1,7 +1,6 @@
 //! Where the records of retirements in progress are kept, so an interrupted
 //! one is finished by the next sync.
 
-use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -9,6 +8,7 @@ use corpus::store::AtomicWrite;
 use corpus::StoreError;
 use serde_json::json;
 use serde_json::Value;
+use work::path_component::is_one_path_component;
 use work::retirement::RetirementRecord;
 
 use crate::ignored_dir::prepare_ignored_dir;
@@ -53,12 +53,12 @@ impl<'a> FileRetirementRecords<'a> {
         record: &RetirementRecord,
     ) -> Result<PathBuf, StoreError> {
         let name = format!("{}--{}.json", record.old, record.new);
-        let mut components = Path::new(&name).components();
-        match (components.next(), components.next()) {
-            (Some(Component::Normal(_)), None) => Ok(self.dir.join(name)),
-            _ => Err(StoreError::Validation {
+        if is_one_path_component(&name) {
+            Ok(self.dir.join(name))
+        } else {
+            Err(StoreError::Validation {
                 detail: format!("'{name}' is not a record file name"),
-            }),
+            })
         }
     }
 }
@@ -91,9 +91,18 @@ fn decode(path: &Path, raw: &str) -> Result<RetirementRecord, StoreError> {
             .map(str::to_owned)
             .ok_or_else(|| malformed(&format!("missing '{field}'")))
     };
+    let id = |field: &str| {
+        text(field).and_then(|id| {
+            if is_one_path_component(&id) {
+                Ok(id)
+            } else {
+                Err(malformed(&format!("'{field}' is not one path component")))
+            }
+        })
+    };
     Ok(RetirementRecord {
-        old: text("old")?,
-        new: text("new")?,
+        old: id("old")?,
+        new: id("new")?,
         new_external_id: value
             .get("new_external_id")
             .and_then(Value::as_str)
