@@ -864,7 +864,8 @@ def test_dev_launcher_marker_is_gitignored_and_unshipped() -> None:
         "the dev-launcher marker must be gitignored so no install carries it"
     )
     assert not (_REPO_ROOT / ".accelerator-dev-launcher").exists(), (
-        "the marker must never be committed"
+        "remove the dev-launcher marker (rm .accelerator-dev-launcher) "
+        "before running the suite"
     )
     assert ".accelerator-dev-launcher" in _REPO_BOOTSTRAP.read_text(), (
         "the ignore rule must correspond to a real bootstrap gate"
