@@ -1,5 +1,3 @@
-"""Test doubles and record builders for the build-measurement suites."""
-
 import contextlib
 import datetime as dt
 import json
