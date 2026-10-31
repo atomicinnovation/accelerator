@@ -14,17 +14,16 @@ import os
 import platform
 import random
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum, unique
 from pathlib import Path
-from types import FrameType, TracebackType
+from types import TracebackType
 from typing import Protocol, Self
 
 from invoke import Context, Exit, task
@@ -92,6 +91,7 @@ from tasks.shared.paths import (
     REPO_ROOT,
 )
 from tasks.shared.repository import RepositoryKind, repository_kind
+from tasks.shared.signals import unwinding_signals
 
 # The criterion constants, held in lockstep with `tasks/README.md`'s
 # "Criterion constants" section, bidirectionally: every constant appears there
@@ -536,18 +536,6 @@ def subprocess_measurement_runner(
     )
 
 
-_UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
-
-
-def unwind_signals() -> tuple[signal.Signals, ...]:
-    """List the signals the session unwinds on rather than dying under.
-
-    SIGHUP included: a dropped ssh across a long unattended run would otherwise
-    terminate by default and leave every artefact behind.
-    """
-    return _UNWIND_SIGNALS
-
-
 class MeasurementSession:
     """Captures baseline state on entry, restores and verifies on exit.
 
@@ -574,7 +562,7 @@ class MeasurementSession:
         )
         self.baseline: Baseline | None = None
         self.failures: list[str] = []
-        self._previous_handlers: dict[int, object] = {}
+        self._signals = ExitStack()
 
     def __enter__(self) -> Self:
         if self.manifest_path.exists():
@@ -586,7 +574,7 @@ class MeasurementSession:
         self.baseline = self.capture()
         self.manifest.baseline = asdict(self.baseline)
         self.manifest.write(self.manifest_path)
-        self._install_handlers()
+        self._signals.enter_context(unwinding_signals())
         return self
 
     def __exit__(
@@ -595,7 +583,7 @@ class MeasurementSession:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool:
-        self._restore_handlers()
+        self._signals.close()
         self.restore()
         self.failures = self.verify()
         with suppress(OSError):
@@ -603,21 +591,6 @@ class MeasurementSession:
         with suppress(OSError):
             self.manifest_path.parent.rmdir()
         return False
-
-    def _install_handlers(self) -> None:
-        for number in _UNWIND_SIGNALS:
-            self._previous_handlers[number] = signal.getsignal(number)
-            signal.signal(number, self._unwind)
-
-    def _restore_handlers(self) -> None:
-        for number, previous in self._previous_handlers.items():
-            with suppress(ValueError, TypeError):
-                signal.signal(number, previous)  # type: ignore[arg-type]
-
-    def _unwind(self, number: int, frame: FrameType | None) -> None:
-        """Turn a signal into an exception so the `with` block unwinds."""
-        del frame
-        raise KeyboardInterrupt(f"signal {number}")
 
     def capture(self) -> Baseline:
         """Record the state every exit assertion is measured against.

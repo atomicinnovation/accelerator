@@ -1,6 +1,6 @@
 ---
 title: First Work Item
-status: draft
+status: ready
 id: "0001"
 ---
 

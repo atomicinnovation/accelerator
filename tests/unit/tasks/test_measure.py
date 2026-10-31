@@ -102,7 +102,6 @@ from tasks.measure import (
     time_summaries,
     tool_provenance,
     track_commands,
-    unwind_signals,
     warm_cache_gaps,
     write_personal_config,
 )
@@ -2084,13 +2083,6 @@ class TestRehearsals:
         )
         assert session.failures == []
         assert not session.manifest_path.exists()
-
-    def test_all_three_signals_are_handled(self):
-        assert set(unwind_signals()) == {
-            signal.SIGINT,
-            signal.SIGTERM,
-            signal.SIGHUP,
-        }
 
 
 class TestRecoveryContract:
