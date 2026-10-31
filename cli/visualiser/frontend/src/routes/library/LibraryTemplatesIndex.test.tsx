@@ -90,6 +90,7 @@ describe("glyphKeyForTemplate", () => {
     expect(glyphKeyForTemplate("topic-research-synthesis")).toBe(
       "topic-research",
     );
+    expect(glyphKeyForTemplate("topic-research-report")).toBe("topic-research");
   });
 
   it("maps the level-note template to the topic-research glyph, not notes", () => {

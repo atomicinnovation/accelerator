@@ -51,6 +51,7 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   "topic-research-finding": "topic-research",
   "topic-research-synthesis": "topic-research",
   "topic-research-level-note": "topic-research",
+  "topic-research-report": "topic-research",
 
   // Stem tokens that may appear as a part of compound template names.
   decision: "decisions",
