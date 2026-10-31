@@ -10,7 +10,53 @@
       "setup": {
         "variant": "rewrite"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [
+              "reports/how-do-agents-plan-tasks-and-how-do-they-recover-from-failed.md"
+            ],
+            "offers": "pick",
+            "writes": []
+          }
+        },
+        {
+          "reply": {
+            "rewrite": 1
+          },
+          "expect": {
+            "writes": [
+              "reports/how-do-agents-plan-tasks-and-how-do-they-recover-from-failed.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-agents-plan-tasks-and-how-do-they-recover-from-failed.md",
+              "fields": {
+                "rounds_covered": 4,
+                "coverage": "answered"
+              },
+              "no_sections": [
+                "Gaps"
+              ],
+              "kept": [
+                "id",
+                "title",
+                "question",
+                "date",
+                "parent",
+                "relates_to"
+              ]
+            },
+            "manifest": {
+              "fields": {
+                "report_count": 1
+              },
+              "lists_reports": true
+            }
+          }
+        }
+      ]
     }
   ]
 }

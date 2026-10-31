@@ -10,7 +10,23 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-autonomous-language-model-agents-decompose-long.md",
+              "manifest.md"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "n1-c8",
@@ -20,7 +36,23 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/supercalifragilisticexpialidociousplannersoutperformallbasel.md",
+              "manifest.md"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "n1-escaping",
@@ -30,7 +62,30 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-planners-plan-multi-step-tasks-touch-pwned.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-planners-plan-multi-step-tasks-touch-pwned.md",
+              "fields": {
+                "question": "How do LLM agents' \"planners\" plan multi-step tasks $(touch pwned)?"
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

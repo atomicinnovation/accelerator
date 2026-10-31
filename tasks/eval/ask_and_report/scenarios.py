@@ -7,11 +7,18 @@ from pathlib import Path
 from typing import Literal, get_args
 
 from tasks.eval.ask_and_report.mutations import Mutation, parse_mutation
+from tasks.eval.ask_and_report.verdicts import (
+    Criterion,
+    Refusal,
+    Writes,
+    parse_criteria,
+)
 
 type Gate = Literal["status", "freshness", "conducted", "held_back", "open"]
 type Verb = Literal["ask", "report"]
 type Variant = Literal["base", "equivalence", "rewrite"]
 type TemplateTier = Literal["user", "config"]
+type Reply = Literal["accept", "new", "reject", "confirm", "decline"]
 
 
 @dataclass(frozen=True)
@@ -26,6 +33,22 @@ class Setup:
 
 
 @dataclass(frozen=True)
+class Turn:
+    """What one turn sends, and what it is judged against.
+
+    ``reply`` is the text sent; the opening turn sends the verb instead.
+    """
+
+    reply: str | None
+    expect: tuple[Criterion, ...]
+
+    @property
+    def writes(self) -> tuple[str, ...]:
+        """The set-relative paths this turn declares it may write."""
+        return next((c.paths for c in self.expect if isinstance(c, Writes)), ())
+
+
+@dataclass(frozen=True)
 class Scenario:
     name: str
     verb: Verb
@@ -33,6 +56,7 @@ class Scenario:
     times: int
     setup: Setup
     gate: Gate
+    turns: tuple[Turn, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -90,18 +114,58 @@ def _setup(data: Mapping[str, object]) -> Setup:
     )
 
 
+_REPLIES: tuple[Reply, ...] = get_args(Reply.__value__)
+
+
+def _reply(data: object) -> str:
+    if isinstance(data, dict):
+        _only(data, {"rewrite"}, "reply")
+        return f"rewrite {_typed(data['rewrite'], int, 'a rewrite number')}"
+    return _one_of(data, _REPLIES, "reply")
+
+
+def _turn(data: Mapping[str, object], opening: bool) -> Turn:
+    _only(data, {"reply", "expect"}, "turn")
+    if opening == ("reply" in data):
+        raise ValueError(
+            "only every turn after the first sends a reply, not " + str(data)
+        )
+    expect = parse_criteria(_typed(data["expect"], dict, "expect"))
+    if not any(isinstance(c, Writes | Refusal) for c in expect):
+        raise ValueError(f"a turn must declare writes or a refusal: {data}")
+    return Turn(
+        reply=None if opening else _reply(data["reply"]),
+        expect=expect,
+    )
+
+
 def _scenario(data: Mapping[str, object]) -> Scenario:
     _only(
-        data, {"name", "verb", "question", "times", "setup", "gate"}, "scenario"
+        data,
+        {"name", "verb", "question", "times", "setup", "gate", "turns"},
+        "scenario",
     )
-    return Scenario(
+    turns = _typed(data["turns"], list, "turns")
+    if not turns:
+        raise ValueError(f"{data['name']} has no turns")
+    scenario = Scenario(
         name=_typed(data["name"], str, "name"),
         verb=_one_of(data["verb"], _VERBS, "verb"),
         question=_typed(data["question"], str, "question"),
         times=_typed(data["times"], int, "times"),
         setup=_setup(_typed(data["setup"], dict, "setup")),
         gate=_one_of(data["gate"], _GATES, "gate"),
+        turns=tuple(
+            _turn(_typed(turn, dict, "turn"), opening=at == 0)
+            for at, turn in enumerate(turns)
+        ),
     )
+    judged = any(c.is_judgement for t in scenario.turns for c in t.expect)
+    if judged and scenario.times != 3:
+        raise ValueError(
+            f"{scenario.name} judges the model, so it must run three times"
+        )
+    return scenario
 
 
 def load_scenario_files(directory: Path) -> list[ScenarioFile]:
