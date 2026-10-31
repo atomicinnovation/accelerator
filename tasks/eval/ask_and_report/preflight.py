@@ -8,9 +8,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from tasks.eval.ask_and_report.layout import SLUG
 from tasks.eval.ask_and_report.projects import (
     OVERRIDE_SECTIONS,
-    SLUG,
     build_project,
 )
 from tasks.eval.ask_and_report.scenarios import (

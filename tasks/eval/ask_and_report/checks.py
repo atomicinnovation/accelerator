@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.eval.ask_and_report import formats
-from tasks.eval.ask_and_report.projects import SET
+from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.turns import TurnRecord, changed
 from tasks.eval.headless.transcript import (
     Event,
