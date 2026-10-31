@@ -3091,9 +3091,9 @@ affected: both run `metadata derive` and `validate` after a user reply.
 
 #### Automated Verification:
 
-- [ ] New structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Skill lints pass, including the permission and bare-invocation lints: `mise run check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] New structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Skill lints pass, including the permission and bare-invocation lints: `mise run check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
