@@ -24,6 +24,7 @@ use research::topic::evidence::LevelNote;
 use research::topic::evidence::LevelNoteFields;
 use research::topic::evidence::LevelsDirectory;
 use research::topic::evidence::NoteRejection;
+use research::topic::layout::entry::is_finding_entry;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::stem::Stem;
 use research::topic::outline::Outline;
@@ -209,7 +210,7 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
             listing
                 .levels
                 .push(read_levels_directory(&path, stem, fs, parser, unicode)?);
-        } else if is_markdown(&path) {
+        } else if is_finding_entry(&name) {
             listing
                 .findings
                 .push(read_finding(&path, &name, fs, parser, unicode)?);
@@ -225,11 +226,6 @@ fn levels_stem<F: DirectoryProbe>(
 ) -> Option<Stem> {
     let stem = Stem::parse(name.strip_suffix(LEVELS_SUFFIX)?)?;
     fs.is_dir(path).then_some(stem)
-}
-
-fn is_markdown(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
 }
 
 fn read_finding<F: FileReader>(
@@ -825,22 +821,37 @@ mod tests {
         Ok(())
     }
 
+    fn finding(depth: &str) -> String {
+        format!(
+            "---\ntype: \"topic-research\"\nid: \"01-a-web\"\n\
+             title: \"A\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
+             author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
+             status: \"complete\"\nkind: \"finding\"\nround: 1\n\
+             question: \"A?\"\nsource_profile: \"web\"\n{depth}\
+             tags: [\"research\"]\n\
+             last_updated: \"2026-09-27T00:00:00+00:00\"\n\
+             last_updated_by: \"Fixture Author\"\nschema_version: 1\n\
+             ---\n"
+        )
+    }
+
+    fn plan_of(fs: &StubFs) -> Result<RoundPlan, TestError> {
+        let inputs = read_round_inputs(
+            Path::new(SET),
+            Path::new(PROFILES),
+            Depth::default(),
+            ClaimedIndexes::default(),
+            fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?
+        .inputs;
+        Ok(RoundPlan::of(&inputs, &UnicodeTables))
+    }
+
     #[test]
     fn a_findings_depth_is_read_from_its_frontmatter() -> Result<(), TestError>
     {
-        let finding = |depth: &str| {
-            format!(
-                "---\ntype: \"topic-research\"\nid: \"01-a-web\"\n\
-                 title: \"A\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
-                 author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
-                 status: \"complete\"\nkind: \"finding\"\nround: 1\n\
-                 question: \"A?\"\nsource_profile: \"web\"\n{depth}\
-                 tags: [\"research\"]\n\
-                 last_updated: \"2026-09-27T00:00:00+00:00\"\n\
-                 last_updated_by: \"Fixture Author\"\nschema_version: 1\n\
-                 ---\n"
-            )
-        };
         for (field, shallow) in
             [("depth: 3\n", false), ("depth: 12\n", false), ("", true)]
         {
@@ -861,6 +872,17 @@ mod tests {
 
             assert_eq!(!plan.shallow.is_empty(), shallow, "{field:?}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn an_unnumbered_markdown_entry_is_not_planned() -> Result<(), TestError> {
+        let fs = set_with(StubFs::default())
+            .with_file("/set/findings/notes.md", &finding(""));
+
+        let plan = plan_of(&fs)?;
+
+        assert_eq!(plan.pairs.len(), 1, "{plan:?}");
         Ok(())
     }
 
