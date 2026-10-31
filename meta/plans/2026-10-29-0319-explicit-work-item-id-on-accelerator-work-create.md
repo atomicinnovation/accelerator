@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-10-31T17:45:08+00:00"
+last_updated: "2026-10-31T18:07:39+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -88,19 +88,19 @@ allows them.
   `allocate: &dyn Fn(&CreateLockGuard) -> Result<String, String>` closure and
   calls it under the create lock. The closure runs before `refuse_to_overwrite`,
   `push_legacy_item` and the atomic write. `create_item`
-  (`cli/work-cli/src/create.rs:522-549`) always passes `allocate_local_id`,
-  which calls `allocate_id` (`create.rs:206-224`).
+  (`cli/work-cli/src/create.rs:529-556`) always passes `allocate_local_id`,
+  which calls `allocate_id` (`create.rs:209-225`).
 - **Whatever string the closure returns lands verbatim** in the filename
   (`target_for`, `creation.rs:288-290`), the `id` field (`compose_frontmatter`)
-  and every `NNNN` in the body (`resolve_body`, `create.rs:265-282`).
+  and every `NNNN` in the body (`resolve_body`, `create.rs:273-290`).
 - **`creation_context` has a side effect before its first refusal.** It
   resolves the scheme, then calls `create_dir_all(work_dir)`, then refuses
   `--project` under `{tracker}` with `E_PATTERN_KEY_UNUSED`
-  (`create.rs:449-489`).
+  (`create.rs:457-496`).
 - **The dry-run returns before anything else.** `run_with`'s first statement
-  reads `work.integration` and returns `preview_push` (`create.rs:651-657`). It
+  reads `work.integration` and returns `preview_push` (`create.rs:658-664`). It
   never resolves the scheme, takes no lock and runs no re-key guard
-  (`create_dry_run_is_not_guarded`, `create.rs:1044-1060`).
+  (`create_dry_run_is_not_guarded`, `create.rs:1051-1067`).
 - **Every filename scan is per key and case-sensitive.** `allocate_id` and
   `work next-number` (`cli/work-cli/src/next_number.rs:139-150`) each compile
   `compile_scan_regex(pattern, key)` through `RegexScanner::compile`, a plain
@@ -119,7 +119,7 @@ allows them.
   an all-digit ID or `<key>-<digits>`, so an ID such as `v001` or `PP_0001` is
   unclassifiable. A run plan's `renumbered` targets are decoded raw
   (`work-adapters/src/rekey/run_plan_store.rs:313`), and `retirement::file_for`
-  joins an ID into a path (`retirement.rs:373`).
+  joins an ID into a path (`retirement.rs:376`).
 - **The identity set exists, compared whole.** `FilesystemWorkItemFiles::files()`
   lists every `.md` file at the top level and in `drafts/`, matching the
   extension case-sensitively and dropping a file it cannot read
@@ -138,7 +138,7 @@ allows them.
   `parent` (`skills/work/update-work-item/SKILL.md:161`). `work next-number`
   serves `create-work-item`, `extract-work-items`, `refine-work-item` and
   `configure`, and records `next-number` as its identity-run holder
-  (`next_number.rs:127`). `accelerator corpus` already groups its verbs by
+  (`next_number.rs:123`). `accelerator corpus` already groups its verbs by
   noun (`adr`, `metadata`, `linkage`, `frontmatter`).
 
 ## Desired End State
@@ -192,14 +192,14 @@ Verify with `mise run` (the full local CI mirror) and the recorded
   (`draft_id.rs:21`).
 - `holder_of`'s four callers are all collision checks: sync authoring
   (`sync_author.rs:89`), draft minting (`draft_id.rs:73`), retirement
-  (`retirement.rs:614`) and re-key (`rekey/collision.rs:41`). Draft IDs and
+  (`retirement.rs:617`) and re-key (`rekey/collision.rs:41`). Draft IDs and
   tracker keys never read as IDs under a numbered pattern.
 - `RecordingTracker` records `Call::PreviewCreate` as well as `Call::Create`
   (`cli/tracker-test-support/src/lib.rs:48-79`), so `tracker.calls().is_empty()`
   proves "no request of any kind" on both paths.
 - The lock-race test model is
   `a_draft_written_while_a_create_waits_for_the_lock_is_e_draft_exists`
-  (`create.rs:1507-1536`). The "did not block" model is
+  (`create.rs:1514-1543`). The "did not block" model is
   `update_push_takes_the_identity_run_lock_before_the_file_lock`
   (`cli/work-cli/src/update.rs:549-575`).
 - The public APIs of `corpus`, `work`, `tracker`, `tracker-support` and
@@ -666,7 +666,8 @@ listing tests:
 **File**: `cli/work-cli/tests/cli_rekey.rs`:
 
 - `an_upper_case_md_item_is_listed_and_re_keyed_like_any_other` — after a
-  pattern change, `0001-x.MD` is re-keyed with the `.md` items.
+  pattern change, `0001-x.MD` is re-keyed with the `.md` items, written
+  back as `ACC-0001-x.md`.
 
 **File**: `cli/work-cli/tests/cli_next_number.rs`:
 
@@ -764,9 +765,10 @@ listing tests:
   - Errors are split by source. `PatternError` comes only from
     `IdPattern::parse`: `Empty`, the brace variants, `AdjacentTokens`,
     `BadFormatSpec`, `UnknownToken`, `HostileChar`, `NoNumberToken`,
-    `WidthOverflow`, `RepeatedToken`, `DigitBesideToken`, `TrackerHasNoNumber` and
+    `WidthOverflow`, `RepeatedToken`, `DigitBesideToken` and
     `TrackerNotSoleToken`, each with today's `Display` text where it has
-    one. `KeyError::BadKeyValue` comes only from `IdKey::parse`, with
+    one. `TrackerHasNoNumber` has no counterpart: `{tracker}` parses, and
+    only `cap` and `render` treat it differently. `KeyError::BadKeyValue` comes only from `IdKey::parse`, with
     today's rule-5 text. `MissingKey` is defined once;
     `work::next_number::AllocationError` converts from it through a
     hand-written `From<MissingKey>`, since `work` has no `thiserror`, in
@@ -778,15 +780,18 @@ listing tests:
     unchanged, so today's texts hold.
   - `Segment` is private to the module: `Literal(String)`, `Key`,
     `Number { width: usize }` and `Tracker`.
-- **The walking primitives**, which `resolve::match_full_id` and every strict
-  walk compose under their own policies:
+- **The walking primitives**, private to the module, which every walk
+  composes under its own policy. `resolve::match_full_id` reaches them
+  through the crate-private `IdPattern::walk(text, Walk { literals, digits })`,
+  where `literals` is a `LiteralCase` and `digits` a `DigitWidth` (`Any` or
+  `Exact`):
 
   ```rust
-  pub(crate) fn take_literal<'a>(rest: &'a str, literal: &str, case: LiteralCase) -> Option<&'a str>;
+  fn take_literal<'a>(rest: &'a str, literal: &str, case: LiteralCase) -> Option<&'a str>;
 
-  pub(crate) fn take_key_run(rest: &str) -> impl Iterator<Item = (&str, &str)>;
+  fn take_key_run(rest: &str) -> impl Iterator<Item = (&str, &str)>;
 
-  pub(crate) fn take_digits(rest: &str) -> impl Iterator<Item = (&str, &str)>;
+  fn take_digits(rest: &str) -> impl Iterator<Item = (&str, &str)>;
   ```
 
   - `take_key_run` yields the end positions of every run of one
@@ -885,6 +890,15 @@ which justify local walkers by the regex compiler and name
   file is skipped, says it is reported.
 - `pattern_cap` and `explicit_width` go; allocation uses `IdPattern::cap`.
 
+**Files**: `cli/corpus-adapters/src/fs.rs`, `cli/work/src/retirement.rs`
+**Changes**: re-key plans each move through retirement, which walks the
+corpus with `RealFs::walk_markdown`, so that walker matches `.md` ignoring
+ASCII case too, for every consumer: `corpus frontmatter validate` and
+migrations walk `.MD` files as well. Retirement's `slug_after` strips the
+extension ignoring case and `file_for` writes `.md`, so a re-keyed `.MD`
+item is written back as `.md`. `walk_markdown_matches_the_extension_ignoring_case`
+(`fs.rs`, unit) pins the walker.
+
 #### 3. The allocators
 
 **Files**: `cli/work/src/next_number.rs` (`allocate`, `:82-150`),
@@ -905,7 +919,21 @@ through `IdParts::parse_prefix`, keeping a holder whose key equals the
 allocation key ignoring ASCII case, in place of `compile_scan_regex` plus
 `RegexScanner::compile`, and renders each number through
 `IdPattern::render`, in place of re-building a scheme and calling
-`canonicalise_id`.
+`canonicalise_id`. `allocate_above` becomes private to `next_number`.
+
+Until Phase 4 validates the pattern when the scheme is read, each entry
+point parses it itself and refuses a malformed one as
+`E_WORK_ID_PATTERN_INVALID: <reason>`: `create.rs`'s `id_pattern_of`, used
+by `allocate_id` and `creation_context`, `work next-number`'s `run`, and
+`work resolve`'s `run`. `work::resolve::classify_input` parses
+`scheme.id_pattern` on each call.
+
+**File**: `cli/work/src/rekey/mapping.rs`
+**Changes**: re-key no longer allocates through `next_number`. A
+transitional `cap_of(scheme)` reads `IdPattern::cap`, or no cap when the
+pattern does not parse, and `fresh_entries` numbers above the floor
+itself, rendering each through `sequence::rendered`, until Phase 4 rebuilds
+the mapping over the validated scheme.
 
 **File**: `skills/config/configure/SKILL.md`, the Pattern DSL Reference
 (`:715`, `:729-743`)
@@ -913,7 +941,9 @@ allocation key ignoring ASCII case, in place of `compile_scan_regex` plus
 from this phase:
 literal text is ASCII letters, digits, `.`, `_` and `-`, so the `{{`/`}}`
 escape is gone; no literal digit beside `{key}` or `{number}`; widths up to
-19 digits; at most one `{number}` and one key token. The
+19 digits; at most one `{number}` and one key token. The two new rules are
+numbered 6 and 7, after rule 5, so the "(rule 5)" that key-value errors
+cite still names the key rule. The
 `docs-site` reference page is generated from it and gitignored, so nothing
 there is committed; `mise run` rebuilds it.
 
@@ -928,13 +958,15 @@ there is committed; `mise run` rebuilds it.
   next number, and a caller that records or predicts allocated numbers
   should expect it.
 - `### Fixed`: allocation under a pattern with literal text, such as
-  `v{number:03d}`, writes `v001`, not `001`.
+  `v{number:03d}`, writes `v001`, not `001`, and `{key}v{number:03d}`
+  continues as `PPv002`.
 - The `[Unreleased]` entry saying `{{tracker}}` is a literal
   (`CHANGELOG.md:365`) now says an escaped brace is refused, since literal
   text may not hold a brace.
 - `### Changed`: a `.MD` file is a work item for `work list`, `sync`,
   `promote` and `rekey`, as allocation and `work resolve` already treated
-  it.
+  it; `corpus frontmatter validate` and migrations walk it too, and a
+  re-keyed `.MD` item is written back as `.md`.
 - `### Changed`: `work create`, `work create-batch`, `work next-number` and
   `work resolve` refuse a `work.id_pattern` whose literal text holds a
   character other than an ASCII letter, digit, `.`, `_` or `-`, or a digit
@@ -951,8 +983,9 @@ there is committed; `mise run` rebuilds it.
 `id_pattern`, `work_item_files::is_md_filename`, `WorkItemListing`,
 `WorkItemFiles::listing` and `next_number::allocation_key` appear,
 `AllocationError` converts from `MissingKey` and gains `InvalidProject`,
-and `allocate` no longer names
-`corpus::work_item_id::IdScanner`.
+`allocate` no longer names
+`corpus::work_item_id::IdScanner`, and `allocate_above` leaves the public
+API.
 
 ### Success Criteria
 
@@ -1358,12 +1391,12 @@ that wrote it:
   existing ID, so `a/b/0001` is `Unclassifiable` and refused by name before
   any run plan is saved, while `x'0001` or `PP 0001`, written under a
   pattern now refused, still re-keys, as the `### Migrations` entry's route
-  needs. `tracker_mapping` (`mapping.rs:236-257`) applies the same check to
+  needs. `tracker_mapping` (`mapping.rs:238-259`) applies the same check to
   an unsynced item's old ID before saving it. Such IDs are shown through
   the grammar's escaping helper in re-key's messages.
 - `NotRekeyed::Unclassifiable` gains a cause and an optional example:
   ambiguous digit runs, no number, not one path component, or an
-  `external_id` that is not a tracker key (`mapping.rs:204-205,240-241`).
+  `external_id` that is not a tracker key (`mapping.rs:206-207,242-243`).
   Each cause has its own message; only the ambiguity cause renders an
   example from the pattern, and under `{tracker}` none is rendered. It never chooses
   between two runs, so `PP2_0001` stays `Unclassifiable` and re-key refuses
@@ -1372,6 +1405,9 @@ that wrote it:
 - `classify`, `numeric_mapping` and `default_key_floor` read through
   `existing_id`, so a draft `id` or alias never sets the fresh-number
   floor.
+- Phase 3's transitional `cap_of` (`mapping.rs:86-91`) goes:
+  `numeric_mapping` and `fresh_entries` read `scheme.pattern().cap()`, and
+  `fresh_entries` renders each fresh number through `IdPattern::render`.
 - `is_in_target_shape` keeps today's rule, stated through the grammar: an
   ID is in shape when it equals, ignoring ASCII case,
   `scheme.pattern().render(work.key, number)` at the number `existing_id`
@@ -1449,7 +1485,7 @@ pub fn resolve_scheme(config: &dyn ConfigAccess) -> Result<SchemeReading, Scheme
 - **`resolve_scheme`** is `read_scheme`, `require_key` and
   `check_tracker_integration`: what a writer needs. Every command that calls
   `work-cli`'s `resolve_scheme` today keeps the same steps: `work create`,
-  `create-batch`, `work next-number`, `work resolve` (`resolve.rs:86`),
+  `create-batch`, `work next-number`, `work resolve` (`resolve.rs:87`),
   `promote` (`promote.rs:153`), `rekey`, `sync` and sync authoring
   (`sync_author.rs:247`). `work list` and `canonicalise_id::run` use
   `read_scheme` alone.
@@ -1478,6 +1514,13 @@ pub fn resolve_scheme(config: &dyn ConfigAccess) -> Result<SchemeReading, Scheme
 - **`--project`**: `AllocationError::InvalidProject` renders
   `E_WORK_KEY_INVALID: --project '<value>': <reason>` in both of
   `work-cli`'s `AllocationError` renderings.
+- **Phase 3's own pattern parses go**, since the scheme's pattern is
+  already validated: `create.rs`'s `id_pattern_of` (`create.rs:227-232`),
+  `next_number::run`'s parse (`next_number.rs:110-117`) and
+  `resolve::run`'s (`resolve.rs:88-90`) read `scheme.pattern()`, as does
+  `work::resolve::classify_input` (`work/src/resolve.rs:88-90`).
+  `allocation_key`'s `configured` takes the scheme's `Option<&IdKey>` in
+  place of `Option<&str>`.
 
 `work-adapters` gains the `config` dependency, a platform context.
 
@@ -2314,10 +2357,10 @@ step both ID sources share.
 `cli/work-cli/src/create.rs` (unit, `PushingRepo`). Add
 `PushingRepo::keyed()` (`{key}-{number:04d}`, `work.key: PP`, `jira`) and
 `args_with_id(id, push)`, and move `PushingRepo` from `create.rs`'s test
-module (`create.rs:811`) into `src/test_support.rs`, beside the binary's
+module (`create.rs:818`) into `src/test_support.rs`, beside the binary's
 other shared test doubles, so Phase 10's `id/check.rs` tests can use it. The
-move brings `FixedRegistry` (`create.rs:763`) and the second
-`impl PushingRepo` (`create.rs:1083`), with the fields visible to the
+move brings `FixedRegistry` (`create.rs:770`) and the second
+`impl PushingRepo` (`create.rs:1090`), with the fields visible to the
 crate.
 
 Writing:
@@ -2375,13 +2418,13 @@ Refusing, each for `push` in `[false, true]`, with `tracker.calls()` empty:
 - `an_id_over_an_unlistable_corpus_fails_rather_than_passing_as_untaken` —
   modelled on
   `a_created_marker_over_an_unlistable_corpus_fails_rather_than_reusing_its_key`
-  (`create.rs:1373`): `drafts/` at mode `000`; `--id 0400` gives `Failed`, not
+  (`create.rs:1380`): `drafts/` at mode `000`; `--id 0400` gives `Failed`, not
   `Created`, and writes nothing.
 - `a_holder_whose_content_cannot_be_read_still_takes_its_id` — a non-UTF-8
   `0400-other.md` gives `E_ID_TAKEN` naming it, because the listing reports
   it as unreadable and the filename prefix is read whatever the content.
 - `an_id_taken_while_the_create_waits_for_the_lock_is_refused` — modelled on
-  `create.rs:1507-1536`. Another thread holds the create lock and writes
+  `create.rs:1514-1543`. Another thread holds the create lock and writes
   `0400-other-title.md` before releasing it. `--id 0400` with another title
   gives `E_ID_TAKEN` naming `0400-other-title.md`.
 - `a_rekey_in_progress_refuses_before_any_id_check` — with a mismatched
@@ -2405,7 +2448,7 @@ Allocation after an `--id`:
 - `an_exhausted_number_space_names_the_item_holding_the_cap` — the one
   rendering of `AllocationError::Overflow` at the cap names `highest_file`,
   the cap and the pattern, and still contains "number space exhausted",
-  which `cli_create.rs:272` and `cli_next_number.rs:129` assert. A
+  which `cli_create.rs:286` and `cli_next_number.rs:129` assert. A
   `highest_file` whose slug holds U+001B shows it as `U+001B`.
 - `a_full_sequence_offers_no_lower_id` — under `{number:02d}` with all 99
   numbers held, the message offers only archiving or widening.
@@ -2519,7 +2562,7 @@ construction site:
 - `create_args_from_cli` (`main.rs:216-236`): `id: cli_args.id`;
 - `ManifestEntry::create_args` (`batch_manifest.rs:53-77`): `id: None`;
 - `create_pushed` (`sync.rs:4314-4332`): `id: None`;
-- `PushingRepo::args` (`create.rs:858-878`): `id: None`.
+- `PushingRepo::args` (`create.rs:865-885`): `id: None`.
 
 #### 4. Admission and the taken check
 
@@ -2648,8 +2691,8 @@ enum PushNext {
 
 #### 5. The overflow message
 
-**Files**: `cli/work/src/next_number.rs`, `cli/work-cli/src/create.rs:160-172`,
-`cli/work-cli/src/next_number.rs:46-58`
+**Files**: `cli/work/src/next_number.rs`, `cli/work-cli/src/create.rs:161-173`,
+`cli/work-cli/src/next_number.rs:44-56`
 **Changes**: one rendering of every `AllocationError` variant in
 `work::next_number`, taking the pattern, replaces the two copies in
 `work-cli`, including `E_PATTERN_MISSING_KEY`, `E_PATTERN_KEY_UNUSED` and
@@ -2834,7 +2877,7 @@ fn refuse_requested_id_before_preview(
 ```
 
 - `integration_state(config, root)` is extracted from
-  `CreationContext::integration_state` (`create.rs:428-434`) as a free
+  `CreationContext::integration_state` (`create.rs:436-442`) as a free
   function returning `Result<IntegrationState, String>`, so the real create
   and the dry-run build the integration state one way.
 - With `--id`, the dry-run branch runs `locate_work_items`, which reads the
@@ -2992,13 +3035,14 @@ least 0.9.
 
 - `### Changed`: `work canonicalise-id` and `work next-number` are now
   `work id canonicalise` and `work id next`, renamed during the prerelease,
-  with no alias, following the precedent at `CHANGELOG.md:1519-1522`.
+  with no alias, following the precedent at `CHANGELOG.md:1553-1556`.
 - Every other `[Unreleased]` mention of either old name moves to the new
   one: the `### Added` entry introducing the `accelerator work` family
-  (`CHANGELOG.md:329-335`), the lock entry's current-verb mentions (`:422`,
-  `:425`), Phase 3's first `### Breaking` entry, Phase 4's `### Breaking`
+  (`CHANGELOG.md:349-355`), the lock entry's current-verb mentions (`:443`,
+  `:446`), Phase 3's `### Breaking` entry on a key's letter case and its
+  `### Changed` entry on malformed patterns, Phase 4's `### Breaking`
   entry, and Phase 4's first two `### Changed` entries. Only the lock entry's
-  "an older `work next-number`" (`:430`) keeps the old name, because it
+  "an older `work next-number`" (`:451`) keeps the old name, because it
   names the verb as an older binary had it. A search of `[Unreleased]` for
   both old names confirms nothing else remains.
 
@@ -3118,7 +3162,7 @@ paragraph and in the config-refusal paragraph. Its refusals are `work create --i
 
 **File**: `CHANGELOG.md`
 **Changes**: `### Added`: `work id check <ID>`. The identity-run lock entry
-(`CHANGELOG.md:420-432`) names `work id check` among the commands that wait
+(`CHANGELOG.md:441-453`) names `work id check` among the commands that wait
 on the lock and refuse during a re-key, as `work id next` does.
 
 ### Success Criteria
