@@ -147,9 +147,8 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner and
-        // tracker for the sync engine's RemoteTracker vocabulary, both
-        // zero-dependency port crates.
+        // additionally permits corpus's document vocabulary and ports and
+        // tracker's vocabulary, both zero-dependency crates.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),

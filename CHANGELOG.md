@@ -206,6 +206,11 @@
   sequence. A repository holding mixed-case keys may see a higher next
   number, and a caller that records or predicts allocated numbers should
   expect it.
+- **Allocation counts a legacy bare-number item in the configured key's
+  sequence.** Under a `{key}` pattern, `work create`, `work create-batch` and
+  `work next-number` read `0400-x.md` as `work.key`'s `0400`, so beside
+  `PP-0005` and `0400-x.md` the next ID is `PP-0401`. A caller that records
+  or predicts allocated numbers should expect the jump.
 
 - **`cache prune` reports every failure instead of stopping at the first.**
   A lock it cannot take no longer ends the prune: it prunes every other
@@ -745,12 +750,24 @@
   `promote` and `rekey` read it, as allocation and `work resolve` already
   did, and `corpus frontmatter validate` and migrations walk it too. A
   re-keyed `.MD` item is written back with a `.md` extension.
-- **A malformed `work.id_pattern` is refused before anything is written.**
-  `work create`, `work create-batch`, `work next-number` and `work resolve`
-  refuse a pattern whose literal text holds a character other than an ASCII
-  letter, digit, `.`, `_` or `-`, or a digit beside a token, or with a width
-  over 19 digits or a repeated token, and `work resolve` refuses a malformed
-  pattern at start.
+- **Every `work` command that reads the ID scheme refuses a malformed one
+  at start, naming the setting.** `create`, `create-batch`, `next-number`,
+  `resolve`, `list`, `promote`, `rekey` and `sync` refuse a malformed
+  `work.id_pattern`, or a malformed `work.key` under a `{key}` pattern, as
+  `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`, quoting the
+  value; an invalid `--project` gives `E_WORK_KEY_INVALID` too.
+  `work canonicalise-id` keeps its own codes. `work list` refuses where it
+  fell back to the default scheme.
+- **A short full ID is canonicalised through the pattern.** `work list`,
+  `work resolve` and `work sync` read `PROJ-42` as `PROJ-0042`, and
+  `work canonicalise-id v1` gives `v001` under `v{number:03d}`. `work sync`
+  treats `X1-0400` and `xy-0400` as IDs.
+- **Re-key and retirement treat an ID held at another width as taken.**
+  `PP-0042` collides with an item holding or linked to `PP-42`, and under a
+  `{key}` pattern with an item holding the legacy `0042`. A re-key whose
+  target would read as another item's linked tracker key, because
+  `work.key` is the tracker's own key, is refused naming both items, the
+  cause and both remedies.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
@@ -863,6 +880,11 @@
 - **Allocation keeps a pattern's literal text.** Under a pattern such as
   `v{number:03d}`, `work create` writes `v001`, not `001`, and a pattern
   such as `{key}v{number:03d}` continues its sequence as `PPv002`.
+- **`work rekey` reads IDs rendered with literal pattern text.** Under the
+  current pattern and when moving to another, a repository under
+  `v{number:03d}` or `{key}_{number:04d}` is re-keyed, and re-keyed once. An
+  ID with more than one digit run outside the current pattern's shape is
+  refused by name rather than guessed.
 
 - **The default-root `cache prune` no longer creates tree locks for artifacts
   it never materialised**, except to reap an interrupted materialise's
@@ -881,6 +903,9 @@
 
 ### Security
 
+- **`work rekey` validates every path and target in a run plan before
+  touching any file**, so a run plan cannot name a path outside the
+  repository or a target outside the work directory.
 - **`accelerator config dump` hides API-key leaves.** Keys named `api_key` or
   `api_key_cmd` are redacted alongside `token` and `token_cmd`.
 - **A version-tracked `config.local.md` is refused for plain credential
@@ -948,6 +973,14 @@
   Move a team-config `paths.work` or `paths.integrations` outside the
   repository into an untracked `.accelerator/config.local.md`, or sync
   refuses with `74`.
+- **A `work.id_pattern` the grammar now refuses must be edited.** Literal
+  text holding a character other than an ASCII letter, digit, `.`, `_` or
+  `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
+  a digit beside `{key}` or `{number}` (such as `v2{number:03d}`), a width
+  over 19 digits or a repeated token is refused by every `work` command that
+  reads the ID scheme, with `E_WORK_ID_PATTERN_INVALID: work.id_pattern
+  '<value>': <reason>`. Edit the pattern as the reason directs, then run
+  `/rekey-work-items` if existing items should follow it.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item
   file changed and nothing sent to the tracker; commit the result. A Jira file
