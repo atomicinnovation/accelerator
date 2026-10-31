@@ -871,6 +871,30 @@ mod tests {
         topic_research_document("level-note", &all)
     }
 
+    fn manifest_with(extras: &[&str]) -> String {
+        let mut all = vec![
+            "slug: \"attention\"",
+            "round_count: 3",
+            "finding_count: 10",
+            "primary: \"synthesis.md\"",
+        ];
+        all.extend_from_slice(extras);
+        topic_research_document("manifest", &all)
+    }
+
+    #[test]
+    fn a_manifest_without_a_report_count_is_valid() {
+        assert_eq!(validate_file(&manifest_with(&[])), Vec::new());
+    }
+
+    #[test]
+    fn a_manifest_with_a_report_count_is_valid() {
+        assert_eq!(
+            validate_file(&manifest_with(&["report_count: 2"])),
+            Vec::new()
+        );
+    }
+
     #[test]
     fn a_finding_without_depth_is_valid() {
         let finding = topic_research_document(
