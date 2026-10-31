@@ -48,9 +48,7 @@ def test_a_commit_changing_only_measurements_is_skipped():
 
 
 def test_an_empty_commit_is_skipped():
-    history = FakeHistory(
-        chain=("c2", "c1"), changes={"c1": ("tasks/b.py",)}
-    )
+    history = FakeHistory(chain=("c2", "c1"), changes={"c1": ("tasks/b.py",)})
     assert measured_commit(history) == "c1"
 
 

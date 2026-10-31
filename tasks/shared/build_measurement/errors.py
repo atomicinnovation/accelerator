@@ -1,3 +1,7 @@
+import shlex
+from collections.abc import Sequence
+
+
 class MeasurementRefusedError(RuntimeError):
     """The harness cannot measure; no record is written."""
 
@@ -11,7 +15,13 @@ class NoMeasurableCommitError(MeasurementRefusedError):
 
 
 class HistoryError(MeasurementRefusedError):
-    pass
+    def __init__(self, argv: Sequence[str], stderr: str) -> None:
+        self.argv = tuple(argv)
+        self.stderr = stderr
+        super().__init__(
+            f"the history could not be read: {shlex.join(self.argv)} "
+            f"failed with {stderr}"
+        )
 
 
 class UnsupportedPlatformError(MeasurementRefusedError):
