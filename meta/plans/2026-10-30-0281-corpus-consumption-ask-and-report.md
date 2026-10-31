@@ -3097,8 +3097,40 @@ affected: both run `metadata derive` and `validate` after a user reply.
 
 #### Manual Verification:
 
-- [ ] `mise run eval:ask-and-report --family G1,G2,G3,G4,A1,A2,S1,S2 --verb ask` exits 0.
-- [ ] Record each family's pass counts (e.g. `3/3`) in an "As built" note under this phase.
+- [x] `mise run eval:ask-and-report --family G1,G2,G3,G4,A1,A2,S1,S2 --verb ask` exits 0.
+- [x] Record each family's pass counts (e.g. `3/3`) in an "As built" note under this phase.
+
+### As built
+
+- **Commits.** Change 1 and the skill prose of change 2 landed together, the
+  tests beside the prose they pin. The CHANGELOG and docs followed, then the
+  0281 and 0330 edits. The eval runs added one fix with its tests.
+- **Tests.** `_carriers_and` takes `(name, read)` pairs. The misplaced-flag
+  assertion in `test_research_topic_leaves_concurrency_to_outstanding` now
+  reads the widened parenthesis. The format test checks whole lines;
+  the status recoveries, which sit in a table, are checked as its cells.
+- **Prose.** Proposing research names a `--breadth` flag on `ask` only;
+  Phase 7 adds `report`.
+- **Eval fix.** The first run (Claude Code 2.1.316, default model) failed
+  37/37 sessions. 35 joined `corpus resolve` and `consultable` with `&&`.
+  About a dozen read findings through `cd`, `sed`, `grep` or `for` loops,
+  one of them `cat`-ing the citing-once rule. Three reworded or prefixed a
+  refusal on its own line. The consult section now asks for one Bash call
+  per command, every read through the Read tool, and refusal lines exactly
+  as their templates read, each on a line of its own. Three structure tests
+  pin it.
+- **Manual run** (Claude Code 2.1.316, default model, `--jobs 6`, 193 s):
+
+  | Family | Passed |
+  |---|---|
+  | A1 | 15/15 |
+  | A2 | 3/3 |
+  | G1 | 3/3 |
+  | G2 | 3/3 |
+  | G3 | 5/5 |
+  | G4 | 2/2 |
+  | S1 | 3/3 |
+  | S2 | 3/3 |
 
 ---
 
