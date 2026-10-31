@@ -173,7 +173,7 @@ def _stamped(raw: str) -> StampedLine:
     return StampedLine(at=float(at), text=text)
 
 
-def _attributed(
+def attributed_lines(
     lines: Iterable[StampedLine],
 ) -> Iterator[tuple[str, StampedLine]]:
     for line in lines:
@@ -237,7 +237,7 @@ def _transcript(lines: Sequence[StampedLine]) -> TaskTranscript:
 
 def transcripts(lines: Iterable[StampedLine]) -> Mapping[str, TaskTranscript]:
     grouped: dict[str, list[StampedLine]] = {}
-    for task, line in _attributed(lines):
+    for task, line in attributed_lines(lines):
         grouped.setdefault(task, []).append(line)
     return MappingProxyType(
         {task: _transcript(own) for task, own in grouped.items()}
@@ -250,7 +250,7 @@ def tasks_mise_reported_failing(
     return tuple(
         dict.fromkeys(
             task
-            for task, line in _attributed(lines)
+            for task, line in attributed_lines(lines)
             if _exit_status(line) is not None
         )
     )
