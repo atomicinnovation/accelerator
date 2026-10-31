@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from tasks.eval.ask_and_report import verdicts
-from tasks.eval.ask_and_report.projects import SET
+from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.turns import FileState, TurnRecord
 from tasks.eval.headless.transcript import Event, Text
 

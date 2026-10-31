@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tasks.eval.ask_and_report.projects import SLUG
+from tasks.eval.ask_and_report.layout import SLUG
 from tasks.eval.ask_and_report.turns import (
     TurnRecord,
     errored,
