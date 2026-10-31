@@ -10,7 +10,92 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "fields": {
+                "rounds_covered": 3,
+                "coverage": "answered",
+                "status": "complete",
+                "parent": "work-item:0900"
+              },
+              "absent": [
+                "relates_to"
+              ],
+              "sections": [
+                "Answer",
+                "Coverage",
+                "Sources"
+              ],
+              "no_sections": [
+                "Gaps"
+              ]
+            },
+            "sources": [
+              {
+                "marker": "htp.2025",
+                "tier": "tier-1"
+              },
+              {
+                "marker": "planning-guide.example",
+                "tier": "tier-2"
+              },
+              {
+                "marker": "W3001",
+                "tier": "tier-1",
+                "block": [
+                  [
+                    "doi",
+                    "10.5555/plan-and-solve.2024"
+                  ],
+                  [
+                    "openalex_id",
+                    "W3001"
+                  ],
+                  [
+                    "published",
+                    "2024-05-01"
+                  ],
+                  [
+                    "authors",
+                    "Ada Planner; Ben Solver"
+                  ]
+                ]
+              },
+              {
+                "marker": "W3002",
+                "tier": "tier-3 (retracted)"
+              }
+            ],
+            "manifest": {
+              "fields": {
+                "report_count": 1,
+                "status": "synthesised",
+                "primary": "synthesis.md",
+                "round_count": 3,
+                "finding_count": 10
+              },
+              "lists_reports": true
+            },
+            "offers": "none"
+          }
+        }
+      ]
     },
     {
       "name": "r1-c4-answered",
@@ -20,7 +105,26 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/which-agent-frameworks-document-a-planning-api.md",
+              "manifest.md"
+            ],
+            "offers": "none"
+          }
+        }
+      ]
     },
     {
       "name": "r1-c5-partial",
@@ -30,7 +134,67 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "gaps": [
+              {
+                "keyword": "rank",
+                "tier": "tier-3 (also tier-1)"
+              }
+            ],
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-agents-plan-tasks-and-which-planner-do-benchmarks.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-agents-plan-tasks-and-which-planner-do-benchmarks.md",
+              "fields": {
+                "coverage": "partial"
+              },
+              "section_mentions": {
+                "Gaps": [
+                  "rank"
+                ]
+              }
+            },
+            "sources": [
+              {
+                "marker": "W3004",
+                "tier": "tier-3 (also tier-1)",
+                "block": [
+                  [
+                    "doi",
+                    "10.5555/leaderboard.2026"
+                  ],
+                  [
+                    "openalex_id",
+                    "W3004"
+                  ]
+                ]
+              }
+            ],
+            "offers": "proposal"
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
     },
     {
       "name": "r1-c2-partial",
@@ -40,7 +204,85 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "gaps": [
+              {
+                "keyword": "recover",
+                "tier": "tier-3"
+              }
+            ],
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-agents-plan-tasks-and-how-do-they-recover-from-failed.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-agents-plan-tasks-and-how-do-they-recover-from-failed.md",
+              "fields": {
+                "coverage": "partial"
+              },
+              "section_mentions": {
+                "Gaps": [
+                  "recover"
+                ]
+              }
+            },
+            "sources": [
+              {
+                "marker": "agent-blog.example",
+                "tier": "tier-3"
+              },
+              {
+                "marker": "W3003",
+                "tier": "tier-3"
+              }
+            ],
+            "manifest": {
+              "fields": {
+                "report_count": 1,
+                "status": "synthesised"
+              },
+              "lists_reports": true
+            },
+            "proposal": {
+              "each_mentions": [
+                "recover",
+                "fail"
+              ]
+            },
+            "offers": "proposal"
+          }
+        },
+        {
+          "reply": "confirm",
+          "expect": {
+            "writes": [
+              "outline.md",
+              "manifest.md"
+            ],
+            "appended_round": 4,
+            "manifest": {
+              "fields": {
+                "status": "researching",
+                "round_count": 3,
+                "finding_count": 10
+              },
+              "lists_reports": true
+            },
+            "next_steps": true
+          }
+        }
+      ]
     },
     {
       "name": "r1-c3-unanswered",
@@ -50,7 +292,24 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "unanswered",
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
     }
   ]
 }

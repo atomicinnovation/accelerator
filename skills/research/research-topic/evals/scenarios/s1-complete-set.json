@@ -17,7 +17,15 @@
           }
         ]
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "s1-complete-report",
@@ -34,7 +42,32 @@
           }
         ]
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "manifest.md"
+            ],
+            "manifest": {
+              "fields": {
+                "status": "complete",
+                "report_count": 1
+              },
+              "lists_reports": true
+            }
+          }
+        }
+      ]
     }
   ]
 }

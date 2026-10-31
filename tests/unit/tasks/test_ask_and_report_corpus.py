@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.mutations import (
     Append,
     DropLine,
@@ -14,12 +15,14 @@ from tasks.eval.ask_and_report.mutations import (
     parse_mutation,
 )
 from tasks.eval.ask_and_report.preflight import gate_of
-from tasks.eval.ask_and_report.projects import SET, build_project
+from tasks.eval.ask_and_report.projects import build_project
 from tasks.eval.ask_and_report.scenarios import (
     Scenario,
     Setup,
+    Turn,
     load_scenario_files,
 )
+from tasks.eval.ask_and_report.verdicts import Coverage, Refusal, Writes
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVALS = REPO_ROOT / "skills/research/research-topic/evals"
@@ -220,6 +223,7 @@ SCENARIO = {
         ],
     },
     "gate": "status",
+    "turns": [{"expect": {"refusal": {"gate": "status"}}}],
 }
 
 
@@ -246,6 +250,7 @@ def test_a_scenario_parses_into_typed_values(tmp_path: Path) -> None:
                 mutations=(SetField("manifest.md", "status", "briefed"),),
             ),
             gate="status",
+            turns=(Turn(reply=None, expect=(Refusal(gate="status"),)),),
         ),
     )
 
@@ -274,7 +279,7 @@ def test_a_setup_carries_breadth_templates_and_skips(tmp_path: Path) -> None:
     [
         SCENARIO | {"gate": "closed"},
         SCENARIO | {"verb": "summarise"},
-        SCENARIO | {"turns": []},
+        SCENARIO | {"colour": "red"},
         SCENARIO | {"setup": {"variant": "base", "colour": "red"}},
         SCENARIO | {"setup": {"variant": "elsewhere"}},
         SCENARIO | {"setup": {"variant": "base", "templates": ["team"]}},
@@ -300,6 +305,70 @@ def test_a_malformed_scenario_raises_at_load(
     _scenario_file(tmp_path, "g1.json", scenario)
 
     with pytest.raises((ValueError, TypeError, KeyError)):
+        load_scenario_files(tmp_path)
+
+
+ACCEPTED = SCENARIO | {
+    "verb": "report",
+    "times": 3,
+    "gate": "open",
+    "turns": [
+        {"expect": {"coverage": "answered", "writes": []}},
+        {"reply": "accept", "expect": {"writes": ["manifest.md"]}},
+        {"reply": {"rewrite": 2}, "expect": {"writes": []}},
+    ],
+}
+
+
+def test_a_scenario_s_turns_parse_with_their_replies(tmp_path: Path) -> None:
+    _scenario_file(tmp_path, "r1.json", ACCEPTED)
+
+    ((scenario,),) = (f.scenarios for f in load_scenario_files(tmp_path))
+
+    assert scenario.turns == (
+        Turn(reply=None, expect=(Coverage("answered"), Writes(()))),
+        Turn(reply="accept", expect=(Writes(("manifest.md",)),)),
+        Turn(reply="rewrite 2", expect=(Writes(()),)),
+    )
+    assert [turn.writes for turn in scenario.turns] == [
+        (),
+        ("manifest.md",),
+        (),
+    ]
+
+
+@pytest.mark.parametrize(
+    "turns",
+    [
+        [],
+        [{"reply": "accept", "expect": {"writes": []}}],
+        [{"expect": {"writes": []}}, {"expect": {"writes": []}}],
+        [{"expect": {"writes": []}}, {"reply": "maybe", "expect": {}}],
+        [{"expect": {"coverage": "answered"}}],
+        [{"expect": {"writes": []}, "colour": "red"}],
+    ],
+    ids=[
+        "no-turns",
+        "opening-reply",
+        "missing-reply",
+        "unknown-reply",
+        "neither-writes-nor-refusal",
+        "unknown-turn-key",
+    ],
+)
+def test_a_malformed_turn_raises_at_load(
+    tmp_path: Path, turns: list[object]
+) -> None:
+    _scenario_file(tmp_path, "r1.json", ACCEPTED | {"turns": turns})
+
+    with pytest.raises((ValueError, TypeError, KeyError)):
+        load_scenario_files(tmp_path)
+
+
+def test_a_judgement_scenario_must_run_three_times(tmp_path: Path) -> None:
+    _scenario_file(tmp_path, "r1.json", ACCEPTED | {"times": 1})
+
+    with pytest.raises(ValueError, match="three"):
         load_scenario_files(tmp_path)
 
 
@@ -389,6 +458,32 @@ def test_an_override_otherwise_equals_the_plugin_template(
     plugin = (REPO_ROOT / "templates/topic-research-report.md").read_text()
     method = override.read_text().split("## Method\n", 1)[1].split("## ", 1)[0]
     assert override.read_text().replace(f"## Method\n{method}", "") == plugin
+
+
+def test_the_shipped_scenarios_plan_every_acceptance_session() -> None:
+    sessions = {
+        scenario_file.family: sum(s.times for s in scenario_file.scenarios)
+        for scenario_file in load_scenario_files(EVALS / "scenarios")
+    }
+
+    assert sessions == {
+        "A1": 15,
+        "A2": 3,
+        "E1": 18,
+        "E2": 3,
+        "G1": 6,
+        "G2": 6,
+        "G3": 10,
+        "G4": 4,
+        "N1": 5,
+        "N2": 2,
+        "P1": 6,
+        "R1": 15,
+        "R2": 6,
+        "S1": 6,
+        "S2": 6,
+    }
+    assert sum(sessions.values()) == 111
 
 
 def test_every_shipped_scenario_parses_under_a_unique_name() -> None:
