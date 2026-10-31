@@ -472,14 +472,15 @@ def _row_for_template(template: str) -> dict[str, Any]:
     [
         ("topic-research-finding.md", "finding"),
         ("topic-research-level-note.md", "level-note"),
+        ("topic-research-manifest.md", "manifest"),
     ],
 )
 def test_a_topic_research_template_declares_exactly_its_schema_row(
     template: str, kind: str
 ) -> None:
-    # The finding outputter is excluded from the emitter check, so the
-    # templates it delegates to are held to their rows here, with no extra
-    # keys.
+    # research-topic and its outputters are excluded from the emitter check,
+    # so the templates they write from are held to their rows here, with no
+    # extra keys.
     row = _row_for_template(template)
     assert row["kind"] == kind
     expected = {
