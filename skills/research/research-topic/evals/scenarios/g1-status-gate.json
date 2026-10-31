@@ -1,0 +1,108 @@
+{
+  "family": "G1",
+  "title": "The status gate",
+  "scenarios": [
+    {
+      "name": "g1-briefed-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "briefed"
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g1-briefed-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "briefed"
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g1-outlined-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "outlined"
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g1-outlined-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "outlined"
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g1-researching-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g1-researching-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          }
+        ]
+      },
+      "gate": "status"
+    }
+  ]
+}

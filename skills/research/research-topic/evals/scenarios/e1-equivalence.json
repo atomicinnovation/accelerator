@@ -1,0 +1,66 @@
+{
+  "family": "E1",
+  "title": "report finds equivalent reports",
+  "scenarios": [
+    {
+      "name": "e1-break-down-rewrite",
+      "verb": "report",
+      "question": "How do agents break down multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "e1-break-down-bare-accept",
+      "verb": "report",
+      "question": "How do agents break down multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "e1-context-limits",
+      "verb": "report",
+      "question": "How do agents plan tasks within context limits?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "e1-planning-hooks",
+      "verb": "report",
+      "question": "Which agent frameworks expose planning hooks?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "e1-gpus-best",
+      "verb": "report",
+      "question": "Which GPUs train agent models best?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "e1-tasks-new",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks!",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence"
+      },
+      "gate": "open"
+    }
+  ]
+}
