@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T15:43:22+00:00"
+last_updated: "2026-10-31T15:51:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1232,6 +1232,12 @@ and `merge(left: str, right: str) -> str`. The jj builder runs
 builder runs `git init`, `git commit` and `git merge --no-ff`. Both call
 `require("jj")` or `require("git")` from `tests/support/tools.py`.
 
+Each builder also offers `checkout`, which the branch and merge tests need:
+`jj new <revisions…>`, or `git checkout --detach <revision>`. The
+hermetic environment is applied with `monkeypatch` (`isolate`), not passed
+to the builders, so the adapters under test inherit it too and a
+contributor's own jj or git config cannot change their output.
+
 **File**: `tests/unit/tasks/shared/build_measurement/test_provenance.py`
 
 The pure tests run over a `FakeHistory`:
@@ -1359,6 +1365,11 @@ def working_copy_matches(history: History, commit: str) -> bool:
 Both adapters run with `cwd=root`, using a checked runner that raises
 `HistoryError(MeasurementRefusedError)` on a non-zero exit.
 
+The runner is a `HistoryCommandRunner` field defaulting to `checked_run`, so
+`test_the_adapters_only_issue_read_only_commands` records every argv by
+wrapping it. `HistoryError` keeps `argv` and `stderr` as attributes and
+names both in its message.
+
 | Operation | `JjHistory` | `GitHistory` |
 |---|---|---|
 | First-parent chain | `jj --ignore-working-copy log --no-graph -r 'first_ancestors(first_parent(@)) ~ root()' -T 'commit_id ++ "\n"'` | `git rev-list --first-parent HEAD` |
@@ -1434,21 +1445,25 @@ def require_macos(system: str) -> None: ...
 - **`require_macos`.** It raises
   `UnsupportedPlatformError("measure:build supports macOS only; this host
   is Linux")`.
+- **Probed on the reference host** (macOS 26.3, `engywook`): every probe
+  printed what the tests assume. The three-OID core probe prints `16`,
+  `12` and `4` on separate lines. `mise --version` writes its
+  update-available warnings to stderr, which the ambient runner drops.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] The new tests pass, including the real-repository ones:
+- [x] The new tests pass, including the real-repository ones:
       `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_repository.py -v`
-- [ ] The moved helpers leave warm-dispatch green: `uv run pytest tests/unit/tasks/test_measure.py -v`
+- [x] The moved helpers leave warm-dispatch green: `uv run pytest tests/unit/tasks/test_measure.py -v`
 - [ ] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
-- [ ] Lint and types pass: `mise run build-system:check`
+- [x] Lint and types pass: `mise run build-system:check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] In this jj workspace, `JjHistory(REPO_ROOT)` names the same commit as
+- [x] In this jj workspace, `JjHistory(REPO_ROOT)` names the same commit as
       `jj log -r @-` when `@-` changes code, and reports a match on a clean
       working copy.
 
