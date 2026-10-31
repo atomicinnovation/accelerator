@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T14:47:49+00:00"
+last_updated: "2026-10-31T15:19:48+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -599,7 +599,7 @@ The rules:
 
 | Marker (on the last segment unless noted) | Effect |
 |---|---|
-| `^Finished in (?P<amount>[\d.]+)(?P<unit>ms\|s)$` | Reported duration; exit status 0 |
+| `^Finished in (?P<amount>[\d.]+)(?P<unit>ms\|s)$` | Reported duration; exit status 0; not counted as a line |
 | `sources up-to-date, skipping` | `SKIPPED`; start and end at this line |
 | `^exited with status (?P<status>\d+)$` | Exit status; not counted as a line |
 | `ERROR task failed` | Not counted as a line |
@@ -609,7 +609,9 @@ The rules:
 
 - **Start and end.** A task's start is its first counted line. Its end is
   start plus duration, the skip line for a skipped task, or the last
-  counted line for a failed one.
+  counted line for a failed one. The `Finished in` line is not counted, so
+  a lock wait still open when a task succeeds closes at start plus
+  duration rather than at that line.
 - **No lines.** A task that printed nothing is `SILENT` when the graph
   says it is a roll-up, and `NOT_RUN` when it is runnable. `NOT_RUN`
   counts as a failure.
@@ -728,9 +730,15 @@ FETCH_FAILURE_PATTERNS: Mapping[ExternalInput, re.Pattern[str]] = (
 )
 
 
-def fetch_failures(lines: Iterable[StampedLine]) -> tuple[FetchFailure, ...]:
-    ...
+def fetch_failures(
+    lines: Iterable[StampedLine], *, run: int
+) -> tuple[FetchFailure, ...]: ...
 ```
+
+`run` is a parameter because `FetchFailure.run` is required and the lines
+do not carry it. Lines are attributed to tasks by `attributed_lines`, which
+`timeline.py` exposes so both modules strip colour and split the `[task]`
+prefix the same way.
 
 The launcher pattern matches what `bin/accelerator:152` prints, since it
 runs `curl --fail --silent --show-error`.
@@ -751,6 +759,14 @@ finding case is hand-seeded from cargo-deny's documented
 command, the network disabled, the stamp prefix) and the cargo-deny
 version, so it can be re-captured rather than hand-edited when the
 wording changes.
+
+Capture result (cargo-deny 0.19.8): with outbound network denied by
+`sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote
+ip))'` and the advisory database cached, the failed fetch is silent and
+`deny:check` passes, so that case leaves nothing to detect. With a scratch
+`CARGO_HOME` linking the real registry but holding no advisory database,
+cargo-deny prints `[ERROR] failed to get 'FETCH_HEAD' metadata: …` and the
+task fails. That text is the fixture, and the pattern matches it.
 
 ### Success Criteria:
 
@@ -2780,6 +2796,9 @@ within each run.
 - `test_isolation_reports_duration_nextest_phase_and_status_with_spreads`.
 - `test_an_isolated_runs_wall_clock_spans_every_invocation`.
 - `test_an_isolated_runs_exit_status_is_its_first_failure`.
+- `test_a_failed_isolated_task_takes_its_invocations_exit_status`: the log
+  ends `[t] ERROR task failed` with no `exited with status` line, and the
+  invocation exits 3 → the task's `exit_status == 3`.
 - `test_the_buckets_list_each_isolated_task_while_it_runs`.
 - `test_the_record_marks_its_mode_and_isolated_tasks`.
 - `test_settings_refuse_a_task_isolated_twice`: `InvalidSettingsError`
@@ -2822,6 +2841,12 @@ within each run.
   - `(task,)` as the tasks to report.
 
   The session's loop is unchanged from Phase 4; only the scope differs.
+- **A failed isolated task's exit status.** A single-task `mise run
+  --skip-deps <task>` prints `ERROR task failed` but no `exited with
+  status` line (probed with mise 2026.10.8 during Phase 1), so the
+  timeline leaves a failed isolated task's `exit_status` as `None`. The
+  analysis fills it from that invocation's exit status, the only place
+  mise reports it.
 - **`analysis.py`.** `conditions.mode` and `conditions.isolated_tasks`
   come from the scope's members, and the schema is unchanged.
 - **Name validation.** `BuildSettings.of` gains `isolate`, and builds
