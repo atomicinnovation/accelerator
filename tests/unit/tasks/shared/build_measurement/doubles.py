@@ -135,4 +135,3 @@ def measured_build(
         else PrimingRun(wall_clock_seconds=318.2, discarded=True),
         runs=runs,
     )
-

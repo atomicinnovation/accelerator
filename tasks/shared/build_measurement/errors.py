@@ -34,3 +34,7 @@ class UnreadableRecordError(MeasurementRefusedError):
 
 class KeptRecordExistsError(MeasurementRefusedError):
     pass
+
+
+class InvalidSettingsError(MeasurementRefusedError):
+    pass
