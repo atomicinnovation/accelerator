@@ -196,6 +196,11 @@
   `meta/prs/` description stay wrapped. A line that must render on
   its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
   spaces or `\`) or a list item.
+- **`work resolve` reads a missing work directory as empty.** In a
+  repository without one, it no longer exits 1 for every input: a topic gives
+  `E_RESOLVE_INVALID` (exit 1), an ID or number gives not found (exit 3), and
+  a path is judged against the configured directory. Scripts that read
+  `work resolve`'s exit codes there need updating.
 
 ### Added
 

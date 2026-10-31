@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use ::config::ConfigAccess;
 use config_adapters::FileConfigStore;
 use corpus::WorkItemIdScheme;
+use work::id_pattern::IdPattern;
 use work::identity::resolve_identity;
 use work::identity::IdentityField;
 use work::identity::IdentityMatch;
@@ -84,6 +85,9 @@ pub fn run(
     input: &str,
 ) -> Result<RunOutcome, kernel::Error> {
     let scheme = resolve_scheme(config)?;
+    IdPattern::parse(&scheme.id_pattern).map_err(|error| {
+        kernel::Error::Failed(format!("E_WORK_ID_PATTERN_INVALID: {error}"))
+    })?;
     let work_dir = canonical_work_dir(start, config)?;
     Ok(resolve_with(&scheme, &work_dir, start, input))
 }
@@ -91,6 +95,9 @@ pub fn run(
 /// Resolves the canonical work directory once, so a caller resolving many
 /// tokens reads config a single time and then resolves each infallibly through
 /// [`resolve_with`].
+///
+/// A missing work directory is canonicalised through the repository root,
+/// so it reads as an empty corpus.
 ///
 /// # Errors
 ///
@@ -103,12 +110,25 @@ pub fn canonical_work_dir(
 ) -> Result<PathBuf, kernel::Error> {
     let root = FileConfigStore::discover_root(start);
     let work_dir = resolve_work_dir(config, &root)?;
-    work_dir.canonicalize().map_err(|error| {
+    let unresolvable = |path: &Path, error: std::io::Error| {
         kernel::Error::Failed(format!(
             "could not resolve the work directory {}: {error}",
-            work_dir.display()
+            path.display()
         ))
-    })
+    };
+    match work_dir.canonicalize() {
+        Ok(canonical) => Ok(canonical),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let Ok(within_root) = work_dir.strip_prefix(&root) else {
+                return Err(unresolvable(&work_dir, error));
+            };
+            let canonical_root = root
+                .canonicalize()
+                .map_err(|error| unresolvable(&root, error))?;
+            Ok(canonical_root.join(within_root))
+        }
+        Err(error) => Err(unresolvable(&work_dir, error)),
+    }
 }
 
 /// The core: resolve `input` against the already resolved `scheme` and
