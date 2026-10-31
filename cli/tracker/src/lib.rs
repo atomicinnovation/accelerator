@@ -1,8 +1,8 @@
 //! The port a remote issue tracker satisfies, and the vocabulary it speaks.
 //!
 //! The provider clients that implement it and the sync engine that calls it
-//! both live elsewhere; this crate is the seam between them and holds no
-//! logic.
+//! both live elsewhere; this crate is the seam between them and holds only
+//! the port and the vocabulary trackers speak, tracker-key shape included.
 
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -904,4 +904,18 @@ pub trait RemoteTracker: BodyDialect {
 #[must_use]
 pub fn supports_tracker_owned_ids(integration: &str) -> bool {
     matches!(integration, "jira" | "linear")
+}
+
+/// True iff `token` is shaped like a Jira key or Linear identifier:
+/// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
+#[must_use]
+pub fn is_tracker_key(token: &str) -> bool {
+    let Some((prefix, number)) = token.rsplit_once('-') else {
+        return false;
+    };
+    let mut prefix_chars = prefix.chars();
+    prefix_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && prefix_chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !number.is_empty()
+        && number.chars().all(|c| c.is_ascii_digit())
 }

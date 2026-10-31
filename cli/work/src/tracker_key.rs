@@ -11,7 +11,7 @@ pub struct TrackerKey(String);
 impl TrackerKey {
     #[must_use]
     pub fn parse(token: &str) -> Option<Self> {
-        corpus::is_tracker_key(token).then(|| Self(token.to_owned()))
+        tracker::is_tracker_key(token).then(|| Self(token.to_owned()))
     }
 
     #[must_use]

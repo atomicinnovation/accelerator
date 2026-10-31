@@ -15,6 +15,5 @@ workspace = true
 
 [dependencies]
 config = { path = "../config" }
-corpus = { path = "../corpus" }
 tracker = { path = "../tracker" }
 

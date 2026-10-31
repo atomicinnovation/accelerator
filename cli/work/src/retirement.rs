@@ -346,7 +346,7 @@ fn is_interrupted_target(item: &ItemIdentity, r: &Retirement<'_>) -> bool {
 }
 
 fn shape_of(id: &str) -> IdShape {
-    if DraftId::parse(id).is_some() || corpus::is_tracker_key(id) {
+    if DraftId::parse(id).is_some() || tracker::is_tracker_key(id) {
         IdShape::Distinctive
     } else {
         IdShape::NumericOnly

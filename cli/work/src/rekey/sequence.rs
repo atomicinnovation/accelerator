@@ -13,7 +13,7 @@ use corpus::WorkItemIdScheme;
 pub fn sequence_of(id: &str) -> Option<u64> {
     let digits = if is_digits(id) {
         id
-    } else if corpus::is_tracker_key(id) {
+    } else if tracker::is_tracker_key(id) {
         id.rsplit_once('-')?.1
     } else {
         return None;

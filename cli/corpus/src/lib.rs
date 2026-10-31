@@ -47,7 +47,6 @@ pub use crate::value::Mapping;
 pub use crate::value::Scalar;
 pub use crate::work_item_id::canonical_draft_id;
 pub use crate::work_item_id::is_key_token;
-pub use crate::work_item_id::is_tracker_key;
 pub use crate::work_item_id::references_key;
 pub use crate::work_item_id::validate_id_pattern;
 pub use crate::work_item_id::IdOwnership;

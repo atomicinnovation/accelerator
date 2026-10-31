@@ -1,5 +1,5 @@
-//! The crate ships no behaviour and no dependencies, and has no adapter
-//! sibling. None of that is visible to rustdoc JSON, so it is checked here.
+//! The crate ships only the port and its vocabulary, no dependencies, and
+//! has no adapter sibling. None of that is visible to rustdoc JSON, so it is checked here.
 
 use std::error::Error;
 use std::path::PathBuf;
