@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T15:51:31+00:00"
+last_updated: "2026-10-31T16:59:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -114,6 +114,12 @@ their measured effect.
 - **The mise log contract.** It was probed live and is recorded in
   `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
   ("The mise output contract").
+  That contract holds for a direct `mise run`. Under an enclosing
+  `mise run` (as `measure:build` itself is), mise exports `MISE_TASK_*` to
+  its children, and `MISE_TASK_TIMINGS=0` silences every per-task
+  `Finished in` line; the build runner therefore drops the inherited
+  `MISE_TASK_*` and sets `MISE_TASK_TIMINGS=1`. Found by the first golden
+  capture, which read every printing task as failed.
 - **`iostat`'s first report** averages since boot (from the man page). It is
   discarded.
 - **`ps` output.** `TIME` is `minutes:seconds.hundredths` with no hour
@@ -420,7 +426,11 @@ answer is worked out in a comment beside the assertion, following
 - `test_a_failed_advisory_fetch_is_an_advisory_database_failure`: the line
   captured in step 3.
 - `test_each_npm_network_code_is_an_npm_registry_failure`: parametrised over
-  `ETIMEDOUT`, `ECONNRESET`, `ENOTFOUND` and `EAI_AGAIN`.
+  `ETIMEDOUT`, `ECONNRESET`, `ENOTFOUND` and `EAI_AGAIN`, after either
+  `npm ERR! code` or npm 10's `npm error code`.
+- `test_a_network_code_outside_an_npm_error_is_not_a_failure`: a pytest ID
+  holding `[ETIMEDOUT]`. Added in Phase 4, after the first golden capture
+  read the fetch-failure tests' own output as registry failures.
 - `test_a_non_network_failure_leaves_the_list_empty`: `deny:check` failing on
   an advisory finding, and `npm ERR! code ERESOLVE`.
 - `test_each_failure_names_its_task_and_line`.
@@ -723,7 +733,8 @@ FETCH_FAILURE_PATTERNS: Mapping[ExternalInput, re.Pattern[str]] = (
             ExternalInput.LAUNCHER_RELEASE: re.compile(r"\bcurl: \(\d+\)"),
             ExternalInput.ADVISORY_DATABASE: re.compile(...),
             ExternalInput.NPM_REGISTRY: re.compile(
-                r"\b(?:ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)\b"
+                r"\bnpm (?:ERR!|error) code "
+                r"(?:ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)\b"
             ),
         }
     )
@@ -1459,7 +1470,7 @@ def require_macos(system: str) -> None: ...
 - [x] The moved helpers leave warm-dispatch green: `uv run pytest tests/unit/tasks/test_measure.py -v`
 - [ ] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
 - [x] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2246,7 +2257,6 @@ def run_id(
     *,
     cache_state: BuildCacheState,
     host_settings: HostSettings,
-    mode: Mode,
 ) -> str: ...
 def record_text(measured: MeasuredBuild) -> str: ...
 def parse_record(text: str, *, source: Path) -> MeasuredBuild: ...
@@ -2255,7 +2265,8 @@ def write_measured_build(
 ) -> WrittenRecord: ...
 ```
 
-`run_id` takes values from `measured_build.py`, not `BuildSettings`, so
+`run_id` takes no `mode` until Phase 6 adds the `_isolated` suffix and
+its test. `run_id` takes values from `measured_build.py`, not `BuildSettings`, so
 `record.py` never imports `settings.py` or `session.py`.
 
 **File**: `tasks/shared/build_measurement/reports.py`
@@ -2274,7 +2285,11 @@ that consume them, and `session.py` imports them:
 @dataclass(frozen=True, slots=True)
 class SessionOutcome:
     measured: MeasuredBuild
+    keep: bool
 ```
+
+`keep` lets the summary tell a record withheld for a fetch failure from
+one never asked to be kept.
  `summary_report` takes plain paths rather than
 `record.py`'s `WrittenRecord`, so the pure reports never import the
 module that writes files. Each report is composed from one small renderer
@@ -2391,6 +2406,8 @@ on disk:
   appear in one step and raises `FileExistsError` when the name is taken,
   so it is both atomic and exclusive, and no temporary ever sits under
   `meta/measurements/` for jj to snapshot. The temporary is then removed.
+  A taken name raises `KeptRecordExistsError(MeasurementRefusedError)`,
+  naming the kept path and the run directory's `record.json`.
 
 With `--keep`, a record holding any fetch failure is withheld from
 `meta/measurements/`: Requirement 7 says such a record is retaken, not
@@ -2459,7 +2476,14 @@ not kept: 1 fetch failure (advisory-database in run 2); retake
     find.
   - After the reap, it asks `ProcessOps.group_alive` once more. If the
     group survived, the interrupt or error message names it and gives
-    `kill -KILL -<pgid>`, so a build left running is never silent.
+    `kill -KILL -<pgid>`, so a build left running is never silent. It
+    raises `BuildLeftRunningError(MeasurementRefusedError)`.
+  - It reaps only a child that is still running: once `poll()` has
+    collected the leader its PID may be reused, and `reap_tree` would
+    signal whatever now holds it.
+  - Its environment drops the inherited `MISE_TASK_*` and sets
+    `MISE_TASK_TIMINGS=1`, so the measured build prints what a direct
+    `mise run default` prints (see Key Discoveries).
 
 **File**: `tasks/shared/build_measurement/samplers.py`
 
@@ -2727,12 +2751,12 @@ by the steps in the test module's docstring.
 
 #### Automated Verification:
 
-- [ ] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_signals.py tests/unit/tasks/shared/test_processes.py -v`
-- [ ] The measure and mise guards pass: `uv run pytest tests/unit/tasks/test_measure.py tests/unit/tasks/test_mise.py -v`
-- [ ] The extracted reaper leaves the dev server green: `mise run test:unit:tasks`
-- [ ] Neither `check` nor `default` reaches `measure:build`: `test_no_measure_reaching_task_is_in_the_ci_mirror`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The new tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_signals.py tests/unit/tasks/shared/test_processes.py -v`
+- [x] The measure and mise guards pass: `uv run pytest tests/unit/tasks/test_measure.py tests/unit/tasks/test_mise.py -v`
+- [x] The extracted reaper leaves the dev server green: `mise run test:unit:tasks`
+- [x] Neither `check` nor `default` reaches `measure:build`: `test_no_measure_reaching_task_is_in_the_ci_mirror`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
