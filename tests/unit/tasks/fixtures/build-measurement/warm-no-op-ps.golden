@@ -1,0 +1,360 @@
+0.006166542007122189 sample
+0.006166542007122189   479     1   3:26.74 /usr/libexec/syspolicyd
+0.006166542007122189   745     1 584:21.31 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+0.006166542007122189  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+0.006166542007122189  3402   750   0:49.34 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+0.006166542007122189  3648   745   0:35.54 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+1.0663252920057857 sample
+1.0663252920057857   479     1   3:26.74 /usr/libexec/syspolicyd
+1.0663252920057857   745     1 584:21.47 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+1.0663252920057857  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+1.0663252920057857  3402   750   0:49.35 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+1.0663252920057857  3648   745   0:35.54 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+2.1282567080052104 sample
+2.1282567080052104   479     1   3:26.74 /usr/libexec/syspolicyd
+2.1282567080052104   745     1 584:22.41 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+2.1282567080052104  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+2.1282567080052104  3402   750   0:49.37 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+2.1282567080052104  3648   745   0:35.56 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+3.195104208003613 sample
+3.195104208003613   479     1   3:26.76 /usr/libexec/syspolicyd
+3.195104208003613   745     1 584:22.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+3.195104208003613  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+3.195104208003613  3402   750   0:49.39 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+3.195104208003613  3648   745   0:35.59 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+4.256081750005251 sample
+4.256081750005251   479     1   3:26.76 /usr/libexec/syspolicyd
+4.256081750005251   745     1 584:22.73 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+4.256081750005251  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+4.256081750005251  3402   750   0:49.40 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+4.256081750005251  3648   745   0:35.60 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+5.322238875000039 sample
+5.322238875000039   479     1   3:26.77 /usr/libexec/syspolicyd
+5.322238875000039   745     1 584:22.86 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+5.322238875000039  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+5.322238875000039  3402   750   0:49.40 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+5.322238875000039  3648   745   0:35.60 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+6.383421958002145 sample
+6.383421958002145   479     1   3:26.77 /usr/libexec/syspolicyd
+6.383421958002145   745     1 584:22.97 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+6.383421958002145  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+6.383421958002145  3402   750   0:49.40 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+6.383421958002145  3648   745   0:35.60 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+7.443334124996909 sample
+7.443334124996909   479     1   3:26.77 /usr/libexec/syspolicyd
+7.443334124996909   745     1 584:23.08 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+7.443334124996909  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+7.443334124996909  3402   750   0:49.40 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+7.443334124996909  3648   745   0:35.60 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+8.547425042008399 sample
+8.547425042008399   479     1   3:26.77 /usr/libexec/syspolicyd
+8.547425042008399   745     1 584:23.14 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+8.547425042008399  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+8.547425042008399  3402   750   0:49.41 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+8.547425042008399  3648   745   0:35.60 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+9.621219667009427 sample
+9.621219667009427   479     1   3:26.77 /usr/libexec/syspolicyd
+9.621219667009427   745     1 584:23.22 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+9.621219667009427  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+9.621219667009427  3402   750   0:49.42 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+9.621219667009427  3648   745   0:35.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+10.694735875003971 sample
+10.694735875003971   479     1   3:26.77 /usr/libexec/syspolicyd
+10.694735875003971   745     1 584:23.29 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+10.694735875003971  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+10.694735875003971  3402   750   0:49.42 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+10.694735875003971  3648   745   0:35.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+11.759579833000316 sample
+11.759579833000316   479     1   3:26.77 /usr/libexec/syspolicyd
+11.759579833000316   745     1 584:23.36 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+11.759579833000316  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+11.759579833000316  3402   750   0:49.42 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+11.759579833000316  3648   745   0:35.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+12.83276333300455 sample
+12.83276333300455   479     1   3:26.77 /usr/libexec/syspolicyd
+12.83276333300455   745     1 584:23.56 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+12.83276333300455  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+12.83276333300455  3402   750   0:49.43 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+12.83276333300455  3648   745   0:35.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+13.92468320800981 sample
+13.92468320800981   479     1   3:26.77 /usr/libexec/syspolicyd
+13.92468320800981   745     1 584:27.43 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+13.92468320800981  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+13.92468320800981  3402   750   0:49.43 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+13.92468320800981  3648   745   0:35.62 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+15.015583708009217 sample
+15.015583708009217   479     1   3:26.77 /usr/libexec/syspolicyd
+15.015583708009217   745     1 584:30.54 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+15.015583708009217  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+15.015583708009217  3402   750   0:49.45 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+15.015583708009217  3648   745   0:35.63 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+16.09093983299681 sample
+16.09093983299681   479     1   3:26.77 /usr/libexec/syspolicyd
+16.09093983299681   745     1 584:33.21 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+16.09093983299681  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+16.09093983299681  3402   750   0:49.46 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+16.09093983299681  3648   745   0:35.63 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+17.158752041999833 sample
+17.158752041999833   479     1   3:26.78 /usr/libexec/syspolicyd
+17.158752041999833   745     1 584:36.11 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+17.158752041999833  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+17.158752041999833  3402   750   0:49.46 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+17.158752041999833  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+18.235033000004478 sample
+18.235033000004478   479     1   3:26.78 /usr/libexec/syspolicyd
+18.235033000004478   745     1 584:39.72 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+18.235033000004478  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+18.235033000004478  3402   750   0:49.47 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+18.235033000004478  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+19.322150207997765 sample
+19.322150207997765   479     1   3:26.78 /usr/libexec/syspolicyd
+19.322150207997765   745     1 584:43.39 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+19.322150207997765  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+19.322150207997765  3402   750   0:49.47 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+19.322150207997765  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+20.392015542005538 sample
+20.392015542005538   479     1   3:26.78 /usr/libexec/syspolicyd
+20.392015542005538   745     1 584:46.82 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+20.392015542005538  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+20.392015542005538  3402   750   0:49.47 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+20.392015542005538  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+21.473853000003146 sample
+21.473853000003146   479     1   3:26.78 /usr/libexec/syspolicyd
+21.473853000003146   745     1 584:50.41 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+21.473853000003146  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+21.473853000003146  3402   750   0:49.47 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+21.473853000003146  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+22.599134292002418 sample
+22.599134292002418   479     1   3:26.78 /usr/libexec/syspolicyd
+22.599134292002418   745     1 584:54.24 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+22.599134292002418  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+22.599134292002418  3402   750   0:49.47 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+22.599134292002418  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+23.693085417005932 sample
+23.693085417005932   479     1   3:26.78 /usr/libexec/syspolicyd
+23.693085417005932   745     1 584:57.90 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+23.693085417005932  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+23.693085417005932  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+23.693085417005932  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+24.763692417007405 sample
+24.763692417007405   479     1   3:26.78 /usr/libexec/syspolicyd
+24.763692417007405   745     1 585:01.90 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+24.763692417007405  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+24.763692417007405  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+24.763692417007405  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+25.835057083007996 sample
+25.835057083007996   479     1   3:26.78 /usr/libexec/syspolicyd
+25.835057083007996   745     1 585:05.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+25.835057083007996  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+25.835057083007996  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+25.835057083007996  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+26.90159587500966 sample
+26.90159587500966   479     1   3:26.79 /usr/libexec/syspolicyd
+26.90159587500966   745     1 585:09.86 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+26.90159587500966  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+26.90159587500966  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+26.90159587500966  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+27.976341875008075 sample
+27.976341875008075   479     1   3:26.79 /usr/libexec/syspolicyd
+27.976341875008075   745     1 585:13.13 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+27.976341875008075  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+27.976341875008075  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+27.976341875008075  3648   745   0:35.64 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+29.069350417004898 sample
+29.069350417004898   479     1   3:26.79 /usr/libexec/syspolicyd
+29.069350417004898   745     1 585:14.01 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+29.069350417004898  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+29.069350417004898  3402   750   0:49.48 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+29.069350417004898  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+30.26616508299776 sample
+30.26616508299776   479     1   3:26.79 /usr/libexec/syspolicyd
+30.26616508299776   745     1 585:14.43 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+30.26616508299776  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+30.26616508299776  3402   750   0:49.49 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+30.26616508299776  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+31.339575625010184 sample
+31.339575625010184   479     1   3:26.79 /usr/libexec/syspolicyd
+31.339575625010184   745     1 585:14.92 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+31.339575625010184  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+31.339575625010184  3402   750   0:49.49 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+31.339575625010184  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+32.43540154201037 sample
+32.43540154201037   479     1   3:26.79 /usr/libexec/syspolicyd
+32.43540154201037   745     1 585:15.55 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+32.43540154201037  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+32.43540154201037  3402   750   0:49.49 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+32.43540154201037  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+33.54118908300006 sample
+33.54118908300006   479     1   3:26.79 /usr/libexec/syspolicyd
+33.54118908300006   745     1 585:16.07 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+33.54118908300006  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+33.54118908300006  3402   750   0:49.49 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+33.54118908300006  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+34.60694870800944 sample
+34.60694870800944   479     1   3:26.79 /usr/libexec/syspolicyd
+34.60694870800944   745     1 585:18.96 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+34.60694870800944  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+34.60694870800944  3402   750   0:49.49 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+34.60694870800944  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+35.67768041700765 sample
+35.67768041700765   479     1   3:26.79 /usr/libexec/syspolicyd
+35.67768041700765   745     1 585:19.20 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+35.67768041700765  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+35.67768041700765  3402   750   0:49.50 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+35.67768041700765  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+36.7891014580091 sample
+36.7891014580091   479     1   3:26.79 /usr/libexec/syspolicyd
+36.7891014580091   745     1 585:19.48 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+36.7891014580091  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+36.7891014580091  3402   750   0:49.50 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+36.7891014580091  3648   745   0:35.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+37.86100474999694 sample
+37.86100474999694   479     1   3:26.79 /usr/libexec/syspolicyd
+37.86100474999694   745     1 585:19.77 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+37.86100474999694  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+37.86100474999694  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+37.86100474999694  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+38.97070975000679 sample
+38.97070975000679   479     1   3:26.79 /usr/libexec/syspolicyd
+38.97070975000679   745     1 585:19.92 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+38.97070975000679  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+38.97070975000679  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+38.97070975000679  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+40.05581395800982 sample
+40.05581395800982   479     1   3:26.79 /usr/libexec/syspolicyd
+40.05581395800982   745     1 585:20.08 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+40.05581395800982  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+40.05581395800982  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+40.05581395800982  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+41.157405125006335 sample
+41.157405125006335   479     1   3:26.79 /usr/libexec/syspolicyd
+41.157405125006335   745     1 585:20.24 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+41.157405125006335  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+41.157405125006335  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+41.157405125006335  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+42.251614916996914 sample
+42.251614916996914   479     1   3:26.79 /usr/libexec/syspolicyd
+42.251614916996914   745     1 585:20.40 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+42.251614916996914  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+42.251614916996914  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+42.251614916996914  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+43.37418612500187 sample
+43.37418612500187   479     1   3:26.79 /usr/libexec/syspolicyd
+43.37418612500187   745     1 585:20.56 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+43.37418612500187  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+43.37418612500187  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+43.37418612500187  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+44.534626916996785 sample
+44.534626916996785   479     1   3:26.79 /usr/libexec/syspolicyd
+44.534626916996785   745     1 585:20.74 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+44.534626916996785  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+44.534626916996785  3402   750   0:49.51 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+44.534626916996785  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+45.66756741699646 sample
+45.66756741699646   479     1   3:26.79 /usr/libexec/syspolicyd
+45.66756741699646   745     1 585:20.94 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+45.66756741699646  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+45.66756741699646  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+45.66756741699646  3648   745   0:35.66 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+46.75893608300248 sample
+46.75893608300248   479     1   3:26.79 /usr/libexec/syspolicyd
+46.75893608300248   745     1 585:21.15 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+46.75893608300248  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+46.75893608300248  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+46.75893608300248  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+47.85563295800239 sample
+47.85563295800239   479     1   3:26.79 /usr/libexec/syspolicyd
+47.85563295800239   745     1 585:21.52 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+47.85563295800239  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+47.85563295800239  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+47.85563295800239  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+49.26192704199639 sample
+49.26192704199639   479     1   3:26.79 /usr/libexec/syspolicyd
+49.26192704199639   745     1 585:21.90 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+49.26192704199639  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+49.26192704199639  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+49.26192704199639  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+50.33177104200877 sample
+50.33177104200877   479     1   3:26.79 /usr/libexec/syspolicyd
+50.33177104200877   745     1 585:22.29 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+50.33177104200877  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+50.33177104200877  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+50.33177104200877  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+51.41512091700861 sample
+51.41512091700861   479     1   3:26.79 /usr/libexec/syspolicyd
+51.41512091700861   745     1 585:22.68 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+51.41512091700861  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+51.41512091700861  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+51.41512091700861  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+52.50539583300997 sample
+52.50539583300997   479     1   3:26.79 /usr/libexec/syspolicyd
+52.50539583300997   745     1 585:23.05 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+52.50539583300997  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+52.50539583300997  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+52.50539583300997  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+53.58264941700327 sample
+53.58264941700327   479     1   3:26.79 /usr/libexec/syspolicyd
+53.58264941700327   745     1 585:23.45 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+53.58264941700327  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+53.58264941700327  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+53.58264941700327  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+54.66864579200046 sample
+54.66864579200046   479     1   3:26.79 /usr/libexec/syspolicyd
+54.66864579200046   745     1 585:23.81 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+54.66864579200046  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+54.66864579200046  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+54.66864579200046  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+55.74887516700255 sample
+55.74887516700255   479     1   3:26.79 /usr/libexec/syspolicyd
+55.74887516700255   745     1 585:24.23 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+55.74887516700255  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+55.74887516700255  3402   750   0:49.52 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+55.74887516700255  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+56.85033120799926 sample
+56.85033120799926   479     1   3:26.79 /usr/libexec/syspolicyd
+56.85033120799926   745     1 585:24.61 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+56.85033120799926  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+56.85033120799926  3402   750   0:49.53 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+56.85033120799926  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+57.92988883300859 sample
+57.92988883300859   479     1   3:26.79 /usr/libexec/syspolicyd
+57.92988883300859   745     1 585:25.14 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+57.92988883300859  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+57.92988883300859  3402   750   0:49.53 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+57.92988883300859  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+58.99124808300985 sample
+58.99124808300985   479     1   3:26.79 /usr/libexec/syspolicyd
+58.99124808300985   745     1 585:25.59 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+58.99124808300985  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+58.99124808300985  3402   750   0:49.53 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+58.99124808300985  3648   745   0:35.67 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+60.0494713329972 sample
+60.0494713329972   479     1   3:26.80 /usr/libexec/syspolicyd
+60.0494713329972   745     1 585:25.87 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+60.0494713329972  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+60.0494713329972  3402   750   0:49.53 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+60.0494713329972  3648   745   0:35.68 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+61.13518366700737 sample
+61.13518366700737   479     1   3:26.82 /usr/libexec/syspolicyd
+61.13518366700737   745     1 585:26.12 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+61.13518366700737  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+61.13518366700737  3402   750   0:49.53 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+61.13518366700737  3648   745   0:35.68 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+62.22350624999672 sample
+62.22350624999672   479     1   3:26.82 /usr/libexec/syspolicyd
+62.22350624999672   745     1 585:26.62 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+62.22350624999672  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+62.22350624999672  3402   750   0:49.54 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+62.22350624999672  3648   745   0:35.68 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+63.30573220799852 sample
+63.30573220799852   479     1   3:26.83 /usr/libexec/syspolicyd
+63.30573220799852   745     1 585:27.17 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+63.30573220799852  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+63.30573220799852  3402   750   0:49.55 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+63.30573220799852  3648   745   0:35.69 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+64.37398683300125 sample
+64.37398683300125   479     1   3:26.83 /usr/libexec/syspolicyd
+64.37398683300125   745     1 585:27.97 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+64.37398683300125  3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+64.37398683300125  3402   750   0:49.55 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+64.37398683300125  3648   745   0:35.69 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
