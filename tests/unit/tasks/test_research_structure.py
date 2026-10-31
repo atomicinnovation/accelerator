@@ -267,7 +267,7 @@ OPENING = (
 )
 
 
-def _report() -> str:
+def _run_report() -> str:
     return _section(_conduct(), REPORT_START, "Each plan prints JSON.")
 
 
@@ -335,11 +335,11 @@ def test_conduct_ignores_stderr() -> None:
 def test_the_report_groups_each_class_under_its_heading(
     heading: str, field: str
 ) -> None:
-    assert f'- "{heading}": `{field}`' in _report()
+    assert f'- "{heading}": `{field}`' in _run_report()
 
 
 def test_the_report_marks_quarantined_entries() -> None:
-    report = _report()
+    report = _run_report()
     assert 'marked "(quarantined)"' in report
     assert (
         'An entry whose `question` is `null` reads "(quarantined; no outline '
@@ -348,7 +348,7 @@ def test_the_report_marks_quarantined_entries() -> None:
 
 
 def test_the_report_is_printed_verbatim_before_any_other_tool_call() -> None:
-    report = _report()
+    report = _run_report()
     for phrase in (
         "print the report below verbatim before any other tool call",
         "never summarise or paraphrase it",
@@ -422,25 +422,25 @@ def test_the_unfinished_run_row_and_step_2_report_are_unchanged() -> None:
 
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
     assert OPENING in _conduct()
-    assert OPENING in _report()
+    assert OPENING in _run_report()
 
 
 @pytest.mark.parametrize(
     "claim", ["stopped", "crashed", "died", "was interrupted", "has ended"]
 )
 def test_the_report_never_asserts_the_earlier_run_stopped(claim: str) -> None:
-    assert claim not in _report()
+    assert claim not in _run_report()
 
 
 def test_the_report_shows_the_opening_alone_for_an_empty_batch() -> None:
     assert (
         "Empty classes are omitted; with every class empty, show the opening "
         "sentence alone."
-    ) in _report()
+    ) in _run_report()
 
 
 def test_the_report_quarantines_listed_findings_before_any_batch() -> None:
-    report = _report()
+    report = _run_report()
     assert "`quarantine`" in report
     assert "`.<name>.invalid`" in report
     assert "whether or not the plan offers a spawn" in report
@@ -452,7 +452,7 @@ def test_the_report_quarantines_listed_findings_before_any_batch() -> None:
 
 
 def test_a_failed_quarantine_lists_what_is_left_and_stops_conduct() -> None:
-    report = _report()
+    report = _run_report()
     for phrase in (
         "attempt every rename",
         "each path still not renamed",
@@ -463,7 +463,7 @@ def test_a_failed_quarantine_lists_what_is_left_and_stops_conduct() -> None:
 
 
 def test_the_report_states_the_next_step_if_a_run_does_not_end() -> None:
-    report = _report()
+    report = _run_report()
     for phrase in (
         "this run re-researched each spawn marked offered again, and "
         "Failures lists any it did not finish",
@@ -514,7 +514,7 @@ def test_research_topic_leaves_concurrency_to_outstanding() -> None:
     ) in knobs
     assert (
         "(`--depth` or `--concurrency` on `outline`, `--breadth` on "
-        "`conduct`, any of the three on `ask`)"
+        "`conduct`, any of the three on `ask` or `report`)"
     ) in knobs, "the misplaced-flag rule must name --concurrency on outline"
 
 
@@ -728,8 +728,12 @@ def _consult() -> str:
 
 
 def _ask() -> str:
+    return _section(_research_topic_prose(), "### ask", "### report")
+
+
+def _report() -> str:
     return _section(
-        _research_topic_prose(), "### ask", "## Populate frontmatter"
+        _research_topic_prose(), "### report", "## Populate frontmatter"
     )
 
 
@@ -1647,6 +1651,7 @@ class Carrier(NamedTuple):
 RULE_CARRIERS = (
     Carrier("composer", _composer, origin="a note"),
     Carrier("synthesise", _synthesise, origin="a finding"),
+    Carrier("report", _report, origin="a finding"),
 )
 CARRIERS = pytest.mark.parametrize(
     "carrier", RULE_CARRIERS, ids=[carrier.name for carrier in RULE_CARRIERS]
@@ -2202,7 +2207,7 @@ def test_the_preamble_defers_ask_s_refusal_to_its_section() -> None:
     preamble = _section(
         _research_topic_prose(), "## Shared Preamble", "## Derive Metadata"
     )
-    assert "`finalise` and `ask` are the exceptions" in preamble
+    assert "`finalise`, `ask` and `report` are the exceptions" in preamble
 
 
 def test_the_count_rule_names_ask_as_a_read_only_user() -> None:
@@ -2212,7 +2217,8 @@ def test_the_count_rule_names_ask_as_a_read_only_user() -> None:
         "## Deferred hardening",
     )
     assert (
-        "`consultable` applies the same gate for `ask`, which writes no count"
+        "`consultable` applies the same gate for `ask` and `report`, and "
+        "`ask` writes no count"
     ) in validate
 
 
@@ -2235,3 +2241,278 @@ def test_reopening_names_ask_s_confirmed_proposal() -> None:
         "the original question",
     ):
         assert phrase in reopening
+
+
+def _validate_every_write() -> str:
+    return _section(
+        _research_topic_prose(),
+        "## Validate every write",
+        "## Deferred hardening",
+    )
+
+
+def _report_step(start: str, end: str) -> str:
+    return _section(_report(), start, end)
+
+
+def _sources_sub_step() -> str:
+    return _report_step("**Sources.**", "Validate the report.")
+
+
+def _choice_step() -> str:
+    return _report_step("**Offer the choice.**", "**Write the report**")
+
+
+def _record_step() -> str:
+    return _report_step("**Record it in the manifest**", "**Partial.**")
+
+
+def _dedented(text: str) -> str:
+    return "\n".join(line.strip() for line in text.splitlines())
+
+
+def test_research_topic_loads_the_report_template() -> None:
+    prose = _research_topic_prose()
+    assert "config template topic-research --kind report" in prose
+    assert "The seven artifact templates" in prose
+
+
+def test_report_names_the_citing_once_rule_s_path() -> None:
+    assert CITING_ONCE_PATH in _report()
+
+
+def test_report_cites_every_source_behind_its_gaps() -> None:
+    report = _report()
+    assert "including two citations of one source in one finding" in report
+    assert "behind its gaps" in report
+
+
+def test_report_cites_every_source_of_the_findings_it_draws_on() -> None:
+    sources = _sources_sub_step()
+    for phrase in (
+        "every source cited in each finding the answer draws on",
+        "retracted and withdrawn ones included",
+    ):
+        assert phrase in sources
+
+
+def test_report_merges_each_source_across_every_finding_it_reads() -> None:
+    sources = _sources_sub_step()
+    assert (
+        "every citation of each source the report cites, across every "
+        "finding it reads"
+    ) in sources
+    assert "across the findings the report draws on" not in sources
+
+
+REPORT_PATH = "accelerator research topic report-path SLUG 'QUESTION'"
+
+
+def test_report_names_new_reports_through_report_path() -> None:
+    skill_lines = {text.strip() for text in _read(RESEARCH_TOPIC).splitlines()}
+    assert REPORT_PATH in skill_lines
+    report = _report()
+    assert "`'\\''`" in report
+    assert "`'What'\\''s the best planner?'`" in report
+
+
+def test_report_offers_only_equivalent_reports() -> None:
+    report = _report()
+    for phrase in ("asks the same thing", "only overlaps"):
+        assert phrase in report
+    assert _fenced(formats.EQUIVALENT_REPORTS, formats.EQUIVALENT_REPORT) in (
+        _dedented(_read(RESEARCH_TOPIC))
+    )
+    for offer in ("pick", "accept"):
+        prompt = formats.PROMPTS[offer]
+        assert prompt.endswith(
+            "reject to propose research instead, or decline to write nothing."
+        )
+        assert prompt in report
+
+
+def test_report_rewrites_only_a_listed_report_and_re_asks_an_unclear_pick() -> (
+    None
+):
+    choice = _choice_step()
+    for phrase in (
+        "only a report listed under",
+        "by its number",
+        "bare `accept`",
+    ):
+        assert phrase in choice
+
+
+def test_a_decline_writes_nothing_and_proposes_nothing() -> None:
+    assert (
+        "A `decline` writes nothing, proposes nothing and ends the verb"
+    ) in _choice_step()
+
+
+def test_a_rewrite_keeps_the_report_s_identity() -> None:
+    rewrite = _report_step("**Rewrite.**", "**Body.**")
+    assert (
+        "keeps the report's `id`, `title`, `question`, `date`, `parent` and "
+        "`relates_to`"
+    ) in rewrite
+
+
+def test_report_reads_the_verdict_s_reports() -> None:
+    find = _report_step(
+        "**Find equivalent reports.**", "**Name a new report.**"
+    )
+    assert "every path in the verdict's `reports`" in find
+    assert "*.md" not in find
+
+
+def test_an_unanswered_report_offers_no_pick() -> None:
+    report = _report()
+    unanswered = _report_step("**Unanswered.**", "**Find equivalent reports.**")
+    assert "no report" in unanswered
+    assert "no pick" in unanswered
+    assert report.index("**Unanswered.**") < report.index(
+        "**Find equivalent reports.**"
+    )
+
+
+def test_report_writes_nothing_before_the_user_accepts() -> None:
+    report = _report()
+    assert report.index("Reply accept") < report.index("**Write the report**")
+
+
+def test_report_copies_parent_from_the_manifest() -> None:
+    assert "copied from the manifest" in _report()
+    populate = _section(
+        _research_topic_prose(),
+        "## Populate frontmatter",
+        "## Validate every write",
+    )
+    assert "A report's `parent` is copied from the manifest." in populate
+
+
+def test_report_writes_gaps_only_when_partial() -> None:
+    assert "Gaps only when `partial`" in _report_step(
+        "**Body.**", "**Sources.**"
+    )
+
+
+def test_report_records_reports_last_and_leaves_the_lifecycle_alone() -> None:
+    record = _record_step()
+    for phrase in (
+        "`report_count`",
+        "`` - **Reports**: `reports/` `` under `## Set`",
+        "leaving `status`, `primary`, `round_count` and `finding_count` "
+        "untouched",
+    ):
+        assert phrase in record
+    report = _report()
+    assert report.index("**Record it in the manifest**") < report.index(
+        "**Partial.**"
+    )
+
+
+def test_report_s_manifest_record_is_the_exception_to_manifest_last() -> None:
+    assert (
+        "`report` is the one exception: when the user confirms a research "
+        "proposal after it records a report, the proposal's reopen is a "
+        "second, final manifest edit, so the report's record is not the "
+        "verb's last write."
+    ) in _validate_every_write()
+
+
+def test_a_report_stays_complete_through_a_reopen() -> None:
+    assert (
+        "A report's `status` stays `complete` whatever the set's status."
+    ) in _report()
+
+
+def test_reopening_names_both_verbs_and_leaves_reports() -> None:
+    reopening = _section(
+        _research_topic_prose(), "### Reopening a closed set", "### finalise"
+    )
+    for phrase in (
+        "`ask`",
+        "`report`",
+        "Reopening leaves every report unchanged",
+    ):
+        assert phrase in reopening
+
+
+def test_report_writes_the_cli_s_report_count() -> None:
+    record = _record_step()
+    assert COUNTS in record
+    assert "`derived.report_count`" in record
+    assert (
+        "`report` is the only verb that changes `report_count` after `brief` "
+        "writes `0`"
+    ) in _validate_every_write()
+
+
+def test_the_frontmatter_and_dispatch_name_report() -> None:
+    frontmatter, _ = _split(_read(RESEARCH_TOPIC))
+    assert "report (write a standalone answer under reports/)" in " ".join(
+        frontmatter.split()
+    )
+    hint = next(
+        line
+        for line in frontmatter.splitlines()
+        if line.startswith("argument-hint:")
+    )
+    assert hint.endswith('| report SLUG QUESTION"')
+    dispatch = _section(
+        _research_topic_prose(), "Dispatch on the verb", "knobs bound"
+    )
+    assert "`report SLUG QUESTION`" in dispatch
+
+
+def test_consulting_names_the_only_commands_report_adds() -> None:
+    assert (
+        "`report` also runs `research topic report-path` and "
+        "`research topic counts`."
+    ) in _consult()
+
+
+def test_a_knob_flag_on_report_is_misplaced() -> None:
+    knobs = _knob_rules()
+    assert "any of the three on `ask` or `report`" in knobs
+    assert "For a `--breadth` on `ask` or `report`" in knobs
+    assert "a `--breadth` flag on `ask` or `report`" in _consult()
+
+
+def test_the_consulting_section_names_both_verbs() -> None:
+    opening = _section(_consult(), "### Consulting the corpus", ". ")
+    assert "`ask` and `report`" in opening
+    preamble = _section(
+        _research_topic_prose(), "## Shared Preamble", "## Derive Metadata"
+    )
+    assert "`report`" in preamble
+
+
+def test_consulting_treats_existing_reports_as_untrusted() -> None:
+    sentence = _sentence_with(_consult(), UNTRUSTED)
+    assert "each set document you read, existing reports among them" in (
+        sentence
+    )
+
+
+REPORT_FORMATS = (
+    formats.EQUIVALENT_REPORTS,
+    formats.EQUIVALENT_REPORT,
+    formats.PROMPTS["accept"],
+    formats.PROMPTS["pick"],
+    formats.WROTE_REPORT,
+)
+
+
+@pytest.mark.parametrize("line", REPORT_FORMATS)
+def test_every_judged_report_format_appears_in_the_skill(line: str) -> None:
+    skill_lines = {text.strip() for text in _read(RESEARCH_TOPIC).splitlines()}
+    assert line in skill_lines, f"the eval judges {line!r}; SKILL.md lacks it"
+
+
+def test_the_citing_once_rule_names_its_readers() -> None:
+    frontmatter, _ = _split(_read(CITING_ONCE))
+    description = " ".join(frontmatter.split())
+    assert (
+        "read by its synthesise, ask and report verbs — not invoked directly"
+    ) in description
