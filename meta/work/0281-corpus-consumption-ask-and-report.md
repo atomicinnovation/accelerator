@@ -258,8 +258,9 @@ from the current findings, with the VCS as its history.
 - [ ] Given the base corpus with an item naming only `arxiv`, which the
       brief's `source_profiles` do not name, added by hand to its highest
       round, when `ask` or `report` runs, then it refuses naming that item
-      and the skipped-pair recovery, not `conduct SLUG`, and nothing is
-      written.
+      and the skipped-pair recovery, closes with `conduct SLUG` then
+      `synthesise SLUG` as every not-fully-conducted refusal does, and
+      nothing is written.
 - [ ] Given the base corpus with `arxiv` added to the profiles of C4's focus
       area, when either verb runs with C4, then the fully-conducted gate
       passes and coverage is `answered`.
