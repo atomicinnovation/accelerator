@@ -135,18 +135,30 @@ def tracked_line_filter(
     return lambda raw: _is_tracked(parse_ps_line(raw), tracked)
 
 
-def running_tracked(
-    ps_output: str, tracked: Sequence[TrackedProcess]
-) -> tuple[str, ...]:
-    commands = [
+def _commands(ps_output: str) -> tuple[str, ...]:
+    return tuple(
         observed.command
         for raw in ps_output.splitlines()
         if (observed := parse_ps_line(raw)) is not None
-    ]
+    )
+
+
+def running_tracked(
+    ps_output: str, tracked: Sequence[TrackedProcess]
+) -> tuple[str, ...]:
+    commands = _commands(ps_output)
     return tuple(
         each.name
         for each in tracked
         if any(each.matches(command) for command in commands)
+    )
+
+
+def matching_commands(
+    ps_output: str, tracked: TrackedProcess
+) -> tuple[str, ...]:
+    return tuple(
+        command for command in _commands(ps_output) if tracked.matches(command)
     )
 
 

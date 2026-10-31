@@ -25,12 +25,14 @@ from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.timeline import read_stamped
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
+    IDE,
     PS_ARGV,
     ObservedProcess,
     ProcessSamples,
     TrackedProcess,
     cpu_used,
     gap_marker,
+    matching_commands,
     parse_ps_line,
     process_snapshots,
     running_tracked,
@@ -253,3 +255,16 @@ class TestPsLines:
         kept = [raw for raw in _GOLDEN.read_text().splitlines() if keep(raw)]
 
         assert len(kept) == _TRACKED_LINES_IN_GOLDEN
+
+
+def test_the_commands_a_tracked_process_matches_are_listed():
+    ide_app = "/Applications/IntelliJ IDEA.app/Contents"
+    ps_output = (
+        f"  900     1  10:00.00 {ide_app}/MacOS/idea\n"
+        f"  901   900   0:01.00 {ide_app}/bin/fsnotifier\n"
+        "  479     1   3:21.94 /usr/libexec/syspolicyd\n"
+    )
+    [ide] = [each for each in DEFAULT_TRACKED_PROCESSES if each.name == IDE]
+    assert matching_commands(ps_output, ide) == (
+        "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea",
+    )
