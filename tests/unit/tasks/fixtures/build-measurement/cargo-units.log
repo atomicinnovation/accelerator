@@ -1,0 +1,9 @@
+0.000 [lint:clippy] $ cargo clippy
+0.100 [lint:clippy] [1m[32m    Checking[0m serde v1.0.228
+0.200 [lint:clippy]     Checking kernel v0.1.0 (/repo/cli/kernel)
+0.305 [lint:clippy] Finished in 0.3s
+0.400 [build] $ cargo build
+0.500 [build]     Checking out the pinned toolchain
+0.600 [build]    Compiling a v0.1.0    Building [=>  ] 1/3: a   [32mCompiling[0m b v0.2.0    Building [==> ] 2/3: b[K
+0.700 [build]  Documenting c v0.1.0 (/repo/cli/c)
+0.805 [build] Finished in 0.4s

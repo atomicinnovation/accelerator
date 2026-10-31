@@ -1,0 +1,14 @@
+0.000 [build] $ invoke build
+0.505 [build] Finished in 0.5s
+0.510 [lint] $ invoke lint
+0.520 [test] $ invoke test
+0.900 [test] assertion failed: expected 2, got 3
+1.205 [lint] Finished in 0.69s
+1.300 [report] $ invoke report
+1.405 [report] Finished in 0.1s
+1.410 [publish] $ invoke publish
+1.425 [publish] Finished in 0.01s
+1.500 Finished in 1.50s
+1.501 ERROR 1 task(s) failed:
+1.502 [test] exited with status 3
+1.503 [test] ERROR task failed

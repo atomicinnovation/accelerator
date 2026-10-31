@@ -1,0 +1,9 @@
+0.000 [build] $ cargo build
+0.500 [build]     Blocking waiting for file lock on package cache
+1.500 [build]    Compiling foo v0.1.0
+2.000 [build]     Blocking waiting for file lock on build directory
+2.250 [build]    Compiling bar v0.1.0
+2.505 [build] Finished in 2.5s
+2.600 [doc] $ cargo doc
+3.000 [doc]     Blocking waiting for file lock on build directory
+4.200 [doc] Finished in 1.5s
