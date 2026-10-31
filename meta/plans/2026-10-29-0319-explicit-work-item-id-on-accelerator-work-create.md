@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-10-31T15:17:10+00:00"
+last_updated: "2026-10-31T15:50:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -186,8 +186,8 @@ Verify with `mise run` (the full local CI mirror) and the recorded
 - `segments` (`resolve.rs:59-106`) is the seed of the one grammar. Every width
   reader except `canonical_digit_width` treats a bare `{number}` as width 4:
   `compile` (`work_item_pattern.rs:210-211`), `pattern_cap`
-  (`next_number.rs:47-52`) and `number_width` (`work_item_id.rs:413-428`).
-- `corpus::canonical_draft_id` (`work_item_id.rs:298-305`) is exactly 0319's
+  (`next_number.rs:47-52`) and `number_width` (`work_item_id.rs:439-454`).
+- `corpus::canonical_draft_id` (`work_item_id.rs:324-331`) is exactly 0319's
   reserved draft form, and all of `work::draft_id::DraftId::parse`
   (`draft_id.rs:21`).
 - `holder_of`'s four callers are all collision checks: sync authoring
@@ -1010,10 +1010,10 @@ The tracker-key tests have counterparts in `tracker` from Phase 1, and the
 Phase 5. The integration-rule tests become `check_tracker_integration`'s.
 Rows that need an escaped brace cannot be built as an `IdPattern` and
 change, written first: `a_pattern_without_tracker_is_valid_under_any_integration`
-(`work_item_id.rs:495-498`) drops `{{tracker}}{number}`, which Phase 3's
+(`work_item_id.rs:521-524`) drops `{{tracker}}{number}`, which Phase 3's
 `a_character_outside_the_literal_set_is_hostile` refuses; the escape rows
-of `references_key_is_brace_aware` (`:569-576`) and
-`references_key_rejects_malformed_patterns` (`:586-587`) stay only with
+of `references_key_is_brace_aware` (`:595-602`) and
+`references_key_rejects_malformed_patterns` (`:612-613`) stay only with
 Phase 5's frozen `legacy_ids::references_key`. Phase 3's counterparts are
 `a_repeated_token_is_refused`, `the_grammar_validates_as_the_compiler_does`
 and `IdPattern::references_key`'s own cases in `id_pattern.rs`.
@@ -1625,7 +1625,7 @@ red until the leaf is wired.
 **Files**: `cli/visualiser/server/src/indexer.rs`, `clusters.rs`,
 `file_driver.rs`, `tests/compose_contract.rs`, `tests/api_related.rs`:
 
-- The `canonicalise_tests` module (`indexer.rs:1415-1494`) becomes
+- The `canonicalise_tests` module (`indexer.rs:1411-1490`) becomes
   `identity_key_of`'s tests, its changed expectations written red first:
   under `{number:04d}`, `FOO-1` gives `FOO-0001` and `Web2-7` gives
   `WEB2-0007`; `PROJ-0042` is unchanged; every drop case (`42-foo`,
@@ -1689,12 +1689,12 @@ red until the leaf is wired.
   `id_pattern` and `key`.
 
 The visualiser's tests that duplicate the moved `corpus` tests
-(`config.rs:430-516`, `tests/parity.rs`) keep their expectations: `OPS-7`
+(`config.rs:433-519`, `tests/parity.rs`) keep their expectations: `OPS-7`
 stays `OPS-7`, `42` gives `ENG-42` under `{project}-{number:04d}`, and the
-own-key canonical-token cases hold; `tests/parity.rs:43` calls
+own-key canonical-token cases hold; `tests/parity.rs:42` calls
 `id_in_filename` in place of `extract_id`. The `from_raw` and `extract_id`
-tests at `config.rs:355-425` go with `from_raw` and the
-`WorkItemConfig::extract_id` wrapper (`config.rs:142`), which nothing in
+tests at `config.rs:358-428` go with `from_raw` and the
+`WorkItemConfig::extract_id` wrapper (`config.rs:145`), which nothing in
 production calls; any case `id_scheme`'s `id_in_filename` tests do not
 already pin moves there first.
 
@@ -1851,24 +1851,25 @@ rule's comment, written by category in Phase 4, already covers
   which build the reference maps, become `identity_keys_of` and
   `identity_key_of` over `identity_key`; their docs, the field doc at
   `:233-236`, the `target_path_from_entry` doc at `:938-943` and the
-  "primary regex" comment at `:1271-1273` are rewritten or deleted, as are
+  "primary regex" comment at `:1273-1275` are rewritten or deleted, as are
   the section banner "Work-item cross-reference canonicalisation"
-  (`:1152-1154`) and the comments at `:1282-1286` and `:1304-1305` that call
+  (`:1152-1154`) and the comments at `:1279-1283` and `:1301-1302` that call
   `normalise_id`'s form the canonical identity: they name `identity_key` as
   the join key. The `regex_slug` binding (`:1269`) is renamed.
-- `indexer.rs:1359` reads a draft through `work::draft_id::DraftId::parse`
+- `indexer.rs:1355` reads a draft through `work::draft_id::DraftId::parse`
   in place of `corpus::canonical_draft_id`.
 - `file_driver` lists work items through `work_item_files::is_md_filename`.
 - `WorkItemConfig` holds a `work::id_scheme::WorkItemIdScheme`, which is its
-  `IdConvention`. `config.rs`'s docs at `:77-80` and `:130`, which describe
-  the scan regex, are deleted, as is the test comment "matches default
-  scan_regex" (`indexer.rs:3392`).
+  `IdConvention`, so `WorkItemConfig::id_convention` (`config.rs:130-137`)
+  goes and its callers pass the held scheme. `config.rs`'s doc at `:77-80`,
+  which describes the scan regex, is deleted, as is the test comment
+  "matches default scan_regex" (`indexer.rs:3388`).
 - The 14 `RawWorkItemConfig { scan_regex: … }` fixtures and
   `with_pattern_for_test` build their scheme through `WorkItemIdScheme::new`.
-  `make_cfg_with_key` (`indexer.rs:1891-1913`) moves from `{number:04d}`
+  `make_cfg_with_key` (`indexer.rs:1887-1909`) moves from `{number:04d}`
   to `{key}-{number:04d}`, since `new` drops a key its pattern does not
   reference, so `extract_facet_value_project_falls_back_to_default_for_prefixless_ids`
-  (`indexer.rs:1837-1845`) keeps its fallback key.
+  (`indexer.rs:1833-1841`) keeps its fallback key.
 
 #### 5. The deletion
 
