@@ -2117,18 +2117,48 @@ the breadth and the template resolution directly.
 
 #### Automated Verification:
 
-- [ ] The citing-once tests pass before and after the move, with only import lines changed: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_citing_once_rule.py`
-- [ ] Unit tests fail before the builder exists, then pass: `uv run pytest tests/unit/tasks/test_ask_and_report_corpus.py`
-- [ ] The lane pin fails before `mise.toml` changes, then passes: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Every variant validates, and every scenario reaches its declared gate and sets up what it claims: `mise run test:integration:eval-fixtures`
-- [ ] Real-tree text guards pass: `uv run pytest tests/unit/tasks/test_hyphenation_format.py tests/unit/tasks/test_design_structure.py`
-- [ ] Python lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The citing-once tests pass before and after the move, with only import lines changed: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_citing_once_rule.py`
+- [x] Unit tests fail before the builder exists, then pass: `uv run pytest tests/unit/tasks/test_ask_and_report_corpus.py`
+- [x] The lane pin fails before `mise.toml` changes, then passes: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] Every variant validates, and every scenario reaches its declared gate and sets up what it claims: `mise run test:integration:eval-fixtures`
+- [x] Real-tree text guards pass: `uv run pytest tests/unit/tasks/test_hyphenation_format.py tests/unit/tasks/test_design_structure.py`
+- [x] Python lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
 - [ ] Reading the base corpus cold, a reviewer agrees with C1–C8's expected coverage and the equivalence judgements.
-- [ ] Each source's tier text in the findings matches the table above.
+- [x] Each source's tier text in the findings matches the table above.
+
+### As built
+
+- **Commits.** Change 1 landed as one commit. Changes 2–5 landed as four:
+  the scenario model, mutations and `gate_of`; the corpus; the builder; then
+  the scenario files, pre-flight and lane together.
+- **Mutations.** Each mutation's frozen dataclass lives in `mutations.py`
+  with its own `apply(set_root)`, and `parse_mutation` reads one by mapping
+  pattern; `scenarios.py` imports them rather than defining them.
+- **Pre-flight.** `gate_problems(scenario, root, toolchain)` holds the gate
+  check, which the integration test and `preflight_problems` share. The
+  launcher runs with `ACCELERATOR_PLUGIN_ROOT` set to the repository, since
+  `config template` needs it outside `bin/accelerator`. A built project needs
+  no `git init`: every binary resolves the project from its cwd.
+- **Corpus.** M1's block reads `doi: 10.5555/plan-and-solve.2024`,
+  `openalex_id: W3001`, `published: 2024-05-01` and
+  `authors: Ada Planner; Ben Solver`. U's one Sources entry,
+  `gpu-bench.example`, is in no finding. Both synthesis Sources sections
+  equal `cite_once` over their findings.
+- **Scenarios.** The fifteen files hold 57 scenarios and 111 sessions, as
+  Phase 5's table counts them. Each injected sentence is wrapped across
+  lines in its document; the integration test matches it with whitespace
+  collapsed.
+- **Lane.** `test:integration:eval-fixtures` runs 124 tests in about 5 s
+  once the builds are warm. Planted mismatches (a wrong gate, a missing
+  breadth, a missing override, an unskipped item) each produce a problem
+  line.
+- **Manual checks.** Every Sources table citation was checked verbatim
+  against its finding. The cold reading of C1–C8's coverage is left for a
+  reviewer.
 
 ---
 
