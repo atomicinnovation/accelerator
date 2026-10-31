@@ -31,6 +31,10 @@ build = [
     # <name>@<version>:<integrity> (tasks/shared/vendor/npm.py) — a primitive the
     # stdlib lacks. Exact pin for the same trust-anchor reason.
     "cryptography==50.0.0",
+    # Parses and validates build-measurement records (tasks/shared/
+    # build_measurement/). Exact pin: committed records are read back through
+    # it, so a relock must not silently move the validator under them.
+    "pydantic==2.14.2",
 ]
 dev = [
     "pytest>=8",

@@ -1,0 +1,5585 @@
+[
+  {
+    "name": "build-system:check",
+    "aliases": [],
+    "description": "Run all Python format, lint, and type checks plus workflow lint and the dispatch-coherence guard (ruff + pyrefly + actionlint)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:build-system:check",
+      "lint:build-system:check",
+      "types:build-system:check",
+      "lint:workflows:check",
+      "lint:dispatch-coherence:check",
+      "lint:integration-skills:check",
+      "lint:bare-invocation:check",
+      "lint:git-tokens:check",
+      "lint:skill-cli-refs:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:collaboration:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-collaboration sub-binary (cli/target/debug/accelerator-collaboration)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group collaboration"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:corpus:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-corpus sub-binary (cli/target/debug/accelerator-corpus)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group corpus"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:cross-compile",
+    "aliases": [],
+    "description": "Cross-compile the cli launcher + verify shim for all four release targets (stages into dist/release/)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-cross-compile"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:design:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-design sub-binary (cli/target/debug/accelerator-design)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group design"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:dev",
+    "aliases": [],
+    "description": "Build the debug cli launcher (cli/target/debug/accelerator) the test suites invoke through ACCELERATOR_BIN",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group launcher"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:fixture-size",
+    "aliases": [],
+    "description": "Assert the host-native VCS reference artefact links its gix/jj-lib trees (ratio floor; the absolute floor is musl-only and runs in the cross-compile)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-fixture-size-check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:jira:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-jira sub-binary (cli/target/debug/accelerator-jira)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group jira"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:linear:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-linear sub-binary (cli/target/debug/accelerator-linear)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group linear"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:migrate:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-migrate sub-binary (cli/target/debug/accelerator-migrate)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group migrate"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:research:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-research sub-binary (cli/target/debug/accelerator-research)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group research"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:vcs:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-vcs sub-binary (cli/target/debug/accelerator-vcs)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group vcs"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:cli:work:dev",
+    "aliases": [],
+    "description": "Build the debug accelerator-work sub-binary (cli/target/debug/accelerator-work)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.cli-dev --group work"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:debug-archives",
+    "aliases": [],
+    "description": "Create .debug.tar.gz archives for all cross-compiled release binaries",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:server:cross-compile"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.create-debug-archives"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:frontend",
+    "aliases": [],
+    "description": "Build the visualiser frontend (Vite production build into dist/)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.frontend"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:frontend:stub",
+    "aliases": [],
+    "description": "Write a placeholder frontend/dist/index.html if absent (satisfies embed-dist build.rs for lint-only compiles; not a real build; real build:frontend overwrites it)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.frontend-stub"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:server:cross-compile",
+    "aliases": [],
+    "description": "Cross-compile the visualiser server for all four release targets",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets",
+      "build:frontend"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.server-cross-compile"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:server:dev",
+    "aliases": [],
+    "description": "Build the visualiser server binary with the dev-frontend feature",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.server-dev"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:server:release",
+    "aliases": [],
+    "description": "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.server-release"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "build:vendor-verify-shims",
+    "aliases": [],
+    "description": "Copy the cross-compiled verify shims into the committed bin/ tree and record the drift marker",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:cross-compile"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke build.vendor-verify-shims"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "check",
+    "aliases": [],
+    "description": "Run all read-only format, lint, and type checks (what CI runs)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "frontend:check",
+      "server:check",
+      "cli:check",
+      "deny:check",
+      "pup:check",
+      "public-api:check",
+      "notices:check",
+      "build-system:check",
+      "scripts:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "cli:check",
+    "aliases": [],
+    "description": "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:cli:check",
+      "lint:cli:check",
+      "lint:vendor-shims:check",
+      "lint:store-duplication:check",
+      "lint:claude-coupling:check",
+      "lint:vcs-settings:check",
+      "lint:config-test-support:check",
+      "lint:crate-dependencies:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "default",
+    "aliases": [],
+    "description": "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, docs gate, test (heavy — reformats in place, compiles Rust several times, needs network + Chromium; for a fast inner loop use a single <component>:check)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend",
+      "build:server:dev",
+      "format:fix",
+      "lint:check",
+      "types:check",
+      "deny:check",
+      "pup:check",
+      "public-api:check",
+      "notices:check",
+      "docs:check",
+      "test"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deny:check",
+    "aliases": [],
+    "description": "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deny.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:cargo-about",
+    "aliases": [],
+    "description": "Provision the pinned cargo-about (built from source on stable; its 0.9.x release binaries omit x86_64-apple-darwin, so a ubi pin would break mise install on the Intel-mac leg)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-cargo-about"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:cargo-sources",
+    "aliases": [],
+    "description": "Populate the cli/ cargo registry for offline cargo-about and cargo-deny runs",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-cargo-sources"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:docs",
+    "aliases": [],
+    "description": "Install Node.js dependencies for the documentation site",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [
+      "docs-site/package.json",
+      "docs-site/package-lock.json"
+    ],
+    "outputs": [
+      "docs-site/node_modules/.package-lock.json"
+    ],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-docs"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:docs-playwright",
+    "aliases": [],
+    "description": "Install the Chromium binary the docs mermaid render needs",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:docs"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [
+      "docs-site/package-lock.json"
+    ],
+    "outputs": {
+      "auto": true
+    },
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-docs-playwright"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:nightly",
+    "aliases": [],
+    "description": "Provision the pinned nightly toolchain shared by every nightly-lane build step (rustup-managed, not a mise [tool] — mise cannot pin two rust toolchains)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-nightly"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:node",
+    "aliases": [],
+    "description": "Install Node.js dependencies for the visualiser frontend",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-node"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:playwright",
+    "aliases": [],
+    "description": "Install Playwright browser binaries (Chromium + OS-level deps)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-playwright"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:public-api",
+    "aliases": [],
+    "description": "Provision the pinned cargo-public-api (built on stable; needs the nightly only for the rustdoc it shells out to at check time)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:nightly"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-public-api"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:pup",
+    "aliases": [],
+    "description": "Provision the pinned cargo-pup (built under the nightly: its rustc_private driver only loads under the toolchain it was compiled against)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:nightly"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-pup"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:python",
+    "aliases": [],
+    "description": "Install all Python dependencies",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-python"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:rust-components",
+    "aliases": [],
+    "description": "Install the rustfmt + clippy + llvm-tools-preview rustup components the cli checks need (mise [tools] `components` is not honoured for an already-present toolchain)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-rust-components"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "deps:install:rust-targets",
+    "aliases": [],
+    "description": "Install Rust cross-compile targets required for release builds",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke deps.install-rust-targets"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev",
+    "aliases": [],
+    "description": "Start + supervise the visualiser server + frontend, detached in the background (use dev:stop to tear down; dev:server/dev:frontend for the manual two-terminal flow)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:server:dev",
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev:frontend",
+    "aliases": [],
+    "description": "Start the Vite frontend dev server proxying /api to dev:server (start dev:server first)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev.frontend"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev:restart",
+    "aliases": [],
+    "description": "Restart the supervised dev stack (stop then start)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:server:dev",
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev.restart"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev:server",
+    "aliases": [],
+    "description": "Start the visualiser API server in dev mode (run alongside dev:frontend in a second terminal)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:server:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev.server"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev:status",
+    "aliases": [],
+    "description": "Report dev server + frontend state, frontend URL, and resolved API port (exit 0 = both running, 3 = one, 4 = neither)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev.status"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "dev:stop",
+    "aliases": [],
+    "description": "Stop the supervised dev server + frontend and the circus arbiter",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke dev.stop"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:audit:check",
+    "aliases": [],
+    "description": "Fail on high/critical npm advisories in the docs-site tree",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:docs"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.audit-check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:audit:fix",
+    "aliases": [],
+    "description": "Apply npm's non-breaking advisory fixes to the docs-site lockfile",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:docs"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.audit-fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:build",
+    "aliases": [],
+    "description": "Build the documentation site (strict: broken links fail the build)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:docs-playwright",
+      "docs:generate"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [
+      "docs-site/src/**/*",
+      "docs-site/public/**/*",
+      "skills/visualisation/visualise/frontend/public/fonts/**/*",
+      "docs-site/astro.config.mjs",
+      "docs-site/package.json",
+      "docs-site/package-lock.json"
+    ],
+    "outputs": [
+      "docs-site/dist/**/*"
+    ],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.build"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:check",
+    "aliases": [],
+    "description": "Docs gate: strict site build incl. link validation + npm audit (CI-owned; needs network + Chromium)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "docs:build",
+      "docs:generate:check",
+      "docs:audit:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:generate",
+    "aliases": [],
+    "description": "Generate per-skill reference pages from SKILL.md sources",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [
+      "skills/**/SKILL.md",
+      ".claude-plugin/plugin.json",
+      "tasks/docs.py",
+      "tasks/shared/skill_pages.py",
+      "tasks/shared/files.py",
+      "tasks/shared/paths.py"
+    ],
+    "outputs": [
+      "docs-site/src/content/docs/reference/skills/**/*.md"
+    ],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.generate"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:generate:check",
+    "aliases": [],
+    "description": "Verify every plugin.json skill has a generated docs page",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "docs:generate"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.generate-check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:preview",
+    "aliases": [],
+    "description": "Serve the built documentation site from docs-site/dist (run docs:build first)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "docs:build"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.preview"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "docs:serve",
+    "aliases": [],
+    "description": "Serve the documentation site locally with live reload",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:docs-playwright",
+      "docs:generate"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke docs.serve"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "eval:ask-and-report",
+    "aliases": [],
+    "description": "Run the ask-and-report behavioural eval: 111 multi-turn headless claude sessions consulting a reference corpus (needs claude, network and model usage, and the dev CLI builds)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python",
+      "build:cli:dev",
+      "build:cli:corpus:dev",
+      "build:cli:research:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke eval.ask-and-report"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "eval:citing-once",
+    "aliases": [],
+    "description": "Run the citing-once behavioural eval: headless claude sessions composing findings and dossiers, judged against a reading of the rule (needs claude, network and model usage; ~10 min at the default 6 sessions at once)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke eval.citing-once"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "fix",
+    "aliases": [],
+    "description": "Apply all formatters + safe lint fixes (MECHANICAL only — no type-checks, and shell has no autofixer; still run `mise run check` before pushing)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:fix",
+      "lint:fix"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:build-system:check",
+    "aliases": [],
+    "description": "Check Python formatting with ruff (read-only; fails on drift)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.build-system.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:build-system:fix",
+    "aliases": [],
+    "description": "Format Python in place with ruff",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.build-system.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:check",
+    "aliases": [],
+    "description": "Run all format checks (read-only)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:frontend:check",
+      "format:server:check",
+      "format:cli:check",
+      "format:build-system:check",
+      "format:scripts:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:cli:check",
+    "aliases": [],
+    "description": "Check cli/ workspace Rust formatting with rustfmt (read-only; fails on drift)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.cli.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:cli:fix",
+    "aliases": [],
+    "description": "Format the cli/ workspace in place with rustfmt",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.cli.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:fix",
+    "aliases": [],
+    "description": "Apply all formatters in place",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:frontend:fix",
+      "format:server:fix",
+      "format:cli:fix",
+      "format:build-system:fix",
+      "format:scripts:fix"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:frontend:check",
+    "aliases": [],
+    "description": "Check frontend formatting with Biome (read-only)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.frontend.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:frontend:fix",
+    "aliases": [],
+    "description": "Format the frontend in place with Biome",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.frontend.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:scripts:check",
+    "aliases": [],
+    "description": "Check shell formatting with shfmt (read-only; fails on drift)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.scripts.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:scripts:fix",
+    "aliases": [],
+    "description": "Format shell scripts in place with shfmt",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.scripts.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:server:check",
+    "aliases": [],
+    "description": "Check Rust formatting with rustfmt (cargo fmt --check)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.server.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "format:server:fix",
+    "aliases": [],
+    "description": "Format Rust in place (cargo fmt)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke format.server.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "frontend:check",
+    "aliases": [],
+    "description": "Run all frontend format, lint, and type checks (Biome + tsc)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:frontend:check",
+      "lint:frontend:check",
+      "types:frontend:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "git:check-clean",
+    "aliases": [],
+    "description": "Abort if the working tree has any uncommitted changes",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke git.check-clean"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "github:check-auth",
+    "aliases": [],
+    "description": "Verify the GitHub CLI is authenticated",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke github.check-auth"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "keys:generate",
+    "aliases": [],
+    "description": "Generate a -W release signing keypair (writes keys/accelerator-release.{pub,sec}; does not print the secret)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke keys.generate"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:bare-invocation:check",
+    "aliases": [],
+    "description": "Guard the bare accelerator invocation convention across skills/**/SKILL.md (no plugin-root /bin prefix, absolute path, or bash/sh/env wrapper)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.bare-invocation.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:build-system:check",
+    "aliases": [],
+    "description": "Lint Python with ruff (select = ALL)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.build-system.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:build-system:fix",
+    "aliases": [],
+    "description": "Apply ruff's safe lint fixes to Python",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.build-system.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:check",
+    "aliases": [],
+    "description": "Run all lint checks",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "lint:frontend:check",
+      "lint:server:check",
+      "lint:cli:check",
+      "lint:build-system:check",
+      "lint:scripts:check",
+      "lint:skill-permissions:check",
+      "lint:vendor-shims:check",
+      "lint:store-duplication:check",
+      "lint:claude-coupling:check",
+      "lint:dispatch-coherence:check",
+      "lint:integration-skills:check",
+      "lint:bare-invocation:check",
+      "lint:vcs-settings:check",
+      "lint:git-tokens:check",
+      "lint:skill-cli-refs:check",
+      "lint:config-test-support:check",
+      "lint:crate-dependencies:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:claude-coupling:check",
+    "aliases": [],
+    "description": "Guard the rename set (cli/, bin/accelerator, the dev-env writers) against naming any CLAUDE_* variable",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.claude-coupling.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:cli:check",
+    "aliases": [],
+    "description": "Lint the cli/ workspace with clippy (one workspace-wide pass covering every member, -D warnings)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components",
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.cli.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:cli:fix",
+    "aliases": [],
+    "description": "Apply clippy's machine-applicable fixes to the cli/ workspace (machine-rewritable subset only — run lint:cli:check for the rest)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components",
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.cli.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:config-test-support:check",
+    "aliases": [],
+    "description": "Confine config/test-support to config's and config-adapters' dev-dependencies (no crate may enable or forward it otherwise)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.config-test-support.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:crate-dependencies:check",
+    "aliases": [],
+    "description": "Hold every cli/ crate's normal and build dependencies to the injection rules, read from each manifest's [package.metadata.accelerator] role declaration",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.crate-dependencies.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:dispatch-coherence:check",
+    "aliases": [],
+    "description": "Bind every DISPATCHED_SUBBINARIES token to a SKILL.md that invokes it under a matching allowed-tools rule, and every skill invocation to a shipped token",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.dispatch-coherence.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:fix",
+    "aliases": [],
+    "description": "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "lint:frontend:fix",
+      "lint:server:fix",
+      "lint:cli:fix",
+      "lint:build-system:fix"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:frontend:check",
+    "aliases": [],
+    "description": "Lint the frontend with Biome (react+test+project, warnings-as-errors)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.frontend.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:frontend:fix",
+    "aliases": [],
+    "description": "Apply Biome's safe lint fixes to the frontend",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.frontend.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:git-tokens:check",
+    "aliases": [],
+    "description": "Guard against a direct git subcommand in any skills/**/SKILL.md: the no-raw-git invariant, scoped to SKILL.md",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.git-tokens.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:integration-skills:check",
+    "aliases": [],
+    "description": "Guard the repointed integration skills: outcome-keyword parity against each sub-binary's declared set, and a confirm step before every write mutation",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.integration-skills.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:scripts:bashisms:check",
+    "aliases": [],
+    "description": "Guard the bash-3.2 floor (denylist of bash-4 constructs)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.scripts.bashisms"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:scripts:check",
+    "aliases": [],
+    "description": "Run all shell lint checks",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "lint:scripts:shellcheck:check",
+      "lint:scripts:bashisms:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:scripts:shellcheck:check",
+    "aliases": [],
+    "description": "Lint shell scripts with ShellCheck (config in .shellcheckrc)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.scripts.shellcheck"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:server:check",
+    "aliases": [],
+    "description": "Lint Rust with clippy, two feature passes, -D warnings (gated on a dist stub, not a full SPA build; still two cold compiles — slow on a cold cache)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.server.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:server:fix",
+    "aliases": [],
+    "description": "Apply clippy's machine-applicable fixes (cargo clippy --fix, default features only — all-features/dev-frontend arms surface via server:check and may need manual fixes)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.server.fix"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:skill-cli-refs:check",
+    "aliases": [],
+    "description": "Bind every accelerator vcs <sub> skill reference to a real subcommand (pinned against the clap Command enum) and render-lock the detect.rs idiom anchors",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.skill-cli-refs.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:skill-permissions:check",
+    "aliases": [],
+    "description": "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.skill-permissions.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:store-duplication:check",
+    "aliases": [],
+    "description": "Keep atomic_write consolidated: no temp-and-rename outside cli/store/",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.store-duplication.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:vcs-settings:check",
+    "aliases": [],
+    "description": "Keep jj UserSettings and Workspace::load out of cli/vcs-adapters (their defaults are private to jj-lib)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.vcs-settings.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:vendor-shims:check",
+    "aliases": [],
+    "description": "Guard the committed verify shims against their cli/verify build inputs (drift marker + per-platform magic bytes)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.vendor-shims.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:workflows",
+    "aliases": [],
+    "description": "Lint GitHub Actions workflows with actionlint",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "lint:workflows:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "lint:workflows:check",
+    "aliases": [],
+    "description": "Lint GitHub Actions workflows with actionlint (general syntax hygiene; the queue/gate-placement invariants are guarded by tests/unit/tasks/test_workflows.py)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke lint.workflows.actionlint"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "measure:build",
+    "aliases": [],
+    "description": "Time a full default build: a priming run then N timed runs, per-task figures and host contention (macOS, ~20 min at --runs 3; writes .accelerator-measure/build/, --keep also writes meta/measurements/ unless a fetch failed)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.build"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "measure:launcher-size",
+    "aliases": [],
+    "description": "Report the stripped release launcher's byte size for aarch64-apple-darwin",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.launcher-size"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "measure:summary-latency",
+    "aliases": [],
+    "description": "Time the SessionStart config summary, cold and warm, in git, jj and colocated jj (quiet host, same host before and after)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.summary-latency"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "measure:teardown",
+    "aliases": [],
+    "description": "Replay the measurement harness's restore and verify phases from a stale manifest",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.teardown"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "measure:warm-dispatch",
+    "aliases": [],
+    "description": "Measure warm-dispatch latency vs the shell baseline (quiet host, network egress, ~8 min, up to ~30 min if the interval escalates)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.warm-dispatch"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "notices:check",
+    "aliases": [],
+    "description": "Pin the third-party notices artefact against a fresh dual-generator render (cargo-about + license-checker)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node",
+      "deps:install:cargo-about",
+      "deps:install:cargo-sources"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke notices.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "notices:update",
+    "aliases": [],
+    "description": "Regenerate the third-party notices artefact from the cli/ closure and the frontend production tree",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node",
+      "deps:install:cargo-about",
+      "deps:install:cargo-sources"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke notices.update"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "prerelease",
+    "aliases": [],
+    "description": "Local dev only: full prerelease flow without SLSA attestation",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets",
+      "deps:install:node",
+      "github:check-auth",
+      "git:check-clean"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke prerelease"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "prerelease:finalise",
+    "aliases": [],
+    "description": "CI prerelease step 3: commit, tag, push, create release, upload, publish",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke prerelease.finalise"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "prerelease:prepare",
+    "aliases": [],
+    "description": "CI prerelease halve 1: bump version, build binaries, compute checksums",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets",
+      "deps:install:node",
+      "github:check-auth",
+      "git:check-clean"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke prerelease.prepare"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "prerelease:sign",
+    "aliases": [],
+    "description": "CI prerelease step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke prerelease.sign"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "public-api:check",
+    "aliases": [],
+    "description": "Pin each named crate's public API against its committed snapshot with cargo-public-api (nightly lane: rustdoc emits its JSON only there)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:public-api"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke public-api.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "public-api:update",
+    "aliases": [],
+    "description": "Regenerate every pinned crate's public-API snapshot with cargo-public-api",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:public-api"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke public-api.update"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "pup:check",
+    "aliases": [],
+    "description": "Enforce intra-crate module-import rules with cargo-pup (blocking nightly lane; ACCELERATOR_PUP_MODE=warn downgrades to advisory)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:pup",
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke pup.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "release",
+    "aliases": [],
+    "description": "Local dev only: full stable release flow without SLSA attestation",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets",
+      "deps:install:node",
+      "github:check-auth",
+      "git:check-clean"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke release"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "release:finalise",
+    "aliases": [],
+    "description": "CI stable release step 3: commit, tag, push, create release, upload, publish",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke release.finalise"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "release:prepare",
+    "aliases": [],
+    "description": "CI stable release halve 1: finalise version, update marketplace and changelog, build binaries",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-targets",
+      "deps:install:node",
+      "github:check-auth",
+      "git:check-clean"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke release.prepare"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "release:sign",
+    "aliases": [],
+    "description": "CI stable release step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke release.sign"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "scripts:check",
+    "aliases": [],
+    "description": "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:scripts:check",
+      "lint:scripts:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "server:check",
+    "aliases": [],
+    "description": "Run all Rust format and lint checks (rustfmt + clippy)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "format:server:check",
+      "lint:server:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test",
+    "aliases": [],
+    "description": "Run all tests in parallel",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "test:unit",
+      "test:integration",
+      "test:e2e"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:e2e",
+    "aliases": [],
+    "description": "Run all E2E tests in parallel",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "test:e2e:visualiser"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:e2e:visualiser",
+    "aliases": [],
+    "description": "Run visualiser E2E tests (Playwright)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:playwright",
+      "build:frontend",
+      "build:server:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.e2e.visualiser"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:e2e:visualiser:docker",
+    "aliases": [],
+    "description": "Run visual-regression specs in the pinned Playwright Docker image (compare)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend",
+      "build:server:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.e2e.visualiser-docker"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:e2e:visualiser:docker:update",
+    "aliases": [],
+    "description": "Regenerate the canonical Linux visual-regression baselines in the pinned Docker image",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend",
+      "build:server:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.e2e.visualiser-docker --update"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration",
+    "aliases": [],
+    "description": "Run all integration tests in parallel",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "test:integration:visualiser",
+      "test:integration:dev",
+      "test:integration:entrypoint",
+      "test:integration:skill-invocation",
+      "test:integration:conformance",
+      "test:integration:deny",
+      "test:integration:tasks",
+      "test:integration:hooks",
+      "test:integration:research",
+      "test:integration:fixture-size"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:arxiv-queue-stress",
+    "aliases": [],
+    "description": "Run 30 concurrent arXiv fetches through the fair queue on the real clock (opt-in: minutes)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.arxiv-queue-stress"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:conformance",
+    "aliases": [],
+    "description": "Run the producer-conformance guard (drives the real corpus validator through the launcher)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:dev",
+      "build:cli:corpus:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.conformance"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:deny",
+    "aliases": [],
+    "description": "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python",
+      "deps:install:cargo-sources"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.deny"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:design-automation",
+    "aliases": [],
+    "description": "Run the Playwright-executor suites that need a real runtime (opt-in)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.design-automation"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:dev",
+    "aliases": [],
+    "description": "Run unified dev task integration tests (real circusd + Python fake processes)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.dev"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:entrypoint",
+    "aliases": [],
+    "description": "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.entrypoint"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:eval-fixtures",
+    "aliases": [],
+    "description": "Run the ask-and-report reference corpus pre-flight: every variant validates, and every scenario reaches its declared gate and setup (debug launcher, corpus and research builds; no model)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/mise.toml"
+    ],
+    "depends": [
+      "build:cli:dev",
+      "build:cli:corpus:dev",
+      "build:cli:research:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.eval-fixtures"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:fixture-size",
+    "aliases": [],
+    "description": "Roll-up entry point for the gix/jj-lib link-ratio floor; see build:cli:fixture-size",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:fixture-size"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:hooks",
+    "aliases": [],
+    "description": "Run hooks integration tests",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:dev",
+      "build:cli:vcs:dev",
+      "build:cli:research:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.hooks"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:measure",
+    "aliases": [],
+    "description": "Live-dispatch smoke check for the warm-dispatch harness (n=2, no gating figure)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke measure.smoke-check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:pup",
+    "aliases": [],
+    "description": "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python",
+      "deps:install:pup",
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.pup"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:research",
+    "aliases": [],
+    "description": "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:research:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.research"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:research-exhaustive",
+    "aliases": [],
+    "description": "Run the research guard's lexer differential at every splice position (opt-in: minutes)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:cli:research:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.research-exhaustive"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:skill-invocation",
+    "aliases": [],
+    "description": "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.skill-invocation"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:tasks",
+    "aliases": [],
+    "description": "Run pytest integration tests for invoke tasks",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "uv run pytest tests/integration/tasks -v"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:tracker-contract",
+    "aliases": [],
+    "description": "Run the RemoteTracker contract harness against a live tracker (opt-in: needs credentials, so it is out of the test:integration roll-up and out of default; filtered out of test:unit:cli by cli/.config/nextest.toml)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python",
+      "deps:install:rust-components",
+      "build:frontend:stub"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.tracker-contract"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:integration:visualiser",
+    "aliases": [],
+    "description": "Run visualiser integration tests",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:server:dev",
+      "build:cli:dev"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.integration.visualiser"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit",
+    "aliases": [],
+    "description": "Run all unit tests in parallel",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "test:unit:visualiser",
+      "test:unit:frontend",
+      "test:unit:frontend-licenses",
+      "test:unit:tasks",
+      "test:unit:vcs",
+      "test:unit:cli",
+      "test:unit:design-automation"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:cli",
+    "aliases": [],
+    "description": "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:rust-components"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.cli.run"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:design-automation",
+    "aliases": [],
+    "description": "Run the runtime-free Playwright-executor JavaScript suites",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.unit.design-automation"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:frontend",
+    "aliases": [],
+    "description": "Run visualiser frontend unit tests (Vitest)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.unit.frontend"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:frontend-licenses",
+    "aliases": [],
+    "description": "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node",
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "uv run pytest tests/unit/frontend -v"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:tasks",
+    "aliases": [],
+    "description": "Run pytest unit tests for invoke tasks",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "uv run pytest tests/unit/tasks -v"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:vcs",
+    "aliases": [],
+    "description": "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "uv run pytest tests/unit/vcs -v"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "test:unit:visualiser",
+    "aliases": [],
+    "description": "Run visualiser unit tests",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "build:frontend"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke test.unit.visualiser"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "types:build-system:check",
+    "aliases": [],
+    "description": "Type-check Python with pyrefly (strict preset)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:python"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke types.build-system.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "types:check",
+    "aliases": [],
+    "description": "Run all type checks (tsc + pyrefly)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "types:frontend:check",
+      "types:build-system:check"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "types:frontend:check",
+    "aliases": [],
+    "description": "Type-check the frontend with tsc (tsc -b --noEmit)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [
+      "deps:install:node"
+    ],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke types.frontend.check"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:assemble-tree-artifacts",
+    "aliases": [],
+    "description": "Assemble the driver/browser tree archives from the verified upstream inputs",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.assemble-tree-artifacts"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:build-archive",
+    "aliases": [],
+    "description": "Build one deterministic tree archive and its attestation from a tree dir (cross-language contract test helper)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.build-archive"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:check-trust-anchors",
+    "aliases": [],
+    "description": "Fail if the vendored runtime's trust anchors (pins, publisher keys) are still placeholders",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.check-trust-anchors"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:guard-pins",
+    "aliases": [],
+    "description": "Report runtime-pin-guard findings for the vendored-runtime pins and keyring (networked; prints drafts unless --open-issues)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.guard-pins"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:smoke-runtime",
+    "aliases": [],
+    "description": "Execute the downloaded tree binaries for one platform natively (release smoke gate)",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.smoke-runtime"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "vendor:verify-upstream-inputs",
+    "aliases": [],
+    "description": "Fetch and verify the vendored runtime's upstream inputs (npm, Node, Chromium) for every target",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke vendor.verify-upstream-inputs"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "version:bump",
+    "aliases": [],
+    "description": "Bump plugin version",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke version.bump"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "version:read",
+    "aliases": [],
+    "description": "Read plugin version",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke version.read"
+    ],
+    "args": [],
+    "file": null
+  },
+  {
+    "name": "version:write",
+    "aliases": [],
+    "description": "Write plugin version",
+    "source": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml",
+    "config_sources": [
+      "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/mise.toml"
+    ],
+    "depends": [],
+    "daemons": null,
+    "secrets": [],
+    "depends_post": [],
+    "wait_for": [],
+    "env": [],
+    "dir": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management",
+    "hide": false,
+    "global": false,
+    "raw": false,
+    "interactive": false,
+    "sources": [],
+    "outputs": [],
+    "shell": null,
+    "quiet": false,
+    "silent": false,
+    "tools": {},
+    "usage": "",
+    "timeout": null,
+    "run": [
+      "invoke version.write"
+    ],
+    "args": [],
+    "file": null
+  }
+]

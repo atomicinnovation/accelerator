@@ -1,0 +1,4 @@
+0.000 [test:unit:cli] $ cargo nextest run
+0.500 [test:unit:cli]     Starting 9 tests across 2 binaries
+149.700 [test:unit:cli]      Summary [ 149.123s] 9 tests run: 9 passed, 0 skipped
+149.805 [test:unit:cli] Finished in 149.8s

@@ -259,19 +259,24 @@ release build that carries it.
 
 ### The measure namespace
 
-`measure:*` and `test:integration:measure` drive the warm-dispatch latency
-harness (`tasks/measure.py`, analysis in `tasks/shared/measurement.py`). They
-are deliberately in **neither** the aggregate `check` nor the bare `default`
-task, and `test:integration:measure` is out of the `test:integration` roll-up
-too: a run dispatches through the real bootstrap, so it needs network egress and
-a published signed release for the tree's own version, and it is judged against
-instrument floors no shared runner reliably clears. A transitive-closure guard
+`measure:*` and `test:integration:measure` drive two harnesses in
+`tasks/measure.py`: the warm-dispatch latency harness (analysis in
+`tasks/shared/measurement.py`) and the build-timing harness behind
+`measure:build` (in `tasks/shared/build_measurement/`). They are deliberately
+in **neither** the aggregate `check` nor the bare `default` task, and
+`test:integration:measure` is out of the `test:integration` roll-up too. A
+warm-dispatch run dispatches through the real bootstrap, so it needs network
+egress and a published signed release for the tree's own version, and it is
+judged against instrument floors no shared runner reliably clears.
+`measure:build` is an operator-run, macOS-only build session of 20 minutes or
+more that no CI job owns. A transitive-closure guard
 in `tests/unit/tasks/test_mise.py` enforces that, keyed on the `run` string
 rather than the task name — `test:integration:measure` does not carry the
 `measure:` prefix, and it is the one live-dispatch path the guard exists to
 contain.
 
-**Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host.
+**Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host,
+and `measure:build` is operator-run on a macOS host.
 `test:integration:measure` is the namespace's owner against rot — n = 2, floors
 only, no gating figure — and belongs to its own non-blocking CI job, because a
 module no automated path executes rots invisibly against volatile external
@@ -303,7 +308,79 @@ report records the commit, the index entry count and, for jj, the operation-log
 length. Before and after figures are comparable only when taken on the same
 host.
 
-**What a run requires.** A quiet darwin-arm64 host with no other Claude Code
+**Build timing.** `measure:build` times `mise run default`: one priming run,
+whose wall-clock is recorded and discarded, then `--runs` timed runs (default
+3). Per task it records duration, queueing delay, cargo unit counts, lock wait
+and nextest phase; per run, CPU busy in 30-second buckets and the CPU-seconds
+of `syspolicyd`, `XprotectService`, the IDE and `fsnotifier`. It needs no quiet
+host: it samples idle load for 30 seconds first and records and prints it
+instead. Each session writes its logs and `record.json` to a run directory
+under `.accelerator-measure/build/`; `--keep` also writes the record to
+`meta/measurements/<run id>.json` for the operator to commit, unless the record
+holds a fetch failure. The harness never commits. `--ide-pattern` replaces the
+IntelliJ and RustRover defaults with a regex searched in each process's full
+command line; anchor it on the main executable, as the defaults are, so the
+IDE's helpers are not counted as IDE time. Per-process CPU is a lower bound:
+one-second sampling misses short-lived processes, and the tail after a build
+ends is not counted.
+
+**Run directories.** The `build_*` run directories under
+`.accelerator-measure/build/` are never pruned. They hold the only raw logs
+behind a kept record, and are safe to delete by hand when no `measure:build`
+session is running. Leave `.lock` and `build.pgid` beside them: `build.pgid` is
+the only trace of a build orphaned by a killed session. The logs alone cannot
+be turned back into a record, since the task graph, provenance and settings are
+not kept there.
+
+**Reading a build record.** A record is named
+`build_<UTC time>_<hostname>_<cache state>_<label>`, its fields joined by `_`
+so each boundary is unambiguous; a counter would collide across jj workspaces.
+The commit is the nearest first-parent commit that changes anything outside
+`meta/measurements/`, so a kept record, committed or not, leaves the measured
+commit unchanged. Every per-run time is seconds from that run's start, and
+`process_cpu_seconds` is CPU-seconds. `conditions` is the comparability key:
+two records compare only when every field of their `conditions` is equal, and a
+field that could not be read never compares equal. `presence` says whether a
+figure has a spread and, if not, why: its `standing` is `measured`, `flagged`
+with `caveats`, or `absent` with an `absence`, and only that variant's fields
+appear. A process `flagged` as `unreadable` had a failed `ps` tick in some run,
+so its CPU there could not be measured. A task's `outcome` is `succeeded`,
+`failed`, `skipped`, `not-run` (it has a `run` but printed nothing) or `silent`
+(a roll-up). A value that could not be read is `{"argv": [...]}`, the command
+that failed; elsewhere `null` means no value was observed.
+
+**The record's schema.** An additive field carries a default and keeps version
+1. A breaking change bumps the version, and `parse_record` upgrades an older
+record by a function over its raw JSON, applied before validation, so committed
+records stay readable. A record is read by code at least as new as the code
+that wrote it.
+
+Taking a baseline or condition record:
+
+- `--host-settings` names the settings already in force and changes nothing:
+  `none`, `devtools` (the terminal and IDE are in the Developer Tools list in
+  System Settings › Privacy & Security) or `devtools+ide-exclusion` (the IDE
+  also excludes the build's output folders).
+- keep the IDE open on the project, so the IDE and `fsnotifier` are measured.
+- make no commit in any workspace while a run is going: the launcher's
+  `build.rs` watches the parent `.git/HEAD`.
+- record `none` first, since undoing the exemption can need a reboot.
+- run nothing heavy in any other workspace of the repository; the session lock
+  covers only this one.
+- if a session is refused because an earlier session's build is still running,
+  check the members the message lists: stop them with the kill commands it
+  gives if they are that build, or delete `build.pgid` if none of them is.
+- retake on any fetch failure, or when `syspolicyd`, the IDE or `fsnotifier` is
+  `absent`, or `flagged` as `absent-in-some-runs` or `unreadable`, in the
+  record's `summary.processes`.
+- to re-measure the baseline after an OS or settings change, run from the
+  baseline commit (`jj new <commit>` or `git checkout <commit>`) without
+  `--keep`, go back to the current checkout, then copy the run directory's
+  `record.json` to `meta/measurements/<run id>.json` and commit it there.
+- the baseline commit's launcher release must stay published until 0361
+  closes.
+
+**What a warm-dispatch run requires.** A quiet darwin-arm64 host with no other Claude Code
 session active against the same plugin root; no `ACCELERATOR_*` override set
 except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/
 hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest backends

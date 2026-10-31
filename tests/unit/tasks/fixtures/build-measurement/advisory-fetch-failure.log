@@ -1,0 +1,4 @@
+0.000 [deny:check] $ invoke deny.check
+1.212 [deny:check] 2026-10-31 15:04:07 [ERROR] failed to get 'FETCH_HEAD' metadata: failed to parse ISO-8601 timestamp 'fatal: cannot change to '/private/tmp/claude-501/-Users-tobyclemson-Code-organisations-atomic-company-accelerator-workspaces-ticket-management/c8b2ef9a-ad5c-4298-9d7c-0c1fac4e00d0/scratchpad/cargo-home/advisory-dbs/advisory-db-3157b0e258782691': No such file or directory': failed to parse year in date: failed to parse four digit integer as year: invalid digit, expected 0-9 but got f
+1.398 [deny:check] cargo-deny reported findings — see output
+1.402 [deny:check] ERROR task failed

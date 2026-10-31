@@ -14,21 +14,32 @@ import os
 import platform
 import random
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum, unique
 from pathlib import Path
-from types import FrameType, TracebackType
+from types import TracebackType
 from typing import Protocol, Self
 
 from invoke import Context, Exit, task
 
+from tasks.shared.build_measurement.errors import MeasurementRefusedError
+from tasks.shared.build_measurement.measured_build import HostSettings
+from tasks.shared.build_measurement.record import write_measured_build
+from tasks.shared.build_measurement.reports import summary_report
+from tasks.shared.build_measurement.session import BuildPorts, measure_build
+from tasks.shared.build_measurement.settings import BuildSettings
+from tasks.shared.build_measurement.wiring import real_ports
+from tasks.shared.diagnostics import (
+    DiagnosticRunner,
+    ambient_diagnostic_runner,
+    raw_diagnostic_runner,
+)
 from tasks.shared.measurement import (
     ArtefactState,
     Branch,
@@ -82,8 +93,12 @@ from tasks.shared.measurement import (
 from tasks.shared.paths import (
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
+    MEASURE_SCRATCH_DIRNAME,
+    MEASUREMENTS_RELATIVE,
     REPO_ROOT,
 )
+from tasks.shared.repository import RepositoryKind, repository_kind
+from tasks.shared.signals import unwinding_signals
 
 # The criterion constants, held in lockstep with `tasks/README.md`'s
 # "Criterion constants" section, bidirectionally: every constant appears there
@@ -340,7 +355,7 @@ class ArtefactKind(StrEnum):
     SESSION_MARKER = "session-marker"
 
 
-MANIFEST_DIRNAME = ".accelerator-measure"
+MANIFEST_DIRNAME = MEASURE_SCRATCH_DIRNAME
 MANIFEST_NAME = "manifest.json"
 GUARDED_PATHS = ("keys/", "bin/", "hooks/", "scripts/", "cli/")
 # The tree files a mid-run edit would invalidate the measurement through. The
@@ -404,16 +419,6 @@ class MeasurementRunner(Protocol):
     def __call__(
         self, argv: Sequence[str], *, cwd: Path, env: Mapping[str, str]
     ) -> RunResult: ...
-
-
-class DiagnosticRunner(Protocol):
-    """Runs an untimed probe under the ambient environment.
-
-    Separate from the measurement runner because the farm holds only the two
-    variants' tools: probes routed through it would return `unknown` always.
-    """
-
-    def __call__(self, argv: Sequence[str]) -> str: ...
 
 
 class ArtefactWitness(Protocol):
@@ -538,43 +543,6 @@ def subprocess_measurement_runner(
     )
 
 
-def raw_diagnostic_runner(argv: Sequence[str]) -> str:
-    """Like the ambient runner, but returns stdout **unstripped**.
-
-    Recovered bytes are compared against a recorded digest, so a stripped
-    trailing newline reads as corruption.
-    """
-    resolved = shutil.which(argv[0])
-    if resolved is None:
-        raise FileNotFoundError(argv[0])
-    completed = subprocess.run(
-        [resolved, *argv[1:]], check=True, capture_output=True, text=True
-    )
-    return completed.stdout
-
-
-def ambient_diagnostic_runner(argv: Sequence[str]) -> str:
-    resolved = shutil.which(argv[0])
-    if resolved is None:
-        raise FileNotFoundError(argv[0])
-    completed = subprocess.run(
-        [resolved, *argv[1:]], check=False, capture_output=True, text=True
-    )
-    return completed.stdout.strip()
-
-
-_UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
-
-
-def unwind_signals() -> tuple[signal.Signals, ...]:
-    """List the signals the session unwinds on rather than dying under.
-
-    SIGHUP included: a dropped ssh across a long unattended run would otherwise
-    terminate by default and leave every artefact behind.
-    """
-    return _UNWIND_SIGNALS
-
-
 class MeasurementSession:
     """Captures baseline state on entry, restores and verifies on exit.
 
@@ -601,7 +569,7 @@ class MeasurementSession:
         )
         self.baseline: Baseline | None = None
         self.failures: list[str] = []
-        self._previous_handlers: dict[int, object] = {}
+        self._signals = ExitStack()
 
     def __enter__(self) -> Self:
         if self.manifest_path.exists():
@@ -613,7 +581,7 @@ class MeasurementSession:
         self.baseline = self.capture()
         self.manifest.baseline = asdict(self.baseline)
         self.manifest.write(self.manifest_path)
-        self._install_handlers()
+        self._signals.enter_context(unwinding_signals())
         return self
 
     def __exit__(
@@ -622,7 +590,7 @@ class MeasurementSession:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool:
-        self._restore_handlers()
+        self._signals.close()
         self.restore()
         self.failures = self.verify()
         with suppress(OSError):
@@ -630,21 +598,6 @@ class MeasurementSession:
         with suppress(OSError):
             self.manifest_path.parent.rmdir()
         return False
-
-    def _install_handlers(self) -> None:
-        for number in _UNWIND_SIGNALS:
-            self._previous_handlers[number] = signal.getsignal(number)
-            signal.signal(number, self._unwind)
-
-    def _restore_handlers(self) -> None:
-        for number, previous in self._previous_handlers.items():
-            with suppress(ValueError, TypeError):
-                signal.signal(number, previous)  # type: ignore[arg-type]
-
-    def _unwind(self, number: int, frame: FrameType | None) -> None:
-        """Turn a signal into an exception so the `with` block unwinds."""
-        del frame
-        raise KeyboardInterrupt(f"signal {number}")
 
     def capture(self) -> Baseline:
         """Record the state every exit assertion is measured against.
@@ -1827,7 +1780,7 @@ def run_session(
             Validity.INVALID_POST_RUN
         )
     paths = next_record_paths(
-        (record_path or plugin_root / "meta/measurements"), rehearse=rehearse
+        (record_path or plugin_root / MEASUREMENTS_RELATIVE), rehearse=rehearse
     )
     paths.record.parent.mkdir(parents=True, exist_ok=True)
     record["attempt"] = paths.attempt
@@ -3183,30 +3136,9 @@ def launcher_size_report(path: Path, size: int, host: Host) -> str:
 
 
 @unique
-class RepositoryKind(StrEnum):
-    GIT = "git"
-    JJ = "jj"
-    COLOCATED_JJ = "colocated-jj"
-
-    @property
-    def is_jj(self) -> bool:
-        return self is not RepositoryKind.GIT
-
-
-@unique
 class CacheMode(StrEnum):
     COLD = "cold"
     WARM = "warm"
-
-
-def repository_kind(path: Path) -> RepositoryKind:
-    has_jj = (path / ".jj").is_dir()
-    has_git = (path / ".git").exists()
-    if has_jj:
-        return RepositoryKind.COLOCATED_JJ if has_git else RepositoryKind.JJ
-    if has_git:
-        return RepositoryKind.GIT
-    raise PreconditionFailureError(f"{path} is not a git or jj repository")
 
 
 def _jj_init(
@@ -3723,4 +3655,81 @@ def summary_latency(
             vcs_binary=release / VCS_PACKAGE,
             large=large,
         )
+    )
+
+
+def measure_build_with(
+    make_settings: Callable[[], BuildSettings],
+    make_ports: Callable[[Path], BuildPorts],
+) -> None:
+    """Run one build session, write its record and print its summary.
+
+    Settings are built first, so a flag refusal happens before any port
+    exists; ports are built inside the mapped region, so a directory that
+    is no checkout exits with a sentence rather than a traceback.
+    """
+    try:
+        settings = make_settings()
+        ports = make_ports(settings.root)
+        with unwinding_signals():
+            outcome = measure_build(settings, ports)
+            written = write_measured_build(
+                outcome.measured, root=settings.root, keep=settings.keep
+            )
+    except MeasurementRefusedError as error:
+        raise Exit(str(error), code=1) from error
+    print(
+        summary_report(
+            outcome, record_path=written.record, kept_path=written.kept
+        )
+    )
+
+
+@task(
+    name="build",
+    iterable=["ide_pattern"],
+    help={
+        "runs": "Timed runs (default 3).",
+        "keep": (
+            "Also write the record under meta/measurements/ for "
+            "committing, unless it holds a fetch failure."
+        ),
+        "host_settings": (
+            "Label for the host settings already in force; nothing is "
+            "changed. none, devtools or devtools+ide-exclusion (default "
+            "unspecified): Developer Tools in System Settings > Privacy "
+            "& Security, and the IDE's excluded folders."
+        ),
+        "ide_pattern": (
+            "Regex searched in each process's full command line, "
+            "replacing the IntelliJ and RustRover defaults; anchor it on "
+            "the main executable, e.g. '/Contents/MacOS/clion(?:\\s|$)'. "
+            "Repeat for several."
+        ),
+    },
+)
+def build(
+    context: Context,
+    runs: int = 3,
+    keep: bool = False,
+    host_settings: str = str(HostSettings.UNSPECIFIED),
+    ide_pattern: list[str] | None = None,
+) -> None:
+    """Time a full `default` build: a priming run, then N timed runs.
+
+    Writes `.accelerator-measure/build/<run-id>/`; `--keep` also writes the
+    record under `meta/measurements/` for the operator to commit, unless it
+    holds a fetch failure. macOS only. Exits 0 whenever it writes a record,
+    even if a measured task failed.
+    """
+    del context
+    measure_build_with(
+        lambda: BuildSettings.of(
+            root=REPO_ROOT,
+            runs=runs,
+            keep=keep,
+            host_settings=host_settings,
+            ide_patterns=ide_pattern or (),
+        ),
+        real_ports,
     )

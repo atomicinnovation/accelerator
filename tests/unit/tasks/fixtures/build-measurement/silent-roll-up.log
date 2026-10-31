@@ -1,0 +1,6 @@
+0.000 [a] $ invoke a
+0.000 [b] $ invoke b
+0.405 [a] Finished in 0.4s
+1.005 [b] Finished in 1.0s
+1.300 [report] $ invoke report
+1.505 [report] Finished in 0.2s
