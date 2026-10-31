@@ -35,7 +35,7 @@ impl DraftId {
 pub fn is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
     scheme.is_canonical_id_token(id)
         || (scheme.ownership() == IdOwnership::Tracker
-            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
+            && (tracker::is_tracker_key(id) || DraftId::parse(id).is_some()))
 }
 
 /// A source of random draft suffixes.

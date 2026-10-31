@@ -5270,7 +5270,6 @@ name = "tracker-support"
 version = "1.24.0-pre.96"
 dependencies = [
  "config",
- "corpus",
  "tracker",
 ]
 
