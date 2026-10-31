@@ -42,3 +42,12 @@ class InvalidSettingsError(MeasurementRefusedError):
 
 class SessionInProgressError(MeasurementRefusedError):
     pass
+
+
+class BuildLeftRunningError(MeasurementRefusedError):
+    def __init__(self, pgid: int) -> None:
+        self.pgid = pgid
+        super().__init__(
+            f"the build's process group {pgid} outlived its reap; stop it "
+            f"with `kill -KILL -{pgid}`"
+        )
