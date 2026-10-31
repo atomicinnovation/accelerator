@@ -5,7 +5,7 @@ title: "Explicit Work Item ID on accelerator work create Implementation Plan"
 date: "2026-10-29T14:30:08+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0319"
 parent: "work-item:0319"
 derived_from: ["codebase-research:2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-10-31T14:40:20+00:00"
+last_updated: "2026-10-31T15:17:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -401,14 +401,14 @@ and `corpus` loses its re-export.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p tracker tracker_key`
-- [ ] `mise run public-api:check`
-- [ ] `mise run check` (the crate-dependency lint and `pup`)
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p tracker tracker_key`
+- [x] `mise run public-api:check`
+- [x] `mise run check` (the crate-dependency lint and `pup`)
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] None beyond automated.
+- [x] None beyond automated.
 
 ---
 

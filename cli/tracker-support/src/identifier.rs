@@ -73,7 +73,7 @@ pub fn identifier_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
 /// [`IdentifierRefusal`] naming the property that failed.
 pub fn issue_key_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
     identifier_is_safe(candidate)?;
-    if !corpus::is_tracker_key(candidate) {
+    if !tracker::is_tracker_key(candidate) {
         return Err(IdentifierRefusal::NotAnIssueKey);
     }
     Ok(())

@@ -306,8 +306,7 @@ pub fn canonical_draft_id(token: &str) -> Option<String> {
 
 /// True iff `token` is shaped like a Jira key or Linear identifier:
 /// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
-#[must_use]
-pub fn is_tracker_key(token: &str) -> bool {
+fn is_tracker_key(token: &str) -> bool {
     let Some((prefix, number)) = token.rsplit_once('-') else {
         return false;
     };
@@ -445,9 +444,9 @@ fn is_project_prefixed(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        canonical_draft_id, is_key_token, is_tracker_key, references_key,
-        validate_id_pattern, IdOwnership, IdPatternError, IdScan, IdScanner,
-        WorkItemIdScheme, TRACKER_TOKEN,
+        canonical_draft_id, is_key_token, references_key, validate_id_pattern,
+        IdOwnership, IdPatternError, IdScan, IdScanner, WorkItemIdScheme,
+        TRACKER_TOKEN,
     };
 
     fn scheme_of(id_pattern: &str) -> WorkItemIdScheme {
@@ -501,23 +500,6 @@ mod tests {
     fn a_tracker_scheme_reports_tracker_ownership() {
         assert_eq!(scheme_of(TRACKER_TOKEN).ownership(), IdOwnership::Tracker);
         assert_eq!(WorkItemIdScheme::numeric().ownership(), IdOwnership::Local);
-    }
-
-    #[test]
-    fn jira_and_linear_keys_are_tracker_keys_in_either_case() {
-        assert!(is_tracker_key("PP-760"));
-        assert!(is_tracker_key("eng-42"));
-        assert!(is_tracker_key("MY_PROJ-7"));
-    }
-
-    #[test]
-    fn a_non_key_token_is_not_a_tracker_key() {
-        assert!(!is_tracker_key("0230"));
-        assert!(!is_tracker_key("PP-"));
-        assert!(!is_tracker_key("-760"));
-        assert!(!is_tracker_key("1PP-760"));
-        assert!(!is_tracker_key("PP-76a"));
-        assert!(!is_tracker_key("draft-k7mq3x"));
     }
 
     #[test]

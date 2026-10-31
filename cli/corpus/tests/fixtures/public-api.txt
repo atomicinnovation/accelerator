@@ -1062,7 +1062,6 @@ pub trait corpus::work_item_id::WorkItemIdCanonicaliser
 pub fn corpus::work_item_id::WorkItemIdCanonicaliser::canonicalise(&self, input: &str, pattern: &str, key_value: &str) -> core::result::Result<alloc::string::String, corpus::work_item_id::CanonicaliseError>
 pub fn corpus::work_item_id::canonical_draft_id(token: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
-pub fn corpus::work_item_id::is_tracker_key(token: &str) -> bool
 pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
 pub fn corpus::work_item_id::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>
 pub enum corpus::Band
@@ -1357,7 +1356,6 @@ pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
 pub fn corpus::canonical_draft_id(token: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::is_key_token(token: &str) -> bool
-pub fn corpus::is_tracker_key(token: &str) -> bool
 pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
 pub fn corpus::references_key(pattern: &str) -> bool
 pub fn corpus::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>

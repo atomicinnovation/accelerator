@@ -182,7 +182,7 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
         return InputClass::FullId;
     }
     if scheme.id_pattern == corpus::TRACKER_TOKEN
-        && corpus::is_tracker_key(input)
+        && tracker::is_tracker_key(input)
     {
         return InputClass::FullId;
     }

@@ -168,7 +168,8 @@
             ],
         )),
         // The whole tracker crate is domain: the port a remote issue tracker
-        // satisfies, and nothing else. Unlike its sibling domain rules it
+        // satisfies and the vocabulary trackers speak, tracker-key shape
+        // included. Unlike its sibling domain rules it
         // omits the kernel::Error allowance — the crate declares no
         // dependencies, so that import could not compile.
         Module((
