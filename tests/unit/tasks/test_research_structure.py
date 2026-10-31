@@ -1943,6 +1943,30 @@ def test_consulting_names_the_only_commands_ask_runs() -> None:
     ) in _consult()
 
 
+def test_consulting_runs_each_command_as_its_own_call() -> None:
+    assert (
+        "Run each command as its own Bash call, never joined to another by "
+        "`&&`, `;`, `|` or a newline"
+    ) in _consult()
+
+
+def test_consulting_reads_every_set_file_with_the_read_tool() -> None:
+    consult = _consult()
+    assert "Read every file with the Read tool" in consult
+    for shell in ("`cd`", "`cat`", "`sed`", "`grep`", "loop"):
+        assert shell in consult, f"consulting must forbid reading by {shell}"
+
+
+def test_a_refusal_is_printed_whole_on_lines_of_its_own() -> None:
+    consult = _consult()
+    for phrase in (
+        "each on a line of its own",
+        "nothing before or after it on that line",
+        "never reworded",
+    ):
+        assert phrase in consult, f"a refusal must be printed {phrase!r}"
+
+
 def test_a_denied_post_reply_command_names_the_allow_rules() -> None:
     consult = _consult()
     for phrase in (
