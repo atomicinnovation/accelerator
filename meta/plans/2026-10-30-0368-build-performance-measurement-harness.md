@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T15:19:48+00:00"
+last_updated: "2026-10-31T15:43:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1030,6 +1030,15 @@ separate flag is kept.
   the last bucket ends at `until` even when it is shorter. A task is running
   from its start to its end; a failed task ends at its last counted line,
   and a skipped or silent task is never running.
+- **Marker stamps.** `sample_marker` and `gap_marker` write the stamp as
+  `f"{at}"`, so `read_stamped` reads back the exact float. Phase 4's
+  sampler stamps its kept `ps` lines the same way.
+- **`iostat` lines.** A report line is one whose fields all parse as
+  numbers, at least six of them. Reading `us` and `sy` from the end keeps
+  the parse independent of how many disk columns come first. Probed on
+  the reference host: `iostat -w 1` prints the `disk0 / cpu / load
+  average` header and the column header once, then one report per
+  interval.
 
 **File**: `tasks/shared/build_measurement/across_runs.py`
 
@@ -1119,7 +1128,12 @@ A `model_validator(mode="after")` on `TaskAcrossRuns` and
 `Measured`: `duration_seconds` and `cpu_seconds` are present then and
 `None` otherwise. `nextest_phase_seconds` may still be `None` for a
 measured task that does not run nextest. Each `*_across_runs` function
-derives its `Presence` through one named function. The caveats are named
+derives its `Presence` through one named function. Caveats are listed in
+`Caveat`'s declaration order, so a record's caveats read the same whichever
+run raised them. Absence wins over caveats: a task skipped in every run is
+`Absent` even when a run also flagged it `after-failure`, because it
+measured nothing. Each variant's `standing` defaults to its literal, so
+`Measured()` and `Flagged(caveats=…)` are written without it. The caveats are named
 `Caveat`, not `Flag`, because `enum.Flag` means bit flags to a reader of
 enum code.
 
@@ -1148,6 +1162,14 @@ few system daemons. No kept line is edited. The module docstring of
 `test_tracked_processes.py` records these commands, split as above to fit
 80 columns, with the trimming rule, the IDE-open precondition and the
 macOS version, so it can be re-captured.
+
+Capture result (macOS 26.3, `engywook`, IntelliJ IDEA open on the project
+and PyCharm open too): the raw tick was 1,198 lines and 467 KB, with 5
+tracked lines: `syspolicyd`, `XprotectService`, `idea`, and IntelliJ's
+and PyCharm's `fsnotifier`. It also held unrelated apps' full arguments,
+among them two Google API keys an Electron app embeds in its crash
+annotations, which is why the golden is trimmed. The committed golden is
+13 lines, and `_TRACKED_LINES_IN_GOLDEN` is 5.
 
 ### Success Criteria:
 
