@@ -502,6 +502,13 @@
   characters, or the first free `-2`, `-3`, … suffix. It writes nothing,
   and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
   question.
+- **`accelerator research topic counts SLUG`** prints the round, finding and
+  report counts a set's files give beside those its manifest and synthesis
+  record, whether they agree, and a fixed sentence for each disagreement.
+- **`accelerator research topic consultable SLUG --profiles-dir DIR`**
+  judges whether a set may be consulted: its status, its freshness and
+  whether every outline pair is answered, in that order. It prints the first
+  gate that fails, or the findings and reports to read.
 
 ### Changed
 
@@ -752,6 +759,13 @@
   is `{}` on every row but the report's, which holds
   `{"coverage": ["answered", "partial"]}`. A consumer that reads rows by key
   is unaffected.
+- **research-topic takes its counts and freshness gate from the CLI.**
+  `conduct`, `synthesise` and `finalise` read the manifest counts from
+  `research topic counts` rather than counting files themselves.
+  `finalise`'s stale refusal names each mismatch in fixed wording, and
+  `synthesise` stamps `rounds_covered` from the counts on disk. `conduct`'s
+  planner ignores a `findings/` entry without a numbered index, as the
+  counts always have.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
