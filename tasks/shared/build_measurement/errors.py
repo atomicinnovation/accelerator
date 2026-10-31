@@ -38,3 +38,7 @@ class KeptRecordExistsError(MeasurementRefusedError):
 
 class InvalidSettingsError(MeasurementRefusedError):
     pass
+
+
+class SessionInProgressError(MeasurementRefusedError):
+    pass

@@ -61,9 +61,7 @@ def _three_runs(*, failing_in_two=None, process_cpu=None, **run_two):
     def tasks(index):
         if index == 2 and failing_in_two:
             return {
-                failing_in_two: task_figures(
-                    TaskOutcome.FAILED, exit_status=3
-                ),
+                failing_in_two: task_figures(TaskOutcome.FAILED, exit_status=3),
                 "report": task_figures(after_failure=True),
             }
         return {
