@@ -127,10 +127,13 @@ impl WorkItemConfig {
         &self.scheme
     }
 
-    /// The compiled scan regex, as a `corpus::IdScanner`.
+    /// The ID convention `slug` and `cluster` read work-item IDs through.
     #[must_use]
-    pub fn scanner(&self) -> &corpus_adapters::RegexScanner {
-        &self.scanner
+    pub fn id_convention(&self) -> corpus::SchemeConvention<'_> {
+        corpus::SchemeConvention {
+            scheme: &self.scheme,
+            scanner: &self.scanner,
+        }
     }
 
     #[must_use]

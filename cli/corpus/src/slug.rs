@@ -1,8 +1,7 @@
 //! Per-doc-type slug derivation and the canonical stem humaniser.
 
 use crate::doc_type::DocTypeKey;
-use crate::work_item_id::IdScanner;
-use crate::work_item_id::WorkItemIdScheme;
+use crate::id_convention::IdConvention;
 
 /// Derives the descriptive slug for a document filename, dispatching on its
 /// type. Returns `None` when the filename carries no slug.
@@ -10,13 +9,12 @@ use crate::work_item_id::WorkItemIdScheme;
 pub fn derive(
     kind: DocTypeKey,
     filename: &str,
-    scheme: &WorkItemIdScheme,
-    scanner: &dyn IdScanner,
+    ids: &dyn IdConvention,
 ) -> Option<String> {
     let stem = filename.strip_suffix(".md")?;
     match kind {
         DocTypeKey::Decisions => strip_prefix_numbered(stem, "ADR-"),
-        DocTypeKey::WorkItems => derive_work_item(filename, scanner)
+        DocTypeKey::WorkItems => derive_work_item(filename, ids)
             .or_else(|| strip_prefix_work_item_id(stem)),
         DocTypeKey::Plans
         | DocTypeKey::Research
@@ -26,13 +24,13 @@ pub fn derive(
         | DocTypeKey::DesignGaps
         | DocTypeKey::DesignInventories
         | DocTypeKey::RootCauseAnalyses => {
-            strip_prefix_date_and_optional_id(stem, scheme)
+            strip_prefix_date_and_optional_id(stem, ids)
         }
         DocTypeKey::PlanReviews | DocTypeKey::PrReviews => {
-            strip_prefix_date_and_optional_id(stem, scheme)
+            strip_prefix_date_and_optional_id(stem, ids)
                 .and_then(|slug| strip_suffix_review_n(&slug))
         }
-        DocTypeKey::WorkItemReviews => derive_work_item_review(stem, scheme),
+        DocTypeKey::WorkItemReviews => derive_work_item_review(stem, ids),
         DocTypeKey::TopicResearch => {
             Some(stem.to_owned()).filter(|slug| !slug.is_empty())
         }
@@ -40,16 +38,14 @@ pub fn derive(
     }
 }
 
-/// Derives a work-item slug: the scanner consumes the ID prefix, and the tail
-/// after it is the slug.
+/// Derives a work-item slug: the tail after the convention's `slug_start`.
 #[must_use]
 pub fn derive_work_item(
     filename: &str,
-    scanner: &dyn IdScanner,
+    ids: &dyn IdConvention,
 ) -> Option<String> {
     let stem = filename.strip_suffix(".md")?;
-    let scan = scanner.scan(stem)?;
-    let tail = &stem[scan.match_end..];
+    let tail = &stem[ids.slug_start(stem)?..];
     if tail.is_empty() {
         None
     } else {
@@ -59,14 +55,14 @@ pub fn derive_work_item(
 
 fn derive_work_item_review(
     stem: &str,
-    scheme: &WorkItemIdScheme,
+    ids: &dyn IdConvention,
 ) -> Option<String> {
-    if let Some(slug) = strip_prefix_date_and_optional_id(stem, scheme)
+    if let Some(slug) = strip_prefix_date_and_optional_id(stem, ids)
         .and_then(|dated| strip_suffix_review_n(&dated))
     {
         return Some(slug);
     }
-    let without_id = strip_optional_work_item_id_prefix(stem, scheme);
+    let without_id = strip_optional_work_item_id_prefix(stem, ids);
     if without_id == stem {
         return None;
     }
@@ -121,10 +117,10 @@ fn strip_prefix_date_str(stem: &str) -> Option<&str> {
 
 fn strip_optional_work_item_id_prefix<'a>(
     stem: &'a str,
-    scheme: &WorkItemIdScheme,
+    ids: &dyn IdConvention,
 ) -> &'a str {
     for (index, character) in stem.char_indices() {
-        if character == '-' && scheme.is_canonical_id_token(&stem[..index]) {
+        if character == '-' && ids.is_id(&stem[..index]) {
             return &stem[index + 1..];
         }
     }
@@ -133,13 +129,13 @@ fn strip_optional_work_item_id_prefix<'a>(
 
 fn strip_prefix_date_and_optional_id(
     stem: &str,
-    scheme: &WorkItemIdScheme,
+    ids: &dyn IdConvention,
 ) -> Option<String> {
     let after_date = strip_prefix_date_str(stem)?;
-    if scheme.is_canonical_id_token(after_date) {
+    if ids.is_id(after_date) {
         return None;
     }
-    let trimmed = strip_optional_work_item_id_prefix(after_date, scheme);
+    let trimmed = strip_optional_work_item_id_prefix(after_date, ids);
     if trimmed.is_empty() {
         None
     } else {
@@ -203,54 +199,14 @@ pub fn title_case_segment(segment: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::doc_type::DocTypeKey;
-    use crate::work_item_id::{IdScan, IdScanner, WorkItemIdScheme};
+    use crate::id_convention::test_ids::{FourDigitIds, NUMERIC};
 
     use super::{derive, humanise_slug};
 
-    struct NumericScanner;
-
-    impl IdScanner for NumericScanner {
-        fn scan(&self, text: &str) -> Option<IdScan> {
-            let digits: String =
-                text.chars().take_while(char::is_ascii_digit).collect();
-            if digits.is_empty() || !text[digits.len()..].starts_with('-') {
-                return None;
-            }
-            let match_end = digits.len() + 1;
-            Some(IdScan { digits, match_end })
-        }
-    }
-
-    struct ProjectScanner;
-
-    impl IdScanner for ProjectScanner {
-        fn scan(&self, text: &str) -> Option<IdScan> {
-            let rest = text.strip_prefix("PROJ-")?;
-            let digits: String =
-                rest.chars().take_while(char::is_ascii_digit).collect();
-            if digits.is_empty() || !rest[digits.len()..].starts_with('-') {
-                return None;
-            }
-            let match_end = "PROJ-".len() + digits.len() + 1;
-            Some(IdScan { digits, match_end })
-        }
-    }
-
-    fn numeric() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
-    }
-
-    #[allow(clippy::literal_string_with_formatting_args)]
-    fn project() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{project}-{number:04d}".to_owned(),
-            key: Some("PROJ".to_owned()),
-        }
-    }
+    const PROJECT: FourDigitIds = FourDigitIds { key: Some("PROJ") };
 
     #[test]
     fn decisions_strip_the_adr_prefix() {
-        let scheme = numeric();
         let cases = [
             ("ADR-0001-context-isolation.md", Some("context-isolation")),
             ("ADR-12-foo.md", Some("foo")),
@@ -259,8 +215,7 @@ mod tests {
         ];
         for (input, expected) in cases {
             assert_eq!(
-                derive(DocTypeKey::Decisions, input, &scheme, &NumericScanner)
-                    .as_deref(),
+                derive(DocTypeKey::Decisions, input, &NUMERIC).as_deref(),
                 expected,
                 "{input}"
             );
@@ -269,51 +224,34 @@ mod tests {
 
     #[test]
     fn work_items_strip_the_numeric_id() {
-        let scheme = numeric();
         assert_eq!(
             derive(
                 DocTypeKey::WorkItems,
                 "0029-template-subcommand.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             )
             .as_deref(),
             Some("template-subcommand")
         );
-        assert_eq!(
-            derive(DocTypeKey::WorkItems, "0001.md", &scheme, &NumericScanner),
-            None
-        );
+        assert_eq!(derive(DocTypeKey::WorkItems, "0001.md", &NUMERIC), None);
     }
 
     #[test]
     fn work_items_fall_back_to_bare_numeric_under_a_project_pattern() {
-        let scheme = project();
         assert_eq!(
-            derive(
-                DocTypeKey::WorkItems,
-                "PROJ-0042-ship.md",
-                &scheme,
-                &ProjectScanner
-            )
-            .as_deref(),
+            derive(DocTypeKey::WorkItems, "PROJ-0042-ship.md", &PROJECT)
+                .as_deref(),
             Some("ship")
         );
         assert_eq!(
-            derive(
-                DocTypeKey::WorkItems,
-                "0042-legacy.md",
-                &scheme,
-                &ProjectScanner
-            )
-            .as_deref(),
+            derive(DocTypeKey::WorkItems, "0042-legacy.md", &PROJECT)
+                .as_deref(),
             Some("legacy")
         );
     }
 
     #[test]
     fn dated_types_strip_the_date_and_optional_id() {
-        let scheme = numeric();
         let cases = [
             ("2026-04-17-pr-review-agents.md", Some("pr-review-agents")),
             (
@@ -326,8 +264,7 @@ mod tests {
         ];
         for (input, expected) in cases {
             assert_eq!(
-                derive(DocTypeKey::Plans, input, &scheme, &NumericScanner)
-                    .as_deref(),
+                derive(DocTypeKey::Plans, input, &NUMERIC).as_deref(),
                 expected,
                 "{input}"
             );
@@ -336,13 +273,11 @@ mod tests {
 
     #[test]
     fn plan_reviews_strip_the_trailing_review_suffix() {
-        let scheme = numeric();
         assert_eq!(
             derive(
                 DocTypeKey::PlanReviews,
                 "2026-03-28-review-pr-migration-review-1.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             )
             .as_deref(),
             Some("review-pr-migration")
@@ -351,8 +286,7 @@ mod tests {
             derive(
                 DocTypeKey::PlanReviews,
                 "2026-04-18-no-suffix.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             ),
             None
         );
@@ -360,16 +294,13 @@ mod tests {
 
     #[test]
     fn the_review_suffix_rule_holds_at_its_edges() {
-        let scheme = numeric();
-
         // Only the *trailing* -review-N is a suffix; an internal one is part of
         // the slug and survives.
         assert_eq!(
             derive(
                 DocTypeKey::PlanReviews,
                 "2026-03-28-review-pr-review-2-review-1.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             )
             .as_deref(),
             Some("review-pr-review-2")
@@ -381,8 +312,7 @@ mod tests {
             derive(
                 DocTypeKey::PlanReviews,
                 "2026-03-28-plan-review-final.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             ),
             None
         );
@@ -390,13 +320,11 @@ mod tests {
 
     #[test]
     fn work_item_reviews_accept_the_no_date_id_prefixed_shape() {
-        let scheme = numeric();
         assert_eq!(
             derive(
                 DocTypeKey::WorkItemReviews,
                 "0030-centralise-path-defaults-review-1.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             )
             .as_deref(),
             Some("centralise-path-defaults")
@@ -405,22 +333,16 @@ mod tests {
 
     #[test]
     fn templates_have_no_slug() {
-        let scheme = numeric();
-        assert_eq!(
-            derive(DocTypeKey::Templates, "plan.md", &scheme, &NumericScanner),
-            None
-        );
+        assert_eq!(derive(DocTypeKey::Templates, "plan.md", &NUMERIC), None);
     }
 
     #[test]
     fn topic_research_takes_the_subject_directory_name_verbatim() {
-        let scheme = numeric();
         assert_eq!(
             derive(
                 DocTypeKey::TopicResearch,
                 "model-context-protocol.md",
-                &scheme,
-                &NumericScanner
+                &NUMERIC
             )
             .as_deref(),
             Some("model-context-protocol")
@@ -429,11 +351,7 @@ mod tests {
 
     #[test]
     fn topic_research_guards_the_empty_stem() {
-        let scheme = numeric();
-        assert_eq!(
-            derive(DocTypeKey::TopicResearch, ".md", &scheme, &NumericScanner),
-            None
-        );
+        assert_eq!(derive(DocTypeKey::TopicResearch, ".md", &NUMERIC), None);
     }
 
     #[test]

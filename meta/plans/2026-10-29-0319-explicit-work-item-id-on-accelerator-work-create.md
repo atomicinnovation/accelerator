@@ -494,12 +494,12 @@ signatures, and `SchemeConvention` change.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p corpus slug cluster`
-- [ ] `mise run test:unit:visualiser`
-- [ ] `mise run test:integration:visualiser`
-- [ ] `cd cli && cargo test -p corpus-adapters --test parity`
-- [ ] `mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p corpus slug cluster`
+- [x] `mise run test:unit:visualiser`
+- [x] `mise run test:integration:visualiser`
+- [x] `cd cli && cargo test -p corpus-adapters --test parity`
+- [x] `mise run public-api:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 

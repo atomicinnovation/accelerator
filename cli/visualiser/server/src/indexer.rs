@@ -956,7 +956,7 @@ pub(crate) fn target_path_from_entry(
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
         plans_by_id,
         work_item_by_id,
-        work_item_cfg.scheme(),
+        &work_item_cfg.id_convention(),
         project_root,
     )
 }
@@ -1266,18 +1266,15 @@ fn build_entry(
     };
 
     let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
-        let regex_slug =
-            corpus::slug::derive_work_item(filename, work_item_cfg.scanner());
+        let regex_slug = corpus::slug::derive_work_item(
+            filename,
+            &work_item_cfg.id_convention(),
+        );
         // Fall back to the default numeric slug derivation when the primary
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
         let slug = regex_slug.or_else(|| {
-            corpus::slug::derive(
-                kind,
-                filename,
-                work_item_cfg.scheme(),
-                work_item_cfg.scanner(),
-            )
+            corpus::slug::derive(kind, filename, &work_item_cfg.id_convention())
         });
         // Identity resolution: the unified `id:` key is the sole work-item
         // identity source. It routes through `normalise_id` so the identity
@@ -1311,8 +1308,7 @@ fn build_entry(
             corpus::slug::derive(
                 kind,
                 &slug_filename,
-                work_item_cfg.scheme(),
-                work_item_cfg.scanner(),
+                &work_item_cfg.id_convention(),
             ),
             None,
         )

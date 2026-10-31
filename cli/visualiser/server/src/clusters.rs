@@ -180,13 +180,13 @@ pub fn compute_clusters_with_backfill(
     HashMap<PathBuf, Completeness>,
     HashMap<PathBuf, Option<String>>,
 ) {
+    let identity = ctx.work_item_cfg.id_convention();
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
         ctx.work_item_by_id,
         ctx.plans_by_id,
         ctx.project_root,
-        ctx.work_item_cfg.scheme(),
-        ctx.work_item_cfg.scanner(),
+        &identity,
     );
     let clustering = corpus::cluster::compute(entries, &corpus_ctx);
 

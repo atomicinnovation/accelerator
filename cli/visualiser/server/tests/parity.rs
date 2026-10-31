@@ -22,9 +22,8 @@ use corpus::DocTypeKey;
 #[test]
 fn slug_and_id_conventions_are_pinned() {
     let cfg = WorkItemConfig::default_numeric();
-    let derive = |kind, f: &str| {
-        corpus::slug::derive(kind, f, cfg.scheme(), cfg.scanner())
-    };
+    let derive =
+        |kind, f: &str| corpus::slug::derive(kind, f, &cfg.id_convention());
     assert_eq!(
         derive(DocTypeKey::WorkItems, "0042-ship-it.md").as_deref(),
         Some("ship-it")
@@ -34,7 +33,7 @@ fn slug_and_id_conventions_are_pinned() {
         Some("some-choice")
     );
     assert_eq!(
-        corpus::slug::derive_work_item("0007-thing.md", cfg.scanner())
+        corpus::slug::derive_work_item("0007-thing.md", &cfg.id_convention())
             .as_deref(),
         Some("thing")
     );
