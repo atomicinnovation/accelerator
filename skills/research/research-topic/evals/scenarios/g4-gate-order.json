@@ -1,0 +1,92 @@
+{
+  "family": "G4",
+  "title": "The gates apply in order",
+  "scenarios": [
+    {
+      "name": "g4-status-before-freshness-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          },
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g4-status-before-freshness-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          },
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "status"
+    },
+    {
+      "name": "g4-freshness-before-conducted-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          },
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g4-freshness-before-conducted-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          },
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "freshness"
+    }
+  ]
+}

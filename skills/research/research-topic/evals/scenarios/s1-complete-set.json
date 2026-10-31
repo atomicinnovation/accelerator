@@ -1,0 +1,40 @@
+{
+  "family": "S1",
+  "title": "A complete set is consultable",
+  "scenarios": [
+    {
+      "name": "s1-complete-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "complete"
+          }
+        ]
+      },
+      "gate": "open"
+    },
+    {
+      "name": "s1-complete-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "complete"
+          }
+        ]
+      },
+      "gate": "open"
+    }
+  ]
+}

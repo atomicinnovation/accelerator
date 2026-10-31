@@ -1,0 +1,36 @@
+{
+  "family": "N1",
+  "title": "report names new reports from the question",
+  "scenarios": [
+    {
+      "name": "n1-c7",
+      "verb": "report",
+      "question": "How do autonomous language model agents decompose long horizon planning tasks into executable steps?",
+      "times": 1,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "n1-c8",
+      "verb": "report",
+      "question": "Supercalifragilisticexpialidociousplannersoutperformallbaselines?",
+      "times": 1,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "n1-escaping",
+      "verb": "report",
+      "question": "How do LLM agents' \"planners\" plan multi-step tasks $(touch pwned)?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    }
+  ]
+}

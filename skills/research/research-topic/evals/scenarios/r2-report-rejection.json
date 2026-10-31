@@ -1,0 +1,26 @@
+{
+  "family": "R2",
+  "title": "report lets the user reject or decline",
+  "scenarios": [
+    {
+      "name": "r2-reject",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "r2-decline",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    }
+  ]
+}

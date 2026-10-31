@@ -1,0 +1,35 @@
+{
+  "family": "P1",
+  "title": "Proposals honour the configured breadth",
+  "scenarios": [
+    {
+      "name": "p1-ask",
+      "verb": "ask",
+      "question": "Which GPUs, datasets, licences and hosts suit agent training?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence",
+        "breadth": 2
+      },
+      "gate": "open"
+    },
+    {
+      "name": "p1-report",
+      "verb": "report",
+      "question": "Which GPUs, datasets, licences and hosts suit agent training?",
+      "times": 3,
+      "setup": {
+        "variant": "equivalence",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "complete"
+          }
+        ],
+        "breadth": 2
+      },
+      "gate": "open"
+    }
+  ]
+}
