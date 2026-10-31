@@ -7,11 +7,13 @@ use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
 use corpus::store::FileRemove;
-use corpus::WorkItemIdScheme;
 use serde_json::json;
 use serde_json::Value;
 use time::OffsetDateTime;
 use work::draft_id::DraftId;
+use work::id_pattern::IdKey;
+use work::id_pattern::IdPattern;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::ItemIdentity;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
@@ -169,8 +171,8 @@ impl<'a> FileRunPlanStore<'a> {
     fn encode_fingerprint(&self, fingerprint: &IdentityFingerprint) -> Value {
         let scheme = fingerprint.scheme();
         json!({
-            "id_pattern": scheme.id_pattern,
-            "key": scheme.key,
+            "id_pattern": scheme.pattern().as_str(),
+            "key": scheme.key().map(IdKey::as_str),
             "items": fingerprint
                 .items()
                 .map(|item| json!({
@@ -215,10 +217,13 @@ impl<'a> FileRunPlanStore<'a> {
         &self,
         value: &Value,
     ) -> Result<IdentityFingerprint, Unreadability> {
-        let scheme = WorkItemIdScheme {
-            id_pattern: text(value, "id_pattern")?.to_owned(),
-            key: optional_text(value, "key")?,
-        };
+        let pattern = IdPattern::parse(text(value, "id_pattern")?)
+            .map_err(|error| malformed(&error.to_string()))?;
+        let key = optional_text(value, "key")?
+            .map(|key| IdKey::parse(&key))
+            .transpose()
+            .map_err(|error| malformed(&error.to_string()))?;
+        let scheme = WorkItemIdScheme::new(pattern, key);
         let items = array(value, "items")?
             .iter()
             .map(|item| {

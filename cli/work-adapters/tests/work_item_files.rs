@@ -150,7 +150,10 @@ fn an_unreadable_file_is_reported_beside_the_listing() -> Result<(), TestError>
         vec!["0001-a.md"]
     );
     assert_eq!(
-        names(listing.unreadable.into_iter().map(|file| file.path), work_dir),
+        names(
+            listing.unreadable.into_iter().map(|file| file.path),
+            work_dir
+        ),
         vec!["0002-b.md", "drafts/draft-k7mq3x-c.md"]
     );
     Ok(())

@@ -5,7 +5,8 @@
 // args.
 #![allow(clippy::literal_string_with_formatting_args)]
 
-use corpus::WorkItemIdScheme;
+use crate::id_pattern::IdKey;
+use crate::id_scheme::WorkItemIdScheme;
 
 /// The number an `id` carries: all of a bare numeric `id`, or the digits
 /// after the last `-` of a tracker-shaped one.
@@ -37,23 +38,20 @@ pub(crate) fn project_key_of(id: &str) -> Option<&str> {
 #[must_use]
 pub fn is_in_target_shape(id: &str, scheme: &WorkItemIdScheme) -> bool {
     sequence_of(id).is_some_and(|number| {
-        rendered(scheme, scheme.key.as_deref(), number).eq_ignore_ascii_case(id)
+        rendered(scheme, scheme.key(), number).eq_ignore_ascii_case(id)
     })
 }
 
 /// `number` as the pattern renders it under `key`.
 pub(crate) fn rendered(
     scheme: &WorkItemIdScheme,
-    key: Option<&str>,
+    key: Option<&IdKey>,
     number: u64,
 ) -> String {
-    let under_key = WorkItemIdScheme {
-        id_pattern: scheme.id_pattern.clone(),
-        key: key.map(str::to_owned),
-    };
-    under_key
-        .canonicalise_id(&number.to_string())
-        .unwrap_or_else(|| number.to_string())
+    scheme
+        .pattern()
+        .render(key, number)
+        .unwrap_or_else(|_| number.to_string())
 }
 
 fn is_digits(text: &str) -> bool {
@@ -62,16 +60,18 @@ fn is_digits(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use corpus::WorkItemIdScheme;
-
     use super::is_in_target_shape;
     use super::sequence_of;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
 
     fn keyed(key: &str) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some(key.to_owned()),
-        }
+        WorkItemIdScheme::new(
+            IdPattern::parse("{key}-{number:04d}")
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse(key).ok(),
+        )
     }
 
     #[test]

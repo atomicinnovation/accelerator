@@ -8,8 +8,7 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use config_adapters::FileConfigStore;
-use corpus::WorkItemIdScheme;
-use work::id_pattern::IdPattern;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::resolve_identity;
 use work::identity::IdentityField;
 use work::identity::IdentityMatch;
@@ -25,7 +24,7 @@ use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::config::resolve_scheme;
+use crate::config::announced_scheme_with_key;
 use crate::config::resolve_work_dir;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,10 +83,7 @@ pub fn run(
     config: &dyn ConfigAccess,
     input: &str,
 ) -> Result<RunOutcome, kernel::Error> {
-    let scheme = resolve_scheme(config)?;
-    IdPattern::parse(&scheme.id_pattern).map_err(|error| {
-        kernel::Error::Failed(format!("E_WORK_ID_PATTERN_INVALID: {error}"))
-    })?;
+    let scheme = announced_scheme_with_key(config)?;
     let work_dir = canonical_work_dir(start, config)?;
     Ok(resolve_with(&scheme, &work_dir, start, input))
 }
@@ -203,12 +199,15 @@ fn resolve_by_filename(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
-    use corpus::WorkItemIdScheme;
+    use work::id_pattern::IdKey;
+    use work::id_pattern::IdPattern;
+    use work::id_scheme::WorkItemIdScheme;
+    use work::id_scheme::TRACKER_TOKEN;
     use work::identity::IdentityField;
 
     use super::resolve_with;
@@ -228,11 +227,15 @@ mod tests {
         path.to_path_buf()
     }
 
+    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse(pattern).expect("a well-formed pattern"),
+            key.map(|key| IdKey::parse(key).expect("a well-formed key")),
+        )
+    }
+
     fn tracker() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        }
+        scheme(TRACKER_TOKEN, None)
     }
 
     fn resolved(outcome: RunOutcome) -> Option<PathBuf> {
@@ -288,6 +291,25 @@ mod tests {
             let outcome = resolve_with(&tracker(), &work_dir, &work_dir, token);
             assert_eq!(resolved(outcome), Some(keyed.clone()), "{token}");
         }
+    }
+
+    #[test]
+    fn an_external_id_resolves_before_the_input_is_canonicalised() {
+        let (_dir, work_dir) = corpus();
+        let linked = item(
+            &work_dir.join("PP-0001-title.md"),
+            "id: \"PP-0001\"\nexternal_id: \"PP-905\"\n",
+        );
+        item(&work_dir.join("PP-0905-other.md"), "id: \"PP-0905\"\n");
+
+        let outcome = resolve_with(
+            &scheme("{key}-{number:04d}", Some("PP")),
+            &work_dir,
+            &work_dir,
+            "PP-905",
+        );
+
+        assert_eq!(resolved(outcome), Some(linked));
     }
 
     #[test]

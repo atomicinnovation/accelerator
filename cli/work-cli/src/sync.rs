@@ -31,7 +31,6 @@ use ::config::Key;
 use config_adapters::credentials::SystemEnvironment;
 use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
 use config_adapters::TrackedConfigFile;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
@@ -39,6 +38,7 @@ use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
 use work::inventory::CorpusInventory;
@@ -2113,8 +2113,8 @@ fn prepare_sync(
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
-    let scheme =
-        crate::config::resolve_scheme(config).map_err(Refusal::error)?;
+    let scheme = crate::config::announced_scheme_with_key(config)
+        .map_err(Refusal::error)?;
     let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
         .map_err(Refusal::usage)?;
     let (work, integrations) =
@@ -2135,7 +2135,7 @@ fn prepare_sync(
 
     let orders = parse_orders(&args.resolutions, &integration, &scheme)
         .map_err(Refusal::usage)?;
-    let names = ConfiguredNames::for_scheme(&scheme).map_err(Refusal::error)?;
+    let names = ConfiguredNames::for_scheme(&scheme);
     let (conflicts, conflicts_unread) =
         VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
     if let Some(warning) = conflicts_unread {
@@ -2559,14 +2559,15 @@ fn report_stopped_run(
     clippy::unwrap_used,
     clippy::unnecessary_wraps,
     clippy::unimplemented,
-    clippy::panic
+    clippy::panic,
+    clippy::literal_string_with_formatting_args
 )]
 mod tests {
     use crate::finished_run::StaleDossier;
     use crate::finished_run::StaleDossierCause;
-    use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
+    use work::id_scheme::WorkItemIdScheme;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
@@ -2676,8 +2677,7 @@ mod tests {
             );
             super::work_files::discover_corpus(
                 &self.work_dir,
-                &super::work_files::ConfiguredNames::for_scheme(&scheme())
-                    .expect("the scheme compiles"),
+                &super::work_files::ConfiguredNames::for_scheme(&scheme()),
                 &conflicts,
             )
             .expect("discover items")
@@ -5267,10 +5267,11 @@ mod tests {
     }
 
     fn tracker_scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        }
+        WorkItemIdScheme::new(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .expect("the tracker pattern"),
+            None,
+        )
     }
 
     #[test]

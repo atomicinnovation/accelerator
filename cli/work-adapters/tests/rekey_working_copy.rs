@@ -449,7 +449,7 @@ mod in_a_real_repository {
             );
             store.save(&RunPlan::Proposed(ProposedPlan::new(
                 work::rekey::fingerprint::IdentityFingerprint::of(
-                    &corpus::WorkItemIdScheme::numeric(),
+                    &work::id_scheme::WorkItemIdScheme::numeric(),
                     &[],
                 ),
                 Vec::new(),

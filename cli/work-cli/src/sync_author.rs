@@ -15,7 +15,6 @@ use corpus::lock::LockName;
 use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus::FilenameTimestampFormat;
-use corpus::IdOwnership;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
@@ -29,6 +28,7 @@ use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::TypedLinkage;
 use work::draft_id::DraftId;
+use work::id_scheme::IdOwnership;
 use work::identity::holder_of;
 use work::identity::linker_of;
 use work::identity::ItemIdentity;
@@ -49,7 +49,7 @@ use work_adapters::sync::create::LocalAuthor;
 use work_adapters::sync::pending_push::Marker;
 
 use crate::bounded_roots::BoundedRoot;
-use crate::config::resolve_scheme;
+use crate::config::announced_scheme_with_key;
 
 /// The default kind, status, and priority an imported remote issue is authored
 /// with. A tracker issue carries no work-item taxonomy, so the import picks
@@ -298,7 +298,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         &self,
         issue: &DiscoveredIssue,
     ) -> Result<AuthoredLocal, AuthorError> {
-        let scheme = resolve_scheme(self.config)?;
+        let scheme = announced_scheme_with_key(self.config)
+            .map_err(kernel::Error::from)?;
         let title = issue.title.as_str();
         let description = issue.body.as_str();
 

@@ -163,12 +163,11 @@ pub fn preview_lines(entries: &[RekeyEntry]) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use corpus::WorkItemIdScheme;
-
     use super::readable_schema;
     use super::ProposedPlan;
     use super::Unreadability;
     use super::RUN_PLAN_SCHEMA;
+    use crate::id_scheme::WorkItemIdScheme;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
     use crate::rekey::fingerprint::IdentityFingerprint;
