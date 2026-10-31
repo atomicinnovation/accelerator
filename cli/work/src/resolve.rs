@@ -496,6 +496,41 @@ mod tests {
         assert_eq!(paths, vec!["0042-bar.md", "0042-foo.md"]);
     }
 
+    fn resolved_full_id(
+        pattern: &str,
+        key: Option<&str>,
+        input: &str,
+        filenames: Vec<&'static str>,
+    ) -> ResolveOutcome {
+        let scheme = WorkItemIdScheme {
+            id_pattern: pattern.to_owned(),
+            key: key.map(str::to_owned),
+        };
+        assert_eq!(classify_input(input, &scheme), InputClass::FullId);
+        resolve(input, SearchClass::FullId, &scheme, &FakeLister(filenames))
+    }
+
+    #[test]
+    fn a_full_id_resolves_under_a_bare_number_token() {
+        assert_eq!(
+            resolved_full_id("a.{number}", None, "a.0042", vec!["a.0042-a.md"]),
+            ResolveOutcome::Single("a.0042-a.md".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_full_id_resolves_under_a_six_digit_key_pattern() {
+        assert_eq!(
+            resolved_full_id(
+                "{key}-{number:06d}",
+                Some("PP"),
+                "PP-000042",
+                vec!["PP-000042-a.md"]
+            ),
+            ResolveOutcome::Single("PP-000042-a.md".to_owned())
+        );
+    }
+
     #[test]
     fn resolve_bare_number_not_found() {
         let lister = FakeLister(vec![]);
