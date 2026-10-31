@@ -14,7 +14,6 @@ from tasks.eval.citing_once.logs import (
     tool_calls,
 )
 from tasks.eval.citing_once.projects import Project, build_project
-from tasks.eval.citing_once.rule import key_order
 from tasks.eval.citing_once.sessions import (
     RULE,
     composer_prompt,
@@ -23,13 +22,14 @@ from tasks.eval.citing_once.sessions import (
     session_command,
     synthesise_prompt,
 )
-from tasks.eval.citing_once.sources import parse_sources
 from tasks.eval.citing_once.verdicts import (
     criterion_failures,
     entry_differences,
     isolation_conflicts,
     predict,
 )
+from tasks.eval.documents.rule import key_order
+from tasks.eval.documents.sources import parse_sources
 from tasks.eval.toolchain import Toolchain
 
 LOG = "session.jsonl"
