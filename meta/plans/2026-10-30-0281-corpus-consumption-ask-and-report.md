@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T14:20:32+00:00"
+last_updated: "2026-10-31T14:57:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1800,9 +1800,9 @@ Testing Strategy lists it.
   - `synthesise` left `round_count` 2, `finding_count` 3 and
     `rounds_covered` 2, and `counts` then printed `"fresh": true`;
   - `conduct` gap-filled `03-what-is-the-third-focus-area-web.md` over live
-    web, leaving `round_count` at 2; after `- [ ] What is the fourth focus
-    area?` was appended under `## Round 3`, a second `conduct` wrote a round-3
-    finding and raised `round_count` to 3.
+    web, leaving `round_count` at 2; after a fourth focus area was appended
+    under `## Round 3`, a second `conduct` wrote a round-3 finding and raised
+    `round_count` to 3.
 - **`eval:citing-once`.** All 36 sessions passed on the dev toolchain:
   C1 3/3, C2 3/3, C3 3/3, C4 9/9, C5 9/9, S1 3/3, S2 6/6, in about 7.5
   minutes at the default 6 jobs. Each `synthesise` session ran `counts`.
