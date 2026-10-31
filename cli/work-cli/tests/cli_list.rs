@@ -1,6 +1,7 @@
 //! CLI-boundary tests for `work list`.
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -101,5 +102,61 @@ fn list_output_is_unchanged_by_an_unreadable_file() -> Result<(), TestError> {
         String::from_utf8(without.stdout)?
     );
     assert_eq!(String::from_utf8(with.stderr)?, "");
+    Ok(())
+}
+
+fn listed_under(work_body: &str) -> Result<std::process::Output, TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-list-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".git"))?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
+    write_item(dir.path())?;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
+        .arg("list")
+        .current_dir(dir.path())
+        .env("ACCELERATOR_PLUGIN_ROOT", dir.path())
+        .stdin(Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
+}
+
+fn write_item(root: &Path) -> Result<(), TestError> {
+    fs::create_dir_all(root.join("meta/work"))?;
+    fs::write(
+        root.join("meta/work/0001-existing.md"),
+        "---\nid: \"0001\"\ntitle: \"Existing\"\nstatus: \"draft\"\n---\n",
+    )?;
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let output = listed_under("  id_pattern: \"{number:4d}\"\n")?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_reads_a_key_pattern_without_a_key() -> Result<(), TestError> {
+    let output = listed_under("  id_pattern: \"{key}-{number:04d}\"\n")?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert!(String::from_utf8(output.stdout)?.contains("Existing"));
     Ok(())
 }

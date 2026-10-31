@@ -412,17 +412,21 @@ fn a_hostile_project_or_pattern_is_refused_before_anything_is_written(
         (
             KEYED,
             vec!["--project", "../x"],
-            "key value '../x' must match [A-Za-z][A-Za-z0-9]* (rule 5)",
+            "Error: E_WORK_KEY_INVALID: --project '../x': key value '../x' \
+             must match [A-Za-z][A-Za-z0-9]* (rule 5)",
         ),
         (
             "  id_pattern: \"../{number:04d}\"\n",
             vec![],
-            "literal '/' is forbidden in patterns (rule 2)",
+            "Error: E_WORK_ID_PATTERN_INVALID: work.id_pattern \
+             '../{number:04d}': literal '/' is forbidden in patterns (rule 2)",
         ),
         (
             "  id_pattern: \"x'{number:04d}\"\n",
             vec![],
-            "literal '\\'' is forbidden in patterns (rule 2)",
+            "Error: E_WORK_ID_PATTERN_INVALID: work.id_pattern \
+             'x\\'{number:04d}': literal '\\'' is forbidden in patterns \
+             (rule 2)",
         ),
     ];
     for (config, extra, reason) in refusals {
@@ -434,7 +438,7 @@ fn a_hostile_project_or_pattern_is_refused_before_anything_is_written(
 
         assert_eq!(output.status.code(), Some(1), "{config}");
         let stderr = String::from_utf8(output.stderr)?;
-        assert!(stderr.contains(reason), "{config}: {stderr}");
+        assert!(stderr.starts_with(reason), "{config}: {stderr}");
         assert!(work_items(repo.path())?.is_empty(), "{config}");
     }
     Ok(())
@@ -464,5 +468,50 @@ fn allocation_keeps_the_patterns_literal_text() -> Result<(), TestError> {
 
     assert!(created_path(&first)?.ends_with("meta/work/v001-first.md"));
     assert!(created_path(&second)?.ends_with("meta/work/v002-second.md"));
+    Ok(())
+}
+
+#[test]
+fn a_malformed_pattern_refuses_before_the_author_or_directory(
+) -> Result<(), TestError> {
+    let bare = tempfile::tempdir()?;
+    fs::create_dir_all(bare.path().join(".accelerator"))?;
+    fs::write(
+        bare.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+
+    let output = run(bare.path(), &["create", "Probe", "task", "low"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(!bare.path().join("meta/work").exists());
+    Ok(())
+}
+
+const DEPRECATION: &str = "'work.default_project_code' is deprecated";
+
+#[test]
+fn the_deprecation_notice_is_printed_once_per_command() -> Result<(), TestError>
+{
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: PP\n",
+    )?;
+
+    let created = run(repo.path(), &["create", "Probe", "task", "low"])?;
+    let listed = run(repo.path(), &["list"])?;
+
+    for output in [created, listed] {
+        assert!(output.status.success(), "{output:?}");
+        let stderr = String::from_utf8(output.stderr)?;
+        assert_eq!(stderr.matches(DEPRECATION).count(), 1, "{stderr}");
+    }
     Ok(())
 }
