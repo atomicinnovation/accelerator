@@ -21,6 +21,7 @@ use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
 use work::rekey::fingerprint::Staleness;
 use work::rekey::outcome::NotRekeyed;
+use work::rekey::outcome::UnclassifiableCause;
 use work::rekey::run_plan::Unreadability;
 use work::rekey::run_plan::UnreadablePlan;
 use work::rekey::write_set::Unreverted;
@@ -255,7 +256,12 @@ fn every_not_rekeyed() -> Vec<NotRekeyed> {
             second: item.clone(),
             target: "ACC-0042".to_owned(),
         },
-        NotRekeyed::Unclassifiable(item.clone()),
+        NotRekeyed::Unclassifiable {
+            item: item.clone(),
+            cause: UnclassifiableCause::NoNumber {
+                id: "notes".to_owned(),
+            },
+        },
         NotRekeyed::FreshNumbersExhausted {
             needed: 2,
             remaining: 1,
