@@ -10,7 +10,49 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md"
+            ],
+            "offers": "pick",
+            "writes": []
+          }
+        },
+        {
+          "reply": {
+            "rewrite": 1
+          },
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "fields": {
+                "status": "complete"
+              },
+              "kept": [
+                "id",
+                "title",
+                "question",
+                "date",
+                "parent",
+                "relates_to"
+              ]
+            },
+            "manifest": {
+              "fields": {
+                "report_count": 3
+              },
+              "lists_reports": true
+            }
+          }
+        }
+      ]
     },
     {
       "name": "e1-work-out-plans-bare-accept",
@@ -20,7 +62,25 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md"
+            ],
+            "offers": "pick",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [],
+            "offers": "pick"
+          }
+        }
+      ]
     },
     {
       "name": "e1-context-limits",
@@ -30,7 +90,16 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [],
+            "offers": "accept",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "e1-planning-hooks",
@@ -40,7 +109,16 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [],
+            "offers": "accept",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "e1-gpus-best",
@@ -50,7 +128,20 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "unanswered",
+            "equivalents": [],
+            "offers": "proposal",
+            "writes": [],
+            "unchanged": [
+              "reports/*"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "e1-tasks-new",
@@ -60,7 +151,33 @@
       "setup": {
         "variant": "equivalence"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "equivalents": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md"
+            ],
+            "offers": "pick",
+            "writes": []
+          }
+        },
+        {
+          "reply": "new",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks-2.md",
+              "manifest.md"
+            ],
+            "manifest": {
+              "fields": {
+                "report_count": 4
+              },
+              "lists_reports": true
+            }
+          }
+        }
+      ]
     }
   ]
 }

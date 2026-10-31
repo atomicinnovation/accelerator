@@ -10,7 +10,31 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "reject",
+            "writes": []
+          }
+        },
+        {
+          "reply": "reject",
+          "expect": {
+            "writes": [],
+            "offers": "proposal"
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
     }
   ]
 }
