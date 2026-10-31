@@ -9,6 +9,7 @@ pub mod dirtiness;
 pub mod draft_id;
 pub mod filter;
 pub mod hierarchy;
+pub mod id_pattern;
 pub mod identity;
 pub mod identity_run;
 pub mod inventory;
