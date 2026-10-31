@@ -1,5 +1,6 @@
 //! Reading a `topic-research` set from disk into the inputs its round plan
-//! is derived from.
+//! is derived from, and into the counts its files give beside those its
+//! manifest and synthesis record.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -18,6 +19,11 @@ use corpus::Mapping;
 use corpus::Scalar;
 use research::topic::claims::ClaimedIndexes;
 use research::topic::claims::IndexClaim;
+use research::topic::counts::CountedFindings;
+use research::topic::counts::CountedReports;
+use research::topic::counts::CountsReading;
+use research::topic::counts::StoredCount;
+use research::topic::counts::StoredCounts;
 use research::topic::evidence::Digest;
 use research::topic::evidence::Finding;
 use research::topic::evidence::LevelNote;
@@ -172,6 +178,96 @@ pub fn list_reports<F: DirReader>(
     fs: &F,
 ) -> Result<Vec<String>, kernel::Error> {
     Ok(fs.list(&set_root.join("reports"))?.unwrap_or_default())
+}
+
+/// The counts the set's `findings/` and `reports/` give, beside the
+/// manifest's `round_count`, `finding_count` and `report_count` and
+/// `synthesis.md`'s `rounds_covered`.
+///
+/// A stored value is read as a whole number, bare or quoted; one that is
+/// absent is missing, and any other is unreadable rather than an error.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when a directory cannot be listed or a file read fails
+/// for a reason other than absence.
+pub fn read_counts<F: DirReader + FileReader>(
+    set_root: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<CountsReading, kernel::Error> {
+    let findings_dir = set_root.join("findings");
+    let entries = fs.list(&findings_dir)?.unwrap_or_default();
+    let mut entries: Vec<&str> = entries.iter().map(String::as_str).collect();
+    entries.sort_unstable();
+    let findings = CountedFindings::of(&entries, |name| {
+        let fields = fields_of(&findings_dir.join(name), fs, parser)?;
+        Ok::<_, kernel::Error>(match stored_count(fields.as_ref(), "round") {
+            StoredCount::Count(round) => Some(round),
+            StoredCount::Missing | StoredCount::Unreadable(_) => None,
+        })
+    })?;
+    let reports = list_reports(set_root, fs)?;
+    let mut reports: Vec<&str> = reports.iter().map(String::as_str).collect();
+    reports.sort_unstable();
+    let manifest = fields_of(&set_root.join("manifest.md"), fs, parser)?;
+    let synthesis = fields_of(&set_root.join("synthesis.md"), fs, parser)?;
+    Ok(CountsReading {
+        stored: StoredCounts {
+            round_count: stored_count(manifest.as_ref(), "round_count"),
+            finding_count: stored_count(manifest.as_ref(), "finding_count"),
+            report_count: stored_count(manifest.as_ref(), "report_count"),
+            rounds_covered: stored_count(synthesis.as_ref(), "rounds_covered"),
+        },
+        findings,
+        reports: CountedReports::of(&reports),
+    })
+}
+
+fn fields_of<F: FileReader>(
+    path: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<Option<Mapping>, kernel::Error> {
+    Ok(fs.read(path)?.and_then(|text| frontmatter(&text, parser)))
+}
+
+fn stored_count(fields: Option<&Mapping>, key: &str) -> StoredCount {
+    let Some(value) = fields.and_then(|fields| fields.get(key)) else {
+        return StoredCount::Missing;
+    };
+    match value {
+        FrontmatterValue::Scalar(Scalar::Null) => StoredCount::Missing,
+        FrontmatterValue::Scalar(Scalar::Int(number)) => u32::try_from(*number)
+            .map_or_else(
+                |_| StoredCount::Unreadable(number.to_string()),
+                StoredCount::Count,
+            ),
+        FrontmatterValue::Scalar(Scalar::String(text)) => whole_number(text)
+            .map_or_else(
+                || StoredCount::Unreadable(text.clone()),
+                StoredCount::Count,
+            ),
+        FrontmatterValue::Scalar(Scalar::Bool(flag)) => {
+            StoredCount::Unreadable(flag.to_string())
+        }
+        FrontmatterValue::Scalar(Scalar::Float(number)) => {
+            StoredCount::Unreadable(number.to_string())
+        }
+        FrontmatterValue::Sequence(_) => {
+            StoredCount::Unreadable("a list".to_owned())
+        }
+        FrontmatterValue::Mapping(_) => {
+            StoredCount::Unreadable("a mapping".to_owned())
+        }
+    }
+}
+
+fn whole_number(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
 }
 
 struct FindingsListing {
@@ -420,6 +516,8 @@ mod tests {
     use corpus::scan::DirectoryProbe;
     use corpus::scan::FileReader;
     use research::topic::claims::ClaimedIndexes;
+    use research::topic::counts::CountsReading;
+    use research::topic::counts::StoredCount;
     use research::topic::evidence::Digest;
     use research::topic::evidence::LevelNote;
     use research::topic::evidence::LevelsDirectory;
@@ -434,6 +532,7 @@ mod tests {
     use corpus_adapters::YamlFrontmatter;
 
     use super::list_reports;
+    use super::read_counts;
     use super::read_round_inputs;
     use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
@@ -448,6 +547,7 @@ mod tests {
     struct StubFs {
         files: BTreeMap<PathBuf, String>,
         dirs: BTreeSet<PathBuf>,
+        failing: BTreeSet<PathBuf>,
     }
 
     impl StubFs {
@@ -468,6 +568,21 @@ mod tests {
             self
         }
 
+        fn failing_at(mut self, path: &str) -> Self {
+            self.failing.insert(PathBuf::from(path));
+            self
+        }
+
+        fn failure_at(&self, path: &Path) -> Result<(), kernel::Error> {
+            if self.failing.contains(path) {
+                return Err(kernel::Error::Failed(format!(
+                    "{} is unreadable",
+                    path.display()
+                )));
+            }
+            Ok(())
+        }
+
         fn with_web_profile(self) -> Self {
             self.with_file(&format!("{PROFILES}/web-profile/SKILL.md"), "web")
         }
@@ -478,6 +593,7 @@ mod tests {
             &self,
             dir: &Path,
         ) -> Result<Option<Vec<String>>, kernel::Error> {
+            self.failure_at(dir)?;
             if !self.dirs.contains(dir) {
                 return Ok(None);
             }
@@ -495,6 +611,7 @@ mod tests {
 
     impl FileReader for StubFs {
         fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+            self.failure_at(path)?;
             Ok(self.files.get(path).cloned())
         }
     }
@@ -876,14 +993,131 @@ mod tests {
     }
 
     #[test]
-    fn an_unnumbered_markdown_entry_is_not_planned() -> Result<(), TestError> {
+    fn an_unnumbered_markdown_entry_is_neither_counted_nor_planned(
+    ) -> Result<(), TestError> {
         let fs = set_with(StubFs::default())
             .with_file("/set/findings/notes.md", &finding(""));
 
         let plan = plan_of(&fs)?;
+        let counts = counts_of(&fs)?;
 
         assert_eq!(plan.pairs.len(), 1, "{plan:?}");
+        assert_eq!(counts.findings.finding_count(), 0);
         Ok(())
+    }
+
+    fn counts_of(fs: &StubFs) -> Result<CountsReading, TestError> {
+        Ok(read_counts(Path::new(SET), fs, &YamlFrontmatter)?)
+    }
+
+    fn frontmatter_of(fields: &str) -> String {
+        format!("---\n{fields}---\n")
+    }
+
+    fn manifest(fields: &str) -> StubFs {
+        StubFs::default()
+            .with_dir("/set/findings")
+            .with_file("/set/manifest.md", &frontmatter_of(fields))
+    }
+
+    #[test]
+    fn a_quoted_whole_number_is_a_stored_count() -> Result<(), TestError> {
+        let fs = manifest("round_count: \"3\"\nfinding_count: 0\n");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.stored.round_count, StoredCount::Count(3));
+        assert_eq!(counts.stored.finding_count, StoredCount::Count(0));
+        Ok(())
+    }
+
+    #[test]
+    fn a_stored_value_that_is_no_whole_number_is_unreadable(
+    ) -> Result<(), TestError> {
+        let fs = manifest("round_count: \"three\"\nfinding_count: -1\n")
+            .with_file(
+                "/set/synthesis.md",
+                &frontmatter_of("rounds_covered: \"two\"\n"),
+            );
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(
+            counts.stored.round_count,
+            StoredCount::Unreadable("three".to_owned())
+        );
+        assert_eq!(
+            counts.stored.finding_count,
+            StoredCount::Unreadable("-1".to_owned())
+        );
+        assert_eq!(
+            counts.stored.rounds_covered,
+            StoredCount::Unreadable("two".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_absent_stored_value_is_missing() -> Result<(), TestError> {
+        let without_rounds_covered = manifest("round_count: 0\n").with_file(
+            "/set/synthesis.md",
+            &frontmatter_of("kind: \"synthesis\"\n"),
+        );
+
+        let counts = counts_of(&without_rounds_covered)?;
+        let unsynthesised = counts_of(&manifest("round_count: 0\n"))?;
+
+        assert_eq!(counts.stored.finding_count, StoredCount::Missing);
+        assert_eq!(counts.stored.report_count, StoredCount::Missing);
+        assert_eq!(counts.stored.rounds_covered, StoredCount::Missing);
+        assert_eq!(unsynthesised.stored.rounds_covered, StoredCount::Missing);
+        Ok(())
+    }
+
+    #[test]
+    fn a_findings_quoted_round_is_read() -> Result<(), TestError> {
+        let fs = manifest("").with_file(
+            "/set/findings/01-a-web.md",
+            &frontmatter_of("round: \"2\"\n"),
+        );
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.findings.round_count(), 2);
+        assert_eq!(counts.findings.finding_count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn the_counted_reports_come_from_reports() -> Result<(), TestError> {
+        let fs = manifest("report_count: 1\n")
+            .with_file("/set/reports/a.md", "")
+            .with_file("/set/reports/.draft.md", "");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.reports.names(), ["a.md"]);
+        assert_eq!(counts.stored.report_count, StoredCount::Count(1));
+        Ok(())
+    }
+
+    #[test]
+    fn an_unlistable_findings_directory_fails_the_count() {
+        let fs = manifest("").failing_at("/set/findings");
+
+        assert!(read_counts(Path::new(SET), &fs, &YamlFrontmatter).is_err());
+    }
+
+    #[test]
+    fn an_unreadable_finding_fails_the_count() {
+        let fs = manifest("")
+            .with_file(
+                "/set/findings/01-a-web.md",
+                &frontmatter_of("round: 1\n"),
+            )
+            .failing_at("/set/findings/01-a-web.md");
+
+        assert!(read_counts(Path::new(SET), &fs, &YamlFrontmatter).is_err());
     }
 
     #[test]
