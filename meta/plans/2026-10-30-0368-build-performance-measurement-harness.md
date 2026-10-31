@@ -454,6 +454,12 @@ result in this plan. If pyrefly cannot check the inherited config, the
 synthesised keyword `__init__` or the unions, stop and revisit the
 Pydantic choice before Phase 2.
 
+Probe result (Pydantic 2.14.2, pyrefly 1.0.0): pyrefly checks all four. A
+well-typed `Probe(schema_version=1, model=NoReading(...), units=...)`
+checks clean; an unknown keyword, `compiling="3"`, `schema_version=2` and
+assigning a field of a model inheriting the frozen config are each
+reported (`unexpected-keyword`, `bad-argument-type`, `read-only`).
+
 **File**: `tasks/shared/build_measurement/__init__.py` (empty)
 
 **File**: `tasks/shared/build_measurement/record_model.py`
