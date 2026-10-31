@@ -159,6 +159,23 @@ pub enum TopicAction {
         #[arg(allow_hyphen_values = true)]
         question: Vec<String>,
     },
+    /// The counts the set's files give, beside those its manifest and
+    /// synthesis record, and whether they agree, as JSON. Writes nothing;
+    /// fields are only ever added.
+    Counts {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+    },
+    /// Whether `ask` and `report` may consult the set, or the first gate it
+    /// fails, as JSON. Writes nothing; fields are only ever added, and `gate`
+    /// is one of `status`, `freshness` and `conducted`.
+    Consultable {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The directory holding one `<name>-profile/SKILL.md` per profile.
+        #[arg(long)]
+        profiles_dir: PathBuf,
+    },
 }
 
 #[cfg(test)]
