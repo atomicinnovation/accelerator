@@ -735,6 +735,10 @@
   `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
+- **A `.MD` file is a work item like a `.md` one.** `work list`, `sync`,
+  `promote` and `rekey` read it, as allocation and `work resolve` already
+  did, and `corpus frontmatter validate` and migrations walk it too. A
+  re-keyed `.MD` item is written back with a `.md` extension.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days

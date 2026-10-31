@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use work::resolve::DirectoryLister;
 use work::work_item_files::ReadFailure;
 use work::work_item_files::UnreadableFile;
+use work::work_item_files::is_md_filename;
 use work::work_item_files::WorkItemFile;
 use work::work_item_files::WorkItemFiles;
 use work::work_item_files::WorkItemListing;
@@ -62,7 +63,8 @@ impl FilesystemWorkItemFiles {
     }
 }
 
-/// The `*.md` files directly inside `dir`, sorted by path.
+/// The `*.md` files directly inside `dir`, sorted by path, with the paths
+/// of those that could not be read. A missing directory holds none.
 fn markdown_files_in(dir: &Path) -> Result<WorkItemListing, kernel::Error> {
     let entries = match std::fs::read_dir(dir) {
         Ok(entries) => entries,
@@ -111,8 +113,10 @@ fn markdown_files_in(dir: &Path) -> Result<WorkItemListing, kernel::Error> {
 /// A dangling link is kept so its read fails visibly: it may be a work
 /// item whose file was moved away.
 fn is_markdown_file_or_dangling_link(path: &Path) -> bool {
-    let is_markdown =
-        path.extension().and_then(std::ffi::OsStr::to_str) == Some("md");
+    let is_markdown = path
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .is_some_and(is_md_filename);
     let is_dangling_link = path
         .symlink_metadata()
         .is_ok_and(|metadata| metadata.file_type().is_symlink())
