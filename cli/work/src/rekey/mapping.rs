@@ -8,10 +8,8 @@ use corpus::WorkItemIdScheme;
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
+use crate::id_pattern::IdPattern;
 use crate::identity::ItemIdentity;
-use crate::next_number::allocate_above;
-use crate::next_number::pattern_cap;
-use crate::next_number::AllocationError;
 use crate::rekey::classify::classify;
 use crate::rekey::classify::Classification;
 use crate::rekey::collision::refuse_collisions;
@@ -46,7 +44,7 @@ pub fn numeric_mapping(
     scheme: &WorkItemIdScheme,
     candidates: &[RekeyCandidate],
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
-    let cap = pattern_cap(&scheme.id_pattern);
+    let cap = cap_of(scheme);
     let mut entries = Vec::new();
     let mut needing_fresh = Vec::new();
     for candidate in candidates {
@@ -83,6 +81,13 @@ pub fn numeric_mapping(
         .collect();
     refuse_collisions(&entries, &items)?;
     Ok(entries)
+}
+
+fn cap_of(scheme: &WorkItemIdScheme) -> u64 {
+    IdPattern::parse(&scheme.id_pattern)
+        .ok()
+        .and_then(|pattern| pattern.cap())
+        .unwrap_or(u64::MAX)
 }
 
 fn renumbered(old: &str, new: String) -> RekeyEntry {
@@ -138,20 +143,17 @@ fn fresh_entries(
             .cmp(&right.created)
             .then_with(|| left.identity.id.cmp(&right.identity.id))
     });
-    let needed = u32::try_from(needing_fresh.len()).unwrap_or(u32::MAX);
-    let numbers =
-        allocate_above(scheme, floor, needed).map_err(|error| match error {
-            AllocationError::Overflow { highest, cap, .. } => {
-                NotRekeyed::FreshNumbersExhausted {
-                    needed: u64::from(needed),
-                    remaining: cap.saturating_sub(highest),
-                    pattern: scheme.id_pattern.clone(),
-                }
-            }
-            AllocationError::MissingKey | AllocationError::ProjectUnused => {
-                unreachable!("allocate_above checks no key")
-            }
-        })?;
+    let needed = u64::try_from(needing_fresh.len()).unwrap_or(u64::MAX);
+    let cap = cap_of(scheme);
+    if floor.saturating_add(needed) > cap {
+        return Err(NotRekeyed::FreshNumbersExhausted {
+            needed,
+            remaining: cap.saturating_sub(floor),
+            pattern: scheme.id_pattern.clone(),
+        });
+    }
+    let numbers = (1..=needed)
+        .map(|offset| rendered(scheme, default_key(scheme), floor + offset));
     Ok(needing_fresh
         .into_iter()
         .zip(numbers)

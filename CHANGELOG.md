@@ -201,6 +201,11 @@
   `E_RESOLVE_INVALID` (exit 1), an ID or number gives not found (exit 3), and
   a path is judged against the configured directory. Scripts that read
   `work resolve`'s exit codes there need updating.
+- **Allocation counts a key's sequence ignoring letter case.** `work create`,
+  `work create-batch` and `work next-number` count `pp-0500-x.md` in `PP`'s
+  sequence. A repository holding mixed-case keys may see a higher next
+  number, and a caller that records or predicts allocated numbers should
+  expect it.
 
 ### Added
 
@@ -416,7 +421,8 @@
   the item's `id`, filename and H1, so `meta/work/PP-760-search.md` carries
   `id: "PP-760"`. Until the tracker confirms an issue, the item is a draft at
   `meta/work/drafts/draft-xxxxxx-<slug>.md`. `{tracker}` must be the only
-  token in the pattern; `{{tracker}}` is a literal.
+  token in the pattern, and an escaped brace such as `{{tracker}}` is
+  refused, since literal text may not hold a brace.
 - **Drafts are promoted on sync.** `work sync` creates each draft's issue and
   retires the draft ID onto its key, renaming the file, recording the old ID
   in a new `aliases` field and rewriting references across `meta/`.
@@ -698,6 +704,12 @@
   `promote` and `rekey` read it, as allocation and `work resolve` already
   did, and `corpus frontmatter validate` and migrations walk it too. A
   re-keyed `.MD` item is written back with a `.md` extension.
+- **A malformed `work.id_pattern` is refused before anything is written.**
+  `work create`, `work create-batch`, `work next-number` and `work resolve`
+  refuse a pattern whose literal text holds a character other than an ASCII
+  letter, digit, `.`, `_` or `-`, or a digit beside a token, or with a width
+  over 19 digits or a repeated token, and `work resolve` refuses a malformed
+  pattern at start.
 
 ### Removed
 
@@ -792,6 +804,9 @@
 
 - **`describe-pr` lists an unreadable body file under exit 2**, matching what
   `update-body` returns, where it listed it under exit 1.
+- **Allocation keeps a pattern's literal text.** Under a pattern such as
+  `v{number:03d}`, `work create` writes `v001`, not `001`, and a pattern
+  such as `{key}v{number:03d}` continues its sequence as `PPv002`.
 
 ### Security
 

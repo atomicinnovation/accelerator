@@ -706,10 +706,10 @@ skill operates purely against `meta/work/` with no external API calls.
 The `id_pattern` value is a small DSL with two tokens:
 
 - `{number[:format]}` — required, exactly one occurrence. The `format`
-  is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`). If
-  omitted, defaults to `04d`. The width is enforced when generating
-  new IDs; scanning is width-agnostic, so legacy 4-digit files remain
-  visible after a width change.
+  is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`), at most
+  19 digits wide. If omitted, defaults to `04d`. The width is enforced
+  when generating new IDs; scanning is width-agnostic, so legacy 4-digit
+  files remain visible after a width change.
 - `{key}` — optional, at most one occurrence. The local ID prefix,
   substituted at use time from `work.key` (or a `--project` flag). When a
   pattern references `{key}`, `work.key` is required — it never silently falls
@@ -717,7 +717,6 @@ The `id_pattern` value is a small DSL with two tokens:
 - `{project}` — **deprecated** synonym for `{key}`, removed in 1.25.0.
   Existing `{project}` patterns keep working through the deprecation window and
   are rewritten to `{key}` by `/accelerator:migrate`.
-- `{{` and `}}` — escaped literals for a literal `{` or `}`.
 
 `{tracker}` is a pattern on its own rather than a token beside others: the
 tracker owns every item's `id`. An item pushed at creation takes its Jira
@@ -735,8 +734,10 @@ read the pattern.
 consumed):
 
 1. Pattern must contain at least one `{number}` token.
-2. No filesystem-hostile chars (`/`, `\`, `:`, `*`, `?`, `<`, `>`,
-   `|`, `"`) outside token format specs.
+2. Literal text is ASCII letters, digits, `.`, `_` and `-` only, so an
+   ID is safe in a filename and in any shell quoting. Filesystem-hostile
+   characters (`/`, `\`, `:`, `*`, `?`, `<`, `>`, `|`, `"`), spaces,
+   quotes and braces are all rejected.
 3. Adjacent dynamic tokens must have at least one literal char between
    them (`{key}{number}` is rejected; `{key}-{number}` is accepted).
 4. The `{number}` format spec must be `0Nd`. Non-padded specs (`%d`)
@@ -746,6 +747,11 @@ consumed):
    Keys with internal hyphens or underscores (`PROJ-FE`,
    `proj_alpha`) are rejected — this is a known limitation of the
    initial scope.
+6. No literal digit beside a token: literal text may not start with a
+   digit after `{key}` or `{number}`, nor end with a digit before
+   `{number}` (`v2{number:03d}` and `{key}1{number:04d}` are rejected), so
+   an ID's number is always a digit run of its own.
+7. At most one `{number}` token and one `{key}` token.
 
 #### `id` and `external_id`: local own-identity vs remote identifier
 
