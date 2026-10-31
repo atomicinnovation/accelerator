@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T10:59:22+00:00"
+last_updated: "2026-10-31T13:56:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -650,6 +650,24 @@ Strategy lists it.
 
 - [x] `<repo>/bin/accelerator config template topic-research --kind report` prints the new template.
 - [x] `<repo>/bin/accelerator corpus frontmatter print-schema | jq '.rows[] | select(.kind=="report")'` shows the `coverage` vocab.
+
+### As built
+
+- **Commits.** Changes 1–4 go green only together, so they landed as three
+  commits that each pass on their own: the report template, the manifest's
+  optional `report_count`, then the report row with its vocabulary. Changes
+  5 and 6 landed as planned, with the catalogue and the visualiser each in
+  its own commit.
+- **Naming.** Clippy's `similar_names` rejects `raw` beside `row`, so
+  `check_status` and `check_extra_vocabs` bind `field_value`.
+  `check_empty_placeholders` shares the `EMPTY_STRING` constant.
+- **Neighbouring edits.**
+  - The conformance test's comment now names research-topic and its
+    outputters as excluded from the emitter check, which covers its new
+    manifest and report parameters.
+  - The visualiser fixture `prompt-caching-economics/reports/summary.md` no
+    longer says `kind: report` has no schema row.
+  - 0065's manifest cell reads "optional `report_count`".
 
 ---
 
