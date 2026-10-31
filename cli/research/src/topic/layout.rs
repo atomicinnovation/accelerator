@@ -1,4 +1,4 @@
-//! How a set names its findings and level notes on disk.
+//! How a set names its findings, level notes and reports on disk.
 
 pub mod finding_path;
 pub mod lineage;

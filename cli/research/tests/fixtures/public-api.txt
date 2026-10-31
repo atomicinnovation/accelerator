@@ -1982,6 +1982,20 @@ pub fn research::topic::layout::slug::QuestionSlug::from(question: &str) -> Self
 impl core::fmt::Debug for research::topic::layout::slug::QuestionSlug
 pub fn research::topic::layout::slug::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::layout::slug::QuestionSlug
+pub struct research::topic::layout::slug::ReportSlug(_)
+impl research::topic::layout::slug::ReportSlug
+pub fn research::topic::layout::slug::ReportSlug::as_str(&self) -> &str
+pub fn research::topic::layout::slug::ReportSlug::free_report_path(&self, taken: &[alloc::string::String]) -> alloc::string::String
+impl core::clone::Clone for research::topic::layout::slug::ReportSlug
+pub fn research::topic::layout::slug::ReportSlug::clone(&self) -> research::topic::layout::slug::ReportSlug
+impl core::cmp::Eq for research::topic::layout::slug::ReportSlug
+impl core::cmp::PartialEq for research::topic::layout::slug::ReportSlug
+pub fn research::topic::layout::slug::ReportSlug::eq(&self, other: &research::topic::layout::slug::ReportSlug) -> bool
+impl core::convert::From<&str> for research::topic::layout::slug::ReportSlug
+pub fn research::topic::layout::slug::ReportSlug::from(question: &str) -> Self
+impl core::fmt::Debug for research::topic::layout::slug::ReportSlug
+pub fn research::topic::layout::slug::ReportSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::layout::slug::ReportSlug
 pub mod research::topic::layout::stem
 pub struct research::topic::layout::stem::Stem
 impl research::topic::layout::stem::Stem
