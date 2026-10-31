@@ -148,6 +148,17 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         run: String,
     },
+    /// The absolute path a new report on QUESTION takes in the set:
+    /// `reports/<question-slug>.md`, or the first free `-2`, `-3`, … suffix.
+    /// Writes nothing.
+    ReportPath {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The report's question, as one quoted argument or as separate words
+        /// joined with single spaces.
+        #[arg(allow_hyphen_values = true)]
+        question: Vec<String>,
+    },
 }
 
 #[cfg(test)]

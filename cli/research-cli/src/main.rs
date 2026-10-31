@@ -12,6 +12,7 @@ mod ledger_wording;
 mod loopback;
 mod plan_wording;
 mod render;
+mod report_path_command;
 mod search_cap;
 mod search_wording;
 mod subagent_cap;
@@ -193,6 +194,10 @@ fn topic(action: TopicAction) -> ExitCode {
         TopicAction::EndRun { slug, run } => {
             topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
         }
+        TopicAction::ReportPath { slug, question } => {
+            report_path_command::parse_question(&question)
+                .and_then(|question| report_path(&slug, &question))
+        }
     };
     match printed {
         Ok(printed) => {
@@ -259,6 +264,12 @@ fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )
+}
+
+fn report_path(slug: &str, question: &str) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    report_path_command::run_report_path(&set_root, question, &RealFs)
 }
 
 fn minted_run() -> Result<RunId, String> {
