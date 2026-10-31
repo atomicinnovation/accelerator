@@ -635,6 +635,7 @@ mod tests {
             required_extras: &[],
             optional_extras: &[],
             empty_list_extras: &[],
+            extra_vocabs: &[],
             status_vocab: &["captured", "archived"],
             forbidden_own_id_keys: &[],
             typed_linkage_keys: &["parent"],
