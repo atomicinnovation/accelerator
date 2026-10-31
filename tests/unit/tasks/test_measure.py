@@ -53,7 +53,6 @@ from tasks.measure import (
     Manifest,
     MeasurementSession,
     PreconditionFailureError,
-    RepositoryKind,
     RunResult,
     StaleManifestError,
     SummarySetting,
@@ -94,7 +93,6 @@ from tasks.measure import (
     ratio_threshold_for,
     recover_baseline,
     recovery_argv,
-    repository_kind,
     require_tracked_warning,
     sample_blocks,
     staged_shim_targets,
@@ -162,6 +160,7 @@ from tasks.shared.measurement import (
     unpaired_ratio_interval,
     validate_sample,
 )
+from tasks.shared.repository import RepositoryKind
 
 REPO = Path(__file__).resolve().parents[3]
 README = REPO / "tasks/README.md"
@@ -3373,25 +3372,6 @@ class TestLauncherSize:
 
     def test_the_size_is_measured_for_the_shipped_target(self):
         assert LAUNCHER_TARGET == "aarch64-apple-darwin"
-
-
-class TestRepositoryKindDetection:
-    def test_a_directory_with_only_git_is_git(self, tmp_path):
-        (tmp_path / ".git").mkdir()
-        assert repository_kind(tmp_path) is RepositoryKind.GIT
-
-    def test_a_directory_with_only_jj_is_jj(self, tmp_path):
-        (tmp_path / ".jj").mkdir()
-        assert repository_kind(tmp_path) is RepositoryKind.JJ
-
-    def test_a_directory_with_both_is_colocated_jj(self, tmp_path):
-        (tmp_path / ".jj").mkdir()
-        (tmp_path / ".git").mkdir()
-        assert repository_kind(tmp_path) is RepositoryKind.COLOCATED_JJ
-
-    def test_a_directory_with_neither_is_refused(self, tmp_path):
-        with pytest.raises(PreconditionFailureError, match="not a git or jj"):
-            repository_kind(tmp_path)
 
 
 class TestSummaryFixtureCommands:

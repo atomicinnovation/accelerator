@@ -4,6 +4,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+MEASURE_SCRATCH_DIRNAME = ".accelerator-measure"
+MEASUREMENTS_RELATIVE = Path("meta") / "measurements"
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # The skill keeps its bin/ (debug archives) here; the server + frontend have
 # moved into the cli/ workspace.

@@ -29,6 +29,11 @@ from typing import Protocol, Self
 
 from invoke import Context, Exit, task
 
+from tasks.shared.diagnostics import (
+    DiagnosticRunner,
+    ambient_diagnostic_runner,
+    raw_diagnostic_runner,
+)
 from tasks.shared.measurement import (
     ArtefactState,
     Branch,
@@ -82,8 +87,11 @@ from tasks.shared.measurement import (
 from tasks.shared.paths import (
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
+    MEASURE_SCRATCH_DIRNAME,
+    MEASUREMENTS_RELATIVE,
     REPO_ROOT,
 )
+from tasks.shared.repository import RepositoryKind, repository_kind
 
 # The criterion constants, held in lockstep with `tasks/README.md`'s
 # "Criterion constants" section, bidirectionally: every constant appears there
@@ -340,7 +348,7 @@ class ArtefactKind(StrEnum):
     SESSION_MARKER = "session-marker"
 
 
-MANIFEST_DIRNAME = ".accelerator-measure"
+MANIFEST_DIRNAME = MEASURE_SCRATCH_DIRNAME
 MANIFEST_NAME = "manifest.json"
 GUARDED_PATHS = ("keys/", "bin/", "hooks/", "scripts/", "cli/")
 # The tree files a mid-run edit would invalidate the measurement through. The
@@ -404,16 +412,6 @@ class MeasurementRunner(Protocol):
     def __call__(
         self, argv: Sequence[str], *, cwd: Path, env: Mapping[str, str]
     ) -> RunResult: ...
-
-
-class DiagnosticRunner(Protocol):
-    """Runs an untimed probe under the ambient environment.
-
-    Separate from the measurement runner because the farm holds only the two
-    variants' tools: probes routed through it would return `unknown` always.
-    """
-
-    def __call__(self, argv: Sequence[str]) -> str: ...
 
 
 class ArtefactWitness(Protocol):
@@ -536,31 +534,6 @@ def subprocess_measurement_runner(
         exit_code=completed.returncode,
         elapsed_ms=elapsed_ms,
     )
-
-
-def raw_diagnostic_runner(argv: Sequence[str]) -> str:
-    """Like the ambient runner, but returns stdout **unstripped**.
-
-    Recovered bytes are compared against a recorded digest, so a stripped
-    trailing newline reads as corruption.
-    """
-    resolved = shutil.which(argv[0])
-    if resolved is None:
-        raise FileNotFoundError(argv[0])
-    completed = subprocess.run(
-        [resolved, *argv[1:]], check=True, capture_output=True, text=True
-    )
-    return completed.stdout
-
-
-def ambient_diagnostic_runner(argv: Sequence[str]) -> str:
-    resolved = shutil.which(argv[0])
-    if resolved is None:
-        raise FileNotFoundError(argv[0])
-    completed = subprocess.run(
-        [resolved, *argv[1:]], check=False, capture_output=True, text=True
-    )
-    return completed.stdout.strip()
 
 
 _UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
@@ -1827,7 +1800,7 @@ def run_session(
             Validity.INVALID_POST_RUN
         )
     paths = next_record_paths(
-        (record_path or plugin_root / "meta/measurements"), rehearse=rehearse
+        (record_path or plugin_root / MEASUREMENTS_RELATIVE), rehearse=rehearse
     )
     paths.record.parent.mkdir(parents=True, exist_ok=True)
     record["attempt"] = paths.attempt
@@ -3183,30 +3156,9 @@ def launcher_size_report(path: Path, size: int, host: Host) -> str:
 
 
 @unique
-class RepositoryKind(StrEnum):
-    GIT = "git"
-    JJ = "jj"
-    COLOCATED_JJ = "colocated-jj"
-
-    @property
-    def is_jj(self) -> bool:
-        return self is not RepositoryKind.GIT
-
-
-@unique
 class CacheMode(StrEnum):
     COLD = "cold"
     WARM = "warm"
-
-
-def repository_kind(path: Path) -> RepositoryKind:
-    has_jj = (path / ".jj").is_dir()
-    has_git = (path / ".git").exists()
-    if has_jj:
-        return RepositoryKind.COLOCATED_JJ if has_git else RepositoryKind.JJ
-    if has_git:
-        return RepositoryKind.GIT
-    raise PreconditionFailureError(f"{path} is not a git or jj repository")
 
 
 def _jj_init(
