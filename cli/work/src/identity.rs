@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use crate::id_scheme::WorkItemIdScheme;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemIdentity {
     pub path: PathBuf,
@@ -42,19 +44,28 @@ pub enum IdentityResolution<'a> {
 }
 
 impl ItemIdentity {
-    fn fields_naming(&self, token: &str) -> Vec<IdentityField> {
-        let names = |value: &str| value.eq_ignore_ascii_case(token);
+    /// The fields whose value satisfies `matches`: `id`, then `aliases`,
+    /// then `external_id`.
+    #[must_use]
+    pub fn fields_matching(
+        &self,
+        matches: impl Fn(&str) -> bool,
+    ) -> Vec<IdentityField> {
         let mut fields = Vec::new();
-        if names(&self.id) {
+        if matches(&self.id) {
             fields.push(IdentityField::Id);
         }
-        if self.aliases.iter().any(|alias| names(alias)) {
+        if self.aliases.iter().any(|alias| matches(alias)) {
             fields.push(IdentityField::Alias);
         }
-        if self.external_id.as_deref().is_some_and(names) {
+        if self.external_id.as_deref().is_some_and(&matches) {
             fields.push(IdentityField::ExternalId);
         }
         fields
+    }
+
+    fn fields_naming(&self, token: &str) -> Vec<IdentityField> {
+        self.fields_matching(|value| value.eq_ignore_ascii_case(token))
     }
 }
 
@@ -116,16 +127,67 @@ pub fn linker_of<'a>(
     })
 }
 
+/// [`holder_of`] under the taken rule: a `candidate` that reads as an ID
+/// is held by any value naming the same ID at any width or key case, and
+/// any other candidate is compared whole, ignoring case.
+#[must_use]
+pub fn holder_of_under<'a>(
+    scheme: &WorkItemIdScheme,
+    candidate: &str,
+    items: &'a [ItemIdentity],
+) -> Option<IdentityMatch<'a>> {
+    let Some(id) = scheme.read_held(candidate) else {
+        return holder_of(candidate, items);
+    };
+    items.iter().find_map(|item| {
+        item.fields_matching(|held| scheme.holds(held, &id))
+            .into_iter()
+            .find(|field| *field != IdentityField::ExternalId)
+            .map(|field| IdentityMatch { item, field })
+    })
+}
+
+/// [`linker_of`] under the taken rule [`holder_of_under`] applies.
+#[must_use]
+pub fn linker_of_under<'a>(
+    scheme: &WorkItemIdScheme,
+    candidate: &str,
+    items: &'a [ItemIdentity],
+) -> Option<&'a ItemIdentity> {
+    let Some(id) = scheme.read_held(candidate) else {
+        return linker_of(candidate, items);
+    };
+    items.iter().find(|item| {
+        item.external_id
+            .as_deref()
+            .is_some_and(|linked| scheme.holds(linked, &id))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::holder_of;
+    use super::holder_of_under;
     use super::linker_of;
+    use super::linker_of_under;
     use super::resolve_identity;
     use super::IdentityField;
     use super::IdentityResolution;
     use super::ItemIdentity;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
+
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn keyed() -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse("{key}-{number:04d}")
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse("PP").ok(),
+        )
+    }
 
     fn item(id: &str) -> ItemIdentity {
         ItemIdentity {
@@ -266,5 +328,40 @@ mod tests {
         assert_eq!(held_as_id, Some(("ENG-1", IdentityField::Id)));
         assert_eq!(held_as_alias, Some(("ENG-2", IdentityField::Alias)));
         assert_eq!(holder_of("ENG-3", &items), None);
+    }
+
+    #[test]
+    fn an_id_held_at_another_width_or_case_names_its_holder_under_a_scheme() {
+        let items = vec![
+            item("0007"),
+            with_aliases(item("PP-0002"), &["pp-42"]),
+            with_external_id(item("PP-0003"), "PP-43"),
+        ];
+
+        let holder = |candidate: &str| {
+            holder_of_under(&keyed(), candidate, &items)
+                .map(|found| (found.item.id.as_str(), found.field))
+        };
+
+        assert_eq!(holder("PP-0042"), Some(("PP-0002", IdentityField::Alias)));
+        assert_eq!(holder("PP-0007"), Some(("0007", IdentityField::Id)));
+        assert_eq!(holder("XY-0042"), None);
+        assert_eq!(holder("PP-0043"), None);
+        assert_eq!(
+            linker_of_under(&keyed(), "PP-0043", &items)
+                .map(|linker| linker.id.as_str()),
+            Some("PP-0003")
+        );
+    }
+
+    #[test]
+    fn a_candidate_that_reads_as_no_id_is_compared_whole() {
+        let items = vec![with_aliases(item("PP-0002"), &["draft-k7mq3x"])];
+
+        assert_eq!(
+            holder_of_under(&keyed(), "DRAFT-K7MQ3X", &items)
+                .map(|found| found.item.id.as_str()),
+            Some("PP-0002")
+        );
     }
 }

@@ -15,8 +15,9 @@ use corpus::StoreError;
 
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
-use crate::identity::holder_of;
-use crate::identity::linker_of;
+use crate::id_scheme::WorkItemIdScheme;
+use crate::identity::holder_of_under;
+use crate::identity::linker_of_under;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
 use crate::show::read_field_raw;
@@ -452,6 +453,7 @@ fn directory_of(path: &Path) -> &Path {
 /// interrupted retirement's already occupies the target path.
 pub fn plan_retirement(
     retirement: &Retirement<'_>,
+    scheme: &WorkItemIdScheme,
     work_dir: &Path,
     items: &[ItemIdentity],
     corpus: &[CorpusFile],
@@ -475,7 +477,7 @@ pub fn plan_retirement(
             ))
         }
     };
-    refuse_collisions(retirement, items, retiring, interrupted)?;
+    refuse_collisions(retirement, scheme, items, retiring, interrupted)?;
 
     let to = interrupted.map_or_else(
         || destination_of(retirement, &from, work_dir),
@@ -602,6 +604,7 @@ fn retired_from(
 
 fn refuse_collisions(
     retirement: &Retirement<'_>,
+    scheme: &WorkItemIdScheme,
     items: &[ItemIdentity],
     retiring: Option<&ItemIdentity>,
     interrupted: Option<&ItemIdentity>,
@@ -614,7 +617,7 @@ fn refuse_collisions(
         .filter(|item| !is_party(item))
         .cloned()
         .collect();
-    if let Some(held) = holder_of(retirement.new_id, &others) {
+    if let Some(held) = holder_of_under(scheme, retirement.new_id, &others) {
         return Err(RetirementRefusal::IdTaken {
             holder: held.item.path.clone(),
             field: held.field,
@@ -622,7 +625,7 @@ fn refuse_collisions(
     }
     if let Some(linker) = retirement
         .new_external_id
-        .and_then(|key| linker_of(key, &others))
+        .and_then(|key| linker_of_under(scheme, key, &others))
     {
         return Err(RetirementRefusal::KeyLinked {
             holder: linker.path.clone(),
@@ -842,6 +845,10 @@ mod tests {
     use super::RetirementPlan;
     use super::RetirementRefusal;
     use crate::dirtiness::Dirtiness;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::TRACKER_TOKEN;
     use crate::identity::IdentityField;
     use crate::work_item_files::identities;
     use crate::work_item_files::WorkItemFile;
@@ -889,7 +896,23 @@ mod tests {
         }
     }
 
+    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.and_then(|key| IdKey::parse(key).ok()),
+        )
+    }
+
     fn plan(
+        retirement: &Retirement<'_>,
+        corpus: &[CorpusFile],
+    ) -> Result<RetirementPlan, RetirementRefusal> {
+        plan_under(&scheme(TRACKER_TOKEN, None), retirement, corpus)
+    }
+
+    fn plan_under(
+        scheme: &WorkItemIdScheme,
         retirement: &Retirement<'_>,
         corpus: &[CorpusFile],
     ) -> Result<RetirementPlan, RetirementRefusal> {
@@ -903,7 +926,7 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
         );
-        plan_retirement(retirement, work_dir(), &items, corpus)
+        plan_retirement(retirement, scheme, work_dir(), &items, corpus)
     }
 
     #[test]
@@ -1540,6 +1563,41 @@ mod tests {
                 field: IdentityField::Id,
             })
         );
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn a_retirement_target_held_at_another_width_is_taken() {
+        let corpus = [
+            numbered_item(),
+            work_item("/repo/meta/work/pp-42-other.md", "id: \"pp-42\"\n", "O"),
+        ];
+
+        assert_eq!(
+            plan_under(
+                &scheme("{key}-{number:04d}", Some("PP")),
+                &Retirement::renumbering("0042", "PP-0042"),
+                &corpus,
+            ),
+            Err(RetirementRefusal::IdTaken {
+                holder: PathBuf::from("/repo/meta/work/pp-42-other.md"),
+                field: IdentityField::Id,
+            })
+        );
+    }
+
+    #[test]
+    fn a_promotion_proceeds_beside_an_alias_at_another_width() {
+        let corpus = [
+            draft(),
+            work_item(
+                "/repo/meta/work/ENG-1-other.md",
+                "id: \"ENG-1\"\naliases: [\"PP-0900\"]\n",
+                "O",
+            ),
+        ];
+
+        assert!(plan(&promotion(), &corpus).is_ok());
     }
 
     #[test]

@@ -199,6 +199,7 @@ fn refused_before_writing(
             first: mover,
             second: holder,
             target: entry.target.id().to_owned(),
+            linked: None,
         },
         RetirementRefusal::TargetExists(path) => NotRekeyed::TargetExists(path),
         RetirementRefusal::ItemNotFound(_) => {
@@ -233,6 +234,7 @@ pub fn write_set(
             );
         let plan = plan_retirement(
             &entry.retirement(),
+            corpus.ports.layout.scheme,
             corpus.ports.layout.work_dir,
             &snapshot.items,
             &snapshot.files,

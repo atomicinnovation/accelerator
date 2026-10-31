@@ -17,6 +17,7 @@ use corpus::store::FileRemove;
 use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
 use corpus::StoreError;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::ItemIdentity;
 use work::identity_run::IdentityRunGuard;
 use work::retirement::plan_retirement;
@@ -51,6 +52,7 @@ pub struct RetirementFiles<'a> {
 pub struct CorpusLayout<'a> {
     pub roots: &'a [PathBuf],
     pub work_dir: &'a Path,
+    pub scheme: &'a WorkItemIdScheme,
 }
 
 #[derive(Clone, Copy)]
@@ -500,6 +502,7 @@ pub fn plan_from_corpus(
     let snapshot = corpus_snapshot(ports).map_err(unreadable_corpus)?;
     plan_retirement(
         retirement,
+        ports.layout.scheme,
         ports.layout.work_dir,
         &snapshot.items,
         &snapshot.files,

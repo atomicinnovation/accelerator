@@ -399,6 +399,8 @@ pub work::identity::ItemIdentity::aliases: alloc::vec::Vec<alloc::string::String
 pub work::identity::ItemIdentity::external_id: core::option::Option<alloc::string::String>
 pub work::identity::ItemIdentity::id: alloc::string::String
 pub work::identity::ItemIdentity::path: std::path::PathBuf
+impl work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::fields_matching(&self, matches: impl core::ops::function::Fn(&str) -> bool) -> alloc::vec::Vec<work::identity::IdentityField>
 impl core::clone::Clone for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
 impl core::cmp::Eq for work::identity::ItemIdentity
@@ -408,7 +410,9 @@ impl core::fmt::Debug for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::identity::ItemIdentity
 pub fn work::identity::holder_of<'a>(candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
+pub fn work::identity::holder_of_under<'a>(scheme: &work::id_scheme::WorkItemIdScheme, candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
 pub fn work::identity::linker_of<'a>(key: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
+pub fn work::identity::linker_of_under<'a>(scheme: &work::id_scheme::WorkItemIdScheme, candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
 pub fn work::identity::resolve_identity<'a>(token: &str, items: &'a [work::identity::ItemIdentity]) -> work::identity::IdentityResolution<'a>
 pub mod work::identity_run
 pub enum work::identity_run::IdentityRunAttempt
@@ -825,7 +829,7 @@ impl core::marker::Copy for work::rekey::sequence::Unclassified
 impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
 pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::WorkItemIdScheme) -> work::rekey::classify::Classification
 pub mod work::rekey::collision
-pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity]) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity], scheme: &work::id_scheme::WorkItemIdScheme) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::creation_date
 pub struct work::rekey::creation_date::CreationDate(_)
 impl work::rekey::creation_date::CreationDate
@@ -926,11 +930,12 @@ pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Forma
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::keys_to_refresh(candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::tracker_key::TrackerKey>, work::rekey::outcome::NotRekeyed>
 pub fn work::rekey::mapping::numeric_mapping(scheme: &work::id_scheme::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
-pub fn work::rekey::mapping::tracker_mapping(candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::tracker_mapping(scheme: &work::id_scheme::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed
 pub work::rekey::outcome::NotRekeyed::Collision
 pub work::rekey::outcome::NotRekeyed::Collision::first: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::Collision::linked: core::option::Option<work::rekey::outcome::LinkedClash>
 pub work::rekey::outcome::NotRekeyed::Collision::second: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::Collision::target: alloc::string::String
 pub work::rekey::outcome::NotRekeyed::CorpusInaccessible
@@ -1034,6 +1039,17 @@ pub fn work::rekey::outcome::Holder::eq(&self, other: &work::rekey::outcome::Hol
 impl core::fmt::Debug for work::rekey::outcome::Holder
 pub fn work::rekey::outcome::Holder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::outcome::Holder
+pub struct work::rekey::outcome::LinkedClash
+pub work::rekey::outcome::LinkedClash::external_id: alloc::string::String
+pub work::rekey::outcome::LinkedClash::shared_key: core::option::Option<alloc::string::String>
+impl core::clone::Clone for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::clone(&self) -> work::rekey::outcome::LinkedClash
+impl core::cmp::Eq for work::rekey::outcome::LinkedClash
+impl core::cmp::PartialEq for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::eq(&self, other: &work::rekey::outcome::LinkedClash) -> bool
+impl core::fmt::Debug for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::LinkedClash
 pub fn work::rekey::outcome::unreverted_listing(unreverted: &work::rekey::write_set::Unreverted) -> alloc::vec::Vec<alloc::string::String>
 pub mod work::rekey::partly_applied
 pub fn work::rekey::partly_applied::partly_applied(items: &[work::identity::ItemIdentity]) -> alloc::vec::Vec<std::path::PathBuf>
@@ -1429,7 +1445,7 @@ pub fn work::retirement::RetirementRecord::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
 pub const work::retirement::RECOVERY_PARENT: &str
 pub const work::retirement::RETIREMENT_INCOMPLETE: &str
-pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
+pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, scheme: &work::id_scheme::WorkItemIdScheme, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
 pub struct work::section_diff::ComparableItem<'a>
