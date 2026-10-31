@@ -1,6 +1,8 @@
-//! Reading a `topic-research` set from disk into the inputs its round plan
-//! is derived from, and into the counts its files give beside those its
-//! manifest and synthesis record.
+//! Reading a `topic-research` set from disk.
+//!
+//! The set's files give the inputs its round plan is derived from, the counts
+//! they hold beside those its manifest and synthesis record, and the status
+//! its consultation is judged on.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -37,6 +39,7 @@ use research::topic::outline::Outline;
 use research::topic::outline::Pair;
 use research::topic::outline::DEFAULT_PROFILE;
 use research::topic::plan::RoundInputs;
+use research::topic::plan::RoundPlan;
 use research::topic::question::UnicodeText;
 use research::topic::tree::Depth;
 use sha2::Digest as _;
@@ -222,6 +225,53 @@ pub fn read_counts<F: DirReader + FileReader>(
         findings,
         reports: CountedReports::of(&reports),
     })
+}
+
+/// The `status` the set's manifest records.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when `manifest.md` cannot be read or records no
+/// `status`.
+pub fn read_set_status<F: FileReader>(
+    set_root: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<String, kernel::Error> {
+    let manifest = set_root.join("manifest.md");
+    fields_of(&manifest, fs, parser)?
+        .and_then(|fields| string(&fields, "status"))
+        .ok_or_else(|| {
+            kernel::Error::Failed(format!(
+                "no status recorded in {}",
+                manifest.display()
+            ))
+        })
+}
+
+/// The set's round plan as a query reads it: at the default depth, with no
+/// run's claims.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when [`read_round_inputs`] fails.
+pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
+    set_root: &Path,
+    profiles_dir: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+    unicode: &dyn UnicodeText,
+) -> Result<RoundPlan, kernel::Error> {
+    let reading = read_round_inputs(
+        set_root,
+        profiles_dir,
+        Depth::default(),
+        ClaimedIndexes::default(),
+        fs,
+        parser,
+        unicode,
+    )?;
+    Ok(RoundPlan::of(&reading.inputs, unicode))
 }
 
 fn fields_of<F: FileReader>(
@@ -533,7 +583,9 @@ mod tests {
 
     use super::list_reports;
     use super::read_counts;
+    use super::read_plan;
     use super::read_round_inputs;
+    use super::read_set_status;
     use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
 
@@ -1098,6 +1150,43 @@ mod tests {
 
         assert_eq!(counts.reports.names(), ["a.md"]);
         assert_eq!(counts.stored.report_count, StoredCount::Count(1));
+        Ok(())
+    }
+
+    #[test]
+    fn a_sets_status_is_its_manifests() -> Result<(), TestError> {
+        let fs = manifest("status: \"synthesised\"\n");
+
+        assert_eq!(
+            read_set_status(Path::new(SET), &fs, &YamlFrontmatter)?,
+            "synthesised"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_set_without_a_status_has_none_to_read() {
+        for fs in [manifest("round_count: 0\n"), StubFs::default()] {
+            assert!(
+                read_set_status(Path::new(SET), &fs, &YamlFrontmatter).is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn a_sets_plan_is_read_at_the_default_depth_with_no_claims(
+    ) -> Result<(), TestError> {
+        let fs = set_with(StubFs::default());
+
+        let plan = read_plan(
+            Path::new(SET),
+            Path::new(PROFILES),
+            &fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?;
+
+        assert_eq!(plan, plan_of(&fs)?);
         Ok(())
     }
 
