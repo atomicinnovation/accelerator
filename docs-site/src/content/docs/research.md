@@ -20,6 +20,7 @@ Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 |---------------------|----------------------------------------------------------------------|
 | `fetch`             | Search or look up scholarly records, tiered, or read a page's declared metadata, within a 100 s deadline |
 | `topic outstanding` | List a round's outstanding (focus area, profile) pairs as JSON       |
+| `topic report-path` | Print the path a new report on a question takes                      |
 | `guard`             | Judge one hook call, blocking a researcher outside its confinement   |
 
 See [Internals](internals.md#terminal-invocation) for how to reach
@@ -578,6 +579,12 @@ by frontmatter, never by parsing the filename. Consumers read only the
 top-level `findings/*.md`: a `<stem>.levels/` directory holds working notes,
 never findings.
 
+## `topic`
+
+`research topic` reads a topic's set on disk for `research-topic`, so the
+skill never derives a path or a plan by hand. Every subcommand takes the set
+by its slug, its directory, or a path inside it.
+
 ### `research topic outstanding`
 
 `conduct` asks the research CLI which pairs are outstanding and where their
@@ -730,6 +737,34 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
+
+### `research topic report-path`
+
+`report` asks the research CLI where a new report goes, rather than slugging
+the question itself:
+
+```bash
+accelerator research topic report-path SLUG 'QUESTION'
+```
+
+It prints one line, the absolute path `reports/<question-slug>.md` under the
+set. The slug lowercases the question, keeps its ASCII letters and digits,
+and joins each run of them with `-`. A slug longer than 60 characters is cut
+before the last `-` within its first 61, or at 60 when there is none, and a
+question with no ASCII letter or digit slugs to `report`. When any entry in
+`reports/` already holds that name, compared without regard to case, the
+path takes the first free `-2`, `-3`, … suffix. The question may be one
+quoted argument or separate words, which are joined with single spaces. The
+command writes nothing, and creates no `reports/`.
+
+#### Exit codes
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_QUESTION` | the question is missing or blank | pass the question |
+| `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
 
 ## Sources metadata
 
