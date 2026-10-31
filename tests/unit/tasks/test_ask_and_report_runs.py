@@ -346,3 +346,22 @@ def test_a_result_records_the_model_each_session_ran(tmp_path: Path) -> None:
     )
 
     assert _judge(plan).models == ["claude-test"]
+
+
+def test_one_session_s_harness_error_leaves_the_rest_to_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plans = runs.plan_sessions(FILES, tmp_path, families=("G1",))
+    ran: list[str] = []
+
+    def run_planned(plan, *args) -> None:
+        ran.append(plan.scenario.name)
+        if plan is plans[0]:
+            raise RuntimeError("harness bug")
+
+    monkeypatch.setattr(runs, "run_planned", run_planned)
+
+    with pytest.raises(RuntimeError, match="harness bug"):
+        runs.run_eval(plans, REPO_ROOT, EVALS, [], {}, jobs=1)
+
+    assert len(ran) == len(plans)
