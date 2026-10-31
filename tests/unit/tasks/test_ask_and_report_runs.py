@@ -6,10 +6,12 @@ import pytest
 
 from tasks.eval.ask_and_report import runs
 from tasks.eval.ask_and_report.scenarios import load_scenario_files
+from tasks.eval.toolchain import Toolchain
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVALS = REPO_ROOT / "skills/research/research-topic/evals"
 RULE = REPO_ROOT / "skills/research/outputters/citing-once/SKILL.md"
+TOOLCHAIN = Toolchain.debug(REPO_ROOT)
 FILES = load_scenario_files(EVALS / "scenarios")
 SLUG = "llm-agent-planning"
 BRIEFED = (
@@ -257,7 +259,7 @@ def test_rerunning_errored_sessions_moves_only_those_aside(
     sessions = _write_outcomes(tmp_path)
     on_disk = runs.sessions_on_disk(runs.plan_sessions(FILES, tmp_path))
 
-    replanned = runs.set_aside_errored(on_disk, REPO_ROOT, lambda path: None)
+    replanned = runs.set_aside_errored(on_disk, REPO_ROOT, TOOLCHAIN)
 
     errored = sessions["errored"].directory
     assert replanned == [sessions["errored"]]
@@ -274,7 +276,7 @@ def test_a_second_set_aside_takes_the_next_free_suffix(tmp_path: Path) -> None:
     runs.set_aside_errored(
         runs.sessions_on_disk(runs.plan_sessions(FILES, tmp_path)),
         REPO_ROOT,
-        lambda path: None,
+        TOOLCHAIN,
     )
 
     assert (errored.parent / "run-1.errored-2").is_dir()
