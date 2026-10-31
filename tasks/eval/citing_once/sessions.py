@@ -88,11 +88,14 @@ def prepare_repository(project: Project) -> None:
         subprocess.run(command, cwd=project.root, check=True)
 
 
-def run_session(command: list[str], project: Project, log: Path) -> int:
+def run_session(
+    command: list[str], project: Project, log: Path, env: dict[str, str]
+) -> int:
     with log.open("w") as out, log.with_suffix(".err").open("w") as err:
         return subprocess.run(
             command,
             cwd=project.root,
+            env=env,
             stdout=out,
             stderr=err,
             timeout=SESSION_TIMEOUT,

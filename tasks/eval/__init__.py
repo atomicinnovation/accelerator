@@ -15,6 +15,10 @@ from tasks.eval.citing_once.runs import (
     summary,
 )
 from tasks.eval.citing_once.sessions import RULE
+from tasks.eval.toolchain import (
+    DEV_LAUNCHER_REMINDER,
+    require_dev_launcher_marker,
+)
 from tasks.shared.sources import repo_root
 
 FIXTURES = "skills/research/outputters/citing-once/evals"
@@ -41,9 +45,11 @@ def citing_once(
     """Run the citing-once behavioural eval against this repository's plugin.
 
     Each session is a headless ``claude -p`` run, so this needs ``claude`` on
-    ``PATH``, network access and model usage.
+    ``PATH``, network access and model usage. Sessions and the judge run the
+    working tree's debug CLI builds, which needs the dev-launcher marker.
     """
     root = repo_root()
+    require_dev_launcher_marker(root)
     fixtures = load_fixtures(root / FIXTURES)
     problems = fixture_problems(fixtures, key_order((root / RULE).read_text()))
     if problems:
@@ -53,7 +59,11 @@ def citing_once(
     plans = plan_sessions(fixtures, directory, families)
     if check_only:
         plans = sessions_on_disk(plans)
-    results = run_eval(plans, root, root / SEED, jobs, check_only)
+    try:
+        results = run_eval(plans, root, root / SEED, jobs, check_only)
+    finally:
+        if not check_only:
+            print(DEV_LAUNCHER_REMINDER)
     save_results(results, directory)
     print(f"Sessions and results: {directory}")
     print(summary(plans, results))
