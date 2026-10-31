@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-10-31T18:07:39+00:00"
+last_updated: "2026-10-31T20:12:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1615,17 +1615,17 @@ path predicates and the `DraftId` change appear, and the
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p work id_scheme id_pattern identity resolve filter draft_id rekey retirement next_number`
-- [ ] `cd cli && cargo nextest run -p work-adapters config rekey`
-- [ ] `cd cli && cargo test -p work-adapters --test rekey_run_plan_store`
-- [ ] `cd cli && cargo test -p work-adapters --test id_pattern_parity`
-- [ ] `cd cli && cargo nextest run -p accelerator-work`
-- [ ] `mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p work id_scheme id_pattern identity resolve filter draft_id rekey retirement next_number`
+- [x] `cd cli && cargo nextest run -p work-adapters config rekey`
+- [x] `cd cli && cargo test -p work-adapters --test rekey_run_plan_store`
+- [x] `cd cli && cargo test -p work-adapters --test id_pattern_parity`
+- [x] `cd cli && cargo nextest run -p accelerator-work`
+- [x] `mise run public-api:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] `accelerator work resolve PROJ-42` in a repository holding
+- [x] `accelerator work resolve PROJ-42` in a repository holding
       `PROJ-0042-x.md` resolves to it.
 
 ---
