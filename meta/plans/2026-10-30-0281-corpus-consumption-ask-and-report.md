@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T16:02:54+00:00"
+last_updated: "2026-10-31T18:03:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2163,8 +2163,8 @@ the breadth and the template resolution directly.
   equivalence questions. It read "How do agents break down multi-step
   tasks?" as only overlapping report A, so E1, this plan and 0281's
   criteria now ask "How do LLM agents work out plans for multi-step
-  tasks?". The reworded question and the prose fixes below await a cold
-  read.
+  tasks?". A second cold read, below, confirmed the reworded question and
+  the prose fixes.
 - **Prose fixes.** After that read, the brief's scope admits the hardware
   question, `01-…-web` cites one controlled evaluation, `04-…-openalex`
   names the leaderboard it records, `05-…-web` agrees with `05-…-openalex`
@@ -2709,8 +2709,11 @@ Every eval run in this and later phases starts with
   landed together, one commit per module, each with its tests: `formats.py`,
   `turns.py`, `conversation.py`, the global checks, the criteria, the
   scenario turns, the expectation pre-flight, `runs.py`, then the task and
-  its start-up gates. Change 4 landed as the `mise.toml` registration, then
-  the README and the entrypoint message.
+  its start-up gates; the layout move split out before the scenario turns.
+  Change 4 landed as the `mise.toml` registration, then the README and the
+  entrypoint message. The manual runs added two fixes, each with its test:
+  the parser's text-message records, then `run_eval` finishing every
+  session before raising.
 - **Modules.** The global checks live in `checks.py` and the start-up gates
   in `startup.py`, beside `verdicts.py`. `SLUG` and `SET` moved to
   `layout.py`, because `scenarios.py` now reads criteria, which read the
@@ -3412,7 +3415,9 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 - `tests/integration/eval-fixtures/test_reference_corpus.py`, in its own
   `test:integration:eval-fixtures` lane, checks every variant, every
   scenario's gate and every declared setup precondition with the real
-  launcher, `validate`, `consultable` and `outstanding`.
+  launcher, `validate`, `consultable` and `outstanding`. It also checks
+  each scenario's expectations against `consultable`'s mismatches,
+  `report-path` and the citing-once merge, with planted failures.
 - `topic_counts.rs` and `topic_consultable.rs` run the real research
   binary's `counts` and `consultable` over committed fixtures and edited
   copies.
