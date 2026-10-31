@@ -278,7 +278,7 @@ def _set_aside(directory: Path) -> None:
 
 
 def set_aside_errored(
-    plans: Sequence[SessionPlan], plugin_root: Path, validate: Validator
+    plans: Sequence[SessionPlan], plugin_root: Path, toolchain: Toolchain
 ) -> list[SessionPlan]:
     """Move each errored session aside and return its plan to run again.
 
@@ -286,8 +286,10 @@ def set_aside_errored(
     """
     replanned = [
         plan
-        for plan in plans
-        if judge(plan, plugin_root, validate).status == "errored"
+        for plan, result in zip(
+            plans, judge_all(plans, plugin_root, toolchain), strict=True
+        )
+        if result.status == "errored"
     ]
     for plan in replanned:
         _set_aside(plan.directory)
