@@ -568,6 +568,60 @@ and `--check-only --out <dir>` re-judges a finished run without spending
 anything. Projects, logs and `results.json` go to `--out`, or a new temporary
 directory.
 
+#### eval:ask-and-report
+
+`eval:ask-and-report` checks research-topic's `ask` and `report` verbs across
+111 multi-turn sessions over a reference corpus. Run it after changing either
+verb, the consulting steps they share, the citing-once rule or the model.
+
+- **Fixtures** live under `skills/research/research-topic/evals/`: a project
+  holding the `llm-agent-planning` set, two variants overlaid on it, and
+  `scenarios/*.json`. Each scenario names its setup, the gate it reaches, and
+  its turns: the reply each sends and what each must show. `check` cannot
+  build a project, so the `test:integration:eval-fixtures` lane runs the
+  pre-flight with the debug builds: every variant validates, every scenario
+  reaches its gate and setup, every Sources expectation is the rule's merge,
+  every freshness refusal names `consultable`'s mismatches, and every new
+  report takes `report-path`'s path. The task runs the same pre-flight first.
+- **Sessions** are one `claude -p` conversation each: the opening turn runs
+  the verb under a pre-assigned `--session-id`, and each later turn sends a
+  reply with `--resume`. The harness snapshots the project after every turn.
+  - The dev toolchain runs as for `eval:citing-once`, so the
+    `.accelerator-dev-launcher` marker must exist for the run and be removed
+    after it: `test_dev_launcher_marker_is_gitignored_and_unshipped` fails
+    `mise run` while it exists.
+  - Every turn loads project settings only (`--setting-sources project`) and
+    no MCP server (`--strict-mcp-config`). Its `--allowedTools` is the skill's
+    declared grant less `research fetch`, a `Read` of the citing-once rule and
+    `Skill`, since a skill's own grant lasts one query.
+  - Sessions inherit the environment and config dir unless `--config-dir`
+    names one. Under project-only settings, authenticate with that config
+    dir's own login or provider variables exported in the shell;
+    authentication in user settings (`apiKeyHelper`, an `env` block) does
+    not load.
+- **Judging** matches the fixed lines the skill prints
+  (`tasks/eval/ask_and_report/formats.py`), with no model-graded judge. Each
+  turn's criteria (`verdicts.py`) read its text, events and snapshot diff.
+  Every turn also meets the global checks (`checks.py`): no `.levels/` read,
+  no read outside the project but the rule, no other skill or plugin, no
+  spawn, no canary, coverage only after reading the rule, writes only where
+  declared, no permission denial, and only one simple command from a strict
+  Bash allow-list. A broken check ends the conversation at that turn.
+- **Errored or failed.** A turn is errored when it exits non-zero, times out,
+  leaves no log or exit status, logs no init event, or ends `is_error`. A
+  session that broke a criterion or check is failed; otherwise one with an
+  errored turn is errored.
+
+`--family`, `--verb` and `--scenario` narrow a run and combine, `--jobs` sets
+how many sessions run at once, `--model` and `--config-dir` reach every turn,
+and `--check-only --out <dir>` re-judges a finished run, skipping every gate
+but the pre-flight. Before any session, the task checks the marker, a Claude
+Code of at least 2.1.144, the pre-flight, then a one-turn authentication
+probe. `--rerun-errored --out <dir>` moves each errored session aside to
+`<session>.errored-<n>/` and reruns it with the run's recorded `--model` and
+`--config-dir`. It never reruns a failed session: rerunning one until it
+passed would let a 2/3 judgement pass as 3/3.
+
 ### The runtime pin guard
 
 `vendor:guard-pins` checks the vendored runtime's pins and trust-anchor
