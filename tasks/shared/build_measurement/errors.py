@@ -4,3 +4,15 @@ class MeasurementRefusedError(RuntimeError):
 
 class TaskGraphError(MeasurementRefusedError):
     pass
+
+
+class NoMeasurableCommitError(MeasurementRefusedError):
+    pass
+
+
+class HistoryError(MeasurementRefusedError):
+    pass
+
+
+class UnsupportedPlatformError(MeasurementRefusedError):
+    pass
