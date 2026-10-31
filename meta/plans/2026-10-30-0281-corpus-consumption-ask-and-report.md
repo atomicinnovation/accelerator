@@ -2680,11 +2680,11 @@ fix.
 
 #### Automated Verification:
 
-- [ ] The citing-once tests pass before and after the refactor, with only import lines changed: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_citing_once_rule.py`
-- [ ] Harness tests fail before the harness exists, then pass: `uv run pytest tests/unit/tasks/test_ask_and_report_eval.py`
-- [ ] The eval is reachable and stays out of the CI mirror: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Python lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The citing-once tests pass before and after the refactor, with only import lines changed: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_citing_once_rule.py`
+- [x] Harness tests fail before the harness exists, then pass: `uv run pytest tests/unit/tasks/test_ask_and_report_eval.py`
+- [x] The eval is reachable and stays out of the CI mirror: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] Python lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2697,6 +2697,39 @@ Every eval run in this and later phases starts with
 - [ ] `mise run eval:ask-and-report --family A2 --jobs 3` runs three three-turn sessions. They fail their criteria, but in each, every turn's stream-json carries turn 1's `session_id`, and turn 2's text replies in the context of turn 1. This proves `--resume` before Phase 6 depends on it.
 - [ ] `--check-only --out <that dir>` re-judges the run without starting a session.
 - [ ] In one G1 session that broke no turn check, `turn-1.exit` is edited to `1`, which skips its criteria and marks it errored. `--rerun-errored --out <that dir>` then reruns that session alone and leaves the others untouched.
+
+### As built
+
+- **Commits.** Change 1 landed as a pin and the move. Changes 2 and 3
+  landed together, one commit per module, each with its tests: `formats.py`,
+  `turns.py`, `conversation.py`, the global checks, the criteria, the
+  scenario turns, the expectation pre-flight, `runs.py`, then the task and
+  its start-up gates. Change 4 landed as the `mise.toml` registration, then
+  the README and the entrypoint message.
+- **Modules.** The global checks live in `checks.py` and the start-up gates
+  in `startup.py`, beside `verdicts.py`. `SLUG` and `SET` moved to
+  `layout.py`, because `scenarios.py` now reads criteria, which read the
+  layout, and `projects.py` reads scenarios. The tests split the same way:
+  `test_ask_and_report_eval.py` (transcript, formats, turns, conversation),
+  `_checks.py`, `_verdicts.py`, `_runs.py` and `_task.py`. The expectation
+  pre-flight's tests run the real CLI, so they sit in the eval-fixtures lane.
+- **Transcript.** The tool-call event keeps the name `ToolCall`; `events`
+  also yields `Init` and `Result`, which the plugin, denial and errored
+  checks read.
+- **Turn records.** A `TurnRecord` holds the turn's declared write set
+  rather than the scenario turn, so `turns.py` imports no criterion. A
+  snapshot stores each file's text beside its digest, since `kept` and
+  `appended_round` compare content. Criteria judge with a `Judging` context
+  holding the project, the verb and the validator.
+- **Scenarios.** Replies parse to the text sent, so `{"rewrite": 1}` is
+  `rewrite 1`. Every unanswered-only `conducted` refusal also omits
+  `Held back by`, and the held-back one omits `Still to research:`; neither
+  names the CLI's `reasons`. R1 C2's confirm turn carries no `unchanged`,
+  since its report was written on turn 2; its `writes` already keeps the
+  report as it was. The reminder prints from the authentication probe on,
+  so a version refusal prints none.
+- **Pre-flight.** `expectation_problems` checks every new `reports/` path a
+  scenario writes, not only N1's and E1's.
 
 ---
 
