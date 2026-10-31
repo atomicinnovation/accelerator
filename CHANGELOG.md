@@ -518,6 +518,16 @@
   commands `ask` runs after a reply prompt for permission, and are denied in
   a headless session; adding `Bash(accelerator corpus *)` and
   `Bash(accelerator research topic *)` to your allow rules avoids that.
+- **`/accelerator:research-topic report SLUG QUESTION`** answers a question
+  from the same kind of set as `ask`, then, once you accept, writes
+  `reports/<question-slug>.md` with its `coverage` (`answered` or `partial`),
+  its answer, its gaps and every source behind them, and records it in the
+  manifest's `report_count`. It lists any existing report asking the same
+  thing, so you can rewrite that one in place instead, and a reply that
+  chooses an option may also name relationships for the report's
+  `relates_to`. As for `ask`, the commands it runs after a reply prompt for
+  permission until Claude Code keeps a skill's grant across a reply, and are
+  denied in a headless session; the same two allow rules avoid that.
 
 ### Changed
 
@@ -998,6 +1008,10 @@
   `finding_count`, so the sets `brief` starts record their report count from
   the outset. The field is optional, so an override without it still writes
   valid manifests.
+- **Upgrade a shared corpus together before committing a report.** An
+  older binary's whole-corpus `validate` rejects the `report` kind as
+  `UNKNOWN-KIND`, so a teammate on an earlier release sees every committed
+  report fail until they upgrade.
 
 - **Reload every session sharing a relocated root within 14 days of
   upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
