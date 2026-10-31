@@ -63,6 +63,7 @@
 | `templates.topic-research-outline` | *(not set)* | default |
 | `templates.topic-research-finding` | *(not set)* | default |
 | `templates.topic-research-synthesis` | *(not set)* | default |
+| `templates.topic-research-report` | *(not set)* | default |
 | `work.integration` | `linear` | team (.accelerator/config.md) |
 | `work.id_pattern` | `{number:04d}` | default |
 | `work.default_project_code` | *(not set)* | default |
