@@ -30,6 +30,10 @@ struct Repo {
 
 impl Repo {
     fn committed() -> Result<Self, TestError> {
+        Self::committed_with(&[])
+    }
+
+    fn committed_with(items: &[(&str, &str)]) -> Result<Self, TestError> {
         let dir = tempfile::Builder::new()
             .prefix("work-cli-rekey-")
             .tempdir()?;
@@ -43,6 +47,9 @@ impl Repo {
         repo.write(".accelerator/config.md", CONFIG)?;
         repo.write("meta/work/0042-search.md", ITEM)?;
         repo.write(NOTE, "See work-item:0042.\n")?;
+        for (relative, content) in items {
+            repo.write(relative, content)?;
+        }
         repo.env.git(&["init", "--quiet"], repo.root())?;
         repo.env.git(&["add", "-A"], repo.root())?;
         repo.env
@@ -190,5 +197,30 @@ fn the_deprecated_migrate_force_does_not_override_rekey(
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(output.status.code(), Some(4), "{stderr}");
     assert!(stderr.contains("E_REKEY_DIRTY_WORKING_COPY"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn an_upper_case_md_item_is_listed_and_re_keyed_like_any_other(
+) -> Result<(), TestError> {
+    let repo = Repo::committed_with(&[(
+        "meta/work/0001-x.MD",
+        "---\nid: \"0001\"\ntitle: \"Upper\"\n---\n\n# 0001: Upper\n",
+    )])?;
+
+    let rekeyed = repo.rekey(&[])?;
+
+    assert_eq!(
+        rekeyed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&rekeyed.stderr)
+    );
+    let mut names: Vec<String> = fs::read_dir(repo.root().join("meta/work"))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    names.sort();
+    assert_eq!(names, vec!["ACC-0001-x.md", "ACC-0042-search.md"]);
     Ok(())
 }
