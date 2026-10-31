@@ -1,0 +1,108 @@
+{
+  "family": "G2",
+  "title": "The freshness gate",
+  "scenarios": [
+    {
+      "name": "g2-round-count-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g2-round-count-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g2-finding-count-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g2-finding-count-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g2-rounds-covered-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "synthesis.md",
+            "field": "rounds_covered",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness"
+    },
+    {
+      "name": "g2-rounds-covered-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "synthesis.md",
+            "field": "rounds_covered",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness"
+    }
+  ]
+}

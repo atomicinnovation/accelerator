@@ -1,0 +1,56 @@
+{
+  "family": "R1",
+  "title": "report judges coverage and writes",
+  "scenarios": [
+    {
+      "name": "r1-c1-answered",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "r1-c4-answered",
+      "verb": "report",
+      "question": "Which agent frameworks document a planning API?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "r1-c5-partial",
+      "verb": "report",
+      "question": "How do agents plan tasks, and which planner do benchmarks rank first?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "r1-c2-partial",
+      "verb": "report",
+      "question": "How do agents plan tasks, and how do they recover from failed steps?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    },
+    {
+      "name": "r1-c3-unanswered",
+      "verb": "report",
+      "question": "Which GPUs train agent models fastest?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open"
+    }
+  ]
+}

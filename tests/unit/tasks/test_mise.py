@@ -63,6 +63,11 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:eval-fixtures": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
     "test:integration:hooks": {
         _LAUNCHER,
         "build:cli:vcs:dev",

@@ -1,0 +1,46 @@
+{
+  "family": "S2",
+  "title": "A skipped pair beside an answered one",
+  "scenarios": [
+    {
+      "name": "s2-skipped-ask",
+      "verb": "ask",
+      "question": "Which agent frameworks document a planning API?",
+      "times": 3,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "replace": "outline.md",
+            "old": "- [x] Which agent frameworks document a planning API? — profiles: web\n",
+            "new": "- [x] Which agent frameworks document a planning API? — profiles: web, arxiv\n"
+          }
+        ],
+        "skips": [
+          "Which agent frameworks document a planning API?"
+        ]
+      },
+      "gate": "open"
+    },
+    {
+      "name": "s2-skipped-report",
+      "verb": "report",
+      "question": "Which agent frameworks document a planning API?",
+      "times": 3,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "replace": "outline.md",
+            "old": "- [x] Which agent frameworks document a planning API? — profiles: web\n",
+            "new": "- [x] Which agent frameworks document a planning API? — profiles: web, arxiv\n"
+          }
+        ],
+        "skips": [
+          "Which agent frameworks document a planning API?"
+        ]
+      },
+      "gate": "open"
+    }
+  ]
+}
