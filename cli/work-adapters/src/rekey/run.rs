@@ -324,6 +324,7 @@ fn computed(
                 .map(|key| ExternalId::new(key.as_str().to_owned()))
                 .collect();
             tracker_mapping(
+                scheme,
                 candidates,
                 &ports.refresh.refresh(&stored)?,
                 &mut *ports.draws.borrow_mut(),
@@ -344,7 +345,7 @@ fn still_current(
     {
         return Err(NotRekeyed::PreviewStale(staleness));
     }
-    refuse_collisions(plan.entries(), items)?;
+    refuse_collisions(plan.entries(), items, scheme)?;
     Ok(plan)
 }
 
