@@ -1,5 +1,6 @@
 """Shared test doubles for the tasks helper suites."""
 
+import signal
 from pathlib import Path
 
 PIN_GUARD_FIXTURES = (
@@ -23,12 +24,22 @@ class FakeClock:
 
 
 class FakeProc:
-    def __init__(self, ct, parent=None, ignore_sigterm=False, unkillable=False):
+    def __init__(
+        self,
+        ct,
+        parent=None,
+        ignore_sigterm=False,
+        unkillable=False,
+        pgid=None,
+        command="",
+    ):
         self.ct = ct
         self.alive = True
         self.parent = parent
         self.ignore_sigterm = ignore_sigterm
         self.unkillable = unkillable
+        self.pgid = pgid
+        self.command = command
 
 
 class FakeProcs:
@@ -38,6 +49,8 @@ class FakeProcs:
         self.procs: dict[int, FakeProc] = {}
         self.terminated: list[int] = []
         self.killed: list[int] = []
+        self.group_signals: list[tuple[int, int]] = []
+        self.caller_group = 1
 
     def add(self, pid, ct=1000.0, parent=None, **kw):
         self.procs[pid] = FakeProc(ct, parent=parent, **kw)
@@ -56,6 +69,8 @@ class FakeProcs:
         return bool(p and p.alive and abs(p.ct - start) <= 0.5)
 
     def children(self, pid):
+        if not self.is_alive(pid):
+            return []
         out = []
 
         def rec(par):
@@ -78,6 +93,34 @@ class FakeProcs:
         p = self.procs.get(pid)
         if p and not p.unkillable:
             p.alive = False
+
+    def _members(self, pgid):
+        return [
+            (pid, p)
+            for pid, p in self.procs.items()
+            if p.alive and p.pgid == pgid
+        ]
+
+    def group_of(self, pid):
+        p = self.procs.get(pid)
+        return p.pgid if p and p.alive else None
+
+    def own_group(self):
+        return self.caller_group
+
+    def group_alive(self, pgid):
+        return bool(self._members(pgid))
+
+    def group_members(self, pgid):
+        return tuple((pid, p.command) for pid, p in self._members(pgid))
+
+    def signal_group(self, pgid, number):
+        self.group_signals.append((pgid, number))
+        for _, p in self._members(pgid):
+            survives = (
+                p.ignore_sigterm if number == signal.SIGTERM else p.unkillable
+            )
+            p.alive = survives
 
 
 CLEAR_PLAYWRIGHT_VERSION = "1.55.1"

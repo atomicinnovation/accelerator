@@ -43,6 +43,11 @@ class ProcessOps(Protocol):
     def children(self, pid: int) -> list[tuple[int, float]]: ...
     def terminate(self, pid: int) -> None: ...
     def kill(self, pid: int) -> None: ...
+    def signal_group(self, pgid: int, number: int) -> None: ...
+    def group_of(self, pid: int) -> int | None: ...
+    def own_group(self) -> int: ...
+    def group_alive(self, pgid: int) -> bool: ...
+    def group_members(self, pgid: int) -> tuple[tuple[int, str], ...]: ...
 
 
 class PsutilProcessOps:
@@ -89,6 +94,46 @@ class PsutilProcessOps:
         with contextlib.suppress(ProcessLookupError, OSError):
             os.kill(pid, signal.SIGKILL)
 
+    def signal_group(self, pgid: int, number: int) -> None:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(pgid, number)
+
+    def group_of(self, pid: int) -> int | None:
+        try:
+            return os.getpgid(pid)
+        except ProcessLookupError:
+            return None
+
+    def own_group(self) -> int:
+        return os.getpgrp()
+
+    def group_alive(self, pgid: int) -> bool:
+        # A group with no member this user may signal cannot be this user's.
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError, PermissionError:
+            return False
+        return True
+
+    def group_members(self, pgid: int) -> tuple[tuple[int, str], ...]:
+        members: list[tuple[int, str]] = []
+        for process in psutil.process_iter():
+            try:
+                if os.getpgid(process.pid) == pgid:
+                    members.append((process.pid, _command_of(process)))
+            except (
+                ProcessLookupError,
+                PermissionError,
+                psutil.NoSuchProcess,
+                psutil.AccessDenied,
+            ):
+                continue
+        return tuple(members)
+
+
+def _command_of(process: psutil.Process) -> str:
+    return " ".join(process.cmdline()) or process.name()
+
 
 _POLL_INTERVAL = 0.1
 
@@ -126,3 +171,29 @@ def escalate(
 def reap_tree(pid: int, procs: ProcessOps, clock: Clock, grace: float) -> None:
     targets = [pid, *(child for child, _ in procs.children(pid))]
     escalate(targets, procs, clock, grace, relist=tuple)
+
+
+def reap_session(
+    leader: int, procs: ProcessOps, clock: Clock, grace: float
+) -> None:
+    """Reap ``leader``'s process group and every descendant it spawned.
+
+    Descendants are snapshotted before any signal, since a dead leader has no
+    children to list; they and later arrivals are escalated individually to
+    reach those that left the group with ``setsid``. The closing SIGKILL to
+    the group reaches members reparented after the leader died. A leader that
+    does not lead its own group, or leads the caller's, is reaped as a tree so
+    the caller never signals itself.
+    """
+    group = procs.group_of(leader)
+    if group != leader or group == procs.own_group():
+        reap_tree(leader, procs, clock, grace)
+        return
+
+    def descendants() -> list[int]:
+        return [pid for pid, _ in procs.children(leader)]
+
+    snapshot = descendants()
+    procs.signal_group(leader, signal.SIGTERM)
+    escalate([leader, *snapshot], procs, clock, grace, relist=descendants)
+    procs.signal_group(leader, signal.SIGKILL)
