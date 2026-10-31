@@ -21,8 +21,8 @@ schema_version: 1
 Which planner do agent benchmarks rank first?
 
 ## Findings
-OpenAlex records the same leaderboard as an unreviewed benchmark report,
-with hierarchical planners ranked first (tier-3).
+OpenAlex records the Agent Planner Leaderboard 2026 as an unreviewed
+benchmark report, with hierarchical planners ranked first (tier-3).
 
 ## Sources
 - [Agent planner leaderboard](https://openalex.org/W3004) — tier-3 — Journal of Agent Benchmarks

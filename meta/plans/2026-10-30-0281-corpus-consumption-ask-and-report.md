@@ -2157,8 +2157,18 @@ the breadth and the template resolution directly.
   breadth, a missing override, an unskipped item) each produce a problem
   line.
 - **Manual checks.** Every Sources table citation was checked verbatim
-  against its finding. The cold reading of C1–C8's coverage is left for a
-  reviewer.
+  against its finding. An agent reading the base corpus cold, without the
+  expected values, agreed with C1–C8's coverage and with four of the five
+  equivalence questions. It read "How do agents break down multi-step
+  tasks?" as only overlapping report A, so E1, this plan and 0281's
+  criteria now ask "How do LLM agents work out plans for multi-step
+  tasks?". The reworded question and the prose fixes below await a cold
+  read.
+- **Prose fixes.** After that read, the brief's scope admits the hardware
+  question, `01-…-web` cites one controlled evaluation, `04-…-openalex`
+  names the leaderboard it records, `05-…-web` agrees with `05-…-openalex`
+  that loops degrade before the window fills, and both syntheses' Open
+  Threads name the tier-3 benchmark ranking. No citation changed.
 
 ---
 

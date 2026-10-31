@@ -23,8 +23,8 @@ How do LLM agents decompose and plan multi-step tasks?
 
 ## Findings
 LLM agents plan a multi-step task by decomposing its goal into a
-hierarchy of subtasks and planning each in turn. Controlled evaluations of
-hierarchical planners report that decomposition lets an agent finish longer
+hierarchy of subtasks and planning each in turn. A controlled evaluation of
+hierarchical planners reports that decomposition lets an agent finish longer
 tasks than planning the whole task at once (tier-1).
 
 Practitioner guidance describes the same pattern: a planner proposes
@@ -32,7 +32,7 @@ ordered steps, an executor carries out each one, and the loop replans when a
 step's result changes what the goal needs (tier-2).
 
 The Supercalifragilisticexpialidocious Planner outperforms all baselines in
-its authors' own evaluation (tier-1). No benchmark ranks it.
+its authors' own evaluation (tier-1). No benchmark examined ranks it.
 
 ## Sources
 - [Hierarchical Task Planning for Language Agents](https://doi.org/10.5555/htp.2025) — tier-1 — Journal of Agent Systems
