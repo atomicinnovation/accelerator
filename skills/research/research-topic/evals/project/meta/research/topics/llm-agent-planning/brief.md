@@ -23,8 +23,8 @@ How LLM agents plan multi-step tasks, and what limits their plans.
 Work item 0900 chooses a planning approach for an agent.
 
 ## Scope
-Planning, recovery, benchmarks and context limits are in scope.
-Training infrastructure is out of scope.
+Planning, recovery, benchmarks, context limits and the hardware that
+trains agent models are in scope. Deploying agents is out of scope.
 
 ## Questions
 - How do LLM agents decompose and plan multi-step tasks?
