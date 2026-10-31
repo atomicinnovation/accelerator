@@ -1338,10 +1338,12 @@ SOURCE_METADATA = REPO_ROOT / "cli/research/src/sources/metadata.rs"
 SOURCES_ENTRY = "- [Title](url) — tier-1 — {source domain/venue}"
 METADATA_SLOT = "  - {source-metadata}"
 SYNTHESIS_TEMPLATE = REPO_ROOT / "templates/topic-research-synthesis.md"
+REPORT_TEMPLATE = REPO_ROOT / "templates/topic-research-report.md"
 TEMPLATES = [
     FINDING_TEMPLATE,
     REPO_ROOT / "templates/topic-research-level-note.md",
     SYNTHESIS_TEMPLATE,
+    REPORT_TEMPLATE,
 ]
 
 
@@ -1398,6 +1400,12 @@ def test_every_template_carries_the_metadata_slot_under_its_entry(
     assert lines[entry + 1 : entry + 2] == [METADATA_SLOT], (
         f"{template.name} must carry {METADATA_SLOT!r} under its Sources entry"
     )
+
+
+def test_the_report_template_s_body_is_answer_coverage_gaps_sources() -> None:
+    _, body = _split(_read(REPORT_TEMPLATE))
+    headings = [line for line in body.splitlines() if line.startswith("## ")]
+    assert headings == ["## Answer", "## Coverage", "## Gaps", "## Sources"]
 
 
 def test_the_dossier_findings_give_tiers_as_the_sources_entries_do() -> None:
