@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from tasks.eval.ask_and_report.layout import SLUG
+from tasks.eval.ask_and_report.layout import SET, SLUG
 from tasks.eval.ask_and_report.projects import (
     OVERRIDE_SECTIONS,
     build_project,
@@ -19,6 +19,15 @@ from tasks.eval.ask_and_report.scenarios import (
     ScenarioFile,
     Setup,
 )
+from tasks.eval.ask_and_report.verdicts import (
+    Criterion,
+    Refusal,
+    Report,
+    Sources,
+    Writes,
+)
+from tasks.eval.documents.rule import cite_once, key_order
+from tasks.eval.documents.sources import Citation, parse_sources
 from tasks.eval.toolchain import Toolchain
 from tasks.shared.sources import repo_root
 
@@ -150,6 +159,122 @@ def setup_problems(setup: Setup, root: Path, toolchain: Toolchain) -> list[str]:
     return problems
 
 
+RULE = "skills/research/outputters/citing-once/SKILL.md"
+
+
+def _criteria(scenario: Scenario) -> list[Criterion]:
+    return [criterion for turn in scenario.turns for criterion in turn.expect]
+
+
+def _merged_sources(set_root: Path) -> list[Citation]:
+    citations = [
+        citation
+        for finding in sorted((set_root / "findings").glob("*.md"))
+        if not finding.name.startswith(".")
+        for citation in parse_sources(finding.read_text())
+    ]
+    rule = (repo_root() / RULE).read_text()
+    return cite_once(citations, key_order(rule))
+
+
+def _source_problems(sources: Sources, merged: Sequence[Citation]) -> list[str]:
+    problems = []
+    for expected in sources.entries:
+        selected = [c for c in merged if expected.marker in c.render()]
+        if len(selected) != 1:
+            problems.append(
+                f"sources: {expected.marker} selects {len(selected)} of the "
+                "rule's merged sources, not one"
+            )
+            continue
+        if str(selected[0].tier) != expected.tier:
+            problems.append(
+                f"sources: the rule merges {expected.marker} to "
+                f"{selected[0].tier}, not {expected.tier}"
+            )
+        if expected.block is not None and selected[0].block != expected.block:
+            problems.append(
+                f"sources: the rule gives {expected.marker} the block "
+                f"{selected[0].block}, not {expected.block}"
+            )
+    return problems
+
+
+def _report_path(scenario: Scenario, root: Path, toolchain: Toolchain) -> str:
+    printed = _output(
+        [toolchain.research, "topic", "report-path", SLUG, scenario.question],
+        root,
+    ).strip()
+    return (
+        Path(printed).resolve().relative_to((root / SET).resolve()).as_posix()
+    )
+
+
+def _new_report_problems(
+    writes: Writes, scenario: Scenario, root: Path, toolchain: Toolchain
+) -> list[str]:
+    new = [
+        path
+        for path in writes.paths
+        if path.startswith("reports/") and not (root / SET / path).exists()
+    ]
+    if not new:
+        return []
+    named = _report_path(scenario, root, toolchain)
+    return [
+        f"writes {path}, but report-path names {named}"
+        for path in new
+        if path != named
+    ]
+
+
+def _kept_problems(report: Report, root: Path) -> list[str]:
+    began = (root / SET / report.path).read_text()
+    frontmatter = began.split("\n---\n", 1)[0]
+    return [
+        f"keeps {key}, which {report.path} does not have at the start"
+        for key in report.kept
+        if not any(
+            line.startswith(f"{key}: ") for line in frontmatter.splitlines()
+        )
+    ]
+
+
+def expectation_problems(
+    scenario: Scenario, root: Path, toolchain: Toolchain
+) -> list[str]:
+    """List each expectation the CLI or the citing-once rule contradicts.
+
+    A Sources expectation must be the rule's merge of every finding's
+    citations, a freshness refusal must name exactly the mismatches
+    ``consultable`` prints, a new report must take the path ``report-path``
+    prints, and a kept field must be in the report before any turn.
+    """
+    problems: list[str] = []
+    criteria = _criteria(scenario)
+    if any(isinstance(c, Sources) for c in criteria):
+        merged = _merged_sources(root / SET)
+        for sources in (c for c in criteria if isinstance(c, Sources)):
+            problems += _source_problems(sources, merged)
+    if scenario.gate == "freshness":
+        mismatches = _research_topic(toolchain, root, "consultable")[
+            "mismatches"
+        ]
+        problems += [
+            f"refusal names {list(r.names)}, not the mismatches {mismatches}"
+            for r in criteria
+            if isinstance(r, Refusal) and list(r.names) != mismatches
+        ]
+    for criterion in criteria:
+        if isinstance(criterion, Writes):
+            problems += _new_report_problems(
+                criterion, scenario, root, toolchain
+            )
+        if isinstance(criterion, Report) and criterion.kept:
+            problems += _kept_problems(criterion, root)
+    return problems
+
+
 def preflight_problems(
     files: Sequence[ScenarioFile], evals: Path, toolchain: Toolchain
 ) -> list[str]:
@@ -162,6 +287,7 @@ def preflight_problems(
             try:
                 found = gate_problems(scenario, root, toolchain)
                 found += setup_problems(scenario.setup, root, toolchain)
+                found += expectation_problems(scenario, root, toolchain)
             except CommandFailedError as failure:
                 found = [str(failure)]
         problems += [f"{scenario.name}: {problem}" for problem in found]
