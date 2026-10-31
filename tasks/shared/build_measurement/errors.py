@@ -26,3 +26,11 @@ class HistoryError(MeasurementRefusedError):
 
 class UnsupportedPlatformError(MeasurementRefusedError):
     pass
+
+
+class UnreadableRecordError(MeasurementRefusedError):
+    pass
+
+
+class KeptRecordExistsError(MeasurementRefusedError):
+    pass
