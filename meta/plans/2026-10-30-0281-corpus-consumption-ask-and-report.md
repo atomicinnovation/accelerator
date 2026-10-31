@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T13:56:01+00:00"
+last_updated: "2026-10-31T14:20:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -884,14 +884,24 @@ Regenerate it with `mise run public-api:update`.
 
 #### Automated Verification:
 
-- [ ] Slug and subcommand tests fail before the change, then pass: `mise run test:unit:cli`
-- [ ] Public API snapshots match: `mise run public-api:check`
-- [ ] Rust lint passes: `mise run cli:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] Slug and subcommand tests fail before the change, then pass: `mise run test:unit:cli`
+- [x] Public API snapshots match: `mise run public-api:check`
+- [x] Rust lint passes: `mise run cli:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] On a scratch copy of the multiround fixture, `<repo>/cli/target/debug/accelerator-research topic report-path example-multiround-subject 'How do autonomous language model agents decompose long horizon planning tasks into executable steps?'` prints a path ending `how-do-autonomous-language-model-agents-decompose-long.md`.
+- [x] On a scratch copy of the multiround fixture, `<repo>/cli/target/debug/accelerator-research topic report-path example-multiround-subject 'How do autonomous language model agents decompose long horizon planning tasks into executable steps?'` prints a path ending `how-do-autonomous-language-model-agents-decompose-long.md`.
+
+### As built
+
+- **Commits.** The slug, the subcommand with its `list_reports` adapter, and
+  the docs with the changelog landed as three commits.
+- **Test seam.** `research-cli` gains `kernel` as a dev-dependency, so the
+  unit test's fake `DirReader` can return an error.
+- **Exit codes.** `report-path` has its own Code/Cause/Recovery table, as
+  Phase 3 gives `counts` and `consultable`, rather than rows in
+  `outstanding`'s.
 
 ---
 
