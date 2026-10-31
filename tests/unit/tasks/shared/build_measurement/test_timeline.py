@@ -14,6 +14,7 @@ from tasks.shared.build_measurement.timeline import (
     own_figures,
     place_in_graph,
     read_stamped,
+    stamped_text,
     tasks_mise_reported_failing,
     transcripts,
 )
@@ -168,6 +169,11 @@ class TestStages:
             StampedLine(at=1.5, text="[t] a\rb\u2028c"),
             StampedLine(at=2.0, text="[t] d"),
         )
+
+    def test_a_stamped_line_reads_back_as_written(self):
+        line = StampedLine(at=0.123456, text="[t] a\rb")
+
+        assert read_stamped(stamped_text(line) + "\n") == (line,)
 
     def test_tasks_mise_reported_failing_come_from_the_status_lines(self):
         assert tasks_mise_reported_failing(_fixture("failed-task.log")) == (

@@ -69,12 +69,12 @@ _SECONDS_PER_HOUR = 60 * _SECONDS_PER_MINUTE
 _SECONDS_PER_DAY = 24 * _SECONDS_PER_HOUR
 
 
-def sample_marker(at: float) -> str:
-    return f"{at} {_SAMPLE}"
+def sample_marker(at: float) -> StampedLine:
+    return StampedLine(at=at, text=_SAMPLE)
 
 
-def gap_marker(at: float) -> str:
-    return f"{at} {_GAP}"
+def gap_marker(at: float) -> StampedLine:
+    return StampedLine(at=at, text=_GAP)
 
 
 def _ps_time(text: str) -> float | None:

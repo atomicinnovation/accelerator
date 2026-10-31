@@ -22,7 +22,11 @@ then delete whole untracked lines down to a similar sample, and set
 import pytest
 
 from tasks.shared.build_measurement.record_model import NoReading
-from tasks.shared.build_measurement.timeline import read_stamped
+from tasks.shared.build_measurement.timeline import (
+    StampedLine,
+    read_stamped,
+    stamped_text,
+)
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
     IDE,
@@ -62,14 +66,14 @@ def _ps(pid: int, time: str, command: str) -> str:
 
 
 def _samples(*ticks: tuple[str, ...] | None) -> ProcessSamples:
-    lines: list[str] = []
+    lines: list[StampedLine] = []
     for at, tick in enumerate(ticks):
         if tick is None:
             lines.append(gap_marker(float(at)))
         else:
             lines.append(sample_marker(float(at)))
-            lines.extend(f"{float(at)} {raw}" for raw in tick)
-    return process_snapshots(read_stamped("\n".join(lines) + "\n"))
+            lines.extend(StampedLine(at=float(at), text=raw) for raw in tick)
+    return process_snapshots(lines)
 
 
 def _syspolicyd(pid: int, time: str) -> tuple[str, ...]:
@@ -95,7 +99,10 @@ class TestPsTime:
 class TestSnapshots:
     def test_the_markers_are_read_as_the_sampler_writes_them(self):
         samples = process_snapshots(
-            read_stamped(f"{sample_marker(1.5)}\n{gap_marker(2.5)}\n")
+            read_stamped(
+                f"{stamped_text(sample_marker(1.5))}\n"
+                f"{stamped_text(gap_marker(2.5))}\n"
+            )
         )
 
         assert [snapshot.at for snapshot in samples.snapshots] == [1.5]

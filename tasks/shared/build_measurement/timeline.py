@@ -161,6 +161,10 @@ class TaskTranscript:
     skipped_at: float | None
 
 
+def stamped_text(line: StampedLine) -> str:
+    return f"{line.at} {line.text}"
+
+
 def read_stamped(text: str) -> tuple[StampedLine, ...]:
     raw_lines = text.split("\n")
     if raw_lines[-1] == "":

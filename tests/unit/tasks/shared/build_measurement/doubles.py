@@ -32,6 +32,7 @@ from tasks.shared.build_measurement.timeline import (
     StampedLine,
     TaskFigures,
     TaskOutcome,
+    stamped_text,
 )
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
@@ -215,7 +216,7 @@ def skipped(task, at):
 
 
 def _write_stamped(log: Path, lines) -> None:
-    log.write_text("".join(f"{line.at} {line.text}\n" for line in lines))
+    log.write_text("".join(f"{stamped_text(line)}\n" for line in lines))
 
 
 class ScriptedBuildRunner:
