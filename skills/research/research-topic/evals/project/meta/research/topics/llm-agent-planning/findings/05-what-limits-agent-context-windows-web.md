@@ -21,8 +21,9 @@ schema_version: 1
 What limits agent context windows?
 
 ## Findings
-An agent loop degrades once its accumulated context fills the model's
-window: its plan drifts and it loses track of earlier steps (tier-1).
+An agent loop degrades as its accumulated context grows towards the
+model's window: its plan drifts and it loses track of earlier steps
+(tier-1).
 
 ## Sources
 - [Context limits in agent loops](https://context-study.example/limits) — tier-1 — context-study.example

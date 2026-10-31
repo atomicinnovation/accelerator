@@ -37,6 +37,8 @@ are also described at tier-3.
 
 ## Open Threads
 No source examined compares the hardware that trains agent models.
+The benchmark ranking of planners rests on a source cited at tier-3
+(also tier-1).
 
 ## Sources
 - [Hierarchical Task Planning for Language Agents](https://doi.org/10.5555/htp.2025) — tier-1 — Journal of Agent Systems

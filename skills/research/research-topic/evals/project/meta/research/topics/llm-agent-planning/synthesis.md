@@ -36,8 +36,9 @@ but only tier-3 sources describe this.
 
 ## Open Threads
 No source examined compares the hardware that trains agent models.
-Recovery from failed steps rests on tier-3 sources alone. Judge coverage
-answered.
+Recovery from failed steps rests on tier-3 sources alone, and the
+benchmark ranking of planners on a source cited at tier-3 (also tier-1).
+Judge coverage answered.
 
 ## Sources
 - [Hierarchical Task Planning for Language Agents](https://doi.org/10.5555/htp.2025) — tier-1 — Journal of Agent Systems
