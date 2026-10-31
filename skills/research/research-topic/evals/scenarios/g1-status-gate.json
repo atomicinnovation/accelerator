@@ -17,7 +17,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "briefed",
+                "Run outline llm-agent-planning, then conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g1-briefed-report",
@@ -34,7 +51,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "briefed",
+                "Run outline llm-agent-planning, then conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g1-outlined-ask",
@@ -51,7 +85,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "outlined",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g1-outlined-report",
@@ -68,7 +119,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "outlined",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g1-researching-ask",
@@ -85,7 +153,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g1-researching-report",
@@ -102,7 +187,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -10,7 +10,19 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "covered": [
+              "plan"
+            ],
+            "offers": "reject",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "a1-c4-answered",
@@ -20,7 +32,19 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "covered": [
+              "framework"
+            ],
+            "offers": "reject",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "a1-c5-partial",
@@ -30,7 +54,33 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "covered": [
+              "plan"
+            ],
+            "gaps": [
+              {
+                "keyword": "rank",
+                "tier": "tier-3 (also tier-1)"
+              }
+            ],
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
     },
     {
       "name": "a1-c2-partial",
@@ -40,7 +90,39 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "covered": [
+              "plan"
+            ],
+            "gaps": [
+              {
+                "keyword": "recover",
+                "tier": "tier-3"
+              }
+            ],
+            "proposal": {
+              "each_mentions": [
+                "recover",
+                "fail"
+              ]
+            },
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
     },
     {
       "name": "a1-c3-unanswered",
@@ -50,7 +132,35 @@
       "setup": {
         "variant": "base"
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "unanswered",
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "confirm",
+          "expect": {
+            "writes": [
+              "outline.md",
+              "manifest.md"
+            ],
+            "appended_round": 4,
+            "manifest": {
+              "fields": {
+                "status": "researching",
+                "round_count": 3,
+                "finding_count": 10
+              },
+              "lists_reports": false
+            },
+            "next_steps": true
+          }
+        }
+      ]
     }
   ]
 }

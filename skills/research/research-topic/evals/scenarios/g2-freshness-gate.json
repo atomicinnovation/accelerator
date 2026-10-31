@@ -17,7 +17,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g2-round-count-report",
@@ -34,7 +50,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g2-finding-count-ask",
@@ -51,7 +83,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records finding_count 9 but 10 findings are on disk"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g2-finding-count-report",
@@ -68,7 +116,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records finding_count 9 but 10 findings are on disk"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g2-rounds-covered-ask",
@@ -85,7 +149,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "the findings reach round 3 but synthesis.md covers up to round 2"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g2-rounds-covered-report",
@@ -102,7 +182,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "the findings reach round 3 but synthesis.md covers up to round 2"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -20,7 +20,15 @@
           "Which agent frameworks document a planning API?"
         ]
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "writes": []
+          }
+        }
+      ]
     },
     {
       "name": "s2-skipped-report",
@@ -40,7 +48,16 @@
           "Which agent frameworks document a planning API?"
         ]
       },
-      "gate": "open"
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        }
+      ]
     }
   ]
 }

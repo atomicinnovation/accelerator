@@ -22,7 +22,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g4-status-before-freshness-report",
@@ -44,7 +61,24 @@
           }
         ]
       },
-      "gate": "status"
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g4-freshness-before-conducted-ask",
@@ -65,7 +99,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "g4-freshness-before-conducted-report",
@@ -86,7 +136,23 @@
           }
         ]
       },
-      "gate": "freshness"
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
