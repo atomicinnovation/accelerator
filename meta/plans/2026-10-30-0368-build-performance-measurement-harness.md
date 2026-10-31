@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T17:46:07+00:00"
+last_updated: "2026-10-31T18:04:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -201,6 +201,7 @@ package, `tasks/shared/build_measurement/`:
 | `build_group.py` | 4 | `BuildGroupFile`: writes, reads and judges `BUILD_PGID`, the only code that knows its format |
 | `build_runner.py` | 4 | `SubprocessBuildRunner`: the streaming, stamping build |
 | `samplers.py` | 4 | `StreamSampler` (`iostat`) and `PsProcessSampler` (`ps`) |
+| `log_files.py` | 4 | `open_log`: the line-buffered, `\n`-only log writer both the build runner and the samplers use, so neither adapter imports the other |
 | `session_lock.py` | 4 | `WorkspaceSessionLock`: an adapter over `tasks/shared/locking.py` `workspace_lock` |
 | `wiring.py` | 4 | `real_ports(root)`: the one composition root |
 | `workspace.py` | 7 | `FilesystemWorkspace`, the only code that deletes: incremental touch and cold deletion with containment checks |
@@ -216,6 +217,15 @@ imports `session`, and only `wiring` imports the adapters
 enforces the rule with an import-boundary test in the style of
 `tests/unit/tasks/shared/test_skill_parsing.py`, so a misplaced type fails
 CI rather than recreating a cycle.
+
+As built, tests mirror the modules: the settings tests below live in
+`test_settings.py`, the summary and preflight tests listed under
+`test_record.py` in `test_reports.py`, and the analysis has its own
+`test_analysis.py`. `FakeHistory`, `FakeSession` and the scripted builds
+are shared from `doubles.py`. Every log line is written by
+`timeline.stamped_text`, the inverse of `read_stamped`, and the process
+sampler's markers are `StampedLine`s, so a sampler holds in memory exactly
+what it writes.
 
 Some helpers the package needs live where the package cannot import them:
 `tasks/measure.py` will import the package, and `_reap` is private to the
