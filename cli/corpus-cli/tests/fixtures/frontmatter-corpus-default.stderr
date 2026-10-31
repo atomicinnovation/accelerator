@@ -1,6 +1,7 @@
 <CORPUS>/meta/plans/2026-01-01-missing-provenance.md: MISSING-PROVENANCE — anchored type missing provenance field 'revision'
 <CORPUS>/meta/plans/2026-01-01-missing-provenance.md: MISSING-PROVENANCE — anchored type missing provenance field 'repository'
 <CORPUS>/meta/research/topics/subject/brief.md: UNKNOWN-KIND — kind: 'bogus' is not a known kind for type 'topic-research'
+<CORPUS>/meta/research/topics/subject/reports/unanswered-coverage.md: BAD-EXTRA-VALUE — coverage: 'unanswered' not in vocab (answered | partial)
 <CORPUS>/meta/work/0001-valid.md: DUPLICATE-ID — 'work-item:0001' is claimed by more than one file in the corpus
 <CORPUS>/meta/work/0002-invalid-type.md: INVALID-TYPE — type: 'bogus' is not a schema type
 <CORPUS>/meta/work/0003-missing-title.md: MISSING-BASE-FIELD — required base field 'title' absent
