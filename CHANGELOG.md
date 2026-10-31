@@ -496,6 +496,12 @@
   report's `coverage` must be `answered` or `partial`; any other value fails
   `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
   its vocabulary fails with `BAD-STATUS`.
+- **`accelerator research topic report-path SLUG QUESTION`** prints the
+  absolute path a new report on the question takes:
+  `reports/<question-slug>.md`, cut before the word that would pass 60
+  characters, or the first free `-2`, `-3`, … suffix. It writes nothing,
+  and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
+  question.
 
 ### Changed
 
