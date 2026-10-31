@@ -5,7 +5,6 @@ from invoke import Context, task
 from invoke.exceptions import Exit
 
 from tasks.eval.citing_once.fixtures import load_fixtures
-from tasks.eval.citing_once.rule import key_order
 from tasks.eval.citing_once.runs import (
     fixture_problems,
     plan_sessions,
@@ -15,6 +14,7 @@ from tasks.eval.citing_once.runs import (
     summary,
 )
 from tasks.eval.citing_once.sessions import RULE
+from tasks.eval.documents.rule import key_order
 from tasks.eval.toolchain import (
     DEV_LAUNCHER_REMINDER,
     require_dev_launcher_marker,
