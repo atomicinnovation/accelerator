@@ -2127,7 +2127,7 @@ the breadth and the template resolution directly.
 
 #### Manual Verification:
 
-- [ ] Reading the base corpus cold, a reviewer agrees with C1–C8's expected coverage and the equivalence judgements.
+- [x] Reading the base corpus cold, a reviewer agrees with C1–C8's expected coverage and the equivalence judgements.
 - [x] Each source's tier text in the findings matches the table above.
 
 ### As built
@@ -2170,6 +2170,11 @@ the breadth and the template resolution directly.
   names the leaderboard it records, `05-…-web` agrees with `05-…-openalex`
   that loops degrade before the window fills, and both syntheses' Open
   Threads name the tier-3 benchmark ranking. No citation changed.
+- **Second cold read.** After the rewording and prose fixes, a second agent
+  read the base set and the equivalence reports cold. It agreed with all of
+  C1–C8's coverage and all five equivalence judgements. Its closest calls
+  were "Which GPUs train agent models best?" (only overlapping report U) and
+  C8's unspaced question, which it still read as answered by P3.
 
 ---
 
@@ -2692,11 +2697,11 @@ Every eval run in this and later phases starts with
 `touch .accelerator-dev-launcher` and ends with
 `rm .accelerator-dev-launcher`.
 
-- [ ] Without the marker, `mise run eval:ask-and-report --family G1` refuses before any session and names both commands.
-- [ ] `mise run eval:ask-and-report --family G1 --jobs 2` runs six sessions end to end, and every one fails its `refusal` criterion. This is the red acceptance test.
-- [ ] `mise run eval:ask-and-report --family A2 --jobs 3` runs three three-turn sessions. They fail their criteria, but in each, every turn's stream-json carries turn 1's `session_id`, and turn 2's text replies in the context of turn 1. This proves `--resume` before Phase 6 depends on it.
-- [ ] `--check-only --out <that dir>` re-judges the run without starting a session.
-- [ ] In one G1 session that broke no turn check, `turn-1.exit` is edited to `1`, which skips its criteria and marks it errored. `--rerun-errored --out <that dir>` then reruns that session alone and leaves the others untouched.
+- [x] Without the marker, `mise run eval:ask-and-report --family G1` refuses before any session and names both commands.
+- [x] `mise run eval:ask-and-report --family G1 --jobs 2` runs six sessions end to end, and every one fails its `refusal` criterion. This is the red acceptance test.
+- [x] `mise run eval:ask-and-report --family A2 --jobs 3` runs three three-turn sessions. They fail their criteria, but in each, every turn's stream-json carries turn 1's `session_id`, and turn 2's text replies in the context of turn 1. This proves `--resume` before Phase 6 depends on it.
+- [x] `--check-only --out <that dir>` re-judges the run without starting a session.
+- [x] In one G1 session that broke no turn check, `turn-1.exit` is edited to `1`, which skips its criteria and marks it errored. `--rerun-errored --out <that dir>` then reruns that session alone and leaves the others untouched.
 
 ### As built
 
@@ -2730,6 +2735,24 @@ Every eval run in this and later phases starts with
   so a version refusal prints none.
 - **Pre-flight.** `expectation_problems` checks every new `reports/` path a
   scenario writes, not only N1's and E1's.
+- **Manual runs** (Claude Code 2.1.316, default model):
+  - Without the marker, the G1 run refused before any session, naming
+    `touch` and `rm`.
+  - The first G1 run crashed on a `system` `permission_denied` record,
+    whose `message` is a sentence, and `Executor.map` then cancelled the
+    queued sessions. The parser now reads such a record as holding no
+    blocks, and `run_eval` runs every session before raising.
+  - The G1 rerun took 95 s at `--jobs 2`: 6/6 failed `refusal`, each
+    session saying `ask` or `report` is no research-topic verb. Five also
+    broke the Bash allow-list exploring the set.
+  - A2 at `--jobs 3`: 3/3 failed. Every turn's log carried turn 1's
+    `session_id`, and turn 2 answered `reject` in the context of turn 1's
+    refusal.
+  - `--check-only` started nothing, planned 0 sessions and left every log
+    untouched. After `turn-1.exit` of `g1-researching-report` was set to
+    `1`, it judged that session errored and printed the rerun command;
+    `--rerun-errored` moved it to `run-1.errored-1/`, reran it alone, and
+    left the other five logs as they were.
 
 ---
 
