@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::draft_id::DraftIdExhausted;
+use crate::id_pattern::escaped;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::fingerprint::Staleness;
 use crate::rekey::run_plan::Unreadability;
@@ -15,6 +16,15 @@ use crate::rekey::write_set::Unreverted;
 use crate::retirement::relative_to;
 use crate::retirement::RetirementCause;
 use crate::retirement::RetirementRefusal;
+
+/// Why an item's `id` cannot be re-keyed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnclassifiableCause {
+    AmbiguousDigitRuns { id: String, example: Option<String> },
+    NoNumber { id: String },
+    NotOnePathComponent { id: String },
+    ExternalIdNotATrackerKey { external_id: String },
+}
 
 /// The process holding the identity-run lock.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +58,10 @@ pub enum NotRekeyed {
         second: PathBuf,
         target: String,
     },
-    Unclassifiable(PathBuf),
+    Unclassifiable {
+        item: PathBuf,
+        cause: UnclassifiableCause,
+    },
     FreshNumbersExhausted {
         needed: u64,
         remaining: u64,
@@ -133,7 +146,10 @@ impl NotRekeyed {
                 second: under(second),
                 target,
             },
-            Self::Unclassifiable(path) => Self::Unclassifiable(under(path)),
+            Self::Unclassifiable { item, cause } => Self::Unclassifiable {
+                item: under(item),
+                cause,
+            },
             Self::KeptNumberAboveCap {
                 item,
                 number,
@@ -181,7 +197,7 @@ impl NotRekeyed {
             Self::SyncUnfinished(_) => "E_REKEY_SYNC_UNFINISHED",
             Self::PendingPush(_) => "E_REKEY_PENDING_PUSH",
             Self::Collision { .. } => "E_REKEY_ID_COLLISION",
-            Self::Unclassifiable(_) => "E_REKEY_UNCLASSIFIABLE_ID",
+            Self::Unclassifiable { .. } => "E_REKEY_UNCLASSIFIABLE_ID",
             Self::FreshNumbersExhausted { .. }
             | Self::KeptNumberAboveCap { .. } => {
                 "E_REKEY_NUMBER_SPACE_EXHAUSTED"
@@ -245,10 +261,7 @@ impl NotRekeyed {
                 first.display(),
                 second.display()
             ),
-            Self::Unclassifiable(item) => format!(
-                "{} has an `id` of no numeric or tracker shape",
-                item.display()
-            ),
+            Self::Unclassifiable { item, cause } => unclassifiable(item, cause),
             Self::FreshNumbersExhausted { pattern, .. } => format!(
                 "re-keying needs more fresh numbers than `{pattern}` has left"
             ),
@@ -353,9 +366,7 @@ impl NotRekeyed {
             Self::Collision { .. } => {
                 "Rename or merge one of the named items".to_owned()
             }
-            Self::Unclassifiable(_) => {
-                "Give the item a numeric or tracker-shaped `id`".to_owned()
-            }
+            Self::Unclassifiable { cause, .. } => unclassifiable_remedy(cause),
             Self::FreshNumbersExhausted {
                 needed,
                 remaining,
@@ -523,6 +534,53 @@ impl fmt::Display for NotRekeyed {
 
 impl std::error::Error for NotRekeyed {}
 
+fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
+    match cause {
+        UnclassifiableCause::AmbiguousDigitRuns {
+            example: Some(example),
+            ..
+        } => format!(
+            "Give the item an `id` in the shape of `work.id_pattern`, such \
+             as `{example}`"
+        ),
+        UnclassifiableCause::AmbiguousDigitRuns { .. }
+        | UnclassifiableCause::NoNumber { .. } => {
+            "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
+        }
+        UnclassifiableCause::NotOnePathComponent { .. } => "Give the item an \
+             `id` of ASCII letters, digits, `.`, `_` and `-`"
+            .to_owned(),
+        UnclassifiableCause::ExternalIdNotATrackerKey { .. } => {
+            "Correct the item's `external_id` to the key of its tracker issue"
+                .to_owned()
+        }
+    }
+}
+
+fn unclassifiable(item: &Path, cause: &UnclassifiableCause) -> String {
+    let item = item.display();
+    match cause {
+        UnclassifiableCause::AmbiguousDigitRuns { id, .. } => format!(
+            "{item} has `id` '{}', whose digit runs make its number ambiguous",
+            escaped(id)
+        ),
+        UnclassifiableCause::NoNumber { id } => {
+            format!("{item} has `id` '{}', which holds no number", escaped(id))
+        }
+        UnclassifiableCause::NotOnePathComponent { id } => format!(
+            "{item} has `id` '{}', which is not one path component",
+            escaped(id)
+        ),
+        UnclassifiableCause::ExternalIdNotATrackerKey { external_id } => {
+            format!(
+                "{item} has `external_id` '{}', which is not shaped like a \
+                 tracker key",
+                escaped(external_id)
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // DSL pattern strings such as "{number:04d}" are literal token markers,
@@ -541,6 +599,7 @@ mod tests {
     use super::Holder;
     use super::NotRekeyed;
     use super::SyncBlocker;
+    use super::UnclassifiableCause;
     use crate::draft_id::DraftIdExhausted;
     use crate::identity::IdentityField;
     use crate::rekey::entry::RekeyEntry;
@@ -596,7 +655,7 @@ mod tests {
             | NotRekeyed::SyncUnfinished(_)
             | NotRekeyed::PendingPush(_)
             | NotRekeyed::Collision { .. }
-            | NotRekeyed::Unclassifiable(_)
+            | NotRekeyed::Unclassifiable { .. }
             | NotRekeyed::FreshNumbersExhausted { .. }
             | NotRekeyed::KeptNumberAboveCap { .. }
             | NotRekeyed::TargetExists(_)
@@ -712,8 +771,13 @@ mod tests {
                 "Rename or merge one of the named items",
             ),
             (
-                NotRekeyed::Unclassifiable(path("meta/work/notes.md")),
-                "Give the item a numeric or tracker-shaped `id`",
+                NotRekeyed::Unclassifiable {
+                    item: path("meta/work/notes.md"),
+                    cause: UnclassifiableCause::NoNumber {
+                        id: "notes".to_owned(),
+                    },
+                },
+                "Give the item an `id` in the shape of `work.id_pattern`",
             ),
             (
                 NotRekeyed::FreshNumbersExhausted {
@@ -888,7 +952,12 @@ mod tests {
                 second: at("meta/work/ACC-0042-b.md"),
                 target: "ACC-0042".to_owned(),
             },
-            NotRekeyed::Unclassifiable(item()),
+            NotRekeyed::Unclassifiable {
+                item: item(),
+                cause: UnclassifiableCause::NoNumber {
+                    id: "notes".to_owned(),
+                },
+            },
             NotRekeyed::KeptNumberAboveCap {
                 item: item(),
                 number: 12_345,
@@ -978,6 +1047,51 @@ mod tests {
             "remove:\n    meta/work/ACC-0042-search.md",
         ] {
             assert!(rendered.contains(listed), "{listed}\n---\n{rendered}");
+        }
+    }
+
+    #[test]
+    fn an_unclassifiable_id_names_its_cause() {
+        let refused = |cause: UnclassifiableCause| {
+            NotRekeyed::Unclassifiable {
+                item: path("meta/work/x.md"),
+                cause,
+            }
+            .to_string()
+        };
+        let ambiguous = refused(UnclassifiableCause::AmbiguousDigitRuns {
+            id: "PP2_0001".to_owned(),
+            example: Some("PP-0001".to_owned()),
+        });
+        let no_number = refused(UnclassifiableCause::NoNumber {
+            id: "notes".to_owned(),
+        });
+        let escaping = refused(UnclassifiableCause::NotOnePathComponent {
+            id: "a/b/0001".to_owned(),
+        });
+        let unkeyed = refused(UnclassifiableCause::ExternalIdNotATrackerKey {
+            external_id: "not a key".to_owned(),
+        });
+        let control = refused(UnclassifiableCause::NotOnePathComponent {
+            id: "x\u{1b}[H0001".to_owned(),
+        });
+
+        assert!(ambiguous.contains("'PP2_0001'"), "{ambiguous}");
+        assert!(ambiguous.contains("digit runs"), "{ambiguous}");
+        assert!(ambiguous.contains("such as `PP-0001`"), "{ambiguous}");
+        assert!(
+            no_number.contains("'notes', which holds no number"),
+            "{no_number}"
+        );
+        assert!(
+            escaping.contains("'a/b/0001', which is not one path component"),
+            "{escaping}"
+        );
+        assert!(unkeyed.contains("`external_id` 'not a key'"), "{unkeyed}");
+        assert!(unkeyed.contains("tracker key"), "{unkeyed}");
+        assert!(control.contains("U+001B"), "{control:?}");
+        for text in [ambiguous, no_number, escaping, unkeyed] {
+            assert!(!text.contains("no numeric or tracker shape"), "{text}");
         }
     }
 }

@@ -34,6 +34,16 @@ impl Repo {
     }
 
     fn committed_with(items: &[(&str, &str)]) -> Result<Self, TestError> {
+        let mut files = vec![
+            (".accelerator/config.md", CONFIG),
+            ("meta/work/0042-search.md", ITEM),
+            (NOTE, "See work-item:0042.\n"),
+        ];
+        files.extend_from_slice(items);
+        Self::committed_as(&files)
+    }
+
+    fn committed_as(files: &[(&str, &str)]) -> Result<Self, TestError> {
         let dir = tempfile::Builder::new()
             .prefix("work-cli-rekey-")
             .tempdir()?;
@@ -44,17 +54,30 @@ impl Repo {
             _env_dir: env_dir,
             env,
         };
-        repo.write(".accelerator/config.md", CONFIG)?;
-        repo.write("meta/work/0042-search.md", ITEM)?;
-        repo.write(NOTE, "See work-item:0042.\n")?;
-        for (relative, content) in items {
+        for (relative, content) in files {
             repo.write(relative, content)?;
         }
         repo.env.git(&["init", "--quiet"], repo.root())?;
-        repo.env.git(&["add", "-A"], repo.root())?;
-        repo.env
-            .git(&["commit", "--quiet", "-m", "init"], repo.root())?;
+        repo.commit("init")?;
         Ok(repo)
+    }
+
+    fn commit(&self, message: &str) -> Result<(), TestError> {
+        self.env.git(&["add", "-A"], self.root())?;
+        self.env
+            .git(&["commit", "--quiet", "-m", message], self.root())?;
+        Ok(())
+    }
+
+    fn work_items(&self) -> Result<Vec<String>, TestError> {
+        let mut names: Vec<String> =
+            fs::read_dir(self.root().join("meta/work"))?
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().is_file())
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect();
+        names.sort();
+        Ok(names)
     }
 
     fn root(&self) -> &Path {
@@ -246,5 +269,69 @@ fn rekey_refuses_a_malformed_pattern() -> Result<(), TestError> {
     );
     assert!(repo.root().join("meta/work/0042-search.md").exists());
     assert!(!repo.root().join(".accelerator/state/rekey").exists());
+    Ok(())
+}
+
+fn literal_item(id: &str, title: &str) -> String {
+    format!("---\nid: \"{id}\"\ntitle: \"{title}\"\n---\n\n# {id}: {title}\n")
+}
+
+fn rekeyed_twice(repo: &Repo) -> Result<(), TestError> {
+    let first = repo.rekey(&[])?;
+    assert_eq!(
+        first.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    repo.commit("rekeyed")?;
+    let before = repo.work_items()?;
+    let second = repo.rekey(&[])?;
+    assert_eq!(
+        second.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert_eq!(repo.work_items()?, before);
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_moves_literal_text_items_to_a_new_pattern() -> Result<(), TestError> {
+    let x = literal_item("v001", "X");
+    let y = literal_item("v002", "Y");
+    let repo = Repo::committed_as(&[
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+             key: PP\n---\n",
+        ),
+        ("meta/work/v001-x.md", &x),
+        ("meta/work/v002-y.md", &y),
+    ])?;
+
+    rekeyed_twice(&repo)?;
+
+    assert_eq!(repo.work_items()?, vec!["PP-0001-x.md", "PP-0002-y.md"]);
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_adds_literal_text_then_leaves_it() -> Result<(), TestError> {
+    let x = literal_item("001", "X");
+    let repo = Repo::committed_as(&[
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"v{number:03d}\"\n---\n",
+        ),
+        ("meta/work/001-x.md", &x),
+    ])?;
+
+    rekeyed_twice(&repo)?;
+
+    assert_eq!(repo.work_items()?, vec!["v001-x.md"]);
     Ok(())
 }
