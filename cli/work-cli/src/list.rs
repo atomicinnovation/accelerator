@@ -10,7 +10,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use work::draft_id::DraftId;
@@ -21,6 +20,7 @@ use work::filter::WorkItemView;
 use work::hierarchy::children_of;
 use work::hierarchy::cyclic_members;
 use work::hierarchy::HierarchyNode;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::ItemIdentity;
 use work::show::read_field_raw;
 use work::sync::label;
@@ -576,7 +576,10 @@ pub fn run(
         };
     }
 
-    let scheme = crate::config::resolve_scheme(config).unwrap_or_default();
+    let scheme = match crate::config::announced_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,

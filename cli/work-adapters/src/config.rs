@@ -79,6 +79,15 @@ impl std::fmt::Display for SchemeError {
 
 impl std::error::Error for SchemeError {}
 
+impl From<SchemeError> for kernel::Error {
+    fn from(error: SchemeError) -> Self {
+        match error {
+            SchemeError::Config(error) => error,
+            other => Self::Failed(other.to_string()),
+        }
+    }
+}
+
 impl From<::config::ConfigError> for SchemeError {
     fn from(error: ::config::ConfigError) -> Self {
         Self::Config(kernel::Error::Failed(error.to_string()))

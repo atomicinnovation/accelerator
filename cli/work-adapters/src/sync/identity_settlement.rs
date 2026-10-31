@@ -10,10 +10,10 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::IdOwnership;
 use tracker::Ceiling;
 use tracker::Completeness;
 use tracker::ExternalId;
+use work::id_scheme::IdOwnership;
 use work::identity::linker_of;
 use work::retirement::Retirement;
 use work::retirement::RetirementFailure;

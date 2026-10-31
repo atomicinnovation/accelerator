@@ -3,12 +3,10 @@
 
 use std::collections::BTreeMap;
 
-use corpus::WorkItemIdScheme;
-
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
-use crate::id_pattern::IdPattern;
+use crate::id_scheme::WorkItemIdScheme;
 use crate::identity::ItemIdentity;
 use crate::rekey::classify::classify;
 use crate::rekey::classify::Classification;
@@ -59,12 +57,12 @@ pub fn numeric_mapping(
                 return Err(NotRekeyed::KeptNumberAboveCap {
                     item: identity.path.clone(),
                     number,
-                    pattern: scheme.id_pattern.clone(),
+                    pattern: scheme.pattern().as_str().to_owned(),
                 });
             }
             Classification::Sequenced(number) => entries.push(renumbered(
                 &identity.id,
-                rendered(scheme, default_key(scheme), number),
+                rendered(scheme, scheme.key(), number),
             )),
             Classification::Unclassifiable => {
                 return Err(NotRekeyed::Unclassifiable(identity.path.clone()));
@@ -84,24 +82,13 @@ pub fn numeric_mapping(
 }
 
 fn cap_of(scheme: &WorkItemIdScheme) -> u64 {
-    IdPattern::parse(&scheme.id_pattern)
-        .ok()
-        .and_then(|pattern| pattern.cap())
-        .unwrap_or(u64::MAX)
+    scheme.pattern().cap().unwrap_or(u64::MAX)
 }
 
 fn renumbered(old: &str, new: String) -> RekeyEntry {
     RekeyEntry {
         old: old.to_owned(),
         target: RekeyTarget::Renumbered(new),
-    }
-}
-
-fn default_key(scheme: &WorkItemIdScheme) -> Option<&str> {
-    if corpus::references_key(&scheme.id_pattern) {
-        scheme.key.as_deref()
-    } else {
-        None
     }
 }
 
@@ -114,7 +101,9 @@ fn default_key_floor(
 ) -> u64 {
     let under_default_key = |token: &&str| {
         project_key_of(token).is_none_or(|key| {
-            default_key(scheme).is_some_and(|own| own.eq_ignore_ascii_case(key))
+            scheme
+                .key()
+                .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))
         })
     };
     candidates
@@ -149,11 +138,11 @@ fn fresh_entries(
         return Err(NotRekeyed::FreshNumbersExhausted {
             needed,
             remaining: cap.saturating_sub(floor),
-            pattern: scheme.id_pattern.clone(),
+            pattern: scheme.pattern().as_str().to_owned(),
         });
     }
     let numbers = (1..=needed)
-        .map(|offset| rendered(scheme, default_key(scheme), floor + offset));
+        .map(|offset| rendered(scheme, scheme.key(), floor + offset));
     Ok(needing_fresh
         .into_iter()
         .zip(numbers)
@@ -270,10 +259,11 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use corpus::WorkItemIdScheme;
-
     use super::numeric_mapping;
     use super::RekeyCandidate;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
@@ -281,11 +271,16 @@ mod tests {
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
+    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.and_then(|key| IdKey::parse(key).ok()),
+        )
+    }
+
     fn keyed(key: &str) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some(key.to_owned()),
-        }
+        scheme("{key}-{number:04d}", Some(key))
     }
 
     fn acc() -> WorkItemIdScheme {

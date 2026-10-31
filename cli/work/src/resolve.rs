@@ -1,12 +1,11 @@
 //! Input classification and the candidate-search cascade.
 
-use corpus::WorkItemIdScheme;
-
 use crate::draft_id::DraftId;
 use crate::id_pattern::DigitWidth;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::LiteralCase;
 use crate::id_pattern::Walk;
+use crate::id_scheme::WorkItemIdScheme;
 use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,19 +75,15 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
     if DraftId::parse(input).is_some() {
         return InputClass::FullId;
     }
-    if scheme.id_pattern == corpus::TRACKER_TOKEN
-        && tracker::is_tracker_key(input)
-    {
+    let pattern = scheme.pattern();
+    if pattern.is_tracker_owned() && tracker::is_tracker_key(input) {
         return InputClass::FullId;
     }
 
-    let pattern_has_key = corpus::references_key(&scheme.id_pattern);
+    let pattern_has_key = pattern.references_key();
     let all_digits = input.chars().all(|c| c.is_ascii_digit());
 
-    let full_id = IdPattern::parse(&scheme.id_pattern)
-        .ok()
-        .and_then(|pattern| match_full_id(input, &pattern));
-    if let Some(matched) = full_id {
+    if let Some(matched) = match_full_id(input, pattern) {
         if pattern_has_key && matched.key.is_some() {
             return InputClass::FullId;
         }
@@ -109,15 +104,6 @@ fn is_draft_prefix(prefix: &str) -> bool {
         .is_some_and(|draft| prefix.eq_ignore_ascii_case(draft))
 }
 
-fn width_with_default(scheme: &WorkItemIdScheme) -> usize {
-    let width = scheme.canonical_digit_width();
-    if width == 0 {
-        4
-    } else {
-        width
-    }
-}
-
 fn add_candidate(
     candidates: &mut Vec<TaggedCandidate>,
     path: String,
@@ -134,13 +120,21 @@ fn add_candidate(
 
 fn resolve_full_id(
     input: &str,
+    scheme: &WorkItemIdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
-    let prefix = format!("{input}-");
+    let canonical = scheme.canonicalise(input).ok();
+    let prefixes: Vec<String> = std::iter::once(input)
+        .chain(canonical.as_deref())
+        .map(|id| format!("{id}-"))
+        .collect();
     let mut matches: Vec<String> = lister
         .filenames()
         .into_iter()
-        .filter(|f| f.starts_with(&prefix) && is_md_filename(f))
+        .filter(|f| {
+            is_md_filename(f)
+                && prefixes.iter().any(|prefix| f.starts_with(prefix))
+        })
         .collect();
     matches.sort();
     match matches.len() {
@@ -166,11 +160,11 @@ fn resolve_bare_number(
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     let filenames = lister.filenames();
-    let pattern_has_key = corpus::references_key(&scheme.id_pattern);
+    let pattern_has_key = scheme.pattern().references_key();
     let mut candidates: Vec<TaggedCandidate> = Vec::new();
 
-    if pattern_has_key && scheme.key.is_some() {
-        if let Some(full_id) = scheme.canonicalise_id(input) {
+    if pattern_has_key && scheme.key().is_some() {
+        if let Ok(full_id) = scheme.canonicalise(input) {
             let prefix = format!("{full_id}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -197,7 +191,7 @@ fn resolve_bare_number(
     }
 
     if !pattern_has_key {
-        if let Some(full_id) = scheme.canonicalise_id(input) {
+        if let Ok(full_id) = scheme.canonicalise(input) {
             let prefix = format!("{full_id}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -208,7 +202,7 @@ fn resolve_bare_number(
     }
 
     if pattern_has_key {
-        let width = width_with_default(scheme);
+        let width = scheme.pattern().width().unwrap_or(4);
         if let Ok(number) = input.parse::<u64>() {
             let padded = format!("{number:0width$}");
             let marker = format!("-{padded}-");
@@ -257,7 +251,7 @@ pub fn resolve(
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     match class {
-        SearchClass::FullId => resolve_full_id(input, lister),
+        SearchClass::FullId => resolve_full_id(input, scheme, lister),
         SearchClass::BareNumber => resolve_bare_number(input, scheme, lister),
     }
 }
@@ -270,7 +264,10 @@ mod tests {
     use super::{
         classify_input, resolve, InputClass, ResolveOutcome, SearchClass,
     };
-    use corpus::WorkItemIdScheme;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::TRACKER_TOKEN;
 
     struct FakeLister(Vec<&'static str>);
 
@@ -280,18 +277,23 @@ mod tests {
         }
     }
 
+    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.map(|key| {
+                IdKey::parse(key)
+                    .unwrap_or_else(|error| unreachable!("{error}"))
+            }),
+        )
+    }
+
     fn numeric() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{number:04d}".to_owned(),
-            key: None,
-        }
+        WorkItemIdScheme::numeric()
     }
 
     fn project_scheme(default_project: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{project}-{number:04d}".to_owned(),
-            key: default_project.map(str::to_owned),
-        }
+        scheme("{project}-{number:04d}", default_project)
     }
 
     #[test]
@@ -322,10 +324,7 @@ mod tests {
 
     #[test]
     fn classify_full_id_and_bare_number_under_key_pattern() {
-        let scheme = WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some("PP".to_owned()),
-        };
+        let scheme = scheme("{key}-{number:04d}", Some("PP"));
         assert_eq!(classify_input("PP-0042", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
         assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
@@ -345,10 +344,7 @@ mod tests {
 
     #[test]
     fn a_tracker_key_is_a_full_id_under_the_tracker_pattern() {
-        let scheme = WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        };
+        let scheme = scheme(TRACKER_TOKEN, None);
         assert_eq!(classify_input("ENG-999", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
         assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
@@ -391,10 +387,7 @@ mod tests {
         input: &str,
         filenames: Vec<&'static str>,
     ) -> ResolveOutcome {
-        let scheme = WorkItemIdScheme {
-            id_pattern: pattern.to_owned(),
-            key: key.map(str::to_owned),
-        };
+        let scheme = scheme(pattern, key);
         assert_eq!(classify_input(input, &scheme), InputClass::FullId);
         resolve(input, SearchClass::FullId, &scheme, &FakeLister(filenames))
     }
@@ -417,6 +410,19 @@ mod tests {
                 vec!["PP-000042-a.md"]
             ),
             ResolveOutcome::Single("PP-000042-a.md".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_short_full_id_resolves_to_its_padded_item() {
+        assert_eq!(
+            resolved_full_id(
+                "{key}-{number:04d}",
+                Some("PP"),
+                "PROJ-42",
+                vec!["PROJ-0042-x.md", "PROJ-0043-y.md"]
+            ),
+            ResolveOutcome::Single("PROJ-0042-x.md".to_owned())
         );
     }
 

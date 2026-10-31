@@ -1,25 +1,26 @@
 //! Adapter/binary wiring for `work canonicalise-id`.
 
-use ::config::resolve_with_deprecated_fallback;
 use ::config::ConfigAccess;
-use corpus::references_key;
-use corpus_adapters::canonicalise_id;
-use corpus_adapters::PatternError;
+use work::id_pattern::PatternError;
+use work::id_scheme::CanonicaliseError;
+use work_adapters::config::SchemeError;
 
-use crate::config::effective_nonempty;
-use crate::config::LEGACY_PREFIX_KEY;
+use crate::config::announced_scheme;
 
 pub enum RunOutcome {
     Canonicalised(String),
     Failed(String),
 }
 
-const fn error_code(error: &PatternError) -> &'static str {
+fn scheme_failure(error: SchemeError) -> String {
     match error {
-        PatternError::EmptyInput
-        | PatternError::UnrecognisedIdShape(_)
-        | PatternError::BadFormatSpec(_) => "E_PATTERN_BAD_FORMAT_SPEC",
-        _ => "E_PATTERN",
+        SchemeError::Pattern {
+            error: error @ PatternError::BadFormatSpec(_),
+            ..
+        } => format!("E_PATTERN_BAD_FORMAT_SPEC: {error}"),
+        SchemeError::Pattern { error, .. } => format!("E_PATTERN: {error}"),
+        SchemeError::Key { error, .. } => format!("E_PATTERN: {error}"),
+        other => other.to_string(),
     }
 }
 
@@ -28,34 +29,23 @@ const fn error_code(error: &PatternError) -> &'static str {
 /// Never returns `Err`; every failure is reported through [`RunOutcome`].
 #[must_use]
 pub fn run(config: &dyn ConfigAccess, input: &str) -> RunOutcome {
-    let pattern = match effective_nonempty(config, "work.id_pattern") {
-        Ok(pattern) => pattern,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
+    let scheme = match announced_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => return RunOutcome::Failed(scheme_failure(error)),
     };
-    let prefix = match resolve_with_deprecated_fallback(
-        config,
-        "work.key",
-        LEGACY_PREFIX_KEY,
-        None,
-    ) {
-        Ok(prefix) => prefix,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
-    };
-    if references_key(&pattern) {
-        ::config::emit_deprecation_once(
-            LEGACY_PREFIX_KEY,
-            prefix.deprecation.as_deref(),
-        );
-    }
-    let project = prefix.value.unwrap_or_default();
-    match canonicalise_id(input, &pattern, &project) {
+    match scheme.canonicalise(input) {
         Ok(id) => RunOutcome::Canonicalised(id),
-        Err(PatternError::MissingKey) => RunOutcome::Failed(format!(
+        Err(CanonicaliseError::MissingKey) => RunOutcome::Failed(format!(
             "E_PATTERN_MISSING_KEY: bare number '{input}' under \
-             pattern '{pattern}' requires a key value"
+             pattern '{}' requires a key value",
+            scheme.pattern().as_str()
         )),
-        Err(error) => {
-            RunOutcome::Failed(format!("{}: {error}", error_code(&error)))
+        Err(
+            error @ (CanonicaliseError::EmptyInput
+            | CanonicaliseError::UnrecognisedIdShape(_)),
+        ) => RunOutcome::Failed(format!("E_PATTERN_BAD_FORMAT_SPEC: {error}")),
+        Err(error @ CanonicaliseError::NoMatch) => {
+            RunOutcome::Failed(format!("E_PATTERN: {error}"))
         }
     }
 }

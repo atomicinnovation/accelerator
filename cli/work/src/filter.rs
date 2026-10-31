@@ -1,10 +1,9 @@
 //! Conjunctive filtering of work items by their domain attributes.
 //!
-//! The parent filter compares references for equality through
-//! `corpus::WorkItemIdScheme`, so `42`, `0042` and `work-item:0042` all name
-//! the same parent.
+//! The parent filter compares references by their identity key, so `42`,
+//! `0042` and `work-item:0042` all name the same parent.
 
-use corpus::WorkItemIdScheme;
+use crate::id_scheme::WorkItemIdScheme;
 
 /// The attributes a [`Filter`] matches on, borrowed from a scanned item.
 #[derive(Debug, Clone, Copy)]
@@ -100,21 +99,24 @@ pub fn strip_reference_prefix(raw: &str) -> &str {
     raw.split_once(':').map_or(raw, |(_, rest)| rest).trim()
 }
 
-/// Canonicalises a raw work-item reference to its comparable id under `scheme`,
-/// falling back to the bare token when the scheme cannot canonicalise it.
+/// A raw work-item reference as its identity key under `scheme`, falling
+/// back to the bare token when it names no ID.
 #[must_use]
 pub fn canonical_reference(raw: &str, scheme: &WorkItemIdScheme) -> String {
     let bare = strip_reference_prefix(raw);
-    scheme
-        .canonicalise_id(bare)
-        .unwrap_or_else(|| bare.to_owned())
+    scheme.identity_key(bare).unwrap_or_else(|| bare.to_owned())
 }
 
 #[cfg(test)]
+// DSL pattern strings such as "{key}" are literal token markers, not format
+// args.
+#[allow(clippy::literal_string_with_formatting_args)]
 mod tests {
     use super::Filter;
     use super::WorkItemView;
-    use corpus::WorkItemIdScheme;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
 
     fn scheme() -> WorkItemIdScheme {
         WorkItemIdScheme::numeric()
@@ -237,6 +239,24 @@ mod tests {
         let matched = selected(&items, &filter);
         assert_eq!(matched.len(), 1);
         assert_eq!(matched[0].title.as_deref(), Some("child"));
+    }
+
+    #[test]
+    fn a_parent_filter_ignores_key_case_and_padding() {
+        let keyed = WorkItemIdScheme::new(
+            IdPattern::parse("{key}-{number:04d}")
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse("PP").ok(),
+        );
+        let child = Item {
+            parent: Some("work-item:PP-0042".to_owned()),
+            ..Item::default()
+        };
+        let filter = Filter {
+            parent: Some("pp-42".to_owned()),
+            ..Filter::default()
+        };
+        assert!(filter.matches(&child.view(), &keyed));
     }
 
     #[test]

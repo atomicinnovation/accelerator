@@ -110,7 +110,7 @@ impl core::marker::StructuralPartialEq for work::draft_id::DraftIdExhausted
 pub const work::draft_id::ALPHABET: &[u8; 32]
 pub trait work::draft_id::SuffixDraws
 pub fn work::draft_id::SuffixDraws::draw(&mut self) -> [u8; 6]
-pub fn work::draft_id::is_token_safe(scheme: &corpus::work_item_id::WorkItemIdScheme, id: &str) -> bool
+pub fn work::draft_id::is_token_safe(scheme: &work::id_scheme::WorkItemIdScheme, id: &str) -> bool
 pub fn work::draft_id::mint_draft_id(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity]) -> core::result::Result<work::draft_id::DraftId, work::draft_id::DraftIdExhausted>
 pub fn work::draft_id::mint_draft_ids(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity], count: usize) -> core::result::Result<alloc::vec::Vec<work::draft_id::DraftId>, work::draft_id::DraftIdExhausted>
 pub mod work::filter
@@ -124,7 +124,7 @@ pub work::filter::Filter::term: core::option::Option<alloc::string::String>
 impl work::filter::Filter
 pub const fn work::filter::Filter::is_empty(&self) -> bool
 pub const fn work::filter::Filter::is_title_only(&self) -> bool
-pub fn work::filter::Filter::matches(&self, item: &work::filter::WorkItemView<'_>, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
+pub fn work::filter::Filter::matches(&self, item: &work::filter::WorkItemView<'_>, scheme: &work::id_scheme::WorkItemIdScheme) -> bool
 impl core::clone::Clone for work::filter::Filter
 pub fn work::filter::Filter::clone(&self) -> work::filter::Filter
 impl core::default::Default for work::filter::Filter
@@ -143,7 +143,7 @@ pub fn work::filter::WorkItemView<'a>::clone(&self) -> work::filter::WorkItemVie
 impl<'a> core::fmt::Debug for work::filter::WorkItemView<'a>
 pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
-pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
+pub fn work::filter::canonical_reference(raw: &str, scheme: &work::id_scheme::WorkItemIdScheme) -> alloc::string::String
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
 pub mod work::hierarchy
 pub enum work::hierarchy::BatchOrder<'a>
@@ -580,7 +580,7 @@ impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
 pub fn work::next_number::allocate(pattern: &work::id_pattern::IdPattern, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
-pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&str>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
+pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&work::id_pattern::IdKey>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
 pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc::string::String
@@ -870,8 +870,8 @@ impl core::marker::StructuralPartialEq for work::rekey::fingerprint::Staleness
 pub struct work::rekey::fingerprint::IdentityFingerprint
 impl work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::items(&self) -> impl core::iter::traits::iterator::Iterator<Item = &work::identity::ItemIdentity>
-pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &corpus::work_item_id::WorkItemIdScheme, items: &[work::identity::ItemIdentity]) -> Self
-pub fn work::rekey::fingerprint::IdentityFingerprint::scheme(&self) -> corpus::work_item_id::WorkItemIdScheme
+pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &work::id_scheme::WorkItemIdScheme, items: &[work::identity::ItemIdentity]) -> Self
+pub const fn work::rekey::fingerprint::IdentityFingerprint::scheme(&self) -> &work::id_scheme::WorkItemIdScheme
 pub fn work::rekey::fingerprint::IdentityFingerprint::staleness_since(&self, earlier: &Self) -> core::option::Option<work::rekey::fingerprint::Staleness>
 impl core::clone::Clone for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::clone(&self) -> work::rekey::fingerprint::IdentityFingerprint
@@ -909,7 +909,7 @@ impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::keys_to_refresh(candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::tracker_key::TrackerKey>, work::rekey::outcome::NotRekeyed>
-pub fn work::rekey::mapping::numeric_mapping(scheme: &corpus::work_item_id::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::numeric_mapping(scheme: &work::id_scheme::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub fn work::rekey::mapping::tracker_mapping(candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed
@@ -1071,7 +1071,7 @@ pub const work::rekey::run_plan::RUN_PLAN_SCHEMA: u32
 pub fn work::rekey::run_plan::preview_lines(entries: &[work::rekey::entry::RekeyEntry]) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result::Result<(), work::rekey::run_plan::Unreadability>
 pub mod work::rekey::sequence
-pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
+pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &work::id_scheme::WorkItemIdScheme) -> bool
 pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
 pub mod work::rekey::write_set
 pub enum work::rekey::write_set::StartState
@@ -1210,8 +1210,8 @@ pub fn work::resolve::TaggedCandidate::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::StructuralPartialEq for work::resolve::TaggedCandidate
 pub trait work::resolve::DirectoryLister
 pub fn work::resolve::DirectoryLister::filenames(&self) -> alloc::vec::Vec<alloc::string::String>
-pub fn work::resolve::classify_input(input: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> work::resolve::InputClass
-pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &corpus::work_item_id::WorkItemIdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
+pub fn work::resolve::classify_input(input: &str, scheme: &work::id_scheme::WorkItemIdScheme) -> work::resolve::InputClass
+pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &work::id_scheme::WorkItemIdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
 pub mod work::retirement
 pub enum work::retirement::RetirementCauseKind
 pub work::retirement::RetirementCauseKind::ChangedSinceSnapshot
@@ -1739,7 +1739,7 @@ pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_chan
 impl core::fmt::Debug for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
-pub fn work::sync::key_change::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::key_change::decide_key_change(ownership: work::id_scheme::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub fn work::sync::key_change::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
@@ -2645,7 +2645,7 @@ pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64,
 pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
-pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::decide_key_change(ownership: work::id_scheme::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>

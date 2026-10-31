@@ -9,9 +9,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use work::resolve::DirectoryLister;
+use work::work_item_files::is_md_filename;
 use work::work_item_files::ReadFailure;
 use work::work_item_files::UnreadableFile;
-use work::work_item_files::is_md_filename;
 use work::work_item_files::WorkItemFile;
 use work::work_item_files::WorkItemFiles;
 use work::work_item_files::WorkItemListing;

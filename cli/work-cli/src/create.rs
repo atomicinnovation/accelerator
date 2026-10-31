@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus::FilenameTimestampFormat;
-use corpus::IdOwnership;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
@@ -32,7 +31,8 @@ use work::create::FieldValue;
 use work::create::TypedLinkage;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
-use work::id_pattern::IdPattern;
+use work::id_scheme::IdOwnership;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity_run::IdentityRunGuard;
 use work::next_number::allocate;
 use work::next_number::allocation_key;
@@ -62,9 +62,9 @@ use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
 
 use crate::bounded_roots::configure_warning;
+use crate::config::announced_scheme_with_key;
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
-use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 use crate::config::templates_dir;
 use crate::exit_codes;
@@ -212,28 +212,21 @@ fn template_frontmatter_keys(content: &str) -> Result<Vec<String>, String> {
 /// The next ID under `scheme`, rendered under `project` when given and
 /// `scheme`'s own key otherwise.
 pub fn allocate_id(
-    scheme: &corpus::WorkItemIdScheme,
+    scheme: &WorkItemIdScheme,
     work_dir: &Path,
     project: Option<&str>,
     _create: &CreateLockGuard,
 ) -> Result<String, String> {
-    let pattern = id_pattern_of(scheme)?;
-    let key = allocation_key(&pattern, project, scheme.key.as_deref())
-        .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
+    let pattern = scheme.pattern();
+    let key = allocation_key(pattern, project, scheme.key())
+        .map_err(|error| allocation_message(&error, pattern.as_str()))?;
     let filenames = FilesystemLister::new(work_dir).filenames();
-    let allocated = allocate(&pattern, key.as_ref(), 1, &filenames)
-        .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
+    let allocated = allocate(pattern, key.as_ref(), 1, &filenames)
+        .map_err(|error| allocation_message(&error, pattern.as_str()))?;
     allocated
         .into_iter()
         .next()
         .ok_or_else(|| "allocation produced no ID".to_owned())
-}
-
-fn id_pattern_of(
-    scheme: &corpus::WorkItemIdScheme,
-) -> Result<IdPattern, String> {
-    IdPattern::parse(&scheme.id_pattern)
-        .map_err(|error| format!("E_WORK_ID_PATTERN_INVALID: {error}"))
 }
 
 fn resolve_and_check_template(
@@ -378,7 +371,7 @@ fn attempted_at_epoch() -> u64 {
 struct CreationContext<'a> {
     args: &'a CreateArgs,
     config: &'a dyn ConfigAccess,
-    scheme: corpus::WorkItemIdScheme,
+    scheme: WorkItemIdScheme,
     root: PathBuf,
     work_dir: PathBuf,
     template: ::config::ResolvedTemplate,
@@ -465,8 +458,9 @@ fn creation_context<'a>(
     templates: &dyn ReadTemplate,
     args: &'a CreateArgs,
 ) -> Result<CreationContext<'a>, String> {
-    let scheme = resolve_scheme(config).map_err(|error| error.to_string())?;
-    let pattern = id_pattern_of(&scheme)?;
+    let scheme =
+        announced_scheme_with_key(config).map_err(|error| error.to_string())?;
+    let pattern = scheme.pattern();
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
         resolve_work_dir(config, &root).map_err(|error| error.to_string())?;
@@ -474,8 +468,8 @@ fn creation_context<'a>(
         format!("could not create the work-item directory: {error}")
     })?;
     if pattern.is_tracker_owned() {
-        allocation_key(&pattern, args.project.as_deref(), None)
-            .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
+        allocation_key(pattern, args.project.as_deref(), None)
+            .map_err(|error| allocation_message(&error, pattern.as_str()))?;
     }
     let metadata = derive_at(
         &root,

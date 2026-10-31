@@ -49,7 +49,7 @@ fn digest(content: &str) -> Digest {
 }
 
 fn fingerprint() -> IdentityFingerprint {
-    IdentityFingerprint::of(&corpus::WorkItemIdScheme::numeric(), &[])
+    IdentityFingerprint::of(&work::id_scheme::WorkItemIdScheme::numeric(), &[])
 }
 
 /// The run plan a fresh run records for `entries`, saved as `ports` would

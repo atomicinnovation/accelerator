@@ -23,7 +23,6 @@ use corpus::store::RecordedCopy;
 use corpus::store::RecoveryCopies;
 use corpus::store::RecoveryEntry;
 use corpus::StoreError;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::CommonMarkBody;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -45,6 +44,9 @@ use vcs::VcsKind;
 use vcs::WorkingCopyState;
 use vcs::WorkingCopyStateProbe;
 use work::dirtiness::Dirtiness;
+use work::id_pattern::IdKey;
+use work::id_pattern::IdPattern;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity_run::begin_rekey_run;
 use work::identity_run::HeldIdentityRun;
 use work::identity_run::IdentityRun;
@@ -575,10 +577,11 @@ pub fn entry_fragment(id: &str, entry: Entry) -> String {
 // "{key}" and "{number:04d}" are pattern tokens, not format args.
 #[allow(clippy::literal_string_with_formatting_args)]
 pub fn scheme() -> WorkItemIdScheme {
-    WorkItemIdScheme {
-        id_pattern: "{key}-{number:04d}".to_owned(),
-        key: Some("ACC".to_owned()),
-    }
+    WorkItemIdScheme::new(
+        IdPattern::parse("{key}-{number:04d}")
+            .unwrap_or_else(|error| unreachable!("{error}")),
+        IdKey::parse("ACC").ok(),
+    )
 }
 
 /// A repository whose working copy is whatever the test says it is.

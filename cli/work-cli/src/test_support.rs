@@ -189,7 +189,7 @@ pub fn rekey_proposed(root: &Path) {
 
 fn empty_fingerprint() -> work::rekey::fingerprint::IdentityFingerprint {
     work::rekey::fingerprint::IdentityFingerprint::of(
-        &corpus::WorkItemIdScheme::numeric(),
+        &work::id_scheme::WorkItemIdScheme::numeric(),
         &[],
     )
 }

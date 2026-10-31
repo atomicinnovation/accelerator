@@ -38,7 +38,7 @@ impl From<MissingKey> for AllocationError {
 pub fn allocation_key(
     pattern: &IdPattern,
     project: Option<&str>,
-    configured: Option<&str>,
+    configured: Option<&IdKey>,
 ) -> Result<Option<IdKey>, AllocationError> {
     if !pattern.references_key() {
         return match project {
@@ -46,11 +46,14 @@ pub fn allocation_key(
             None => Ok(None),
         };
     }
-    project
-        .or(configured)
-        .map(IdKey::parse)
-        .transpose()
-        .map_err(AllocationError::InvalidProject)
+    project.map_or_else(
+        || Ok(configured.cloned()),
+        |project| {
+            IdKey::parse(project)
+                .map(Some)
+                .map_err(AllocationError::InvalidProject)
+        },
+    )
 }
 
 /// Allocates `count` sequential IDs following the highest number `key`
@@ -191,7 +194,8 @@ mod tests {
     #[test]
     fn the_allocation_key_is_the_project_or_the_configured_key() {
         let keyed = pattern("{key}-{number:04d}");
-        let configured = Some("PP");
+        let pp = key("PP");
+        let configured = Some(&pp);
         assert_eq!(
             allocation_key(&keyed, None, configured),
             Ok(Some(key("PP")))

@@ -18,13 +18,13 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::store::RecoveryCopies as _;
 use corpus::store::StoreError;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::FileRecoveryCopies;
 use tempfile::TempDir;
 use tracker::ExternalId;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use vcs::tracking::RootsAnswer;
+use work::id_scheme::WorkItemIdScheme;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::kept_edits::KeptCopy;
 use work_adapters::sync::kept_edits::KeptEdits;
@@ -400,10 +400,11 @@ fn two_dirty_pulls_in_one_run_each_keep_their_copy() {
 #[test]
 fn a_hyphenated_id_is_recovered_from_its_directory_name() {
     let mut repo = Repo::new();
-    repo.scheme = WorkItemIdScheme {
-        id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-        key: None,
-    };
+    repo.scheme = WorkItemIdScheme::new(
+        work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+            .expect("the tracker pattern"),
+        None,
+    );
     let item = repo.item("ENG-42", SYNCED);
     let dir = repo.keep("1700000000-k7mq3x-ENG-42", &item, EDITED);
 
