@@ -65,3 +65,41 @@ fn an_uncredentialed_integration_shows_the_presence_label_despite_a_baseline(
     );
     Ok(())
 }
+
+fn list(dir: &std::path::Path) -> Result<std::process::Output, TestError> {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
+        .arg("list")
+        .current_dir(dir)
+        .env("ACCELERATOR_PLUGIN_ROOT", dir)
+        .stdin(Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
+}
+
+#[test]
+fn list_output_is_unchanged_by_an_unreadable_file() -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-list-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".git"))?;
+    fs::create_dir_all(dir.path().join("meta/work"))?;
+    fs::write(dir.path().join("meta/work/0001-existing.md"), SYNCED_ITEM)?;
+    fs::write(
+        dir.path().join("meta/work/0002-other.md"),
+        SYNCED_ITEM.replace("0001", "0002"),
+    )?;
+    let without = list(dir.path())?;
+
+    fs::write(dir.path().join("meta/work/0400-x.md"), [0xff, 0xfe, 0xfd])?;
+    let with = list(dir.path())?;
+
+    assert!(without.status.success(), "{without:?}");
+    assert_eq!(with.status.code(), without.status.code());
+    assert_eq!(
+        String::from_utf8(with.stdout)?,
+        String::from_utf8(without.stdout)?
+    );
+    assert_eq!(String::from_utf8(with.stderr)?, "");
+    Ok(())
+}

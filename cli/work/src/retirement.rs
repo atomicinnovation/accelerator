@@ -362,7 +362,10 @@ fn file_name(path: &Path) -> String {
 /// The filename after its leading ID, so a retired file keeps its title.
 fn slug_after(id: &str, path: &Path) -> String {
     let name = file_name(path);
-    let stem = name.strip_suffix(".md").unwrap_or(&name);
+    let stem = name
+        .rsplit_once('.')
+        .filter(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+        .map_or(name.as_str(), |(stem, _)| stem);
     let without_id = stem
         .get(..id.len())
         .filter(|prefix| same_id(prefix, id))
