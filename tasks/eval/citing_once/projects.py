@@ -1,13 +1,12 @@
 """Lay out a composition as a topic-research set a session can work in."""
 
-import json
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.eval.citing_once.fixtures import Composition
-from tasks.eval.citing_once.sources import Citation
+from tasks.eval.documents.frontmatter import with_fields
+from tasks.eval.documents.sources import Citation
 
 TOPICS = Path("meta/research/topics")
 COMPOSED_FOCUS = "cited-sources"
@@ -26,20 +25,6 @@ class Project:
     output: Path
 
 
-def _with_fields(document: str, **fields: object) -> str:
-    for key, value in fields.items():
-        document, replaced = re.subn(
-            rf"^{key}: .*$",
-            f"{key}: {json.dumps(value, ensure_ascii=False)}",
-            document,
-            count=1,
-            flags=re.MULTILINE,
-        )
-        if replaced != 1:
-            raise ValueError(f"the seed document has no {key} field")
-    return document
-
-
 def _frontmatter(document: str) -> str:
     return document[: document.index("\n---\n", 4) + len("\n---\n")]
 
@@ -48,7 +33,7 @@ def _research_document(
     seed: str, asked: str, sources: Sequence[Citation], **fields: object
 ) -> str:
     return (
-        _frontmatter(_with_fields(seed, **fields))
+        _frontmatter(with_fields(seed, **fields))
         + f"\n# {asked}\n\n## Question\n{asked}\n\n"
         + f"## Findings\n{FINDINGS_PROSE}\n\n## Sources\n"
         + "".join(citation.render() for citation in sources)
@@ -67,7 +52,7 @@ def _set_documents(
     title = f"Citing once: {slug}"
     _write(
         set_root / "manifest.md",
-        _with_fields(
+        with_fields(
             (seed / "manifest.md").read_text(),
             id=slug,
             title=f"Research Topic: {title}",
@@ -81,7 +66,7 @@ def _set_documents(
     _write(
         set_root / "brief.md",
         _frontmatter(
-            _with_fields(
+            with_fields(
                 (seed / "brief.md").read_text(),
                 id=f"{slug}-brief",
                 title=f"Brief: {title}",
@@ -96,7 +81,7 @@ def _set_documents(
     _write(
         set_root / "outline.md",
         _frontmatter(
-            _with_fields(
+            with_fields(
                 (seed / "outline.md").read_text(),
                 id=f"{slug}-outline",
                 title=f"Outline: {title}",

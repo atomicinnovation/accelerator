@@ -13,15 +13,15 @@ from tasks.eval.citing_once.logs import (
     tool_calls,
 )
 from tasks.eval.citing_once.projects import build_project
-from tasks.eval.citing_once.rule import key_order
 from tasks.eval.citing_once.sessions import session_command
-from tasks.eval.citing_once.sources import parse_sources
 from tasks.eval.citing_once.verdicts import (
     criterion_failures,
     entry_differences,
     isolation_conflicts,
     predict,
 )
+from tasks.eval.documents.rule import key_order
+from tasks.eval.documents.sources import parse_sources
 from tasks.eval.toolchain import Toolchain
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
