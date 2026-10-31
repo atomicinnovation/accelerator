@@ -259,13 +259,17 @@ def run_eval(
     env: dict[str, str],
     jobs: int,
 ) -> None:
+    """Run every planned session, then raise the first harness error, if any.
+
+    ``Executor.map`` would cancel every queued session at the first error.
+    """
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        list(
-            pool.map(
-                lambda plan: run_planned(plan, plugin_root, evals, flags, env),
-                plans,
-            )
-        )
+        futures = [
+            pool.submit(run_planned, plan, plugin_root, evals, flags, env)
+            for plan in plans
+        ]
+    for future in futures:
+        future.result()
 
 
 def _set_aside(directory: Path) -> None:
