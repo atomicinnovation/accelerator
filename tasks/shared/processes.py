@@ -3,9 +3,12 @@
 import contextlib
 import os
 import signal
+from collections.abc import Callable, Iterable
 from typing import Protocol
 
 import psutil
+
+from tasks.shared.clock import Clock
 
 # A start time recorded by one psutil ``create_time()`` call and compared
 # against another from the same source is expected to match exactly; this
@@ -85,3 +88,41 @@ class PsutilProcessOps:
     def kill(self, pid: int) -> None:
         with contextlib.suppress(ProcessLookupError, OSError):
             os.kill(pid, signal.SIGKILL)
+
+
+_POLL_INTERVAL = 0.1
+
+
+def escalate(
+    targets: Iterable[int],
+    procs: ProcessOps,
+    clock: Clock,
+    grace: float,
+    *,
+    relist: Callable[[], Iterable[int]],
+) -> None:
+    """Terminate ``targets``, then kill whatever outlives ``grace``.
+
+    Each poll also terminates any process ``relist`` names that is not yet a
+    target, so processes spawned during the grace period are not missed.
+    """
+    signalled = list(dict.fromkeys(targets))
+    for pid in signalled:
+        procs.terminate(pid)
+    deadline = clock.now() + grace
+    while clock.now() < deadline:
+        for pid in relist():
+            if pid not in signalled:
+                signalled.append(pid)
+                procs.terminate(pid)
+        if not any(procs.is_alive(pid) for pid in signalled):
+            return
+        clock.sleep(min(_POLL_INTERVAL, deadline - clock.now()))
+    for pid in signalled:
+        if procs.is_alive(pid):
+            procs.kill(pid)
+
+
+def reap_tree(pid: int, procs: ProcessOps, clock: Clock, grace: float) -> None:
+    targets = [pid, *(child for child, _ in procs.children(pid))]
+    escalate(targets, procs, clock, grace, relist=tuple)

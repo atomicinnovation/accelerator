@@ -23,7 +23,7 @@ from tasks.shared.clock import Clock
 from tasks.shared.dev.circus import LaunchHandle, PopenHandle
 from tasks.shared.paths import FRONTEND
 from tasks.shared.playwright import E2E_LANG
-from tasks.shared.processes import ProcessOps, PsutilProcessOps
+from tasks.shared.processes import ProcessOps, PsutilProcessOps, reap_tree
 
 
 class HostServerError(RuntimeError):
@@ -140,20 +140,10 @@ def _reap(
 ) -> None:
     """Reap the node leader and its children: terminate → wait → kill.
 
-    Mirrors ``lifecycle._reap_handle`` but escalates SIGTERM→SIGKILL through the
-    injected ``ProcessOps`` (so teardown is observable on the fake, and there is
-    no ``os.killpg``/``os.getpgid`` to raise on the already-exited path). The
-    Rust child is a plain child of the node launcher, so ``children()`` finds it
-    while the leader is alive; an already-exited leader makes this a no-op.
+    Escalates through the injected ``ProcessOps`` (so teardown is observable on
+    the fake, and there is no ``os.killpg``/``os.getpgid`` to raise on the
+    already-exited path). The Rust child is a plain child of the node launcher,
+    so ``children()`` finds it while the leader is alive; an already-exited
+    leader makes this a no-op.
     """
-    targets = [handle.pid, *(cpid for cpid, _ in procs.children(handle.pid))]
-    for pid in targets:
-        procs.terminate(pid)
-    deadline = clock.now() + grace_kill
-    while clock.now() < deadline:
-        if not any(procs.is_alive(pid) for pid in targets):
-            return
-        clock.sleep(min(0.1, deadline - clock.now()))
-    for pid in targets:
-        if procs.is_alive(pid):
-            procs.kill(pid)
+    reap_tree(handle.pid, procs, clock, grace_kill)
