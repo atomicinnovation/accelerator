@@ -152,3 +152,17 @@ fn unrecognised_id_shape_is_rejected() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+#[test]
+fn canonicalise_keeps_its_error_codes_for_a_malformed_pattern(
+) -> Result<(), TestError> {
+    let repo = scratch_repo("{number:4d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "E_PATTERN_BAD_FORMAT_SPEC: {number} format spec '4d' must match 0Nd \
+         (rule 4)"
+    );
+    Ok(())
+}

@@ -224,3 +224,27 @@ fn an_upper_case_md_item_is_listed_and_re_keyed_like_any_other(
     assert_eq!(names, vec!["ACC-0001-x.md", "ACC-0042-search.md"]);
     Ok(())
 }
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let repo = Repo::committed()?;
+    repo.write(
+        ".accelerator/config.md",
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+
+    let output = repo.rekey(&[])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(repo.root().join("meta/work/0042-search.md").exists());
+    assert!(!repo.root().join(".accelerator/state/rekey").exists());
+    Ok(())
+}

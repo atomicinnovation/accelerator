@@ -40,6 +40,7 @@ use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::resolve::DirectoryLister;
 use work_adapters::author::VcsBackedIdentityProbe;
+use work_adapters::config::SchemeError;
 pub use work_adapters::creation::blocked_remedy;
 use work_adapters::creation::create_local_item;
 use work_adapters::creation::create_tracker_keyed_item;
@@ -157,7 +158,9 @@ fn allocation_message(error: &AllocationError, pattern: &str) -> String {
                  '{pattern}' (no {{key}} token)"
             )
         }
-        AllocationError::InvalidProject(reason) => reason.to_string(),
+        AllocationError::InvalidProject(reason) => {
+            SchemeError::invalid_project(reason).to_string()
+        }
         AllocationError::Overflow {
             highest,
             highest_file,

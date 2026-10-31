@@ -14,6 +14,7 @@ use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
+use work_adapters::config::SchemeError;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
@@ -68,7 +69,9 @@ fn allocation_message(error: &AllocationError, pattern: &str) -> String {
             "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
              '{pattern}' (no {{key}} token)"
         ),
-        AllocationError::InvalidProject(reason) => reason.to_string(),
+        AllocationError::InvalidProject(reason) => {
+            SchemeError::invalid_project(reason).to_string()
+        }
         AllocationError::Overflow { .. } => {
             unreachable!("Overflow is handled by the caller separately")
         }
