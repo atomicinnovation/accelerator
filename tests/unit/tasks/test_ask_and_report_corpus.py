@@ -14,11 +14,15 @@ from tasks.eval.ask_and_report.mutations import (
     parse_mutation,
 )
 from tasks.eval.ask_and_report.preflight import gate_of
+from tasks.eval.ask_and_report.projects import SET, build_project
 from tasks.eval.ask_and_report.scenarios import (
     Scenario,
     Setup,
     load_scenario_files,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+EVALS = REPO_ROOT / "skills/research/research-topic/evals"
 
 MANIFEST = """---
 type: "topic-research"
@@ -306,3 +310,82 @@ def test_a_name_used_twice_across_files_raises(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="g1-briefed-ask"):
         load_scenario_files(tmp_path)
 
+
+def test_building_the_base_lays_the_project_tree(tmp_path: Path) -> None:
+    built = build_project(Setup(variant="base"), tmp_path, EVALS)
+
+    assert built == tmp_path / SET
+    assert (tmp_path / "meta/work/0900-llm-agent-planning.md").exists()
+    assert (built / "synthesis.md").exists()
+    assert not (built / "reports").exists()
+    assert not (tmp_path / ".accelerator").exists()
+
+
+def test_building_a_variant_overlays_it_on_the_base(tmp_path: Path) -> None:
+    built = build_project(Setup(variant="equivalence"), tmp_path, EVALS)
+
+    assert len(list((built / "reports").glob("*.md"))) == 3
+    assert "report_count: 3\n" in (built / "manifest.md").read_text()
+    assert (built / "findings").is_dir()
+
+
+def test_building_applies_the_mutations_in_order(tmp_path: Path) -> None:
+    setup = Setup(
+        variant="base",
+        mutations=(
+            SetField("manifest.md", "status", "briefed"),
+            Replace("manifest.md", 'status: "briefed"', 'status: "outlined"'),
+        ),
+    )
+
+    built = build_project(setup, tmp_path, EVALS)
+
+    assert 'status: "outlined"\n' in (built / "manifest.md").read_text()
+
+
+def test_building_writes_the_breadth_into_the_project_config(
+    tmp_path: Path,
+) -> None:
+    build_project(Setup(variant="base", breadth=2), tmp_path, EVALS)
+
+    config = (tmp_path / ".accelerator/config.md").read_text()
+    assert "research:\n  topic:\n    breadth: 2\n" in config
+
+
+def _sections(template: str) -> list[str]:
+    return [line for line in template.splitlines() if line.startswith("## ")]
+
+
+def test_the_user_override_adds_a_method_section_before_sources(
+    tmp_path: Path,
+) -> None:
+    build_project(Setup(variant="base", templates=("user",)), tmp_path, EVALS)
+
+    override = tmp_path / ".accelerator/templates/topic-research-report.md"
+    assert _sections(override.read_text())[-2:] == ["## Method", "## Sources"]
+    assert not (tmp_path / ".accelerator/config.md").exists()
+
+
+def test_the_config_override_adds_a_scope_section_and_is_named_in_config(
+    tmp_path: Path,
+) -> None:
+    build_project(Setup(variant="base", templates=("config",)), tmp_path, EVALS)
+
+    override = tmp_path / ".accelerator/report-template.md"
+    assert _sections(override.read_text())[-2:] == ["## Scope", "## Sources"]
+    config = (tmp_path / ".accelerator/config.md").read_text()
+    assert (
+        "templates:\n  topic-research-report: .accelerator/report-template.md\n"
+        in config
+    )
+
+
+def test_an_override_otherwise_equals_the_plugin_template(
+    tmp_path: Path,
+) -> None:
+    build_project(Setup(variant="base", templates=("user",)), tmp_path, EVALS)
+
+    override = tmp_path / ".accelerator/templates/topic-research-report.md"
+    plugin = (REPO_ROOT / "templates/topic-research-report.md").read_text()
+    method = override.read_text().split("## Method\n", 1)[1].split("## ", 1)[0]
+    assert override.read_text().replace(f"## Method\n{method}", "") == plugin
