@@ -1,6 +1,12 @@
 //! The per-type schema table and the cross-cutting emission rules. Pure
 //! data — no filesystem, no regex.
 
+/// The closed set of values one extra may take.
+pub struct ExtraVocab {
+    pub extra: &'static str,
+    pub values: &'static [&'static str],
+}
+
 /// One schema row, keyed by the `(type, kind)` pair
 /// [`crate::DocTypeKey::linkage_type_name`] plus the artifact `kind`
 /// discriminator (empty for a type-level default row).
@@ -19,12 +25,15 @@ pub struct SchemaRow {
     /// Extras whose empty list is a value in its own right rather than an
     /// unfilled placeholder.
     pub empty_list_extras: &'static [&'static str],
+    /// Extras whose value must be one of a closed set, as `status_vocab`
+    /// closes `status`.
+    pub extra_vocabs: &'static [ExtraVocab],
     pub status_vocab: &'static [&'static str],
     pub forbidden_own_id_keys: &'static [&'static str],
     pub typed_linkage_keys: &'static [&'static str],
 }
 
-pub const SCHEMA: [SchemaRow; 19] = [
+pub const SCHEMA: [SchemaRow; 20] = [
     SchemaRow {
         template: "work-item.md",
         linkage_type: "work-item",
@@ -33,6 +42,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["kind", "priority"],
         optional_extras: &["external_id", "aliases"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &[
             "draft",
             "ready",
@@ -60,6 +70,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &[],
         optional_extras: &["reviewer"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["draft", "ready", "in-progress", "done", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &[
@@ -78,6 +89,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["result"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -90,6 +102,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["pr_number"],
         optional_extras: &["pr_url", "merge_commit"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title"],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -102,6 +115,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &[],
         optional_extras: &["decision_makers"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &[
             "proposed",
             "accepted",
@@ -120,6 +134,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["topic"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -132,6 +147,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["topic"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -151,6 +167,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         ],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["draft", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -163,6 +180,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["current_inventory", "target_inventory"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["draft", "accepted"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -175,6 +193,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["verdict", "lenses", "review_number", "review_pass"],
         optional_extras: &["reviewer"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -187,6 +206,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["verdict", "lenses", "review_number", "review_pass"],
         optional_extras: &["reviewer"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -199,6 +219,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["verdict", "lenses", "review_number", "pr_number"],
         optional_extras: &["reviewer"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title", "review_pass"],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -211,6 +232,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["topic"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["captured"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -223,6 +245,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["slug", "round_count", "finding_count", "primary"],
         optional_extras: &["report_count"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &[
             "briefed",
             "outlined",
@@ -241,6 +264,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["source_profiles"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["draft", "complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -253,6 +277,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &[],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -265,6 +290,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["round", "question", "source_profile"],
         optional_extras: &["depth"],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -277,6 +303,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         required_extras: &["rounds_covered"],
         optional_extras: &[],
         empty_list_extras: &[],
+        extra_vocabs: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -296,6 +323,23 @@ pub const SCHEMA: [SchemaRow; 19] = [
         ],
         optional_extras: &["search_budget"],
         empty_list_extras: &["follow_ups"],
+        extra_vocabs: &[],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        template: "topic-research-report.md",
+        linkage_type: "topic-research",
+        kind: "report",
+        code_state_anchored: false,
+        required_extras: &["question", "rounds_covered", "coverage"],
+        optional_extras: &[],
+        empty_list_extras: &[],
+        extra_vocabs: &[ExtraVocab {
+            extra: "coverage",
+            values: &["answered", "partial"],
+        }],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -489,8 +533,51 @@ mod tests {
     }
 
     #[test]
-    fn nineteen_rows_are_present() {
-        assert_eq!(SCHEMA.len(), 19);
+    fn every_extra_vocab_names_an_extra_of_its_row() {
+        for row in &SCHEMA {
+            for vocab in row.extra_vocabs {
+                assert!(
+                    row.all_extras().any(|extra| extra == vocab.extra),
+                    "{}/{}: {}",
+                    row.linkage_type,
+                    row.kind,
+                    vocab.extra
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn only_a_report_closes_an_extra_vocab() {
+        let closing: Vec<(&str, &str, &[&str])> = SCHEMA
+            .iter()
+            .flat_map(|row| {
+                row.extra_vocabs
+                    .iter()
+                    .map(move |vocab| (row.kind, vocab.extra, vocab.values))
+            })
+            .collect();
+        assert_eq!(
+            closing,
+            [("report", "coverage", &["answered", "partial"][..])]
+        );
+    }
+
+    #[test]
+    fn a_report_row_requires_its_question_rounds_covered_and_coverage(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = row_for("topic-research", "report").ok_or("report row")?;
+        assert_eq!(
+            report.required_extras,
+            &["question", "rounds_covered", "coverage"]
+        );
+        assert_eq!(report.status_vocab, &["complete"]);
+        Ok(())
+    }
+
+    #[test]
+    fn twenty_rows_are_present() {
+        assert_eq!(SCHEMA.len(), 20);
     }
 
     #[test]
@@ -502,6 +589,7 @@ mod tests {
             "finding",
             "synthesis",
             "level-note",
+            "report",
         ] {
             let resolved = row_for("topic-research", kind).map(|row| row.kind);
             assert_eq!(resolved, Some(kind), "topic-research/{kind}");

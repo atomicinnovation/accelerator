@@ -86,6 +86,7 @@ authoritative template set. Their field contracts live with 0277 and ADR-0067.
 | `topic-research-finding.md` | `topic-research` | `finding` | 1 | no | `round`, `question`, `source_profile`, optional `depth` |
 | `topic-research-synthesis.md` | `topic-research` | `synthesis` | 1 | no | `rounds_covered` |
 | `topic-research-level-note.md` | `topic-research` | `level-note` | 1 | no | `round`, `question`, `source_profile`, `level`, `depth`, `follow_ups` |
+| `topic-research-report.md` | `topic-research` | `report` | 1 | no | `question`, `rounds_covered`, `coverage` (`answered` \| `partial`) |
 
 ## Acceptance Criteria
 
