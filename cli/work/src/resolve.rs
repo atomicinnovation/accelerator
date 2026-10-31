@@ -1,17 +1,13 @@
 //! Input classification and the candidate-search cascade.
-//!
-//! Both stages avoid `corpus_adapters::work_item_pattern` (which needs the
-//! `regex` crate) deliberately: `work`'s own import-restriction rule
-//! (`work_domain_imports_only_permitted` in `cli/pup.ron`) keeps this crate
-//! dependency-free, so pattern matching here is a small, regex-free,
-//! greedy token-walker — sufficient for the DSL's own grammar, since
-//! adjacent dynamic tokens are already forbidden by the pattern grammar,
-//! so a digit or letter run never needs to backtrack against what follows
-//! it.
 
 use corpus::WorkItemIdScheme;
 
 use crate::draft_id::DraftId;
+use crate::id_pattern::DigitWidth;
+use crate::id_pattern::IdPattern;
+use crate::id_pattern::LiteralCase;
+use crate::id_pattern::Walk;
+use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputClass {
@@ -46,126 +42,25 @@ pub trait DirectoryLister {
     fn filenames(&self) -> Vec<String>;
 }
 
-enum Segment {
-    Literal(String),
-    Key,
-    Number,
+struct FullIdMatch<'a> {
+    key: Option<&'a str>,
 }
 
-/// A regex-free, best-effort walk of `pattern`'s tokens into literal and
-/// dynamic segments. Malformed tokens collapse to an empty segment list
-/// (nothing can ever match), matching how an already-invalid pattern would
-/// never reach this code in practice (callers validate the pattern first).
-fn segments(pattern: &str) -> Vec<Segment> {
-    let chars: Vec<char> = pattern.chars().collect();
-    let len = chars.len();
-    let mut out = Vec::new();
-    let mut literal = String::new();
-    let mut i = 0;
-    while i < len {
-        let ch = chars[i];
-        let next = chars.get(i + 1).copied();
-        if ch == '{' && next == Some('{') {
-            literal.push('{');
-            i += 2;
-            continue;
-        }
-        if ch == '}' && next == Some('}') {
-            literal.push('}');
-            i += 2;
-            continue;
-        }
-        if ch == '{' {
-            let Some(close_offset) =
-                chars[i + 1..].iter().position(|&c| c == '}')
-            else {
-                return Vec::new();
-            };
-            let close = i + 1 + close_offset;
-            let token: String = chars[i + 1..close].iter().collect();
-            if !literal.is_empty() {
-                out.push(Segment::Literal(std::mem::take(&mut literal)));
-            }
-            if corpus::is_key_token(&token) {
-                out.push(Segment::Key);
-            } else if token == "number" || token.starts_with("number:") {
-                out.push(Segment::Number);
-            } else {
-                return Vec::new();
-            }
-            i = close + 1;
-            continue;
-        }
-        literal.push(ch);
-        i += 1;
-    }
-    if !literal.is_empty() {
-        out.push(Segment::Literal(literal));
-    }
-    out
+/// `input` read as a full ID under `pattern`: literals as written, and a
+/// number of any width.
+fn match_full_id<'a>(
+    input: &'a str,
+    pattern: &IdPattern,
+) -> Option<FullIdMatch<'a>> {
+    let walk = Walk {
+        literals: LiteralCase::Exact,
+        digits: DigitWidth::Any,
+    };
+    pattern
+        .walk(input, walk)
+        .map(|reading| FullIdMatch { key: reading.key })
 }
 
-struct FullIdMatch {
-    key: Option<String>,
-}
-
-/// Greedily matches `input` against `pattern`'s segments. A `{key}` segment
-/// consumes the maximal `[A-Za-z][A-Za-z0-9]*` run; a `{number...}` segment
-/// consumes the maximal digit run; a literal segment must match exactly. No
-/// backtracking — sufficient given the DSL's own grammar (see module docs).
-fn match_full_id(input: &str, pattern: &str) -> Option<FullIdMatch> {
-    let segments = segments(pattern);
-    if segments.is_empty() {
-        return None;
-    }
-    let mut rest = input;
-    let mut key = None;
-    let mut number = None;
-    for segment in &segments {
-        match segment {
-            Segment::Literal(text) => {
-                rest = rest.strip_prefix(text.as_str())?;
-            }
-            Segment::Key => {
-                let mut end = 0;
-                for (index, c) in rest.char_indices() {
-                    let ok = if index == 0 {
-                        c.is_ascii_alphabetic()
-                    } else {
-                        c.is_ascii_alphanumeric()
-                    };
-                    if !ok {
-                        break;
-                    }
-                    end = index + c.len_utf8();
-                }
-                if end == 0 {
-                    return None;
-                }
-                key = Some(rest[..end].to_owned());
-                rest = &rest[end..];
-            }
-            Segment::Number => {
-                let end = rest
-                    .char_indices()
-                    .take_while(|(_, c)| c.is_ascii_digit())
-                    .last()
-                    .map_or(0, |(index, c)| index + c.len_utf8());
-                if end == 0 {
-                    return None;
-                }
-                number = Some(rest[..end].to_owned());
-                rest = &rest[end..];
-            }
-        }
-    }
-    if !rest.is_empty() || number.is_none() {
-        return None;
-    }
-    Some(FullIdMatch { key })
-}
-
-/// Classifies `input` as one of path / full ID / bare number / invalid.
 /// Classifies a raw user input into the shape the search cascade dispatches
 /// on.
 #[must_use]
@@ -190,10 +85,11 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
     let pattern_has_key = corpus::references_key(&scheme.id_pattern);
     let all_digits = input.chars().all(|c| c.is_ascii_digit());
 
-    if let Some(matched) = match_full_id(input, &scheme.id_pattern) {
-        if pattern_has_key
-            && matched.key.as_deref().is_some_and(|p| !p.is_empty())
-        {
+    let full_id = IdPattern::parse(&scheme.id_pattern)
+        .ok()
+        .and_then(|pattern| match_full_id(input, &pattern));
+    if let Some(matched) = full_id {
+        if pattern_has_key && matched.key.is_some() {
             return InputClass::FullId;
         }
         if all_digits {
@@ -205,13 +101,6 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
         return InputClass::BareNumber;
     }
     InputClass::Invalid
-}
-
-fn is_md_filename(name: &str) -> bool {
-    name.rsplit('.')
-        .next()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-        && name.contains('.')
 }
 
 fn is_draft_prefix(prefix: &str) -> bool {
