@@ -10,7 +10,6 @@ from tasks.eval.citing_once.fixtures import Composition, load_fixtures
 from tasks.eval.citing_once.logs import (
     composer_log_failures,
     synthesise_log_failures,
-    tool_calls,
 )
 from tasks.eval.citing_once.projects import build_project
 from tasks.eval.citing_once.sessions import session_command
@@ -22,6 +21,7 @@ from tasks.eval.citing_once.verdicts import (
 )
 from tasks.eval.documents.rule import key_order
 from tasks.eval.documents.sources import parse_sources
+from tasks.eval.headless.transcript import tool_calls
 from tasks.eval.toolchain import Toolchain
 
 REPO_ROOT = Path(__file__).resolve().parents[3]

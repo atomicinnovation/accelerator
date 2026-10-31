@@ -11,14 +11,11 @@ from tasks.eval.citing_once.fixtures import Composition, Fixture
 from tasks.eval.citing_once.logs import (
     composer_log_failures,
     synthesise_log_failures,
-    tool_calls,
 )
 from tasks.eval.citing_once.projects import Project, build_project
 from tasks.eval.citing_once.sessions import (
     RULE,
     composer_prompt,
-    prepare_repository,
-    run_session,
     session_command,
     synthesise_prompt,
 )
@@ -30,6 +27,8 @@ from tasks.eval.citing_once.verdicts import (
 )
 from tasks.eval.documents.rule import key_order
 from tasks.eval.documents.sources import parse_sources
+from tasks.eval.headless.claude import prepare_repository, run_session
+from tasks.eval.headless.transcript import tool_calls
 from tasks.eval.toolchain import Toolchain
 
 LOG = "session.jsonl"
@@ -145,7 +144,7 @@ def run_planned(
         plan.composition, plan.order, plan.directory / "project", seed
     )
     _save_layout(project, plan.directory)
-    prepare_repository(project)
+    prepare_repository(project.root)
     prompt = (
         composer_prompt(project, plugin_root)
         if plan.composition.carrier == "composer"
@@ -153,7 +152,7 @@ def run_planned(
     )
     code = run_session(
         session_command(prompt, plugin_root),
-        project,
+        project.root,
         plan.directory / LOG,
         toolchain.session_env(),
     )
