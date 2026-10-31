@@ -475,3 +475,16 @@ def test_a_record_carries_each_earlier_turn_s_events(tmp_path: Path) -> None:
 
     assert [len(record.earlier) for record in records] == [0, 1, 2]
     assert records[2].initial == turns.load_snapshot(tmp_path / "turn-0.json")
+
+
+def test_a_record_whose_message_is_text_holds_no_blocks() -> None:
+    denied = json.dumps(
+        {
+            "type": "system",
+            "subtype": "permission_denied",
+            "tool_name": "Bash",
+            "message": "This Bash command contains multiple operations.",
+        }
+    )
+
+    assert events(denied) == []
