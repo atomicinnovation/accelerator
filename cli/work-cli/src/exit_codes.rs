@@ -165,6 +165,15 @@
 //!   configured, as for `work promote`. Finishing a run, applying a
 //!   preview and discarding never select one.
 //!
+//! Every command that reads the ID scheme (`create`, `create-batch`,
+//! `next-number`, `resolve`, `list`, `promote`, `rekey` and `sync`) reports
+//! its config refusals at start, each exiting `1` and naming the setting and
+//! value: `E_WORK_ID_PATTERN_INVALID`, `E_WORK_KEY_INVALID` and
+//! `E_WORK_KEY_REQUIRED`. `list` reads the scheme without requiring a key, so
+//! it never gives `E_WORK_KEY_REQUIRED`, and `canonicalise-id` maps them to
+//! its own `E_PATTERN*` codes. Commands that never read the scheme (`show`,
+//! `diff`, `update`, `template-hints`, `link-external-id`) do not refuse.
+//!
 //! `work sync`, `work promote`, `work create`, `work create-batch`,
 //! `work next-number` and `work update --push` hold the identity-run lock
 //! for their whole run, and before reading or writing anything refuse with

@@ -140,8 +140,26 @@ fn a_hostile_project_is_refused_with_the_rule_five_reason(
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
+        stderr.starts_with(
+            "E_WORK_KEY_INVALID: --project 'a/b': key value 'a/b' must \
+             match [A-Za-z][A-Za-z0-9]* (rule 5)"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_pattern_is_refused_before_allocating() -> Result<(), TestError> {
+    let repo =
+        scratch_repo_with_work_config("  id_pattern: \"{number:4d}\"\n")?;
+    let output = run(repo.path(), &[])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
         stderr.contains(
-            "key value 'a/b' must match [A-Za-z][A-Za-z0-9]* (rule 5)"
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
         ),
         "{stderr}"
     );
