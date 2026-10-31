@@ -21,6 +21,7 @@ def _subbinary(name: str) -> str:
 
 @dataclass(frozen=True)
 class Toolchain:
+    bootstrap: Path
     launcher: Path
     corpus: Path
     research: Path
@@ -29,6 +30,7 @@ class Toolchain:
     def debug(cls, root: Path) -> Toolchain:
         debug = root / "cli/target/debug"
         return cls(
+            bootstrap=root / "bin" / LAUNCHER.name,
             launcher=debug / LAUNCHER.name,
             corpus=debug / _subbinary("accelerator-corpus"),
             research=debug / _subbinary("accelerator-research"),
@@ -39,8 +41,15 @@ class Toolchain:
 
         An ``ACCELERATOR_*_BIN`` override already set is replaced, unlike
         ``accelerator_env``: an eval exists to judge the working tree's builds.
+        This checkout's bootstrap leads ``PATH``, since a skill's commands
+        resolve ``accelerator`` there and an installed launcher earlier on it
+        would run a released CLI instead.
         """
+        inherited = os.environ.get("PATH", "")
         return os.environ | {
+            "PATH": os.pathsep.join(
+                filter(None, [str(self.bootstrap.parent), inherited])
+            ),
             "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
             "ACCELERATOR_LAUNCHER_BIN": str(self.launcher),
             "ACCELERATOR_CORPUS_BIN": str(self.corpus),

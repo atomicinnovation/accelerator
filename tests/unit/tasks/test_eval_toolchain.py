@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,7 @@ def test_the_toolchain_is_the_workspace_s_debug_builds(tmp_path: Path) -> None:
 
     debug = tmp_path / "cli/target/debug"
     assert toolchain == Toolchain(
+        bootstrap=tmp_path / "bin/accelerator",
         launcher=debug / "accelerator",
         corpus=debug / "accelerator-corpus",
         research=debug / "accelerator-research",
@@ -59,4 +61,22 @@ def test_a_session_env_points_the_launcher_at_the_debug_builds(
     assert env["ACCELERATOR_LAUNCHER_BIN"] == str(toolchain.launcher)
     assert env["ACCELERATOR_CORPUS_BIN"] == str(toolchain.corpus)
     assert env["ACCELERATOR_RESEARCH_BIN"] == str(toolchain.research)
-    assert env["PATH"] == "/usr/bin"
+    assert env["PATH"] == f"{tmp_path / 'bin'}:/usr/bin"
+
+
+def test_a_session_resolves_accelerator_to_this_checkout_s_bootstrap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installed = tmp_path / "installed"
+    installed.mkdir()
+    (installed / "accelerator").touch(mode=0o755)
+    checkout = tmp_path / "checkout"
+    (checkout / "bin").mkdir(parents=True)
+    (checkout / "bin/accelerator").touch(mode=0o755)
+    monkeypatch.setenv("PATH", str(installed))
+
+    env = Toolchain.debug(checkout).session_env()
+
+    assert shutil.which("accelerator", path=env["PATH"]) == str(
+        checkout / "bin/accelerator"
+    )
