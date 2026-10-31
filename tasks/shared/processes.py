@@ -155,14 +155,14 @@ def escalate(
     for pid in signalled:
         procs.terminate(pid)
     deadline = clock.now() + grace
-    while clock.now() < deadline:
+    while (remaining := deadline - clock.now()) > 0:
         for pid in relist():
             if pid not in signalled:
                 signalled.append(pid)
                 procs.terminate(pid)
         if not any(procs.is_alive(pid) for pid in signalled):
             return
-        clock.sleep(min(_POLL_INTERVAL, deadline - clock.now()))
+        clock.sleep(min(_POLL_INTERVAL, remaining))
     for pid in signalled:
         if procs.is_alive(pid):
             procs.kill(pid)

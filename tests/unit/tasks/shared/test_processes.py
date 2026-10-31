@@ -72,6 +72,25 @@ class TestEscalate:
         assert not procs.is_alive(11)
 
 
+class AdvancingClock(FakeClock):
+    def now(self):
+        self.t += 0.07
+        return self.t
+
+    def sleep(self, dt):
+        if dt < 0:
+            raise ValueError("sleep length must be non-negative")
+        super().sleep(dt)
+
+
+class TestEscalateOnAMovingClock:
+    def test_the_grace_never_sleeps_a_negative_length(self):
+        procs = FakeProcs()
+        procs.add(10, ignore_sigterm=True)
+        escalate([10], procs, AdvancingClock(), 0.58, relist=tuple)
+        assert procs.killed == [10]
+
+
 class TestReapTree:
     def test_the_leader_and_its_children_are_terminated(self):
         procs, clock = FakeProcs(), FakeClock()
