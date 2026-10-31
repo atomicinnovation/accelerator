@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T14:57:03+00:00"
+last_updated: "2026-10-31T16:02:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2134,7 +2134,8 @@ the breadth and the template resolution directly.
 
 - **Commits.** Change 1 landed as one commit. Changes 2–5 landed as four:
   the scenario model, mutations and `gate_of`; the corpus; the builder; then
-  the scenario files, pre-flight and lane together.
+  the scenario files, pre-flight and lane together. The manual check added
+  two more: E1's reworded question, then the prose fixes.
 - **Mutations.** Each mutation's frozen dataclass lives in `mutations.py`
   with its own `apply(set_root)`, and `parse_mutation` reads one by mapping
   pattern; `scenarios.py` imports them rather than defining them.

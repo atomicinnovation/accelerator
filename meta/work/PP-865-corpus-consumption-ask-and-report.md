@@ -13,7 +13,7 @@ blocks: ["work-item:PP-868"]
 blocked_by: ["work-item:PP-861", "work-item:PP-863", "work-item:PP-864", "work-item:PP-866", "work-item:PP-892"]
 relates_to: ["work-item:PP-867", "work-item:PP-868", "work-item:PP-891", "work-item:PP-897", "work-item:PP-923", "work-item:PP-936"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-10-30T22:36:52+00:00"
+last_updated: "2026-10-31T16:02:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
