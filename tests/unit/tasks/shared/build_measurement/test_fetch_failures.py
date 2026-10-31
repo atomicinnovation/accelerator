@@ -53,10 +53,21 @@ def test_a_failed_advisory_fetch_is_an_advisory_database_failure():
 @pytest.mark.parametrize(
     "code", ["ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"]
 )
-def test_each_npm_network_code_is_an_npm_registry_failure(code):
-    lines = _stamped(f"[deps:install:node] npm ERR! code {code}")
+@pytest.mark.parametrize("marker", ["ERR!", "error"])
+def test_each_npm_network_code_is_an_npm_registry_failure(code, marker):
+    lines = _stamped(f"[deps:install:node] npm {marker} code {code}")
 
     assert _inputs(lines) == [ExternalInput.NPM_REGISTRY]
+
+
+def test_a_network_code_outside_an_npm_error_is_not_a_failure():
+    lines = _stamped(
+        "[test:unit:tasks] tests/unit/tasks/shared/build_measurement/"
+        "test_fetch_failures.py::test_each_npm_network_code"
+        "[ETIMEDOUT] PASSED [  1%]"
+    )
+
+    assert fetch_failures(lines, run=1) == ()
 
 
 def test_a_non_network_failure_leaves_the_list_empty():

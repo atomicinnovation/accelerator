@@ -32,7 +32,8 @@ FETCH_FAILURE_PATTERNS: Mapping[ExternalInput, re.Pattern[str]] = (
                 r"\[ERROR\] failed to get 'FETCH_HEAD' metadata"
             ),
             ExternalInput.NPM_REGISTRY: re.compile(
-                r"\b(?:ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)\b"
+                r"\bnpm (?:ERR!|error) code "
+                r"(?:ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)\b"
             ),
         }
     )
