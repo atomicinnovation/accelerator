@@ -120,6 +120,7 @@ const FROZEN_NOT_PROMOTED: &[(&str, u8, u8)] = &[
     ("key-linked", 4, 4),
     ("target-exists", 4, 4),
     ("item-not-found", 4, 71),
+    ("id-not-one-path-component", 4, 4),
     ("adopted-issue-missing", 4, 4),
     ("adopt-conflicts-with-recorded-key", 4, 4),
     ("retirement-failed", 71, 71),
@@ -164,6 +165,9 @@ fn every_reason(issue_exists: bool) -> Vec<NotPromoted> {
         NotPromoted::Refused(RetirementRefusal::ItemNotFound(
             "draft-k7mq3x".to_owned(),
         )),
+        NotPromoted::Refused(RetirementRefusal::IdNotOnePathComponent {
+            id: "../x".to_owned(),
+        }),
         NotPromoted::AdoptedIssueMissing(key()),
         NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() },
         NotPromoted::RetirementFailed(RetirementFailure::RolledBack {

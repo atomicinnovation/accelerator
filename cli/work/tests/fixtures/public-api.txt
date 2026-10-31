@@ -1320,6 +1320,8 @@ impl core::fmt::Debug for work::retirement::RetirementFailure
 pub fn work::retirement::RetirementFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::retirement::RetirementFailure
 pub enum work::retirement::RetirementRefusal
+pub work::retirement::RetirementRefusal::IdNotOnePathComponent
+pub work::retirement::RetirementRefusal::IdNotOnePathComponent::id: alloc::string::String
 pub work::retirement::RetirementRefusal::IdTaken
 pub work::retirement::RetirementRefusal::IdTaken::field: work::identity::IdentityField
 pub work::retirement::RetirementRefusal::IdTaken::holder: std::path::PathBuf

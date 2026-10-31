@@ -723,6 +723,7 @@ the same record keyed by the draft ID:
 | `rejected` | 75 | Nothing was sent, but the same request would be refused again. Change the draft (for example, its body), then sync. |
 | `id-taken`, `key-linked` | 4 | The issue exists, and the `holder` item already carries its key. If it is the same issue, delete the draft or merge it into the holder; otherwise fix the holder. Then `accelerator work promote <draft-id>`. |
 | `target-exists` | 4 | Move the `holder` file aside, then `accelerator work promote <draft-id>`. |
+| `id-not-one-path-component` | 4 | The draft's ID or the issue's key cannot name a file in the work directory, so nothing was written. Correct the draft's `id`, then `accelerator work promote <draft-id>`. |
 | `item-not-found` | 4 (71 once an issue exists) | The draft vanished. An issue it created is unlinked; the next sync imports it. |
 | `adopted-issue-missing` | 4 | The tracker has no issue under the `--adopt` key. Check the key, or use `--create`. |
 | `adopt-conflicts-with-recorded-key` | 4 | The draft's record already holds another key. `accelerator work promote <draft-id>` resumes onto that key. |

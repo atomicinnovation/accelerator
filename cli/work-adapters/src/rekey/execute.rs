@@ -13,6 +13,7 @@ use sha2::Sha256;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::Staleness;
 use work::rekey::outcome::NotRekeyed;
+use work::rekey::outcome::UnclassifiableCause;
 use work::rekey::run_plan::InProgressPlan;
 use work::rekey::run_plan::RunPlan;
 use work::rekey::write_set::Base;
@@ -204,6 +205,12 @@ fn refused_before_writing(
         RetirementRefusal::TargetExists(path) => NotRekeyed::TargetExists(path),
         RetirementRefusal::ItemNotFound(_) => {
             NotRekeyed::PreviewStale(Staleness::ItemsChanged(vec![mover]))
+        }
+        RetirementRefusal::IdNotOnePathComponent { id } => {
+            NotRekeyed::Unclassifiable {
+                item: mover,
+                cause: UnclassifiableCause::NotOnePathComponent { id },
+            }
         }
     }
 }
