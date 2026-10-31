@@ -12,6 +12,8 @@ anything beyond the probe ran.
 
 prints a diff against the fixture's column for that release, or the whole new
 column when the release has none; `--update` writes it into the fixture.
+`--fixture` measures another TSV instead, so rows can be probed without
+re-tuning the research guard's committed baseline.
 """
 
 import argparse
@@ -53,8 +55,8 @@ class Fixture:
     rows: list[list[str]]
 
     @classmethod
-    def read(cls) -> Fixture:
-        lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    def read(cls, path: Path) -> Fixture:
+        lines = path.read_text(encoding="utf-8").splitlines()
         preamble = [line for line in lines if line.startswith("#")]
         body = [line for line in lines if not line.startswith("#")]
         return cls(
@@ -78,9 +80,9 @@ class Fixture:
         columns = [self.columns[0], release, *self.columns[1:]]
         return Fixture(self.preamble, columns, rows)
 
-    def write(self) -> None:
+    def write(self, path: Path) -> None:
         body = ["\t".join(self.columns), *("\t".join(r) for r in self.rows)]
-        FIXTURE.write_text(
+        path.write_text(
             "\n".join([*self.preamble, *body]) + "\n", encoding="utf-8"
         )
 
@@ -198,20 +200,26 @@ def measure(
         return "denied" if was_denied(events) else "allowed"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--claude", type=Path, required=True)
     parser.add_argument("--config-dir", type=Path, required=True)
+    parser.add_argument(
+        "--fixture",
+        type=Path,
+        default=FIXTURE,
+        help="the TSV to measure and update (default: the research guard's)",
+    )
     parser.add_argument(
         "--update",
         action="store_true",
         help="write the measured column into the fixture",
     )
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(argv)
 
     release = release_of(arguments.claude)
     flags = permission_flags(release)
-    fixture = Fixture.read()
+    fixture = Fixture.read(arguments.fixture)
     verdicts = [
         measure(arguments.claude, arguments.config_dir, flags, unescape(row[0]))
         for row in fixture.rows
@@ -227,8 +235,8 @@ def main() -> int:
             print(f"{row[0]}\t{before} -> {verdict}")
 
     if arguments.update:
-        fixture.with_column(release, verdicts).write()
-        print(f"wrote the {release} column to {FIXTURE}")
+        fixture.with_column(release, verdicts).write(arguments.fixture)
+        print(f"wrote the {release} column to {arguments.fixture}")
     return 0
 
 
