@@ -12,9 +12,9 @@ topic's set on disk. Each is plumbing: the source profiles invoke `research
 fetch` through fenced command blocks (see [Anatomy of a skill
 invocation](internals.md#anatomy-of-a-skill-invocation)); `conduct` calls
 `research topic outstanding`; `report` calls `research topic report-path`;
-`conduct`, `synthesise` and `finalise` call `research topic counts`; `ask` and
-`report` call `research topic consultable`; and Claude Code runs `research
-guard` on every tool call that could run a command or write a file.
+`conduct`, `synthesise`, `finalise` and `report` call `research topic counts`;
+`ask` and `report` call `research topic consultable`; and Claude Code runs
+`research guard` on every tool call that could run a command or write a file.
 Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 
 | Verb                | What it does                                                         |
@@ -590,8 +590,9 @@ skill never derives a path or a plan by hand. Every subcommand takes the set
 by its slug, its directory, or a path inside it.
 
 **Permissions after a reply.** Claude Code grants a skill's commands only
-until your next reply. `ask` derives metadata and validates what it writes
-after you confirm a research proposal, so those commands prompt for
+until your next reply. `ask` and `report` derive metadata and validate what
+they write after you confirm a research proposal or accept a report, and
+`report` also runs `research topic counts` then, so those commands prompt for
 permission, and a headless session denies them. Add
 `Bash(accelerator corpus *)` and `Bash(accelerator research topic *)` to your
 Claude Code allow rules to avoid the prompt.
