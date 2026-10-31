@@ -2045,7 +2045,7 @@ error.". The claim appears in no finding, no synthesis and no report.
 
 **Equivalence questions.** In the equivalence variant:
 
-- "How do agents break down multi-step tasks?" is equivalent to A.
+- "How do LLM agents work out plans for multi-step tasks?" is equivalent to A.
 - "How do agents plan tasks within context limits?" overlaps A and B, but is
   equivalent to neither. P1 and W1/W2 answer it.
 - "Which agent frameworks expose planning hooks?" is answered by F2 and lists
@@ -2600,8 +2600,8 @@ keys to the 0281 criteria it closes:
 | R2 | `report` C1; `decline` → `writes: []`, `offers: none`, no next steps | 3 | 3 |
 | S1 | `ask` C1 → answered, `writes: []`; `report` C1, `accept` → written, status stays `complete` | 3 | 6 |
 | S2 | `ask` C4 and `report` C4 → gate passes, answered | 3 | 6 |
-| E1 | break-down → `equivalents: [A]`, `offers: pick`, `writes: []`; `rewrite 1` → `writes: [A, manifest.md]`, `report.kept: [id, title, question, date, parent, relates_to]`, `report_count: 3` | 3 | 3 |
-| E1 | break-down → `equivalents: [A]`; bare `accept` → `writes: []`, `offers: pick` (re-asked) | 3 | 3 |
+| E1 | work-out-plans → `equivalents: [A]`, `offers: pick`, `writes: []`; `rewrite 1` → `writes: [A, manifest.md]`, `report.kept: [id, title, question, date, parent, relates_to]`, `report_count: 3` | 3 | 3 |
+| E1 | work-out-plans → `equivalents: [A]`; bare `accept` → `writes: []`, `offers: pick` (re-asked) | 3 | 3 |
 | E1 | context-limits and planning-hooks → `equivalents: []`, `offers: accept`, `writes: []` | 3 | 6 |
 | E1 | GPUs-best → unanswered, `equivalents: []`, `offers: proposal`, `unchanged: [reports/*]` | 3 | 3 |
 | E1 | "…tasks!" → `equivalents: [A]`; `new` → `writes: [reports/…-2.md, manifest.md]`, `report_count: 4` | 3 | 3 |
@@ -3365,7 +3365,7 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 | `report` C1 frontmatter, body, manifest, `parent`, no `relates_to` | R1 C1 |
 | Validator rejects bad `coverage` and `status`; existing types valid | Phase 1 unit tests and goldens |
 | Equivalence listing and nothing written before the choice | E1 |
-| Rewrite of A in place | E1 break-down |
+| Rewrite of A in place | E1 work-out-plans |
 | Unanswered equivalent to U | E1 GPUs-best |
 | Rewrite variant C2 | E2 |
 | Collision `-2` | E1 "…tasks!" plus `a_taken_report_path_takes_the_first_free_suffix` |
