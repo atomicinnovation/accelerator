@@ -8,7 +8,7 @@ producer: "create-work-item"
 status: "draft"
 kind: "story"
 priority: "high"
-relates_to: ["work-item:0169", "work-item:0239", "work-item:0245", "work-item:0303"]
+relates_to: ["work-item:0169", "work-item:0239", "work-item:0245", "work-item:0303", "work-item:0281"]
 tags: ["permissions", "skills"]
 last_updated: "2026-10-12T02:11:25+00:00"
 last_updated_by: "Toby Clemson"
@@ -54,8 +54,10 @@ user's first reply whether or not they spawn agents.
 A classification of the skills that spawn agents or hold Bash grants found 16
 of 20 affected, most often at the final `accelerator corpus metadata derive` or
 `accelerator corpus frontmatter validate`. `stress-test-work-item` is affected
-only on its optional spawn path. `list-work-items`, `configure` and the
-non-`conduct` verbs of `research-topic` are not affected.
+only on its optional spawn path. `list-work-items` and `configure` are not
+affected. `research-topic`'s `ask` and `report` are: both run
+`accelerator corpus metadata derive` and `accelerator corpus frontmatter
+validate` after a user reply.
 
 Plugins cannot ship `permissions.allow`: a plugin's `settings` honours only
 `agent` and `subagentStatusLine`. 0169 deliberately limited the plugin's
