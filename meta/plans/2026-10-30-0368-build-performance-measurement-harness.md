@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
 repository: "accelerator"
-last_updated: "2026-10-31T16:59:26+00:00"
+last_updated: "2026-10-31T17:46:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2760,24 +2760,24 @@ by the steps in the test module's docstring.
 
 #### Manual Verification:
 
-- [ ] On the reference host, `mise run measure:build -- --runs 1 --keep`
+- [x] On the reference host, `mise run measure:build -- --runs 1 --keep`
       writes the record to both places with the following:
-  - [ ] per-task figures;
-  - [ ] buckets;
-  - [ ] wall-clock;
-  - [ ] the four tracked processes' CPU-seconds;
-  - [ ] every metadata field.
-- [ ] The run directory holds every log. `jj status` shows no change under
+  - [x] per-task figures;
+  - [x] buckets;
+  - [x] wall-clock;
+  - [x] the four tracked processes' CPU-seconds;
+  - [x] every metadata field.
+- [x] The run directory holds every log. `jj status` shows no change under
       `.accelerator-measure/`, and shows only the kept record under
       `meta/measurements/`.
-- [ ] The preflight block appears before idle sampling, progress lines
+- [x] The preflight block appears before idle sampling, progress lines
       appear while the run is going, and `tail -f` on the printed log path
       follows the build.
-- [ ] Ctrl-C during a timed run leaves no `mise`, `cargo`, `nextest` or
+- [x] Ctrl-C during a timed run leaves no `mise`, `cargo`, `nextest` or
       `iostat` process behind (`pgrep -fl 'mise run|iostat'`), writes no
       record, and leaves the logs captured so far in the run directory,
       whose path it prints.
-- [ ] Pressing Ctrl-C twice in quick succession leaves the same clean
+- [x] Pressing Ctrl-C twice in quick succession leaves the same clean
       state.
 
 ---
