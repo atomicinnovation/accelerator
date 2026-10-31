@@ -10,7 +10,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
 
-const TRACKER_TOKEN: &str = "{tracker}";
+pub const TRACKER_TOKEN: &str = "{tracker}";
 
 const TRACKER_INNER: &str = "tracker";
 
@@ -447,7 +447,7 @@ impl IdPattern {
         self.segments == [Segment::Tracker]
     }
 
-    fn width(&self) -> Option<usize> {
+    pub(crate) fn width(&self) -> Option<usize> {
         self.segments.iter().find_map(|segment| match segment {
             Segment::Number { width } => Some(*width),
             _ => None,
@@ -579,6 +579,14 @@ pub struct IdParts {
 }
 
 impl IdParts {
+    pub(crate) fn of(key: Option<&str>, digits: &str) -> Option<Self> {
+        Some(Self {
+            key: key.map(str::to_owned),
+            digits: digits.to_owned(),
+            number: digits.parse().ok()?,
+        })
+    }
+
     fn from_reading(reading: &Reading<'_>) -> Option<Self> {
         Some(Self {
             key: reading.key.map(str::to_owned),

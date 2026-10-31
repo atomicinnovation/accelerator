@@ -262,6 +262,8 @@ pub fn work::id_pattern::MissingKey::clone(&self) -> work::id_pattern::MissingKe
 impl core::cmp::Eq for work::id_pattern::MissingKey
 impl core::cmp::PartialEq for work::id_pattern::MissingKey
 pub fn work::id_pattern::MissingKey::eq(&self, other: &work::id_pattern::MissingKey) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::from(_: work::id_pattern::MissingKey) -> Self
 impl core::convert::From<work::id_pattern::MissingKey> for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey) -> Self
 impl core::error::Error for work::id_pattern::MissingKey
@@ -271,6 +273,87 @@ impl core::fmt::Display for work::id_pattern::MissingKey
 pub fn work::id_pattern::MissingKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::id_pattern::MissingKey
 impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
+pub const work::id_pattern::TRACKER_TOKEN: &str
+pub mod work::id_scheme
+pub enum work::id_scheme::CanonicaliseError
+pub work::id_scheme::CanonicaliseError::EmptyInput
+pub work::id_scheme::CanonicaliseError::MissingKey
+pub work::id_scheme::CanonicaliseError::NoMatch
+pub work::id_scheme::CanonicaliseError::UnrecognisedIdShape(alloc::string::String)
+impl core::clone::Clone for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::clone(&self) -> work::id_scheme::CanonicaliseError
+impl core::cmp::Eq for work::id_scheme::CanonicaliseError
+impl core::cmp::PartialEq for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::eq(&self, other: &work::id_scheme::CanonicaliseError) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::from(_: work::id_pattern::MissingKey) -> Self
+impl core::error::Error for work::id_scheme::CanonicaliseError
+impl core::fmt::Debug for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_scheme::CanonicaliseError
+pub enum work::id_scheme::IdOwnership
+pub work::id_scheme::IdOwnership::Local
+pub work::id_scheme::IdOwnership::Tracker
+impl core::clone::Clone for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::clone(&self) -> work::id_scheme::IdOwnership
+impl core::cmp::Eq for work::id_scheme::IdOwnership
+impl core::cmp::PartialEq for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::eq(&self, other: &work::id_scheme::IdOwnership) -> bool
+impl core::fmt::Debug for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_scheme::IdOwnership
+impl core::marker::StructuralPartialEq for work::id_scheme::IdOwnership
+pub enum work::id_scheme::TrackerIntegrationError
+pub work::id_scheme::TrackerIntegrationError::TrackerNeedsJiraOrLinear
+impl core::clone::Clone for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::clone(&self) -> work::id_scheme::TrackerIntegrationError
+impl core::cmp::Eq for work::id_scheme::TrackerIntegrationError
+impl core::cmp::PartialEq for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::eq(&self, other: &work::id_scheme::TrackerIntegrationError) -> bool
+impl core::error::Error for work::id_scheme::TrackerIntegrationError
+impl core::fmt::Debug for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_scheme::TrackerIntegrationError
+impl core::marker::StructuralPartialEq for work::id_scheme::TrackerIntegrationError
+pub struct work::id_scheme::WorkItemIdScheme
+impl work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::canonicalise(&self, input: &str) -> core::result::Result<alloc::string::String, work::id_scheme::CanonicaliseError>
+pub fn work::id_scheme::WorkItemIdScheme::holds(&self, held: &str, id: &work::id_pattern::IdParts) -> bool
+pub fn work::id_scheme::WorkItemIdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::WorkItemIdScheme::is_any_key_id_token(&self, token: &str) -> bool
+pub fn work::id_scheme::WorkItemIdScheme::is_canonical_id_token(&self, token: &str) -> bool
+pub fn work::id_scheme::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
+pub const fn work::id_scheme::WorkItemIdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
+pub fn work::id_scheme::WorkItemIdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
+pub fn work::id_scheme::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::WorkItemIdScheme::numeric() -> Self
+pub fn work::id_scheme::WorkItemIdScheme::ownership(&self) -> work::id_scheme::IdOwnership
+pub fn work::id_scheme::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
+pub const fn work::id_scheme::WorkItemIdScheme::pattern(&self) -> &work::id_pattern::IdPattern
+pub fn work::id_scheme::WorkItemIdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
+pub fn work::id_scheme::WorkItemIdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<(work::id_pattern::IdParts, usize)>
+impl core::clone::Clone for work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::clone(&self) -> work::id_scheme::WorkItemIdScheme
+impl core::cmp::Eq for work::id_scheme::WorkItemIdScheme
+impl core::cmp::PartialEq for work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::eq(&self, other: &work::id_scheme::WorkItemIdScheme) -> bool
+impl core::default::Default for work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::default() -> Self
+impl core::fmt::Debug for work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_scheme::WorkItemIdScheme
+impl corpus::id_convention::IdConvention for work::id_scheme::WorkItemIdScheme
+pub fn work::id_scheme::WorkItemIdScheme::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::WorkItemIdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::WorkItemIdScheme::is_id(&self, token: &str) -> bool
+pub fn work::id_scheme::WorkItemIdScheme::slug_start(&self, stem: &str) -> core::option::Option<usize>
+pub const work::id_scheme::TRACKER_TOKEN: &str
+pub fn work::id_scheme::check_tracker_integration(pattern: &work::id_pattern::IdPattern, supports_tracker_ids: bool) -> core::result::Result<(), work::id_scheme::TrackerIntegrationError>
+pub fn work::id_scheme::is_tracker_owned_token(token: &str) -> bool
 pub mod work::identity
 pub enum work::identity::IdentityField
 pub work::identity::IdentityField::Alias
