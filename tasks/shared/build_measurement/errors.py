@@ -51,3 +51,7 @@ class BuildLeftRunningError(MeasurementRefusedError):
             f"the build's process group {pgid} outlived its reap; stop it "
             f"with `kill -KILL -{pgid}`"
         )
+
+
+class UnmeasurableDirectoryError(MeasurementRefusedError):
+    pass

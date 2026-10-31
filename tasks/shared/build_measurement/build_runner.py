@@ -8,7 +8,7 @@ from typing import IO
 
 from tasks.shared.build_measurement.analysis import BuildResult
 from tasks.shared.build_measurement.errors import BuildLeftRunningError
-from tasks.shared.build_measurement.samplers import open_log
+from tasks.shared.build_measurement.log_files import open_log
 from tasks.shared.build_measurement.session import BuildGroup
 from tasks.shared.build_measurement.timeline import StampedLine, stamped_text
 from tasks.shared.clock import Clock

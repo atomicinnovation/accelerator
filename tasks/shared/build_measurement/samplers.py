@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
 
+from tasks.shared.build_measurement.log_files import open_log
 from tasks.shared.build_measurement.timeline import StampedLine, stamped_text
 from tasks.shared.build_measurement.tracked_processes import (
     TrackedProcess,
@@ -18,10 +19,6 @@ from tasks.shared.build_measurement.tracked_processes import (
 from tasks.shared.clock import Clock
 
 _JOIN_TIMEOUT_SECONDS = 5.0
-
-
-def open_log(path: Path) -> IO[str]:
-    return path.open("w", buffering=1, encoding="utf-8", newline="\n")
 
 
 @dataclass(slots=True)
