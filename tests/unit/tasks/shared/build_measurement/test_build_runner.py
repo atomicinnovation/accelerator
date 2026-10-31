@@ -161,6 +161,29 @@ class TestStreaming:
         assert [line.text for line in result.lines] == ["[t] caf�"]
 
 
+class TestEnvironment:
+    def test_a_nested_build_reports_task_timings_as_a_direct_run_would(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("MISE_TASK_TIMINGS", "0")
+        monkeypatch.setenv("MISE_TASK_NAME", "measure:build")
+        monkeypatch.setenv("MISE_TASK_PGID_MANAGED", "1")
+        result = _runner(tmp_path).run(
+            _python(
+                "import os; "
+                'print(os.environ.get("MISE_TASK_TIMINGS")); '
+                "print(sorted(k for k in os.environ "
+                'if k.startswith("MISE_TASK_")))'
+            ),
+            epoch=Clock().now(),
+            log=tmp_path / "run-1.log",
+        )
+        assert [line.text for line in result.lines] == [
+            "1",
+            "['MISE_TASK_TIMINGS']",
+        ]
+
+
 class TestBuildGroupFile:
     def test_the_builds_group_is_remembered_while_it_runs_and_forgotten_after(
         self, tmp_path

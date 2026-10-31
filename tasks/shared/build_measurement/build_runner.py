@@ -1,5 +1,6 @@
 import contextlib
 import io
+import os
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -19,6 +20,17 @@ from tasks.shared.signals import (
     deferred_signals,
     unwind_then_defer,
 )
+
+
+def _direct_run_environment() -> dict[str, str]:
+    # An enclosing `mise run` exports MISE_TASK_* to its children, including
+    # MISE_TASK_TIMINGS=0, which silences every per-task "Finished in" line.
+    inherited = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("MISE_TASK_")
+    }
+    return inherited | {"MISE_TASK_TIMINGS": "1"}
 
 
 def _decoded(stdout: IO[bytes]) -> io.TextIOWrapper:
@@ -45,6 +57,7 @@ class SubprocessBuildRunner:
             child = subprocess.Popen(
                 argv,
                 cwd=self.root,
+                env=_direct_run_environment(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
