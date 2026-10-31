@@ -281,17 +281,17 @@ from the current findings, with the VCS as its history.
       `partial`, or whose `status` is anything other than `complete`, when
       it is validated, then validation fails; and every existing document
       type in the corpus still validates unchanged.
-- [ ] Given the equivalence variant, when `report` runs with
-      "How do agents break down multi-step tasks?", then the answer is shown
+- [ ] Given the equivalence variant, when `report` runs with "How do LLM
+      agents work out plans for multi-step tasks?", then the answer is shown
       with A listed and the user accepts or rejects it and picks A or none;
       with either of the other two equivalence questions, the answer is shown
       with no report listed and the user only accepts or rejects it. Nothing
       is written before the user's choice.
-- [ ] Given the equivalence variant, when `report` runs with "How do agents
-      break down multi-step tasks?" and the user accepts and picks A, then
-      A's file is rewritten in place, its `question` still reads "How do LLM
-      agents plan multi-step tasks?", no new file appears, and
-      `report_count` is unchanged.
+- [ ] Given the equivalence variant, when `report` runs with "How do LLM
+      agents work out plans for multi-step tasks?" and the user accepts and
+      picks A, then A's file is rewritten in place, its `question` still
+      reads "How do LLM agents plan multi-step tasks?", no new file appears,
+      and `report_count` is unchanged.
 - [ ] Given the equivalence variant, when `report` runs with "Which GPUs
       train agent models best?", which is unanswered and equivalent to report
       U, then no report list or accept/reject prompt is shown before the
