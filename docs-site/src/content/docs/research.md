@@ -589,6 +589,13 @@ working notes, never findings.
 skill never derives a path or a plan by hand. Every subcommand takes the set
 by its slug, its directory, or a path inside it.
 
+**Permissions after a reply.** Claude Code grants a skill's commands only
+until your next reply. `ask` derives metadata and validates what it writes
+after you confirm a research proposal, so those commands prompt for
+permission, and a headless session denies them. Add
+`Bash(accelerator corpus *)` and `Bash(accelerator research topic *)` to your
+Claude Code allow rules to avoid the prompt.
+
 ### `research topic outstanding`
 
 `conduct` asks the research CLI which pairs are outstanding and where their

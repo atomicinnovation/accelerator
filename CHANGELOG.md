@@ -509,6 +509,15 @@
   judges whether a set may be consulted: its status, its freshness and
   whether every outline pair is answered, in that order. It prints the first
   gate that fails, or the findings and reports to read.
+- **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from
+  a synthesised, fresh, fully conducted set in conversation. It states its
+  coverage as `answered`, `partial` or `unanswered`, naming the sources and
+  tiers behind each part, and for a partial or unanswered question proposes a
+  new outline round, which it appends and reopens the set for only on
+  confirmation. Until Claude Code keeps a skill's grant across a reply, the
+  commands `ask` runs after a reply prompt for permission, and are denied in
+  a headless session; adding `Bash(accelerator corpus *)` and
+  `Bash(accelerator research topic *)` to your allow rules avoids that.
 
 ### Changed
 
