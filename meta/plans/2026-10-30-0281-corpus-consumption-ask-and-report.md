@@ -1756,24 +1756,43 @@ classify exactly the `test:integration:*` lanes.
 
 #### Automated Verification:
 
-- [ ] Count and consultation unit tests fail before the modules exist, then pass: `mise run test:unit:cli`
-- [ ] Subcommand tests fail before the subcommands exist, then pass: `mise run test:unit:cli`
-- [ ] The `conduct`, `synthesise` and `finalise` structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] The toolchain, marker and eval build-pin tests fail before the change, then pass: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_eval_toolchain.py tests/unit/tasks/test_mise.py`
-- [ ] Public API snapshots match: `mise run public-api:check`
-- [ ] Rust lint passes: `mise run cli:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] Count and consultation unit tests fail before the modules exist, then pass: `mise run test:unit:cli`
+- [x] Subcommand tests fail before the subcommands exist, then pass: `mise run test:unit:cli`
+- [x] The `conduct`, `synthesise` and `finalise` structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] The toolchain, marker and eval build-pin tests fail before the change, then pass: `uv run pytest tests/unit/tasks/test_citing_once_eval.py tests/unit/tasks/test_eval_toolchain.py tests/unit/tasks/test_mise.py`
+- [x] Public API snapshots match: `mise run public-api:check`
+- [x] Rust lint passes: `mise run cli:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
 Every skill run below uses the dev launcher, as **Dev launcher setup** in
 Testing Strategy lists it.
 
-- [ ] On a scratch copy of the multiround fixture, `<repo>/cli/target/debug/accelerator-research topic counts example-multiround-subject` prints `"fresh": true`. After `finding_count` is edited to 9, it prints the finding-count sentence.
+- [x] On a scratch copy of the multiround fixture, `<repo>/cli/target/debug/accelerator-research topic counts example-multiround-subject` prints `"fresh": true`. After `finding_count` is edited to 9, it prints the finding-count sentence.
 - [ ] On the same copy, `/accelerator:research-topic finalise example-multiround-subject` refuses naming that sentence and mutates nothing.
 - [ ] On a fresh copy, `/accelerator:research-topic synthesise example-multiround-subject` leaves `round_count`, `finding_count` and `rounds_covered` equal to `counts`' `derived` values.
 - [ ] On a fresh copy with one finding removed, `/accelerator:research-topic conduct example-multiround-subject` gap-fills it and leaves `round_count` at 2. With a `## Round 3` item appended, a second `conduct` raises `round_count` to 3. Both runs need live web or OpenAlex access.
 - [ ] `mise run eval:citing-once` passes its `synthesise` families as it did before this phase, now on the dev toolchain.
+
+### As built
+
+- **Commits.** Change 1 landed as three commits: the planner's switch to
+  `is_finding_entry`, the domain counts, then `read_counts`. Change 2 landed
+  as the verdict, then its `read_set_status` and `read_plan` adapters.
+  Changes 3–6 landed one commit each.
+- **Stored values.** `read_counts` reads a YAML `null` as missing, and a
+  negative integer, a boolean, a float, a list or a mapping as unreadable,
+  rendering the last two as `a list` and `a mapping`.
+- **Extra tests.** The adapter gains tests for `read_set_status` (a missing
+  manifest or `status` fails) and for `read_plan` (it equals the default-depth
+  query plan). `test_eval_toolchain.py` also pins `Toolchain.debug`'s paths
+  and `session_env`, including that it replaces an inherited
+  `ACCELERATOR_RESEARCH_BIN`.
+- **Docs.** Each new command's exit-code table gives a failure without its
+  own code a row whose code reads "none; the message names" the path.
+- **Manual checks.** The four skill and eval runs need the dev launcher's
+  marker, live sources and model usage, and were not run.
 
 ---
 
