@@ -51,6 +51,7 @@ class FakeProcs:
         self.killed: list[int] = []
         self.group_signals: list[tuple[int, int]] = []
         self.caller_group = 1
+        self.foreign_groups: set[int] = set()
 
     def add(self, pid, ct=1000.0, parent=None, **kw):
         self.procs[pid] = FakeProc(ct, parent=parent, **kw)
@@ -109,7 +110,7 @@ class FakeProcs:
         return self.caller_group
 
     def group_alive(self, pgid):
-        return bool(self._members(pgid))
+        return pgid not in self.foreign_groups and bool(self._members(pgid))
 
     def group_members(self, pgid):
         return tuple((pid, p.command) for pid, p in self._members(pgid))
