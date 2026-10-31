@@ -3,7 +3,7 @@
 //! work-item-ID conventions, and the artifact-metadata contract.
 //!
 //! Kernel-only: no serde, YAML, regex, or filesystem crate enters its closure.
-//! The convention algorithms take infra-sourced data (a compiled scanner, a
+//! The convention algorithms take infra-sourced data (an ID convention, a
 //! doc-type table, a parsed frontmatter value) by injection.
 
 pub mod adr;
@@ -12,6 +12,7 @@ pub mod cluster;
 pub mod doc_type;
 pub mod frontmatter;
 pub mod frontmatter_validation;
+pub mod id_convention;
 pub mod linkage;
 pub mod lock;
 pub mod metadata;
@@ -27,6 +28,7 @@ pub mod value;
 pub mod work_item_id;
 
 pub use crate::doc_type::DocTypeKey;
+pub use crate::id_convention::IdConvention;
 pub use crate::linkage::Band;
 pub use crate::linkage::LinkageRecord;
 pub use crate::metadata::ArtifactMetadata;
@@ -53,5 +55,6 @@ pub use crate::work_item_id::IdOwnership;
 pub use crate::work_item_id::IdPatternError;
 pub use crate::work_item_id::IdScan;
 pub use crate::work_item_id::IdScanner;
+pub use crate::work_item_id::SchemeConvention;
 pub use crate::work_item_id::WorkItemIdScheme;
 pub use crate::work_item_id::TRACKER_TOKEN;

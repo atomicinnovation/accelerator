@@ -184,13 +184,12 @@ pub fn corpus::cluster::Cluster::fmt(&self, f: &mut core::fmt::Formatter<'_>) ->
 impl core::marker::StructuralPartialEq for corpus::cluster::Cluster
 pub struct corpus::cluster::ClusterContext<'a, E: corpus::cluster::ClusterEntry>
 pub corpus::cluster::ClusterContext::entries_by_path: std::collections::hash::map::HashMap<std::path::PathBuf, &'a E>
+pub corpus::cluster::ClusterContext::identity: &'a dyn corpus::id_convention::IdConvention
 pub corpus::cluster::ClusterContext::plans_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>
 pub corpus::cluster::ClusterContext::project_root: &'a std::path::Path
-pub corpus::cluster::ClusterContext::scanner: &'a dyn corpus::work_item_id::IdScanner
-pub corpus::cluster::ClusterContext::scheme: &'a corpus::work_item_id::WorkItemIdScheme
 pub corpus::cluster::ClusterContext::work_item_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>
 impl<'a, E: corpus::cluster::ClusterEntry> corpus::cluster::ClusterContext<'a, E>
-pub fn corpus::cluster::ClusterContext<'a, E>::from_entries(entries: &'a [E], work_item_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &'a std::path::Path, scheme: &'a corpus::work_item_id::WorkItemIdScheme, scanner: &'a dyn corpus::work_item_id::IdScanner) -> Self
+pub fn corpus::cluster::ClusterContext<'a, E>::from_entries(entries: &'a [E], work_item_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &'a std::path::Path, identity: &'a dyn corpus::id_convention::IdConvention) -> Self
 pub struct corpus::cluster::Clustering
 pub corpus::cluster::Clustering::cluster_key_by_path: std::collections::hash::map::HashMap<std::path::PathBuf, core::option::Option<alloc::string::String>>
 pub corpus::cluster::Clustering::clusters: alloc::vec::Vec<corpus::cluster::Cluster>
@@ -228,8 +227,8 @@ pub fn corpus::cluster::ClusterEntry::title(&self) -> &str
 pub fn corpus::cluster::ClusterEntry::work_item_id(&self) -> core::option::Option<&str>
 pub fn corpus::cluster::compute<E: corpus::cluster::ClusterEntry>(entries: &[E], ctx: &corpus::cluster::ClusterContext<'_, E>) -> corpus::cluster::Clustering
 pub fn corpus::cluster::normalize_target_key(raw: &str, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
-pub fn corpus::cluster::resolve_cluster_key<E: corpus::cluster::ClusterEntry>(entry: &E, entries_by_path: &std::collections::hash::map::HashMap<std::path::PathBuf, &E>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &std::path::Path, scheme: &corpus::work_item_id::WorkItemIdScheme, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
-pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::doc_type::DocTypeKey, target: core::option::Option<&str>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, scheme: &corpus::work_item_id::WorkItemIdScheme, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub fn corpus::cluster::resolve_cluster_key<E: corpus::cluster::ClusterEntry>(entry: &E, entries_by_path: &std::collections::hash::map::HashMap<std::path::PathBuf, &E>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &std::path::Path, identity: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
+pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::doc_type::DocTypeKey, target: core::option::Option<&str>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, identity: &dyn corpus::id_convention::IdConvention, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub mod corpus::doc_type
 pub enum corpus::doc_type::DocTypeKey
 pub corpus::doc_type::DocTypeKey::Decisions
@@ -556,6 +555,17 @@ pub fn corpus::frontmatter_validation::parse_entries(raw_frontmatter: &str) -> a
 pub fn corpus::frontmatter_validation::raw_value<'a>(entries: &'a [(alloc::string::String, alloc::string::String)], key: &str) -> core::option::Option<&'a str>
 pub fn corpus::frontmatter_validation::strip_surrounding_quote(raw: &str) -> &str
 pub fn corpus::frontmatter_validation::validate_file(raw_frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
+pub mod corpus::id_convention
+pub trait corpus::id_convention::IdConvention
+pub fn corpus::id_convention::IdConvention::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::id_convention::IdConvention::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::id_convention::IdConvention::is_id(&self, token: &str) -> bool
+pub fn corpus::id_convention::IdConvention::slug_start(&self, stem: &str) -> core::option::Option<usize>
+impl corpus::id_convention::IdConvention for corpus::work_item_id::SchemeConvention<'_>
+pub fn corpus::work_item_id::SchemeConvention<'_>::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::is_id(&self, token: &str) -> bool
+pub fn corpus::work_item_id::SchemeConvention<'_>::slug_start(&self, stem: &str) -> core::option::Option<usize>
 pub mod corpus::linkage
 pub enum corpus::linkage::Band
 pub corpus::linkage::Band::Ambiguous
@@ -790,8 +800,8 @@ pub fn corpus::scan::DirectoryProbe::is_dir(&self, path: &std::path::Path) -> bo
 pub trait corpus::scan::FileReader
 pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
 pub mod corpus::slug
-pub fn corpus::slug::derive(kind: corpus::doc_type::DocTypeKey, filename: &str, scheme: &corpus::work_item_id::WorkItemIdScheme, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
-pub fn corpus::slug::derive_work_item(filename: &str, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::slug::derive(kind: corpus::doc_type::DocTypeKey, filename: &str, ids: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
+pub fn corpus::slug::derive_work_item(filename: &str, ids: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
 pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
 pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
 pub fn corpus::slug::title_case_segment(segment: &str) -> alloc::string::String
@@ -1036,6 +1046,14 @@ impl core::marker::StructuralPartialEq for corpus::work_item_id::IdPatternError
 pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
+pub struct corpus::work_item_id::SchemeConvention<'a>
+pub corpus::work_item_id::SchemeConvention::scanner: &'a dyn corpus::work_item_id::IdScanner
+pub corpus::work_item_id::SchemeConvention::scheme: &'a corpus::work_item_id::WorkItemIdScheme
+impl corpus::id_convention::IdConvention for corpus::work_item_id::SchemeConvention<'_>
+pub fn corpus::work_item_id::SchemeConvention<'_>::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::is_id(&self, token: &str) -> bool
+pub fn corpus::work_item_id::SchemeConvention<'_>::slug_start(&self, stem: &str) -> core::option::Option<usize>
 pub struct corpus::work_item_id::WorkItemIdScheme
 pub corpus::work_item_id::WorkItemIdScheme::id_pattern: alloc::string::String
 pub corpus::work_item_id::WorkItemIdScheme::key: core::option::Option<alloc::string::String>
@@ -1319,6 +1337,14 @@ pub fn corpus::metadata::RepositoryFacts::eq(&self, other: &corpus::metadata::Re
 impl core::fmt::Debug for corpus::metadata::RepositoryFacts
 pub fn corpus::metadata::RepositoryFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::metadata::RepositoryFacts
+pub struct corpus::SchemeConvention<'a>
+pub corpus::SchemeConvention::scanner: &'a dyn corpus::work_item_id::IdScanner
+pub corpus::SchemeConvention::scheme: &'a corpus::work_item_id::WorkItemIdScheme
+impl corpus::id_convention::IdConvention for corpus::work_item_id::SchemeConvention<'_>
+pub fn corpus::work_item_id::SchemeConvention<'_>::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::is_id(&self, token: &str) -> bool
+pub fn corpus::work_item_id::SchemeConvention<'_>::slug_start(&self, stem: &str) -> core::option::Option<usize>
 pub struct corpus::WorkItemIdScheme
 pub corpus::WorkItemIdScheme::id_pattern: alloc::string::String
 pub corpus::WorkItemIdScheme::key: core::option::Option<alloc::string::String>
@@ -1346,6 +1372,16 @@ pub fn corpus::Clock::filename_timestamp(&self, format: corpus::metadata::Filena
 pub fn corpus::Clock::now_utc_iso(&self) -> alloc::string::String
 pub trait corpus::FileRemove
 pub fn corpus::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::IdConvention
+pub fn corpus::IdConvention::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::IdConvention::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::IdConvention::is_id(&self, token: &str) -> bool
+pub fn corpus::IdConvention::slug_start(&self, stem: &str) -> core::option::Option<usize>
+impl corpus::id_convention::IdConvention for corpus::work_item_id::SchemeConvention<'_>
+pub fn corpus::work_item_id::SchemeConvention<'_>::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::SchemeConvention<'_>::is_id(&self, token: &str) -> bool
+pub fn corpus::work_item_id::SchemeConvention<'_>::slug_start(&self, stem: &str) -> core::option::Option<usize>
 pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::RecordStore
