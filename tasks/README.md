@@ -250,6 +250,7 @@ run. Each named build is one `invoke build.cli-dev --group <name>` and so one
 
 A lane depends on exactly the leaves for the binaries it runs, and
 `_CLI_DEV_BUILDS` in `tests/unit/tasks/test_mise.py` pins each lane's set.
+`_EVAL_CLI_DEV_BUILDS` pins each eval's set the same way.
 
 A binary whose package declares `test-loopback` (`jira`, `linear`,
 `research`) is built with it in every debug build. Two builds of one
@@ -500,14 +501,26 @@ to compare with the baseline):
 
 ### The eval namespace
 
+An `eval:*` task judges a skill's behaviour through headless `claude -p`
+sessions, so it needs the claude CLI, network egress and model usage. Every
+eval is in **neither** the aggregate `check`, the bare `default` task nor the
+`test` roll-up. A transitive-closure guard in `tests/unit/tasks/test_mise.py`,
+keyed on the `invoke eval.` run string, enforces that for any new eval task.
+
+#### eval:citing-once
+
 `eval:citing-once` checks that composers and `synthesise` follow the
-citing-once rule (`skills/research/outputters/citing-once/SKILL.md`). It is in
-**neither** the aggregate `check`, the bare `default` task nor the `test`
-roll-up, because each of its 36 sessions is a headless `claude -p` run, so it
-needs the claude CLI, network egress and model usage. A transitive-closure
-guard in `tests/unit/tasks/test_mise.py`, keyed on the `invoke eval.` run
-string, enforces that. Run it after changing the rule, a carrier (the
-`composer` agent, `synthesise`, or the finding outputter), or the model.
+citing-once rule (`skills/research/outputters/citing-once/SKILL.md`) across
+36 sessions. Run it after changing the rule, a carrier (the `composer` agent,
+`synthesise`, or the finding outputter), or the model.
+
+- **Dev toolchain.** Sessions and the judge run the working tree's debug
+  builds of the launcher and the `corpus` and `research` sub-binaries
+  (`tasks/eval/toolchain.py`), since `synthesise` calls subcommands a released
+  binary may lack. The launcher runs them only beside the gitignored
+  `.accelerator-dev-launcher` marker, the operator's consent to unverified
+  binaries: the task refuses without it, never creates or removes it, and
+  reminds you to remove it, since `mise run` fails while it exists.
 
 - **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
   its criteria, each criterion its citations, the note or finding each sits
