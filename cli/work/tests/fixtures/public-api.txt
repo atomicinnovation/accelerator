@@ -274,6 +274,7 @@ pub fn work::id_pattern::MissingKey::fmt(&self, formatter: &mut core::fmt::Forma
 impl core::marker::Copy for work::id_pattern::MissingKey
 impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
 pub const work::id_pattern::TRACKER_TOKEN: &str
+pub fn work::id_pattern::escaped(text: &str) -> alloc::string::String
 pub mod work::id_scheme
 pub enum work::id_scheme::CanonicaliseError
 pub work::id_scheme::CanonicaliseError::EmptyInput

@@ -136,7 +136,8 @@ impl std::error::Error for MissingKey {}
 
 /// `text` safe to quote in a message: `'` escaped, and anything outside
 /// printable ASCII shown as its code point.
-pub(crate) fn escaped(text: &str) -> String {
+#[must_use]
+pub fn escaped(text: &str) -> String {
     let mut out = String::new();
     for character in text.chars() {
         match character {
