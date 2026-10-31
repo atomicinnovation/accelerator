@@ -238,3 +238,161 @@ fn full_ids_parse_as_parse_full_id_does() -> Result<(), TestError> {
     }
     Ok(())
 }
+
+struct Convention {
+    pattern: &'static str,
+    key: Option<&'static str>,
+}
+
+const CONVENTIONS: &[Convention] = &[
+    Convention {
+        pattern: "{number:04d}",
+        key: None,
+    },
+    Convention {
+        pattern: "{key}-{number:04d}",
+        key: Some(KEY),
+    },
+    Convention {
+        pattern: "{tracker}",
+        key: None,
+    },
+];
+
+const STEMS: &[&str] = &[
+    "0042-foo",
+    "42-foo",
+    "PP-0042-foo",
+    "pp-0042-foo",
+    "XY-0042-foo",
+    "MY_PROJ-7-a-title",
+    "0296-2026-review",
+    "draft-k7mq3x-title",
+    "PROJ-123-x",
+    "PRO_J-123-x",
+    "malformed",
+];
+
+const REFERENCES: &[&str] = &[
+    "0042", "42", "PP-0042", "pp-42", "XY-7", "ENG-0042", "PROJ-123", "TBD", "",
+];
+
+fn corpus_scheme(convention: &Convention) -> corpus::WorkItemIdScheme {
+    corpus::WorkItemIdScheme {
+        id_pattern: convention.pattern.to_owned(),
+        key: convention.key.map(str::to_owned),
+    }
+}
+
+fn work_scheme(
+    convention: &Convention,
+) -> Result<work::id_scheme::WorkItemIdScheme, TestError> {
+    Ok(work::id_scheme::WorkItemIdScheme::new(
+        IdPattern::parse(convention.pattern)?,
+        convention.key.map(IdKey::parse).transpose()?,
+    ))
+}
+
+type Answers = Vec<(String, Option<String>)>;
+
+fn answers(ids: &dyn corpus::IdConvention) -> Answers {
+    let mut out = Vec::new();
+    for stem in STEMS {
+        out.push((
+            format!("slug_start {stem}"),
+            ids.slug_start(stem).map(|end| end.to_string()),
+        ));
+        out.push((
+            format!("id_in_filename {stem}.md"),
+            ids.id_in_filename(&format!("{stem}.md")),
+        ));
+    }
+    for reference in REFERENCES {
+        out.push((
+            format!("is_id {reference}"),
+            Some(ids.is_id(reference).to_string()),
+        ));
+        out.push((
+            format!("identity_key {reference}"),
+            ids.identity_key(reference),
+        ));
+    }
+    out
+}
+
+fn changed(answers: &mut Answers, question: &str, answer: Option<&str>) {
+    let slot = answers
+        .iter_mut()
+        .find(|(asked, _)| asked == question)
+        .unwrap_or_else(|| unreachable!("{question} is asked"));
+    slot.1 = answer.map(str::to_owned);
+}
+
+#[test]
+fn the_scheme_is_an_id_convention() -> Result<(), TestError> {
+    for convention in CONVENTIONS {
+        let corpus = corpus_scheme(convention);
+        let scanner = RegexScanner::compile(&compile_scan_regex(
+            convention.pattern,
+            convention.key.unwrap_or_default(),
+        )?)?;
+        let mut expected = answers(&corpus::SchemeConvention {
+            scheme: &corpus,
+            scanner: &scanner,
+        });
+        for (question, answer) in
+            changes_from_the_corpus_scheme(convention.pattern)
+        {
+            changed(&mut expected, question, answer);
+        }
+        let work = work_scheme(convention)?;
+        assert_eq!(answers(&work), expected, "{}", convention.pattern);
+    }
+    Ok(())
+}
+
+fn changes_from_the_corpus_scheme(
+    pattern: &str,
+) -> Vec<(&'static str, Option<&'static str>)> {
+    let padded_and_folded = [
+        ("identity_key pp-42", Some("PP-0042")),
+        ("identity_key XY-7", Some("XY-0007")),
+        ("identity_key PROJ-123", Some("PROJ-0123")),
+    ];
+    match pattern {
+        "{number:04d}" => {
+            std::iter::once(("id_in_filename 42-foo.md", Some("0042")))
+                .chain(padded_and_folded)
+                .collect()
+        }
+        "{key}-{number:04d}" => [
+            ("slug_start 0042-foo", Some("5")),
+            ("slug_start 42-foo", Some("3")),
+            ("id_in_filename 42-foo.md", Some("PP-0042")),
+            ("slug_start pp-0042-foo", Some("8")),
+            ("id_in_filename pp-0042-foo.md", Some("PP-0042")),
+            ("slug_start XY-0042-foo", Some("8")),
+            ("id_in_filename XY-0042-foo.md", Some("XY-0042")),
+            ("slug_start 0296-2026-review", Some("5")),
+            ("slug_start PROJ-123-x", Some("9")),
+            ("id_in_filename PROJ-123-x.md", Some("PROJ-0123")),
+        ]
+        .into_iter()
+        .chain(padded_and_folded)
+        .collect(),
+        _ => vec![
+            ("slug_start 0042-foo", Some("5")),
+            ("id_in_filename 0042-foo.md", Some("0042")),
+            ("slug_start 42-foo", Some("3")),
+            ("id_in_filename 42-foo.md", Some("0042")),
+            ("id_in_filename pp-0042-foo.md", Some("PP-0042")),
+            ("slug_start 0296-2026-review", Some("5")),
+            ("id_in_filename 0296-2026-review.md", Some("0296")),
+            ("slug_start draft-k7mq3x-title", Some("13")),
+            ("id_in_filename draft-k7mq3x-title.md", Some("draft-k7mq3x")),
+            ("is_id 0042", Some("false")),
+            ("is_id 42", Some("false")),
+            ("identity_key pp-42", Some("PP-42")),
+        ],
+    }
+}
