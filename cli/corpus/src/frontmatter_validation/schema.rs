@@ -221,7 +221,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         kind: "manifest",
         code_state_anchored: false,
         required_extras: &["slug", "round_count", "finding_count", "primary"],
-        optional_extras: &[],
+        optional_extras: &["report_count"],
         empty_list_extras: &[],
         status_vocab: &[
             "briefed",
@@ -580,6 +580,16 @@ mod tests {
         let finding =
             row_for("topic-research", "finding").ok_or("finding row")?;
         assert!(!finding.optional_extras.contains(&"search_budget"));
+        Ok(())
+    }
+
+    #[test]
+    fn a_manifest_row_holds_report_count_as_optional(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let manifest =
+            row_for("topic-research", "manifest").ok_or("manifest row")?;
+        assert_eq!(manifest.optional_extras, &["report_count"]);
+        assert!(!manifest.required_extras.contains(&"report_count"));
         Ok(())
     }
 
