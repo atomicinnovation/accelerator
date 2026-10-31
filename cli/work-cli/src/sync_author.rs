@@ -299,7 +299,6 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         issue: &DiscoveredIssue,
     ) -> Result<AuthoredLocal, AuthorError> {
         let scheme = resolve_scheme(self.config)?;
-        let project = scheme.key.clone();
         let title = issue.title.as_str();
         let description = issue.body.as_str();
 
@@ -319,7 +318,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
             IdOwnership::Local => crate::create::allocate_id(
                 &scheme,
                 self.work_dir(),
-                project.as_deref(),
+                None,
                 &create,
             )
             .map_err(failed)?,

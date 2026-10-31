@@ -7,12 +7,10 @@
 use std::path::Path;
 
 use ::config::ConfigAccess;
-use corpus::IdOwnership;
-use corpus::WorkItemIdScheme;
-use corpus_adapters::compile_scan_regex;
-use corpus_adapters::RegexScanner;
 use work::draft_id::mint_draft_ids;
+use work::id_pattern::IdPattern;
 use work::next_number::allocate;
+use work::next_number::allocation_key;
 use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
 use work::work_item_files::identities;
@@ -71,24 +69,14 @@ fn allocation_message(error: &AllocationError, pattern: &str) -> String {
             "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
              '{pattern}' (no {{key}} token)"
         ),
+        AllocationError::InvalidProject(reason) => reason.to_string(),
         AllocationError::Overflow { .. } => {
             unreachable!("Overflow is handled by the caller separately")
         }
     }
 }
 
-fn mint_drafts(
-    scheme: &WorkItemIdScheme,
-    work_dir: &Path,
-    project: Option<&str>,
-    count: u32,
-) -> RunOutcome {
-    if project.is_some() {
-        return RunOutcome::Failed(allocation_message(
-            &AllocationError::ProjectUnused,
-            &scheme.id_pattern,
-        ));
-    }
+fn mint_drafts(work_dir: &Path, count: u32) -> RunOutcome {
     let files = match FilesystemWorkItemFiles::new(work_dir).files() {
         Ok(files) => files,
         Err(error) => return RunOutcome::Failed(error.to_string()),
@@ -119,6 +107,14 @@ pub fn run(
         Ok(scheme) => scheme,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
+    let pattern = match IdPattern::parse(&scheme.id_pattern) {
+        Ok(pattern) => pattern,
+        Err(error) => {
+            return RunOutcome::Failed(format!(
+                "E_WORK_ID_PATTERN_INVALID: {error}"
+            ))
+        }
+    };
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir = match resolve_work_dir(config, &root) {
         Ok(dir) => dir,
@@ -131,25 +127,21 @@ pub fn run(
             return RunOutcome::Refused { message, code };
         }
     };
-    let project = project.map(str::to_owned).or_else(|| scheme.key.clone());
-    if scheme.ownership() == IdOwnership::Tracker {
-        return mint_drafts(&scheme, &work_dir, project.as_deref(), count);
+    let key = match allocation_key(&pattern, project, scheme.key.as_deref()) {
+        Ok(key) => key,
+        Err(error) => {
+            return RunOutcome::Failed(allocation_message(
+                &error,
+                &scheme.id_pattern,
+            ))
+        }
+    };
+    if pattern.is_tracker_owned() {
+        return mint_drafts(&work_dir, count);
     }
 
     let filenames = FilesystemLister::new(&work_dir).filenames();
-    let scan_regex = match compile_scan_regex(
-        &scheme.id_pattern,
-        project.as_deref().unwrap_or(""),
-    ) {
-        Ok(regex) => regex,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
-    };
-    let scanner = match RegexScanner::compile(&scan_regex) {
-        Ok(scanner) => scanner,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
-    };
-
-    match allocate(&scheme, project.as_deref(), count, &filenames, &scanner) {
+    match allocate(&pattern, key.as_ref(), count, &filenames) {
         Ok(ids) => RunOutcome::Allocated(ids),
         Err(AllocationError::Overflow {
             partial,

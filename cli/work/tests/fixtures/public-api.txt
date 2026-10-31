@@ -172,6 +172,105 @@ impl<'a> core::marker::StructuralPartialEq for work::hierarchy::HierarchyNode<'a
 pub fn work::hierarchy::children_of<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::map::BTreeMap<&'a str, alloc::vec::Vec<usize>>
 pub fn work::hierarchy::cyclic_members<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::set::BTreeSet<&'a str>
 pub fn work::hierarchy::parents_first<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> work::hierarchy::BatchOrder<'a>
+pub mod work::id_pattern
+pub enum work::id_pattern::KeyError
+pub work::id_pattern::KeyError::BadKeyValue(alloc::string::String)
+impl core::clone::Clone for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::clone(&self) -> work::id_pattern::KeyError
+impl core::cmp::Eq for work::id_pattern::KeyError
+impl core::cmp::PartialEq for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::eq(&self, other: &work::id_pattern::KeyError) -> bool
+impl core::error::Error for work::id_pattern::KeyError
+impl core::fmt::Debug for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::KeyError
+pub enum work::id_pattern::PatternError
+pub work::id_pattern::PatternError::AdjacentTokens
+pub work::id_pattern::PatternError::BadFormatSpec(alloc::string::String)
+pub work::id_pattern::PatternError::DigitBesideToken
+pub work::id_pattern::PatternError::Empty
+pub work::id_pattern::PatternError::HostileChar(char)
+pub work::id_pattern::PatternError::NestedBrace(usize)
+pub work::id_pattern::PatternError::NoNumberToken
+pub work::id_pattern::PatternError::RepeatedToken
+pub work::id_pattern::PatternError::TrackerNotSoleToken
+pub work::id_pattern::PatternError::UnclosedToken(usize)
+pub work::id_pattern::PatternError::UnknownToken(alloc::string::String)
+pub work::id_pattern::PatternError::UnmatchedBrace(usize)
+pub work::id_pattern::PatternError::WidthOverflow(usize)
+impl core::clone::Clone for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::clone(&self) -> work::id_pattern::PatternError
+impl core::cmp::Eq for work::id_pattern::PatternError
+impl core::cmp::PartialEq for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::eq(&self, other: &work::id_pattern::PatternError) -> bool
+impl core::error::Error for work::id_pattern::PatternError
+impl core::fmt::Debug for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::PatternError
+pub struct work::id_pattern::IdKey(_)
+impl work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::as_str(&self) -> &str
+pub fn work::id_pattern::IdKey::parse(text: &str) -> core::result::Result<Self, work::id_pattern::KeyError>
+impl core::clone::Clone for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::clone(&self) -> work::id_pattern::IdKey
+impl core::cmp::Eq for work::id_pattern::IdKey
+impl core::cmp::PartialEq for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::eq(&self, other: &work::id_pattern::IdKey) -> bool
+impl core::fmt::Debug for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdKey
+pub struct work::id_pattern::IdParts
+impl work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::digits(&self) -> &str
+pub fn work::id_pattern::IdParts::key(&self) -> core::option::Option<&str>
+pub const fn work::id_pattern::IdParts::number(&self) -> u64
+pub fn work::id_pattern::IdParts::parse(pattern: &work::id_pattern::IdPattern, text: &str) -> core::option::Option<Self>
+pub fn work::id_pattern::IdParts::parse_prefix(pattern: &work::id_pattern::IdPattern, filename: &str) -> core::option::Option<(Self, usize)>
+pub fn work::id_pattern::IdParts::same_id(&self, other: &Self) -> bool
+impl core::clone::Clone for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::clone(&self) -> work::id_pattern::IdParts
+impl core::cmp::Eq for work::id_pattern::IdParts
+impl core::cmp::PartialEq for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::eq(&self, other: &work::id_pattern::IdParts) -> bool
+impl core::fmt::Debug for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdParts
+pub struct work::id_pattern::IdPattern
+impl work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::as_str(&self) -> &str
+pub fn work::id_pattern::IdPattern::cap(&self) -> core::option::Option<u64>
+pub fn work::id_pattern::IdPattern::is_tracker_owned(&self) -> bool
+pub fn work::id_pattern::IdPattern::parse(text: &str) -> core::result::Result<Self, work::id_pattern::PatternError>
+pub fn work::id_pattern::IdPattern::read_exact(&self, text: &str) -> core::option::Option<work::id_pattern::IdParts>
+pub fn work::id_pattern::IdPattern::references_key(&self) -> bool
+pub fn work::id_pattern::IdPattern::render(&self, key: core::option::Option<&work::id_pattern::IdKey>, number: u64) -> core::result::Result<alloc::string::String, work::id_pattern::MissingKey>
+impl core::clone::Clone for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::clone(&self) -> work::id_pattern::IdPattern
+impl core::cmp::Eq for work::id_pattern::IdPattern
+impl core::cmp::PartialEq for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::eq(&self, other: &work::id_pattern::IdPattern) -> bool
+impl core::fmt::Debug for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdPattern
+pub struct work::id_pattern::MissingKey
+impl core::clone::Clone for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::clone(&self) -> work::id_pattern::MissingKey
+impl core::cmp::Eq for work::id_pattern::MissingKey
+impl core::cmp::PartialEq for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::eq(&self, other: &work::id_pattern::MissingKey) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey) -> Self
+impl core::error::Error for work::id_pattern::MissingKey
+impl core::fmt::Debug for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_pattern::MissingKey
+impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
 pub mod work::identity
 pub enum work::identity::IdentityField
 pub work::identity::IdentityField::Alias
@@ -378,6 +477,7 @@ pub fn work::inventory::NamesWorkItem::work_item_named(&self, file_name: &str) -
 pub fn work::inventory::identify(listing: &work::work_item_files::WorkItemListing, names: &dyn work::inventory::NamesWorkItem, conflicted: &dyn work::inventory::ConflictedPaths) -> work::inventory::IdentifiedCorpus
 pub mod work::next_number
 pub enum work::next_number::AllocationError
+pub work::next_number::AllocationError::InvalidProject(work::id_pattern::KeyError)
 pub work::next_number::AllocationError::MissingKey
 pub work::next_number::AllocationError::Overflow
 pub work::next_number::AllocationError::Overflow::cap: u64
@@ -390,11 +490,13 @@ pub fn work::next_number::AllocationError::clone(&self) -> work::next_number::Al
 impl core::cmp::Eq for work::next_number::AllocationError
 impl core::cmp::PartialEq for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::eq(&self, other: &work::next_number::AllocationError) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey) -> Self
 impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
-pub fn work::next_number::allocate(scheme: &corpus::work_item_id::WorkItemIdScheme, project: core::option::Option<&str>, count: u32, filenames: &[alloc::string::String], scanner: &dyn corpus::work_item_id::IdScanner) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
-pub fn work::next_number::allocate_above(scheme: &corpus::work_item_id::WorkItemIdScheme, floor: u64, count: u32) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocate(pattern: &work::id_pattern::IdPattern, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&str>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
 pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc::string::String
@@ -2620,3 +2722,4 @@ pub fn work::work_item_files::WorkItemFiles::files(&self) -> core::result::Resul
 pub fn work::work_item_files::WorkItemFiles::listing(&self) -> core::result::Result<work::work_item_files::WorkItemListing, kernel::Error>
 pub fn work::work_item_files::identities(files: &[work::work_item_files::WorkItemFile]) -> alloc::vec::Vec<work::identity::ItemIdentity>
 pub fn work::work_item_files::identity_of(file: &work::work_item_files::WorkItemFile) -> core::option::Option<work::identity::ItemIdentity>
+pub fn work::work_item_files::is_md_filename(name: &str) -> bool

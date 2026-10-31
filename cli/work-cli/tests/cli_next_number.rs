@@ -129,3 +129,41 @@ fn overflow_prints_the_partial_ids_that_fit_then_exits_one(
     assert!(stderr.contains("number space exhausted"));
     Ok(())
 }
+
+#[test]
+fn a_hostile_project_is_refused_with_the_rule_five_reason(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    let output = run(repo.path(), &["--project", "a/b"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "key value 'a/b' must match [A-Za-z][A-Za-z0-9]* (rule 5)"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_lower_case_key_counts_in_the_configured_keys_sequence(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    for (number, slug) in (1..=10).zip('a'..='j') {
+        fs::write(
+            repo.path()
+                .join(format!("meta/work/PP-{number:04}-{slug}.md")),
+            "",
+        )?;
+    }
+    fs::write(repo.path().join("meta/work/pp-0500-b.md"), "")?;
+    let output = run(repo.path(), &[])?;
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PP-0501");
+    Ok(())
+}

@@ -12,13 +12,11 @@ use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus::FilenameTimestampFormat;
 use corpus::IdOwnership;
-use corpus_adapters::compile_scan_regex;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
-use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
@@ -34,8 +32,10 @@ use work::create::FieldValue;
 use work::create::TypedLinkage;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
+use work::id_pattern::IdPattern;
 use work::identity_run::IdentityRunGuard;
 use work::next_number::allocate;
+use work::next_number::allocation_key;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::resolve::DirectoryLister;
@@ -157,6 +157,7 @@ fn allocation_message(error: &AllocationError, pattern: &str) -> String {
                  '{pattern}' (no {{key}} token)"
             )
         }
+        AllocationError::InvalidProject(reason) => reason.to_string(),
         AllocationError::Overflow {
             highest,
             highest_file,
@@ -208,24 +209,31 @@ fn template_frontmatter_keys(content: &str) -> Result<Vec<String>, String> {
     }
 }
 
+/// The next ID under `scheme`, rendered under `project` when given and
+/// `scheme`'s own key otherwise.
 pub fn allocate_id(
     scheme: &corpus::WorkItemIdScheme,
     work_dir: &Path,
     project: Option<&str>,
     _create: &CreateLockGuard,
 ) -> Result<String, String> {
+    let pattern = id_pattern_of(scheme)?;
+    let key = allocation_key(&pattern, project, scheme.key.as_deref())
+        .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
     let filenames = FilesystemLister::new(work_dir).filenames();
-    let scan_regex =
-        compile_scan_regex(&scheme.id_pattern, project.unwrap_or(""))
-            .map_err(|error| error.to_string())?;
-    let scanner = RegexScanner::compile(&scan_regex)
-        .map_err(|error| error.to_string())?;
-    let allocated = allocate(scheme, project, 1, &filenames, &scanner)
+    let allocated = allocate(&pattern, key.as_ref(), 1, &filenames)
         .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
     allocated
         .into_iter()
         .next()
         .ok_or_else(|| "allocation produced no ID".to_owned())
+}
+
+fn id_pattern_of(
+    scheme: &corpus::WorkItemIdScheme,
+) -> Result<IdPattern, String> {
+    IdPattern::parse(&scheme.id_pattern)
+        .map_err(|error| format!("E_WORK_ID_PATTERN_INVALID: {error}"))
 }
 
 fn resolve_and_check_template(
@@ -442,12 +450,12 @@ impl CreationContext<'_> {
         &self,
         create: &CreateLockGuard,
     ) -> Result<String, String> {
-        let project = self
-            .args
-            .project
-            .clone()
-            .or_else(|| self.scheme.key.clone());
-        allocate_id(&self.scheme, &self.work_dir, project.as_deref(), create)
+        allocate_id(
+            &self.scheme,
+            &self.work_dir,
+            self.args.project.as_deref(),
+            create,
+        )
     }
 }
 
@@ -458,17 +466,16 @@ fn creation_context<'a>(
     args: &'a CreateArgs,
 ) -> Result<CreationContext<'a>, String> {
     let scheme = resolve_scheme(config).map_err(|error| error.to_string())?;
+    let pattern = id_pattern_of(&scheme)?;
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
         resolve_work_dir(config, &root).map_err(|error| error.to_string())?;
     std::fs::create_dir_all(&work_dir).map_err(|error| {
         format!("could not create the work-item directory: {error}")
     })?;
-    if scheme.ownership() == IdOwnership::Tracker && args.project.is_some() {
-        return Err(allocation_message(
-            &AllocationError::ProjectUnused,
-            &scheme.id_pattern,
-        ));
+    if pattern.is_tracker_owned() {
+        allocation_key(&pattern, args.project.as_deref(), None)
+            .map_err(|error| allocation_message(&error, &scheme.id_pattern))?;
     }
     let metadata = derive_at(
         &root,
