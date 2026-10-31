@@ -21,7 +21,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from invoke import Context, Exit
+from invoke.parser import Parser, ParserContext
 
+import tasks.measure as measure_module
 from tasks.measure import (
     BASELINE_COMMIT,
     CACHE_TEMP_PREFIX,
@@ -80,6 +83,7 @@ from tasks.measure import (
     jj_pin,
     last_floors,
     launcher_size_report,
+    measure_build_with,
     measure_digest_bracket,
     measure_floors,
     measure_shell_terms,
@@ -105,6 +109,13 @@ from tasks.measure import (
     warm_cache_gaps,
     write_personal_config,
 )
+from tasks.measure import build as build_task
+from tasks.shared.build_measurement.measured_build import HostSettings
+from tasks.shared.build_measurement.tracked_processes import (
+    DEFAULT_TRACKED_PROCESSES,
+    with_ide_patterns,
+)
+from tasks.shared.build_measurement.wiring import real_ports
 from tasks.shared.measurement import (
     PLATFORM_KEY_ENV,
     ArtefactState,
@@ -159,7 +170,13 @@ from tasks.shared.measurement import (
     unpaired_ratio_interval,
     validate_sample,
 )
+from tasks.shared.paths import REPO_ROOT
 from tasks.shared.repository import RepositoryKind
+from tests.unit.tasks.shared.build_measurement.doubles import (
+    CLEAN_BUILD,
+    TEST_FAILS,
+    FakeSession,
+)
 
 REPO = Path(__file__).resolve().parents[3]
 README = REPO / "tasks/README.md"
@@ -1299,9 +1316,45 @@ class TestCriterionConstantsLockstep:
         assert "darwin-arm64.bash_floor_ms" in keys
 
 
+def _measure_prose() -> str:
+    text = README.read_text()
+    start = text.index("### The measure namespace")
+    return " ".join(
+        text[start : text.index("\n### Criterion constants")].split()
+    )
+
+
 class TestMeasureNamespaceDocs:
     def test_the_namespace_has_its_own_conventions_subsection(self):
         assert "### The measure namespace" in README.read_text()
+
+    def test_build_is_documented_without_a_quiet_host(self):
+        section = _measure_prose()
+        for required in (
+            "measure:build",
+            ".accelerator-measure/build/",
+            "--keep",
+            "needs no quiet host",
+            "lower bound",
+            "`presence`",
+            "`conditions`",
+        ):
+            assert required in section, required
+
+    def test_taking_a_comparable_record_is_documented(self):
+        section = _measure_prose()
+        start = section.index("Taking a baseline or condition record")
+        rules = section[start:]
+        for required in (
+            "`none`",
+            "`devtools`",
+            "`devtools+ide-exclusion`",
+            "keep the IDE open",
+            "make no commit",
+            "retake on any fetch failure",
+            "nothing heavy in any other workspace",
+        ):
+            assert required in rules, required
 
     def test_it_states_every_prerequisite_a_run_needs(self):
         text = README.read_text()
@@ -3765,3 +3818,116 @@ class TestSummaryLatencyReport:
             record.describe(),
             "large git warm: median 4.00 ms, p90 4.00 ms (n=1)",
         ]
+
+
+@pytest.fixture
+def no_real_ports(monkeypatch):
+    def refuse(root):
+        raise AssertionError("the real ports were built")
+
+    monkeypatch.setattr(measure_module, "real_ports", refuse)
+
+
+@pytest.mark.usefixtures("no_real_ports")
+class TestBuildTask:
+    def captured_settings(self, monkeypatch, **flags):
+        seen = {}
+
+        def capture(make_settings, make_ports):
+            seen["settings"] = make_settings()
+
+        monkeypatch.setattr(measure_module, "measure_build_with", capture)
+        build_task(Context(), **flags)
+        return seen["settings"]
+
+    def test_runs_below_one_is_refused(self):
+        with pytest.raises(Exit, match="--runs must be at least 1"):
+            build_task(Context(), runs=0)
+
+    def test_an_unknown_host_settings_label_is_refused_listing_the_known_ones(
+        self,
+    ):
+        with pytest.raises(
+            Exit, match=r"known: none, devtools, devtools\+ide-exclusion"
+        ):
+            build_task(Context(), host_settings="quiet")
+
+    def test_runs_default_to_three(self, monkeypatch):
+        settings = self.captured_settings(monkeypatch)
+        assert settings.runs == 3
+        assert settings.root == REPO_ROOT
+        assert not settings.keep
+        assert settings.host_settings is HostSettings.UNSPECIFIED
+
+    def test_an_ide_pattern_replaces_only_the_ide_in_the_settings(
+        self, monkeypatch
+    ):
+        settings = self.captured_settings(
+            monkeypatch, ide_pattern=["/MacOS/clion"]
+        )
+        assert settings.tracked == with_ide_patterns(
+            DEFAULT_TRACKED_PROCESSES, ["/MacOS/clion"]
+        )
+
+    def test_each_flag_has_help(self):
+        assert set(build_task.help) == {
+            "runs",
+            "keep",
+            "host_settings",
+            "ide_pattern",
+        }
+
+    def test_repeated_flags_are_parsed_as_lists(self):
+        context = ParserContext(
+            name="measure.build", args=build_task.get_arguments()
+        )
+        [parsed] = Parser(contexts=[context]).parse_argv(
+            [
+                "measure.build",
+                "--ide-pattern",
+                "a",
+                "--ide-pattern",
+                "b",
+            ]
+        )
+        assert parsed.args.ide_pattern.value == ["a", "b"]
+
+
+class TestMeasureBuildWith:
+    def run(self, session: FakeSession, **settings):
+        measure_build_with(
+            lambda: session.settings(**settings),
+            lambda root: session.ports(),
+        )
+
+    def test_a_failed_task_still_exits_zero_writes_the_record_and_names_it(
+        self, tmp_path, capsys
+    ):
+        session = FakeSession(tmp_path, scripts=[CLEAN_BUILD, TEST_FAILS])
+        self.run(session, runs=1)
+        assert (session.run_directory / "record.json").exists()
+        assert "failed: test (run 1" in capsys.readouterr().out
+
+    def test_a_non_macos_host_exits_one_naming_macos_and_creates_nothing(
+        self, tmp_path
+    ):
+        session = FakeSession(tmp_path)
+        with pytest.raises(Exit, match="macOS") as refusal:
+            measure_build_with(
+                session.settings,
+                lambda root: session.ports(system=lambda: "Linux"),
+            )
+        assert refusal.value.code == 1
+        assert not (tmp_path / ".accelerator-measure").exists()
+
+    def test_a_directory_that_is_no_repository_exits_one(self, tmp_path):
+        session = FakeSession(tmp_path)
+        with pytest.raises(Exit, match=str(tmp_path)) as refusal:
+            measure_build_with(session.settings, real_ports)
+        assert refusal.value.code == 1
+
+    def test_keep_writes_the_record_under_measurements(self, tmp_path, capsys):
+        session = FakeSession(tmp_path)
+        self.run(session, runs=1, keep=True)
+        [kept] = (tmp_path / "meta" / "measurements").iterdir()
+        assert f"kept: {kept}" in capsys.readouterr().out

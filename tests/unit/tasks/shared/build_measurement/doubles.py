@@ -2,6 +2,7 @@
 
 import contextlib
 import datetime as dt
+import json
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,7 +27,12 @@ from tasks.shared.build_measurement.measured_build import (
     RunFigures,
 )
 from tasks.shared.build_measurement.record_model import NoReading
-from tasks.shared.build_measurement.session import BuildPorts
+from tasks.shared.build_measurement.session import (
+    BuildPorts,
+    OrphanedBuild,
+    measure_build,
+)
+from tasks.shared.build_measurement.settings import BuildSettings
 from tasks.shared.build_measurement.timeline import (
     CargoUnits,
     StampedLine,
@@ -36,8 +42,10 @@ from tasks.shared.build_measurement.timeline import (
 )
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
+    PS_ARGV,
     TrackedProcess,
 )
+from tests.unit.tasks.shared.doubles import FakeClock
 
 REFERENCE_HOST = HostDescription(
     hostname="engywook",
@@ -359,3 +367,149 @@ def untouchable_ports(**overrides) -> BuildPorts:
         "build_group": _Untouchable("build_group"),
     }
     return BuildPorts(**(ports | overrides))
+
+
+GRAPH_JSON = json.dumps(
+    [
+        {"name": "default", "depends": ["report", "test"], "run": []},
+        {"name": "build", "depends": [], "run": ["invoke build"]},
+        {"name": "test", "depends": ["build"], "run": ["invoke test"]},
+        {"name": "report", "depends": ["test"], "run": ["invoke report"]},
+        {"name": "measure:build", "depends": [], "run": ["invoke m"]},
+    ]
+)
+IDE_COMMAND = "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea"
+PS_OUTPUT = (
+    "  479     1   3:21.94 /usr/libexec/syspolicyd\n"
+    f"  900     1  10:00.00 {IDE_COMMAND}\n"
+    "  901   900   0:01.00 /Applications/IntelliJ IDEA.app/Contents/bin/"
+    "fsnotifier\n"
+)
+PROBES = {
+    ("scutil", "--get", "LocalHostName"): "engywook",
+    ("sysctl", "-n", "hw.model"): "Mac16,5",
+    ("sysctl", "-n", "machdep.cpu.brand_string"): "Apple M4 Max",
+    ("sw_vers", "-productVersion"): "26.3",
+    ("sw_vers", "-buildVersion"): "25D125",
+    (
+        "sysctl",
+        "-n",
+        "hw.ncpu",
+        "hw.perflevel0.logicalcpu",
+        "hw.perflevel1.logicalcpu",
+    ): "16\n12\n4",
+    ("pmset", "-g", "ps"): "Now drawing from 'AC Power'",
+    ("pmset", "-g"): " powermode            0",
+    ("mise", "--version"): "2026.10.8 macos-arm64 (2026-10-11)",
+    ("mise", "settings", "get", "jobs"): "8",
+    PS_ARGV: PS_OUTPUT,
+}
+CLEAN_BUILD = BuildScript(
+    lines=(
+        *succeeded("build", 0.0, 2.0),
+        *succeeded("test", 2.5, 3.0),
+        *succeeded("report", 5.6, 0.4),
+    ),
+    wall_clock=6.5,
+)
+TEST_FAILS = BuildScript(
+    lines=(
+        *succeeded("build", 0.0, 2.0),
+        *failed("test", 2.5, 3, "boom"),
+        *succeeded("report", 5.6, 0.4),
+    ),
+    exit_status=3,
+    wall_clock=6.5,
+)
+ADVISORY_FAILS = BuildScript(
+    lines=(
+        *CLEAN_BUILD.lines,
+        (6.1, "[report] curl: (6) Could not resolve host"),
+    ),
+    wall_clock=6.5,
+)
+CPU_LINES = (
+    (0.0, "  us sy id"),
+    (0.0, " 1 2 3 4 5 6 7 8 9"),
+    (2.0, " 1 2 3 4 20 6 74 1 1 1"),
+)
+
+
+@dataclass
+class FakeSession:
+    tmp_path: object
+    scripts: list = field(default_factory=lambda: [CLEAN_BUILD] * 4)
+    history: FakeHistory = field(default_factory=FakeHistory)
+    probes: dict = field(default_factory=lambda: dict(PROBES))
+    orphan: OrphanedBuild | None = None
+    lock_refusal: Exception | None = None
+    sampler_start_delay: float = 0.0
+    events: list = field(default_factory=list)
+    progress: list = field(default_factory=list)
+    diagnostics_calls: list = field(default_factory=list)
+
+    def __post_init__(self):
+        self.clock = FakeClock(start=100.0)
+        self.build = ScriptedBuildRunner(self.clock, self.scripts, self.events)
+        self.cpu_sampler = ScriptedSampler(
+            self.clock,
+            "cpu",
+            CPU_LINES,
+            self.events,
+            start_delay=self.sampler_start_delay,
+        )
+        self.process_sampler = ScriptedSampler(
+            self.clock,
+            "processes",
+            events=self.events,
+            start_delay=self.sampler_start_delay,
+        )
+        self.build_group = FakeBuildGroup(self.orphan, self.events)
+        self.lock = FakeSessionLock(self.events, self.lock_refusal)
+
+    def ports(self, **overrides) -> BuildPorts:
+        def system():
+            self.events.append("platform")
+            return "Darwin"
+
+        def progress(line):
+            self.events.append(f"progress {line.splitlines()[0]}")
+            self.progress.append(line)
+
+        ports = {
+            "system": system,
+            "build": self.build,
+            "cpu_sampler": self.cpu_sampler,
+            "process_sampler": self.process_sampler,
+            "history": self.history,
+            "diagnostics": fake_diagnostics(
+                self.probes, self.diagnostics_calls
+            ),
+            "kernel_hostname": lambda: "kernel-host",
+            "mise_tasks": lambda: GRAPH_JSON,
+            "clock": self.clock,
+            "utc_now": lambda: dt.datetime(
+                2026, 10, 30, 16, 20, 0, 123456, tzinfo=dt.UTC
+            ),
+            "progress": progress,
+            "session_lock": self.lock.held,
+            "build_group": self.build_group,
+        }
+        return BuildPorts(**(ports | overrides))
+
+    def settings(self, *, runs=3, keep=False, ide_patterns=()):
+        return BuildSettings.of(
+            root=self.tmp_path,
+            runs=runs,
+            keep=keep,
+            host_settings="devtools",
+            ide_patterns=ide_patterns,
+        )
+
+    def measure(self, **settings):
+        return measure_build(self.settings(**settings), self.ports())
+
+    @property
+    def run_directory(self):
+        [directory] = (self.tmp_path / RUN_DIRECTORY_ROOT).iterdir()
+        return directory

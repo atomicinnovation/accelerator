@@ -28,6 +28,13 @@ from typing import Protocol, Self
 
 from invoke import Context, Exit, task
 
+from tasks.shared.build_measurement.errors import MeasurementRefusedError
+from tasks.shared.build_measurement.measured_build import HostSettings
+from tasks.shared.build_measurement.record import write_measured_build
+from tasks.shared.build_measurement.reports import summary_report
+from tasks.shared.build_measurement.session import BuildPorts, measure_build
+from tasks.shared.build_measurement.settings import BuildSettings
+from tasks.shared.build_measurement.wiring import real_ports
 from tasks.shared.diagnostics import (
     DiagnosticRunner,
     ambient_diagnostic_runner,
@@ -3648,4 +3655,81 @@ def summary_latency(
             vcs_binary=release / VCS_PACKAGE,
             large=large,
         )
+    )
+
+
+def measure_build_with(
+    make_settings: Callable[[], BuildSettings],
+    make_ports: Callable[[Path], BuildPorts],
+) -> None:
+    """Run one build session, write its record and print its summary.
+
+    Settings are built first, so a flag refusal happens before any port
+    exists; ports are built inside the mapped region, so a directory that
+    is no checkout exits with a sentence rather than a traceback.
+    """
+    try:
+        settings = make_settings()
+        ports = make_ports(settings.root)
+        with unwinding_signals():
+            outcome = measure_build(settings, ports)
+            written = write_measured_build(
+                outcome.measured, root=settings.root, keep=settings.keep
+            )
+    except MeasurementRefusedError as error:
+        raise Exit(str(error), code=1) from error
+    print(
+        summary_report(
+            outcome, record_path=written.record, kept_path=written.kept
+        )
+    )
+
+
+@task(
+    name="build",
+    iterable=["ide_pattern"],
+    help={
+        "runs": "Timed runs (default 3).",
+        "keep": (
+            "Also write the record under meta/measurements/ for "
+            "committing, unless it holds a fetch failure."
+        ),
+        "host_settings": (
+            "Label for the host settings already in force; nothing is "
+            "changed. none, devtools or devtools+ide-exclusion (default "
+            "unspecified): Developer Tools in System Settings > Privacy "
+            "& Security, and the IDE's excluded folders."
+        ),
+        "ide_pattern": (
+            "Regex searched in each process's full command line, "
+            "replacing the IntelliJ and RustRover defaults; anchor it on "
+            "the main executable, e.g. '/Contents/MacOS/clion(?:\\s|$)'. "
+            "Repeat for several."
+        ),
+    },
+)
+def build(
+    context: Context,
+    runs: int = 3,
+    keep: bool = False,
+    host_settings: str = str(HostSettings.UNSPECIFIED),
+    ide_pattern: list[str] | None = None,
+) -> None:
+    """Time a full `default` build: a priming run, then N timed runs.
+
+    Writes `.accelerator-measure/build/<run-id>/`; `--keep` also writes the
+    record under `meta/measurements/` for the operator to commit, unless it
+    holds a fetch failure. macOS only. Exits 0 whenever it writes a record,
+    even if a measured task failed.
+    """
+    del context
+    measure_build_with(
+        lambda: BuildSettings.of(
+            root=REPO_ROOT,
+            runs=runs,
+            keep=keep,
+            host_settings=host_settings,
+            ide_patterns=ide_pattern or (),
+        ),
+        real_ports,
     )
