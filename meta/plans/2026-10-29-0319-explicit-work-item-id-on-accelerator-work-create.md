@@ -2003,16 +2003,16 @@ gains `legacy_ids`.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:tasks` and `mise run cli:check` (the corpus guard)
-- [ ] `cd cli && cargo nextest run -p corpus -p accelerator-corpus`
-- [ ] `cd cli && cargo nextest run -p work legacy_ids id_scheme id_pattern`
-- [ ] `mise run test:unit:visualiser`
-- [ ] `mise run test:integration:visualiser` (`compose_contract.rs`,
+- [x] `mise run test:unit:tasks` and `mise run cli:check` (the corpus guard)
+- [x] `cd cli && cargo nextest run -p corpus -p accelerator-corpus`
+- [x] `cd cli && cargo nextest run -p work legacy_ids id_scheme id_pattern`
+- [x] `mise run test:unit:visualiser`
+- [x] `mise run test:integration:visualiser` (`compose_contract.rs`,
       `api_related.rs`)
-- [ ] `cd cli && cargo nextest run -p migrate -p migrate-adapters -p accelerator-migrate`
-- [ ] `mise run public-api:check`
-- [ ] `mise run check` (the crate-dependency lint and `pup`)
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p migrate -p migrate-adapters -p accelerator-migrate`
+- [x] `mise run public-api:check`
+- [x] `mise run check` (the crate-dependency lint and `pup`)
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
