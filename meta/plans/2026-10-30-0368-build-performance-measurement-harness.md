@@ -4065,8 +4065,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 ## Implementation Notes
 
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
-Phase 5 is complete and not yet pushed. Phase 6 is complete apart from its
-after-merge work-item edits. Phases 7–10 have not started.
+Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
+were made before merging rather than after. Phases 7–10 have not started.
 
 ### Phase 6 isolation mode
 

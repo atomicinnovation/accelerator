@@ -9,7 +9,6 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
 last_updated: "2026-10-30T01:47:37+00:00"
@@ -88,13 +87,12 @@ when the phase ran alone.
 
 ## Dependencies
 
-- Blocked by: 0368's isolation mode (its Requirement 3), because this
-  item's speed criterion compares an isolated nextest phase against the
-  commit before the change. 0368's warm no-op baseline, which 0361
-  measures its 200 s target against, is recorded at
-  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
-  so the edge now waits for isolation mode only. Remove it once isolation
-  mode is in.
+- Blocked by: none. This item's speed criterion compares an isolated
+  nextest phase against the commit before the change, measured with 0368's
+  isolation mode: `mise run measure:build -- --isolate test:unit:cli`.
+  0368's warm no-op baseline, which 0361 measures its 200 s target
+  against, is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
 - Blocks: none
 
 ## Assumptions
