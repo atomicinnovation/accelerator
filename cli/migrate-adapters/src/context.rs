@@ -120,6 +120,7 @@ impl MigrationContext for FileMigrationContext<'_> {
             FileCorpusIndex::build(
                 &self.linkage_table(),
                 self.capabilities.walker,
+                self.capabilities.identity.legacy_linkage(),
             )
         })
     }
@@ -272,6 +273,12 @@ impl MigrationContext for FileMigrationContext<'_> {
             &pattern,
             project.as_deref(),
         )
+    }
+
+    fn legacy_linkage(
+        &self,
+    ) -> Result<&dyn corpus::LinkageIds, MigrationError> {
+        Ok(self.capabilities.identity.legacy_linkage())
     }
 
     fn pattern_references_key(

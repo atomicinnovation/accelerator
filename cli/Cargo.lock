@@ -69,6 +69,7 @@ dependencies = [
  "tempfile",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
 ]
 
 [[package]]
