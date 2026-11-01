@@ -113,10 +113,10 @@
           "value": "The skill proposes between 2 and 5 candidate child work items"
         },
         {
-          "name": "child-type-is-story",
+          "name": "child-kind-is-story",
           "description": "Children are stories",
           "type": "llm",
-          "value": "The proposed children are described as story type (since parent is epic)"
+          "value": "The proposed children are described as kind story (since parent is epic)"
         },
         {
           "name": "grammar-legend-present",
@@ -332,7 +332,7 @@
       "id": 14,
       "name": "decompose-story-proposes-child-tasks",
       "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-6/work-item.md\n\nSimulate both agents returned results. User selects decompose.\n\nDo NOT actually write any files. Show the proposal only.",
-      "expected_output": "Skill proposes 2-4 candidate child tasks (since parent is story). Grammar legend appears. Children would have type: task when written.",
+      "expected_output": "Skill proposes 2-4 candidate child tasks (since parent is story). Grammar legend appears. Children would have kind: task when written.",
       "files": [
         "skills/work/refine-work-item/evals/files/scenario-6/work-item.md"
       ],
@@ -347,7 +347,7 @@
           "name": "children-are-tasks",
           "description": "Children are tasks",
           "type": "llm",
-          "value": "The proposed children are described as task type (since parent is a story)"
+          "value": "The proposed children are described as kind task (since parent is a story)"
         },
         {
           "name": "grammar-legend-present",
@@ -561,15 +561,15 @@
           "name": "ledger-emitted",
           "description": "Completion ledger emitted",
           "type": "llm",
-          "value": "The skill emits a completion ledger listing each written child file and the total count of allocated vs written"
+          "value": "The skill emits a completion ledger listing each written child by ID and title, then the count of numbers allocated against files written"
         }
       ]
     },
     {
       "id": 23,
       "name": "hierarchy-displayed-after-decompose",
-      "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-13/work-item.md\n\nSimulate both agents returned results. User selects decompose. Simulate 3 children approved and written:\n- 0043 — Session Store (type: story, status: draft)\n- 0044 — Token Signing (type: story, status: draft)\n- 0045 — Middleware Refactor (type: story, status: draft)\nParent 0042 is 'User Auth Rework' (type: epic).\nSimulate parent Edit succeeded.\n\nShow the hierarchy display.",
-      "expected_output": "Skill displays the tree using Unicode box-drawing characters:\n0042 — User Auth Rework (type: epic)\n  ├── 0043 — Session Store (type: story, status: draft)\n  ├── 0044 — Token Signing (type: story, status: draft)\n  └── 0045 — Middleware Refactor (type: story, status: draft)\n\nThe Unicode characters ├── and └── appear. Two-space indentation per level.",
+      "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-13/work-item.md\n\nSimulate both agents returned results. User selects decompose. Simulate 3 children approved and written:\n- 0043 — Session Store (kind: story, status: draft)\n- 0044 — Token Signing (kind: story, status: draft)\n- 0045 — Middleware Refactor (kind: story, status: draft)\nParent 0042 is 'User Auth Rework' (kind: epic).\nSimulate parent Edit succeeded.\n\nShow the hierarchy display.",
+      "expected_output": "Skill displays the tree using Unicode box-drawing characters:\n0042 — User Auth Rework (kind: epic)\n  ├── 0043 — Session Store (kind: story, status: draft)\n  ├── 0044 — Token Signing (kind: story, status: draft)\n  └── 0045 — Middleware Refactor (kind: story, status: draft)\n\nThe Unicode characters ├── and └── appear. Two-space indentation per level.",
       "files": [
         "skills/work/refine-work-item/evals/files/scenario-13/work-item.md"
       ],
@@ -957,7 +957,13 @@
           "name": "no-children-written",
           "description": "Writes nothing",
           "type": "llm",
-          "value": "files.md says no child file was written and the parent was not edited"
+          "value": "files.md is `none`: no child file was written and the parent was not edited"
+        },
+        {
+          "name": "stops-after-the-refused-call",
+          "description": "Runs nothing after the refusal",
+          "type": "llm",
+          "value": "commands.md lists only the one `accelerator work id next --count 3` call"
         }
       ]
     }
