@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T09:00:43+00:00"
+last_updated: "2026-11-01T10:33:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1679,8 +1679,10 @@ trees beside the real-tree assertion, as `test_store_duplication.py` has for
   `compile_scan_regex`, `compile_format_string`, `parse_full_id`,
   `pattern_max_number`, `canonicalise_id`, `PatternCanonicaliser`,
   `RegexScanner` or `WorkItemIdCanonicaliser`.
-- `test_a_corpus_file_naming_the_scheme_is_flagged` and
-  `test_a_work_file_naming_the_scheme_is_not_flagged`.
+- `test_a_corpus_file_naming_the_scheme_is_flagged`,
+  `test_a_work_file_naming_the_scheme_is_not_flagged` and
+  `test_a_name_inside_a_longer_identifier_is_not_flagged`: the guard
+  matches whole identifiers, so `IdScanned` is not `IdScan`.
 - `test_the_corpus_crates_hold_no_work_item_identity` — `violations` of the
   real tree is empty. It fails until the deletion.
 
@@ -1709,7 +1711,8 @@ red until the leaf is wired.
 - `a_work_item_under_another_key_gets_a_slug` — under key `PP`,
   `XY-0400-foo.md` is served with slug `foo`.
 - `a_wiki_link_by_written_id_still_resolves` — `[[WORK-ITEM-42]]` resolves
-  to an item with `id: "42"`.
+  to an item with `id: "42"`. The frontend keys wiki links on the served
+  `workItemId`, so the server-side pin is that `id: "42"` is served as `42`.
 - `an_items_filename_id_and_references_share_one_identity_key` — each
   filename, frontmatter `id` and reference triple joins one item:
   `PROJ-1-short.md`, `PROJ-1`, `work-item:PROJ-0001`;
@@ -1754,6 +1757,14 @@ red until the leaf is wired.
 - The three assertions on composed `scan_regex` text become assertions on
   `id_pattern` and `key`.
 
+These visualiser tests live in `indexer.rs`'s `identity_join_tests` module,
+over an `index_under(root, pattern, key, files)` helper, except the
+`api_related` and `compose_contract` ones named above. Most passed as soon
+as they compiled, since they build schemes through `WorkItemIdScheme::new`
+and so follow the switch; `the_visualiser_indexes_an_upper_case_md_item`
+and `related_items_find_inbound_references_by_any_spelling` were seen red
+first.
+
 The visualiser's tests that duplicate the moved `corpus` tests
 (`config.rs:433-519`, `tests/parity.rs`) keep their expectations: `OPS-7`
 stays `OPS-7`, `42` gives `ENG-42` under `{project}-{number:04d}`, and the
@@ -1767,7 +1778,19 @@ already pin moves there first.
 **File**: `cli/work/src/id_scheme.rs` (unit)
 **Changes**: the `{tracker}` filename rows of `the_scheme_is_an_id_convention`
 move here as expected values, with `SchemeConvention`'s answers as the
-other rows' expected values.
+other rows' expected values: `a_numeric_scheme_answers_as_an_id_convention`,
+`a_keyed_scheme_answers_as_an_id_convention` and
+`a_tracker_scheme_answers_as_an_id_convention`. The parity test's other
+tables become `id_pattern`'s `patterns_validate_with_the_compilers_refusal_text`,
+`render_formats_each_number_through_the_pattern`,
+`a_filename_reads_its_prefix_under_any_letter_case`,
+`the_cap_is_the_largest_number_the_width_holds` and
+`a_full_id_parses_into_its_key_and_digits`. The tables were generated from
+`work`'s answers while the parity test still proved them equal to the old
+code's or to its listed differences. `a_filename_id_is_its_identity_key`
+gains the `config.rs` `extract_id` cases it did not already pin
+(`0042-bar-baz.md`, `ADR-0001-foo.md`, `PROJ-0042-foo.md`,
+`PROJ-1-short.md` now `PROJ-0001`, `PROJ-0042.md`).
 
 **File**: `cli/work/src/legacy_ids.rs` (unit), characterisation tests
 written before the switch, against today's `linkage` and m0009 behaviour:
@@ -1783,28 +1806,39 @@ written before the switch, against today's `linkage` and m0009 behaviour:
 
 **Files**: `cli/corpus/src/linkage.rs` (unit), `cli/corpus-cli/tests/linkage_goldens.rs`
 **Changes**: the `resolve_path_target` and `extract_bare_ids` tests pass a
-`LinkageIds` double with `LegacyNumericIds`' rules; their expectations do
-not change. The goldens run against the real wiring and do not change
-either.
+`LinkageIds` double with `LegacyNumericIds`' rules
+(`corpus::linkage_ids::test_ids::LegacyDigits`, `#[cfg(test)]`); their
+expectations do not change. `a_bare_id_is_a_four_character_window_the_ids_admit`
+pins the window: `12345 0042a PR0042` gives `1234`, `0042`, `0042`. The
+goldens run against the real wiring and do not change either.
 
 **Files**: `cli/migrate/src/migrations/m0002.rs`, `m0007/`, `m0009.rs`,
 `cli/migrate-adapters/tests/common/mod.rs`, `tests/context.rs`
 **Changes**: each test context gains the `WorkItemIdentity` capability or
 overrides the context's new accessors, as `canonicalise_work_item_id`'s
 callers do; every expectation, including `7` → `ACME-0007`
-(`context.rs:142-153`), holds. New:
+(`context.rs:142-153`), holds. m0009's `TestCtx` answers
+`pattern_references_key` by token containment, m0007's unit tests take a
+`m0007::test_ids::LegacyDigits` double, and
+`migrate-adapters/tests/common/mod.rs` holds its own `WorkIdentity` over
+`work`. New, end to end against the binary in
+`cli/migrate-cli/tests/migration_0002.rs` and `migration_0009.rs`, since
+only the real wiring reads the live grammar:
 
 - m0009 under a malformed `{project}-{number:4d}` pattern gives today's
-  outcome.
+  outcome (`a_malformed_project_pattern_still_materialises_the_key`).
 - m0002 under `{project}-{number:04d}` with
   `work.default_project_code: MY_PROJ` and a legacy `0007-x.md` gives
-  today's rule-5 error.
+  today's rule-5 error (`a_project_code_breaking_rule_five_is_refused`),
+  the bare `KeyError` text rather than `E_WORK_KEY_INVALID`.
 - m0002 under `x'{number:04d}` stays `NoOpPending`, as m0002 returns before
-  canonicalising under a pattern without `{project}` (`m0002.rs:51-53`).
+  canonicalising under a pattern without `{project}` (`m0002.rs:51-53`)
+  (`a_pattern_without_project_stays_a_no_op_pending`).
 - m0002 under `{project}-{number:020d}` with
   `work.default_project_code: ACME` and a legacy `0007-x.md` reports
   `E_WORK_ID_PATTERN_INVALID`, the accepted deviation Migration Notes
-  records.
+  records (`a_project_pattern_the_grammar_refuses_is_e_work_id_pattern_invalid`,
+  the one new test seen red).
 
 #### 2. `linkage` and `corpus-cli`
 
@@ -1829,12 +1863,13 @@ brace-aware scan, frozen for m0009.
 **File**: `cli/corpus/src/linkage.rs`
 **Changes**: `parse_document`, `resolve_path_target` and `extract_bare_ids`
 take `&dyn LinkageIds`. The work-item arm of `resolve_path_target` reads
-`id_in_filename`. `extract_bare_ids` keeps its 4-character window to find
+`id_in_filename` of the file name, `.md` included, whose leading digit run
+equals the stem's. `extract_bare_ids` keeps its 4-character window to find
 candidates and keeps those for which `is_bare_id` holds.
 
-**File**: `cli/corpus-cli/src/linkage.rs`, `Cargo.toml`
-**Changes**: depend on `work` and pass `LegacyNumericIds`, the shape the
-goldens pin.
+**File**: `cli/corpus-cli/src/linkage.rs`, `main.rs`, `Cargo.toml`
+**Changes**: depend on `work`; `run_extract` takes `ids: &dyn LinkageIds`
+and `main` passes `LegacyNumericIds`, the shape the goldens pin.
 
 #### 3. `migrate`
 
@@ -1852,15 +1887,21 @@ pub trait WorkItemIdentity {
 }
 ```
 
-It is a required `Capabilities` field, as `SyncBaselines` is, so no method
-needs a default. `MigrationContext` gains `pattern_references_key` and
-`legacy_linkage` accessors, with the erroring default
-`canonicalise_work_item_id` already has.
+It is a required `Capabilities` field (`identity`), as `SyncBaselines` is,
+so no method needs a default. `MigrationContext` gains
+`pattern_references_key(&self, pattern) -> Result<bool, MigrationError>`
+and `legacy_linkage(&self) -> Result<&dyn LinkageIds, MigrationError>`,
+returning `Result` so each can have the erroring default
+`canonicalise_work_item_id` already has. `canonicalise_work_item_id` passes
+`work.default_project_code`, empty read as absent, as the key.
 
 **Files**: `cli/migrate/src/migrations/m0009.rs:62`, `m0007/linkage_value.rs:87`,
 `m0007/mod.rs:216`, `cli/migrate-adapters/src/context.rs`,
 `corpus_index.rs:37`
-**Changes**: call the context's methods.
+**Changes**: call the context's methods. m0007's `run_mechanical` reads
+`legacy_linkage` once and threads it through `RewriteInput.ids`,
+`linkage_value::normalise` and `emit_linkage_transformations`;
+`FileCorpusIndex::build` takes the `LinkageIds` as a third argument.
 
 **Files**: `cli/migrate-cli/src/work_item_identity.rs` (new), `main.rs`,
 `Cargo.toml` (a normal dependency on `work`, which a composition root may
@@ -1870,7 +1911,10 @@ wires `SyncBaselines`:
 
 - `canonicalise` parses the pattern with the live grammar, and the key only
   when the pattern references `{key}`, as today's gate does, then calls
-  `WorkItemIdScheme::canonicalise`;
+  `WorkItemIdScheme::canonicalise`. A pattern refusal renders through
+  `SchemeError::Pattern`, so it reads `E_WORK_ID_PATTERN_INVALID:
+  work.id_pattern '<value>': <reason>`; a key refusal keeps `KeyError`'s
+  bare rule-5 text, today's;
 - `references_key` is `work::legacy_ids::references_key`;
 - `legacy_linkage` is `LegacyNumericIds`.
 
@@ -1888,13 +1932,13 @@ rule's comment, written by category in Phase 4, already covers
 `src/server.rs`, `src/indexer.rs`, `src/related.rs`, `src/file_driver.rs`
 **Changes**:
 
-- Depend on `work` and `work-adapters`.
+- Depend on `work` and `work-adapters`, and drop the now-unused `regex`.
 - `compose` reads the scheme through `work_adapters::config::read_scheme`
   and `require_key`, and discards the deprecation notice. It is read-only,
   so it skips the integration check and keeps booting under `{tracker}`
-  whatever `work.integration` says, as today. `ComposeError` wraps
-  `SchemeError` (`#[from]`), so a malformed pattern or key fails boot naming
-  the setting.
+  whatever `work.integration` says, as today. `ComposeError::Scheme`
+  wraps `SchemeError` (`#[from]`, `#[error(transparent)]`), so a malformed
+  pattern or key fails boot naming the setting.
 - `compose` hands the validated `WorkItemIdScheme` to boot as the one form
   of the work-item config: `Config.work_item` becomes a `#[serde(skip)]`
   `Option<WorkItemIdScheme>`, `None` meaning the numeric default, and
@@ -1906,8 +1950,12 @@ rule's comment, written by category in Phase 4, already covers
   assertions read `scheme.pattern()` and `key()`.
 - The indexer serves each work item's `workItemId` as `normalise_id(id)`, as
   today. `work_item_by_id`, the reference maps and the self-reference check
-  key by `identity_key`, held in a second index-entry field the frontend
-  never receives as an item's ID. A work item's cluster key is that
+  key by `identity_key`, held in a second index-entry field,
+  `IndexEntry.identity_key` (`#[serde(skip)]`), the frontend never receives.
+  It is the `identity_key` of the raw `id`, independent of `normalise_id`,
+  so an item under literal pattern text (`v001`) joins though no
+  `workItemId` is served for it; the shape warning fires only when neither
+  admits the `id`. A work item's cluster key is that
   identity key, so the served `clusterKey`, the canonical cluster identity
   (`clusters.rs:85-88`), takes its form. Every lookup that starts from an
   item's ID reads that field: `related.rs:59-60`, the self-reference check
@@ -1915,7 +1963,11 @@ rule's comment, written by category in Phase 4, already covers
   (`indexer.rs:1017-1116`), and the `IndexEntry` impl of `ClusterEntry`.
   `canonicalise_refs` and `canonicalise_one_id` (`indexer.rs:1156-1191`),
   which build the reference maps, become `identity_keys_of` and
-  `identity_key_of` over `identity_key`; their docs, the field doc at
+  `identity_key_of` over `identity_key`. `identity_key_of` also reads a typed
+  `work-item:<id>` value as `<id>` and drops other typed references: before,
+  a typed `parent:` or `related:` value never reached the reference maps, a
+  gap `api_related.rs`'s RCA test comment recorded, and
+  `related_items_find_inbound_references_by_any_spelling` needs it closed; their docs, the field doc at
   `:233-236`, the `target_path_from_entry` doc at `:938-943` and the
   "primary regex" comment at `:1273-1275` are rewritten or deleted, as are
   the section banner "Work-item cross-reference canonicalisation"
@@ -1924,10 +1976,15 @@ rule's comment, written by category in Phase 4, already covers
   the join key. The `regex_slug` binding (`:1269`) is renamed.
 - `indexer.rs:1355` reads a draft through `work::draft_id::DraftId::parse`
   in place of `corpus::canonical_draft_id`.
-- `file_driver` lists work items through `work_item_files::is_md_filename`.
+- `file_driver` lists work items through `work_item_files::is_md_filename`:
+  `markdown_files_in` takes the predicate, and every other type keeps the
+  exact `.md` check. The watcher's own `.md` filter (`watcher.rs:367`) is
+  unchanged, so an edit to a `.MD` item is picked up on the next rescan.
 - `WorkItemConfig` holds a `work::id_scheme::WorkItemIdScheme`, which is its
   `IdConvention`, so `WorkItemConfig::id_convention` (`config.rs:130-137`)
-  goes and its callers pass the held scheme. `config.rs`'s doc at `:77-80`,
+  goes and its callers pass `scheme()`. It is built through
+  `WorkItemConfig::new(scheme)` and gains `identity_key`; a `#[cfg(test)]`
+  `config::scheme_for_test(pattern, key)` builds test schemes. `config.rs`'s doc at `:77-80`,
   which describes the scan regex, is deleted, as is the test comment
   "matches default scan_regex" (`indexer.rs:3388`).
 - The 14 `RawWorkItemConfig { scan_regex: … }` fixtures and
@@ -1946,7 +2003,8 @@ rule's comment, written by category in Phase 4, already covers
   conventions through the `IdConvention` and `LinkageIds` ports.
 - `cli/corpus-adapters/src/work_item_pattern.rs`, `scanner.rs`, their
   `lib.rs` entries, `tests/parity.rs`, `tests/work_item_id_canonicaliser.rs`,
-  and the `regex` dependency. The crate doc's claim that it supplies the
+  and the `regex` dependency. `work-adapters` keeps its `corpus-adapters`
+  dev-dependency, which other tests use. The crate doc's claim that it supplies the
   regex-backed scanner (`corpus-adapters/src/lib.rs:3-4`) is deleted.
 - `cli/work-adapters/tests/id_pattern_parity.rs`. Its tables move into
   `id_pattern`'s and `id_scheme`'s unit tests as expected values.
@@ -1998,6 +2056,8 @@ gains `legacy_ids`.
 - Extend the `### Migrations` entry to name the visualiser, and m0002, which
   reports `E_WORK_ID_PATTERN_INVALID` for such a `{project}` pattern when
   legacy items remain to rename.
+- The first `### Changed` entry also says a `work-item:` reference in
+  `parent:` or `related:` now counts as an inbound link.
 
 ### Success Criteria
 
@@ -2019,6 +2079,15 @@ gains `legacy_ids`.
 - [x] The visualiser's lifecycle view of this repository shows the same
       clusters as before Phase 2, plus any short references now joined to
       their padded items, with every ID displayed as before.
+
+Checked by building the visualiser at Phase 2's parent and at Phase 5's
+end, composing each against this repository in-process, and comparing
+`/api/lifecycle` and `/api/docs?type=work-items`: 564 clusters with
+identical members and `clusterKey`s, and 348 work items with identical
+`workItemId`s. No short references exist here to join. Only `linkedCount`
+differs, rising on 198 work items because typed `work-item:` references now
+count as inbound; `0136` goes from 6 to 75, the number of files naming
+`work-item:0136`.
 
 ---
 
@@ -3496,7 +3565,9 @@ rather than drafting an item it cannot write.
   `work id check`'s output lines.
 - **Parity** (`work-adapters/tests/id_pattern_parity.rs`, Phases 3 to 5):
   the new grammar and scheme against `corpus-adapters`' compiler and
-  `SchemeConvention` while both exist.
+  `SchemeConvention` while both exist. Phase 5 deleted it with the old
+  code, keeping its tables as expected values in `id_pattern`'s and
+  `id_scheme`'s unit tests.
 - **Visualiser** (`accelerator-visualiser`): slugs, joins and clusters
   through the port, the displayed ID as written, key case, `.MD` items, and
   composed config.
@@ -3731,9 +3802,11 @@ Edits to `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`:
 - Taken rule: `cli/work/src/identity.rs:46-165`,
   `cli/work/src/id_scheme.rs:376-385`
 - Re-key reading: `cli/work/src/rekey/sequence.rs:13-87`
-- Work-item identity to move: `cli/corpus/src/work_item_id.rs`,
-  `cli/corpus-adapters/src/work_item_pattern.rs`,
-  `cli/corpus-adapters/src/scanner.rs`
+- Work-item identity moved in Phase 5, from the now-deleted
+  `cli/corpus/src/work_item_id.rs`,
+  `cli/corpus-adapters/src/work_item_pattern.rs` and
+  `cli/corpus-adapters/src/scanner.rs`, to `cli/work/src/id_scheme.rs`,
+  `id_pattern.rs` and `legacy_ids.rs`
 - Port consumers: `cli/corpus/src/slug.rs`, `cli/corpus/src/cluster.rs`,
   `cli/corpus/src/linkage.rs`
 - Migrate port precedent: `cli/migrate-cli/src/sync_baselines.rs`
