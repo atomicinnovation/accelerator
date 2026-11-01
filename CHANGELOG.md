@@ -202,13 +202,13 @@
   a path is judged against the configured directory. Scripts that read
   `work resolve`'s exit codes there need updating.
 - **Allocation counts a key's sequence ignoring letter case.** `work create`,
-  `work create-batch` and `work next-number` count `pp-0500-x.md` in `PP`'s
+  `work create-batch` and `work id next` count `pp-0500-x.md` in `PP`'s
   sequence. A repository holding mixed-case keys may see a higher next
   number, and a caller that records or predicts allocated numbers should
   expect it.
 - **Allocation counts a legacy bare-number item in the configured key's
   sequence.** Under a `{key}` pattern, `work create`, `work create-batch` and
-  `work next-number` read `0400-x.md` as `work.key`'s `0400`, so beside
+  `work id next` read `0400-x.md` as `work.key`'s `0400`, so beside
   `PP-0005` and `0400-x.md` the next ID is `PP-0401`. A caller that records
   or predicts allocated numbers should expect the jump.
 
@@ -404,7 +404,7 @@
 - **A new `accelerator work` command family replaces the bash work-item
   lifecycle scripts.** `work create`, `show`, `resolve`, `diff`, and `update`
   cover the full create/read/resolve/diff/update lifecycle for work items,
-  alongside the `template-hints`, `canonicalise-id`, and `next-number` utility
+  alongside the `template-hints`, `id canonicalise`, and `id next` utility
   subcommands the skills that orchestrate them rely on. These replace eight
   `skills/work/scripts/work-item-*.sh` scripts and the shared library they
   depended on.
@@ -499,8 +499,12 @@
   push is unresolved), and `#\tdetail` keeps its meaning. Every record field
   of `work sync`, `work promote` and `work create`/`create-batch` output is
   now sanitised to one line.
+- **`work canonicalise-id` and `work next-number` are now
+  `work id canonicalise` and `work id next`.** Renamed during the prerelease,
+  with no alias: the old names run nothing, name their replacement on stderr
+  and exit 2.
 - **`E_PATTERN_OVERFLOW` names the item at the cap.** When `work create` or
-  `work next-number` runs out of numbers, the refusal names the file holding
+  `work id next` runs out of numbers, the refusal names the file holding
   the highest number and, when a lower number is free, suggests moving that
   item to it before archiving or widening the pattern.
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
@@ -524,10 +528,10 @@
   set.
 - **Commands that allocate or retire IDs serialise on one lock.**
   `work sync`, `work promote`, `work create`, `work create-batch`,
-  `work next-number` and `work update --push` wait for one another, saying on
+  `work id next` and `work update --push` wait for one another, saying on
   stderr which command they are waiting for, and give up after 60 s with
   `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
-  re-key is unfinished. `work next-number` now writes its lock under
+  re-key is unfinished. `work id next` now writes its lock under
   `.accelerator/state/locks/`. Upgrade every session before re-keying: an
   older binary does not take this lock. A re-key holds the create and
   retirement locks for its whole run, so an older `work create`,
@@ -725,16 +729,16 @@
   did, and `corpus frontmatter validate` and migrations walk it too. A
   re-keyed `.MD` item is written back with a `.md` extension.
 - **Every `work` command that reads the ID scheme refuses a malformed one
-  at start, naming the setting.** `create`, `create-batch`, `next-number`,
+  at start, naming the setting.** `create`, `create-batch`, `id next`,
   `resolve`, `list`, `promote`, `rekey` and `sync` refuse a malformed
   `work.id_pattern`, or a malformed `work.key` under a `{key}` pattern, as
   `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`, quoting the
   value; an invalid `--project` gives `E_WORK_KEY_INVALID` too.
-  `work canonicalise-id` keeps its own codes. `work list` refuses where it
+  `work id canonicalise` keeps its own codes. `work list` refuses where it
   fell back to the default scheme.
 - **A short full ID is canonicalised through the pattern.** `work list`,
   `work resolve` and `work sync` read `PROJ-42` as `PROJ-0042`, and
-  `work canonicalise-id v1` gives `v001` under `v{number:03d}`. `work sync`
+  `work id canonicalise v1` gives `v001` under `v{number:03d}`. `work sync`
   treats `X1-0400` and `xy-0400` as IDs.
 - **Re-key and retirement treat an ID held at another width as taken.**
   `PP-0042` collides with an item holding or linked to `PP-42`, and under a
