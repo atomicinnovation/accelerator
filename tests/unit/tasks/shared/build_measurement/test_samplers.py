@@ -180,3 +180,53 @@ class TestPsProcessSampler:
         _wait_until(lambda: log.exists() and "sample" in log.read_text())
         assert running.stop() == running.stop()
         assert read_stamped(log.read_text(newline="")) == running.stop()
+
+
+class TestSamplerLocale:
+    def test_the_stream_sampler_reads_its_command_in_the_c_locale(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("LC_ALL", "de_DE.UTF-8")
+        clock = Clock()
+        log = tmp_path / "locale.log"
+        running = StreamSampler(_PRINTS_LC_ALL, clock).start(
+            epoch=clock.now(), log=log
+        )
+        _wait_until(lambda: log.exists() and log.read_text())
+        assert [line.text for line in running.stop()] == ["C"]
+
+    def test_the_process_sampler_reads_ps_in_the_c_locale(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("LC_ALL", "de_DE.UTF-8")
+        clock = Clock()
+        log = tmp_path / "ps.log"
+        running = PsProcessSampler(
+            _ps_stand_in_tracked_only_in_c(),
+            clock,
+            interval=0.05,
+            tick_timeout=5.0,
+        ).start(epoch=clock.now(), log=log, tracked=DEFAULT_TRACKED_PROCESSES)
+        _wait_until(
+            lambda: log.exists() and log.read_text().count("sample") >= 1
+        )
+        assert _SYSPOLICYD_LINE in {line.text for line in running.stop()}
+
+
+_PRINTS_LC_ALL = _python(
+    """
+    import os, time
+    print(os.environ.get("LC_ALL"))
+    time.sleep(30)
+    """
+)
+
+
+def _ps_stand_in_tracked_only_in_c() -> tuple[str, ...]:
+    return _python(
+        f"""
+        import os
+        if os.environ.get("LC_ALL") == "C":
+            print({_SYSPOLICYD_LINE!r})
+        """
+    )

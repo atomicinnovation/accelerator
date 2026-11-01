@@ -1,5 +1,6 @@
 """Background samplers that stamp what they read against a run's epoch."""
 
+import os
 import subprocess
 import threading
 from collections.abc import Callable, Sequence
@@ -19,13 +20,21 @@ from tasks.shared.clock import Clock
 _JOIN_TIMEOUT_SECONDS = 5.0
 
 
+def _c_locale() -> dict[str, str]:
+    # ps and iostat format decimals by locale; their readings are parsed as C.
+    return os.environ | {"LC_ALL": "C"}
+
+
 class _RunningStream:
     def __init__(
         self, argv: Sequence[str], clock: Clock, epoch: float, log: Path
     ) -> None:
         self._stamped = StampedLog(open_log(log))
         self._process = subprocess.Popen(
-            argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=_c_locale(),
         )
         self._stopped: tuple[StampedLine, ...] | None = None
         self._thread = threading.Thread(
@@ -94,6 +103,7 @@ class _RunningTicks:
                 capture_output=True,
                 check=False,
                 timeout=self._tick_timeout,
+                env=_c_locale(),
             )
         except subprocess.TimeoutExpired, OSError:
             return None
