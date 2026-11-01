@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T23:00:00+00:00"
+last_updated: "2026-11-01T22:25:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3177,6 +3177,14 @@ No alias keeps the old names; hidden subcommands point to the new ones.
   - `test_no_skill_names_a_retired_id_verb` — `violations` of the real tree
     is empty.
 
+As built, the holder test is `a_command_waiting_on_id_next_names_it`. To see
+the holder, `id::next::run` takes the identity-run starter as an
+`&IdentityRunStart`, as `create`'s seams do, and the test passes a starter
+that records the command name and refuses with `Busy`. The production caller
+passes `crate::identity_run::begin`. The guard gained a third synthetic test,
+`test_a_recorded_benchmark_is_not_scanned`, pinning that `benchmark.json` is
+skipped. The hand-edited golden matched the new surface on the first run.
+
 #### 2. The verbs
 
 **File**: `cli/work-cli/src/cli.rs`
@@ -3204,6 +3212,13 @@ holder `"next-number"` in `cli/work/tests/identity_run.rs:202` and the
 "next-number allocated during a re-key" panic texts in `next_number.rs`'s
 tests.
 
+As built, the pointer texts are `cli::RETIRED_NEXT_NUMBER` and
+`cli::RETIRED_CANONICALISE_ID`, the hidden subcommands share one
+`RetiredArgs`, and `id::retired` prints the pointer and exits `USAGE`. The
+renamed `cli_id_canonicalise.rs` header named a
+`work-item-canonicalise-id.golden` fixture that does not exist, so that
+clause was dropped.
+
 **File**: `cli/work-cli/src/exit_codes.rs`
 **Changes**: the identity-run paragraph names `work id next`, and the
 config-refusal paragraph names `work id next` and `work id canonicalise`;
@@ -3222,6 +3237,11 @@ else.
 - `docs-site/src/content/docs/reference/skills/`: regenerate with
   `mise run docs:generate`.
 
+As built, eval names carrying the old verb moved too:
+`enrich-existing-no-id-next-call`, `topic-string-flow-still-calls-id-next`
+and `work-item-id-next-called-once`. The regenerated reference pages carried
+no old name, so `docs:generate` changed nothing.
+
 #### 4. Benchmarks
 
 For `create-work-item`, `extract-work-items` and `refine-work-item`, re-run
@@ -3229,6 +3249,22 @@ with skill-creator, `with_skill`, every eval whose prompt or expectations name
 a renamed verb, and record the runs. `update-work-item` has no eval naming
 `canonicalise-id`. Each `run_summary.with_skill.pass_rate.mean` stays at
 least 0.9.
+
+As run on 2026-11-01 by claude-opus-5-5: 22 evals (`create-work-item` 14,
+`extract-work-items` 6, `refine-work-item` 2), executors simulating every
+`accelerator` call, recorded in place of each eval's earlier `with_skill`
+run with `time_seconds` and `tokens` at 0, as earlier runs were. Three
+expectations failed on stale eval wording, not on the rename: `type` where
+the template says `kind`, `XXXX` where `create-work-item` drafts with `NNNN`,
+and `work show --field work_item_id` where the skill reads `--field id`.
+The evals of all three skills were then brought into line with their
+skills. The fourteen `create-work-item` evals with no `expectations` gained
+the ones their recorded runs were graded against, and a few self-reported
+or vacuous checks gained a check on what the run did. The 20 evals whose
+prompts changed were re-run and the 6 whose expectations alone changed were
+re-graded, leaving every `with_skill` run of the three skills at 1.0.
+`create-work-item`'s `benchmark.md` rows were refreshed to match. Each
+benchmark's notes name the runs whose executor read its expectations first.
 
 #### 5. Changelog
 
@@ -3248,6 +3284,10 @@ least 0.9.
   names the verb as an older binary had it. A search of `[Unreleased]` for
   both old names confirms nothing else remains.
 
+As built, the line numbers above had drifted, so each entry was found by
+searching `[Unreleased]`, and no rename-without-alias precedent stands at
+the cited lines. The new entry heads `### Changed`.
+
 ### Success Criteria
 
 #### Automated Verification
@@ -3262,6 +3302,12 @@ least 0.9.
 
 - [x] In a scratch repository, `accelerator work id next` prints the next ID,
       and `accelerator work next-number` exits 2 naming `work id next`.
+
+Run through the dev launcher, `cli/target/debug/accelerator`, with
+`ACCELERATOR_PLUGIN_ROOT` at the checkout and `ACCELERATOR_WORK_BIN` at
+`cli/target/debug/accelerator-work`. Without the override the launcher
+resolves `work` to the signed release binary its manifest names, which
+predates this phase.
 
 ---
 
@@ -3364,7 +3410,8 @@ paragraph and in the config-refusal paragraph. Its refusals are `work create --i
 
 **File**: `CHANGELOG.md`
 **Changes**: `### Added`: `work id check <ID>`. The identity-run lock entry
-(`CHANGELOG.md:441-453`) names `work id check` among the commands that wait
+under `### Changed` ("Commands that allocate or retire IDs serialise on one
+lock") names `work id check` among the commands that wait
 on the lock and refuse during a re-key, as `work id next` does.
 
 ### Success Criteria
