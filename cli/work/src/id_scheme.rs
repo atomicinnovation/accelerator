@@ -175,7 +175,7 @@ impl WorkItemIdScheme {
         self.pattern.width().unwrap_or(LEGACY_WIDTH)
     }
 
-    fn is_own_key(&self, key: &str) -> bool {
+    pub(crate) fn is_own_key(&self, key: &str) -> bool {
         self.key
             .as_ref()
             .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))

@@ -243,6 +243,7 @@ pub struct work::id_pattern::IdPattern
 impl work::id_pattern::IdPattern
 pub fn work::id_pattern::IdPattern::as_str(&self) -> &str
 pub fn work::id_pattern::IdPattern::cap(&self) -> core::option::Option<u64>
+pub fn work::id_pattern::IdPattern::describe(&self) -> alloc::string::String
 pub fn work::id_pattern::IdPattern::is_tracker_owned(&self) -> bool
 pub fn work::id_pattern::IdPattern::parse(text: &str) -> core::result::Result<Self, work::id_pattern::PatternError>
 pub fn work::id_pattern::IdPattern::read_exact(&self, text: &str) -> core::option::Option<work::id_pattern::IdParts>
@@ -1241,6 +1242,105 @@ pub fn work::rekey::write_set::WriteSet::default() -> work::rekey::write_set::Wr
 impl core::fmt::Debug for work::rekey::write_set::WriteSet
 pub fn work::rekey::write_set::WriteSet::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::write_set::WriteSet
+pub mod work::requested_id
+pub enum work::requested_id::Holding
+pub work::requested_id::Holding::Field(work::identity::IdentityField)
+pub work::requested_id::Holding::Filename
+impl core::clone::Clone for work::requested_id::Holding
+pub fn work::requested_id::Holding::clone(&self) -> work::requested_id::Holding
+impl core::cmp::Eq for work::requested_id::Holding
+impl core::cmp::PartialEq for work::requested_id::Holding
+pub fn work::requested_id::Holding::eq(&self, other: &work::requested_id::Holding) -> bool
+impl core::fmt::Debug for work::requested_id::Holding
+pub fn work::requested_id::Holding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::requested_id::Holding
+impl core::marker::StructuralPartialEq for work::requested_id::Holding
+pub enum work::requested_id::ProjectRemedy
+pub work::requested_id::ProjectRemedy::DropBoth
+pub work::requested_id::ProjectRemedy::DropProject
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId::example: core::option::Option<alloc::string::String>
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId::project_is_a_key: bool
+impl core::clone::Clone for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::clone(&self) -> work::requested_id::ProjectRemedy
+impl core::cmp::Eq for work::requested_id::ProjectRemedy
+impl core::cmp::PartialEq for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::eq(&self, other: &work::requested_id::ProjectRemedy) -> bool
+impl core::fmt::Debug for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::ProjectRemedy
+pub enum work::requested_id::Proposal
+pub work::requested_id::Proposal::Corrected
+pub work::requested_id::Proposal::Corrected::id: work::requested_id::RequestedId
+pub work::requested_id::Proposal::Corrected::key_differs: bool
+pub work::requested_id::Proposal::Exact(work::requested_id::RequestedId)
+pub work::requested_id::Proposal::OtherKey(work::requested_id::RequestedId)
+impl core::clone::Clone for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::clone(&self) -> work::requested_id::Proposal
+impl core::cmp::Eq for work::requested_id::Proposal
+impl core::cmp::PartialEq for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::eq(&self, other: &work::requested_id::Proposal) -> bool
+impl core::fmt::Debug for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::Proposal
+pub enum work::requested_id::RequestedIdRefusal
+pub work::requested_id::RequestedIdRefusal::DraftReserved
+pub work::requested_id::RequestedIdRefusal::DraftReserved::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::DraftReserved::shape: work::requested_id::ExampleShape
+pub work::requested_id::RequestedIdRefusal::PatternMismatch
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::correction: core::option::Option<alloc::string::String>
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::shape: work::requested_id::ExampleShape
+pub work::requested_id::RequestedIdRefusal::Taken
+pub work::requested_id::RequestedIdRefusal::Taken::held: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::Taken::holder: std::path::PathBuf
+pub work::requested_id::RequestedIdRefusal::Taken::holding: work::requested_id::Holding
+pub work::requested_id::RequestedIdRefusal::Taken::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::TrackerOwned
+pub work::requested_id::RequestedIdRefusal::TrackerOwned::pattern: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::WithProject
+pub work::requested_id::RequestedIdRefusal::WithProject::pattern: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::WithProject::remedy: work::requested_id::ProjectRemedy
+impl work::requested_id::RequestedIdRefusal
+pub const fn work::requested_id::RequestedIdRefusal::code(&self) -> &'static str
+pub fn work::requested_id::RequestedIdRefusal::relative_to(self, root: &std::path::Path) -> Self
+impl core::clone::Clone for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::clone(&self) -> work::requested_id::RequestedIdRefusal
+impl core::cmp::Eq for work::requested_id::RequestedIdRefusal
+impl core::cmp::PartialEq for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::eq(&self, other: &work::requested_id::RequestedIdRefusal) -> bool
+impl core::error::Error for work::requested_id::RequestedIdRefusal
+impl core::fmt::Debug for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::RequestedIdRefusal
+pub struct work::requested_id::ExampleShape
+pub work::requested_id::ExampleShape::description: alloc::string::String
+pub work::requested_id::ExampleShape::first: core::option::Option<alloc::string::String>
+pub work::requested_id::ExampleShape::pattern: alloc::string::String
+impl core::clone::Clone for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::clone(&self) -> work::requested_id::ExampleShape
+impl core::cmp::Eq for work::requested_id::ExampleShape
+impl core::cmp::PartialEq for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::eq(&self, other: &work::requested_id::ExampleShape) -> bool
+impl core::fmt::Debug for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::ExampleShape
+pub struct work::requested_id::RequestedId
+impl work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::admit(requested: &str, project: core::option::Option<&str>, scheme: &work::id_scheme::WorkItemIdScheme) -> core::result::Result<Self, work::requested_id::RequestedIdRefusal>
+pub fn work::requested_id::RequestedId::as_str(&self) -> &str
+pub fn work::requested_id::RequestedId::propose(requested: &str, scheme: &work::id_scheme::WorkItemIdScheme) -> core::result::Result<work::requested_id::Proposal, work::requested_id::RequestedIdRefusal>
+pub fn work::requested_id::RequestedId::refuse_if_taken(&self, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::requested_id::RequestedIdRefusal>
+impl core::clone::Clone for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::clone(&self) -> work::requested_id::RequestedId
+impl core::cmp::Eq for work::requested_id::RequestedId
+impl core::cmp::PartialEq for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::eq(&self, other: &work::requested_id::RequestedId) -> bool
+impl core::fmt::Debug for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::RequestedId
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
