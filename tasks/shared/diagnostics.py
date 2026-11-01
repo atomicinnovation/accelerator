@@ -7,8 +7,9 @@ from typing import Protocol
 class DiagnosticRunner(Protocol):
     """Runs an untimed probe under the ambient environment.
 
-    Separate from the measurement runner because the farm holds only the two
-    variants' tools: probes routed through it would return `unknown` always.
+    Kept apart from any measurement runner, whose environment may hold only
+    the tools under measurement: a probe routed through one would never find
+    the tool it asks about.
     """
 
     def __call__(self, argv: Sequence[str]) -> str: ...
