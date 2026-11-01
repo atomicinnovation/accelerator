@@ -862,7 +862,8 @@ refusal writes nothing and ends the verb.
 `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/SKILL.md`, then
 `brief.md`, `outline.md`, `synthesis.md` and every path in the verdict's
 `findings`, and nothing under `.levels/`. Read inline, spawning nothing, and
-list no directory: the verdict names every file to read. `synthesis.md`
+list no directory: the verdict names every file to read. Find what bears on
+the question by reading those files, never by searching them. `synthesis.md`
 guides which findings bear on the question and supplies its Open Threads;
 coverage rests on the findings' sources.
 
@@ -873,7 +874,8 @@ across every citation you read. A part is covered when a `tier-1` or `tier-2`
 source supports it, and is a gap when only `tier-3` sources support it —
 retracted and withdrawn ones among them — or none do; which profiles returned
 results does not matter. Coverage is `answered` when every part is covered,
-`partial` when some are, and `unanswered` when none are.
+`partial` when some are, and `unanswered` when none are. Name each part in the
+question's own words, never by the sources that answer it.
 
 **Present.** Answer in standalone prose from the findings — for `unanswered`,
 the sentence "The corpus does not answer this question." — then state the
