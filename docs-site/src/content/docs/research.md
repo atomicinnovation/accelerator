@@ -780,8 +780,8 @@ Each exit code below exits `1`:
 
 ### `research topic counts`
 
-`conduct`, `synthesise` and `finalise` ask the research CLI for a set's counts,
-rather than counting its files themselves:
+`conduct`, `synthesise`, `finalise` and `report` ask the research CLI for a
+set's counts, rather than counting its files themselves:
 
 ```bash
 accelerator research topic counts SLUG
@@ -789,12 +789,13 @@ accelerator research topic counts SLUG
 
 The counts derive from disk by one rule:
 
-- `finding_count` counts each visible `<nn>-*.md` directly in `findings/`, the
-  extension in any case. A `<stem>.levels/` directory, a dot-prefixed
-  `.invalid` quarantine marker and an unnumbered name never count.
+- `finding_count` counts each visible `<nn>-*.md` file directly in
+  `findings/`, the extension in any case. A directory, whatever its name, a
+  dot-prefixed `.invalid` quarantine marker and an unnumbered name never
+  count.
 - `round_count` is the highest `round` those findings record, or `0` when
   none does.
-- `report_count` counts each visible `*.md` directly in `reports/`.
+- `report_count` counts each visible `*.md` file directly in `reports/`.
 
 It prints JSON beside the values the set records:
 
