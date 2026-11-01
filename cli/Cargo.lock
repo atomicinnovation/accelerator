@@ -923,7 +923,6 @@ dependencies = [
  "corpus",
  "document",
  "kernel",
- "regex",
  "serde_json",
  "store",
  "tempfile",
