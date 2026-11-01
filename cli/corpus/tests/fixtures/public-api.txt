@@ -610,6 +610,10 @@ pub fn corpus::linkage::path_roots(table: &[(corpus::doc_type::DocTypeKey, std::
 pub fn corpus::linkage::pr_number(stem: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<(&'static str, alloc::string::String)>
 pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
+pub mod corpus::linkage_ids
+pub trait corpus::linkage_ids::LinkageIds
+pub fn corpus::linkage_ids::LinkageIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::linkage_ids::LinkageIds::is_bare_id(&self, token: &str) -> bool
 pub mod corpus::lock
 pub enum corpus::lock::LockName
 pub corpus::lock::LockName::BatchJournal
@@ -1384,6 +1388,9 @@ pub fn corpus::work_item_id::SchemeConvention<'_>::is_id(&self, token: &str) -> 
 pub fn corpus::work_item_id::SchemeConvention<'_>::slug_start(&self, stem: &str) -> core::option::Option<usize>
 pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
+pub trait corpus::LinkageIds
+pub fn corpus::LinkageIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::LinkageIds::is_bare_id(&self, token: &str) -> bool
 pub trait corpus::RecordStore
 pub fn corpus::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
