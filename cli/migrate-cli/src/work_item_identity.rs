@@ -1,10 +1,12 @@
 //! The work-item identity migrations read, answered by the work context.
 
+use corpus::LinkageIds;
 use migrate::ports::MigrationError;
 use migrate::ports::WorkItemIdentity;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
 use work::id_scheme::WorkItemIdScheme;
+use work::legacy_ids::LegacyNumericIds;
 use work_adapters::config::SchemeError;
 
 pub struct WorkIdentity;
@@ -38,6 +40,10 @@ impl WorkItemIdentity for WorkIdentity {
 
     fn references_key(&self, pattern: &str) -> bool {
         work::legacy_ids::references_key(pattern)
+    }
+
+    fn legacy_linkage(&self) -> &dyn LinkageIds {
+        &LegacyNumericIds
     }
 }
 

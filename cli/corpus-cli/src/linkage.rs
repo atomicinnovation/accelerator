@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use corpus::scan::FileReader;
 use corpus::DocTypeKey;
+use corpus::LinkageIds;
 
 use crate::outcome::Outcome;
 
@@ -19,6 +20,7 @@ pub fn run_extract<F: FileReader>(
     file: &Path,
     source_type_override: Option<&str>,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
     file_reader: &F,
 ) -> Result<Outcome, kernel::Error> {
     let Some(content) = file_reader.read(file)? else {
@@ -32,7 +34,8 @@ pub fn run_extract<F: FileReader>(
         .or_else(|| corpus::linkage::type_from_path(&path, table))
         .unwrap_or("unknown");
     let mut stdout = String::new();
-    for record in corpus::linkage::parse_document(source_type, &content, table)
+    for record in
+        corpus::linkage::parse_document(source_type, &content, table, ids)
     {
         stdout.push_str(&record.source_type);
         stdout.push('\t');
@@ -57,6 +60,7 @@ mod tests {
 
     use corpus::scan::FileReader;
     use corpus::DocTypeKey;
+    use work::legacy_ids::LegacyNumericIds;
 
     use super::run_extract;
 
@@ -82,6 +86,7 @@ mod tests {
             Path::new("meta/work/0001.md"),
             None,
             &table(),
+            &LegacyNumericIds,
             &reader
         )
         .is_err());
@@ -97,6 +102,7 @@ mod tests {
             Path::new("meta/work/0050-deps.md"),
             None,
             &table(),
+            &LegacyNumericIds,
             &reader,
         )?;
         assert_eq!(
@@ -116,6 +122,7 @@ mod tests {
             Path::new("meta/work/0050-deps.md"),
             Some("plan"),
             &table(),
+            &LegacyNumericIds,
             &reader,
         )?;
         assert!(outcome.stdout.starts_with("plan\t"));
@@ -128,8 +135,13 @@ mod tests {
         let reader = StubFileReader {
             content: Some("## Dependencies\n- Blocks: 0061\n".to_owned()),
         };
-        let outcome =
-            run_extract(Path::new("elsewhere/x.md"), None, &table(), &reader)?;
+        let outcome = run_extract(
+            Path::new("elsewhere/x.md"),
+            None,
+            &table(),
+            &LegacyNumericIds,
+            &reader,
+        )?;
         assert!(outcome.stdout.starts_with("unknown\t"));
         Ok(())
     }
@@ -144,6 +156,7 @@ mod tests {
             Path::new("meta/work/0001.md"),
             None,
             &table(),
+            &LegacyNumericIds,
             &reader,
         )?;
         assert_eq!(outcome.stdout, String::new());

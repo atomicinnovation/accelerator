@@ -9,6 +9,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use corpus::LinkageIds;
+
 use crate::interactive::Decision;
 use crate::interactive::Transformation;
 use crate::run_base::RunBase;
@@ -247,6 +249,17 @@ pub trait MigrationContext {
     ) -> Result<String, MigrationError> {
         Err(MigrationError::new(
             "canonicalise_work_item_id is not implemented by this context",
+        ))
+    }
+
+    /// The frozen legacy work-item ID reads typed linkage makes. Only
+    /// migration 0007 calls this, so it defaults to an error.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when this context does not implement it.
+    fn legacy_linkage(&self) -> Result<&dyn LinkageIds, MigrationError> {
+        Err(MigrationError::new(
+            "legacy_linkage is not implemented by this context",
         ))
     }
 
@@ -497,6 +510,9 @@ pub trait WorkItemIdentity {
     /// Whether `pattern` names the key token, read leniently enough that a
     /// malformed pattern may still name it.
     fn references_key(&self, pattern: &str) -> bool;
+
+    /// The legacy work-item ID reads typed linkage was written against.
+    fn legacy_linkage(&self) -> &dyn LinkageIds;
 }
 
 /// One migration's interactive session log, bound to its own path at

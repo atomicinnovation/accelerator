@@ -8,6 +8,7 @@
 use std::path::PathBuf;
 
 use corpus::doc_type::DocTypeKey;
+use corpus::LinkageIds;
 
 pub struct Outcome {
     pub value: String,
@@ -23,10 +24,11 @@ pub fn normalise(
     source_type: &str,
     key: &str,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
 ) -> Outcome {
     let mut unmapped_path = false;
     let after_paths = for_each_quoted_token(value, |token| {
-        normalise_path_token(token, table, &mut unmapped_path)
+        normalise_path_token(token, table, ids, &mut unmapped_path)
     });
     let after_pr = for_each_quoted_token(&after_paths, |token| {
         match_pr_ref(token).map(|number| format!("\"pr:{number}\""))
@@ -79,12 +81,14 @@ fn for_each_quoted_token(
 fn normalise_path_token(
     token: &str,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
     unmapped_path: &mut bool,
 ) -> Option<String> {
     if !(token.starts_with("meta/") && token.ends_with(".md")) {
         return None;
     }
-    if let Some((kind, id)) = corpus::linkage::resolve_path_target(token, table)
+    if let Some((kind, id)) =
+        corpus::linkage::resolve_path_target(token, table, ids)
     {
         Some(format!("\"{kind}:{id}\""))
     } else {
@@ -165,9 +169,20 @@ fn bare_target_type(source_type: &str, key: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::normalise;
+    use super::normalise as normalise_under;
+    use super::Outcome;
+    use crate::migrations::m0007::test_ids::LegacyDigits;
     use corpus::doc_type::DocTypeKey;
     use std::path::PathBuf;
+
+    fn normalise(
+        value: &str,
+        source_type: &str,
+        key: &str,
+        table: &[(DocTypeKey, PathBuf)],
+    ) -> Outcome {
+        normalise_under(value, source_type, key, table, &LegacyDigits)
+    }
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![
