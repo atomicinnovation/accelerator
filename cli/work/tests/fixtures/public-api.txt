@@ -578,8 +578,11 @@ pub work::next_number::AllocationError::Overflow
 pub work::next_number::AllocationError::Overflow::cap: u64
 pub work::next_number::AllocationError::Overflow::highest: u64
 pub work::next_number::AllocationError::Overflow::highest_file: core::option::Option<alloc::string::String>
+pub work::next_number::AllocationError::Overflow::numbers_held: u64
 pub work::next_number::AllocationError::Overflow::partial: alloc::vec::Vec<alloc::string::String>
 pub work::next_number::AllocationError::ProjectUnused
+impl work::next_number::AllocationError
+pub fn work::next_number::AllocationError::message(&self, pattern: &work::id_pattern::IdPattern, work_dir: &std::path::Path) -> alloc::string::String
 impl core::clone::Clone for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::clone(&self) -> work::next_number::AllocationError
 impl core::cmp::Eq for work::next_number::AllocationError

@@ -488,6 +488,10 @@
   push is unresolved), and `#\tdetail` keeps its meaning. Every record field
   of `work sync`, `work promote` and `work create`/`create-batch` output is
   now sanitised to one line.
+- **`E_PATTERN_OVERFLOW` names the item at the cap.** When `work create` or
+  `work next-number` runs out of numbers, the refusal names the file holding
+  the highest number and, when a lower number is free, suggests moving that
+  item to it before archiving or widening the pattern.
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
