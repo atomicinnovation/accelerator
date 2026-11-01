@@ -1,6 +1,5 @@
-//! `accelerator-research topic consultable` black-box CLI coverage: whether
-//! `ask` and `report` may consult a committed set, or the first gate it
-//! fails.
+//! Whether `ask` and `report` may consult a committed set, or the first gate
+//! it fails.
 
 use std::collections::BTreeMap;
 use std::fs;

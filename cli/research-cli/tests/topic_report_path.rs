@@ -1,5 +1,4 @@
-//! `accelerator-research topic report-path` black-box CLI coverage: the path
-//! a new report on a question takes in a committed set.
+//! The path a new report on a question takes in a committed set.
 
 use std::collections::BTreeMap;
 use std::fs;

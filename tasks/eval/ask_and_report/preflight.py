@@ -148,7 +148,6 @@ def _skip_problems(
 
 
 def setup_problems(setup: Setup, root: Path, toolchain: Toolchain) -> list[str]:
-    """List what the built project fails to set up that ``setup`` declares."""
     problems: list[str] = []
     if setup.breadth is not None:
         problems += _breadth_problems(setup.breadth, root, toolchain)
