@@ -427,7 +427,7 @@ run = "invoke measure.smoke-check"
 # operator-run, macOS-only build session of 20 minutes or more that no CI
 # job owns. See tasks/README.md#the-measure-namespace.
 [tasks."measure:build"]
-description = "Time the default build, or each --isolate task alone: a priming run then N timed runs, per-task figures and host contention (macOS, ~20 min at --runs 3; writes .accelerator-measure/build/, --keep also writes meta/measurements/ unless a fetch failed)"
+description = "Time the default build, or each --isolate task alone: a priming run (none when --cache-state is cold) then N timed runs, per-task figures and host contention (macOS, ~20 min at --runs 3, ~25 cold; writes .accelerator-measure/build/, --keep also writes meta/measurements/ unless a fetch failed)"
 depends = ["deps:install:python"]
 run = "invoke measure.build"
 

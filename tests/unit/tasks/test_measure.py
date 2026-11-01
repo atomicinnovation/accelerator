@@ -110,6 +110,7 @@ from tasks.measure import (
     write_personal_config,
 )
 from tasks.measure import build as build_task
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
 from tasks.shared.build_measurement.settings import FullBuild, IsolatedTasks
@@ -1344,6 +1345,10 @@ class TestMeasureNamespaceDocs:
             "--skip-deps",
             "run-2-test_unit_cli.log",
             "_isolated",
+            "--cache-state incremental",
+            "--cache-state cold",
+            "cold-trash-",
+            ".accelerator-dev-launcher",
         ):
             assert required in section, required
 
@@ -3892,6 +3897,7 @@ class TestBuildTask:
             "host_settings",
             "ide_pattern",
             "isolate",
+            "cache_state",
         }
 
     def test_isolated_tasks_reach_the_settings(self, monkeypatch):
@@ -3904,6 +3910,45 @@ class TestBuildTask:
 
     def test_no_isolated_task_measures_a_full_build(self, monkeypatch):
         assert self.captured_settings(monkeypatch).scope == FullBuild()
+
+    def test_the_cache_state_defaults_to_warm_no_op(self, monkeypatch):
+        assert (
+            self.captured_settings(monkeypatch).cache_state
+            is BuildCacheState.WARM_NO_OP
+        )
+
+    def test_the_cache_state_reaches_the_settings(self, monkeypatch):
+        settings = self.captured_settings(monkeypatch, cache_state="cold")
+        assert settings.cache_state is BuildCacheState.COLD
+
+    def test_the_cache_state_help_names_what_cold_deletes(self):
+        help_text = build_task.help["cache_state"]
+        for required in (
+            "warm-no-op",
+            "incremental",
+            "cold",
+            "cli/target",
+            "cli/visualiser/frontend/node_modules",
+        ):
+            assert required in help_text, required
+
+    def test_isolate_with_cold_exits_one_and_nothing_is_deleted(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(measure_module, "REPO_ROOT", tmp_path)
+        built = [
+            tmp_path / "cli/target/debug/accelerator",
+            tmp_path / "cli/visualiser/frontend/node_modules/react/index.js",
+        ]
+        for path in built:
+            path.parent.mkdir(parents=True)
+            path.write_text("built")
+        with pytest.raises(
+            Exit, match="--isolate does not support --cache-state cold"
+        ) as refusal:
+            build_task(Context(), isolate=["test:unit:cli"], cache_state="cold")
+        assert refusal.value.code == 1
+        assert all(path.exists() for path in built)
 
     def test_repeated_flags_are_parsed_as_lists(self):
         context = ParserContext(

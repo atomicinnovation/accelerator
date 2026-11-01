@@ -3691,7 +3691,10 @@ def measure_build_with(
     name="build",
     iterable=["ide_pattern", "isolate"],
     help={
-        "runs": "Timed runs (default 3).",
+        "runs": (
+            "Timed runs (default 3), after a priming run unless "
+            "--cache-state is cold."
+        ),
         "keep": (
             "Also write the record under meta/measurements/ for "
             "committing, unless it holds a fetch failure."
@@ -3709,6 +3712,12 @@ def measure_build_with(
             "Repeat for several."
         ),
         "isolate": "Run this task alone with --skip-deps; repeat for several.",
+        "cache_state": (
+            "warm-no-op (default), incremental or cold. incremental "
+            "touches cli/kernel/src/lib.rs before every timed run; cold "
+            "skips priming and deletes cli/target and "
+            "cli/visualiser/frontend/node_modules before every timed run."
+        ),
     },
 )
 def build(
@@ -3718,10 +3727,13 @@ def build(
     host_settings: str = str(HostSettings.UNSPECIFIED),
     ide_pattern: list[str] | None = None,
     isolate: list[str] | None = None,
+    cache_state: str = str(BuildCacheState.WARM_NO_OP),
 ) -> None:
     """Time a build: a priming run, then N timed runs.
 
     The build is `default`, or with `--isolate` each named task run alone.
+    `--cache-state cold` skips priming and deletes the build's caches
+    before every timed run, taking about 25 minutes at `--runs 3`.
 
     Writes `.accelerator-measure/build/<run-id>/`; `--keep` also writes the
     record under `meta/measurements/` for the operator to commit, unless it
@@ -3737,7 +3749,7 @@ def build(
             host_settings=host_settings,
             ide_patterns=ide_pattern or (),
             isolate=isolate or (),
-            cache_state=str(BuildCacheState.WARM_NO_OP),
+            cache_state=cache_state,
         ),
         real_ports,
     )

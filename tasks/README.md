@@ -393,6 +393,24 @@ rules, and reports each one's start and end within the run; it does not run
 written as `_`, so `test:unit:cli` logs to `run-2-test_unit_cli.log`. A name
 mise does not know is refused, with its closest match, before anything runs.
 
+**Cache states.** `--cache-state` picks what each timed run starts from, and
+defaults to `warm-no-op`. `--cache-state incremental` touches
+`cli/kernel/src/lib.rs` before each timed run, leaving its contents unchanged,
+and refuses to start when that file is missing or not a regular file.
+`--cache-state cold` skips priming and deletes `cli/target` and
+`cli/visualiser/frontend/node_modules` before each timed run. It takes about 25
+minutes at `--runs 3`, fetches npm packages every run, and is refused with
+`--isolate`. Every deleted directory passes through the run directory's
+`cold-trash-<n>/`, so the checkout only ever holds a directory whole or not at
+all. When that trash cannot be removed, the harness names it with its size and
+the cause; if timed runs remain it stops before the next one, and otherwise the
+summary reports it. Every preflight lists the trash earlier sessions left, by
+path and size, and all of it is safe to delete. With `.accelerator-dev-launcher`
+present, hooks using this checkout's dev launcher fail open while `cli/target`
+is gone, until the launcher is rebuilt with the `cargo build` in
+`CONTRIBUTING.md`'s "Local development"; a cold session warns of this in the
+preflight and again however it ends.
+
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
 behind a kept record, and are safe to delete by hand when no `measure:build`
