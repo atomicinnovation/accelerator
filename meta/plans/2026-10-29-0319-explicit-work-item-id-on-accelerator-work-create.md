@@ -2299,7 +2299,7 @@ pub enum RequestedIdRefusal {
 }
 
 pub enum ProjectRemedy {
-    WriteKeyIntoId { example: String, project_is_a_key: bool },
+    WriteKeyIntoId { example: Option<String>, project_is_a_key: bool },
     DropProject,
     DropBoth,
 }
@@ -2329,8 +2329,10 @@ after calling `relative_to` with the repository root, as it does for
 `NotRekeyed`. `ExampleShape::first` is `IdPattern::render` of number 1 with
 the scheme's key, `None` when a `{key}` pattern has no key, in which case
 the message omits its "shaped like" clause; `description` is
-`IdPattern::describe()`. The requested ID quoted in a refusal passes
-through the grammar's escaping helper.
+`IdPattern::describe()`. `WriteKeyIntoId::example` is `None` for the same
+reason, when neither `--project` nor `work.key` is a key to render it with,
+and the remedy then omits its "as in" clause. The requested ID quoted in a
+refusal passes through the grammar's escaping helper.
 
 **File**: `cli/work/src/id_pattern.rs`
 **Changes**: two readings of a pattern's segments the refusals need:
@@ -2353,16 +2355,17 @@ How the model behaves:
   `in_exact_shape(requested, scheme)`, keeping the `IdParts`.
   `PatternMismatch`'s `correction` is `correction_for(requested, scheme)`.
   `WithProject`'s keyed example renders the pattern at the number
-  `loose_reading` reads from the request when it is at least 1, else at 1,
+  `read_correctable` reads from the request when it is at least 1, else at 1,
   with the `--project` value when it parses as an `IdKey`, and with
   `work.key` otherwise. Only `admit` builds refusals.
-- **`loose_reading(requested, scheme) -> Option<IdParts>`**, private, is
-  the walk the correction and the example share. Walking the pattern, each
+- **`IdPattern::read_correctable(text) -> Option<IdParts>`**, `pub(crate)`
+  in `id_pattern` since only it sees the segments, is the walk the
+  correction and the example share. Walking the pattern, each
   literal must match exactly; a key run may be present, or absent where the
   pattern has `{key}`, together with the literal after it; and the digit
   run may be shorter than the width but not longer.
 - **`correction_for(requested, scheme) -> Option<(String, IdParts)>`**,
-  private, is the one correction rule: it renders `loose_reading`'s result
+  private, is the one correction rule: it renders `read_correctable`'s result
   through `IdPattern::render`, keeping a carried key's case and taking the
   scheme's key for an absent one, and keeps the rendering only when it
   passes `in_exact_shape`, never `admit`, so a request such as `0` with no
@@ -2421,15 +2424,15 @@ only the `requested_id` items and `IdPattern::describe` appear.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p work requested_id id_pattern`
-- [ ] `mise run public-api:check`, against the fixture committed after
+- [x] `cd cli && cargo nextest run -p work requested_id id_pattern`
+- [x] `mise run public-api:check`, against the fixture committed after
       reading the regenerated diff
-- [ ] `mise run pup:check`
-- [ ] `mise run` exits 0
+- [x] `mise run pup:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] None beyond automated.
+- [x] None beyond automated.
 
 ---
 
