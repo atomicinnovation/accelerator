@@ -112,6 +112,7 @@ from tasks.measure import (
 from tasks.measure import build as build_task
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
+from tasks.shared.build_measurement.settings import FullBuild, IsolatedTasks
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
     with_ide_patterns,
@@ -1339,6 +1340,10 @@ class TestMeasureNamespaceDocs:
             "lower bound",
             "`presence`",
             "`conditions`",
+            "--isolate",
+            "--skip-deps",
+            "run-2-test_unit_cli.log",
+            "_isolated",
         ):
             assert required in section, required
 
@@ -3886,7 +3891,19 @@ class TestBuildTask:
             "keep",
             "host_settings",
             "ide_pattern",
+            "isolate",
         }
+
+    def test_isolated_tasks_reach_the_settings(self, monkeypatch):
+        settings = self.captured_settings(
+            monkeypatch, isolate=["test:unit:cli", "build:frontend"]
+        )
+        assert settings.scope == IsolatedTasks(
+            ("test:unit:cli", "build:frontend")
+        )
+
+    def test_no_isolated_task_measures_a_full_build(self, monkeypatch):
+        assert self.captured_settings(monkeypatch).scope == FullBuild()
 
     def test_repeated_flags_are_parsed_as_lists(self):
         context = ParserContext(
@@ -3899,9 +3916,14 @@ class TestBuildTask:
                 "a",
                 "--ide-pattern",
                 "b",
+                "--isolate",
+                "a",
+                "--isolate",
+                "b",
             ]
         )
         assert parsed.args.ide_pattern.value == ["a", "b"]
+        assert parsed.args.isolate.value == ["a", "b"]
 
 
 class TestMeasureBuildWith:

@@ -159,7 +159,7 @@ class BuildSettings:
         keep: bool,
         host_settings: str,
         ide_patterns: Sequence[str],
-        isolate: Sequence[str] = (),
+        isolate: Sequence[str],
     ) -> Self:
         if runs < 1:
             raise InvalidSettingsError("--runs must be at least 1")

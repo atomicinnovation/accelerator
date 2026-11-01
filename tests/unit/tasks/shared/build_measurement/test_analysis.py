@@ -39,6 +39,7 @@ _SETTINGS = BuildSettings.of(
     keep=False,
     host_settings="devtools",
     ide_patterns=(),
+    isolate=(),
 )
 
 

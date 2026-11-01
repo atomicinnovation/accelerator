@@ -3688,7 +3688,7 @@ def measure_build_with(
 
 @task(
     name="build",
-    iterable=["ide_pattern"],
+    iterable=["ide_pattern", "isolate"],
     help={
         "runs": "Timed runs (default 3).",
         "keep": (
@@ -3707,6 +3707,7 @@ def measure_build_with(
             "the main executable, e.g. '/Contents/MacOS/clion(?:\\s|$)'. "
             "Repeat for several."
         ),
+        "isolate": "Run this task alone with --skip-deps; repeat for several.",
     },
 )
 def build(
@@ -3715,8 +3716,11 @@ def build(
     keep: bool = False,
     host_settings: str = str(HostSettings.UNSPECIFIED),
     ide_pattern: list[str] | None = None,
+    isolate: list[str] | None = None,
 ) -> None:
-    """Time a full `default` build: a priming run, then N timed runs.
+    """Time a build: a priming run, then N timed runs.
+
+    The build is `default`, or with `--isolate` each named task run alone.
 
     Writes `.accelerator-measure/build/<run-id>/`; `--keep` also writes the
     record under `meta/measurements/` for the operator to commit, unless it
@@ -3731,6 +3735,7 @@ def build(
             keep=keep,
             host_settings=host_settings,
             ide_patterns=ide_pattern or (),
+            isolate=isolate or (),
         ),
         real_ports,
     )

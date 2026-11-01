@@ -386,6 +386,13 @@ IDE's helpers are not counted as IDE time. Per-process CPU is a lower bound:
 one-second sampling misses short-lived processes, and the tail after a build
 ends is not counted.
 
+**Isolation mode.** `--isolate <task>` runs each named task alone with
+`mise run --skip-deps`, one after another, under the same priming and repeat
+rules, and reports each one's start and end within the run; it does not run
+`default`. Each isolated task has its own log, with `:` in the task name
+written as `_`, so `test:unit:cli` logs to `run-2-test_unit_cli.log`. A name
+mise does not know is refused, with its closest match, before anything runs.
+
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
 behind a kept record, and are safe to delete by hand when no `measure:build`
@@ -396,8 +403,9 @@ not kept there.
 
 **Reading a build record.** A record is named
 `build_<UTC time>_<hostname>_<cache state>_<host settings>`, the last being the
-`--host-settings` value, its fields joined by `_` so each boundary is
-unambiguous; a counter would collide across jj workspaces.
+`--host-settings` value, with `_isolated` appended in isolation mode, its fields
+joined by `_` so each boundary is unambiguous; a counter would collide across
+jj workspaces.
 The commit is the nearest first-parent commit that changes anything outside
 `meta/measurements/`, so a kept record, committed or not, leaves the measured
 commit unchanged. Every per-run time is seconds from that run's start, and
