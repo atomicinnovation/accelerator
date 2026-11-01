@@ -30,3 +30,11 @@ def test_the_real_ports_are_rooted_at_the_checkout(tmp_path):
     ports = real_ports(tmp_path)
     assert ports.history.root == tmp_path
     assert ports.build.root == tmp_path
+
+
+def test_the_host_is_sampled_once_a_second(tmp_path):
+    (tmp_path / ".jj").mkdir()
+    ports = real_ports(tmp_path)
+    assert ports.cpu_sampler.argv == ("iostat", "-w", "1")
+    assert ports.process_sampler.interval == 1
+    assert ports.process_sampler.tick_timeout == 5.0

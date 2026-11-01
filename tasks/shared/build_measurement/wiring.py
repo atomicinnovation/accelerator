@@ -24,7 +24,9 @@ from tasks.shared.diagnostics import ambient_diagnostic_runner
 from tasks.shared.processes import PsutilProcessOps
 from tasks.shared.repository import NotARepositoryError, repository_kind
 
-_IOSTAT_ARGV = ("iostat", "-w", "2")
+_SAMPLE_INTERVAL_SECONDS = 1
+_PS_TICK_TIMEOUT_SECONDS = 5.0
+_IOSTAT_ARGV = ("iostat", "-w", str(_SAMPLE_INTERVAL_SECONDS))
 _MISE_TASKS_ARGV = ("mise", "tasks", "--json")
 
 
@@ -66,7 +68,10 @@ def real_ports(root: Path) -> BuildPorts:
         build=SubprocessBuildRunner(root, clock, procs, build_group),
         cpu_sampler=StreamSampler(_IOSTAT_ARGV, clock),
         process_sampler=PsProcessSampler(
-            PS_ARGV, clock, interval=1.0, tick_timeout=5.0
+            PS_ARGV,
+            clock,
+            interval=_SAMPLE_INTERVAL_SECONDS,
+            tick_timeout=_PS_TICK_TIMEOUT_SECONDS,
         ),
         history=history_of(root),
         diagnostics=ambient_diagnostic_runner,
