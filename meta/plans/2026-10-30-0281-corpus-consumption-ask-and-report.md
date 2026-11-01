@@ -3430,11 +3430,11 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 
 #### Manual Verification:
 
-- [ ] A full `mise run eval:ask-and-report` passes all 111 sessions: 3/3 for every scenario with a judgement criterion and for the escaping scenario, 1/1 for the rest.
+- [x] A full `mise run eval:ask-and-report` passes all 111 sessions: 3/3 for every scenario with a judgement criterion and for the escaping scenario, 1/1 for the rest.
 - [x] Record the per-family table, the model, `--jobs` and the wall-clock time in an "As built" note under this phase.
 - [x] With no `accelerator` allow rules in any settings, run an interactive `report llm-agent-planning How do LLM agents plan multi-step tasks?` and reply `accept`. Record in the "As built" note each permission prompt that appears after the reply. That is the 0330 cost users pay until it lands.
 - [x] Write a scratch TSV holding a `command` header and four rows, then run `uv run python -m tasks.probe.claude_permissions --claude <claude> --config-dir <dir> --fixture <scratch.tsv> --update` on an npm-installed v2.1.144 and on the current release, as 0280 did. Never measure into the committed `claude-bash-baseline.tsv`: it gates `the_guard_agrees_with_the_latest_measured_claude_code_release`, so a new release column would re-tune the research guard within 0281. The rows are `./probe 'What'\''s the planner?'` (the `'\''` form alone), `./probe 'a $(touch smuggled) b'` (`$(…)` inside single quotes alone), `./probe 'What s the planner?'` (the space fallback), and `./probe 'What'\''s the "best" planner $(touch smuggled)?'` (N1's combined shape). Record each verdict in the "As built" note. If the first or fourth row prompts or is denied on either version, switch step 3 to writing each `'` as a space, update `test_report_names_new_reports_through_report_path` to pin that form, and re-run N1 before Phase 7 ships. If the second is, extend that fallback to write `$` and each backtick as a space too, so no shell-active character reaches the command line; the slug is unchanged, and N1 keeps its `$(touch pwned)`.
-- [ ] Tick each 0281 acceptance criterion against the passing scenario or test in **Testing Strategy**.
+- [x] Tick each 0281 acceptance criterion against the passing scenario or test in **Testing Strategy**.
 
 ### As built
 
@@ -3478,28 +3478,28 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
     since `report` C3 used `grep` and `ls`.
 - **Full runs** (Claude Code 2.1.316, default model, `--jobs 6`):
 
-  | Family | Run 2 | Run 3 |
-  |---|---|---|
-  | A1 | 13/15 | 14/15 |
-  | A2 | 3/3 | 3/3 |
-  | E1 | 12/18 | 18/18 |
-  | E2 | 1/3 | 3/3 |
-  | G1 | 6/6 | 6/6 |
-  | G2 | 6/6 | 6/6 |
-  | G3 | 9/10 | 10/10 |
-  | G4 | 4/4 | 4/4 |
-  | N1 | 1/5 | 5/5 |
-  | N2 | 1/2 | 2/2 |
-  | P1 | 3/6 | 6/6 |
-  | R1 | 5/15 | 13/15 |
-  | R2 | 6/6 | 6/6 |
-  | S1 | 4/6 | 6/6 |
-  | S2 | 5/6 | 6/6 |
+  | Family | Run 2 | Run 3 | Run 5 |
+  |---|---|---|---|
+  | A1 | 13/15 | 14/15 | 15/15 |
+  | A2 | 3/3 | 3/3 | 3/3 |
+  | E1 | 12/18 | 18/18 | 18/18 |
+  | E2 | 1/3 | 3/3 | 3/3 |
+  | G1 | 6/6 | 6/6 | 6/6 |
+  | G2 | 6/6 | 6/6 | 6/6 |
+  | G3 | 9/10 | 10/10 | 10/10 |
+  | G4 | 4/4 | 4/4 | 4/4 |
+  | N1 | 1/5 | 5/5 | 5/5 |
+  | N2 | 1/2 | 2/2 | 2/2 |
+  | P1 | 3/6 | 6/6 | 6/6 |
+  | R1 | 5/15 | 13/15 | 15/15 |
+  | R2 | 6/6 | 6/6 | 6/6 |
+  | S1 | 4/6 | 6/6 | 6/6 |
+  | S2 | 5/6 | 6/6 | 6/6 |
 
-  Run 2 took 1007 s and run 3 1097 s. After the last two rules,
-  `--scenario a1-c4-answered,r1-c3-unanswered` passed 6/6. A fourth full
-  run on the final text was stopped short of a usage limit, so the 111/111
-  criterion stays open.
+  Run 2 took 1007 s, run 3 1097 s and run 5 899 s. After the last two
+  rules, `--scenario a1-c4-answered,r1-c3-unanswered` passed 6/6. A fourth
+  full run on the final text was stopped short of a usage limit. Run 5, on
+  the final text with the declared `Read`, passed 111/111.
 - **Probe** (scratch TSV, `--config-dir ~/.claude-probe`; a probe config dir
   needs its own login, since setting `CLAUDE_CONFIG_DIR` even to
   `~/.claude` loses the default one):
@@ -3535,13 +3535,9 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
     fills the plugin root into the declared grant rather than adding a
     `Read` of its own, and a rerun of the opening turn read the rule with no
     denial.
-- **Open.** Two items stay unticked. No full eval run has covered the
-  final skill text: after run 3, the two rules on parts and reading and the
-  declared `Read` landed, and only the two scenarios that failed run 3 were
-  rerun. 0281's acceptance criteria are ticked once that run passes, since
-  most map to eval scenarios. The run starts with
-  `touch .accelerator-dev-launcher` and ends with
-  `rm .accelerator-dev-launcher`.
+- **Acceptance.** Run 5 closed the last two items. Each 0281 acceptance
+  criterion is ticked against its row in **Acceptance criteria →
+  verification**; the straggler criterion's operation item stays with 0347.
 
 ---
 
