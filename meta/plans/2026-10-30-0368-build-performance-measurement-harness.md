@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T21:32:40+00:00"
+last_updated: "2026-11-01T21:55:48+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3402,9 +3402,9 @@ than a `partial`, which ruff's RUF009 flags.
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -4066,7 +4066,9 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
 Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
-were made before merging rather than after. Phases 7–10 have not started.
+were made before merging rather than after. Phase 7's code is complete and
+not yet pushed; its manual runs and work-item edits are outstanding.
+Phases 8–10 have not started.
 
 ### Phases 1–4 review round
 
@@ -4185,16 +4187,48 @@ Verification: the phase's tests, `mise run build-system:check` and the full
 `mise run` (exit 0, 458 s, the fixers changing nothing) passed locally at
 `98d2de64`. CI has not run on it yet.
 
+### Phase 7 cache states
+
+Where the phase departed from the plan:
+
+- **Preparation re-verifies.** `prepare_timed_run` calls `verify` before
+  changing anything, so the touch target is rechecked as well as the
+  deletions, and every check precedes the first move.
+- **Trash layout.** Each deleted directory keeps its checkout-relative path
+  inside the trash, as `cold-trash-<n>/cli/target`, so two targets can
+  never collide. A trash directory that already exists raises
+  `FileExistsError` rather than a refusal.
+- **The `--isolate` refusal** keys on `state.deletions`, not on `COLD`, and
+  names the state.
+- **Marker name.** `DEV_LAUNCHER_MARKER_NAME` lives in `tasks/shared/paths.py`;
+  `tasks/measure.py`'s three uses of the literal were left as they were.
+- **Notices.** The dev-launcher line is worded to hold before and after
+  the deletion, since the preflight renders it too. On success, found trash
+  leaves out the last run's `UnremovedTrash`, which it would otherwise
+  repeat. The exit report guards `OSError` only, as ruff's BLE001 forbids a
+  blind `except`, and a marker that cannot be read counts as present.
+- **Exit report scope.** The `ExitStack` spans the whole of `_measure`, and
+  the callback is pushed as the timed runs begin, so a failure in analysis
+  or the end-of-run check also repeats the warning.
+- **Mutation check.** The real-workspace session tests were written after
+  the session hook; disabling the `prepare_timed_run` call fails three of
+  them.
+- **Work items.** The 0366 and 0368 edits wait for the merge, as the phase
+  says.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 341 s, the fixers changing nothing) passed locally. CI
+has not run on it yet.
+
 ### Deferred to later phases
 
 The review's structural findings were deferred. Each fits a later phase:
 
-- **Phase 7.** `BuildCacheState` gains its other variants, and the
-  recurring condition parameters (`cache_state`, `mode`, `isolated_tasks`,
-  `host_settings`) may become one value object. Phase 6 added `Mode`'s and
-  `BuildScope`'s isolated variants but not the `RunDirectory` port or the
-  rename of `test_imports.py`'s `_PURE` partition; both still fit, now
-  beside the cold state's workspace port.
+- **Any later phase.** The recurring condition parameters (`cache_state`,
+  `mode`, `isolated_tasks`, `host_settings`) may become one value object.
+  Phases 6 and 7 added the isolated scope and the cache states, but not
+  that value object, the `RunDirectory` port or the rename of
+  `test_imports.py`'s `_PURE` partition.
 - **Any phase.** A `ports.py` for the port protocols and their value types
   now split across `session.py`, `provenance.py` and `analysis.py`; a
   `tasks/measure_build.py` split from `tasks/measure.py`; `measure:build`
