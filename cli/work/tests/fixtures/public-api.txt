@@ -563,6 +563,12 @@ pub fn work::inventory::ConflictedPaths::is_conflicted(&self, path: &std::path::
 pub trait work::inventory::NamesWorkItem
 pub fn work::inventory::NamesWorkItem::work_item_named(&self, file_name: &str) -> core::option::Option<alloc::string::String>
 pub fn work::inventory::identify(listing: &work::work_item_files::WorkItemListing, names: &dyn work::inventory::NamesWorkItem, conflicted: &dyn work::inventory::ConflictedPaths) -> work::inventory::IdentifiedCorpus
+pub mod work::legacy_ids
+pub struct work::legacy_ids::LegacyNumericIds
+impl corpus::linkage_ids::LinkageIds for work::legacy_ids::LegacyNumericIds
+pub fn work::legacy_ids::LegacyNumericIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn work::legacy_ids::LegacyNumericIds::is_bare_id(&self, token: &str) -> bool
+pub fn work::legacy_ids::references_key(pattern: &str) -> bool
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::InvalidProject(work::id_pattern::KeyError)
