@@ -2016,7 +2016,7 @@ gains `legacy_ids`.
 
 #### Manual Verification
 
-- [ ] The visualiser's lifecycle view of this repository shows the same
+- [x] The visualiser's lifecycle view of this repository shows the same
       clusters as before Phase 2, plus any short references now joined to
       their padded items, with every ID displayed as before.
 
