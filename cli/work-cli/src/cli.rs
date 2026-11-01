@@ -340,7 +340,7 @@ pub struct CreateArgs {
     /// there. Refused, writing nothing, with `--project`, under
     /// `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact
     /// shape, and for an ID a work item already holds (see `exit_codes`).
-    #[arg(long, conflicts_with = "dry_run")]
+    #[arg(long)]
     pub id: Option<String>,
     /// The author. Falls back to the current VCS identity when omitted.
     #[arg(long)]
@@ -368,7 +368,9 @@ pub struct CreateArgs {
     /// exits 70 when the tracker is unreachable (the preview could not be
     /// resolved), so the caller can distinguish an unreachable tracker from
     /// an unresolvable configured value (reported as an `unresolvable`
-    /// source on the line, exit 0).
+    /// source on the line, exit 0). With `--id`, an ID the real create
+    /// would refuse is refused first, as the real create refuses it, before
+    /// the tracker is contacted; an ID that passes is not reserved.
     #[arg(long)]
     pub dry_run: bool,
 }
@@ -529,7 +531,7 @@ mod tests {
     }
 
     #[test]
-    fn a_dry_run_with_an_id_is_a_usage_error() {
+    fn a_dry_run_accepts_an_id() {
         let parsed = Cli::try_parse_from([
             "accelerator-work",
             "create",
@@ -541,7 +543,7 @@ mod tests {
             "0400",
         ]);
 
-        assert!(parsed.is_err());
+        assert!(parsed.is_ok());
     }
 
     #[test]

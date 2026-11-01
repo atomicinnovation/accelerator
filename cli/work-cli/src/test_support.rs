@@ -252,6 +252,16 @@ impl PushingRepo {
         tracker: &Rc<RecordingTracker>,
         failing: Failing,
     ) -> RunOutcome {
+        self.run_args_under(&self.config, args, tracker, failing)
+    }
+
+    pub fn run_args_under(
+        &self,
+        config: &dyn ConfigAccess,
+        args: &CreateArgs,
+        tracker: &Rc<RecordingTracker>,
+        failing: Failing,
+    ) -> RunOutcome {
         let (applies, left) = failing.unwrap_or((|_| false, 0));
         let store_at = move |root: &Path| -> Box<dyn CreationStore> {
             Box::new(Faults {
@@ -263,7 +273,7 @@ impl PushingRepo {
         };
         run_with(
             self.root.path(),
-            &self.config,
+            config,
             &PluginWorkItemTemplate,
             args,
             &mut Seams {

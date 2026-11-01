@@ -44,6 +44,7 @@ use work_adapters::author::VcsBackedIdentityProbe;
 pub use work_adapters::creation::blocked_remedy;
 use work_adapters::creation::create_local_item;
 use work_adapters::creation::create_tracker_keyed_item;
+use work_adapters::creation::refuse_unfinished_push;
 use work_adapters::creation::save_draft;
 pub use work_adapters::creation::CreateFailure;
 use work_adapters::creation::CreateLockGuard;
@@ -74,6 +75,7 @@ use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::identity_workspace::OpenFailure;
 use crate::requested_id::admit_requested_id;
+use crate::requested_id::refuse_if_requested_id_taken;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 use work_adapters::promotion_records::PromotionRecords;
@@ -81,6 +83,7 @@ use work_adapters::promotion_records::PromotionRecords;
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
 
+#[derive(Clone)]
 pub struct CreateArgs {
     pub title: String,
     pub kind: String,
@@ -396,14 +399,20 @@ impl NewItem for CreationContext<'_> {
     }
 }
 
+fn integration_state(
+    config: &dyn ConfigAccess,
+    repo_root: &Path,
+) -> Result<IntegrationState, String> {
+    let name = effective_nonempty(config, "work.integration")
+        .map_err(|error| error.to_string())?;
+    let root = crate::sync::integrations_dir(config, repo_root)
+        .map_err(|error| error.to_string())?;
+    Ok(IntegrationState { root, name })
+}
+
 impl CreationContext<'_> {
     fn integration_state(&self) -> Result<IntegrationState, String> {
-        let name = effective_nonempty(self.config, "work.integration")
-            .map_err(|error| error.to_string())?;
-        let root =
-            crate::sync::integrations_dir(self.config, &self.location.root)
-                .map_err(|error| error.to_string())?;
-        Ok(IntegrationState { root, name })
+        integration_state(self.config, &self.location.root)
     }
 
     fn allocate_local_id(
@@ -638,6 +647,48 @@ pub fn run(
     )
 }
 
+/// The real create's `--id` checks, in its order, without its locks: a
+/// pass reserves nothing. An integration that cannot be read fails where
+/// the real create's does, before the taken check only under `--push`.
+fn refuse_requested_id_before_preview(
+    location: &WorkItemLocation,
+    args: &CreateArgs,
+    integration: Result<&IntegrationState, &String>,
+) -> Result<(), String> {
+    let Some(requested) = admit_requested_id(args, &location.scheme)? else {
+        return Ok(());
+    };
+    if args.push {
+        let state = integration.map_err(String::clone)?;
+        refuse_unfinished_push(state, &slugify(&args.title), &RealFs)?;
+    }
+    refuse_if_requested_id_taken(&requested, location)
+}
+
+fn preview_requested_id(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    args: &CreateArgs,
+    registry: &dyn TrackerRegistry,
+) -> RunOutcome {
+    let location = match locate_work_items(start, config) {
+        Ok(location) => location,
+        Err(message) => return RunOutcome::Failed(message),
+    };
+    let integration = integration_state(config, &location.root);
+    if let Err(refusal) = refuse_requested_id_before_preview(
+        &location,
+        args,
+        integration.as_ref(),
+    ) {
+        return RunOutcome::Failed(refusal);
+    }
+    match integration {
+        Ok(state) => preview_push(&state.name, &args.kind, registry),
+        Err(message) => RunOutcome::Failed(message),
+    }
+}
+
 #[must_use]
 pub fn run_with(
     start: &Path,
@@ -646,6 +697,9 @@ pub fn run_with(
     args: &CreateArgs,
     seams: &mut Seams<'_>,
 ) -> RunOutcome {
+    if args.dry_run && args.id.is_some() {
+        return preview_requested_id(start, config, args, seams.registry);
+    }
     if args.dry_run {
         let integration = match effective_nonempty(config, "work.integration") {
             Ok(value) => value,
@@ -702,6 +756,7 @@ mod tests {
     use work::sync::RequestFingerprint;
     use work_adapters::sync::pending_push;
 
+    use crate::test_support::FakeConfig;
     use crate::test_support::FixedRegistry;
     use crate::test_support::PushingRepo;
 
@@ -2057,5 +2112,398 @@ mod tests {
         ));
 
         assert_named(&repo, &path, "0400");
+    }
+
+    fn dry_run(args: &CreateArgs) -> CreateArgs {
+        CreateArgs {
+            dry_run: true,
+            ..args.clone()
+        }
+    }
+
+    fn dry_run_outcome(outcome: RunOutcome) -> String {
+        match outcome {
+            RunOutcome::Previewed(line) => format!("previewed: {line}"),
+            RunOutcome::PreviewFailed { message, code } => {
+                format!("preview failed ({code}): {message}")
+            }
+            RunOutcome::Failed(message) => format!("failed: {message}"),
+            _ => panic!("the dry-run wrote or pushed"),
+        }
+    }
+
+    fn dry_run_through(
+        repo: &PushingRepo,
+        args: &CreateArgs,
+        tracker: &Rc<RecordingTracker>,
+    ) -> String {
+        dry_run_outcome(repo.run_args(&dry_run(args), tracker, None))
+    }
+
+    fn untouched_tracker() -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::holding(Vec::new()))
+    }
+
+    fn assert_previewed(outcome: &str) {
+        assert!(outcome.starts_with("previewed: "), "{outcome}");
+    }
+
+    fn assert_failed_with(outcome: &str, code: &str) {
+        assert!(
+            outcome.starts_with(&format!("failed: {code}: ")),
+            "{outcome}"
+        );
+    }
+
+    #[test]
+    fn a_dry_run_refuses_an_id_as_the_real_create_does() {
+        let holding_0400: RepoFor = || {
+            let repo = PushingRepo::new();
+            repo.holding("meta/work/0400-other.md", "");
+            repo
+        };
+        let cases: [(RepoFor, &str, Option<&str>, &str); 5] = [
+            (
+                PushingRepo::keyed,
+                "XY-0400",
+                Some("XY"),
+                "E_ID_WITH_PROJECT",
+            ),
+            (
+                PushingRepo::tracker_owned,
+                "0400",
+                None,
+                "E_ID_TRACKER_OWNED",
+            ),
+            (
+                PushingRepo::new,
+                "draft-k7mq3x",
+                None,
+                "E_ID_DRAFT_RESERVED",
+            ),
+            (PushingRepo::new, "400", None, "E_ID_PATTERN_MISMATCH"),
+            (holding_0400, "0400", None, "E_ID_TAKEN"),
+        ];
+        for (repo, id, project, code) in cases {
+            for push in [false, true] {
+                let repo = repo();
+                let args = CreateArgs {
+                    project: project.map(str::to_owned),
+                    ..PushingRepo::args_with_id(id, push)
+                };
+                let tracker = untouched_tracker();
+                let before = crate::test_support::meta_tree(repo.root.path());
+
+                let outcome = dry_run_through(&repo, &args, &tracker);
+
+                assert_failed_with(&outcome, code);
+                assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+                assert_eq!(
+                    crate::test_support::meta_tree(repo.root.path()),
+                    before,
+                    "{id} push: {push}"
+                );
+                assert_eq!(
+                    outcome,
+                    format!("failed: {}", failure(create_local(&repo, &args)))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_dry_run_with_an_untaken_id_previews_as_without_one() {
+        let repos: [(RepoFor, &str); 2] =
+            [(PushingRepo::new, "0400"), (PushingRepo::keyed, "PP-0400")];
+        let trackers: [fn() -> RecordingTracker; 2] = [
+            || RecordingTracker::holding(Vec::new()),
+            || {
+                RecordingTracker::holding(Vec::new())
+                    .failing_preview(retryable())
+            },
+        ];
+        for (repo, id) in repos {
+            for tracker in trackers {
+                for push in [false, true] {
+                    let repo = repo();
+                    let through = |args: &CreateArgs| {
+                        dry_run_through(&repo, args, &Rc::new(tracker()))
+                    };
+
+                    let with = through(&PushingRepo::args_with_id(id, push));
+
+                    assert_eq!(with, through(&PushingRepo::args(push)));
+                    assert!(!with.starts_with("failed: "), "{with}");
+                    assert!(!repo.path("meta/work").exists(), "{id}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_dry_run_reports_the_config_error_the_real_create_does() {
+        let repo = PushingRepo::configured(&[
+            ("work.id_pattern", "{key}-{number:04d}"),
+            ("work.integration", "jira"),
+        ]);
+        let args = CreateArgs {
+            project: Some("XY".to_owned()),
+            ..PushingRepo::args_with_id("XY-0400", false)
+        };
+        let tracker = untouched_tracker();
+
+        let outcome = dry_run_through(&repo, &args, &tracker);
+
+        assert_failed_with(&outcome, "E_WORK_KEY_REQUIRED");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn a_dry_run_reports_a_malformed_pattern_as_the_real_create_does() {
+        let repo = PushingRepo::configured(&[
+            ("work.id_pattern", "{number:4d}"),
+            ("work.integration", "jira"),
+        ]);
+        let args = PushingRepo::args_with_id("0400", false);
+        let tracker = untouched_tracker();
+
+        let outcome = dry_run_through(&repo, &args, &tracker);
+
+        assert_failed_with(&outcome, "E_WORK_ID_PATTERN_INVALID");
+        assert_eq!(
+            outcome,
+            format!("failed: {}", failure(create_local(&repo, &args)))
+        );
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn a_dry_run_over_an_unlistable_corpus_fails_rather_than_previewing() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = PushingRepo::new();
+        let drafts = repo.path("meta/work/drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+        let tracker = untouched_tracker();
+
+        let outcome = dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+            &tracker,
+        );
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        assert!(outcome.starts_with("failed: "), "{outcome}");
+        assert!(outcome.contains("drafts"), "{outcome}");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn a_dry_run_checks_the_id_without_waiting_for_the_create_lock() {
+        let cases = [
+            (Some("meta/work/0400-other.md"), "failed: E_ID_TAKEN: "),
+            (None, "previewed: "),
+        ];
+        for (holder, expected) in cases {
+            let repo = std::sync::Arc::new(PushingRepo::new());
+            std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
+            if let Some(holder) = holder {
+                repo.holding(holder, "");
+            }
+            let create_lock = store::lock::acquire(
+                &repo.path("meta/work").join(LockdirLock::CREATE_LOCKDIR),
+                store::lock::LockOptions::default(),
+            )
+            .expect("the create lock is free");
+            let (done, finished) = std::sync::mpsc::channel();
+            let checking = std::sync::Arc::clone(&repo);
+
+            let dry_run = std::thread::spawn(move || {
+                let outcome = dry_run_through(
+                    &checking,
+                    &PushingRepo::args_with_id("0400", true),
+                    &untouched_tracker(),
+                );
+                let _ = done.send(outcome);
+            });
+
+            let outcome =
+                finished.recv_timeout(std::time::Duration::from_secs(10));
+            drop(create_lock);
+            dry_run.join().expect("joined");
+            let outcome = outcome.expect("the dry-run waited on the lock");
+            assert!(outcome.starts_with(expected), "{outcome}");
+        }
+    }
+
+    #[test]
+    fn a_dry_run_without_an_id_resolves_no_scheme() {
+        let repo = PushingRepo::configured(&[
+            ("work.id_pattern", "{key}-{number:04d}"),
+            ("work.integration", "jira"),
+        ]);
+
+        assert_previewed(&dry_run_through(
+            &repo,
+            &PushingRepo::args(true),
+            &untouched_tracker(),
+        ));
+    }
+
+    #[test]
+    fn a_dry_run_with_an_id_is_still_not_guarded() {
+        let repo = PushingRepo::new();
+        crate::test_support::rekey_in_progress(repo.root.path());
+
+        assert_previewed(&dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", true),
+            &untouched_tracker(),
+        ));
+    }
+
+    #[test]
+    fn a_dry_run_after_an_unknown_push_outcome_reports_push_pending() {
+        let repo = after_an_unknown_push_outcome_at_0400();
+        let tracker = untouched_tracker();
+
+        let outcome = dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", true),
+            &tracker,
+        );
+
+        assert_failed_with(&outcome, "E_PUSH_PENDING");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    fn with_a_corrupt_marker(repo: &PushingRepo) {
+        let marker = repo.marker();
+        std::fs::create_dir_all(marker.parent().expect("dir")).expect("dir");
+        std::fs::write(&marker, "{ not a marker").expect("marker");
+    }
+
+    #[test]
+    fn a_dry_run_over_an_unreadable_push_marker_reports_it() {
+        let repo = PushingRepo::new();
+        with_a_corrupt_marker(&repo);
+
+        let outcome = dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", true),
+            &untouched_tracker(),
+        );
+
+        assert_failed_with(&outcome, "E_PUSH_MARKER_UNREADABLE");
+    }
+
+    #[test]
+    fn a_dry_run_after_a_created_unwritten_push_previews() {
+        let repo = PushingRepo::new();
+        let tracker = untouched_tracker();
+        let args = PushingRepo::args_with_id("0400", true);
+        let (_, report) = created(repo.run_args(
+            &args,
+            &tracker,
+            Some((in_the_work_directory_itself, 2)),
+        ));
+        assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
+
+        assert_previewed(&dry_run_through(&repo, &args, &tracker));
+
+        let (path, report) = created(repo.run_args(&args, &tracker, None));
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+        assert_named(&repo, &path.expect("written"), "0400");
+        assert_eq!(creates(&tracker), 1);
+    }
+
+    fn without_an_integration() -> PushingRepo {
+        PushingRepo::configured(&[("paths.integrations", "integrations")])
+    }
+
+    #[test]
+    fn a_dry_run_without_an_integration_refuses_the_id_first() {
+        for push in [false, true] {
+            let outcome = dry_run_through(
+                &without_an_integration(),
+                &PushingRepo::args_with_id("400", push),
+                &untouched_tracker(),
+            );
+
+            assert_failed_with(&outcome, "E_ID_PATTERN_MISMATCH");
+        }
+    }
+
+    struct UnreadableIntegrationsDir<'a>(&'a FakeConfig);
+
+    impl ConfigAccess for UnreadableIntegrationsDir<'_> {
+        fn get(
+            &self,
+            key: &::config::Key,
+            level: Option<::config::Level>,
+        ) -> Result<::config::Resolved, ::config::ConfigError> {
+            if key.to_string() == "paths.integrations" {
+                return Err(::config::ConfigError::Invalid {
+                    detail: "paths.integrations could not be read".to_owned(),
+                });
+            }
+            self.0.get(key, level)
+        }
+
+        fn set(
+            &self,
+            _key: &::config::Key,
+            _value: &str,
+            _level: ::config::Level,
+        ) -> Result<(), ::config::ConfigError> {
+            unreachable!("create never writes config")
+        }
+    }
+
+    #[test]
+    fn a_pushed_dry_run_reports_an_unreadable_integrations_dir_before_the_taken_check(
+    ) {
+        let repo = PushingRepo::new();
+        repo.holding("meta/work/0400-other.md", "");
+        let config = UnreadableIntegrationsDir(&repo.config);
+        let under_config = |args: &CreateArgs| {
+            repo.run_args_under(&config, args, &untouched_tracker(), None)
+        };
+        let pushed = PushingRepo::args_with_id("0400", true);
+
+        let outcome = dry_run_outcome(under_config(&dry_run(&pushed)));
+
+        assert!(outcome.contains("could not be read"), "{outcome}");
+        assert_eq!(
+            outcome,
+            format!("failed: {}", failure(under_config(&pushed)))
+        );
+        assert_failed_with(
+            &dry_run_outcome(under_config(&dry_run(
+                &PushingRepo::args_with_id("0400", false),
+            ))),
+            "E_ID_TAKEN",
+        );
+    }
+
+    #[test]
+    fn a_dry_run_without_push_reads_no_push_marker() {
+        let repo = PushingRepo::new();
+        with_a_corrupt_marker(&repo);
+
+        assert_previewed(&dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+            &untouched_tracker(),
+        ));
     }
 }

@@ -484,6 +484,31 @@ fn read_push_marker(
     (path, parsed)
 }
 
+/// Refuses a push whose slug's marker is unreadable or records an attempt
+/// of unknown outcome. A `Created` marker passes: what it decides depends
+/// on the rendered body, which only the real create has.
+///
+/// # Errors
+///
+/// `E_PUSH_MARKER_UNREADABLE` or `E_PUSH_PENDING`, naming the marker.
+pub fn refuse_unfinished_push(
+    state: &IntegrationState,
+    slug: &str,
+    reader: &dyn FileReader,
+) -> Result<(), String> {
+    let (marker_path, parsed) = read_push_marker(state, slug, reader);
+    work::sync::unfinished_push(&MarkerState::of(&parsed)).map_or(
+        Ok(()),
+        |reason| {
+            Err(refusal_message(
+                reason,
+                &marker_path,
+                parsed.as_ref().ok().and_then(Option::as_ref),
+            ))
+        },
+    )
+}
+
 struct PendingPushCheck {
     marker_path: PathBuf,
     digest: String,
