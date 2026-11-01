@@ -254,9 +254,9 @@ class TestPsutilProcessGroups:
         child.wait(timeout=5)
         assert not PsutilProcessOps().group_alive(child.pid)
 
-    @pytest.mark.skipif(os.geteuid() == 0, reason="no permission stops root")
-    def test_a_group_this_user_cannot_signal_is_not_alive(self):
-        assert not PsutilProcessOps().group_alive(1)
+    def test_a_group_this_user_cannot_signal_is_not_alive(self, mocker):
+        mocker.patch.object(os, "killpg", side_effect=PermissionError)
+        assert not PsutilProcessOps().group_alive(4242)
 
     def test_a_live_childs_group_is_alive(self, grouped_child):
         assert _deadline_wait(
