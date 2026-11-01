@@ -46,7 +46,9 @@ accelerator corpus metadata derive
 
 Prints the provenance block every generated artefact's frontmatter carries: a
 UTC ISO-8601 datetime, a host-local filename timestamp, and — inside a VCS
-checkout — the repository name and current revision. Producer skills
+checkout — the repository name, the current revision and the author, the
+checkout's configured `user.name` (jj's, else git's), when it has one. Producer
+skills
 interpolate this block directly into the frontmatter they emit.
 
 ## `linkage`

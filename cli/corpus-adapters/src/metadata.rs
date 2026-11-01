@@ -200,6 +200,7 @@ pub fn derive(
         filename_timestamp: clock.filename_timestamp(format),
         repository_name: facts.map(|facts| facts.name.clone()),
         revision: facts.and_then(|facts| facts.revision.clone()),
+        author: facts.and_then(|facts| facts.author.clone()),
     }
 }
 
@@ -227,6 +228,7 @@ impl RepoFactsProbe for VcsBackedRepoFactsProbe<'_> {
         Some(RepositoryFacts {
             name: facts.name,
             revision: facts.revision,
+            author: self.repository.user_name_at(start),
         })
     }
 }
@@ -268,6 +270,9 @@ pub fn render(
     if let Some(name) = &metadata.repository_name {
         let _ = writeln!(block, "Repository Name: {name}");
     }
+    if let Some(author) = &metadata.author {
+        let _ = writeln!(block, "Author: {author}");
+    }
     block
 }
 
@@ -287,7 +292,7 @@ mod tests {
         FilenameTimestampFormat, VcsBackedRepoFactsProbe,
     };
 
-    struct StubRepository(Option<RepoFacts>);
+    struct StubRepository(Option<RepoFacts>, Option<&'static str>);
 
     impl WorkingCopyStateProbe for StubRepository {
         fn working_copy_state(
@@ -305,7 +310,7 @@ mod tests {
         }
 
         fn user_name_at(&self, _start: &Path) -> Option<String> {
-            None
+            self.1.map(str::to_owned)
         }
 
         fn canonical(&self, path: &Path) -> PathBuf {
@@ -314,13 +319,16 @@ mod tests {
     }
 
     #[test]
-    fn the_repository_facts_carry_the_name_and_revision() {
-        let repository = StubRepository(Some(RepoFacts {
-            root: PathBuf::from("/tmp/some-repo"),
-            name: "some-repo".to_owned(),
-            kind: VcsKind::Jj,
-            revision: Some("abc123".to_owned()),
-        }));
+    fn the_repository_facts_carry_the_name_revision_and_author() {
+        let repository = StubRepository(
+            Some(RepoFacts {
+                root: PathBuf::from("/tmp/some-repo"),
+                name: "some-repo".to_owned(),
+                kind: VcsKind::Jj,
+                revision: Some("abc123".to_owned()),
+            }),
+            Some("Ada Author"),
+        );
         let probe = VcsBackedRepoFactsProbe::new(&repository);
 
         assert_eq!(
@@ -328,13 +336,14 @@ mod tests {
             Some(RepositoryFacts {
                 name: "some-repo".to_owned(),
                 revision: Some("abc123".to_owned()),
+                author: Some("Ada Author".to_owned()),
             })
         );
     }
 
     #[test]
     fn outside_a_repository_there_are_no_facts() {
-        let repository = StubRepository(None);
+        let repository = StubRepository(None, Some("Ada Author"));
         let probe = VcsBackedRepoFactsProbe::new(&repository);
 
         assert_eq!(probe.facts(Path::new("/tmp/loose")), None);
