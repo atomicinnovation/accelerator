@@ -23,6 +23,7 @@ from tasks.shared.build_measurement.cpu_load import cpu_readings, idle_load
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
+    UnknownTaskError,
 )
 from tasks.shared.build_measurement.fetch_failures import fetch_failures
 from tasks.shared.build_measurement.host import (
@@ -133,13 +134,23 @@ class BuildPorts:
     build_group: BuildGroup
 
 
+def _require_known(tasks: Sequence[str], graph: TaskGraph) -> None:
+    unknown = graph.unknown(tasks)
+    if unknown:
+        raise UnknownTaskError(
+            [(task, graph.closest_to(task)) for task in unknown]
+        )
+
+
 def measure_build(settings: BuildSettings, ports: BuildPorts) -> SessionOutcome:
     require_macos(ports.system())
+    graph = TaskGraph.parse(ports.mise_tasks())
+    _require_known(settings.scope.isolated_tasks, graph)
     with ports.session_lock():
         orphan = ports.build_group.orphaned()
         if orphan is not None:
             raise OrphanedBuildError(orphan.pgid, orphan.members, orphan.path)
-        return _Session(settings, ports).run()
+        return _Session(settings, ports, graph).run()
 
 
 def _run_hostname(host: HostDescription, ports: BuildPorts) -> str:
@@ -152,16 +163,18 @@ def _run_hostname(host: HostDescription, ports: BuildPorts) -> str:
 
 @dataclass(frozen=True, slots=True)
 class _Provenance:
-    graph: TaskGraph
     commit: str
     start_changes: tuple[str, ...]
     mise: MiseDescription
 
 
 class _Session:
-    def __init__(self, settings: BuildSettings, ports: BuildPorts) -> None:
+    def __init__(
+        self, settings: BuildSettings, ports: BuildPorts, graph: TaskGraph
+    ) -> None:
         self.settings = settings
         self.ports = ports
+        self.graph = graph
         self.started_at = ports.utc_now().replace(microsecond=0)
         self.host = observed_build_host(ports.diagnostics)
         self.run_id = run_id(
@@ -169,6 +182,7 @@ class _Session:
             _run_hostname(self.host, ports),
             cache_state=settings.cache_state,
             host_settings=settings.host_settings,
+            mode=settings.scope.mode,
         )
         self.run_directory = RUN_DIRECTORY_ROOT / self.run_id
         self.logs = settings.root / self.run_directory
@@ -191,9 +205,9 @@ class _Session:
         provenance = self._provenance()
         self._preflight(provenance)
         idle_load_percent = self._idle_load()
-        priming = self._priming(provenance.graph)
+        priming = self._priming()
         runs = tuple(
-            self._timed_run(TimedRun(number), provenance.graph)
+            self._timed_run(TimedRun(number))
             for number in range(1, self.settings.runs + 1)
         )
         captured = CapturedSession(
@@ -209,7 +223,7 @@ class _Session:
             host=self.host,
             mise=provenance.mise,
             idle_load_percent=idle_load_percent,
-            task_set=tuple(sorted(provenance.graph.closure(DEFAULT_TASK))),
+            task_set=tuple(sorted(self.graph.closure(DEFAULT_TASK))),
             priming=priming,
             runs=runs,
         )
@@ -221,7 +235,6 @@ class _Session:
         history = self.ports.history
         commit = measured_commit(history)
         return _Provenance(
-            graph=TaskGraph.parse(self.ports.mise_tasks()),
             commit=commit,
             start_changes=differing_paths(history, commit),
             mise=observed_mise(self.ports.diagnostics),
@@ -277,10 +290,10 @@ class _Session:
         return load
 
     def _build(
-        self, run: SessionRun, graph: TaskGraph, epoch: float
+        self, run: SessionRun, epoch: float
     ) -> tuple[CapturedInvocation, ...]:
         captured: list[CapturedInvocation] = []
-        for invocation in self.settings.scope.invocations(graph):
+        for invocation in self.settings.scope.invocations(self.graph):
             ready_from = self.ports.clock.now() - epoch
             log = self.logs / log_name(run, invocation.log_suffix)
             self._progress(f"  {shlex.join(invocation.argv)}: tail -f {log}")
@@ -295,17 +308,17 @@ class _Session:
             )
         return tuple(captured)
 
-    def _priming(self, graph: TaskGraph) -> PrimingRun | None:
+    def _priming(self) -> PrimingRun | None:
         if not self.settings.cache_state.primes:
             return None
         self._progress("priming build")
         epoch = self.ports.clock.now()
-        self._build(Priming(), graph, epoch)
+        self._build(Priming(), epoch)
         wall_clock = self.ports.clock.now() - epoch
         self._progress(f"priming: {wall_clock:.1f} s (discarded)")
         return PrimingRun(wall_clock_seconds=wall_clock, discarded=True)
 
-    def _timed_run(self, run: TimedRun, graph: TaskGraph) -> CapturedRun:
+    def _timed_run(self, run: TimedRun) -> CapturedRun:
         ports = self.ports
         self._progress(f"timed run {run.number}/{self.settings.runs}")
         epoch = ports.clock.now()
@@ -320,7 +333,7 @@ class _Session:
                 tracked=self.settings.tracked,
             )
             stack.callback(processes.stop)
-            invocations = self._build(run, graph, epoch)
+            invocations = self._build(run, epoch)
             wall_clock = ports.clock.now() - epoch
             captured = CapturedRun(
                 number=run.number,

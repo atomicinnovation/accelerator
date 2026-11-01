@@ -15,10 +15,15 @@ from tasks.shared.build_measurement.fetch_failures import FetchFailure
 from tasks.shared.build_measurement.measured_build import (
     HostSettings,
     MeasuredBuild,
+    Mode,
     RunFigures,
 )
 from tasks.shared.build_measurement.record_model import NoReading
-from tasks.shared.build_measurement.settings import TimedRun, log_name
+from tasks.shared.build_measurement.settings import (
+    TimedRun,
+    isolated_log_suffix,
+    log_name,
+)
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (
     IDE,
@@ -220,10 +225,18 @@ def _first_run_failing(measured: MeasuredBuild, task: str) -> RunFigures:
     return next(run for run in measured.runs if task in run.failed())
 
 
+def _log_suffix(measured: MeasuredBuild, task: str) -> str:
+    if measured.conditions.mode is Mode.ISOLATED:
+        return isolated_log_suffix(task)
+    return ""
+
+
 def _failures(measured: MeasuredBuild, run_directory: Path) -> Iterator[str]:
     for task in measured.failed_tasks:
         run = _first_run_failing(measured, task)
-        log = run_directory / log_name(TimedRun(run.index))
+        log = run_directory / log_name(
+            TimedRun(run.index), _log_suffix(measured, task)
+        )
         flagged = sum(each.after_failure for each in run.tasks.values())
         yield (
             f"failed: {task} (run {run.index}, see {log}) — "

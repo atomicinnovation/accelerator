@@ -74,3 +74,13 @@ class OrphanedBuildError(MeasurementRefusedError):
 
 class UnmeasurableDirectoryError(MeasurementRefusedError):
     pass
+
+
+class UnknownTaskError(MeasurementRefusedError):
+    def __init__(self, closest: Sequence[tuple[str, str | None]]) -> None:
+        listed = "; ".join(
+            f"'{task}' "
+            + ("(no close match)" if match is None else f"(closest: '{match}')")
+            for task, match in closest
+        )
+        super().__init__(f"no such task to isolate: {listed}")

@@ -45,12 +45,21 @@ class CapturedInvocation:
     reported: tuple[str, ...]
     ready_from: float
 
+    @property
+    def runs_one_task(self) -> bool:
+        return len(self.reported) == 1
+
     def timeline(self) -> Timeline:
-        return analyse_timeline(
+        timeline = analyse_timeline(
             self.result.lines,
             self.graph,
             self.reported,
             ready_from=self.ready_from,
+        )
+        if not self.runs_one_task:
+            return timeline
+        return timeline.with_exit_status_unprinted_by_mise(
+            self.result.exit_status
         )
 
 

@@ -6,10 +6,13 @@ from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
     SessionInProgressError,
+    UnknownTaskError,
     UnsupportedPlatformError,
 )
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
+from tasks.shared.build_measurement.measured_build import Mode
 from tasks.shared.build_measurement.record_model import NoReading
+from tasks.shared.build_measurement.reports import summary_report
 from tasks.shared.build_measurement.session import (
     IDLE_SAMPLE_SECONDS,
     OrphanedBuild,
@@ -22,13 +25,19 @@ from tasks.shared.build_measurement.tracked_processes import (
 )
 from tests.unit.tasks.shared.build_measurement.doubles import (
     ADVISORY_FAILS,
+    BUILD_ALONE,
     CLEAN_BUILD,
+    GRAPH_JSON,
     IDE_COMMAND,
     MEASURED_COMMIT,
+    TEST_ALONE,
     TEST_FAILS,
+    TEST_FAILS_ALONE,
     BuildScript,
     FakeHistory,
     FakeSession,
+    failed_alone,
+    succeeded,
     untouchable_ports,
 )
 
@@ -54,8 +63,8 @@ class TestOpening:
     def test_the_session_opens_in_one_order(self, session):
         session.measure(runs=1)
         events = session.events
-        assert events[:3] == ["platform", "lock", "orphan check"]
-        assert events[3].startswith("progress run directory:")
+        assert events[:4] == ["platform", "task graph", "lock", "orphan check"]
+        assert events[4].startswith("progress run directory:")
 
     def test_a_held_lock_refuses_before_anything_else_runs(self, tmp_path):
         session = FakeSession(
@@ -63,7 +72,7 @@ class TestOpening:
         )
         with pytest.raises(SessionInProgressError):
             session.measure()
-        assert session.events == ["platform", "lock"]
+        assert session.events == ["platform", "task graph", "lock"]
         assert not (tmp_path / RUN_DIRECTORY_ROOT).exists()
 
     def test_an_orphaned_build_refuses_while_the_lock_is_held(self, tmp_path):
@@ -75,7 +84,13 @@ class TestOpening:
         session = FakeSession(tmp_path, orphan=orphan)
         with pytest.raises(OrphanedBuildError) as refusal:
             session.measure()
-        assert session.events == ["platform", "lock", "orphan check", "unlock"]
+        assert session.events == [
+            "platform",
+            "task graph",
+            "lock",
+            "orphan check",
+            "unlock",
+        ]
         assert not (tmp_path / RUN_DIRECTORY_ROOT).exists()
         message = str(refusal.value)
         assert "4243 cargo nextest run" in message
@@ -242,6 +257,192 @@ class TestBuilds:
             "build",
             "report",
             "test",
+        )
+
+
+def _isolated(tmp_path, *scripts, isolate=("build", "test"), runs=1):
+    session = FakeSession(tmp_path, scripts=list(scripts))
+    return session, session.measure(runs=runs, isolate=isolate)
+
+
+class TestIsolation:
+    def test_isolation_runs_each_named_task_alone_with_skip_deps(
+        self, tmp_path
+    ):
+        session, _ = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        alone = ("mise", "run", "--output", "prefix", "--skip-deps")
+        assert [argv for argv, _ in session.build.calls] == [
+            (*alone, "build"),
+            (*alone, "test"),
+            (*alone, "build"),
+            (*alone, "test"),
+        ]
+
+    def test_isolated_intervals_do_not_overlap(self, tmp_path):
+        _, outcome = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        tasks = outcome.measured.runs[0].tasks
+        assert tasks["build"].end_seconds == 2.0
+        assert tasks["test"].start_seconds == 3.5
+        assert tasks["test"].end_seconds == 6.5
+
+    def test_isolation_primes_once_over_all_named_tasks(self, tmp_path):
+        session, _ = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        assert [log.name for _, log in session.build.calls] == [
+            "priming-build.log",
+            "priming-test.log",
+            "run-1-build.log",
+            "run-1-test.log",
+        ]
+
+    def test_an_isolated_task_is_ready_at_its_own_invocations_start(
+        self, tmp_path
+    ):
+        _, outcome = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        test = outcome.measured.runs[0].tasks["test"]
+        assert test.queueing_delay_seconds == 1.0
+
+    def test_isolation_reports_duration_nextest_phase_and_status_with_spreads(
+        self, tmp_path
+    ):
+        _, outcome = _isolated(
+            tmp_path,
+            *[BUILD_ALONE, TEST_ALONE] * 3,
+            runs=2,
+        )
+        measured = outcome.measured
+        assert [run.tasks["test"].outcome for run in measured.runs] == [
+            TaskOutcome.SUCCEEDED,
+            TaskOutcome.SUCCEEDED,
+        ]
+        across = measured.summary.tasks["test"]
+        assert across.duration_seconds is not None
+        assert across.duration_seconds.median == 3.0
+        assert across.nextest_phase_seconds is not None
+        assert across.nextest_phase_seconds.median == 2.0
+
+    def test_an_isolated_runs_wall_clock_spans_every_invocation(self, tmp_path):
+        _, outcome = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        assert outcome.measured.runs[0].wall_clock_seconds == 7.0
+
+    def test_an_isolated_runs_exit_status_is_its_first_failure(self, tmp_path):
+        build_fails_alone = BuildScript(
+            lines=failed_alone("build", 0.0), exit_status=5, wall_clock=1.0
+        )
+        _, outcome = _isolated(
+            tmp_path,
+            TEST_ALONE,
+            BUILD_ALONE,
+            TEST_FAILS_ALONE,
+            build_fails_alone,
+            isolate=("test", "build"),
+        )
+        [run] = outcome.measured.runs
+        assert run.exit_status == 3
+        assert run.contains_failure
+
+    def test_a_failed_isolated_task_takes_its_invocations_exit_status(
+        self, tmp_path
+    ):
+        _, outcome = _isolated(
+            tmp_path, TEST_ALONE, TEST_FAILS_ALONE, isolate=("test",)
+        )
+        test = outcome.measured.runs[0].tasks["test"]
+        assert test.outcome is TaskOutcome.FAILED
+        assert test.exit_status == 3
+
+    def test_the_buckets_list_each_isolated_task_while_it_runs(self, tmp_path):
+        long_build = BuildScript(
+            lines=succeeded("build", 0.0, 40.0), wall_clock=41.0
+        )
+        long_test = BuildScript(
+            lines=succeeded("test", 1.0, 40.0), wall_clock=42.0
+        )
+        _, outcome = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, long_build, long_test
+        )
+        buckets = outcome.measured.runs[0].cpu_buckets
+        assert [bucket.running for bucket in buckets] == [
+            ("build",),
+            ("test",),
+            ("test",),
+        ]
+
+    def test_the_record_marks_its_mode_and_isolated_tasks(self, tmp_path):
+        _, outcome = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        measured = outcome.measured
+        assert measured.conditions.mode is Mode.ISOLATED
+        assert measured.conditions.isolated_tasks == ("build", "test")
+        assert measured.run_id.endswith("_devtools_isolated")
+        assert set(measured.runs[0].tasks) == {"build", "test"}
+
+    def test_an_unknown_isolated_task_is_refused_before_the_lock(
+        self, tmp_path
+    ):
+        settings = FakeSession(tmp_path).settings(isolate=["build", "tset"])
+        with pytest.raises(UnknownTaskError) as refusal:
+            measure_build(
+                settings,
+                untouchable_ports(
+                    system=lambda: "Darwin", mise_tasks=lambda: GRAPH_JSON
+                ),
+            )
+        assert str(refusal.value) == (
+            "no such task to isolate: 'tset' (closest: 'test')"
+        )
+        assert not (tmp_path / RUN_DIRECTORY_ROOT).exists()
+
+    def test_an_unknown_task_with_no_close_name_says_so(self, tmp_path):
+        settings = FakeSession(tmp_path).settings(isolate=["frobnicate"])
+        with pytest.raises(
+            UnknownTaskError,
+            match=r"^no such task to isolate: 'frobnicate' \(no close match\)$",
+        ):
+            measure_build(
+                settings,
+                untouchable_ports(
+                    system=lambda: "Darwin", mise_tasks=lambda: GRAPH_JSON
+                ),
+            )
+
+    def test_isolated_priming_writes_one_log_per_task(self, tmp_path):
+        session, _ = _isolated(
+            tmp_path, BUILD_ALONE, TEST_ALONE, BUILD_ALONE, TEST_ALONE
+        )
+        names = {p.name for p in session.run_directory.iterdir()}
+        assert {"priming-build.log", "priming-test.log"} <= names
+        assert "priming.log" not in names
+
+    def test_progress_names_each_isolated_invocations_log(self, tmp_path):
+        session, outcome = _isolated(
+            tmp_path,
+            BUILD_ALONE,
+            TEST_ALONE,
+            BUILD_ALONE,
+            TEST_FAILS_ALONE,
+        )
+        run_directory = session.run_directory
+        alone = "mise run --output prefix --skip-deps"
+        for task in ("build", "test"):
+            assert (
+                f"  {alone} {task}: tail -f {run_directory}/run-1-{task}.log"
+                in session.progress
+            )
+        record = run_directory / "record.json"
+        summary = summary_report(outcome, record_path=record, kept_path=None)
+        assert f"failed: test (run 1, see {run_directory}/run-1-test.log)" in (
+            summary
         )
 
 

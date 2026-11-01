@@ -147,6 +147,21 @@ class Timeline:
     def failed(self) -> tuple[str, ...]:
         return failed_tasks(self.tasks)
 
+    def with_exit_status_unprinted_by_mise(self, exit_status: int) -> Self:
+        return type(self)(
+            MappingProxyType(
+                {
+                    task: figures.model_copy(
+                        update={"exit_status": exit_status}
+                    )
+                    if figures.outcome is TaskOutcome.FAILED
+                    and figures.exit_status is None
+                    else figures
+                    for task, figures in self.tasks.items()
+                }
+            )
+        )
+
     def unit_totals(self) -> CargoUnits:
         return sum(
             (figures.units for figures in self.tasks.values()), CargoUnits()

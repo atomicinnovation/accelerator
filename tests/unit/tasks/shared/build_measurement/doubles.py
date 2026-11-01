@@ -217,6 +217,14 @@ def failed(task, at, status, *output):
     )
 
 
+def failed_alone(task, at, *output):
+    return (
+        (at, f"[{task}] $ invoke {task}"),
+        *((at + 0.01, f"[{task}] {line}") for line in output),
+        (at + 0.5, f"[{task}] ERROR task failed"),
+    )
+
+
 def skipped(task, at):
     return ((at, f"[{task}] sources up-to-date, skipping"),)
 
@@ -426,6 +434,14 @@ ADVISORY_FAILS = BuildScript(
     ),
     wall_clock=6.5,
 )
+BUILD_ALONE = BuildScript(lines=succeeded("build", 0.0, 2.0), wall_clock=2.5)
+TEST_ALONE = BuildScript(
+    lines=succeeded("test", 1.0, 3.0, "Summary [   2.000s] 4 tests run"),
+    wall_clock=4.5,
+)
+TEST_FAILS_ALONE = BuildScript(
+    lines=failed_alone("test", 1.0, "boom"), exit_status=3, wall_clock=2.0
+)
 CPU_LINES = (
     (0.0, "  us sy id"),
     (0.0, " 1 2 3 4 5 6 7 8 9"),
@@ -470,6 +486,10 @@ class FakeSession:
             self.events.append("platform")
             return "Darwin"
 
+        def mise_tasks():
+            self.events.append("task graph")
+            return GRAPH_JSON
+
         def progress(line):
             self.events.append(f"progress {line.splitlines()[0]}")
             self.progress.append(line)
@@ -484,7 +504,7 @@ class FakeSession:
                 self.probes, self.diagnostics_calls
             ),
             "kernel_hostname": lambda: "kernel-host",
-            "mise_tasks": lambda: GRAPH_JSON,
+            "mise_tasks": mise_tasks,
             "clock": self.clock,
             "utc_now": lambda: dt.datetime(
                 2026, 10, 30, 16, 20, 0, 123456, tzinfo=dt.UTC
@@ -495,13 +515,14 @@ class FakeSession:
         }
         return BuildPorts(**(ports | overrides))
 
-    def settings(self, *, runs=3, keep=False, ide_patterns=()):
+    def settings(self, *, runs=3, keep=False, ide_patterns=(), isolate=()):
         return BuildSettings.of(
             root=self.tmp_path,
             runs=runs,
             keep=keep,
             host_settings="devtools",
             ide_patterns=ide_patterns,
+            isolate=isolate,
         )
 
     def measure(self, **settings):
