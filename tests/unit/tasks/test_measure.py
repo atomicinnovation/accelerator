@@ -110,6 +110,7 @@ from tasks.measure import (
     write_personal_config,
 )
 from tasks.measure import build as build_task
+from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
@@ -1537,6 +1538,16 @@ class TestMeasurementSession:
             session.manifest.artefacts["scratch-tree"] = str(outside)
         assert any("outside every admitted root" in f for f in session.failures)
         assert outside.exists()
+
+    def test_the_build_harness_run_directories_are_never_admitted(
+        self, plugin_root, tmp_path
+    ):
+        run_directories = plugin_root / RUN_DIRECTORY_ROOT
+        run_directories.mkdir(parents=True)
+        with fake_session(plugin_root, tmp_path) as session:
+            session.manifest.artefacts["scratch-tree"] = str(run_directories)
+        assert any("outside every admitted root" in f for f in session.failures)
+        assert run_directories.exists()
 
     def test_a_surviving_artefact_is_reported_rather_than_ignored(
         self, plugin_root, tmp_path

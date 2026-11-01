@@ -29,6 +29,7 @@ from typing import Protocol, Self
 from invoke import Context, Exit, task
 
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
+from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
 from tasks.shared.build_measurement.record import write_measured_build
 from tasks.shared.build_measurement.reports import summary_report
@@ -689,7 +690,7 @@ class MeasurementSession:
         ):
             return True
         if path.parent == self.plugin_root / MANIFEST_DIRNAME:
-            return True
+            return path != self.plugin_root / RUN_DIRECTORY_ROOT
         if path == self.plugin_root or tmp_containment(path, self.plugin_root):
             return False
         temp_root = Path(
