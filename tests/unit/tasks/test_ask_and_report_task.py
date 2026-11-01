@@ -5,7 +5,7 @@ from invoke import Context
 from invoke.exceptions import Exit
 
 import tasks.eval as evals
-from tasks.eval.ask_and_report import startup
+from tasks.eval.ask_and_report import runs, startup
 from tasks.eval.headless.transcript import Init, Result
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -184,6 +184,18 @@ def test_a_re_check_runs_only_the_pre_flight(
         evals.ask_and_report(Context(), out=str(tmp_path), check_only=True)
 
     assert gates.reached == ["preflight", "plan"]
+
+
+def test_a_re_check_keeps_the_run_s_recorded_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    Gates(monkeypatch, refuse_at="")
+    recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
+    runs.save_results([], tmp_path, recorded)
+
+    evals.ask_and_report(Context(), out=str(tmp_path), check_only=True)
+
+    assert runs.load_settings(tmp_path) == recorded
 
 
 def test_rerunning_errored_sessions_needs_an_out_directory(

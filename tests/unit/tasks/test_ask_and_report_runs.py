@@ -289,23 +289,55 @@ def test_results_record_the_run_s_settings(tmp_path: Path) -> None:
     assert runs.load_settings(tmp_path) == settings
 
 
+def test_a_narrowed_save_keeps_the_run_s_other_sessions(
+    tmp_path: Path,
+) -> None:
+    settings = runs.RunSettings("2.1.300", "claude-test", "/config")
+    first = runs.SessionResult("a/run-1", "A1", "a")
+    second = runs.SessionResult("b/run-1", "B1", "b")
+    runs.save_results([first, second], tmp_path, settings)
+
+    rejudged = runs.SessionResult("b/run-1", "B1", "b", failures=["x"])
+    runs.save_results([rejudged], tmp_path, settings)
+
+    recorded = json.loads((tmp_path / runs.RESULTS).read_text())["sessions"]
+    assert [(s["session"], s["status"]) for s in recorded] == [
+        ("a/run-1", "passed"),
+        ("b/run-1", "failed"),
+    ]
+
+
 @pytest.mark.parametrize(
-    ("model", "config_dir"),
-    [("other", ""), ("", "/elsewhere")],
+    "given",
+    [
+        runs.RunSettings("2.1.300", "other", ""),
+        runs.RunSettings("2.1.300", "", "/elsewhere"),
+        runs.RunSettings("2.1.316", "", ""),
+    ],
+    ids=["model", "config-dir", "claude-version"],
 )
 def test_a_rerun_refuses_settings_that_differ_from_the_run_s(
-    model: str, config_dir: str
+    given: runs.RunSettings,
 ) -> None:
     recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
 
-    assert runs.settings_conflict(recorded, model, config_dir)
+    assert runs.settings_conflict(recorded, given)
 
 
-def test_a_rerun_takes_the_run_s_settings_when_none_are_given() -> None:
+@pytest.mark.parametrize(
+    "given",
+    [
+        runs.RunSettings("2.1.300", "", ""),
+        runs.RunSettings("2.1.300", "claude-test", "/config"),
+    ],
+    ids=["none-given", "same-given"],
+)
+def test_a_rerun_takes_the_run_s_settings_when_none_differ(
+    given: runs.RunSettings,
+) -> None:
     recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
 
-    assert runs.settings_conflict(recorded, "", "") is None
-    assert runs.settings_conflict(recorded, "claude-test", "/config") is None
+    assert runs.settings_conflict(recorded, given) is None
 
 
 def test_the_summary_ends_with_each_errored_turn_and_the_rerun_command(
