@@ -69,6 +69,7 @@ pub use crate::sync::push_decide::PushOutcome;
 pub use crate::sync::push_precondition::order_precondition;
 pub use crate::sync::push_precondition::push_precondition;
 pub use crate::sync::push_precondition::resolve_pending_push_token;
+pub use crate::sync::push_precondition::unfinished_push;
 pub use crate::sync::push_precondition::MarkerState;
 pub use crate::sync::push_precondition::NotATrackerKey;
 pub use crate::sync::push_precondition::OrderPrecondition;
