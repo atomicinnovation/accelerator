@@ -69,7 +69,7 @@ class GitHistory:
         return iter(self._lines("rev-list", "--first-parent", "HEAD"))
 
     def changed_paths(self, commit: str) -> tuple[str, ...]:
-        return self._lines(
+        return self._paths(
             "diff-tree",
             "-r",
             "--root",
@@ -81,9 +81,13 @@ class GitHistory:
 
     def working_copy_changes(self, commit: str) -> tuple[str, ...]:
         return (
-            *self._lines("diff", "--name-only", commit),
-            *self._lines("ls-files", "--others", "--exclude-standard"),
+            *self._paths("diff", "--name-only", commit),
+            *self._paths("ls-files", "--others", "--exclude-standard"),
         )
 
     def _lines(self, *arguments: str) -> tuple[str, ...]:
         return _lines(self.run(["git", *arguments], cwd=self.root))
+
+    def _paths(self, *arguments: str) -> tuple[str, ...]:
+        output = self.run(["git", *arguments, "-z"], cwd=self.root)
+        return tuple(path for path in output.split("\0") if path)

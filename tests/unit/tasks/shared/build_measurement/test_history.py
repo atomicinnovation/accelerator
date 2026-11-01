@@ -106,6 +106,19 @@ def test_a_merged_working_copy_follows_its_first_parent(monkeypatch, tmp_path):
     assert measured_commit(JjHistory(repo.root)) == left
 
 
+def test_a_committed_non_ascii_path_is_named_as_written(repository):
+    repo, history = repository
+    code = repo.commit({"café.txt": "a"}, "code")
+    assert history.changed_paths(code) == ("café.txt",)
+
+
+def test_an_uncommitted_non_ascii_path_is_named_as_written(repository):
+    repo, history = repository
+    code = repo.commit({"a.txt": "a"}, "code")
+    _write(repo.root, "café.txt", "new")
+    assert differing_paths(history, code) == ("café.txt",)
+
+
 def test_a_gitignored_run_directory_does_not_break_the_match(repository):
     repo, history = repository
     code = repo.commit({".gitignore": "/.accelerator-measure/\n"}, "ignore")
