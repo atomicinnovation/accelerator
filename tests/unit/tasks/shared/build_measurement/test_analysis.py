@@ -40,6 +40,7 @@ _SETTINGS = BuildSettings.of(
     host_settings="devtools",
     ide_patterns=(),
     isolate=(),
+    cache_state="warm-no-op",
 )
 
 

@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import ClassVar, Self
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.errors import InvalidSettingsError
+from tasks.shared.build_measurement.errors import (
+    IncompatibleSettingsError,
+    InvalidSettingsError,
+)
 from tasks.shared.build_measurement.measured_build import HostSettings, Mode
 from tasks.shared.build_measurement.task_graph import TaskGraph
 from tasks.shared.build_measurement.tracked_processes import (
@@ -110,6 +113,16 @@ def _host_settings(label: str) -> HostSettings:
         ) from None
 
 
+def _cache_state(state: str) -> BuildCacheState:
+    try:
+        return BuildCacheState(state)
+    except ValueError:
+        known = ", ".join(BuildCacheState)
+        raise InvalidSettingsError(
+            f"unknown --cache-state '{state}'; known: {known}"
+        ) from None
+
+
 def _compiled(pattern: str) -> str:
     try:
         re.compile(pattern)
@@ -148,7 +161,7 @@ class BuildSettings:
     host_settings: HostSettings
     tracked: tuple[TrackedProcess, ...]
     scope: BuildScope
-    cache_state: BuildCacheState = BuildCacheState.WARM_NO_OP
+    cache_state: BuildCacheState
 
     @classmethod
     def of(
@@ -160,14 +173,22 @@ class BuildSettings:
         host_settings: str,
         ide_patterns: Sequence[str],
         isolate: Sequence[str],
+        cache_state: str,
     ) -> Self:
         if runs < 1:
             raise InvalidSettingsError("--runs must be at least 1")
+        state = _cache_state(cache_state)
+        scope = _scope(isolate)
+        if isinstance(scope, IsolatedTasks) and state.deletions:
+            raise IncompatibleSettingsError(
+                f"--isolate does not support --cache-state {state}"
+            )
         return cls(
             root=root,
             runs=runs,
             keep=keep,
             host_settings=_host_settings(host_settings),
             tracked=_tracked(ide_patterns),
-            scope=_scope(isolate),
+            scope=scope,
+            cache_state=state,
         )

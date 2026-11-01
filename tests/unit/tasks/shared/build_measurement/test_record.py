@@ -332,12 +332,17 @@ class TestParseRecord:
                     "_isolated"
                 ),
             ),
+            measured_build(
+                cache_state=BuildCacheState.COLD,
+                run_id="build_2026-10-30T162000Z_engywook_cold_devtools",
+            ),
         ],
         ids=[
             "failed-skipped-absent",
             "host-no-reading",
             "ps-gap",
             "isolated",
+            "cold",
         ],
     )
     def test_a_record_reads_back_equal_to_what_was_written(self, measured):

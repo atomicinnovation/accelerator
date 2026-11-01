@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from tasks.shared.build_measurement.errors import InvalidSettingsError
+from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.errors import (
+    IncompatibleSettingsError,
+    InvalidSettingsError,
+)
 from tasks.shared.build_measurement.measured_build import HostSettings, Mode
 from tasks.shared.build_measurement.settings import (
     BuildSettings,
@@ -39,6 +43,7 @@ def _settings(**overrides):
         "host_settings": "devtools",
         "ide_patterns": (),
         "isolate": (),
+        "cache_state": "warm-no-op",
     } | overrides
     return BuildSettings.of(**arguments)
 
@@ -146,6 +151,41 @@ def test_settings_refuse_a_task_isolated_twice():
         InvalidSettingsError, match="--isolate names 'test' more than once"
     ):
         _settings(isolate=["test", "check", "test"])
+
+
+def test_settings_measure_a_warm_no_op_build_by_default():
+    assert _settings().cache_state is BuildCacheState.WARM_NO_OP
+
+
+@pytest.mark.parametrize("state", list(BuildCacheState))
+def test_settings_take_each_cache_state_by_its_flag_value(state):
+    assert _settings(cache_state=str(state)).cache_state is state
+
+
+def test_settings_refuse_an_unknown_cache_state_listing_the_known_ones():
+    with pytest.raises(
+        InvalidSettingsError,
+        match=(
+            r"^unknown --cache-state 'tepid'; known: warm-no-op, "
+            r"incremental, cold$"
+        ),
+    ):
+        _settings(cache_state="tepid")
+
+
+def test_settings_refuse_isolate_with_cold():
+    with pytest.raises(
+        IncompatibleSettingsError,
+        match=r"^--isolate does not support --cache-state cold$",
+    ):
+        _settings(isolate=["test"], cache_state="cold")
+
+
+@pytest.mark.parametrize("state", ["warm-no-op", "incremental"])
+def test_settings_isolate_under_a_state_that_deletes_nothing(state):
+    assert _settings(isolate=["test"], cache_state=state).scope == (
+        IsolatedTasks(("test",))
+    )
 
 
 def test_a_full_build_is_recorded_as_full_with_no_isolated_tasks():

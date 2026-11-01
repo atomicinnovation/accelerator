@@ -28,6 +28,7 @@ from typing import Protocol, Self
 
 from invoke import Context, Exit, task
 
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
@@ -3736,6 +3737,7 @@ def build(
             host_settings=host_settings,
             ide_patterns=ide_pattern or (),
             isolate=isolate or (),
+            cache_state=str(BuildCacheState.WARM_NO_OP),
         ),
         real_ports,
     )

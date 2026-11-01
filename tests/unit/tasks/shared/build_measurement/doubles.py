@@ -144,7 +144,7 @@ def measured_build(
         task_set=tuple(sorted(runs[0].tasks)),
         tracked=tracked,
         priming=priming
-        if priming is not None
+        if priming is not None or not cache_state.primes
         else PrimingRun(wall_clock_seconds=318.2, discarded=True),
         runs=runs,
     )
@@ -515,7 +515,15 @@ class FakeSession:
         }
         return BuildPorts(**(ports | overrides))
 
-    def settings(self, *, runs=3, keep=False, ide_patterns=(), isolate=()):
+    def settings(
+        self,
+        *,
+        runs=3,
+        keep=False,
+        ide_patterns=(),
+        isolate=(),
+        cache_state="warm-no-op",
+    ):
         return BuildSettings.of(
             root=self.tmp_path,
             runs=runs,
@@ -523,6 +531,7 @@ class FakeSession:
             host_settings="devtools",
             ide_patterns=ide_patterns,
             isolate=isolate,
+            cache_state=cache_state,
         )
 
     def measure(self, **settings):

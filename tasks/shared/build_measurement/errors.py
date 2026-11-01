@@ -41,6 +41,10 @@ class InvalidSettingsError(MeasurementRefusedError):
     pass
 
 
+class IncompatibleSettingsError(MeasurementRefusedError):
+    pass
+
+
 class SessionInProgressError(MeasurementRefusedError):
     pass
 
