@@ -97,10 +97,20 @@ class Preflight:
     running: tuple[str, ...] | NoReading
     ide_commands: tuple[str, ...]
     keep: bool
+    touches: tuple[Path, ...]
+    deletions: tuple[Path, ...]
+    leftover_trash: tuple[FoundTrash, ...]
+    dev_launcher_marker: bool
 
     @property
     def matches(self) -> bool:
         return not self.differing_paths
+
+    @property
+    def dev_launcher_notices(self) -> tuple[DevLauncherNeedsRebuild, ...]:
+        if self.deletions and self.dev_launcher_marker:
+            return (DevLauncherNeedsRebuild(),)
+        return ()
 
 
 def _working_copy(preflight: Preflight) -> str:
@@ -142,6 +152,18 @@ def _tracked_processes(preflight: Preflight) -> Iterator[str]:
         yield f"  tracked processes not running: {', '.join(not_running)}"
 
 
+def _cache_state_effects(preflight: Preflight) -> Iterator[str]:
+    if preflight.touches:
+        touched = ", ".join(str(path) for path in preflight.touches)
+        yield f"  touches before each timed run: {touched}"
+    if preflight.deletions:
+        yield "  deletes before each timed run:"
+        yield from (f"    {path}" for path in preflight.deletions)
+    yield from (
+        f"  {_notice_line(found)}" for found in preflight.leftover_trash
+    )
+
+
 def preflight_report(preflight: Preflight) -> str:
     lines = [
         "preflight:",
@@ -154,6 +176,8 @@ def preflight_report(preflight: Preflight) -> str:
     if preflight.ide_commands:
         lines.append("  IDE command lines matched:")
         lines.extend(f"    {command}" for command in preflight.ide_commands)
+    lines.extend(_cache_state_effects(preflight))
+    lines.extend(_notice_line(each) for each in preflight.dev_launcher_notices)
     if preflight.keep:
         lines.extend(
             f"warning: with --keep, {warning}"

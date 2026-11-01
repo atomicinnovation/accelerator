@@ -352,6 +352,7 @@ class RecordingWorkspace:
         *,
         unremoved=None,
         found=(),
+        found_later=None,
         marker=False,
         preparation_seconds=0.0,
     ):
@@ -359,6 +360,8 @@ class RecordingWorkspace:
         self.events = events
         self.unremoved = unremoved or {}
         self.found = found
+        self.found_later = found_later
+        self.listings = 0
         self.marker = marker
         self.preparation_seconds = preparation_seconds
         self.prepared: list[tuple[BuildCacheState, Path]] = []
@@ -379,9 +382,13 @@ class RecordingWorkspace:
         return answer
 
     def leftover_trash(self):
-        if isinstance(self.found, BaseException):
-            raise self.found
-        return tuple(self.found)
+        self.listings += 1
+        found = self.found
+        if self.listings > 1 and self.found_later is not None:
+            found = self.found_later
+        if isinstance(found, BaseException):
+            raise found
+        return tuple(found)
 
 
 def _untouched(name):

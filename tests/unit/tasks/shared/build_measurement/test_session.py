@@ -1,21 +1,24 @@
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.cold_trash import UnremovedTrash
+from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
     SessionInProgressError,
     TrashNotRemovedError,
     UnknownTaskError,
+    UnsafeDeletionError,
     UnsupportedPlatformError,
 )
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import Mode
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
+    DevLauncherNeedsRebuild,
     notices_report,
     summary_report,
 )
@@ -574,6 +577,149 @@ class TestUnremovedTrash:
 
     def test_a_quiet_session_has_no_notices(self, session):
         assert session.measure(runs=2).notices == ()
+
+
+def _preflight_of(session):
+    [preflight] = [
+        line for line in session.progress if line.startswith("preflight:")
+    ]
+    return preflight.splitlines()
+
+
+_EARLIER_TRASH = FoundTrash(
+    path=Path(
+        "/checkout/.accelerator-measure/build/build_earlier/cold-trash-1"
+    ),
+    size_bytes=48_000_000,
+)
+_REBUILD = notices_report([DevLauncherNeedsRebuild()])
+
+
+class TestPreflightOfCacheStates:
+    def test_a_cold_preflight_lists_what_will_be_deleted(self, session):
+        session.measure(runs=1, cache_state="cold")
+        root = session.tmp_path
+        lines = _preflight_of(session)
+        assert f"    {root / 'cli/target'}" in lines
+        assert f"    {root / 'cli/visualiser/frontend/node_modules'}" in lines
+        events = session.events
+        assert _index(events, "progress preflight") < events.index(
+            "start cpu idle-iostat.log"
+        )
+
+    @pytest.mark.parametrize("state", ["warm-no-op", "incremental", "cold"])
+    def test_every_preflight_lists_trash_left_by_earlier_sessions(
+        self, session, state
+    ):
+        session.workspace.found = (_EARLIER_TRASH,)
+        session.measure(runs=1, cache_state=state)
+        assert f"  {notices_report([_EARLIER_TRASH])}" in _preflight_of(session)
+
+    @pytest.mark.parametrize(
+        ("state", "marker", "warned"),
+        [
+            ("cold", True, True),
+            ("cold", False, False),
+            ("warm-no-op", True, False),
+            ("incremental", True, False),
+        ],
+    )
+    def test_a_cold_preflight_warns_when_the_dev_launcher_marker_exists(
+        self, session, state, marker, warned
+    ):
+        session.workspace.marker = marker
+        session.measure(runs=1, cache_state=state)
+        assert (_REBUILD in _preflight_of(session)) is warned
+
+
+def _after_preflight(session):
+    start = next(
+        index
+        for index, line in enumerate(session.progress)
+        if line.startswith("preflight:")
+    )
+    return "\n".join(session.progress[start + 1 :])
+
+
+def _ends_by_interrupt(session):
+    session.build.scripts[1] = BuildScript(raises=KeyboardInterrupt)
+    return KeyboardInterrupt
+
+
+def _ends_by_refusal(session):
+    session.workspace.unremoved = {"cold-trash-1": _unremoved(session, 1)}
+    return TrashNotRemovedError
+
+
+def _ends_part_way_through_a_preparation(session):
+    session.workspace.unremoved = {
+        "cold-trash-1": UnsafeDeletionError("cli/target moved")
+    }
+    session.workspace.found_later = (_EARLIER_TRASH,)
+    return UnsafeDeletionError
+
+
+class TestDevLauncherWarning:
+    def test_a_successful_cold_session_repeats_it_as_a_notice(self, session):
+        session.workspace.marker = True
+        session.workspace.found_later = (_EARLIER_TRASH,)
+        outcome = session.measure(runs=2, cache_state="cold")
+        assert outcome.notices == (_EARLIER_TRASH, DevLauncherNeedsRebuild())
+
+    def test_the_last_runs_unremoved_trash_is_not_also_found(self, session):
+        unremoved = _unremoved(session, 2)
+        session.workspace.unremoved = {"cold-trash-2": unremoved}
+        session.workspace.found_later = (
+            FoundTrash(path=unremoved.path, size_bytes=unremoved.size_bytes),
+        )
+        outcome = session.measure(runs=2, cache_state="cold")
+        assert outcome.notices == (unremoved,)
+
+    @pytest.mark.parametrize(
+        "ending",
+        [
+            _ends_by_interrupt,
+            _ends_by_refusal,
+            _ends_part_way_through_a_preparation,
+        ],
+        ids=["interrupt", "refusal", "part-way-preparation"],
+    )
+    def test_the_dev_launcher_warning_is_repeated_however_the_session_ends(
+        self, session, ending
+    ):
+        session.workspace.marker = True
+        expected = ending(session)
+        with pytest.raises(expected):
+            session.measure(runs=2, cache_state="cold")
+        after = _after_preflight(session)
+        assert _REBUILD in after
+        if session.workspace.found_later:
+            assert notices_report([_EARLIER_TRASH]) in after
+        assert str(session.run_directory) in session.progress[-1]
+
+    def test_a_session_ending_before_its_first_preparation_warns_once(
+        self, session
+    ):
+        def interrupted(seconds):
+            raise KeyboardInterrupt
+
+        session.workspace.marker = True
+        session.clock.sleep = interrupted
+        with pytest.raises(KeyboardInterrupt):
+            session.measure(runs=1, cache_state="cold")
+        assert sum(_REBUILD in line for line in session.progress) == 1
+
+    def test_a_failing_exit_report_never_hides_why_the_session_ended(
+        self, session
+    ):
+        session.workspace.marker = True
+        session.workspace.found_later = PermissionError("trash unreadable")
+        _ends_by_interrupt(session)
+        with pytest.raises(KeyboardInterrupt):
+            session.measure(runs=2, cache_state="cold")
+        after = _after_preflight(session)
+        assert "the cold trash could not be listed: trash unreadable" in after
+        assert _REBUILD in after
 
 
 class TestInterruption:

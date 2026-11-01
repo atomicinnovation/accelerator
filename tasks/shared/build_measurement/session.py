@@ -10,6 +10,7 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import NoReturn, Protocol
 
 from tasks.shared.build_measurement.analysis import (
@@ -49,6 +50,7 @@ from tasks.shared.build_measurement.provenance import (
 from tasks.shared.build_measurement.record import run_id
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
+    DevLauncherNeedsRebuild,
     Preflight,
     SessionNotice,
     SessionOutcome,
@@ -208,7 +210,8 @@ class _Session:
         self.logs.mkdir(parents=True)
         self._progress(f"run directory: {self.logs}")
         try:
-            return self._measure()
+            with ExitStack() as exit_reports:
+                return self._measure(exit_reports)
         except BaseException:
             self._progress(
                 f"stopped; the logs captured so far are in {self.logs}"
@@ -218,12 +221,12 @@ class _Session:
     def _progress(self, line: str) -> None:
         self.ports.progress(line)
 
-    def _measure(self) -> SessionOutcome:
+    def _measure(self, exit_reports: ExitStack) -> SessionOutcome:
         provenance = self._provenance()
         self._preflight(provenance)
         idle_load_percent = self._idle_load()
         priming = self._priming()
-        runs, notices = self._timed_runs()
+        runs, notices = self._timed_runs(exit_reports)
         captured = CapturedSession(
             run_id=self.run_id,
             run_directory=self.run_directory,
@@ -259,6 +262,8 @@ class _Session:
     def _preflight(self, provenance: _Provenance) -> None:
         tracked = self.settings.tracked
         running, ide_commands = self._tracked_now(tracked)
+        state = self.settings.cache_state
+        workspace = self.ports.workspace
         self._progress(
             preflight_report(
                 Preflight(
@@ -271,9 +276,16 @@ class _Session:
                     running=running,
                     ide_commands=ide_commands,
                     keep=self.settings.keep,
+                    touches=self._absolute(state.touches),
+                    deletions=self._absolute(state.deletions),
+                    leftover_trash=workspace.leftover_trash(),
+                    dev_launcher_marker=workspace.has_dev_launcher_marker(),
                 )
             )
         )
+
+    def _absolute(self, paths: tuple[Path, ...]) -> tuple[Path, ...]:
+        return tuple(self.settings.root / path for path in paths)
 
     def _tracked_now(
         self, tracked: tuple[TrackedProcess, ...]
@@ -337,9 +349,13 @@ class _Session:
         return PrimingRun(wall_clock_seconds=wall_clock, discarded=True)
 
     def _timed_runs(
-        self,
+        self, exit_reports: ExitStack
     ) -> tuple[tuple[CapturedRun, ...], tuple[SessionNotice, ...]]:
+        deletes = bool(self.settings.cache_state.deletions)
+        if deletes:
+            exit_reports.push(self._report_deletion_notices_on_failure)
         runs: list[CapturedRun] = []
+        last_unremoved: tuple[UnremovedTrash, ...] = ()
         for number in range(1, self.settings.runs + 1):
             run = TimedRun(number)
             self._progress(f"timed run {number}/{self.settings.runs}")
@@ -347,10 +363,49 @@ class _Session:
             runs.append(self._timed_run(run))
             if unremoved is None:
                 continue
-            if number == self.settings.runs:
-                return tuple(runs), (unremoved,)
-            self._stop_for_unremoved(run, unremoved)
-        return tuple(runs), ()
+            if number < self.settings.runs:
+                self._stop_for_unremoved(run, unremoved)
+            last_unremoved = (unremoved,)
+        if not deletes:
+            return tuple(runs), last_unremoved
+        return tuple(runs), (
+            *last_unremoved,
+            *self._deletion_notices(reported=last_unremoved),
+        )
+
+    def _report_deletion_notices_on_failure(
+        self,
+        failure: type[BaseException] | None,
+        _error: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> bool:
+        if failure is not None:
+            notices = self._deletion_notices(reported=())
+            if notices:
+                self._progress(notices_report(notices))
+        return False
+
+    def _deletion_notices(
+        self, *, reported: Sequence[UnremovedTrash]
+    ) -> tuple[SessionNotice, ...]:
+        """Never raises, so it cannot replace the reason a session ended."""
+        workspace = self.ports.workspace
+        reported_paths = {each.path for each in reported}
+        try:
+            found = tuple(
+                each
+                for each in workspace.leftover_trash()
+                if each.path not in reported_paths
+            )
+        except OSError as error:
+            self._progress(f"the cold trash could not be listed: {error}")
+            found = ()
+        try:
+            marker = workspace.has_dev_launcher_marker()
+        except OSError:
+            marker = True
+        rebuild = (DevLauncherNeedsRebuild(),) if marker else ()
+        return (*found, *rebuild)
 
     def _stop_for_unremoved(
         self, run: TimedRun, unremoved: UnremovedTrash
