@@ -225,6 +225,12 @@
   holds it. `--dry-run --id` runs the same checks in the same order,
   without taking a lock, and refuses an ID as the real create would before
   the tracker is contacted.
+- **`work id check <ID>` settles an ID for a new item, writing nothing.**
+  It prints `exact`, `other-key` or `corrected` with the ID to pass to
+  `work create --id`, the last two naming the configured key when the ID's
+  key differs from it, and refuses with the `E_ID_*` code `work create --id`
+  would give. A pass reserves nothing. An ID an interrupted `--push` create
+  wrote reports `E_ID_TAKEN`, where `work create` reports `E_PUSH_PENDING`.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a
@@ -528,9 +534,9 @@
   set.
 - **Commands that allocate or retire IDs serialise on one lock.**
   `work sync`, `work promote`, `work create`, `work create-batch`,
-  `work id next` and `work update --push` wait for one another, saying on
-  stderr which command they are waiting for, and give up after 60 s with
-  `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
+  `work id next`, `work id check` and `work update --push` wait for one
+  another, saying on stderr which command they are waiting for, and give up
+  after 60 s with `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
   re-key is unfinished. `work id next` now writes its lock under
   `.accelerator/state/locks/`. Upgrade every session before re-keying: an
   older binary does not take this lock. A re-key holds the create and
