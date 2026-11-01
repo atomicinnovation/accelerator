@@ -121,6 +121,15 @@ def test_an_unwritten_probe_names_accept_edits(
     assert "2.1.281" in refusal
 
 
+def test_any_other_denial_fails_the_probe_naming_the_tool() -> None:
+    denial = {"tool_name": "Bash", "tool_input": {"command": "ls"}}
+
+    refusal = startup.probe_refusal(_outcome(denials=(denial,)))
+
+    assert refusal is not None
+    assert "denied Bash" in refusal
+
+
 def test_any_other_probe_failure_names_the_command_and_status() -> None:
     refusal = startup.probe_refusal(_outcome(exit_status=3, error="Overloaded"))
 
