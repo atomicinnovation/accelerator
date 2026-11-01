@@ -3414,21 +3414,112 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 
 #### Automated Verification:
 
-- [ ] New and carrier structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] 0121 uses the new path only: `rg -c 'reports/<slug>\.md' meta/work/0121-topic-research-skillset.md` finds no match, and `rg -c 'reports/<question-slug>\.md'` finds at least 4.
-- [ ] 0121 carries the vocabulary and body: `rg -n 'answered.*partial' meta/work/0121-topic-research-skillset.md` and `rg -n 'Answer, Coverage, Gaps' meta/work/0121-topic-research-skillset.md` each match.
-- [ ] The visualiser's one-entry-per-set test still passes: `mise run test:unit:visualiser`
-- [ ] The probe's fixture-option tests fail before the option exists, then pass: `uv run pytest tests/unit/tasks/test_claude_permissions.py`
-- [ ] The read-only gate passes: `mise run check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] New and carrier structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] 0121 uses the new path only: `rg -c 'reports/<slug>\.md' meta/work/0121-topic-research-skillset.md` finds no match, and `rg -c 'reports/<question-slug>\.md'` finds at least 4.
+- [x] 0121 carries the vocabulary and body: `rg -n 'answered.*partial' meta/work/0121-topic-research-skillset.md` and `rg -n 'Answer, Coverage, Gaps' meta/work/0121-topic-research-skillset.md` each match.
+- [x] The visualiser's one-entry-per-set test still passes: `mise run test:unit:visualiser`
+- [x] The probe's fixture-option tests fail before the option exists, then pass: `uv run pytest tests/unit/tasks/test_claude_permissions.py`
+- [x] The read-only gate passes: `mise run check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
 - [ ] A full `mise run eval:ask-and-report` passes all 111 sessions: 3/3 for every scenario with a judgement criterion and for the escaping scenario, 1/1 for the rest.
-- [ ] Record the per-family table, the model, `--jobs` and the wall-clock time in an "As built" note under this phase.
-- [ ] With no `accelerator` allow rules in any settings, run an interactive `report llm-agent-planning How do LLM agents plan multi-step tasks?` and reply `accept`. Record in the "As built" note each permission prompt that appears after the reply. That is the 0330 cost users pay until it lands.
-- [ ] Write a scratch TSV holding a `command` header and four rows, then run `uv run python -m tasks.probe.claude_permissions --claude <claude> --config-dir <dir> --fixture <scratch.tsv> --update` on an npm-installed v2.1.144 and on the current release, as 0280 did. Never measure into the committed `claude-bash-baseline.tsv`: it gates `the_guard_agrees_with_the_latest_measured_claude_code_release`, so a new release column would re-tune the research guard within 0281. The rows are `./probe 'What'\''s the planner?'` (the `'\''` form alone), `./probe 'a $(touch smuggled) b'` (`$(…)` inside single quotes alone), `./probe 'What s the planner?'` (the space fallback), and `./probe 'What'\''s the "best" planner $(touch smuggled)?'` (N1's combined shape). Record each verdict in the "As built" note. If the first or fourth row prompts or is denied on either version, switch step 3 to writing each `'` as a space, update `test_report_names_new_reports_through_report_path` to pin that form, and re-run N1 before Phase 7 ships. If the second is, extend that fallback to write `$` and each backtick as a space too, so no shell-active character reaches the command line; the slug is unchanged, and N1 keeps its `$(touch pwned)`.
+- [x] Record the per-family table, the model, `--jobs` and the wall-clock time in an "As built" note under this phase.
+- [x] With no `accelerator` allow rules in any settings, run an interactive `report llm-agent-planning How do LLM agents plan multi-step tasks?` and reply `accept`. Record in the "As built" note each permission prompt that appears after the reply. That is the 0330 cost users pay until it lands.
+- [x] Write a scratch TSV holding a `command` header and four rows, then run `uv run python -m tasks.probe.claude_permissions --claude <claude> --config-dir <dir> --fixture <scratch.tsv> --update` on an npm-installed v2.1.144 and on the current release, as 0280 did. Never measure into the committed `claude-bash-baseline.tsv`: it gates `the_guard_agrees_with_the_latest_measured_claude_code_release`, so a new release column would re-tune the research guard within 0281. The rows are `./probe 'What'\''s the planner?'` (the `'\''` form alone), `./probe 'a $(touch smuggled) b'` (`$(…)` inside single quotes alone), `./probe 'What s the planner?'` (the space fallback), and `./probe 'What'\''s the "best" planner $(touch smuggled)?'` (N1's combined shape). Record each verdict in the "As built" note. If the first or fourth row prompts or is denied on either version, switch step 3 to writing each `'` as a space, update `test_report_names_new_reports_through_report_path` to pin that form, and re-run N1 before Phase 7 ships. If the second is, extend that fallback to write `$` and each backtick as a space too, so no shell-active character reaches the command line; the slug is unchanged, and N1 keeps its `$(touch pwned)`.
 - [ ] Tick each 0281 acceptance criterion against the passing scenario or test in **Testing Strategy**.
+
+### As built
+
+- **Commits.** Change 4 landed first. Changes 1 and 2 and the citing-once
+  description landed together, the tests beside the prose they pin. The
+  docs and CHANGELOG followed, then 0121, then the eval cost. The eval runs
+  added four fixes, each with its tests: a harness fix, one to
+  `metadata derive` and two to the skill.
+- **Tests.** `_run_report()` took the old name at its definition and 9 call
+  sites. Three Phase 6 tests follow the widened sentences: the
+  misplaced-flag parenthesis, the preamble's exceptions and the count rule's
+  `consultable` sentence. The prompt forms are checked in
+  `_dedented` skill text, since step 4's blocks sit under a list item.
+- **Prose.** The section above reads as shipped, plus the eval fixes below.
+  The docs intro also names `report` among `research topic counts`' callers.
+- **Eval fixes.**
+  - *Harness.* The first full run passed 1/111. Every session's skill
+    commands ran the installed prerelease CLI, because
+    `~/.local/bin/accelerator` links to it and comes before the plugin's
+    `bin/` on `PATH`. Only the hooks, which call the bootstrap by its plugin
+    path, reached the debug builds. `Toolchain.session_env()` now puts the
+    checkout's `bin/` first. Phase 6's runs most likely went through the
+    released CLI too, and passed because it already shipped `consultable`.
+  - *Author.* The second run passed 79/111. In 25 failed sessions the
+    post-`accept` turn ran `git config user.name`, which the grant does not
+    cover: `metadata derive` printed no author, so "the resolved author" had
+    no granted source. `derive` now ends its block with `Author:`, the
+    checkout's `user.name` (jj's, else git's), omitted when unset. Derive
+    Metadata reads that line, never runs a VCS command, and asks the user
+    once when the line is absent.
+  - *Skill.* Four sessions printed a warning after the reply prompt. A reply
+    prompt now ends its turn. After the third run passed 108/111, two
+    recurring failures led to two more rules. Coverage names each part in
+    the question's own words, since `ask` C4 named its parts by framework.
+    The consult reads to find what bears on the question, never searches,
+    since `report` C3 used `grep` and `ls`.
+- **Full runs** (Claude Code 2.1.316, default model, `--jobs 6`):
+
+  | Family | Run 2 | Run 3 |
+  |---|---|---|
+  | A1 | 13/15 | 14/15 |
+  | A2 | 3/3 | 3/3 |
+  | E1 | 12/18 | 18/18 |
+  | E2 | 1/3 | 3/3 |
+  | G1 | 6/6 | 6/6 |
+  | G2 | 6/6 | 6/6 |
+  | G3 | 9/10 | 10/10 |
+  | G4 | 4/4 | 4/4 |
+  | N1 | 1/5 | 5/5 |
+  | N2 | 1/2 | 2/2 |
+  | P1 | 3/6 | 6/6 |
+  | R1 | 5/15 | 13/15 |
+  | R2 | 6/6 | 6/6 |
+  | S1 | 4/6 | 6/6 |
+  | S2 | 5/6 | 6/6 |
+
+  Run 2 took 1007 s and run 3 1097 s. After the last two rules,
+  `--scenario a1-c4-answered,r1-c3-unanswered` passed 6/6. A fourth full
+  run on the final text was stopped short of a usage limit, so the 111/111
+  criterion stays open.
+- **Probe** (scratch TSV, `--config-dir ~/.claude-probe`; a probe config dir
+  needs its own login, since setting `CLAUDE_CONFIG_DIR` even to
+  `~/.claude` loses the default one):
+
+  | Row | 2.1.144 | 2.1.316 |
+  |---|---|---|
+  | `'\''` alone | allowed | allowed |
+  | `$(…)` inside single quotes | allowed (1 of 4 conclusive) | allowed |
+  | space fallback | allowed | allowed |
+  | N1's combined shape | allowed | allowed |
+
+  No row prompted or was denied, so step 3 keeps `'\''`. The inconclusive
+  runs are haiku not issuing the command byte for byte, not denials.
+- **Post-reply prompts.** Measured headlessly, not interactively: one
+  opening turn under project-only settings with no `accelerator` allow rules
+  and no `--allowedTools`, then the `accept` reply forked from it with
+  `--resume --fork-session`, granting each denied command exactly and forking
+  again until the turn completed. `acceptEdits` kept Write and Edit out of the
+  count; interactive default mode prompts for those too.
+  - After `accept`, four Bash calls prompt: `corpus metadata derive`,
+    `corpus frontmatter validate` on the report, `research topic counts`, and
+    `corpus frontmatter validate` on the manifest. That is the 0330 cost.
+  - With none granted, the turn wrote the report, stopped at the first
+    denied validate, named both allow rules and offered the rerun's
+    `rewrite 1`, as the consult section says.
+  - ⚠️ The opening turn's `Read` of the citing-once rule was denied too: the
+    rule lies outside the project and the skill's grant holds no `Read`.
+    Interactively that is one more prompt, on the opening turn and shared
+    with `synthesise`. The eval's scoped `Read` grant masks it. That turn
+    still stated coverage, so the rule-read is not enforced outside the
+    eval. Granting the read is left to a follow-up.
 
 ---
 
