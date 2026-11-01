@@ -1,10 +1,11 @@
 //! The meta-corpus domain: the serde-free value model, the doc-type fact and
-//! its inference matcher, typed-linkage parsing and resolution, the slug and
-//! work-item-ID conventions, and the artifact-metadata contract.
+//! its inference matcher, typed-linkage parsing and resolution, the slug
+//! convention, and the artifact-metadata contract.
 //!
 //! Kernel-only: no serde, YAML, regex, or filesystem crate enters its closure.
-//! The convention algorithms take infra-sourced data (an ID convention, a
-//! doc-type table, a parsed frontmatter value) by injection.
+//! Work-item IDs arrive through the `IdConvention` and `LinkageIds` ports, and
+//! the convention algorithms take the other infra-sourced data (a doc-type
+//! table, a parsed frontmatter value) by injection.
 
 pub mod adr;
 pub mod body;
@@ -26,7 +27,6 @@ pub mod slug;
 pub mod store;
 pub mod typed_ref;
 pub mod value;
-pub mod work_item_id;
 
 pub use crate::doc_type::DocTypeKey;
 pub use crate::id_convention::IdConvention;
@@ -49,14 +49,3 @@ pub use crate::typed_ref::TypedRef;
 pub use crate::value::FrontmatterValue;
 pub use crate::value::Mapping;
 pub use crate::value::Scalar;
-pub use crate::work_item_id::canonical_draft_id;
-pub use crate::work_item_id::is_key_token;
-pub use crate::work_item_id::references_key;
-pub use crate::work_item_id::validate_id_pattern;
-pub use crate::work_item_id::IdOwnership;
-pub use crate::work_item_id::IdPatternError;
-pub use crate::work_item_id::IdScan;
-pub use crate::work_item_id::IdScanner;
-pub use crate::work_item_id::SchemeConvention;
-pub use crate::work_item_id::WorkItemIdScheme;
-pub use crate::work_item_id::TRACKER_TOKEN;

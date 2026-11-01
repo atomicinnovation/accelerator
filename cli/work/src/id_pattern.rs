@@ -945,4 +945,309 @@ mod tests {
             Err(PatternError::TrackerNotSoleToken)
         );
     }
+
+    #[test]
+    fn patterns_validate_with_the_compilers_refusal_text() {
+        let cases: &[(&str, Result<(), &str>)] = &[
+            ("{number:04d}", Ok(())),
+            ("{number}", Ok(())),
+            ("{key}-{number:04d}", Ok(())),
+            ("{project}-{number:04d}", Ok(())),
+            ("{key}-{number:06d}", Ok(())),
+            ("v{number:03d}", Ok(())),
+            ("a.{number}", Ok(())),
+            ("{tracker}", Ok(())),
+            ("", Err("pattern is empty")),
+            (
+                "{number:4d}",
+                Err("{number} format spec '4d' must match 0Nd (rule 4)"),
+            ),
+            (
+                "{bogus}-{number}",
+                Err("unknown token '{bogus}' in pattern"),
+            ),
+            (
+                "{key}{number}",
+                Err(
+                    "dynamic tokens must be separated by literal text (rule 3)",
+                ),
+            ),
+            (
+                "{key}",
+                Err(
+                    "pattern must contain at least one {number} token (rule 1)",
+                ),
+            ),
+            ("{number", Err("unclosed token starting at offset 0")),
+            ("}{number}", Err("unmatched '}' at offset 0")),
+            ("{a{b}}", Err("nested '{' in token starting at offset 0")),
+            (
+                "x/{number:04d}",
+                Err("literal '/' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x\\{number:04d}",
+                Err("literal '\\' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x:{number:04d}",
+                Err("literal ':' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x*{number:04d}",
+                Err("literal '*' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x?{number:04d}",
+                Err("literal '?' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x<{number:04d}",
+                Err("literal '<' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x>{number:04d}",
+                Err("literal '>' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x|{number:04d}",
+                Err("literal '|' is forbidden in patterns (rule 2)"),
+            ),
+            (
+                "x\"{number:04d}",
+                Err("literal '\"' is forbidden in patterns (rule 2)"),
+            ),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(
+                IdPattern::parse(text)
+                    .map(|_| ())
+                    .map_err(|error| error.to_string())
+                    .as_ref()
+                    .map_err(String::as_str),
+                expected.as_ref().map_err(|text| *text),
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn render_formats_each_number_through_the_pattern() {
+        let cases = [
+            ("{number:04d}", 1, "0001"),
+            ("{number:04d}", 42, "0042"),
+            ("{number:04d}", 9999, "9999"),
+            ("{number}", 1, "0001"),
+            ("{number}", 42, "0042"),
+            ("{number}", 9999, "9999"),
+            ("{key}-{number:04d}", 1, "PP-0001"),
+            ("{key}-{number:04d}", 42, "PP-0042"),
+            ("{key}-{number:04d}", 9999, "PP-9999"),
+            ("{project}-{number:04d}", 1, "PP-0001"),
+            ("{project}-{number:04d}", 42, "PP-0042"),
+            ("{project}-{number:04d}", 9999, "PP-9999"),
+            ("{key}-{number:06d}", 1, "PP-000001"),
+            ("{key}-{number:06d}", 42, "PP-000042"),
+            ("{key}-{number:06d}", 9999, "PP-009999"),
+            ("v{number:03d}", 1, "v001"),
+            ("v{number:03d}", 42, "v042"),
+            ("v{number:03d}", 9999, "v9999"),
+            ("a.{number}", 1, "a.0001"),
+            ("a.{number}", 42, "a.0042"),
+            ("a.{number}", 9999, "a.9999"),
+        ];
+        for (text, number, expected) in cases {
+            assert_eq!(
+                pattern(text).render(Some(&key("PP")), number),
+                Ok(expected.to_owned()),
+                "{text} {number}"
+            );
+        }
+    }
+
+    type FilenameReading =
+        (&'static str, &'static str, Option<(&'static str, usize)>);
+
+    const FILENAME_READINGS: &[FilenameReading] = &[
+        ("{number:04d}", "0400-x.md", Some(("0400", 5))),
+        ("{number:04d}", "00400-x.md", Some(("00400", 6))),
+        ("{number:04d}", "0400.md", None),
+        ("{number:04d}", "0400x-y.md", None),
+        ("{number:04d}", "PP-0500-x.md", None),
+        ("{number:04d}", "pp-0500-x.md", None),
+        ("{number:04d}", "XY-0500-x.md", None),
+        ("{number:04d}", "v001-x.md", None),
+        ("{number:04d}", "V001-x.md", None),
+        ("{number:04d}", "PPv001-x.md", None),
+        ("{number:04d}", "a.0042-x.md", None),
+        ("{number:04d}", "A.0042-x.md", None),
+        ("{number:04d}", "PP-000042-x.md", None),
+        ("{number}", "0400-x.md", Some(("0400", 5))),
+        ("{number}", "00400-x.md", Some(("00400", 6))),
+        ("{number}", "0400.md", None),
+        ("{number}", "0400x-y.md", None),
+        ("{number}", "PP-0500-x.md", None),
+        ("{number}", "pp-0500-x.md", None),
+        ("{number}", "XY-0500-x.md", None),
+        ("{number}", "v001-x.md", None),
+        ("{number}", "V001-x.md", None),
+        ("{number}", "PPv001-x.md", None),
+        ("{number}", "a.0042-x.md", None),
+        ("{number}", "A.0042-x.md", None),
+        ("{number}", "PP-000042-x.md", None),
+        ("{key}-{number:04d}", "0400-x.md", None),
+        ("{key}-{number:04d}", "00400-x.md", None),
+        ("{key}-{number:04d}", "0400.md", None),
+        ("{key}-{number:04d}", "0400x-y.md", None),
+        ("{key}-{number:04d}", "PP-0500-x.md", Some(("0500", 8))),
+        ("{key}-{number:04d}", "pp-0500-x.md", Some(("0500", 8))),
+        ("{key}-{number:04d}", "XY-0500-x.md", None),
+        ("{key}-{number:04d}", "v001-x.md", None),
+        ("{key}-{number:04d}", "V001-x.md", None),
+        ("{key}-{number:04d}", "PPv001-x.md", None),
+        ("{key}-{number:04d}", "a.0042-x.md", None),
+        ("{key}-{number:04d}", "A.0042-x.md", None),
+        ("{key}-{number:04d}", "PP-000042-x.md", Some(("000042", 10))),
+        ("{project}-{number:04d}", "0400-x.md", None),
+        ("{project}-{number:04d}", "00400-x.md", None),
+        ("{project}-{number:04d}", "0400.md", None),
+        ("{project}-{number:04d}", "0400x-y.md", None),
+        ("{project}-{number:04d}", "PP-0500-x.md", Some(("0500", 8))),
+        ("{project}-{number:04d}", "pp-0500-x.md", Some(("0500", 8))),
+        ("{project}-{number:04d}", "XY-0500-x.md", None),
+        ("{project}-{number:04d}", "v001-x.md", None),
+        ("{project}-{number:04d}", "V001-x.md", None),
+        ("{project}-{number:04d}", "PPv001-x.md", None),
+        ("{project}-{number:04d}", "a.0042-x.md", None),
+        ("{project}-{number:04d}", "A.0042-x.md", None),
+        (
+            "{project}-{number:04d}",
+            "PP-000042-x.md",
+            Some(("000042", 10)),
+        ),
+        ("{key}-{number:06d}", "0400-x.md", None),
+        ("{key}-{number:06d}", "00400-x.md", None),
+        ("{key}-{number:06d}", "0400.md", None),
+        ("{key}-{number:06d}", "0400x-y.md", None),
+        ("{key}-{number:06d}", "PP-0500-x.md", Some(("0500", 8))),
+        ("{key}-{number:06d}", "pp-0500-x.md", Some(("0500", 8))),
+        ("{key}-{number:06d}", "XY-0500-x.md", None),
+        ("{key}-{number:06d}", "v001-x.md", None),
+        ("{key}-{number:06d}", "V001-x.md", None),
+        ("{key}-{number:06d}", "PPv001-x.md", None),
+        ("{key}-{number:06d}", "a.0042-x.md", None),
+        ("{key}-{number:06d}", "A.0042-x.md", None),
+        ("{key}-{number:06d}", "PP-000042-x.md", Some(("000042", 10))),
+        ("v{number:03d}", "0400-x.md", None),
+        ("v{number:03d}", "00400-x.md", None),
+        ("v{number:03d}", "0400.md", None),
+        ("v{number:03d}", "0400x-y.md", None),
+        ("v{number:03d}", "PP-0500-x.md", None),
+        ("v{number:03d}", "pp-0500-x.md", None),
+        ("v{number:03d}", "XY-0500-x.md", None),
+        ("v{number:03d}", "v001-x.md", Some(("001", 5))),
+        ("v{number:03d}", "V001-x.md", Some(("001", 5))),
+        ("v{number:03d}", "PPv001-x.md", None),
+        ("v{number:03d}", "a.0042-x.md", None),
+        ("v{number:03d}", "A.0042-x.md", None),
+        ("v{number:03d}", "PP-000042-x.md", None),
+        ("a.{number}", "0400-x.md", None),
+        ("a.{number}", "00400-x.md", None),
+        ("a.{number}", "0400.md", None),
+        ("a.{number}", "0400x-y.md", None),
+        ("a.{number}", "PP-0500-x.md", None),
+        ("a.{number}", "pp-0500-x.md", None),
+        ("a.{number}", "XY-0500-x.md", None),
+        ("a.{number}", "v001-x.md", None),
+        ("a.{number}", "V001-x.md", None),
+        ("a.{number}", "PPv001-x.md", None),
+        ("a.{number}", "a.0042-x.md", Some(("0042", 7))),
+        ("a.{number}", "A.0042-x.md", Some(("0042", 7))),
+        ("a.{number}", "PP-000042-x.md", None),
+        ("{key}v{number:03d}", "0400-x.md", None),
+        ("{key}v{number:03d}", "00400-x.md", None),
+        ("{key}v{number:03d}", "0400.md", None),
+        ("{key}v{number:03d}", "0400x-y.md", None),
+        ("{key}v{number:03d}", "PP-0500-x.md", None),
+        ("{key}v{number:03d}", "pp-0500-x.md", None),
+        ("{key}v{number:03d}", "XY-0500-x.md", None),
+        ("{key}v{number:03d}", "v001-x.md", None),
+        ("{key}v{number:03d}", "V001-x.md", None),
+        ("{key}v{number:03d}", "PPv001-x.md", Some(("001", 7))),
+        ("{key}v{number:03d}", "a.0042-x.md", None),
+        ("{key}v{number:03d}", "A.0042-x.md", None),
+        ("{key}v{number:03d}", "PP-000042-x.md", None),
+    ];
+
+    #[test]
+    fn a_filename_reads_its_prefix_under_any_letter_case() {
+        for (text, filename, expected) in FILENAME_READINGS {
+            let read = IdParts::parse_prefix(&pattern(text), filename)
+                .filter(|(parts, _)| {
+                    parts.key().is_none_or(|key| key.eq_ignore_ascii_case("PP"))
+                })
+                .map(|(parts, slug_start)| {
+                    (parts.digits().to_owned(), slug_start)
+                });
+            assert_eq!(
+                read.as_ref().map(|(digits, end)| (digits.as_str(), *end)),
+                *expected,
+                "{text} {filename}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_cap_is_the_largest_number_the_width_holds() {
+        let cases = [
+            ("{number:04d}", Some(9999)),
+            ("{number}", Some(9999)),
+            ("{key}-{number:04d}", Some(9999)),
+            ("{project}-{number:04d}", Some(9999)),
+            ("{key}-{number:06d}", Some(999_999)),
+            ("v{number:03d}", Some(999)),
+            ("a.{number}", Some(9999)),
+            ("{tracker}", None),
+            ("{number:019d}", Some(9_999_999_999_999_999_999)),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(pattern(text).cap(), expected, "{text}");
+        }
+    }
+
+    type FullIdReading = (
+        &'static str,
+        &'static str,
+        Option<(Option<&'static str>, &'static str)>,
+    );
+
+    #[test]
+    fn a_full_id_parses_into_its_key_and_digits() {
+        let cases: &[FullIdReading] = &[
+            ("{key}-{number:04d}", "PP-0042", Some((Some("PP"), "0042"))),
+            ("{key}-{number:04d}", "pp-42", Some((Some("pp"), "42"))),
+            ("{key}-{number:04d}", "XY-7", Some((Some("XY"), "7"))),
+            (
+                "{project}-{number:04d}",
+                "PP-0042",
+                Some((Some("PP"), "0042")),
+            ),
+            ("{project}-{number:04d}", "pp-42", Some((Some("pp"), "42"))),
+            ("{project}-{number:04d}", "XY-7", Some((Some("XY"), "7"))),
+            ("{key}-{number:06d}", "PP-0042", Some((Some("PP"), "0042"))),
+            ("{key}-{number:06d}", "pp-42", Some((Some("pp"), "42"))),
+            ("{key}-{number:06d}", "XY-7", Some((Some("XY"), "7"))),
+            ("{key}v{number:03d}", "PP-0042", None),
+            ("{key}v{number:03d}", "pp-42", None),
+            ("{key}v{number:03d}", "XY-7", None),
+        ];
+        for (text, id, expected) in cases {
+            let read = IdParts::parse(&pattern(text), id);
+            assert_eq!(
+                read.as_ref().map(|parts| (parts.key(), parts.digits())),
+                *expected,
+                "{text} {id}"
+            );
+        }
+    }
 }

@@ -816,4 +816,139 @@ mod tests {
         assert_eq!(WorkItemIdScheme::pad_legacy_number(""), None);
         assert_eq!(WorkItemIdScheme::pad_legacy_number("12a"), None);
     }
+
+    #[test]
+    fn a_numeric_scheme_answers_as_an_id_convention() {
+        let scheme = WorkItemIdScheme::numeric();
+        let filenames: &[(&str, Option<usize>, Option<&str>)] = &[
+            ("0042-foo", Some(5), Some("0042")),
+            ("42-foo", Some(3), Some("0042")),
+            ("PP-0042-foo", None, None),
+            ("pp-0042-foo", None, None),
+            ("XY-0042-foo", None, None),
+            ("MY_PROJ-7-a-title", None, None),
+            ("0296-2026-review", Some(5), Some("0296")),
+            ("draft-k7mq3x-title", None, None),
+            ("PROJ-123-x", None, None),
+            ("PRO_J-123-x", None, None),
+            ("malformed", None, None),
+        ];
+        for (stem, slug_start, id) in filenames {
+            assert_eq!(scheme.slug_start(stem), *slug_start, "{stem}");
+            assert_eq!(
+                scheme.id_in_filename(&format!("{stem}.md")).as_deref(),
+                *id,
+                "{stem}"
+            );
+        }
+        let references: &[(&str, bool, Option<&str>)] = &[
+            ("0042", true, Some("0042")),
+            ("42", false, Some("0042")),
+            ("PP-0042", false, Some("PP-0042")),
+            ("pp-42", false, Some("PP-0042")),
+            ("XY-7", false, Some("XY-0007")),
+            ("ENG-0042", false, Some("ENG-0042")),
+            ("PROJ-123", false, Some("PROJ-0123")),
+            ("TBD", false, None),
+            ("", false, None),
+        ];
+        for (reference, is_id, identity) in references {
+            assert_eq!(scheme.is_id(reference), *is_id, "{reference}");
+            assert_eq!(
+                IdConvention::identity_key(&scheme, reference).as_deref(),
+                *identity,
+                "{reference}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_keyed_scheme_answers_as_an_id_convention() {
+        let scheme = keyed("PP");
+        let filenames: &[(&str, Option<usize>, Option<&str>)] = &[
+            ("0042-foo", Some(5), Some("PP-0042")),
+            ("42-foo", Some(3), Some("PP-0042")),
+            ("PP-0042-foo", Some(8), Some("PP-0042")),
+            ("pp-0042-foo", Some(8), Some("PP-0042")),
+            ("XY-0042-foo", Some(8), Some("XY-0042")),
+            ("MY_PROJ-7-a-title", None, None),
+            ("0296-2026-review", Some(5), Some("PP-0296")),
+            ("draft-k7mq3x-title", None, None),
+            ("PROJ-123-x", Some(9), Some("PROJ-0123")),
+            ("PRO_J-123-x", None, None),
+            ("malformed", None, None),
+        ];
+        for (stem, slug_start, id) in filenames {
+            assert_eq!(scheme.slug_start(stem), *slug_start, "{stem}");
+            assert_eq!(
+                scheme.id_in_filename(&format!("{stem}.md")).as_deref(),
+                *id,
+                "{stem}"
+            );
+        }
+        let references: &[(&str, bool, Option<&str>)] = &[
+            ("0042", false, Some("PP-0042")),
+            ("42", false, Some("PP-0042")),
+            ("PP-0042", true, Some("PP-0042")),
+            ("pp-42", false, Some("PP-0042")),
+            ("XY-7", false, Some("XY-0007")),
+            ("ENG-0042", false, Some("ENG-0042")),
+            ("PROJ-123", false, Some("PROJ-0123")),
+            ("TBD", false, None),
+            ("", false, None),
+        ];
+        for (reference, is_id, identity) in references {
+            assert_eq!(scheme.is_id(reference), *is_id, "{reference}");
+            assert_eq!(
+                IdConvention::identity_key(&scheme, reference).as_deref(),
+                *identity,
+                "{reference}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_tracker_scheme_answers_as_an_id_convention() {
+        let scheme = tracker();
+        let filenames: &[(&str, Option<usize>, Option<&str>)] = &[
+            ("0042-foo", Some(5), Some("0042")),
+            ("42-foo", Some(3), Some("0042")),
+            ("PP-0042-foo", Some(8), Some("PP-0042")),
+            ("pp-0042-foo", Some(8), Some("PP-0042")),
+            ("XY-0042-foo", Some(8), Some("XY-0042")),
+            ("MY_PROJ-7-a-title", Some(10), Some("MY_PROJ-7")),
+            ("0296-2026-review", Some(5), Some("0296")),
+            ("draft-k7mq3x-title", Some(13), Some("draft-k7mq3x")),
+            ("PROJ-123-x", Some(9), Some("PROJ-123")),
+            ("PRO_J-123-x", Some(10), Some("PRO_J-123")),
+            ("malformed", None, None),
+        ];
+        for (stem, slug_start, id) in filenames {
+            assert_eq!(scheme.slug_start(stem), *slug_start, "{stem}");
+            assert_eq!(
+                scheme.id_in_filename(&format!("{stem}.md")).as_deref(),
+                *id,
+                "{stem}"
+            );
+        }
+        let references: &[(&str, bool, Option<&str>)] = &[
+            ("0042", false, Some("0042")),
+            ("42", false, Some("0042")),
+            ("PP-0042", false, Some("PP-0042")),
+            ("pp-42", false, Some("PP-42")),
+            ("XY-7", false, Some("XY-7")),
+            ("ENG-0042", false, Some("ENG-0042")),
+            ("PROJ-123", false, Some("PROJ-123")),
+            ("TBD", false, None),
+            ("", false, None),
+        ];
+        for (reference, is_id, identity) in references {
+            assert_eq!(scheme.is_id(reference), *is_id, "{reference}");
+            assert_eq!(
+                IdConvention::identity_key(&scheme, reference).as_deref(),
+                *identity,
+                "{reference}"
+            );
+        }
+    }
 }
