@@ -40,7 +40,6 @@ use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::resolve::DirectoryLister;
 use work_adapters::author::VcsBackedIdentityProbe;
-use work_adapters::config::SchemeError;
 pub use work_adapters::creation::blocked_remedy;
 use work_adapters::creation::create_local_item;
 use work_adapters::creation::create_tracker_keyed_item;
@@ -143,48 +142,6 @@ pub fn slugify(title: &str) -> String {
     trimmed[..cut].trim_end_matches('-').to_owned()
 }
 
-fn allocation_message(error: &AllocationError, pattern: &str) -> String {
-    match error {
-        AllocationError::MissingKey => {
-            format!(
-                "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
-                 {{key}} prefix but no value supplied — pass --project or \
-                 set work.key"
-            )
-        }
-        AllocationError::ProjectUnused => {
-            format!(
-                "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
-                 '{pattern}' (no {{key}} token)"
-            )
-        }
-        AllocationError::InvalidProject(reason) => {
-            SchemeError::invalid_project(reason).to_string()
-        }
-        AllocationError::Overflow {
-            highest,
-            highest_file,
-            cap,
-            ..
-        } => {
-            if highest > cap {
-                format!(
-                    "E_PATTERN_OVERFLOW: out-of-width file '{}' has number \
-                     {highest} exceeding the pattern '{pattern}' cap of \
-                     {cap}. Rename the stray file or widen the pattern.",
-                    highest_file.as_deref().unwrap_or("<unknown>")
-                )
-            } else {
-                format!(
-                    "E_PATTERN_OVERFLOW: pattern '{pattern}' number space \
-                     exhausted (highest={highest}, cap={cap}). Archive \
-                     completed work items or widen the pattern."
-                )
-            }
-        }
-    }
-}
-
 fn field_to_yaml(value: FieldValue) -> Yaml {
     match value {
         FieldValue::Scalar(text) => Yaml::Scalar(Scalar::String(text)),
@@ -216,16 +173,20 @@ fn template_frontmatter_keys(content: &str) -> Result<Vec<String>, String> {
 /// `scheme`'s own key otherwise.
 pub fn allocate_id(
     scheme: &WorkItemIdScheme,
+    root: &Path,
     work_dir: &Path,
     project: Option<&str>,
     _create: &CreateLockGuard,
 ) -> Result<String, String> {
     let pattern = scheme.pattern();
-    let key = allocation_key(pattern, project, scheme.key())
-        .map_err(|error| allocation_message(&error, pattern.as_str()))?;
+    let refused = |error: AllocationError| {
+        error.message(pattern, work_dir.strip_prefix(root).unwrap_or(work_dir))
+    };
+    let key =
+        allocation_key(pattern, project, scheme.key()).map_err(refused)?;
     let filenames = FilesystemLister::new(work_dir).filenames();
-    let allocated = allocate(scheme, key.as_ref(), 1, &filenames)
-        .map_err(|error| allocation_message(&error, pattern.as_str()))?;
+    let allocated =
+        allocate(scheme, key.as_ref(), 1, &filenames).map_err(refused)?;
     allocated
         .into_iter()
         .next()
@@ -448,6 +409,7 @@ impl CreationContext<'_> {
     ) -> Result<String, String> {
         allocate_id(
             &self.scheme,
+            &self.root,
             &self.work_dir,
             self.args.project.as_deref(),
             create,
@@ -472,7 +434,7 @@ fn creation_context<'a>(
     })?;
     if pattern.is_tracker_owned() {
         allocation_key(pattern, args.project.as_deref(), None)
-            .map_err(|error| allocation_message(&error, pattern.as_str()))?;
+            .map_err(|error| error.message(pattern, &work_dir))?;
     }
     let metadata = derive_at(
         &root,

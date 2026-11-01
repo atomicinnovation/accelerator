@@ -79,19 +79,6 @@ impl std::fmt::Display for SchemeError {
 
 impl std::error::Error for SchemeError {}
 
-impl SchemeError {
-    /// The refusal of a `--project` value that is not a valid key.
-    #[must_use]
-    pub fn invalid_project(error: &KeyError) -> Self {
-        let KeyError::BadKeyValue(value) = error;
-        Self::Key {
-            setting: "--project".to_owned(),
-            value: value.clone(),
-            error: error.clone(),
-        }
-    }
-}
-
 impl From<SchemeError> for kernel::Error {
     fn from(error: SchemeError) -> Self {
         match error {

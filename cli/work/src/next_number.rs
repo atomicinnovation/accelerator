@@ -1,5 +1,9 @@
 //! Next-sequential-ID allocation.
 
+use std::collections::BTreeSet;
+use std::path::Path;
+
+use crate::id_pattern::escaped;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
@@ -18,7 +22,66 @@ pub enum AllocationError {
         highest: u64,
         highest_file: Option<String>,
         cap: u64,
+        numbers_held: u64,
     },
+}
+
+impl AllocationError {
+    /// The refusal as the user reads it, naming a holder inside `work_dir`.
+    #[must_use]
+    pub fn message(&self, pattern: &IdPattern, work_dir: &Path) -> String {
+        let pattern = pattern.as_str();
+        match self {
+            Self::MissingKey => format!(
+                "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
+                 {{key}} prefix but no value supplied — pass --project or \
+                 set work.key"
+            ),
+            Self::ProjectUnused => format!(
+                "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
+                 '{pattern}' (no {{key}} token)"
+            ),
+            Self::InvalidProject(error) => {
+                let KeyError::BadKeyValue(value) = error;
+                format!(
+                    "E_WORK_KEY_INVALID: --project '{}': {error}",
+                    escaped(value)
+                )
+            }
+            Self::Overflow {
+                highest,
+                highest_file,
+                cap,
+                numbers_held,
+                ..
+            } => {
+                let highest_file =
+                    highest_file.as_deref().unwrap_or("<unknown>");
+                if highest > cap {
+                    return format!(
+                        "E_PATTERN_OVERFLOW: out-of-width file '{}' has \
+                         number {highest} exceeding the pattern '{pattern}' \
+                         cap of {cap}. Rename the stray file or widen the \
+                         pattern.",
+                        escaped(highest_file)
+                    );
+                }
+                let remedy = if numbers_held < cap {
+                    "If that ID was a slip, move the item to a free lower ID \
+                     by renaming its file and changing its id, H1 and \
+                     references; otherwise archive completed work items or \
+                     widen the pattern."
+                } else {
+                    "Archive completed work items or widen the pattern."
+                };
+                format!(
+                    "E_PATTERN_OVERFLOW: number space exhausted: {} holds \
+                     {highest}, the cap of pattern '{pattern}'. {remedy}",
+                    escaped(&work_dir.join(highest_file).to_string_lossy())
+                )
+            }
+        }
+    }
 }
 
 impl From<MissingKey> for AllocationError {
@@ -82,7 +145,7 @@ pub fn allocate(
         (Some(held), Some(key)) => held.eq_ignore_ascii_case(key.as_str()),
         (held, key) => held.is_none() && key.is_none(),
     };
-    let (highest, highest_file) = filenames
+    let held: Vec<(u64, &String)> = filenames
         .iter()
         .filter(|filename| is_md_filename(filename))
         .filter_map(|filename| {
@@ -90,10 +153,20 @@ pub fn allocate(
                 .read_held_prefix(filename)
                 .map(|(parts, _)| parts)
                 .filter(in_sequence)
-                .map(|parts| (parts.number(), Some(filename.clone())))
+                .map(|parts| (parts.number(), filename))
         })
+        .collect();
+    let (highest, highest_file) = held
+        .iter()
         .max_by_key(|(number, _)| *number)
-        .unwrap_or((0, None));
+        .map_or((0, None), |(number, filename)| {
+            (*number, Some((*filename).clone()))
+        });
+    let numbers_held = held
+        .iter()
+        .map(|(number, _)| *number)
+        .collect::<BTreeSet<_>>()
+        .len();
 
     allocate_above(pattern, key, highest, count).map_err(|error| match error {
         AllocationError::Overflow {
@@ -106,6 +179,7 @@ pub fn allocate(
             highest,
             highest_file,
             cap,
+            numbers_held: u64::try_from(numbers_held).unwrap_or(u64::MAX),
         },
         other => other,
     })
@@ -131,6 +205,7 @@ fn allocate_above(
             highest: floor,
             highest_file: None,
             cap,
+            numbers_held: 0,
         });
     }
 
@@ -144,6 +219,8 @@ fn allocate_above(
 // args.
 #[allow(clippy::unwrap_used, clippy::literal_string_with_formatting_args)]
 mod tests {
+    use std::path::Path;
+
     use super::{allocate, allocate_above, allocation_key, AllocationError};
     use crate::id_pattern::{IdKey, IdPattern, KeyError};
     use crate::id_scheme::WorkItemIdScheme;
@@ -269,6 +346,7 @@ mod tests {
                 highest: 19999,
                 highest_file: Some("19999-stray.md".to_owned()),
                 cap: 9999,
+                numbers_held: 1,
             })
         );
     }
@@ -283,6 +361,7 @@ mod tests {
                 highest: 9999,
                 highest_file: Some("9999-last.md".to_owned()),
                 cap: 9999,
+                numbers_held: 1,
             })
         );
     }
@@ -297,6 +376,7 @@ mod tests {
                 highest: 9998,
                 highest_file: Some("9998-near.md".to_owned()),
                 cap: 9999,
+                numbers_held: 1,
             })
         );
     }
@@ -323,7 +403,77 @@ mod tests {
                 highest: u64::MAX,
                 highest_file: None,
                 cap: 9999,
+                numbers_held: 0,
             })
         );
+    }
+
+    fn exhausted(scheme: &WorkItemIdScheme, filenames: &[String]) -> String {
+        let error = allocate(scheme, None, 1, filenames).unwrap_err();
+        error.message(scheme.pattern(), Path::new("meta/work"))
+    }
+
+    #[test]
+    fn an_exhausted_number_space_names_the_item_holding_the_cap() {
+        let message = exhausted(
+            &numeric(),
+            &names(&["0001-first.md", "9999-a-slip\u{1b}.md"]),
+        );
+
+        assert!(message.starts_with("E_PATTERN_OVERFLOW: "), "{message}");
+        assert!(message.contains("number space exhausted"), "{message}");
+        assert!(
+            message.contains("meta/work/9999-a-slipU+001B.md holds 9999"),
+            "{message}"
+        );
+        assert!(message.contains("the cap of pattern '{number:04d}'"));
+        assert!(message.contains("a free lower ID"), "{message}");
+        assert!(message.contains("widen the pattern"), "{message}");
+    }
+
+    #[test]
+    fn a_full_sequence_offers_no_lower_id() {
+        let filenames: Vec<String> = (1..=99)
+            .map(|number| format!("{number:02}-item.md"))
+            .collect();
+
+        let message = exhausted(&scheme("{number:02d}", None), &filenames);
+
+        assert!(message.contains("number space exhausted"), "{message}");
+        assert!(!message.contains("lower"), "{message}");
+        assert!(message.contains("Archive completed work items"));
+        assert!(message.contains("widen the pattern"), "{message}");
+    }
+
+    #[test]
+    fn a_stray_out_of_width_file_keeps_its_message() {
+        let message = exhausted(&numeric(), &names(&["19999-stray.md"]));
+
+        assert_eq!(
+            message,
+            "E_PATTERN_OVERFLOW: out-of-width file '19999-stray.md' has \
+             number 19999 exceeding the pattern '{number:04d}' cap of 9999. \
+             Rename the stray file or widen the pattern."
+        );
+    }
+
+    #[test]
+    fn every_other_allocation_error_renders_its_code() {
+        let keyed = pattern("{key}-{number:04d}");
+        let dir = Path::new("meta/work");
+        let cases = [
+            (AllocationError::MissingKey, "E_PATTERN_MISSING_KEY: "),
+            (AllocationError::ProjectUnused, "E_PATTERN_KEY_UNUSED: "),
+            (
+                AllocationError::InvalidProject(KeyError::BadKeyValue(
+                    "1X".to_owned(),
+                )),
+                "E_WORK_KEY_INVALID: --project '1X': ",
+            ),
+        ];
+        for (error, code) in cases {
+            let message = error.message(&keyed, dir);
+            assert!(message.starts_with(code), "{message}");
+        }
     }
 }

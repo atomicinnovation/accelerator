@@ -318,6 +318,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let id = match scheme.ownership() {
             IdOwnership::Local => crate::create::allocate_id(
                 &scheme,
+                &self.root,
                 self.work_dir(),
                 None,
                 &create,
