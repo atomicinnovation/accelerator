@@ -256,8 +256,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill calls work-item-next-number.sh with --count 3 exactly once, not once per child", "passed": true, "evidence": "A single Bash call to work-item-next-number.sh --count 3 appears; there are not three separate calls."},
-        {"text": "Skill emits a completion ledger listing each written child file and the total count", "passed": true, "evidence": "Response includes 'Wrote 0043 — ...', 'Wrote 0044 — ...', 'Wrote 0045 — ...' followed by 'Allocated 3 numbers, wrote 3 files.'"}
+        {"text": "The skill calls accelerator work id next with --count 3 (or equivalent count) exactly once, not once per child", "passed": true, "evidence": "Transcript 'Allocation': single simulated call `accelerator work id next --count 3` returning 0043, 0044, 0045; no per-child allocation calls appear anywhere."},
+        {"text": "The skill emits a completion ledger listing each written child file and the total count of allocated vs written", "passed": true, "evidence": "response.md: 'Wrote 0043 — Redis-Backed Session Management' / '...0044...' / '...0045...' / 'Allocated 3 numbers, wrote 3 files.' Children listed by ID and title (the SKILL.md ledger format), not by file path."}
       ],
       "notes": []
     },
@@ -430,8 +430,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: \"a work item re-key is still in progress\" and \"Run `/rekey-work-items` to finish (or undo) the unfinished re-key\"."},
-        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md: none; response.md: \"none of the three child stories was created, and the parent was not changed\"."}
+        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: 'a work-item re-key is unfinished in this repository' and 'Run `/rekey-work-items` to finish the re-key, or to undo it.' It does not relay the raw `accelerator work rekey` commands."},
+        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md contains only 'none', the form the prompt asked for when nothing is written; this covers both no child and no parent edit. response.md backs it up: 'No child work items were created, and `meta/work/0042-search.md` is unchanged.' commands.md shows the run stopped after the one exit-4 call."}
       ],
       "notes": []
     }
@@ -464,6 +464,7 @@
     }
   },
   "notes": [
-    "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
+    "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
+    "Evals 22 and 37 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call. Both passed."
   ]
 }
