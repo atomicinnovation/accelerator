@@ -234,3 +234,20 @@ fn the_personal_file_and_its_backup_stay_owner_only() -> Result<(), TestError> {
     assert_eq!(mode_of(".accelerator/config.local.md.0009.bak")?, 0o600);
     Ok(())
 }
+
+#[test]
+fn a_malformed_project_pattern_still_materialises_the_key(
+) -> Result<(), TestError> {
+    let dir = scratch(
+        "---\nwork:\n  id_pattern: \"{project}-{number:4d}\"\n  \
+         default_project_code: \"PP\"\n---\n",
+    )?;
+
+    let out = run(dir.path())?;
+
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    let config = config(dir.path())?;
+    assert!(config.contains("key: \"PP\""), "{config}");
+    assert!(!config.contains("default_project_code"), "{config}");
+    Ok(())
+}

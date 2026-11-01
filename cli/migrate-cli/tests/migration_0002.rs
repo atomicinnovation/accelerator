@@ -469,3 +469,94 @@ fn a_modern_id_field_stays_unprefixed_while_its_file_is_renamed(
     );
     Ok(())
 }
+
+const LEDGER_WITHOUT_0002: &str = "0001-rename-tickets-to-work\n\
+     0003-relocate-accelerator-state\n\
+     0004-restructure-meta-research-into-subject-subcategories\n\
+     0005-rename-work-item-type-to-kind\n\
+     0006-canonicalise-work-item-id-and-author\n\
+     0007-unify-meta-corpus-frontmatter\n\
+     0008-canonical-frontmatter-quoting\n\
+     0009-split-work-key-from-tracker-scope-key\n\
+     0010-strip-research-title-prefix\n\
+     0011-ignore-machine-local-sync-state\n";
+
+fn legacy_item_under(work_config: &str) -> Result<TempDir, TestError> {
+    let dir = TempDir::new()?;
+    write(
+        dir.path(),
+        ".claude/accelerator.md",
+        &format!("---\nwork:\n{work_config}---\n"),
+    )?;
+    write(
+        dir.path(),
+        "meta/work/0007-x.md",
+        "---\nwork_item_id: \"0007\"\n---\n",
+    )?;
+    write(
+        dir.path(),
+        ".accelerator/state/migrations-applied",
+        LEDGER_WITHOUT_0002,
+    )?;
+    Ok(dir)
+}
+
+#[test]
+fn a_project_code_breaking_rule_five_is_refused() -> Result<(), TestError> {
+    let dir = legacy_item_under(
+        "  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: MY_PROJ\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(dir.path()).output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "key value 'MY_PROJ' must match [A-Za-z][A-Za-z0-9]* (rule 5)"
+        ),
+        "{stderr}"
+    );
+    assert!(dir.path().join("meta/work/0007-x.md").exists());
+    Ok(())
+}
+
+#[test]
+fn a_pattern_without_project_stays_a_no_op_pending() -> Result<(), TestError> {
+    let dir = legacy_item_under("  id_pattern: \"x'{number:04d}\"\n")?;
+
+    let output = Command::new(BIN).current_dir(dir.path()).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(
+        stdout.contains("Migration complete. applied: 0; pending (no-op): 1."),
+        "{stdout}"
+    );
+    assert!(dir.path().join("meta/work/0007-x.md").exists());
+    Ok(())
+}
+
+#[test]
+fn a_project_pattern_the_grammar_refuses_is_e_work_id_pattern_invalid(
+) -> Result<(), TestError> {
+    let dir = legacy_item_under(
+        "  id_pattern: \"{project}-{number:020d}\"\n  \
+         default_project_code: ACME\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(dir.path()).output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern \
+             '{project}-{number:020d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(dir.path().join("meta/work/0007-x.md").exists());
+    Ok(())
+}

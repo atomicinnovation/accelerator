@@ -5,6 +5,7 @@ mod cli;
 mod discoverability;
 mod render;
 mod sync_baselines;
+mod work_item_identity;
 
 use std::io::IsTerminal as _;
 use std::path::Path;
@@ -18,7 +19,6 @@ use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus_adapters::metadata::SystemClock;
 use corpus_adapters::FileCorpusStore;
-use corpus_adapters::PatternCanonicaliser;
 use corpus_adapters::RealFs;
 use corpus_adapters::YamlFrontmatter;
 use migrate::ledger;
@@ -50,6 +50,7 @@ use vcs_adapters::InProcessTracking;
 use crate::cli::Cli;
 use crate::render::StdoutReporter;
 use crate::sync_baselines::WorkSyncBaselines;
+use crate::work_item_identity::WorkIdentity;
 
 const RUNNER_APPLIED: &str = ".accelerator/state/migrations-applied";
 const RUNNER_SKIPPED: &str = ".accelerator/state/migrations-skipped";
@@ -80,7 +81,7 @@ fn capabilities<'a>(composed: &'a Composed, root: &Path) -> Capabilities<'a> {
         walker: &RealFs,
         reader: &RealFs,
         frontmatter: &YamlFrontmatter,
-        canonicaliser: &PatternCanonicaliser,
+        identity: &WorkIdentity,
         sync_baselines: &WorkSyncBaselines,
         version_control: Some(VersionControlled {
             kind: InProcessProbe.kind(root),

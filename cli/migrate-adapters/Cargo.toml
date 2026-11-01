@@ -29,3 +29,4 @@ config-adapters = { path = "../config-adapters" }
 corpus-adapters = { path = "../corpus-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
 vcs-test-support = { path = "../vcs-test-support" }
+work = { path = "../work" }

@@ -59,7 +59,7 @@ impl Migration for Migration0009 {
             ctx.config_value("work.integration")?.unwrap_or_default();
         let id_pattern =
             ctx.config_value("work.id_pattern")?.unwrap_or_default();
-        let pattern_uses_prefix = corpus::references_key(&id_pattern);
+        let pattern_uses_prefix = ctx.pattern_references_key(&id_pattern)?;
 
         let legacy_pinned =
             ctx.configured_path_override("work.default_project_code")?;
@@ -551,6 +551,14 @@ mod tests {
             key: &str,
         ) -> Result<Option<String>, MigrationError> {
             Ok(self.pinned.get(key).cloned())
+        }
+        fn pattern_references_key(
+            &self,
+            pattern: &str,
+        ) -> Result<bool, MigrationError> {
+            Ok(["{key}", "{project}"]
+                .iter()
+                .any(|token| pattern.contains(token)))
         }
     }
 
