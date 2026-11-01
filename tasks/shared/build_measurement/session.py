@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import NoReturn, Protocol
 
 from tasks.shared.build_measurement.analysis import (
     BuildResult,
@@ -25,6 +25,7 @@ from tasks.shared.build_measurement.cpu_load import cpu_readings, idle_load
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
+    TrashNotRemovedError,
     UnknownTaskError,
 )
 from tasks.shared.build_measurement.fetch_failures import fetch_failures
@@ -49,7 +50,9 @@ from tasks.shared.build_measurement.record import run_id
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
     Preflight,
+    SessionNotice,
     SessionOutcome,
+    notices_report,
     preflight_report,
     run_end_line,
 )
@@ -220,10 +223,7 @@ class _Session:
         self._preflight(provenance)
         idle_load_percent = self._idle_load()
         priming = self._priming()
-        runs = tuple(
-            self._timed_run(TimedRun(number))
-            for number in range(1, self.settings.runs + 1)
-        )
+        runs, notices = self._timed_runs()
         captured = CapturedSession(
             run_id=self.run_id,
             run_directory=self.run_directory,
@@ -242,7 +242,9 @@ class _Session:
             runs=runs,
         )
         return SessionOutcome(
-            measured=analyse_session(captured), keep=self.settings.keep
+            measured=analyse_session(captured),
+            keep=self.settings.keep,
+            notices=notices,
         )
 
     def _provenance(self) -> _Provenance:
@@ -334,10 +336,39 @@ class _Session:
         self._progress(f"priming: {wall_clock:.1f} s (discarded)")
         return PrimingRun(wall_clock_seconds=wall_clock, discarded=True)
 
+    def _timed_runs(
+        self,
+    ) -> tuple[tuple[CapturedRun, ...], tuple[SessionNotice, ...]]:
+        runs: list[CapturedRun] = []
+        for number in range(1, self.settings.runs + 1):
+            run = TimedRun(number)
+            self._progress(f"timed run {number}/{self.settings.runs}")
+            unremoved = self._prepare(run)
+            runs.append(self._timed_run(run))
+            if unremoved is None:
+                continue
+            if number == self.settings.runs:
+                return tuple(runs), (unremoved,)
+            self._stop_for_unremoved(run, unremoved)
+        return tuple(runs), ()
+
+    def _stop_for_unremoved(
+        self, run: TimedRun, unremoved: UnremovedTrash
+    ) -> NoReturn:
+        self._progress(notices_report([unremoved]))
+        deletions = " and ".join(
+            str(path) for path in self.settings.cache_state.deletions
+        )
+        raise TrashNotRemovedError(
+            f"stopped before timed run {run.number + 1}: the cold trash "
+            f"from timed run {run.number} could not be removed "
+            f"({unremoved.cause}), and each further cold run would leave "
+            f"another copy of {deletions}; delete the trash listed above "
+            "once the cause is fixed"
+        )
+
     def _timed_run(self, run: TimedRun) -> CapturedRun:
         ports = self.ports
-        self._progress(f"timed run {run.number}/{self.settings.runs}")
-        self._prepare(run)
         epoch = ports.clock.now()
         with ExitStack() as stack:
             cpu = ports.cpu_sampler.start(
@@ -373,13 +404,13 @@ class _Session:
         )
         return captured
 
-    def _prepare(self, run: TimedRun) -> None:
+    def _prepare(self, run: TimedRun) -> UnremovedTrash | None:
         state = self.settings.cache_state
         if state.deletions:
             self._progress("  deleting before this run:")
             for path in state.deletions:
                 self._progress(f"    {self.settings.root / path}")
-        self.ports.workspace.prepare_timed_run(
+        return self.ports.workspace.prepare_timed_run(
             state, trash=self.logs / trash_name(run)
         )
 

@@ -11,6 +11,7 @@ from tasks.shared.build_measurement.across_runs import (
     Measured,
     ProcessAcrossRuns,
 )
+from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.fetch_failures import FetchFailure
 from tasks.shared.build_measurement.measured_build import (
     HostSettings,
@@ -29,15 +30,60 @@ from tasks.shared.build_measurement.tracked_processes import (
     IDE,
     TrackedProcess,
 )
+from tasks.shared.paths import DEV_LAUNCHER_MARKER_NAME
 
 AC_POWER = "AC Power"
 RETAKE_WHEN_MISSING = ("syspolicyd", IDE, "fsnotifier")
 _RETAKE_CAVEATS = frozenset({Caveat.ABSENT_IN_SOME_RUNS, Caveat.UNREADABLE})
 _PATHS_SHOWN = 5
+_DECIMAL_UNITS = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
+DEV_LAUNCHER_REBUILD = (
+    "(cd cli && cargo build --workspace --exclude accelerator-visualiser)"
+)
 
 
 def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+@dataclass(frozen=True, slots=True)
+class DevLauncherNeedsRebuild:
+    pass
+
+
+type SessionNotice = UnremovedTrash | FoundTrash | DevLauncherNeedsRebuild
+
+
+def _size(size_bytes: int) -> str:
+    for scale, unit in _DECIMAL_UNITS:
+        if size_bytes >= scale:
+            return f"{size_bytes / scale:.1f} {unit}"
+    return f"{size_bytes} B"
+
+
+def _notice_line(notice: SessionNotice) -> str:
+    match notice:
+        case UnremovedTrash(path=path, size_bytes=size_bytes, cause=cause):
+            return (
+                f"cold trash not removed: {path} ({_size(size_bytes)}): "
+                f"{cause}; delete it once the cause is fixed"
+            )
+        case FoundTrash(path=path, size_bytes=size_bytes):
+            return (
+                f"cold trash left behind: {path} ({_size(size_bytes)}); "
+                "safe to delete"
+            )
+        case DevLauncherNeedsRebuild():
+            return (
+                f"warning: {DEV_LAUNCHER_MARKER_NAME} is present, so hooks "
+                "using this checkout's dev launcher fail open from when "
+                "cli/target is deleted until the launcher is rebuilt: "
+                f"{DEV_LAUNCHER_REBUILD}"
+            )
+
+
+def notices_report(notices: Sequence[SessionNotice]) -> str:
+    return "\n".join(_notice_line(notice) for notice in notices)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +196,7 @@ def run_end_line(
 class SessionOutcome:
     measured: MeasuredBuild
     keep: bool
+    notices: tuple[SessionNotice, ...]
 
 
 def _header(measured: MeasuredBuild) -> Iterator[str]:
@@ -295,5 +342,6 @@ def summary_report(
         _output_contract_drift(measured),
         _fetch_failures(measured),
         _paths(outcome, record_path, kept_path),
+        (_notice_line(notice) for notice in outcome.notices),
     )
     return "\n".join(line for section in sections for line in section)

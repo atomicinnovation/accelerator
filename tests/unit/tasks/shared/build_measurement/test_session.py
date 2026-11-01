@@ -3,17 +3,22 @@ import datetime as dt
 import pytest
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.cold_trash import UnremovedTrash
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
     SessionInProgressError,
+    TrashNotRemovedError,
     UnknownTaskError,
     UnsupportedPlatformError,
 )
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import Mode
 from tasks.shared.build_measurement.record_model import NoReading
-from tasks.shared.build_measurement.reports import summary_report
+from tasks.shared.build_measurement.reports import (
+    notices_report,
+    summary_report,
+)
 from tasks.shared.build_measurement.session import (
     IDLE_SAMPLE_SECONDS,
     OrphanedBuild,
@@ -528,6 +533,47 @@ class TestCacheStates:
     def test_a_state_that_deletes_nothing_names_no_deletion(self, session):
         session.measure(runs=1, cache_state="incremental")
         assert not any("deleting" in line for line in session.progress)
+
+
+def _unremoved(session, number):
+    return UnremovedTrash(
+        path=session.tmp_path / f"cold-trash-{number}",
+        size_bytes=48_000_000,
+        cause="[Errno 13] Permission denied",
+    )
+
+
+class TestUnremovedTrash:
+    def test_unremoved_trash_stops_the_session_before_the_next_timed_run(
+        self, session
+    ):
+        unremoved = _unremoved(session, 1)
+        session.workspace.unremoved = {"cold-trash-1": unremoved}
+        with pytest.raises(TrashNotRemovedError) as refusal:
+            session.measure(runs=3, cache_state="cold")
+        assert str(refusal.value) == (
+            "stopped before timed run 2: the cold trash from timed run 1 "
+            "could not be removed ([Errno 13] Permission denied), and each "
+            "further cold run would leave another copy of cli/target and "
+            "cli/visualiser/frontend/node_modules; delete the trash listed "
+            "above once the cause is fixed"
+        )
+        assert [log.name for _, log in session.build.calls] == ["run-1.log"]
+        assert [trash.name for _, trash in session.workspace.prepared] == [
+            "cold-trash-1"
+        ]
+        assert notices_report([unremoved]) in session.progress
+        assert not (session.run_directory / "record.json").exists()
+
+    def test_unremoved_trash_from_the_last_run_becomes_a_notice(self, session):
+        unremoved = _unremoved(session, 2)
+        session.workspace.unremoved = {"cold-trash-2": unremoved}
+        outcome = session.measure(runs=2, cache_state="cold")
+        assert outcome.notices == (unremoved,)
+        assert len(outcome.measured.runs) == 2
+
+    def test_a_quiet_session_has_no_notices(self, session):
+        assert session.measure(runs=2).notices == ()
 
 
 class TestInterruption:
