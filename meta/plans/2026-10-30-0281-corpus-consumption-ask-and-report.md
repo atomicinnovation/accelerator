@@ -3514,12 +3514,16 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
   - With none granted, the turn wrote the report, stopped at the first
     denied validate, named both allow rules and offered the rerun's
     `rewrite 1`, as the consult section says.
-  - ⚠️ The opening turn's `Read` of the citing-once rule was denied too: the
-    rule lies outside the project and the skill's grant holds no `Read`.
-    Interactively that is one more prompt, on the opening turn and shared
-    with `synthesise`. The eval's scoped `Read` grant masks it. That turn
-    still stated coverage, so the rule-read is not enforced outside the
-    eval. Granting the read is left to a follow-up.
+  - The opening turn's `Read` of the citing-once rule was denied too: the
+    rule lies outside the project and the skill's grant held no `Read`, so
+    `synthesise`, `ask` and `report` all prompted for it, and the eval's own
+    scoped grant hid that. The skill now declares
+    `Read(/${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/**)`.
+    A probe plugin showed the bare `${CLAUDE_PLUGIN_ROOT}/…` form denied and
+    the `/`-led form granted, on 2.1.144 and 2.1.316 alike. The eval now
+    fills the plugin root into the declared grant rather than adding a
+    `Read` of its own, and a rerun of the opening turn read the rule with no
+    denial.
 
 ---
 
