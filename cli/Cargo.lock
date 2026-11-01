@@ -111,6 +111,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
  "work-adapters",
 ]
 
@@ -3406,6 +3407,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
 ]
 
 [[package]]

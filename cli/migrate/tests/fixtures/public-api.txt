@@ -292,6 +292,7 @@ pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path:
 pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::parse_frontmatter(&self, _content: &str) -> core::result::Result<corpus::value::FrontmatterValue, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::pattern_references_key(&self, _pattern: &str) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
@@ -327,6 +328,9 @@ pub trait migrate::ports::SessionLogFactory
 pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<(dyn migrate::ports::SessionLog + '_)>
 pub trait migrate::ports::SyncBaselines
 pub fn migrate::ports::SyncBaselines::realign(&self, integrations_root: &std::path::Path, pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
+pub trait migrate::ports::WorkItemIdentity
+pub fn migrate::ports::WorkItemIdentity::canonicalise(&self, raw: &str, pattern: &str, key: core::option::Option<&str>) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
+pub fn migrate::ports::WorkItemIdentity::references_key(&self, pattern: &str) -> bool
 pub trait migrate::ports::WorkingCopy
 pub fn migrate::ports::WorkingCopy::observe(&self, roots: &[&str]) -> core::result::Result<migrate::ports::WorkingCopyObservation, migrate::ports::MigrationError>
 pub mod migrate::preflight
