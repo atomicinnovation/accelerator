@@ -1,7 +1,9 @@
-//! The `work id` verb group: canonicalising an existing item's ID and
-//! previewing the IDs allocation would give next.
+//! The `work id` verb group: canonicalising an existing item's ID,
+//! previewing the IDs allocation would give next, and checking an ID for a
+//! new item.
 
 mod canonicalise;
+mod check;
 mod next;
 
 use std::process::ExitCode;
@@ -19,6 +21,7 @@ pub fn run(action: IdAction) -> ExitCode {
         IdAction::Next { project, count } => {
             run_next(project.as_deref(), count)
         }
+        IdAction::Check { id } => run_check(&id),
     }
 }
 
@@ -77,6 +80,28 @@ fn run_next(project: Option<&str>, count: u32) -> ExitCode {
             ExitCode::FAILURE
         }
         next::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
+    }
+}
+
+fn run_check(requested: &str) -> ExitCode {
+    let (start, composed) = match composed_here(Intent::Read) {
+        Ok(composed) => composed,
+        Err(code) => return code,
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    match check::run(&start, service, requested, &crate::identity_run::begin) {
+        check::RunOutcome::Checked(verdict) => {
+            println!("{verdict}");
+            ExitCode::SUCCESS
+        }
+        check::RunOutcome::Failed(message) => {
+            eprintln!("Error: {message}");
+            ExitCode::FAILURE
+        }
+        check::RunOutcome::Refused { message, code } => {
             eprintln!("{message}");
             ExitCode::from(code)
         }

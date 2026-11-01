@@ -82,8 +82,8 @@ pub enum Command {
         /// The remote identifier to record.
         external_id: String,
     },
-    /// Work-item IDs: canonicalise an existing item's ID, or see the IDs
-    /// allocation would give next.
+    /// Work-item IDs: canonicalise an existing item's ID, see the IDs
+    /// allocation would give next, or check an ID for a new item.
     Id {
         #[command(subcommand)]
         action: IdAction,
@@ -228,6 +228,23 @@ pub enum IdAction {
         /// How many sequential IDs to print.
         #[arg(long, default_value_t = 1)]
         count: u32,
+    },
+    /// Check an ID for a new work item, writing nothing. Prints
+    /// `exact\t<id>` when the ID is in the pattern's exact shape,
+    /// `other-key\t<id>\t<key>` when it is but its key differs from the
+    /// configured key, or `corrected\t<id>` when padding its number or
+    /// adding `work.key` makes it so; on either of the last two, a third
+    /// field names the configured key when the ID's key differs from it.
+    /// Pass the printed ID to `work create --id`. A request with no
+    /// correction is refused as typed; a correctable one is checked, and
+    /// refused if need be, in its corrected form, with the `E_ID_*` code
+    /// `work create --id` gives that form (see `exit_codes`).
+    /// A pass reserves nothing. An ID an interrupted `--push` create wrote
+    /// reports `E_ID_TAKEN`: that item is saved unsynced, so check the
+    /// tracker and reconcile it with `/sync-work-items`.
+    Check {
+        /// The requested ID.
+        id: String,
     },
 }
 
@@ -375,6 +392,7 @@ pub struct CreateArgs {
     /// there. Refused, writing nothing, with `--project`, under
     /// `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact
     /// shape, and for an ID a work item already holds (see `exit_codes`).
+    /// Check one first with `work id check`.
     #[arg(long)]
     pub id: Option<String>,
     /// The author. Falls back to the current VCS identity when omitted.
