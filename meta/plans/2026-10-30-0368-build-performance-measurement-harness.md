@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T11:00:00+00:00"
+last_updated: "2026-11-01T16:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2836,15 +2836,15 @@ hand.
 
 #### Automated Verification:
 
-- [ ] Every edited work item's frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/<item>.md`
-- [ ] `test_every_committed_build_record_is_readable` now runs over the baseline, and `test_the_baseline_is_among_the_committed_records` passes: `uv run pytest tests/unit/tasks/shared/build_measurement/test_record.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The kept record parses and carries the baseline conditions: `jq -e '.fetch_failures == [] and .commit.matched and .conditions.host_settings != "unspecified" and .conditions.mise_jobs == 8 and (.runs | length) == 3 and ([.summary.processes | to_entries[] | select(.key != "XprotectService") | .value.presence.standing] | all(. == "measured"))' meta/measurements/<run-id>.json`
+- [x] Every edited work item's frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/<item>.md`
+- [x] `test_every_committed_build_record_is_readable` now runs over the baseline, and `test_the_baseline_is_among_the_committed_records` passes: `uv run pytest tests/unit/tasks/shared/build_measurement/test_record.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The kept record parses and carries the baseline conditions: `jq -e '.fetch_failures == [] and .commit.matched and .conditions.host_settings != "unspecified" and .conditions.mise_jobs == 8 and (.runs | length) == 3 and ([.summary.processes | to_entries[] | select(.key != "XprotectService") | .value.presence.standing] | all(. == "measured"))' meta/measurements/<run-id>.json`
 
 #### Manual Verification:
 
-- [ ] The baseline commit contains none of 0362–0367's changes.
-- [ ] The record's host fields name the reference host.
+- [x] The baseline commit contains none of 0362–0367's changes.
+- [x] The record's host fields name the reference host.
 
 ---
 
@@ -4064,8 +4064,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 
 ## Implementation Notes
 
-Progress as of 2026-11-01: Phases 1–4 are complete and open as PR #175.
-Phases 5–10 have not started.
+Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
+Phase 5 is complete and not yet pushed. Phases 6–10 have not started.
 
 ### Phases 1–4 review round
 
@@ -4113,6 +4113,28 @@ Verification after the round: the full `mise run` passed locally, and every
 CI lane passed on both OSes at `e3f1b37c`. Earlier ubuntu runs had failed one
 test that assumed a non-root user cannot signal process group 1; the hosted
 runner can, so the test now forces the `PermissionError` it probes for.
+
+### Phase 5 baseline
+
+The baseline is
+`meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+committed with the test that names it. Where the phase departed from the
+plan:
+
+- **Commit.** It was measured at `007b2dd6`, a version bump on top of the
+  PR #175 merge, so `main` held none of 0362–0367's changes. Median
+  wall-clock 315.1 s (303.3–317.0), idle load 41.7%, every tracked process
+  `measured`.
+- **Host settings.** It is a `devtools` record, the settings in force,
+  not `none`, which the README asks for first. Phase 10's `none` record
+  therefore needs the Developer Tools exemption removed first, which can
+  need a reboot.
+- **Power.** A first attempt ran on battery, which `--keep` warns about
+  but `conditions` does not capture. It was discarded and retaken on AC.
+  Its median was 299.4 s, quicker than the AC record.
+- **Work-item edits.** `accelerator work update --remove` leaves an emptied
+  `blocked_by: []`, which the frontmatter validator rejects as an empty
+  placeholder; the four emptied keys were deleted by hand.
 
 ### Deferred to later phases
 
