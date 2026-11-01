@@ -39,8 +39,8 @@ from tasks.shared.build_measurement.measured_build import (
 )
 from tasks.shared.build_measurement.provenance import (
     History,
+    differing_paths,
     measured_commit,
-    outside_measurements,
 )
 from tasks.shared.build_measurement.record import run_id
 from tasks.shared.build_measurement.reports import (
@@ -237,9 +237,7 @@ class _Session:
         return _Provenance(
             graph=TaskGraph.parse(self.ports.mise_tasks()),
             commit=commit,
-            start_changes=outside_measurements(
-                history.working_copy_changes(commit)
-            ),
+            start_changes=differing_paths(history, commit),
             mise=observed_mise(self.ports.diagnostics),
         )
 
@@ -355,10 +353,10 @@ class _Session:
 
     def _matches_at_end(self, commit: str) -> bool | None:
         try:
-            changes = self.ports.history.working_copy_changes(commit)
+            differences = differing_paths(self.ports.history, commit)
         except HistoryError as error:
             self._progress(
                 f"warning: the end-of-run match check failed: {error}"
             )
             return None
-        return not outside_measurements(changes)
+        return not differences

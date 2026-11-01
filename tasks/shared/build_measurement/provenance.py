@@ -30,5 +30,5 @@ def measured_commit(history: History) -> str:
     )
 
 
-def working_copy_matches(history: History, commit: str) -> bool:
-    return not outside_measurements(history.working_copy_changes(commit))
+def differing_paths(history: History, commit: str) -> tuple[str, ...]:
+    return outside_measurements(history.working_copy_changes(commit))

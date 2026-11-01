@@ -2,9 +2,9 @@ import pytest
 
 from tasks.shared.build_measurement.errors import NoMeasurableCommitError
 from tasks.shared.build_measurement.provenance import (
+    differing_paths,
     measured_commit,
     outside_measurements,
-    working_copy_matches,
 )
 from tasks.shared.paths import MEASUREMENTS_RELATIVE
 from tests.unit.tasks.shared.build_measurement.doubles import FakeHistory
@@ -47,12 +47,12 @@ def test_a_history_with_no_qualifying_commit_is_refused():
 
 def test_changes_only_under_measurements_still_match():
     history = FakeHistory(working_copy=(_KEPT_RECORD,))
-    assert working_copy_matches(history, "c1")
+    assert differing_paths(history, "c1") == ()
 
 
 def test_a_change_outside_measurements_does_not_match():
     history = FakeHistory(working_copy=(_KEPT_RECORD, "tasks/a.py"))
-    assert not working_copy_matches(history, "c1")
+    assert differing_paths(history, "c1") == ("tasks/a.py",)
 
 
 def test_a_kept_record_never_counts_as_a_change():

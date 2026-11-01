@@ -12,8 +12,8 @@ from tasks.shared.build_measurement.history import (
 )
 from tasks.shared.build_measurement.provenance import (
     History,
+    differing_paths,
     measured_commit,
-    working_copy_matches,
 )
 from tests.unit.tasks.shared.build_measurement.repositories import (
     GitRepository,
@@ -54,7 +54,7 @@ def test_an_uncommitted_kept_record_names_the_same_commit_and_matches(
     code = repo.commit({"a.txt": "a"}, "code")
     _write(repo.root, *next(iter(_KEPT_RECORD.items())))
     assert measured_commit(history) == code
-    assert working_copy_matches(history, code)
+    assert differing_paths(history, code) == ()
 
 
 def test_a_committed_kept_record_names_the_same_commit_and_matches(
@@ -64,21 +64,21 @@ def test_a_committed_kept_record_names_the_same_commit_and_matches(
     code = repo.commit({"a.txt": "a"}, "code")
     repo.commit(_KEPT_RECORD, "record")
     assert measured_commit(history) == code
-    assert working_copy_matches(history, code)
+    assert differing_paths(history, code) == ()
 
 
 def test_an_edit_outside_measurements_does_not_match(repository):
     repo, history = repository
     code = repo.commit({"a.txt": "a"}, "code")
     _write(repo.root, "a.txt", "edited")
-    assert not working_copy_matches(history, code)
+    assert differing_paths(history, code) == ("a.txt",)
 
 
 def test_an_untracked_file_outside_measurements_does_not_match(repository):
     repo, history = repository
     code = repo.commit({"a.txt": "a"}, "code")
     _write(repo.root, "new.txt", "new")
-    assert not working_copy_matches(history, code)
+    assert differing_paths(history, code) == ("new.txt",)
 
 
 def test_a_clean_merge_is_measured_by_its_difference_from_its_first_parent(
@@ -91,7 +91,7 @@ def test_a_clean_merge_is_measured_by_its_difference_from_its_first_parent(
     main = repo.commit({"c.txt": "c"}, "main")
     merge = repo.merge(main, side)
     assert measured_commit(history) == merge
-    assert working_copy_matches(history, merge)
+    assert differing_paths(history, merge) == ()
 
 
 def test_a_merged_working_copy_follows_its_first_parent(monkeypatch, tmp_path):
@@ -110,7 +110,7 @@ def test_a_gitignored_run_directory_does_not_break_the_match(repository):
     repo, history = repository
     code = repo.commit({".gitignore": "/.accelerator-measure/\n"}, "ignore")
     _write(repo.root, ".accelerator-measure/build/record.json", "{}")
-    assert working_copy_matches(history, code)
+    assert differing_paths(history, code) == ()
 
 
 def test_a_failing_command_names_its_argv_and_stderr(repository):
@@ -144,7 +144,7 @@ def test_the_adapters_only_issue_read_only_commands(monkeypatch, tmp_path):
         code = repo.commit({"a.txt": "a"}, "code")
         history = adapter(repo.root, run=recording_run)
         commit = measured_commit(history)
-        working_copy_matches(history, commit)
+        differing_paths(history, commit)
         assert commit == code
 
     assert {_subcommand(argv) for argv in issued} <= {
