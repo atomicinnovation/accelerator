@@ -1,15 +1,13 @@
 """Background samplers that stamp what they read against a run's epoch."""
 
-import io
 import subprocess
 import threading
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import IO
 
-from tasks.shared.build_measurement.log_files import open_log
-from tasks.shared.build_measurement.timeline import StampedLine, stamped_text
+from tasks.shared.build_measurement.log_files import StampedLog, open_log
+from tasks.shared.build_measurement.timeline import StampedLine
 from tasks.shared.build_measurement.tracked_processes import (
     TrackedProcess,
     gap_marker,
@@ -21,28 +19,11 @@ from tasks.shared.clock import Clock
 _JOIN_TIMEOUT_SECONDS = 5.0
 
 
-@dataclass(slots=True)
-class _StampedLog:
-    file: IO[str]
-    lines: list[StampedLine] = field(default_factory=list)
-    lock: threading.Lock = field(default_factory=threading.Lock)
-
-    def append(self, line: StampedLine) -> None:
-        with self.lock:
-            self.lines.append(line)
-            self.file.write(stamped_text(line) + "\n")
-
-    def close(self) -> tuple[StampedLine, ...]:
-        with self.lock:
-            self.file.close()
-            return tuple(self.lines)
-
-
 class _RunningStream:
     def __init__(
         self, argv: Sequence[str], clock: Clock, epoch: float, log: Path
     ) -> None:
-        self._stamped = _StampedLog(open_log(log))
+        self._stamped = StampedLog(open_log(log))
         self._process = subprocess.Popen(
             argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
         )
@@ -58,14 +39,8 @@ class _RunningStream:
 
     def _read(self, clock: Clock, epoch: float) -> None:
         stdout = self._process.stdout
-        if stdout is None:
-            return
-        text = io.TextIOWrapper(
-            stdout, encoding="utf-8", errors="replace", newline="\n"
-        )
-        for raw in text:
-            line = StampedLine(clock.now() - epoch, raw.removesuffix("\n"))
-            self._stamped.append(line)
+        if stdout is not None:
+            self._stamped.follow(stdout, clock, epoch)
 
     def stop(self) -> tuple[StampedLine, ...]:
         if self._stopped is None:
@@ -106,7 +81,7 @@ class _RunningTicks:
         self._keep = keep
         self._interval = interval
         self._tick_timeout = tick_timeout
-        self._stamped = _StampedLog(open_log(log))
+        self._stamped = StampedLog(open_log(log))
         self._stopping = threading.Event()
         self._stopped: tuple[StampedLine, ...] | None = None
         self._thread = threading.Thread(target=self._tick, daemon=True)
