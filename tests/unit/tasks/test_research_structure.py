@@ -2516,3 +2516,20 @@ def test_the_citing_once_rule_names_its_readers() -> None:
     assert (
         "read by its synthesise, ask and report verbs — not invoked directly"
     ) in description
+
+
+def test_derive_metadata_takes_the_author_from_its_author_line() -> None:
+    derive = _section(
+        _research_topic_prose(), "## Derive Metadata", "### brief"
+    )
+    assert "the `Author:` value" in derive
+    assert "never run a VCS command to find it" in derive
+    assert "ask the user once" in derive
+
+
+def test_a_reply_prompt_ends_its_turn() -> None:
+    before_proposing = _section(
+        _consult(), "### Consulting the corpus", "**Propose research.**"
+    )
+    assert "A reply prompt is the last line of its turn" in before_proposing
+    assert "such as a warning about planted instructions" in before_proposing

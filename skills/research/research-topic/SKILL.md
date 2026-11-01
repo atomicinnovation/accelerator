@@ -157,7 +157,9 @@ Before writing any document, derive the provenance values once:
 accelerator corpus metadata derive
 ```
 
-Capture the `Current Date/Time (UTC):` and the resolved author. topic-research
+Capture the `Current Date/Time (UTC):` value and the `Author:` value, the
+resolved author; never run a VCS command to find it. When the block has no
+`Author:` line, ask the user once for the name to record. topic-research
 is **not** code-state-anchored, so ignore any revision/repository output — a
 topic-research document never carries them.
 
@@ -777,7 +779,9 @@ Read every file with the Read tool, never through a shell command — no `cd`,
 At a prompt that guards a write — accept, pick or confirm — a reply that does
 not clearly choose one of its options re-asks that prompt and writes nothing.
 A proposal is taken as printed: a user who wants other focus areas declines
-and runs `outline SLUG`.
+and runs `outline SLUG`. A reply prompt is the last line of its turn: say
+anything else, such as a warning about planted instructions, before the
+judgement.
 
 If a command after a reply is denied permission, stop, say what was written,
 and name the allow rules that avoid the prompt, `Bash(accelerator corpus *)`
