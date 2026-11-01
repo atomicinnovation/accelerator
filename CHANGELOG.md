@@ -768,6 +768,23 @@
   target would read as another item's linked tracker key, because
   `work.key` is the tracker's own key, is refused naming both items, the
   cause and both remedies.
+- **The visualiser joins every spelling of a work item.** It matches a
+  work item's key ignoring letter case, including when it strips the
+  configured key from a dated filename's slug, clusters `PROJ-42`
+  references with `PROJ-0042`, and indexes `.MD` items. A `work-item:`
+  reference in `parent:` or `related:` now counts as an inbound link. It
+  still shows each ID as written, and now shows the ID of an item whose key
+  mixes letters and digits, such as `X1-0400`. An item under a pattern with
+  literal text, such as `v001`, joins a cluster by its ID. A cluster's
+  `clusterKey`, and so its "clustered via" label, is the canonical form
+  (`work-item:PP-0042` for an item written `PP-42`), and a work item under
+  another key, such as `XY-0400-foo.md`, now gets a slug.
+- **Under a bare `{number}` pattern, the visualiser counts only a
+  four-digit token as an ID inside a dated filename**, as the pattern's
+  width says.
+- **The visualiser's boot refusal of a malformed `work.id_pattern` or
+  `work.key` names the setting and value**, and it refuses the newly refused
+  pattern forms the `### Migrations` entry lists.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
@@ -978,8 +995,10 @@
   `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
   a digit beside `{key}` or `{number}` (such as `v2{number:03d}`), a width
   over 19 digits or a repeated token is refused by every `work` command that
-  reads the ID scheme, with `E_WORK_ID_PATTERN_INVALID: work.id_pattern
-  '<value>': <reason>`. Edit the pattern as the reason directs, then run
+  reads the ID scheme and by the visualiser at boot, with
+  `E_WORK_ID_PATTERN_INVALID: work.id_pattern '<value>': <reason>`.
+  Migration 0002 reports the same for such a `{project}` pattern when legacy
+  items remain to rename. Edit the pattern as the reason directs, then run
   `/rekey-work-items` if existing items should follow it.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item

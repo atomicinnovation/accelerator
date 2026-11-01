@@ -17,6 +17,7 @@ pub fn entry_for_test(
         rel_path: PathBuf::from(format!("{slug}.md")),
         slug: Some(slug.to_string()),
         work_item_id: None,
+        identity_key: None,
         draft: false,
         title: title.to_string(),
         frontmatter: serde_json::Value::Null,
@@ -40,7 +41,7 @@ pub fn entry_for_test_with_filename(
     filename: &str,
     cfg: &WorkItemConfig,
 ) -> IndexEntry {
-    let slug = corpus::slug::derive(doc_type, filename, &cfg.id_convention());
+    let slug = corpus::slug::derive(doc_type, filename, cfg.scheme());
     let dir = doc_type.config_path_key().unwrap_or("misc");
     let path = PathBuf::from(format!("/repo/meta/{dir}/{filename}"));
     let title = slug.as_deref().unwrap_or("untitled").to_string();
@@ -50,6 +51,7 @@ pub fn entry_for_test_with_filename(
         rel_path: PathBuf::from(format!("meta/{dir}/{filename}")),
         slug,
         work_item_id: None,
+        identity_key: None,
         draft: false,
         title,
         frontmatter: serde_json::Value::Null,

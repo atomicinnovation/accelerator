@@ -95,7 +95,10 @@ pub fn extract_facet_value(
                     Some(prefix.to_string())
                 }
             } else {
-                cfg.work_item.as_ref().and_then(|w| w.key.clone())
+                cfg.work_item
+                    .as_ref()
+                    .and_then(|scheme| scheme.key())
+                    .map(|key| key.as_str().to_owned())
             }
         }
         _ => None,
@@ -165,6 +168,10 @@ pub struct IndexEntry {
     /// The work item's `id` frontmatter, normalised under the configured
     /// scheme; `None` for other types or an `id` the scheme does not admit.
     pub work_item_id: Option<String>,
+    /// The key every spelling of this work item joins on, which the
+    /// indexes and clusters use; never served as the item's ID.
+    #[serde(skip)]
+    pub identity_key: Option<String>,
     /// A work item whose `id` is a draft's, which no tracker has confirmed.
     pub draft: bool,
     pub title: String,
@@ -230,8 +237,8 @@ pub struct Indexer {
     /// `BTreeSet` gives deterministic iteration order and
     /// dedup-by-construction.
     reviews_by_target: Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    /// Reverse work-item cross-ref index. Keys are canonical work-item IDs
-    /// (as produced by `canonicalise_refs`); values are sets of canonicalised
+    /// Reverse work-item cross-ref index. Keys are work-item identity keys
+    /// (as produced by `identity_keys_of`); values are sets of canonicalised
     /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
@@ -361,12 +368,12 @@ impl Indexer {
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
             }
-            for id in canonicalise_refs(
+            for id in identity_keys_of(
                 entry.work_item_refs.clone(),
                 &self.work_item_cfg,
             ) {
                 // Skip self-references: a doc must not appear in its own index.
-                if entry.work_item_id.as_deref() == Some(id.as_str()) {
+                if entry.identity_key.as_deref() == Some(id.as_str()) {
                     continue;
                 }
                 work_item_refs_by_target
@@ -864,10 +871,8 @@ impl Indexer {
         }
 
         // Work-item cross-refs from `work_item_id:`, `parent:`, `related:`.
-        let canon_refs = canonicalise_refs(
-            entry.work_item_refs.clone(),
-            &self.work_item_cfg,
-        );
+        let canon_refs =
+            identity_keys_of(entry.work_item_refs.clone(), &self.work_item_cfg);
         for id in &canon_refs {
             if let Some(path) = by_id.get(id) {
                 if path != &entry.path {
@@ -936,11 +941,9 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///     the `plans_by_id` index (the plan's `id:` field; usually the
 ///     filename stem).
 ///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via the
-///     `work_item_by_id` index, canonicalising the raw id through
-///     `canonicalise_one_id` first (so a project-prefixed/under-padded id still
-///     resolves, matching `cluster_key.rs`). Story 0070 types work-item-review
-///     targets to this shape; resolving it here keeps the path-keyed
-///     `reviews_by_target` reverse index populated.
+///     `work_item_by_id` index under the raw id's identity key, so any
+///     spelling of the item resolves, as clustering does. Resolving it here
+///     keeps the path-keyed `reviews_by_target` reverse index populated.
 ///
 /// Returns `None` for entries that carry no `target:`, or for `adr:`/`pr:`
 /// targets (no corpus path).
@@ -956,7 +959,7 @@ pub(crate) fn target_path_from_entry(
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
         plans_by_id,
         work_item_by_id,
-        &work_item_cfg.id_convention(),
+        work_item_cfg.scheme(),
         project_root,
     )
 }
@@ -1150,37 +1153,33 @@ async fn remove_from_reviews_by_target(
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Work-item cross-reference canonicalisation.
+// Work-item cross-reference identity keys.
 // ──────────────────────────────────────────────────────────────────────
 
-/// Canonicalises a single raw cross-reference string to match
-/// `work_item_by_id` keys. Returns `None` for malformed values
-/// (anything not in one of the three accepted shapes). The
-/// allocation-light counterpart to `canonicalise_refs`.
-pub fn canonicalise_one_id(
+/// The identity key a raw cross-reference, bare or a typed `work-item:`
+/// reference, joins `work_item_by_id` on, or `None` for a value that names
+/// no work item.
+pub fn identity_key_of(
     raw: &str,
     cfg: &crate::config::WorkItemConfig,
 ) -> Option<String> {
-    cfg.scheme().canonicalise_id(raw)
+    match corpus::parse_typed_ref(raw) {
+        Some(corpus::TypedRef::WorkItem(id)) => cfg.identity_key(&id),
+        Some(_) => None,
+        None => cfg.identity_key(raw),
+    }
 }
 
-/// Canonicalises raw cross-reference strings to match `work_item_by_id` keys.
-///
-/// Four cases (applied in order):
-/// 1. Bare numeric (`^\d+$`) under a non-project pattern: zero-pad to width.
-/// 2. Bare numeric under a project pattern with `key`: prefix + zero-pad.
-/// 3. Project-prefixed (`^[A-Za-z][A-Za-z0-9]*-\d+$`): pass through verbatim.
-/// 4. Anything else: skip (silent drop; never panics).
-///
-/// Duplicates are removed; insertion order is preserved for the unique elements.
-pub fn canonicalise_refs(
+/// The identity keys of raw cross-references, malformed values dropped and
+/// duplicates removed, in first-seen order.
+pub fn identity_keys_of(
     raw: Vec<String>,
     cfg: &crate::config::WorkItemConfig,
 ) -> Vec<String> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut result: Vec<String> = Vec::new();
     for r in raw {
-        let Some(canonical) = canonicalise_one_id(&r, cfg) else {
+        let Some(canonical) = identity_key_of(&r, cfg) else {
             continue;
         };
         if seen.insert(canonical.clone()) {
@@ -1197,9 +1196,9 @@ async fn update_work_item_refs_by_target(
     previous: Option<&IndexEntry>,
 ) {
     let prev_refs = previous
-        .map(|p| canonicalise_refs(p.work_item_refs.clone(), cfg))
+        .map(|p| identity_keys_of(p.work_item_refs.clone(), cfg))
         .unwrap_or_default();
-    let next_refs = canonicalise_refs(new_entry.work_item_refs.clone(), cfg);
+    let next_refs = identity_keys_of(new_entry.work_item_refs.clone(), cfg);
     let mut m = map.write().await;
     // Remove the previous entry's path from all its canonical IDs.
     if let Some(prev) = previous {
@@ -1214,7 +1213,7 @@ async fn update_work_item_refs_by_target(
     }
     // Insert the new entry's path under all its canonical IDs (excluding self-refs).
     for id in &next_refs {
-        if new_entry.work_item_id.as_deref() == Some(id.as_str()) {
+        if new_entry.identity_key.as_deref() == Some(id.as_str()) {
             continue;
         }
         m.entry(id.clone())
@@ -1228,7 +1227,7 @@ async fn remove_from_work_item_refs_by_target(
     cfg: &crate::config::WorkItemConfig,
     previous: &IndexEntry,
 ) {
-    let refs = canonicalise_refs(previous.work_item_refs.clone(), cfg);
+    let refs = identity_keys_of(previous.work_item_refs.clone(), cfg);
     if refs.is_empty() {
         return;
     }
@@ -1265,51 +1264,40 @@ fn build_entry(
         filename.to_string()
     };
 
-    let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
-        let regex_slug = corpus::slug::derive_work_item(
-            filename,
-            &work_item_cfg.id_convention(),
-        );
-        // Fall back to the default numeric slug derivation when the primary
-        // regex doesn't match (e.g., legacy bare-numeric files in a
-        // project-prefixed workspace during a pattern-config rollout).
-        let slug = regex_slug.or_else(|| {
-            corpus::slug::derive(kind, filename, &work_item_cfg.id_convention())
+    let (slug_val, work_item_id, identity_key) = if kind
+        == DocTypeKey::WorkItems
+    {
+        let id_slug =
+            corpus::slug::derive_work_item(filename, work_item_cfg.scheme());
+        let slug = id_slug.or_else(|| {
+            corpus::slug::derive(kind, filename, work_item_cfg.scheme())
         });
-        // Identity resolution: the unified `id:` key is the sole work-item
-        // identity source. It routes through `normalise_id` so the identity
-        // shape is canonical (a raw `id:` must not bypass normalisation). A
-        // synced work-item may carry its id in frontmatter even when the
-        // filename doesn't encode it.
-        let read_fm_id = |key: &str| -> Option<String> {
-            let FrontmatterState::Parsed(map) = &parsed.state else {
-                return None;
-            };
-            map.get(key).and_then(|v| v.as_str()).and_then(|raw| {
-                let normalised = work_item_cfg.normalise_id(raw);
-                if normalised.is_none() && !raw.trim().is_empty() {
-                    tracing::warn!(
-                        file = %path.display(),
-                        key = key,
-                        value = raw,
-                        "work-item identity frontmatter value failed shape validation",
-                    );
-                }
-                normalised
-            })
+        // A synced work item may carry its id in frontmatter even when the
+        // filename does not encode it, so `id:` alone is its identity.
+        let raw_id = match &parsed.state {
+            FrontmatterState::Parsed(map) => {
+                map.get("id").and_then(|v| v.as_str())
+            }
+            _ => None,
         };
-        // `id:` is the sole work-item identity source (validated via
-        // normalise_id); absence → None, i.e. the entry is excluded from the
-        // index.
-        let id = read_fm_id("id");
-        (slug, id)
+        let shown = raw_id.and_then(|raw| work_item_cfg.normalise_id(raw));
+        let identity =
+            raw_id.and_then(|raw| work_item_cfg.identity_key(raw.trim()));
+        if let Some(raw) = raw_id.filter(|raw| !raw.trim().is_empty()) {
+            if shown.is_none() && identity.is_none() {
+                tracing::warn!(
+                    file = %path.display(),
+                    key = "id",
+                    value = raw,
+                    "work-item identity frontmatter value failed shape validation",
+                );
+            }
+        }
+        (slug, shown, identity)
     } else {
         (
-            corpus::slug::derive(
-                kind,
-                &slug_filename,
-                &work_item_cfg.id_convention(),
-            ),
+            corpus::slug::derive(kind, &slug_filename, work_item_cfg.scheme()),
+            None,
             None,
         )
     };
@@ -1352,8 +1340,9 @@ fn build_entry(
         slug: slug_val,
         draft: work_item_id
             .as_deref()
-            .is_some_and(|id| corpus::canonical_draft_id(id).is_some()),
+            .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
         work_item_id,
+        identity_key,
         title,
         frontmatter: fm_json,
         frontmatter_state: state_str,
@@ -1377,7 +1366,7 @@ fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
 }
 
 fn work_item_id_from_entry(entry: &IndexEntry) -> Option<String> {
-    entry.work_item_id.clone()
+    entry.identity_key.clone()
 }
 
 /// Extracts a plan's `id:` value (typically the filename stem). Used to
@@ -1408,54 +1397,52 @@ fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
 }
 
 #[cfg(test)]
-mod canonicalise_tests {
+mod identity_key_tests {
     use super::*;
+    use crate::config::scheme_for_test;
     use crate::config::WorkItemConfig;
 
     fn cfg_numeric() -> WorkItemConfig {
-        WorkItemConfig::default_numeric() // id_pattern = "{number:04d}", no project
+        WorkItemConfig::default_numeric()
     }
 
     fn cfg_project(code: &str) -> WorkItemConfig {
-        let raw = crate::config::RawWorkItemConfig {
-            scan_regex: format!("^{code}-(\\d+)-"),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some(code.to_string()),
-        };
-        WorkItemConfig::from_raw(raw).unwrap()
+        WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some(code),
+        ))
     }
 
     #[test]
-    fn canonicalise_refs_pads_bare_numeric_under_default_pattern() {
+    fn identity_keys_of_pads_bare_numeric_under_default_pattern() {
         let cfg = cfg_numeric();
         let raw = vec!["42".to_string(), "0007".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042", "0007"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["0042", "0007"]);
     }
 
     #[test]
-    fn canonicalise_refs_prefixes_default_project_under_project_pattern() {
+    fn identity_keys_of_prefixes_default_project_under_project_pattern() {
         let cfg = cfg_project("PROJ");
         let raw = vec!["42".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["PROJ-0042"]);
     }
 
     #[test]
-    fn canonicalise_refs_passes_prefixed_input_through_under_default_pattern() {
+    fn identity_keys_of_passes_prefixed_input_through_under_default_pattern() {
         let cfg = cfg_numeric();
         let raw = vec!["PROJ-0042".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["PROJ-0042"]);
     }
 
     #[test]
-    fn canonicalise_refs_dedups_after_canonicalisation() {
+    fn identity_keys_of_dedups_after_canonicalisation() {
         let cfg = cfg_numeric();
-        // "42", "0042", and 42 all canonicalise to "0042"
         let raw = vec!["42".to_string(), "0042".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["0042"]);
     }
 
     #[test]
-    fn canonicalise_refs_drops_malformed_input() {
+    fn identity_keys_of_drops_malformed_input() {
         let cfg = cfg_numeric();
         let raw = vec![
             "not-a-valid-id".to_string(),
@@ -1464,16 +1451,16 @@ mod canonicalise_tests {
             "PROJ-".to_string(),
             "-0042".to_string(),
         ];
-        assert_eq!(canonicalise_refs(raw, &cfg), Vec::<String>::new());
+        assert_eq!(identity_keys_of(raw, &cfg), Vec::<String>::new());
     }
 
     #[test]
-    fn canonicalise_refs_case_3_vs_case_4_boundary() {
+    fn identity_keys_of_pad_and_fold_a_foreign_key() {
         let cfg = cfg_numeric();
         let cases: &[(&str, Option<&str>)] = &[
             ("PROJ-0042", Some("PROJ-0042")),
-            ("FOO-1", Some("FOO-1")),
-            ("Web2-7", Some("Web2-7")),
+            ("FOO-1", Some("FOO-0001")),
+            ("Web2-7", Some("WEB2-0007")),
             ("42-foo", None),
             ("PROJ-", None),
             ("-0042", None),
@@ -1482,10 +1469,423 @@ mod canonicalise_tests {
             ("", None),
         ];
         for (input, expected) in cases {
-            let got = canonicalise_refs(vec![(*input).to_string()], &cfg);
+            let got = identity_keys_of(vec![(*input).to_string()], &cfg);
             let got_first = got.first().map(String::as_str);
             assert_eq!(got_first, *expected, "input={input}");
         }
+    }
+}
+
+#[cfg(test)]
+mod identity_join_tests {
+    use super::*;
+    use crate::clusters::{compute_clusters_with_backfill, ClusterContext};
+    use crate::config::{scheme_for_test, WorkItemConfig};
+    use crate::file_driver::LocalFileDriver;
+    use std::sync::Arc;
+
+    const DIRS: [(&str, &str); 3] = [
+        ("work", "meta/work"),
+        ("plans", "meta/plans"),
+        ("review_work", "meta/reviews/work"),
+    ];
+
+    async fn index_under(
+        root: &Path,
+        pattern: &str,
+        key: Option<&str>,
+        files: &[(&str, &str)],
+    ) -> Indexer {
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        for (path, content) in files {
+            std::fs::write(root.join(path), content).unwrap();
+        }
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let cfg = WorkItemConfig::new(scheme_for_test(pattern, key));
+        Indexer::build(driver, root.to_path_buf(), Arc::new(cfg))
+            .await
+            .unwrap()
+    }
+
+    async fn entry_at(idx: &Indexer, root: &Path, path: &str) -> IndexEntry {
+        idx.get(&root.join(path)).await.expect("indexed")
+    }
+
+    async fn cluster_keys(
+        idx: &Indexer,
+        root: &Path,
+        paths: &[&str],
+    ) -> Vec<Option<String>> {
+        let snapshot = idx.all().await;
+        let by_id = idx.work_item_by_id_snapshot().await;
+        let plans = idx.plans_by_id_snapshot().await;
+        let ctx = ClusterContext::from_entries(
+            &snapshot,
+            &by_id,
+            &plans,
+            idx.project_root(),
+            idx.work_item_cfg(),
+        );
+        let (_, _, keys) = compute_clusters_with_backfill(&snapshot, &ctx);
+        let mut found = Vec::new();
+        for path in paths {
+            let entry = entry_at(idx, root, path).await;
+            found.push(keys.get(&entry.path).cloned().flatten());
+        }
+        found
+    }
+
+    fn config_with_key(key: &str) -> crate::config::Config {
+        crate::config::Config {
+            plugin_root: "/p".into(),
+            plugin_version: "test".into(),
+            project_root: "/p".into(),
+            tmp_path: "/t".into(),
+            host: "127.0.0.1".into(),
+            owner_pid: 0,
+            owner_start_time: None,
+            log_path: "/l".into(),
+            doc_paths: HashMap::new(),
+            templates: HashMap::default(),
+            work_item: Some(scheme_for_test("{key}-{number:04d}", Some(key))),
+            kanban_columns: None,
+            idle_timeout: None,
+            editor: None,
+            editor_project: None,
+        }
+    }
+
+    const PP_0500: (&str, &str) = (
+        "meta/work/pp-0500-x.md",
+        "---\nid: pp-0500\ntitle: X\n---\n",
+    );
+
+    #[tokio::test]
+    async fn a_lower_case_key_filename_belongs_to_the_configured_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+
+        let entry = entry_at(&idx, tmp.path(), PP_0500.0).await;
+
+        assert_eq!(entry.slug.as_deref(), Some("x"));
+        assert_eq!(
+            idx.work_item_by_id_snapshot().await.get("PP-0500"),
+            Some(&entry.path)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_served_work_item_id_is_the_id_as_written() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+
+        let entry = entry_at(&idx, tmp.path(), PP_0500.0).await;
+
+        assert_eq!(entry.work_item_id.as_deref(), Some("pp-0500"));
+        assert_eq!(
+            extract_facet_value(&entry, &config_with_key("PP"), "project")
+                .as_deref(),
+            Some("pp")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_served_cluster_key_is_the_canonical_identity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = (
+            "meta/plans/2026-01-01-x.md",
+            "---\ntitle: P\nparent: \"work-item:pp-0500\"\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500, plan],
+        )
+        .await;
+
+        assert_eq!(
+            cluster_keys(&idx, tmp.path(), &[PP_0500.0, plan.0]).await,
+            vec![Some("PP-0500".to_owned()), Some("PP-0500".to_owned())]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_work_item_under_another_key_gets_a_slug() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/XY-0400-foo.md", "---\nid: XY-0400\n---\n");
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &[item])
+                .await;
+
+        let entry = entry_at(&idx, tmp.path(), item.0).await;
+
+        assert_eq!(entry.slug.as_deref(), Some("foo"));
+    }
+
+    #[tokio::test]
+    async fn a_wiki_link_by_written_id_still_resolves() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
+        let idx = index_under(tmp.path(), "{number:04d}", None, &[item]).await;
+
+        let entry = entry_at(&idx, tmp.path(), item.0).await;
+
+        assert_eq!(entry.work_item_id.as_deref(), Some("42"));
+    }
+
+    #[tokio::test]
+    async fn an_items_filename_id_and_references_share_one_identity_key() {
+        let cases = [
+            (
+                "{key}-{number:04d}",
+                Some("PROJ"),
+                "PROJ-1-short.md",
+                "PROJ-1",
+                "PROJ-0001",
+            ),
+            (
+                "{key}_{number:04d}",
+                Some("PP"),
+                "PP_0042-x.md",
+                "PP_0042",
+                "pp_42",
+            ),
+            ("v{number:03d}", None, "v001-x.md", "v001", "v1"),
+            (
+                "{key}-{number:04d}",
+                Some("PP"),
+                "XY-0400-x.md",
+                "XY-0400",
+                "xy-400",
+            ),
+            (
+                "{key}-{number:04d}",
+                Some("PROJ"),
+                "0042-legacy.md",
+                "0042",
+                "PROJ-42",
+            ),
+        ];
+        for (pattern, key, filename, id, reference) in cases {
+            let tmp = tempfile::tempdir().unwrap();
+            let item_path = format!("meta/work/{filename}");
+            let item = format!("---\nid: \"{id}\"\n---\n");
+            let by_reference = format!(
+                "---\ntitle: R\nparent: \"work-item:{reference}\"\n---\n"
+            );
+            let by_path =
+                format!("---\ntitle: P\nparent: \"{item_path}\"\n---\n");
+            let idx = index_under(
+                tmp.path(),
+                pattern,
+                key,
+                &[
+                    (&item_path, &item),
+                    ("meta/plans/2026-01-01-r.md", &by_reference),
+                    ("meta/plans/2026-01-02-p.md", &by_path),
+                ],
+            )
+            .await;
+
+            let keys = cluster_keys(
+                &idx,
+                tmp.path(),
+                &[
+                    &item_path,
+                    "meta/plans/2026-01-01-r.md",
+                    "meta/plans/2026-01-02-p.md",
+                ],
+            )
+            .await;
+
+            assert!(keys[0].is_some(), "{filename}: {keys:?}");
+            assert!(keys.iter().all(|k| k == &keys[0]), "{filename}: {keys:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_dated_slug_keeps_words_that_look_like_ids() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-10-29-iso-8601-dates.md", "---\n---\n");
+        let review = (
+            "meta/reviews/work/2026-10-29-XY-0400-foo-review-1.md",
+            "---\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[plan, review],
+        )
+        .await;
+
+        assert_eq!(
+            entry_at(&idx, tmp.path(), plan.0).await.slug.as_deref(),
+            Some("iso-8601-dates")
+        );
+        assert_eq!(
+            entry_at(&idx, tmp.path(), review.0).await.slug.as_deref(),
+            Some("XY-0400-foo")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_dated_slug_strips_the_configured_key_in_any_case() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-10-29-pp-0400-foo.md", "---\n---\n");
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &[plan])
+                .await;
+
+        assert_eq!(
+            entry_at(&idx, tmp.path(), plan.0).await.slug.as_deref(),
+            Some("foo")
+        );
+    }
+
+    #[tokio::test]
+    async fn every_spelling_of_an_item_joins_its_cluster() {
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            ("meta/work/PP-42-a.md", "---\nid: PP-42\n---\n"),
+            (
+                "meta/plans/2026-01-01-a.md",
+                "---\nparent: \"work-item:PP-42\"\n---\n",
+            ),
+            (
+                "meta/plans/2026-01-02-b.md",
+                "---\nparent: \"work-item:PP-0042\"\n---\n",
+            ),
+            PP_0500,
+            (
+                "meta/plans/2026-01-03-c.md",
+                "---\nparent: \"work-item:PP-0500\"\n---\n",
+            ),
+            (
+                "meta/plans/2026-01-04-d.md",
+                "---\nparent: \"meta/work/pp-0500-x.md\"\n---\n",
+            ),
+        ];
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &files)
+                .await;
+
+        let keys =
+            cluster_keys(&idx, tmp.path(), &files.map(|(path, _)| path)).await;
+
+        let pp_42 = Some("PP-0042".to_owned());
+        let pp_500 = Some("PP-0500".to_owned());
+        assert_eq!(
+            keys,
+            vec![
+                pp_42.clone(),
+                pp_42.clone(),
+                pp_42,
+                pp_500.clone(),
+                pp_500.clone(),
+                pp_500
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_free_text_parent_forms_no_cluster_under_tracker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-01-01-a.md", "---\nparent: TBD\n---\n");
+        let idx = index_under(tmp.path(), "{tracker}", None, &[plan]).await;
+
+        assert_eq!(cluster_keys(&idx, tmp.path(), &[plan.0]).await, vec![None]);
+    }
+
+    #[tokio::test]
+    async fn a_foreign_key_reference_joins_under_a_keyless_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/ENG-0042-x.md", "---\nid: ENG-0042\n---\n");
+        let plan = (
+            "meta/plans/2026-01-01-a.md",
+            "---\nparent: \"work-item:ENG-42\"\n---\n",
+        );
+        let idx =
+            index_under(tmp.path(), "{number:04d}", None, &[item, plan]).await;
+
+        let keys = cluster_keys(&idx, tmp.path(), &[item.0, plan.0]).await;
+
+        assert_eq!(keys, vec![Some("ENG-0042".to_owned()); 2]);
+    }
+
+    #[tokio::test]
+    async fn a_short_reference_clusters_with_its_padded_work_item() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/PROJ-0042-x.md", "---\nid: PROJ-0042\n---\n");
+        let plan = (
+            "meta/plans/2026-01-01-a.md",
+            "---\nparent: \"work-item:PROJ-42\"\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PROJ"),
+            &[item, plan],
+        )
+        .await;
+
+        let keys = cluster_keys(&idx, tmp.path(), &[item.0, plan.0]).await;
+
+        assert_eq!(keys, vec![Some("PROJ-0042".to_owned()); 2]);
+    }
+
+    #[tokio::test]
+    async fn the_visualiser_indexes_an_upper_case_md_item() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/0400-x.MD", "---\nid: \"0400\"\n---\n");
+        let idx = index_under(tmp.path(), "{number:04d}", None, &[item]).await;
+
+        let entry = entry_at(&idx, tmp.path(), item.0).await;
+
+        assert_eq!(entry.r#type, DocTypeKey::WorkItems);
+    }
+
+    #[tokio::test]
+    async fn a_refreshed_item_keeps_its_identity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+        let path = tmp.path().join(PP_0500.0);
+
+        std::fs::write(&path, "---\nid: pp-0500\nparent: PP-500\n---\n")
+            .unwrap();
+        idx.refresh_one(&path).await.unwrap();
+
+        assert!(idx.work_item_by_id_snapshot().await.contains_key("PP-0500"));
+        assert!(idx.work_item_refs_by_id("PP-0500").await.is_empty());
+
+        std::fs::remove_file(&path).unwrap();
+        idx.refresh_one(&path).await.unwrap();
+
+        assert!(!idx.work_item_by_id_snapshot().await.contains_key("PP-0500"));
     }
 }
 
@@ -1896,11 +2296,10 @@ mod tests {
             log_path: "/l".into(),
             doc_paths: HashMap::new(),
             templates: HashMap::default(),
-            work_item: Some(crate::config::RawWorkItemConfig {
-                scan_regex: r"^(?<id>\d+)".to_string(),
-                id_pattern: "{number:04d}".to_string(),
-                key: Some(code.to_string()),
-            }),
+            work_item: Some(crate::config::scheme_for_test(
+                "{key}-{number:04d}",
+                Some(code),
+            )),
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -1915,6 +2314,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: Some(work_item_id.to_string()),
+            identity_key: Some(work_item_id.to_string()),
             draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
@@ -1937,6 +2337,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: None,
+            identity_key: None,
             draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
@@ -3385,8 +3786,8 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        // Filename is bare-numeric (matches default scan_regex) but
-        // frontmatter declares a prefixed `id:` — frontmatter wins.
+        // Filename is bare-numeric but frontmatter declares a prefixed `id:`
+        // — frontmatter wins.
         std::fs::write(
             work_dir.join("0001-foo.md"),
             "---\ntitle: F\nid: \"ENG-0042\"\n---\n",
@@ -3446,14 +3847,11 @@ mod reverse_index_tests {
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(
-            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
-                scan_regex: "^ENG-([0-9]+)-".to_string(),
-                id_pattern: "{project}-{number:04d}".to_string(),
-                key: Some("ENG".to_string()),
-            })
-            .unwrap(),
-        );
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
@@ -3480,14 +3878,11 @@ mod reverse_index_tests {
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(
-            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
-                scan_regex: "^ENG-([0-9]+)-".to_string(),
-                id_pattern: "{project}-{number:04d}".to_string(),
-                key: Some("ENG".to_string()),
-            })
-            .unwrap(),
-        );
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
