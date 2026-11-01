@@ -269,9 +269,10 @@ warm-dispatch run dispatches through the real bootstrap, so it needs network
 egress and a published signed release for the tree's own version, and it is
 judged against instrument floors no shared runner reliably clears.
 `measure:build` is an operator-run, macOS-only build session of 20 minutes or
-more that no CI job owns. A transitive-closure guard
-in `tests/unit/tasks/test_mise.py` enforces that, keyed on the `run` string
-rather than the task name — `test:integration:measure` does not carry the
+more that no CI job owns. A transitive-closure guard in
+`tests/unit/tasks/test_mise.py` keeps every task that runs `tasks/measure.py`
+out of `check` and `default`, keyed on the `run` string rather than the task
+name — `test:integration:measure` does not carry the
 `measure:` prefix, and it is the one live-dispatch path the guard exists to
 contain.
 
@@ -311,13 +312,13 @@ host.
 
 #### Warm dispatch
 
-**What a warm-dispatch run requires.** A quiet darwin-arm64 host with no other Claude Code
-session active against the same plugin root; no `ACCELERATOR_*` override set
-except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/
-hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest backends
-resolvable (`sha256sum` and Perl `shasum`, the latter needed for the fallback
-cells, which are otherwise recorded not applicable); network egress to the
-release base URL; ~8 minutes, up to ~30 if the interval escalates, inside a
+**What a warm-dispatch run requires.** A quiet darwin-arm64 host with no other
+Claude Code session active against the same plugin root; no `ACCELERATOR_*`
+override set except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over
+`keys/ bin/ hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest
+backends resolvable (`sha256sum` and Perl `shasum`, the latter needed for the
+fallback cells, which are otherwise recorded not applicable); network egress to
+the release base URL; ~8 minutes, up to ~30 if the interval escalates, inside a
 35-minute wall-clock budget. The artefact manifest lives at
 `.accelerator-measure/manifest.json` under the plugin root — gitignored, and
 deliberately **not** under `bin/`, which is the launcher's live cache root whose
@@ -412,10 +413,10 @@ so its CPU there could not be measured. A task's `outcome` is `succeeded`,
 that failed; elsewhere `null` means no value was observed.
 
 **The record's schema.** An additive field carries a default and keeps version
-1. A breaking change bumps the version, and `parse_record` upgrades an older
-record by a function over its raw JSON, applied before validation, so committed
-records stay readable. A record is read by code at least as new as the code
-that wrote it.
+1. A breaking change bumps the version and must add to `parse_record` an
+upgrade from the older version's raw JSON, applied before validation, so
+committed records stay readable; version 1 needs none, so none exists yet. A
+record is read by code at least as new as the code that wrote it.
 
 Taking a baseline or condition record (one taken under a changed host setting,
 to compare with the baseline):
@@ -434,15 +435,17 @@ to compare with the baseline):
 - if a session is refused because an earlier session's build is still running,
   check the members the message lists: stop them with the kill commands it
   gives if they are that build, or delete `build.pgid` if none of them is.
-- retake on any fetch failure, or when `syspolicyd`, the IDE or `fsnotifier` is
-  `absent`, or `flagged` as `absent-in-some-runs` or `unreadable`, in the
-  record's `summary.processes`.
+- retake on any fetch failure, or when `syspolicyd`, `ide` or `fsnotifier` in
+  the record's `summary.processes` is `absent`, or `flagged` as
+  `absent-in-some-runs` or `unreadable`. `XprotectService` is exempt: under
+  the Developer Tools exemption it is expected not to run.
 - to re-measure the baseline after an OS or settings change, run from the
   baseline commit (`jj new <commit>` or `git checkout <commit>`) without
   `--keep`, go back to the current checkout, then copy the run directory's
   `record.json` to `meta/measurements/<run id>.json` and commit it there.
-- the baseline commit's launcher release must stay published until 0361
-  closes.
+- the baseline commit's launcher release must stay published while records
+  are still compared with the baseline: a re-measurement from that commit
+  downloads it in the hooks smoke test.
 
 ### The eval namespace
 
