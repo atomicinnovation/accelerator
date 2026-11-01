@@ -20,6 +20,7 @@ allowed-tools:
   - Bash(accelerator corpus frontmatter validate *)
   - Bash(accelerator research fetch *)
   - Bash(accelerator research topic *)
+  - Read(/${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/**)
 ---
 
 # Research Topic

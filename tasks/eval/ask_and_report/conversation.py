@@ -19,6 +19,7 @@ from tasks.eval.toolchain import Toolchain
 SKILL = "skills/research/research-topic/SKILL.md"
 RULE = "skills/research/outputters/citing-once/SKILL.md"
 UNUSED_GRANT = "Bash(accelerator research fetch *)"
+PLUGIN_ROOT = "${CLAUDE_PLUGIN_ROOT}"
 NOT_RUN = "not-run"
 
 type Runner = Callable[[list[str], Path, Path, dict[str, str]], int]
@@ -37,16 +38,15 @@ def _declared_grant(skill: str) -> list[str]:
 def research_topic_grant(plugin_root: Path) -> tuple[str, ...]:
     """Grant the skill's declared rules less the fetch neither verb runs.
 
-    It adds a ``Read`` of the citing-once rule, the one file outside the
-    project either verb reads; the leading ``//`` makes its path absolute.
+    ``--allowedTools`` expands no variable, so the plugin root is filled in
+    as Claude Code fills it into the skill's own grant.
     """
-    bash = [
-        rule
+    declared = [
+        rule.replace(PLUGIN_ROOT, str(plugin_root))
         for rule in _declared_grant((plugin_root / SKILL).read_text())
         if rule != UNUSED_GRANT
     ]
-    rule_directory = (plugin_root / RULE).parent
-    return (*bash, f"Read(/{rule_directory}/**)", "Skill")
+    return (*declared, "Skill")
 
 
 def session_flags(model: str | None) -> list[str]:
