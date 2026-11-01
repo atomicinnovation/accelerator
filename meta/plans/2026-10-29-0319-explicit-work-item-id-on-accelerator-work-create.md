@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T22:30:00+00:00"
+last_updated: "2026-11-01T22:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3090,7 +3090,7 @@ as the real create does.
 
 #### Manual Verification
 
-- [ ] With an integration configured, `accelerator work create "Probe" task low --push --dry-run --id 0400`
+- [x] With an integration configured, `accelerator work create "Probe" task low --push --dry-run --id 0400`
       prints the same preview line as without `--id`, and `--id 400` exits 1
       with `E_ID_PATTERN_MISMATCH` without contacting the tracker.
 
