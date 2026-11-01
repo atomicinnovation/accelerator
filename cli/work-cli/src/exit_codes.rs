@@ -184,6 +184,14 @@
 //! lock after a 60 s wait. `work create --push` refuses too, writing nothing:
 //! a deliberate exception to its save-intent contract, as plain `work create`
 //! refuses.
+//!
+//! `work create --id` refuses an ID it cannot write under, after the
+//! identity-run refusals and the config refusals above, writing nothing and
+//! sending no tracker request: `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`,
+//! `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` and `E_ID_TAKEN`, in that
+//! order. Each exits `1`, deliberately: `work create`'s other argument
+//! refusals (`E_PATTERN_*`, `E_WORK_*`) already do, although the `1` band
+//! reads "an internal error" and other collision refusals exit `4`.
 
 use tracker::TrackerError;
 

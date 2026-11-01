@@ -468,6 +468,22 @@ mod tests {
 
     impl TrackerRepo {
         fn new() -> Self {
+            Self::configured(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", "linear"),
+                ("linear.team_key", "ENG"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn numeric() -> Self {
+            Self::configured(&[
+                ("work.integration", "jira"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn configured(pairs: &[(&str, &str)]) -> Self {
             let dir = tempfile::tempdir().expect("tempdir");
             let git = |args: &[&str]| {
                 std::process::Command::new("git")
@@ -480,15 +496,12 @@ mod tests {
             git(&["config", "user.name", "Test User"]);
             git(&["config", "user.email", "test@example.com"]);
             let config = FakeConfig(
-                [
-                    ("work.id_pattern", "{tracker}"),
-                    ("work.integration", "linear"),
-                    ("linear.team_key", "ENG"),
-                    ("paths.integrations", "integrations"),
-                ]
-                .into_iter()
-                .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                .collect(),
+                pairs
+                    .iter()
+                    .map(|(key, value)| {
+                        ((*key).to_owned(), (*value).to_owned())
+                    })
+                    .collect(),
             );
             let identity_run = crate::identity_run::begin(dir.path(), "sync")
                 .expect("the identity run begins");
@@ -752,6 +765,28 @@ mod tests {
         let content = std::fs::read_to_string(moved.join("0001-legacy.md"))
             .expect("read");
         assert!(!content.contains("ENG-5"), "{content}");
+    }
+
+    #[test]
+    fn an_unsynced_item_at_a_gap_id_keeps_its_id_when_linked() {
+        let repo = TrackerRepo::numeric();
+        for number in 1..=10 {
+            repo.write_item(
+                &format!("{number:04}-item.md"),
+                &format!("id: \"{number:04}\"\n"),
+            );
+        }
+        let gap = repo.write_item("0400-a-gap.md", "id: \"0400\"\n");
+
+        repo.author()
+            .link_external_id(&gap, &ExternalId::new("PP-905".to_owned()))
+            .expect("the link lands");
+
+        let identity = identity_at(&gap);
+        assert_eq!(identity.id, "0400");
+        assert_eq!(identity.external_id.as_deref(), Some("PP-905"));
+        assert!(repo.filenames().contains(&"0400-a-gap.md".to_owned()));
+        assert_eq!(repo.filenames().len(), 11);
     }
 
     #[test]

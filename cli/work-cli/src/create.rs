@@ -38,6 +38,7 @@ use work::next_number::allocate;
 use work::next_number::allocation_key;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
+use work::requested_id::RequestedId;
 use work::resolve::DirectoryLister;
 use work_adapters::author::VcsBackedIdentityProbe;
 pub use work_adapters::creation::blocked_remedy;
@@ -53,6 +54,7 @@ use work_adapters::creation::DraftPromotionOutcome;
 pub use work_adapters::creation::Drafted;
 use work_adapters::creation::IntegrationState;
 use work_adapters::creation::LegacyPushing;
+use work_adapters::creation::LocalId;
 use work_adapters::creation::NewItem;
 pub use work_adapters::creation::PushReport;
 use work_adapters::draft_id::RandomSuffixDraws;
@@ -62,15 +64,16 @@ use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
 
 use crate::bounded_roots::configure_warning;
-use crate::config::announced_scheme_with_key;
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
-use crate::config::resolve_work_dir;
+use crate::config::locate_work_items;
 use crate::config::templates_dir;
+use crate::config::WorkItemLocation;
 use crate::exit_codes;
 use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::identity_workspace::OpenFailure;
+use crate::requested_id::admit_requested_id;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 use work_adapters::promotion_records::PromotionRecords;
@@ -94,6 +97,7 @@ pub struct CreateArgs {
     pub author: Option<String>,
     pub producer: String,
     pub body_file: Option<PathBuf>,
+    pub id: Option<String>,
     pub push: bool,
     pub dry_run: bool,
 }
@@ -335,9 +339,7 @@ fn attempted_at_epoch() -> u64 {
 struct CreationContext<'a> {
     args: &'a CreateArgs,
     config: &'a dyn ConfigAccess,
-    scheme: WorkItemIdScheme,
-    root: PathBuf,
-    work_dir: PathBuf,
+    location: WorkItemLocation,
     template: ::config::ResolvedTemplate,
     author: String,
     date: String,
@@ -398,8 +400,9 @@ impl CreationContext<'_> {
     fn integration_state(&self) -> Result<IntegrationState, String> {
         let name = effective_nonempty(self.config, "work.integration")
             .map_err(|error| error.to_string())?;
-        let root = crate::sync::integrations_dir(self.config, &self.root)
-            .map_err(|error| error.to_string())?;
+        let root =
+            crate::sync::integrations_dir(self.config, &self.location.root)
+                .map_err(|error| error.to_string())?;
         Ok(IntegrationState { root, name })
     }
 
@@ -408,36 +411,35 @@ impl CreationContext<'_> {
         create: &CreateLockGuard,
     ) -> Result<String, String> {
         allocate_id(
-            &self.scheme,
-            &self.root,
-            &self.work_dir,
+            &self.location.scheme,
+            &self.location.root,
+            &self.location.work_dir,
             self.args.project.as_deref(),
             create,
         )
     }
 }
 
+/// The context, beside the ID `args` requests once admitted. Nothing is
+/// created before the request is admitted.
 fn creation_context<'a>(
     start: &Path,
     config: &'a dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &'a CreateArgs,
-) -> Result<CreationContext<'a>, String> {
-    let scheme =
-        announced_scheme_with_key(config).map_err(|error| error.to_string())?;
-    let pattern = scheme.pattern();
-    let root = config_adapters::FileConfigStore::discover_root(start);
-    let work_dir =
-        resolve_work_dir(config, &root).map_err(|error| error.to_string())?;
-    std::fs::create_dir_all(&work_dir).map_err(|error| {
+) -> Result<(CreationContext<'a>, Option<RequestedId>), String> {
+    let location = locate_work_items(start, config)?;
+    let requested = admit_requested_id(args, &location.scheme)?;
+    std::fs::create_dir_all(&location.work_dir).map_err(|error| {
         format!("could not create the work-item directory: {error}")
     })?;
+    let pattern = location.scheme.pattern();
     if pattern.is_tracker_owned() {
         allocation_key(pattern, args.project.as_deref(), None)
-            .map_err(|error| error.message(pattern, &work_dir))?;
+            .map_err(|error| error.message(pattern, &location.work_dir))?;
     }
     let metadata = derive_at(
-        &root,
+        &location.root,
         FilenameTimestampFormat::DateTimeUnderscored,
         &VcsBackedRepoFactsProbe::new(&InProcessProbe),
     )
@@ -447,16 +449,15 @@ fn creation_context<'a>(
         &VcsBackedIdentityProbe::new(&InProcessProbe),
     )?;
     let template = resolve_and_check_template(config, templates)?;
-    Ok(CreationContext {
+    let context = CreationContext {
         args,
         config,
-        scheme,
-        root,
-        work_dir,
+        location,
         template,
         author,
         date: metadata.datetime_utc,
-    })
+    };
+    Ok((context, requested))
 }
 
 /// Creates one item through the strategy its ID ownership and `--push`
@@ -475,14 +476,16 @@ pub fn create_item(
     drafted: &mut Drafted<'_>,
     identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, CreateFailure> {
-    let context = creation_context(start, config, templates, args)?;
-    let state_dir = context.root.join(crate::sync::STATE_DIR);
-    let lock = LockdirLock::new(&context.work_dir);
+    let (context, requested) =
+        creation_context(start, config, templates, args)?;
+    let location = &context.location;
+    let state_dir = location.root.join(crate::sync::STATE_DIR);
+    let lock = LockdirLock::new(&location.work_dir);
     let creation = Creation {
         item: &context,
         parser: &CommonMarkBody,
-        repo_root: &context.root,
-        work_dir: &context.work_dir,
+        repo_root: &location.root,
+        work_dir: &location.work_dir,
         state_dir: &state_dir,
         store_at: seams.store_at,
         reader: &RealFs,
@@ -490,13 +493,14 @@ pub fn create_item(
         now: attempted_at_epoch(),
     };
     let registry = seams.registry;
-    match (context.scheme.ownership(), args.push) {
-        (IdOwnership::Local, false) => Ok(create_local_item(
-            &creation,
-            &|create| context.allocate_local_id(create),
-            None,
-            identity_run,
-        )?),
+    let allocate = |create: &CreateLockGuard| context.allocate_local_id(create);
+    let local_id = requested
+        .as_ref()
+        .map_or(LocalId::Allocate(&allocate), LocalId::Requested);
+    match (location.scheme.ownership(), args.push) {
+        (IdOwnership::Local, false) => {
+            Ok(create_local_item(&creation, &local_id, None, identity_run)?)
+        }
         (IdOwnership::Local, true) => {
             let state = context.integration_state()?;
             let tracker = || {
@@ -510,7 +514,7 @@ pub fn create_item(
             };
             Ok(create_local_item(
                 &creation,
-                &|create| context.allocate_local_id(create),
+                &local_id,
                 Some(&LegacyPushing {
                     state: &state,
                     tracker: &tracker,
@@ -532,8 +536,8 @@ pub fn create_item(
                 };
                 let workspace = match IdentityWorkspace::for_identity_change(
                     config,
-                    &context.root,
-                    &context.work_dir,
+                    &location.root,
+                    &location.work_dir,
                     &state.root,
                     &state.name,
                 ) {
@@ -545,7 +549,7 @@ pub fn create_item(
                     }
                     Err(OpenFailure::Failed(message)) => return Err(message),
                 };
-                let store = store_at(&context.root);
+                let store = store_at(&location.root);
                 Ok(attempt_promotion(
                     draft,
                     draft_path,
@@ -677,7 +681,12 @@ pub fn run_with(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::literal_string_with_formatting_args
+)]
 mod tests {
     use tracker::CreatePreview;
     use tracker::ExternalId;
@@ -1482,5 +1491,571 @@ mod tests {
                 content
             );
         }
+    }
+
+    fn written_at(outcome: RunOutcome) -> PathBuf {
+        match outcome {
+            RunOutcome::Created {
+                path: Some(path), ..
+            } => path,
+            RunOutcome::Failed(message) | RunOutcome::Pending(message) => {
+                panic!("the create failed: {message}")
+            }
+            _ => panic!("the create wrote no file"),
+        }
+    }
+
+    fn failure(outcome: RunOutcome) -> String {
+        match outcome {
+            RunOutcome::Failed(message) => message,
+            RunOutcome::Created { path, .. } => {
+                panic!("the create was not refused: wrote {path:?}")
+            }
+            _ => panic!("the create did not fail"),
+        }
+    }
+
+    fn assert_named(repo: &PushingRepo, path: &Path, id: &str) {
+        assert_eq!(
+            path,
+            repo.path(&format!("meta/work/{id}-a-tabled-idea.md"))
+        );
+        let written = std::fs::read_to_string(path).expect("written");
+        assert!(written.contains(&format!("\nid: \"{id}\"\n")), "{written}");
+        assert!(
+            written.contains(&format!("\n# {id}: A tabled idea\n")),
+            "{written}"
+        );
+        assert!(!written.contains("NNNN"), "{written}");
+    }
+
+    fn create_local(repo: &PushingRepo, args: &CreateArgs) -> RunOutcome {
+        repo.run_args(
+            args,
+            &Rc::new(RecordingTracker::holding(Vec::new())),
+            None,
+        )
+    }
+
+    #[test]
+    fn an_untaken_id_names_the_written_item() {
+        let repo = PushingRepo::new();
+
+        let path = written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+        ));
+
+        assert_named(&repo, &path, "0400");
+    }
+
+    #[test]
+    fn an_untaken_id_under_a_key_pattern_is_written_in_the_case_given() {
+        for id in ["XY-0400", "xy-0400", "Xy-0400", "X-0400", "X1-0400"] {
+            let repo = PushingRepo::keyed();
+
+            let path = written_at(create_local(
+                &repo,
+                &PushingRepo::args_with_id(id, false),
+            ));
+
+            assert_named(&repo, &path, id);
+        }
+    }
+
+    #[test]
+    fn the_lowest_and_highest_numbers_are_accepted() {
+        for id in ["0001", "9999"] {
+            let repo = PushingRepo::new();
+
+            let path = written_at(create_local(
+                &repo,
+                &PushingRepo::args_with_id(id, false),
+            ));
+
+            assert_named(&repo, &path, id);
+        }
+    }
+
+    #[test]
+    fn a_different_key_is_not_taken() {
+        let repo = PushingRepo::keyed();
+        repo.holding("meta/work/PP-0400-a.md", "");
+
+        let path = written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("XY-0400", false),
+        ));
+
+        assert_named(&repo, &path, "XY-0400");
+    }
+
+    type RepoFor = fn() -> PushingRepo;
+
+    fn assert_refused_untouched(
+        repo: &PushingRepo,
+        args: &CreateArgs,
+        code: &str,
+    ) -> String {
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let before = crate::test_support::meta_tree(repo.root.path());
+
+        let message = failure(repo.run_args(args, &tracker, None));
+
+        assert!(message.starts_with(&format!("{code}: ")), "{message}");
+        assert_eq!(crate::test_support::meta_tree(repo.root.path()), before);
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        message
+    }
+
+    #[test]
+    fn each_admission_refusal_writes_nothing_and_sends_nothing() {
+        let cases: [(RepoFor, &str, Option<&str>, &str); 5] = [
+            (
+                PushingRepo::keyed,
+                "XY-0400",
+                Some("XY"),
+                "E_ID_WITH_PROJECT",
+            ),
+            (
+                PushingRepo::tracker_owned,
+                "0400",
+                None,
+                "E_ID_TRACKER_OWNED",
+            ),
+            (
+                PushingRepo::new,
+                "draft-k7mq3x",
+                None,
+                "E_ID_DRAFT_RESERVED",
+            ),
+            (PushingRepo::new, "400", None, "E_ID_PATTERN_MISMATCH"),
+            (PushingRepo::new, "../0400", None, "E_ID_PATTERN_MISMATCH"),
+        ];
+        for (repo, id, project, code) in cases {
+            for push in [false, true] {
+                let repo = repo();
+                let args = CreateArgs {
+                    project: project.map(str::to_owned),
+                    ..PushingRepo::args_with_id(id, push)
+                };
+
+                assert_refused_untouched(&repo, &args, code);
+
+                assert!(!repo.path("meta/work").exists(), "{id} push: {push}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_config_error_precedes_every_id_refusal() {
+        let repo = PushingRepo::configured(&[
+            ("work.id_pattern", "{key}-{number:04d}"),
+            ("work.integration", "jira"),
+        ]);
+        let args = CreateArgs {
+            project: Some("XY".to_owned()),
+            ..PushingRepo::args_with_id("XY-0400", false)
+        };
+
+        assert_refused_untouched(&repo, &args, "E_WORK_KEY_REQUIRED");
+    }
+
+    #[test]
+    fn a_malformed_pattern_reports_its_own_error_before_any_id_refusal() {
+        for pattern in ["{number:4d}", "x/{number:04d}"] {
+            let repo = PushingRepo::configured(&[("work.id_pattern", pattern)]);
+            let with_id = CreateArgs {
+                project: Some("XY".to_owned()),
+                ..PushingRepo::args_with_id("0400", false)
+            };
+
+            let refused = assert_refused_untouched(
+                &repo,
+                &with_id,
+                "E_WORK_ID_PATTERN_INVALID",
+            );
+
+            assert_eq!(
+                refused,
+                failure(create_local(&repo, &PushingRepo::args(false)))
+            );
+        }
+    }
+
+    #[test]
+    fn an_id_with_an_invalid_project_is_refused_as_with_project() {
+        let repos: [RepoFor; 2] =
+            [PushingRepo::keyed, PushingRepo::tracker_owned];
+        for repo in repos {
+            let args = CreateArgs {
+                project: Some("1X".to_owned()),
+                ..PushingRepo::args_with_id("0400", false)
+            };
+
+            assert_refused_untouched(&repo(), &args, "E_ID_WITH_PROJECT");
+        }
+    }
+
+    #[test]
+    fn an_invalid_project_without_an_id_keeps_todays_order() {
+        let args = CreateArgs {
+            project: Some("1X".to_owned()),
+            ..PushingRepo::args(false)
+        };
+
+        assert_refused_untouched(
+            &PushingRepo::new(),
+            &args,
+            "E_PATTERN_KEY_UNUSED",
+        );
+        let keyed = assert_refused_untouched(
+            &PushingRepo::keyed(),
+            &args,
+            "E_WORK_KEY_INVALID",
+        );
+        assert!(keyed.starts_with("E_WORK_KEY_INVALID: --project '1X':"));
+    }
+
+    #[test]
+    fn a_taken_id_is_refused_naming_its_holder() {
+        let cases: [(RepoFor, &str, &str, &str, &str); 4] = [
+            (
+                PushingRepo::new,
+                "meta/work/0400-other.md",
+                "",
+                "0400",
+                "its filename prefix '0400'",
+            ),
+            (
+                PushingRepo::keyed,
+                "meta/work/xy-0400-other.md",
+                "",
+                "XY-0400",
+                "its filename prefix 'xy-0400'",
+            ),
+            (
+                PushingRepo::new,
+                "meta/work/drafts/draft-k7mq3x-x.md",
+                "---\nid: \"0400\"\n---\n",
+                "0400",
+                "its id '0400'",
+            ),
+            (
+                PushingRepo::new,
+                "meta/work/0007-holder.md",
+                "---\nid: \"0007\"\nexternal_id: \"0400\"\n---\n",
+                "0400",
+                "its external_id '0400'",
+            ),
+        ];
+        for (repo, holder, content, id, holding) in cases {
+            for push in [false, true] {
+                let repo = repo();
+                repo.holding(holder, content);
+
+                let message = assert_refused_untouched(
+                    &repo,
+                    &PushingRepo::args_with_id(id, push),
+                    "E_ID_TAKEN",
+                );
+
+                assert!(
+                    message.contains(&format!("held by {holder} as {holding}")),
+                    "{message}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn an_id_over_an_unlistable_corpus_fails_rather_than_passing_as_untaken() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = PushingRepo::new();
+        let drafts = repo.path("meta/work/drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome =
+            create_local(&repo, &PushingRepo::args_with_id("0400", false));
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        let message = failure(outcome);
+        assert!(message.contains("drafts"), "{message}");
+        assert!(!repo.path("meta/work/0400-a-tabled-idea.md").exists());
+    }
+
+    #[test]
+    fn a_holder_whose_content_cannot_be_read_still_takes_its_id() {
+        let repo = PushingRepo::new();
+        repo.holding("meta/work/0400-other.md", [0xff, 0xfe, 0xfd]);
+
+        let message = failure(create_local(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+        ));
+
+        assert!(message.starts_with("E_ID_TAKEN: "), "{message}");
+        assert!(message.contains("meta/work/0400-other.md"), "{message}");
+    }
+
+    #[test]
+    fn an_id_taken_while_the_create_waits_for_the_lock_is_refused() {
+        let repo = PushingRepo::new();
+        std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
+        let lock_path =
+            repo.path("meta/work").join(LockdirLock::CREATE_LOCKDIR);
+        let concurrent_item = repo.path("meta/work/0400-other-title.md");
+        let (locked, lock_held) = std::sync::mpsc::channel();
+        let concurrent = std::thread::spawn(move || {
+            let _guard = store::lock::acquire(
+                &lock_path,
+                store::lock::LockOptions::default(),
+            )
+            .expect("lock");
+            locked.send(()).expect("signal");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::fs::write(&concurrent_item, "").expect("write");
+        });
+        lock_held.recv().expect("locked");
+
+        let message = failure(create_local(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+        ));
+
+        concurrent.join().expect("joined");
+        assert!(message.starts_with("E_ID_TAKEN: "), "{message}");
+        assert!(message.contains("0400-other-title.md"), "{message}");
+    }
+
+    #[test]
+    fn a_rekey_in_progress_refuses_before_any_id_check() {
+        let repo = PushingRepo::new();
+        crate::test_support::rekey_in_progress(repo.root.path());
+
+        let (message, _) = refusal_of(create_local(
+            &repo,
+            &PushingRepo::args_with_id("400", false),
+        ));
+
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+    }
+
+    fn numbered(repo: &PushingRepo, ids: impl IntoIterator<Item = String>) {
+        for id in ids {
+            repo.holding(&format!("meta/work/{id}-item.md"), "");
+        }
+    }
+
+    #[test]
+    fn allocation_after_an_id_continues_above_it() {
+        let repo = PushingRepo::new();
+        numbered(&repo, (1..=10).map(|number| format!("{number:04}")));
+        written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+        ));
+
+        let path = written_at(create_local(&repo, &PushingRepo::args(false)));
+
+        assert_eq!(path, repo.path("meta/work/0401-a-tabled-idea.md"));
+    }
+
+    #[test]
+    fn each_key_keeps_its_own_sequence_after_an_id() {
+        let repo = PushingRepo::keyed();
+        numbered(&repo, (1..=10).map(|number| format!("PP-{number:04}")));
+        let next =
+            || written_at(create_local(&repo, &PushingRepo::args(false)));
+
+        written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("XY-0400", false),
+        ));
+        assert_eq!(next(), repo.path("meta/work/PP-0011-a-tabled-idea.md"));
+
+        let under_xy = CreateArgs {
+            project: Some("XY".to_owned()),
+            ..PushingRepo::args(false)
+        };
+        assert_eq!(
+            written_at(create_local(&repo, &under_xy)),
+            repo.path("meta/work/XY-0401-a-tabled-idea.md")
+        );
+
+        written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("pp-0500", false),
+        ));
+        assert_eq!(next(), repo.path("meta/work/PP-0501-a-tabled-idea.md"));
+    }
+
+    #[test]
+    fn an_id_at_the_cap_exhausts_automatic_allocation() {
+        let repo = PushingRepo::new();
+        written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("9999", false),
+        ));
+        let before = crate::test_support::meta_tree(repo.root.path());
+
+        let message = failure(create_local(&repo, &PushingRepo::args(false)));
+
+        assert!(message.starts_with("E_PATTERN_OVERFLOW: "), "{message}");
+        assert!(
+            message.contains("meta/work/9999-a-tabled-idea.md"),
+            "{message}"
+        );
+        assert!(message.contains("a free lower ID"), "{message}");
+        assert_eq!(crate::test_support::meta_tree(repo.root.path()), before);
+    }
+
+    fn written(path: &Path) -> String {
+        std::fs::read_to_string(path).expect("written")
+    }
+
+    #[test]
+    fn an_id_pushed_to_an_accepting_tracker_is_written_with_its_external_id() {
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) = created(repo.run_args(
+            &PushingRepo::args_with_id("0400", true),
+            &tracker,
+            None,
+        ));
+
+        let path = path.expect("written");
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+        assert_eq!(creates(&tracker), 1);
+        assert_named(&repo, &path, "0400");
+        assert!(written(&path).contains(&format!("external_id: \"{KEY}\"")));
+    }
+
+    fn pushed_with_and_without_an_id(
+        failing: fn() -> TrackerError,
+    ) -> (PushReport, PushReport, PathBuf) {
+        let push = |args: &CreateArgs| {
+            let repo = PushingRepo::new();
+            let tracker = Rc::new(
+                RecordingTracker::holding(Vec::new()).failing_create(failing()),
+            );
+            let (path, report) = created(repo.run_args(args, &tracker, None));
+            (report, path, repo)
+        };
+        let (without, _, _) = push(&PushingRepo::args(true));
+        let (with, path, repo) = push(&PushingRepo::args_with_id("0400", true));
+        let path = path.expect("written");
+        assert_named(&repo, &path, "0400");
+        assert!(!written(&path).contains("external_id"));
+        (without, with, path)
+    }
+
+    #[test]
+    fn a_rejected_push_under_an_id_matches_the_same_push_without_one() {
+        let (without, with, _) = pushed_with_and_without_an_id(rejected);
+
+        assert_eq!(with.outcome, without.outcome);
+        assert_eq!(with.outcome.exit_code(), without.outcome.exit_code());
+    }
+
+    #[test]
+    fn an_unreachable_tracker_under_an_id_saves_it_unsynced_as_without_one() {
+        let (without, with, _) = pushed_with_and_without_an_id(retryable);
+
+        assert_eq!(without.outcome, PushOutcome::LocalSave);
+        assert_eq!(with.outcome, PushOutcome::LocalSave);
+    }
+
+    fn after_an_unknown_push_outcome_at_0400() -> PushingRepo {
+        let repo = PushingRepo::new();
+        let crashed = Rc::new(
+            RecordingTracker::holding(Vec::new()).failing_create(terminal()),
+        );
+        let (_, report) = created(repo.run_args(
+            &PushingRepo::args_with_id("0400", true),
+            &crashed,
+            None,
+        ));
+        assert_eq!(report.outcome, PushOutcome::LoudTerminal);
+        repo
+    }
+
+    #[test]
+    fn a_rerun_after_an_unknown_push_outcome_reports_push_pending() {
+        let repo = after_an_unknown_push_outcome_at_0400();
+        let rerun = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let message = failure(repo.run_args(
+            &PushingRepo::args_with_id("0400", true),
+            &rerun,
+            None,
+        ));
+
+        assert!(message.starts_with("E_PUSH_PENDING: "), "{message}");
+        assert!(message.contains("remove the marker"), "{message}");
+        assert!(rerun.calls().is_empty(), "{:?}", rerun.calls());
+    }
+
+    #[test]
+    fn a_rerun_after_a_created_unwritten_push_reuses_its_key() {
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let args = PushingRepo::args_with_id("0400", true);
+        let (_, report) = created(repo.run_args(
+            &args,
+            &tracker,
+            Some((in_the_work_directory_itself, 2)),
+        ));
+        assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
+
+        let (path, report) = created(repo.run_args(&args, &tracker, None));
+
+        let path = path.expect("written");
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+        assert_named(&repo, &path, "0400");
+        assert!(written(&path).contains(&format!("external_id: \"{KEY}\"")));
+        assert_eq!(creates(&tracker), 1);
+    }
+
+    #[test]
+    fn a_different_item_at_a_pending_id_is_still_taken() {
+        let repo = after_an_unknown_push_outcome_at_0400();
+        let other = CreateArgs {
+            title: "Something else".to_owned(),
+            ..PushingRepo::args_with_id("0400", true)
+        };
+
+        let message = assert_refused_untouched(&repo, &other, "E_ID_TAKEN");
+
+        assert!(message.contains("0400-a-tabled-idea.md"), "{message}");
+    }
+
+    #[test]
+    fn a_local_create_with_an_id_reads_no_push_marker() {
+        let repo = PushingRepo::new();
+        let marker = repo.marker();
+        std::fs::create_dir_all(marker.parent().expect("dir")).expect("dir");
+        std::fs::write(&marker, "{ not a marker").expect("marker");
+
+        let path = written_at(create_local(
+            &repo,
+            &PushingRepo::args_with_id("0400", false),
+        ));
+
+        assert_named(&repo, &path, "0400");
     }
 }

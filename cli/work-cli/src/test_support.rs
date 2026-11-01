@@ -1,5 +1,5 @@
 //! Test doubles shared by this binary's unit tests.
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 
 use std::cell::RefCell;
 use std::path::Path;
@@ -129,6 +129,15 @@ impl PushingRepo {
         ])
     }
 
+    pub fn keyed() -> Self {
+        Self::configured(&[
+            ("work.id_pattern", "{key}-{number:04d}"),
+            ("work.key", "PP"),
+            ("work.integration", "jira"),
+            ("paths.integrations", "integrations"),
+        ])
+    }
+
     pub fn tracker_owned() -> Self {
         Self::configured(&[
             ("work.id_pattern", "{tracker}"),
@@ -178,9 +187,25 @@ impl PushingRepo {
             author: Some("A Tester".to_owned()),
             producer: "create-work-item".to_owned(),
             body_file: None,
+            id: None,
             push,
             dry_run: false,
         }
+    }
+
+    pub fn args_with_id(id: &str, push: bool) -> CreateArgs {
+        CreateArgs {
+            id: Some(id.to_owned()),
+            ..Self::args(push)
+        }
+    }
+
+    /// Writes `content` at `relative`, creating its directory.
+    pub fn holding(&self, relative: &str, content: impl AsRef<[u8]>) {
+        let path = self.path(relative);
+        std::fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("the holder's directory");
+        std::fs::write(path, content).expect("the holder");
     }
 
     pub fn create_with(

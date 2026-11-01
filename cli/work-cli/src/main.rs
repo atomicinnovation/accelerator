@@ -21,6 +21,7 @@ mod promote;
 mod promotion_report;
 mod rekey;
 mod report_records;
+mod requested_id;
 mod resolve;
 mod show;
 mod sync;
@@ -233,6 +234,7 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
         author: cli_args.author,
         producer: cli_args.producer,
         body_file: cli_args.body_file,
+        id: cli_args.id,
         push: cli_args.push,
         dry_run: cli_args.dry_run,
     }
