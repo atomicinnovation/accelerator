@@ -302,7 +302,7 @@ fn stored_count(fields: Option<&Mapping>, key: &str) -> StoredCount {
             StoredCount::Unreadable(flag.to_string())
         }
         FrontmatterValue::Scalar(Scalar::Float(number)) => {
-            StoredCount::Unreadable(number.to_string())
+            StoredCount::Unreadable(format!("{number:?}"))
         }
         FrontmatterValue::Sequence(_) => {
             StoredCount::Unreadable("a list".to_owned())
@@ -1105,6 +1105,20 @@ mod tests {
         assert_eq!(
             counts.stored.rounds_covered,
             StoredCount::Unreadable("two".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_whole_valued_float_is_unreadable_as_written() -> Result<(), TestError>
+    {
+        let fs = manifest("round_count: 3.0\n");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(
+            counts.stored.round_count,
+            StoredCount::Unreadable("3.0".to_owned())
         );
         Ok(())
     }
