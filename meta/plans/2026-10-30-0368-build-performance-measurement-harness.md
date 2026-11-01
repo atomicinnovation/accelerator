@@ -3481,8 +3481,8 @@ pointer Phase 4 leaves for this phase.
 
 #### Automated Verification:
 
-- [ ] The docs tests pass: `uv run pytest tests/unit/tasks/test_contributing.py tests/unit/tasks/test_measure.py -v`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The docs tests pass: `uv run pytest tests/unit/tasks/test_contributing.py tests/unit/tasks/test_measure.py -v`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -4069,7 +4069,8 @@ Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
 were made before merging rather than after. Phase 7's code is complete and
 not yet pushed; its manual runs pass, and its work-item edits were made
 before merging.
-Phases 8–10 have not started.
+Phase 8's docs are complete and not yet pushed; its manual check is
+outstanding. Phases 9 and 10 have not started.
 
 ### Phases 1–4 review round
 
@@ -4236,6 +4237,25 @@ neither kept:
 - **Incremental.** `build_2026-11-01T221211Z_engywook_incremental_devtools`:
   priming 308.6 s, the timed run 334.1 s, no task failed, 76 units
   compiling. `jj diff cli/kernel/src/lib.rs` was empty afterwards.
+
+### Phase 8 host guidance
+
+Where the phase departed from the plan:
+
+- **Section shape.** The two settings are numbered steps, and the security
+  tradeoff and the file-watching limit follow as a bulleted list of costs,
+  rather than four numbered items.
+- **Extra content.** The exemption step says it takes effect only after a
+  restart and why it covers everything a listed app launches, and the
+  file-watching bullet links IJPL-2175.
+- **Extra test.** `TestHostSettingsGuidance` also asserts that the section
+  follows "Local development", and pins all three excluded folders.
+- **README link.** It is a sentence appended to the `--host-settings`
+  bullet, as a relative link, `../CONTRIBUTING.md#faster-local-builds-on-macos`.
+
+Verification: the phase's tests and the full `mise run` (exit 0, 407 s, the
+fixers changing nothing) passed locally at `180121e4`. CI has not run on it
+yet.
 
 ### Deferred to later phases
 
