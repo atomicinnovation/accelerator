@@ -9,11 +9,10 @@ status: "ready"
 kind: "task"
 priority: "high"
 parent: "work-item:0361"
-blocks: ["work-item:0366"]
 relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
-last_updated: "2026-10-30T17:19:28+00:00"
+last_updated: "2026-11-01T22:25:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -350,20 +349,21 @@ None.
 
 - Blocked by: none. Requirement 9 alone waits until 0362, 0363 and 0367
   have each landed or been abandoned. That is not a `blocked_by` edge,
-  since this item blocks those three and only one requirement waits on
-  them.
-- Blocks: 0366 only. The warm no-op baseline is recorded at
+  since those three waited on this item's baseline and only one
+  requirement waits on them.
+- Blocks: none. The warm no-op baseline is recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
   which discharged the edge to 0362, 0363, 0364 and 0367. Isolation mode
-  (`--isolate`) discharged 0365's wait on Requirement 3. 0366 still waits
-  for Requirement 4 (see Consumers).
+  (`--isolate`) discharged 0365's wait on Requirement 3, and the cold
+  cache state (`--cache-state cold`) discharged 0366's wait on
+  Requirement 4.
   The host guidance (Requirements 8–9) blocks nothing.
 - Consumers: 0365 compares the nextest phase of an isolated
   `test:unit:cli` (Requirements 1 and 3); 0366 counts cold compile units
   (Requirement 4), comparing cold records before and after its change.
-  Each mode must land before its consumer measures with it, so 0365
-  keeps its `blocked_by` edge until Requirement 3 merges as well as the
-  baseline, and 0366 until Requirement 4 does. Each consumer takes its
+  Each mode has landed before its consumer measures with it, and each
+  consumer dropped its `blocked_by` edge once its mode and the baseline
+  were in. Each consumer takes its
   own before-change measurement with `measure:build`; a missed one can
   be re-taken at the commit before the change.
 - External: GitHub releases (the hooks smoke test downloads the published

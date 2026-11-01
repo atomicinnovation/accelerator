@@ -9,10 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0362", "work-item:0368"]
+blocked_by: ["work-item:0362"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-10-30T13:09:40+00:00"
+last_updated: "2026-11-01T22:25:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -99,13 +99,6 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Dependencies
 
-- Blocked by: 0368's cold cache state (its Requirement 4), because this
-  item's unit-count criterion and debug-info trial compare cold records.
-  0368's warm no-op baseline, which 0361 measures its 200 s target
-  against, is recorded at
-  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
-  so the edge now waits for the cold state only. Remove it once the cold
-  state is in.
 - Blocked by: 0362, which lands first. Collapsing the debug builds must
   keep `test:integration:hooks`'s launcher and `accelerator-vcs` builds
   working, and the debug-info trial changes the launcher size that 0362's
@@ -114,6 +107,12 @@ dependencies could shorten links and hashing, but that has not been measured.
   this item brings the debug shim under a mise task, the hooks,
   entrypoint and skill-invocation suites take that edge in place of
   `build_shim()`, and the shim keeps 0362's `minisign-verify` override.
+- Measured with: 0368's cold cache state. This item's unit-count criterion
+  and debug-info trial compare cold records taken before and after the
+  change: `mise run measure:build -- --cache-state cold --runs 1`. 0368's
+  warm no-op baseline, which 0361 measures its 200 s target against, is
+  recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
 - Blocks: none
 
 ## Assumptions
