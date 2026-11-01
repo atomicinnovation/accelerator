@@ -39,7 +39,11 @@ from tests.unit.tasks.shared.build_measurement.doubles import (
 )
 
 _SOURCE = Path("record.json")
-_BASELINE: Path | None = None
+_BASELINE = (
+    REPO_ROOT
+    / MEASUREMENTS_RELATIVE
+    / "build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json"
+)
 
 
 def _committed_build_records() -> list[Path]:
@@ -543,6 +547,5 @@ def test_every_committed_build_record_is_readable(path):
     parse_record(path.read_text(), source=path)
 
 
-@pytest.mark.skipif(_BASELINE is None, reason="no baseline committed yet")
 def test_the_baseline_is_among_the_committed_records():
     assert _BASELINE in _committed_build_records()
