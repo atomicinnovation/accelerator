@@ -29,13 +29,18 @@ class _RunningStream:
     def __init__(
         self, argv: Sequence[str], clock: Clock, epoch: float, log: Path
     ) -> None:
-        self._stamped = StampedLog(open_log(log))
         self._process = subprocess.Popen(
             argv,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             env=_c_locale(),
         )
+        try:
+            self._stamped = StampedLog(open_log(log))
+        except BaseException:
+            self._process.kill()
+            self._process.wait(timeout=_JOIN_TIMEOUT_SECONDS)
+            raise
         self._stopped: tuple[StampedLine, ...] | None = None
         self._thread = threading.Thread(
             target=self._read, args=(clock, epoch), daemon=True

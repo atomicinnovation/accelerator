@@ -1,7 +1,10 @@
+import subprocess
 import sys
 import textwrap
 import threading
 import time
+
+import pytest
 
 from tasks.shared.build_measurement.samplers import (
     PsProcessSampler,
@@ -120,6 +123,32 @@ class TestStreamSampler:
         running.stop()
         assert started
         assert all(thread.daemon for thread in started)
+
+
+class TestStreamSamplerStartFailures:
+    def test_a_command_that_cannot_start_opens_no_log(self, tmp_path):
+        log = tmp_path / "missing.log"
+        with pytest.raises(FileNotFoundError):
+            StreamSampler(("no-such-sampler-command",), Clock()).start(
+                epoch=0.0, log=log
+            )
+        assert not log.exists()
+
+    def test_a_log_that_cannot_open_leaves_no_process(
+        self, tmp_path, monkeypatch
+    ):
+        spawned = []
+        real_popen = subprocess.Popen
+
+        def recording_popen(*args, **kwargs):
+            spawned.append(real_popen(*args, **kwargs))
+            return spawned[-1]
+
+        monkeypatch.setattr(subprocess, "Popen", recording_popen)
+        with pytest.raises(IsADirectoryError):
+            StreamSampler(_STREAM, Clock()).start(epoch=0.0, log=tmp_path)
+        [process] = spawned
+        assert process.poll() is not None
 
 
 class TestPsProcessSampler:
