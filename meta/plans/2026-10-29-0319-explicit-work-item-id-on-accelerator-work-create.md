@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T10:33:03+00:00"
+last_updated: "2026-11-01T14:00:02+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2231,8 +2231,10 @@ Refusals:
   `IdPattern::describe()` gives "a 4-digit number from 0001 to 9999, with no
   key" for `numeric`, "a key of letters and digits, then '-', then a 4-digit
   number" for `keyed`, and "'v' then a 3-digit number" for
-  `v{number:03d}`; the `PatternMismatch` text for `XY-400` under `numeric`
-  mentions no key.
+  `v{number:03d}`. A separate `requested_id` test,
+  `a_mismatch_with_no_key_in_the_pattern_describes_none`, pins that the
+  `PatternMismatch` text for `XY-400` under `numeric` describes no key: it
+  says "with no key" and never "a key of".
 - `a_shape_refusal_states_an_example` — under `numeric`, `PatternMismatch`
   for `foo` contains "shaped like '0001'", and `DraftReserved` contains the
   pattern and "shaped like '0001'"; under `keyed`, `PP-0001`.
@@ -2254,6 +2256,12 @@ Refusals:
 - `a_missing_key_omits_the_example` — under `keyed` with no key, a
   `PatternMismatch` and a `DraftReserved` refusal omit their "shaped like"
   clause rather than failing.
+- `the_first_holder_in_path_order_is_reported` — an unreadable
+  `0400-a.md` is reported before a readable `0500-b.md` holding
+  `id: "0400"`, so the merged listing is read in path order.
+
+Every `requested_id` test and the `describe` test were seen red against
+stubs before the model was written.
 
 #### 2. The model
 
@@ -2324,7 +2332,9 @@ impl RequestedIdRefusal {
 impl std::fmt::Display for RequestedIdRefusal;
 ```
 
-`Display` renders `<code>: <what>. <remedy>.`; `work-cli` prefixes `Error: `
+`Display` renders `<code>: <what>. <remedy>`, each remedy carrying its own
+closing punctuation, so `Did you mean '<corrected>'?` ends without a full
+stop; `work-cli` prefixes `Error: `
 after calling `relative_to` with the repository root, as it does for
 `NotRekeyed`. `ExampleShape::first` is `IdPattern::render` of number 1 with
 the scheme's key, `None` when a `{key}` pattern has no key, in which case
@@ -2335,12 +2345,21 @@ and the remedy then omits its "as in" clause. The requested ID quoted in a
 refusal passes through the grammar's escaping helper.
 
 **File**: `cli/work/src/id_pattern.rs`
-**Changes**: two readings of a pattern's segments the refusals need:
+**Changes**: three readings of a pattern's segments the refusals need:
 
 - `IdPattern::keying() -> PatternKeying` (`Keyed`, `Keyless`, `Tracker`),
   `pub(crate)`, which chooses `WithProject`'s remedy;
 - `IdPattern::describe() -> String`, the shape clause, naming a key and
-  literal text only when the pattern has them.
+  literal text only when the pattern has them; a lone `{number}` names its
+  range and "with no key", two parts join with " then " and more with
+  ", then ";
+- `IdPattern::read_correctable`, below, over a new `DigitWidth::AtMost`
+  walk.
+
+**File**: `cli/work/src/id_scheme.rs`
+**Changes**: `WorkItemIdScheme::is_own_key` becomes `pub(crate)`, so
+`RequestedId` decides `OtherKey` and `key_differs` by it: a carried key
+differs when it is not `work.key` ignoring ASCII case.
 
 How the model behaves:
 
@@ -2407,7 +2426,8 @@ named cause):
     <description>.`
 - `E_ID_TAKEN: '<requested>' is already held by <holder> as its <field or
   filename prefix> '<held>'. Choose another ID, or let the next number be
-  allocated.`
+  allocated.` The holding reads "its id", "an alias", "its external_id" or
+  "its filename prefix".
   The holder path passes through the grammar's escaping helper, since a
   slug is free text.
 
@@ -3624,7 +3644,7 @@ Phase 7 runs one representative of its class through `work create`.
 | `draft-k7mq3x` under `{tracker}` | 6 | `an_id_under_tracker_is_refused` |
 | `400` with `400-` existing is a mismatch | 6, 7 | order: mismatch before collision |
 | Five distinct identifiers | 6, 7 | `every_refusal_has_a_distinct_code`; `id_refusal_codes_are_distinct_from_every_other_work_create_code` |
-| Each message names its cause | 6 | `each_refusal_message_starts_with_its_code_and_names_its_cause`; `the_mismatch_description_follows_the_pattern` |
+| Each message names its cause | 6 | `each_refusal_message_starts_with_its_code_and_names_its_cause`; `the_mismatch_description_follows_the_pattern`; `a_mismatch_with_no_key_in_the_pattern_describes_none` |
 | `PP-0400 --project X` under `{tracker}` | 7 | `an_id_with_an_invalid_project_is_refused_as_with_project` |
 | Next after `0400` is `0401` | 7 | `allocation_after_an_id_continues_above_it` |
 | `PP-0011` after `XY-0400` | 7 | `each_key_keeps_its_own_sequence_after_an_id` |
