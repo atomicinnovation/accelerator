@@ -676,10 +676,7 @@ async fn linked_count_reflects_inbound_merge_dedup() {
 async fn related_endpoint_surfaces_rca_linked_to_a_work_item() {
     // An RCA whose frontmatter links to a work item (via `parent:`) appears in
     // that work item's declaredInbound through work_item_refs_by_id, with
-    // docType `root-cause-analyses` — the server half of AC #5. `parent:` uses
-    // the bare-numeric form because `canonicalise_one_id` only resolves
-    // bare-numeric / project-prefixed refs (not the `work-item:` typed prefix)
-    // for the aggregating `parent:`/`related:` keys.
+    // docType `root-cause-analyses`.
     let tmp = tempfile::tempdir().unwrap();
     let work = tmp.path().join("meta/work");
     let issues = tmp.path().join("meta/research/issues");
@@ -739,4 +736,85 @@ async fn related_endpoint_validates_decoded_path_segments() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
+}
+
+fn pp_scheme() -> work::id_scheme::WorkItemIdScheme {
+    work::id_scheme::WorkItemIdScheme::new(
+        work::id_pattern::IdPattern::parse("{key}-{number:04d}").unwrap(),
+        Some(work::id_pattern::IdKey::parse("PP").unwrap()),
+    )
+}
+
+async fn inbound_rel_paths(cfg: Config, path: &str) -> Vec<String> {
+    let (_state, app) = build_app(cfg).await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    let mut paths: Vec<String> = body["declaredInbound"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["relPath"].as_str().unwrap().to_owned())
+        .collect();
+    paths.sort();
+    paths
+}
+
+fn pp_0500_project(tmp: &std::path::Path, item: &str) -> Config {
+    let work = tmp.join("meta/work");
+    let plans = tmp.join("meta/plans");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&plans).unwrap();
+    std::fs::write(work.join("pp-0500-x.md"), item).unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-a.md"),
+        "---\ntitle: A\nparent: \"work-item:pp-0500\"\n---\n",
+    )
+    .unwrap();
+    std::fs::write(
+        plans.join("2026-01-02-b.md"),
+        "---\ntitle: B\nparent: \"work-item:PP-500\"\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("plans".into(), plans);
+    let mut cfg = cfg_with_only(tmp, paths);
+    cfg.work_item = Some(pp_scheme());
+    cfg
+}
+
+#[tokio::test]
+async fn related_items_find_inbound_references_by_any_spelling() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = pp_0500_project(tmp.path(), "---\nid: pp-0500\ntitle: X\n---\n");
+
+    assert_eq!(
+        inbound_rel_paths(cfg, "meta/work/pp-0500-x.md").await,
+        vec!["meta/plans/2026-01-01-a.md", "meta/plans/2026-01-02-b.md"]
+    );
+}
+
+#[tokio::test]
+async fn an_item_naming_itself_in_another_spelling_is_not_its_own_referrer() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = pp_0500_project(
+        tmp.path(),
+        "---\nid: pp-0500\ntitle: X\nparent: PP-500\n---\n",
+    );
+
+    let inbound = inbound_rel_paths(cfg, "meta/work/pp-0500-x.md").await;
+
+    assert!(
+        !inbound.contains(&"meta/work/pp-0500-x.md".to_owned()),
+        "{inbound:?}"
+    );
 }

@@ -56,7 +56,7 @@ pub async fn resolve_related(
     // deduped by path. Preserves reviews_by_target ordering and
     // appends only ref entries whose path is not already present.
     let mut declared_inbound = indexer.reviews_by_target(&entry.path).await;
-    if let Some(ref id) = entry.work_item_id {
+    if let Some(ref id) = entry.identity_key {
         let ref_entries = indexer.work_item_refs_by_id(id).await;
         let existing_paths: HashSet<PathBuf> =
             declared_inbound.iter().map(|e| e.path.clone()).collect();

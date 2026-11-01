@@ -16,14 +16,14 @@ use accelerator_visualiser::config::WorkItemConfig;
 use accelerator_visualiser::frontmatter::{self, FrontmatterState};
 use accelerator_visualiser::indexer::IndexEntry;
 use corpus::DocTypeKey;
+use corpus::IdConvention as _;
 
 /// Slug derivation and work-item id admission now delegate to corpus; pin
 /// representative cases so the delegation stays behaviour-stable.
 #[test]
 fn slug_and_id_conventions_are_pinned() {
     let cfg = WorkItemConfig::default_numeric();
-    let derive =
-        |kind, f: &str| corpus::slug::derive(kind, f, &cfg.id_convention());
+    let derive = |kind, f: &str| corpus::slug::derive(kind, f, cfg.scheme());
     assert_eq!(
         derive(DocTypeKey::WorkItems, "0042-ship-it.md").as_deref(),
         Some("ship-it")
@@ -33,14 +33,17 @@ fn slug_and_id_conventions_are_pinned() {
         Some("some-choice")
     );
     assert_eq!(
-        corpus::slug::derive_work_item("0007-thing.md", &cfg.id_convention())
+        corpus::slug::derive_work_item("0007-thing.md", cfg.scheme())
             .as_deref(),
         Some("thing")
     );
     assert_eq!(corpus::slug::humanise_slug("2026-07-23-my-note"), "My Note");
 
-    assert_eq!(cfg.extract_id("0042-x.md").as_deref(), Some("0042"));
-    assert_eq!(cfg.extract_id("no-id.md"), None);
+    assert_eq!(
+        cfg.scheme().id_in_filename("0042-x.md").as_deref(),
+        Some("0042")
+    );
+    assert_eq!(cfg.scheme().id_in_filename("no-id.md"), None);
     assert_eq!(cfg.normalise_id("  42  ").as_deref(), Some("42"));
     assert_eq!(cfg.normalise_id("ENG-7").as_deref(), Some("ENG-7"));
     assert!(cfg.is_canonical_id_token("0042"));
@@ -186,6 +189,7 @@ fn entry(
         rel_path: PathBuf::from(path),
         slug: Some(slug.to_string()),
         work_item_id: None,
+        identity_key: None,
         draft: false,
         title: slug.to_string(),
         frontmatter,
@@ -215,6 +219,7 @@ fn clustering_typed_linkage_is_pinned() {
         serde_json::Value::Null,
     );
     wi.work_item_id = Some("0040".to_string());
+    wi.identity_key = Some("0040".to_string());
     let plan = entry(
         DocTypeKey::Plans,
         "/repo/meta/plans/2026-05-31-0040-pipeline.md",

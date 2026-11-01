@@ -24,7 +24,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
-use crate::config::Config;
+use crate::config::{Config, WorkItemConfig};
 use crate::shutdown::ShutdownReason;
 
 /// 1 MiB cap on request bodies. The placeholder route never reads a body,
@@ -75,10 +75,11 @@ impl AppState {
             template_roots,
             work_root,
         ));
-        let work_item_cfg = Arc::new(match cfg.work_item.clone() {
-            Some(raw) => crate::config::WorkItemConfig::from_raw(raw)?,
-            None => crate::config::WorkItemConfig::default_numeric(),
-        });
+        let work_item_cfg =
+            Arc::new(cfg.work_item.clone().map_or_else(
+                WorkItemConfig::default_numeric,
+                WorkItemConfig::new,
+            ));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),

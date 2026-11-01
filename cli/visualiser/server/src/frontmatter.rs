@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn read_ref_keys_reads_parent_and_related() {
         // Unquoted leading-zero ids parse as numbers, so read_ref_keys yields
-        // the numeric string (`0007` -> `7`); canonicalise_refs zero-pads them
+        // the numeric string (`0007` -> `7`); identity_keys_of zero-pads them
         // back to the canonical width downstream, so resolution is unchanged.
         let raw = b("---\nparent: 0007\nrelated: [0001, 0002]\n---\nbody\n");
         let p = parse(&raw);
@@ -499,7 +499,7 @@ mod tests {
     fn read_ref_keys_aggregates_work_item_id_and_parent_and_related() {
         // Quoted ids keep their leading zeros; unquoted leading-zero ids parse
         // as numbers (`0007` -> `7`, `0011` -> `11`) and are re-padded by
-        // canonicalise_refs downstream.
+        // identity_keys_of downstream.
         let raw = b("---\nwork_item_id: \"0042\"\nparent: 0007\nrelated: [0011]\n---\nbody\n");
         let p = parse(&raw);
         let refs = read_ref_keys(&p.state);
