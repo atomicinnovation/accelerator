@@ -14,7 +14,7 @@ pr_number: 175
 tags: ["build-system", "measurement", "performance", "mise", "macos"]
 revision: "326827d136552baf707afb14a379b0bfe940442c"
 repository: "accelerator"
-last_updated: "2026-11-01T10:30:00+00:00"
+last_updated: "2026-11-01T11:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -111,7 +111,7 @@ host guidance follow in later phases.
   places with every field. Ctrl-C (single and double) leaves no `mise`, `cargo`,
   `nextest` or `iostat` process and writes no record. `tail -f` on the printed
   log follows the build.
-- [ ] Tasks unit lane on both CI OSes (ubuntu and macOS). Real-`jj`/`git` tests
+- [x] Tasks unit lane on both CI OSes (ubuntu and macOS). Real-`jj`/`git` tests
   are gated by `require`, which fails in CI rather than skipping, so they need
   this PR's CI run. Earlier ubuntu runs failed one test that assumed a
   non-root user cannot signal process group 1; the hosted runner can, so the
