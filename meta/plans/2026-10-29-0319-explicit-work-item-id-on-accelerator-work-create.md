@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T14:00:02+00:00"
+last_updated: "2026-11-01T20:13:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2474,9 +2474,15 @@ step both ID sources share.
 `args_with_id(id, push)`, and move `PushingRepo` from `create.rs`'s test
 module (`create.rs:815`) into `src/test_support.rs`, beside the binary's
 other shared test doubles, so Phase 10's `id/check.rs` tests can use it. The
-move brings `FixedRegistry` (`create.rs:767`) and the second
-`impl PushingRepo` (`create.rs:1087`), with the fields visible to the
-crate.
+move brings `FixedRegistry` (`create.rs:767`), the `Failing` alias and the
+second `impl PushingRepo` (`create.rs:1087`), merged into one `impl`, with
+the fields `pub`. It landed as its own commit before any `--id` test.
+`test_support.rs` allows `clippy::expect_used` and
+`clippy::literal_string_with_formatting_args` module-wide, and gains
+`PushingRepo::holding(relative, content)`, which writes a holder file and
+its directory. The case tables name their constructor type
+`RepoFor = fn() -> PushingRepo` to stay under clippy's type-complexity
+limit.
 
 Writing:
 
@@ -2567,6 +2573,14 @@ Allocation after an `--id`:
   `highest_file` whose slug holds U+001B shows it as `U+001B`.
 - `a_full_sequence_offers_no_lower_id` — under `{number:02d}` with all 99
   numbers held, the message offers only archiving or widening.
+- `a_stray_out_of_width_file_keeps_its_message` — `19999-stray.md` gives
+  today's out-of-width text exactly.
+- `every_other_allocation_error_renders_its_code` — `MissingKey`,
+  `ProjectUnused` and `InvalidProject` start with `E_PATTERN_MISSING_KEY`,
+  `E_PATTERN_KEY_UNUSED` and `E_WORK_KEY_INVALID: --project '1X': `.
+
+These four were seen red (no `message` method) before the rendering was
+written, and landed as their own commit ahead of the `--id` work.
 
 Push:
 
@@ -2592,6 +2606,18 @@ Push:
 - `a_local_create_with_an_id_reads_no_push_marker` — without `--push`, an
   unreadable push marker for the same slug does not stop `--id 0400`.
 
+`cli/work/src/sync/push_precondition.rs` (unit):
+
+- `a_marker_reads_as_absent_unreadable_or_present` — `MarkerState::of`
+  over `Ok(None)`, `Err(_)` and `Ok(Some(marker))`; seen red before `of`
+  existed.
+
+The `create.rs` tests were seen red only as a compile failure:
+`CreateArgs::id` was never read, which `-D warnings` refuses, so they first
+ran against the finished wiring and passed. Each asserts an outcome that
+allocation alone cannot produce (a requested filename, an `E_ID_*` code, no
+`meta/work/` directory), so none can pass vacuously.
+
 `cli/work-cli/src/cli.rs` (unit):
 
 - `create_batch_rejects_an_id_argument` —
@@ -2607,7 +2633,9 @@ Push:
   `TrackerRepo::numeric()` (default pattern, `jira`).
 - `an_unsynced_item_at_a_gap_id_keeps_its_id_when_linked` — items `0001` to
   `0010` and `0400-a-gap.md` (as `--id 0400` writes it). `link_external_id`
-  leaves the filename and `id: "0400"` and records the `external_id`.
+  with `PP-905` leaves the filename and `id: "0400"` and records the
+  `external_id`. It characterises existing behaviour, so it passed on
+  first run.
 
 `cli/work-cli/tests/cli_create.rs` (subprocess):
 
@@ -2625,7 +2653,8 @@ Push:
   - `FROZEN_ID_REFUSAL_CODES` lists the five `E_ID_*` codes as literals;
   - `every_id_refusal()` builds one of each variant, with its own exhaustive
     `covered` match;
-  - each variant's `code()` equals its frozen literal.
+  - each variant's `code()` equals its frozen literal, and its `Display`
+    starts with `<code>: `.
 - `id_refusal_codes_are_distinct_from_every_other_work_create_code`:
   - `FROZEN_CREATE_CODES` lists, as literals, the 15 existing `work create`
     identifiers (`E_WORK_ID_PATTERN_INVALID`, `E_WORK_KEY_INVALID`,
@@ -2733,7 +2762,11 @@ pub fn admit_requested_id(
 - **`create_item`** takes the admitted ID beside the context and passes
   `LocalId::Requested` or `LocalId::Allocate` only from the two
   `IdOwnership::Local` arms, so a requested ID cannot reach a tracker
-  strategy.
+  strategy. `CreationContext` holds `location: WorkItemLocation`;
+  `creation_context` returns `(CreationContext, Option<RequestedId>)`.
+- **`work next-number`'s `run`** destructures the `WorkItemLocation`
+  `locate_work_items` returns, before taking the identity-run lock, as
+  today.
 - **`create-batch` is unaffected:** it reaches `create_item` with no
   requested ID, so its arms pass `LocalId::Allocate` and allocation is
   unchanged.
@@ -2777,8 +2810,9 @@ enum PushNext {
 - **`read_push_marker`** returns the marker's path and its owned parse;
   `MarkerState::of(&parsed)` borrows the state from it, since
   `MarkerState<'a>` borrows a `PendingPush` (`push_precondition.rs:37-41`).
-  `MarkerState::of` is generic over the parse's error type, since
-  `MarkerState` lives in `work` and `MarkerError` in `work-adapters`.
+  `MarkerState::of` is a `pub const fn` generic over the parse's error
+  type, since `MarkerState` lives in `work` and `MarkerError` in
+  `work-adapters`.
 - **`check_pending_push`** is extracted from `push_legacy_item`
   (`creation.rs:467-500`): it reads the marker, evaluates
   `work::sync::push_precondition` over it, the request digest and the
@@ -2787,11 +2821,15 @@ enum PushNext {
   `push_legacy_item` receives the `PendingPushCheck`, so it neither
   recomputes the path and digest nor has a `Refuse` arm.
 - **`Creation::listing()`** returns the `WorkItemListing` of the work
-  directory, and `identities()` derives from its `files`. Each arm reads it
-  once under the lock and passes it to both the precondition and the taken
-  check.
-- **One helper** returns the ID and the `PendingPushCheck` for either arm,
-  so `create_local_item` stays one straight sequence: `Allocate` allocates,
+  directory, and `identities()` derives from its `files`; the free
+  `corpus_identities` helper goes. Each arm reads it once under the lock
+  and passes it to both the precondition and the taken check; the
+  `Allocate` arm reads it only with `--push`, as today.
+- **One helper**, `Creation::claim_id(&LocalId, Option<&LegacyPushing>,
+  &CreateLockGuard) -> Result<(String, Option<PendingPushCheck>), String>`,
+  returns the ID and, with `--push`, the `PendingPushCheck` for either arm,
+  so `create_local_item` (now taking `&LocalId`) stays one straight sequence
+  and pairs the two with `pushing.zip(check)`: `Allocate` allocates,
   then checks the pending push, as today; `Requested` checks the pending
   push when `--push` is set, for the item's slug and the body rendered with
   the requested ID, so a re-run of the same create meets `E_PUSH_PENDING`
@@ -2808,11 +2846,18 @@ enum PushNext {
 
 **Files**: `cli/work/src/next_number.rs`, `cli/work-cli/src/create.rs:161-173`,
 `cli/work-cli/src/next_number.rs:44-56`
-**Changes**: one rendering of every `AllocationError` variant in
-`work::next_number`, taking the pattern, replaces the two copies in
-`work-cli`, including `E_PATTERN_MISSING_KEY`, `E_PATTERN_KEY_UNUSED` and
-`next_number.rs`'s `unreachable!` arm. Regenerate the `work` public-API
-fixture and read the diff. At the cap it reads `E_PATTERN_OVERFLOW: number
+**Changes**: one rendering of every `AllocationError` variant,
+`AllocationError::message(&self, pattern: &IdPattern, work_dir: &Path)`,
+replaces the two copies in `work-cli`, including `E_PATTERN_MISSING_KEY`,
+`E_PATTERN_KEY_UNUSED`, `E_WORK_KEY_INVALID` for `--project` and
+`next_number.rs`'s `unreachable!` arm. It takes the work directory, shown
+relative to the repository root, because allocation sees only filenames and
+the cap branch names the holder's path; `allocate_id` gains a `root`
+parameter for it, and `sync_author` passes its own. `Overflow` gains
+`numbers_held: u64`, the distinct numbers the key's sequence holds, which
+decides whether a free lower ID exists. `SchemeError::invalid_project` loses
+its last callers and goes. Regenerate the `work` public-API fixture and read
+the diff: `numbers_held`, `message` and `MarkerState::of`. At the cap it reads `E_PATTERN_OVERFLOW: number
 space exhausted: <highest_file> holds <highest>, the cap of pattern
 '<pattern>'. If that ID was a slip, move the item to a free lower ID by
 renaming its file and changing its id, H1 and references; otherwise archive
@@ -2833,7 +2878,8 @@ refusals (`E_PATTERN_*`, `E_WORK_*`) already use it, although the `1` band
 reads "an internal error" and other collision refusals exit 4.
 
 **File**: `CHANGELOG.md`
-**Changes**: `### Added`: `work create --id <ID>` and its five refusals.
+**Changes**: `### Added`: `work create --id <ID>` and its five refusals,
+noting that `--id` cannot yet be combined with `--dry-run`.
 `### Changed`: `E_PATTERN_OVERFLOW` names the item holding the highest
 number and suggests giving it a lower ID.
 
@@ -2841,19 +2887,21 @@ number and suggests giving it a lower ID.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p accelerator-work create cli sync_author requested_id`
-- [ ] `cd cli && cargo nextest run -p work next_number`
-- [ ] `cd cli && cargo nextest run -p work-adapters creation`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_create --test keyword_exit_codes --test cli_surface`
-- [ ] `mise run public-api:check`
-- [ ] `mise run cli:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p accelerator-work create cli sync_author requested_id`
+- [x] `cd cli && cargo nextest run -p work next_number`
+- [x] `cd cli && cargo nextest run -p work-adapters creation`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_create --test keyword_exit_codes --test cli_surface`
+- [x] `mise run public-api:check`
+- [x] `mise run cli:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] In a scratch repository, `accelerator work create "Probe" task low --id 0400`
+- [x] In a scratch repository, `accelerator work create "Probe" task low --id 0400`
       writes `0400-probe.md`, and a second run refuses with `E_ID_TAKEN`
-      naming it.
+      naming it. Run with the built binary: the first wrote `id: "0400"`
+      and `# 0400: Probe`; the second exited 1 with `E_ID_TAKEN: '0400' is
+      already held by meta/work/0400-probe.md as its id '0400'`.
 
 ---
 
