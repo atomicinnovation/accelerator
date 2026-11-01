@@ -5,15 +5,15 @@ title: "Build-Performance Measurement Harness and Host Guidance Implementation P
 date: "2026-10-30T17:19:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0368"
 parent: "work-item:0368"
 derived_from: ["codebase-research:2026-10-30-0368-build-performance-measurement-harness", "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
-revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
+revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-10-31T18:04:04+00:00"
+last_updated: "2026-11-01T11:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1478,7 +1478,7 @@ def require_macos(system: str) -> None: ...
 - [x] The new tests pass, including the real-repository ones:
       `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_repository.py -v`
 - [x] The moved helpers leave warm-dispatch green: `uv run pytest tests/unit/tasks/test_measure.py -v`
-- [ ] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
+- [x] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
 - [x] Lint and types pass: `mise run build-system:check`
 - [x] The full local CI mirror passes: `mise run`
 
@@ -4034,7 +4034,7 @@ from the two `measure:compare-builds` reports. It contains:
   cold `--runs 3` takes about 25 minutes and fetches npm packages each run.
 - **Sampler cost.** The `ps` sampler runs `ps -ww -A` once a second. It keeps
   only tracked lines, so a run's `ps` log is kilobytes rather than about
-  30 MB. `iostat -w 2` costs nothing measurable.
+  30 MB. `iostat -w 1` costs nothing measurable.
 - **Measurement bias.** Per-process CPU is a lower bound: one-second
   sampling misses short-lived processes, and the post-build tail is not
   counted. The README's build-timing paragraph says so once, rather than
@@ -4061,6 +4061,76 @@ baseline every change to them follows one rule, which the README's
 
 `test_every_committed_build_record_is_readable` enforces the rule: a
 breaking edit without an upgrade fails CI in the commit that makes it.
+
+## Implementation Notes
+
+Progress as of 2026-11-01: Phases 1–4 are complete and open as PR #175.
+Phases 5–10 have not started.
+
+### Phases 1–4 review round
+
+PR #175's first review
+(`meta/reviews/prs/175-review-1.md`) changed the as-built code from what
+Phases 1–4 describe. Where the code now departs from the plan:
+
+- **Teardown.** `SubprocessBuildRunner` reaps whenever the build's group is
+  alive, not only while `mise` is, and forgets `build.pgid` only once the
+  group is gone, inside the deferred-signal block, so a group that survives
+  its reap leaves the file for the next session's orphan check.
+  `reap_session` also reaps a group whose leader has already exited:
+  `group_of` returns `None` for a reaped leader, so it signals the group by
+  the leader's pid, which cannot be reused while the group exists.
+- **Build start.** Signals are held from `Popen` until the group is
+  remembered, so an interrupt in that window still reaps the build.
+- **Sampling cadence.** `iostat` runs at `-w 1`, not `-w 2`, so both samplers
+  sample once a second. Both read their commands under `LC_ALL=C`.
+- **Stream sampler start.** It opens its log only after its command starts,
+  and kills the command if the log cannot open.
+- **Stamped logs.** `log_files.StampedLog` owns the `newline="\n"` decoding,
+  through `follow(pipe, clock, epoch)`, for the build runner and both
+  samplers.
+- **Process ports.** The five group operations moved from `ProcessOps` to a
+  `ProcessGroupOps(ProcessOps, Protocol)`. `reap_session`,
+  `SubprocessBuildRunner` and `BuildGroupFile` take it; the dev lifecycle
+  stays on `ProcessOps`.
+- **Provenance.** `differing_paths(history, commit)` replaces
+  `working_copy_matches`, and the session calls it for both the start and
+  the end check. `GitHistory` lists paths with `-z`, so `core.quotePath`
+  cannot quote them.
+- **Preflight.** `Preflight.running` is `tuple[str, ...] | NoReading`. A
+  failed `ps` probe reports no reading, and with `--keep` warns once,
+  instead of listing every tracked process as not running.
+- **Refusals and wiring.** `OrphanedBuildError` lives in `errors.py` and
+  takes the pgid, members and path. `wiring.mise_tasks_json` takes its argv
+  so its failure path is tested.
+- **Warm-dispatch teardown.** `_contained` refuses
+  `.accelerator-measure/build`, which the two harnesses' shared scratch root
+  would otherwise admit.
+- **README.** The measure namespace has a section per harness, and the
+  build-timing material follows warm dispatch.
+
+Verification after the round: the full `mise run` passed locally, and every
+CI lane passed on both OSes at `e3f1b37c`. Earlier ubuntu runs had failed one
+test that assumed a non-root user cannot signal process group 1; the hosted
+runner can, so the test now forces the `PermissionError` it probes for.
+
+### Deferred to later phases
+
+The review's structural findings were deferred. Each fits a later phase:
+
+- **Phases 6 and 7.** `BuildCacheState`, `Mode` and `BuildScope` gain their
+  other variants, and the recurring condition parameters may become one
+  value object. A `RunDirectory` port and a rename of `test_imports.py`'s
+  `_PURE` partition fit isolation mode.
+- **Any phase.** A `ports.py` for the port protocols and their value types
+  now split across `session.py`, `provenance.py` and `analysis.py`; a
+  `tasks/measure_build.py` split from `tasks/measure.py`; `measure:build`
+  placed beside the other `measure:*` tasks in `mise.toml`; a scratch
+  subdirectory per harness.
+- **Tests.** The sampler kill-after-timeout stop path, and a record surviving
+  a refused keep.
+- **Docs.** One README sentence on where macOS coupling reaches the record
+  schema.
 
 ## References
 
