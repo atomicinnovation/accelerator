@@ -605,10 +605,10 @@ pub fn corpus::linkage::has_source_label(line: &str) -> bool
 pub fn corpus::linkage::has_supersedes_keyword(line: &str) -> bool
 pub fn corpus::linkage::infer_key(section: &str, line: &str, target_type: &str) -> (alloc::string::String, bool)
 pub fn corpus::linkage::is_template_path(token: &str) -> bool
-pub fn corpus::linkage::parse_document(source_type: &str, content: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<corpus::linkage::LinkageRecord>
+pub fn corpus::linkage::parse_document(source_type: &str, content: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> alloc::vec::Vec<corpus::linkage::LinkageRecord>
 pub fn corpus::linkage::path_roots(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<alloc::string::String>
 pub fn corpus::linkage::pr_number(stem: &str) -> core::option::Option<alloc::string::String>
-pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<(&'static str, alloc::string::String)>
+pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> core::option::Option<(&'static str, alloc::string::String)>
 pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
 pub mod corpus::linkage_ids
 pub trait corpus::linkage_ids::LinkageIds
