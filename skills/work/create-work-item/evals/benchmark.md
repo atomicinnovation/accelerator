@@ -8,7 +8,7 @@
 
 | Metric | With Skill | Old Skill | Delta |
 |--------|-----------|-----------|-------|
-| Pass Rate | 100% (n=35) | 81% (n=18) | +0.19 |
+| Pass Rate | 99% (n=41) | 81% (n=18) | +0.18 |
 
 ## Per-Eval Results
 
@@ -33,7 +33,7 @@
 - ✓ **enrich-existing-self-not-duplicate** (23): 2/2 (100%)
 - ✓ **enrich-existing-augmentation-proposal** (24): 3/3 (100%)
 - ✓ **enrich-existing-preserves-identity** (25): 4/4 (100%)
-- ✓ **enrich-existing-no-next-number-call** (26): 1/1 (100%)
+- ✓ **enrich-existing-no-id-next-call** (26): 1/1 (100%)
 - ✓ **enrich-existing-h1-real-number** (27): 2/2 (100%)
 - ✓ **enrich-existing-overwrites-path** (28): 2/2 (100%)
 - ✓ **enrich-existing-status-preserved** (29): 2/2 (100%)
@@ -41,13 +41,13 @@
 - ✓ **enrich-existing-status-changed** (30): 3/3 (100%)
 - ✓ **enrich-existing-oblique-status-mention** (30a): 2/2 (100%)
 - ✓ **enrich-existing-identity-swap-check-performed** (31): 2/2 (100%)
-- ✓ **topic-string-flow-still-calls-next-number** (32): 3/3 (100%)
+- ✓ **topic-string-flow-still-calls-id-next** (32): 3/3 (100%)
 - ✓ **tracker_pattern_created_blocked_relays_holder_and_promote_remedy** (33): 4/4 (100%)
 - ✓ **tracker_pattern_loud_terminal_offers_adopt_or_create** (34): 4/4 (100%)
 - ✓ **model-proposes-type** (4): 2/2 (100%)
 - ✓ **challenge-untestable-ac** (5): 2/2 (100%)
 - ✓ **bug-type-requirements** (6): 3/3 (100%)
-- ✓ **draft-xxxx-placeholder** (7): 2/2 (100%)
+- ~ **draft-xxxx-placeholder** (7): 1/2 (50%)
 - ✓ **number-not-consumed** (8): 2/2 (100%)
 - ✓ **near-duplicate-surfaced** (9): 3/3 (100%)
 
