@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-rep
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-10-31T19:22:37+00:00"
+last_updated: "2026-11-01T10:05:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3143,6 +3143,12 @@ affected: both run `metadata derive` and `validate` after a user reply.
   | S1 | 3/3 |
   | S2 | 3/3 |
 
+  Phase 7 found that every eval session until then resolved `accelerator`
+  to the installed release, not the debug builds: an installed launcher
+  came first on `PATH`. These runs therefore most likely judged `ask` over
+  the released CLI, which already shipped `consultable`. Phase 7's runs,
+  after the fix, cover `ask` against the working tree.
+
 ---
 
 ## Phase 7: `report`
@@ -3434,14 +3440,19 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 
 - **Commits.** Change 4 landed first. Changes 1 and 2 and the citing-once
   description landed together, the tests beside the prose they pin. The
-  docs and CHANGELOG followed, then 0121, then the eval cost. The eval runs
-  added four fixes, each with its tests: a harness fix, one to
-  `metadata derive` and two to the skill.
+  docs and CHANGELOG followed, then 0121. The eval runs added four fixes,
+  each with its tests: a harness fix, one to `metadata derive` and two to
+  the skill. The eval cost followed them, then the plan, then a fifth fix
+  from the permission check: the skill's `Read` of the citing-once rule.
 - **Tests.** `_run_report()` took the old name at its definition and 9 call
   sites. Three Phase 6 tests follow the widened sentences: the
   misplaced-flag parenthesis, the preamble's exceptions and the count rule's
   `consultable` sentence. The prompt forms are checked in
-  `_dedented` skill text, since step 4's blocks sit under a list item.
+  `_dedented` skill text, since step 4's blocks sit under a list item. Each
+  eval fix below added its own structure or unit tests first: the session
+  `PATH`, the `Author:` line at three layers, the Derive Metadata line, a
+  prompt ending its turn, parts in the question's words, reading rather than
+  searching, and the declared `Read`.
 - **Prose.** The section above reads as shipped, plus the eval fixes below.
   The docs intro also names `report` among `research topic counts`' callers.
 - **Eval fixes.**
@@ -3524,6 +3535,13 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
     fills the plugin root into the declared grant rather than adding a
     `Read` of its own, and a rerun of the opening turn read the rule with no
     denial.
+- **Open.** Two items stay unticked. No full eval run has covered the
+  final skill text: after run 3, the two rules on parts and reading and the
+  declared `Read` landed, and only the two scenarios that failed run 3 were
+  rerun. 0281's acceptance criteria are ticked once that run passes, since
+  most map to eval scenarios. The run starts with
+  `touch .accelerator-dev-launcher` and ends with
+  `rm .accelerator-dev-launcher`.
 
 ---
 
@@ -3646,10 +3664,10 @@ set to `<scratch>/meta/research/topics/<slug>/`, and run every command from
 ## Performance Considerations
 
 - ⏱️ A full eval run is 111 headless sessions, 61 of them multi-turn, and each
-  reads about 15 corpus files. At the default `--jobs 6`, expect over an hour
-  and significant model usage. That figure is an estimate, not a measurement.
-  `--family`, `--verb` and `--scenario` narrow the run. Phase 7 records the
-  measured time.
+  reads about 15 corpus files. At the default `--jobs 6` it took 1007 s and
+  1097 s in Phase 7's two complete runs, with significant model usage: a
+  further full run that day was stopped short of a usage limit. `--family`,
+  `--verb` and `--scenario` narrow the run.
 - Both verbs read every counted finding inline, as `synthesise` does. A corpus
   of hundreds of findings would press the context window. That limit is
   accepted here, and `synthesise` shares it.
