@@ -1,0 +1,13 @@
+    1     0  19:30.36 /sbin/launchd
+  327     1  18:48.01 /usr/libexec/logd
+  401     1 354:01.90 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer -daemon
+  479     1   3:21.94 /usr/libexec/syspolicyd
+  670     1   0:03.69 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XProtectBridgeService.xpc/Contents/MacOS/XProtectBridgeService
+  745     1 476:58.11 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/MacOS/idea
+  750     1  14:09.07 /Users/tobyclemson/Applications/PyCharm.app/Contents/MacOS/pycharm
+ 3181     1  13:20.66 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService
+ 3402   750   0:36.90 /Users/tobyclemson/Applications/PyCharm.app/Contents/bin/fsnotifier
+ 3648   745   0:27.65 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/bin/fsnotifier
+ 4811  4776   0:19.09 /Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/plugins/jcef-plugin/jcef/Frameworks/cef_server.app/Contents/Frameworks/cef_server Helper.app/Contents/MacOS/cef_server Helper --type=gpu-process --no-sandbox --start-stack-profiler --user-data-dir=/Users/tobyclemson/Library/Caches/JetBrains/IntelliJIdea2026.3/jcef_cache --framework-dir-path=/Users/tobyclemson/Applications/IntelliJ IDEA.app/Contents/plugins/jcef-plugin/jcef/Frameworks/cef_server.app/Contents/Frameworks/Chromium Embedded Framework.framework --log-severity=disable --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAOAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --disable-in-process-stack-traces --shared-files --metrics-shmem-handle=1752395122,r,15576619492308827715,12747456522490918693,262144 --field-trial-handle=1718379636,r,17268263851545788224,466038729192820571,262144 --disable-features=SpareRendererForSitePerProcess --variations-seed-version --pseudonymization-salt-handle=1935764596,r,16464050775101748546,3796819245009620204,4 --trace-process-track-uuid=3190708988185955192 --log-file=/Users/tobyclemson/Library/Logs/JetBrains/IntelliJIdea2026.3/jcef_chromium_745.log
+51474 51472   0:00.00 ps -ww -Ao pid=,ppid=,time=,command=
+68168     1   0:00.05 /System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XProtectUpdateService.xpc/Contents/MacOS/XProtectUpdateService

@@ -284,6 +284,7 @@ def test_the_measure_module_is_reached_by_at_least_one_task(mise):
     assert _tasks_reaching_measure(mise) >= {
         "measure:warm-dispatch",
         "measure:teardown",
+        "measure:build",
         "test:integration:measure",
     }
 

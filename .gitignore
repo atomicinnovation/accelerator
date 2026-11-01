@@ -77,7 +77,8 @@ bin/.tmp-*
 # The measurement harness's artefact manifest — the interlock token a dead run
 # leaves behind for `mise run measure:teardown` to replay. Deliberately not
 # under bin/, which is the launcher's live cache root whose entry set the
-# harness itself uses as an integrity witness.
+# harness itself uses as an integrity witness. Also holds measure:build's run
+# directories under build/.
 /.accelerator-measure/
 
 # A rehearsal drives the whole measurement path at a token sample count to

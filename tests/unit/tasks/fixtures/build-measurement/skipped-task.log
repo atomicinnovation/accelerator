@@ -1,0 +1,3 @@
+0.200 [docs:generate] sources up-to-date, skipping
+0.500 [docs:build] $ invoke docs.build
+0.805 [docs:build] Finished in 0.3s

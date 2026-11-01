@@ -415,6 +415,14 @@ description = "Live-dispatch smoke check for the warm-dispatch harness (n=2, no 
 depends = ["deps:install:python"]
 run = "invoke measure.smoke-check"
 
+# Deliberately NOT in the aggregate `check` or the bare `default` task: an
+# operator-run, macOS-only build session of 20 minutes or more that no CI
+# job owns. See tasks/README.md#the-measure-namespace.
+[tasks."measure:build"]
+description = "Time a full default build: a priming run then N timed runs, per-task figures and host contention (macOS, ~20 min at --runs 3; writes .accelerator-measure/build/, --keep also writes meta/measurements/ unless a fetch failed)"
+depends = ["deps:install:python"]
+run = "invoke measure.build"
+
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test roll-up: a run needs the claude CLI, network egress and model usage. See
 # tasks/README.md#the-eval-namespace.
