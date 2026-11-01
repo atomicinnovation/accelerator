@@ -3252,15 +3252,15 @@ least 0.9.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_id_canonicalise --test cli_id_next --test personal_file --test cli_surface`
-- [ ] `cd cli && cargo nextest run -p accelerator-work cli id::next`
-- [ ] `mise run test:unit:tasks`
-- [ ] `mise run docs:generate:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p accelerator-work --test cli_id_canonicalise --test cli_id_next --test personal_file --test cli_surface`
+- [x] `cd cli && cargo nextest run -p accelerator-work cli id::next`
+- [x] `mise run test:unit:tasks`
+- [x] `mise run docs:generate:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] In a scratch repository, `accelerator work id next` prints the next ID,
+- [x] In a scratch repository, `accelerator work id next` prints the next ID,
       and `accelerator work next-number` exits 2 naming `work id next`.
 
 ---
