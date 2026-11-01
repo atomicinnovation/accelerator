@@ -117,7 +117,6 @@ def _session_event(record: dict[str, Any]) -> Init | Result | None:
 
 
 def events(log: str) -> list[Event]:
-    """Every event the log holds, in its order."""
     found: list[Event] = []
     for record in _records(log):
         if session_event := _session_event(record):

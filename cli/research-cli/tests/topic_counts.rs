@@ -1,6 +1,5 @@
-//! `accelerator-research topic counts` black-box CLI coverage: the counts a
-//! committed set's files give, beside those its manifest and synthesis
-//! record.
+//! The counts a committed set's files give, beside those its manifest and
+//! synthesis record.
 
 use std::collections::BTreeMap;
 use std::fs;
