@@ -15,7 +15,12 @@ pub(crate) struct WorkItemConfigBody {
 pub(crate) async fn get_work_item_config(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let key = state.cfg.work_item.as_ref().and_then(|w| w.key.clone());
+    let key = state
+        .cfg
+        .work_item
+        .as_ref()
+        .and_then(|scheme| scheme.key())
+        .map(|key| key.as_str().to_owned());
     Json(WorkItemConfigBody { key })
 }
 
@@ -82,11 +87,10 @@ mod tests {
     async fn returns_the_key_when_configured() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
-        cfg.work_item = Some(crate::config::RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".into(),
-            id_pattern: "{project}-{number:04d}".into(),
-            key: Some("PROJ".into()),
-        });
+        cfg.work_item = Some(crate::config::scheme_for_test(
+            "{project}-{number:04d}",
+            Some("PROJ"),
+        ));
         let activity = Arc::new(Activity::new());
         let state =
             crate::server::AppState::build(cfg, activity).await.unwrap();

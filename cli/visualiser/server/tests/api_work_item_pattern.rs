@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::config::{
-    Config, RawWorkItemConfig, TemplateTiers,
-};
+use accelerator_visualiser::config::{Config, TemplateTiers};
 use accelerator_visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use std::collections::HashMap;
 use tower::ServiceExt;
+use work::id_pattern::{IdKey, IdPattern};
+use work::id_scheme::WorkItemIdScheme;
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     config_for(
@@ -32,19 +32,21 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
                 "---\ntitle: Legacy Work Item\nstatus: todo\n---\n# body\n",
             ),
         ],
-        RawWorkItemConfig {
-            // Captures only the digit run; project code literal is outside group 1.
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        },
+        scheme("{project}-{number:04d}", Some("PROJ")),
+    )
+}
+
+fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+    WorkItemIdScheme::new(
+        IdPattern::parse(pattern).unwrap(),
+        key.map(|key| IdKey::parse(key).unwrap()),
     )
 }
 
 fn config_for(
     tmp: &std::path::Path,
     files: &[(&str, &str)],
-    work_item: RawWorkItemConfig,
+    work_item: WorkItemIdScheme,
 ) -> Config {
     let work = tmp.join("meta/work");
     std::fs::create_dir_all(&work).unwrap();
@@ -147,11 +149,7 @@ async fn tracker_pattern_keys_and_drafts_each_have_a_work_item_id() {
                 "---\nid: \"draft-k7mq3x\"\ntitle: Baz\n---\n",
             ),
         ],
-        RawWorkItemConfig {
-            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
-            id_pattern: "{tracker}".to_string(),
-            key: None,
-        },
+        scheme("{tracker}", None),
     );
 
     assert_eq!(
@@ -172,11 +170,7 @@ async fn a_draft_awaiting_its_tracker_key_is_indexed_and_flagged_as_a_draft() {
                 "---\nid: \"draft-k7mq3x\"\ntitle: Idea\n---\n",
             ),
         ],
-        RawWorkItemConfig {
-            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
-            id_pattern: "{tracker}".to_string(),
-            key: None,
-        },
+        scheme("{tracker}", None),
     );
     let state = AppState::build(cfg, Arc::new(Activity::new()))
         .await

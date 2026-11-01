@@ -187,7 +187,6 @@ dependencies = [
  "notify",
  "predicates",
  "process",
- "regex",
  "reqwest",
  "rust-embed",
  "serde",
@@ -203,6 +202,8 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "work",
+ "work-adapters",
 ]
 
 [[package]]
