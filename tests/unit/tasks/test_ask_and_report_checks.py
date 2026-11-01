@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -127,8 +128,22 @@ def test_a_search_naming_a_levels_directory_fails(
         _call("Grep", pattern="x", path="/etc"),
         _call("Grep", pattern="x", glob="../../*.md"),
         _call("Read", file_path=str(RULE.parent / "evals/x.json")),
+        _call("Glob", path=".", pattern="/etc/**"),
+        _call("Glob", pattern="meta/../../*.md"),
+        _call("Glob", pattern="meta/**/../../../../*.md"),
+        _call("Grep", pattern="x", glob="meta/../../*.md"),
     ],
-    ids=["absolute-glob", "dotdot-read", "grep-path", "grep-glob", "rule-dir"],
+    ids=[
+        "absolute-glob",
+        "dotdot-read",
+        "grep-path",
+        "grep-glob",
+        "rule-dir",
+        "glob-path-and-absolute-pattern",
+        "glob-inner-dotdot",
+        "glob-dotdot-after-wildcard",
+        "grep-glob-inner-dotdot",
+    ],
 )
 def test_a_search_outside_the_project_fails(
     bounds: checks.Bounds, call: ToolCall
@@ -136,6 +151,39 @@ def test_a_search_outside_the_project_fails(
     assert any(
         "outside the project" in failure
         for failure in _failures(_turn(call), bounds)
+    )
+
+
+def test_a_grep_glob_is_read_from_the_grep_s_own_path(
+    bounds: checks.Bounds,
+) -> None:
+    call = _call(
+        "Grep", pattern="x", path=f"{SET_PATH}/findings", glob="../*.md"
+    )
+
+    assert _failures(_turn(call), bounds) == []
+
+
+@pytest.mark.parametrize("tool", ["Grep", "Glob"])
+def test_a_search_listing_level_notes_fails(
+    bounds: checks.Bounds, tool: str
+) -> None:
+    call = ToolCall(
+        tool,
+        {"pattern": "plan", "output_mode": "files_with_matches"},
+        by_subagent=False,
+        id="search",
+    )
+    listed = ToolResult(
+        "search",
+        f"{SET_PATH}/findings/01-x-web.levels/1.md",
+        is_error=False,
+        by_subagent=False,
+    )
+
+    assert any(
+        ".levels" in failure
+        for failure in _failures(_turn(call, listed), bounds)
     )
 
 
@@ -263,6 +311,44 @@ def test_coverage_before_reading_the_rule_fails(bounds: checks.Bounds) -> None:
     assert _failures(record, bounds) == [
         "states coverage before reading the citing-once rule"
     ]
+
+
+def test_a_failed_rule_read_does_not_count(bounds: checks.Bounds) -> None:
+    record = _turn(
+        ToolCall("Read", {"file_path": str(RULE)}, by_subagent=False, id="r"),
+        ToolResult("r", "Permission denied", is_error=True, by_subagent=False),
+        Text("Coverage: answered", by_subagent=False),
+    )
+
+    assert "states coverage before reading the citing-once rule" in (
+        _failures(record, bounds)
+    )
+
+
+def test_a_partial_rule_read_does_not_count(bounds: checks.Bounds) -> None:
+    record = _turn(
+        _call("Read", file_path=str(RULE), limit=5),
+        Text("Coverage: answered", by_subagent=False),
+    )
+
+    assert "states coverage before reading the citing-once rule" in (
+        _failures(record, bounds)
+    )
+
+
+def test_a_relative_rule_read_resolves_from_the_project(
+    bounds: checks.Bounds, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    elsewhere = tmp_path.joinpath(*"abcdefghijklmnop")
+    elsewhere.mkdir(parents=True)
+    monkeypatch.chdir(elsewhere)
+    relative = os.path.relpath(RULE, bounds.root)
+    record = _turn(
+        _call("Read", file_path=relative),
+        Text("Coverage: answered", by_subagent=False),
+    )
+
+    assert _failures(record, bounds) == []
 
 
 def test_a_rule_read_on_an_earlier_turn_counts(bounds: checks.Bounds) -> None:
