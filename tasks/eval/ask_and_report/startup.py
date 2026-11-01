@@ -43,13 +43,17 @@ class ProbeOutcome:
     rule: Path
 
 
-def _denied(outcome: ProbeOutcome, tools: set[str]) -> bool:
-    return any(
-        denial.get("tool_name") in tools
+def _denied_tools(outcome: ProbeOutcome) -> list[str]:
+    return [
+        str(denial.get("tool_name"))
         for event in outcome.events
         if isinstance(event, Result)
         for denial in event.permission_denials
-    )
+    ]
+
+
+def _denied(outcome: ProbeOutcome, tools: set[str]) -> bool:
+    return any(tool in tools for tool in _denied_tools(outcome))
 
 
 def _result(outcome: ProbeOutcome) -> Result | None:
@@ -63,7 +67,7 @@ def probe_refusal(outcome: ProbeOutcome) -> str | None:
     if (
         outcome.exit_status == 0
         and not failed
-        and not _denied(outcome, {"Read", "Write", "Edit"})
+        and not _denied_tools(outcome)
         and outcome.wrote_probe
     ):
         return None
@@ -91,6 +95,12 @@ def probe_refusal(outcome: ProbeOutcome) -> str | None:
             "--permission-mode acceptEdits did not approve a write in this "
             "untrusted folder, which Claude Code has handled differently "
             "since 2.1.281."
+        )
+    if denied := _denied_tools(outcome):
+        return (
+            f"The authentication probe was denied {', '.join(denied)}: "
+            "every session runs with the same grants, so it would be "
+            "denied too."
         )
     return (
         f"The authentication probe failed: {' '.join(outcome.command)} "
