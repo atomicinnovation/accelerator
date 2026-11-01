@@ -679,8 +679,6 @@ pub fn run_with(
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
-    use std::cell::RefCell;
-
     use tracker::CreatePreview;
     use tracker::ExternalId;
     use tracker::FieldResolution;
@@ -695,10 +693,8 @@ mod tests {
     use work::sync::RequestFingerprint;
     use work_adapters::sync::pending_push;
 
-    use crate::test_support::FakeConfig;
-    use crate::test_support::Faults;
-    use crate::test_support::PluginWorkItemTemplate;
-    use crate::test_support::StubRegistry;
+    use crate::test_support::FixedRegistry;
+    use crate::test_support::PushingRepo;
 
     fn retryable() -> TrackerError {
         TrackerError::Retryable {
@@ -754,23 +750,6 @@ mod tests {
         );
     }
 
-    struct FixedRegistry(RefCell<Option<Box<dyn RemoteTracker>>>);
-
-    impl FixedRegistry {
-        fn holding(tracker: impl RemoteTracker + 'static) -> Self {
-            Self(RefCell::new(Some(Box::new(tracker))))
-        }
-    }
-
-    impl TrackerRegistry for FixedRegistry {
-        fn resolve(
-            &self,
-            _name: &str,
-        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
-            Ok(self.0.borrow_mut().take().expect("resolved more than once"))
-        }
-    }
-
     #[test]
     fn a_transport_failure_previews_as_retryable_not_a_block() {
         let registry = FixedRegistry::holding(
@@ -799,98 +778,6 @@ mod tests {
                 assert!(line.ends_with("GONE\tunresolvable"), "{line}");
             }
             _ => panic!("an unresolvable project must still preview at exit 0"),
-        }
-    }
-
-    struct PushingRepo {
-        root: tempfile::TempDir,
-        config: FakeConfig,
-    }
-
-    impl PushingRepo {
-        fn new() -> Self {
-            Self::configured(&[
-                ("work.integration", "jira"),
-                ("paths.integrations", "integrations"),
-            ])
-        }
-
-        fn tracker_owned() -> Self {
-            Self::configured(&[
-                ("work.id_pattern", "{tracker}"),
-                ("work.integration", "linear"),
-                ("paths.integrations", "integrations"),
-            ])
-        }
-
-        fn configured(pairs: &[(&str, &str)]) -> Self {
-            let root = tempfile::tempdir().expect("tempdir");
-            std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
-            let config = FakeConfig(
-                pairs
-                    .iter()
-                    .map(|(key, value)| {
-                        ((*key).to_owned(), (*value).to_owned())
-                    })
-                    .collect(),
-            );
-            Self { root, config }
-        }
-
-        fn create(&self, tracker: RecordingTracker) -> RunOutcome {
-            self.create_pushing(true, tracker)
-        }
-
-        fn create_pushing(
-            &self,
-            push: bool,
-            tracker: RecordingTracker,
-        ) -> RunOutcome {
-            self.create_with(&Self::args(push), tracker)
-        }
-
-        fn args(push: bool) -> CreateArgs {
-            CreateArgs {
-                title: "A tabled idea".to_owned(),
-                kind: "task".to_owned(),
-                priority: "low".to_owned(),
-                status: "draft".to_owned(),
-                parent: None,
-                tags: Vec::new(),
-                blocks: Vec::new(),
-                blocked_by: Vec::new(),
-                derived_from: Vec::new(),
-                relates_to: Vec::new(),
-                source: None,
-                project: None,
-                author: Some("A Tester".to_owned()),
-                producer: "create-work-item".to_owned(),
-                body_file: None,
-                push,
-                dry_run: false,
-            }
-        }
-
-        fn create_with(
-            &self,
-            args: &CreateArgs,
-            tracker: RecordingTracker,
-        ) -> RunOutcome {
-            run(
-                self.root.path(),
-                &self.config,
-                &PluginWorkItemTemplate,
-                args,
-                &FixedRegistry::holding(tracker),
-            )
-        }
-
-        fn marker(&self) -> PathBuf {
-            work_adapters::sync::pending_push::path(
-                &self.root.path().join("integrations"),
-                "jira",
-                "a-tabled-idea",
-            )
         }
     }
 
@@ -1110,95 +997,6 @@ mod tests {
     }
 
     const KEY: &str = "REC-1";
-
-    /// Which store operations fail, and how many times.
-    type Failing = Option<(fn(&Path) -> bool, usize)>;
-
-    impl PushingRepo {
-        fn tracker_owned_on(integration: &str) -> Self {
-            Self::configured(&[
-                ("work.id_pattern", "{tracker}"),
-                ("work.integration", integration),
-                ("paths.integrations", "integrations"),
-            ])
-        }
-
-        fn push_through(
-            &self,
-            tracker: &Rc<RecordingTracker>,
-            failing: Failing,
-        ) -> RunOutcome {
-            self.run_args(&Self::args(true), tracker, failing)
-        }
-
-        fn run_args(
-            &self,
-            args: &CreateArgs,
-            tracker: &Rc<RecordingTracker>,
-            failing: Failing,
-        ) -> RunOutcome {
-            let (applies, left) = failing.unwrap_or((|_| false, 0));
-            let store_at = move |root: &Path| -> Box<dyn CreationStore> {
-                Box::new(Faults {
-                    inner: FileCorpusStore::new(root),
-                    applies,
-                    left: std::cell::Cell::new(left),
-                    error: crate::test_support::injected,
-                })
-            };
-            run_with(
-                self.root.path(),
-                &self.config,
-                &PluginWorkItemTemplate,
-                args,
-                &mut Seams {
-                    registry: &StubRegistry(Rc::clone(tracker)),
-                    store_at: &store_at,
-                    draws: &mut RandomSuffixDraws,
-                    identity_run: &crate::identity_run::begin,
-                },
-            )
-        }
-
-        fn path(&self, relative: &str) -> PathBuf {
-            self.root.path().join(relative)
-        }
-
-        fn drafts(&self) -> Vec<PathBuf> {
-            std::fs::read_dir(self.path("meta/work/drafts"))
-                .map(|entries| {
-                    entries.flatten().map(|entry| entry.path()).collect()
-                })
-                .unwrap_or_default()
-        }
-
-        fn records_dir(&self) -> PathBuf {
-            self.path("integrations/linear/pending-push")
-        }
-
-        fn records(&self) -> Vec<PathBuf> {
-            std::fs::read_dir(self.records_dir())
-                .map(|entries| {
-                    entries
-                        .flatten()
-                        .map(|entry| entry.path())
-                        .filter(|path| {
-                            path.extension().is_some_and(|ext| ext == "json")
-                        })
-                        .collect()
-                })
-                .unwrap_or_default()
-        }
-
-        fn baseline(&self, integration: &str) -> String {
-            std::fs::read_to_string(
-                self.path(&format!(
-                    "integrations/{integration}/last-sync.json"
-                )),
-            )
-            .unwrap_or_default()
-        }
-    }
 
     fn created(outcome: RunOutcome) -> (Option<PathBuf>, PushReport) {
         match outcome {
