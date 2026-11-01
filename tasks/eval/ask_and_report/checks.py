@@ -59,16 +59,16 @@ class Bounds:
         return path.is_relative_to(self.root.resolve()) or path == self.rule
 
 
-def _pattern_base(pattern: str) -> str | None:
-    """Find the fixed directory a pattern reaches outside its search root."""
-    if not pattern.startswith(("/", "..")):
-        return None
-    fixed = []
-    for part in Path(pattern).parts:
-        if GLOB_CHARACTERS & set(part):
-            break
-        fixed.append(part)
-    return str(Path(*fixed))
+def _reach(search_root: str, pattern: str) -> str:
+    """Find the highest directory a pattern can reach from its search root.
+
+    A wildcard part is taken to match no directory, so a ``..`` after it
+    climbs from the part before it, as far as the pattern can.
+    """
+    fixed = [
+        part for part in Path(pattern).parts if not GLOB_CHARACTERS & set(part)
+    ]
+    return str(Path(search_root, *fixed))
 
 
 def _named_paths(call: ToolCall) -> list[str]:
@@ -77,17 +77,18 @@ def _named_paths(call: ToolCall) -> list[str]:
 
 
 def _searched(call: ToolCall) -> list[str]:
+    search_root = str(call.input.get("path", "."))
     match call.name:
         case "Read":
             return [str(call.input.get("file_path", ""))]
         case "Glob":
-            if "path" in call.input:
-                return [str(call.input["path"])]
-            base = _pattern_base(str(call.input.get("pattern", "")))
-            return [base] if base else []
+            pattern = str(call.input.get("pattern", ""))
+            return [search_root, _reach(search_root, pattern)]
         case "Grep":
-            base = _pattern_base(str(call.input.get("glob", "")))
-            return [str(call.input.get("path", ".")), *([base] if base else [])]
+            reached = [search_root]
+            if "glob" in call.input:
+                reached.append(_reach(search_root, str(call.input["glob"])))
+            return reached
     return []
 
 
@@ -101,6 +102,21 @@ def _search_failures(call: ToolCall, bounds: Bounds) -> Iterator[str]:
     for searched in _searched(call):
         if not bounds.holds(bounds.resolved(searched)):
             yield f"reads outside the project: {searched}"
+
+
+def _listed_level_notes(events: Sequence[Event]) -> Iterator[str]:
+    searches = {
+        event.id
+        for event in events
+        if isinstance(event, ToolCall) and event.name in {"Grep", "Glob"}
+    }
+    for event in events:
+        if (
+            isinstance(event, ToolResult)
+            and event.tool_use_id in searches
+            and ".levels/" in event.content
+        ):
+            yield "a search lists files under .levels"
 
 
 def _expands_outside_single_quotes(command: str) -> bool:
@@ -210,17 +226,32 @@ def _states_coverage(event: Event) -> bool:
     )
 
 
+def _rule_reads(events: Sequence[Event], bounds: Bounds) -> set[int]:
+    """Find the positions of each whole, successful Read of the rule."""
+    failed = {
+        event.tool_use_id
+        for event in events
+        if isinstance(event, ToolResult) and event.is_error
+    }
+    return {
+        position
+        for position, event in enumerate(events)
+        if isinstance(event, ToolCall)
+        and event.name == "Read"
+        and event.id not in failed
+        and not {"offset", "limit"} & event.input.keys()
+        and bounds.resolved(str(event.input.get("file_path", "")))
+        == bounds.rule
+    }
+
+
 def _coverage_before_the_rule(record: TurnRecord, bounds: Bounds) -> bool:
     earlier = [event for turn in record.earlier for event in turn]
-    read = any(
-        isinstance(e, ToolCall) and e.reads(bounds.rule) for e in earlier
+    events = [*earlier, *record.events]
+    first_read = min(_rule_reads(events, bounds), default=len(events))
+    return any(
+        _states_coverage(event) for event in events[len(earlier) : first_read]
     )
-    for event in record.events:
-        if isinstance(event, ToolCall) and event.reads(bounds.rule):
-            read = True
-        if _states_coverage(event) and not read:
-            return True
-    return False
 
 
 def turn_check_failures(record: TurnRecord, bounds: Bounds) -> list[str]:
@@ -229,6 +260,7 @@ def turn_check_failures(record: TurnRecord, bounds: Bounds) -> list[str]:
         for event in record.events
         for failure in _event_failures(event, record, bounds)
     ]
+    failures += _listed_level_notes(record.events)
     if _coverage_before_the_rule(record, bounds):
         failures.append("states coverage before reading the citing-once rule")
     set_prefix = f"{SET.as_posix()}/"
@@ -248,9 +280,6 @@ def session_check_failures(
     records: Sequence[TurnRecord], bounds: Bounds
 ) -> list[str]:
     every = [event for record in records for event in record.events]
-    if any(map(_states_coverage, every)) and not any(
-        isinstance(event, ToolCall) and event.reads(bounds.rule)
-        for event in every
-    ):
+    if any(map(_states_coverage, every)) and not _rule_reads(every, bounds):
         return ["states coverage but never reads the citing-once rule"]
     return []
