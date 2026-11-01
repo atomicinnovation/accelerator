@@ -14,7 +14,6 @@ use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
-use work_adapters::config::SchemeError;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
@@ -34,48 +33,6 @@ pub enum RunOutcome {
         message: String,
         code: u8,
     },
-}
-
-fn overflow_message(
-    highest: u64,
-    highest_file: Option<&str>,
-    cap: u64,
-    pattern: &str,
-) -> String {
-    if highest > cap {
-        format!(
-            "E_PATTERN_OVERFLOW: out-of-width file '{}' has number \
-             {highest} exceeding the pattern '{pattern}' cap of {cap}. \
-             Rename the stray file or widen the pattern.",
-            highest_file.unwrap_or("<unknown>")
-        )
-    } else {
-        format!(
-            "E_PATTERN_OVERFLOW: pattern '{pattern}' number space \
-             exhausted (highest={highest}, cap={cap}). Archive completed \
-             work items or widen the pattern."
-        )
-    }
-}
-
-fn allocation_message(error: &AllocationError, pattern: &str) -> String {
-    match error {
-        AllocationError::MissingKey => format!(
-            "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
-             {{key}} prefix but no value supplied — pass --project or set \
-             work.key"
-        ),
-        AllocationError::ProjectUnused => format!(
-            "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
-             '{pattern}' (no {{key}} token)"
-        ),
-        AllocationError::InvalidProject(reason) => {
-            SchemeError::invalid_project(reason).to_string()
-        }
-        AllocationError::Overflow { .. } => {
-            unreachable!("Overflow is handled by the caller separately")
-        }
-    }
 }
 
 fn mint_drafts(work_dir: &Path, count: u32) -> RunOutcome {
@@ -122,13 +79,11 @@ pub fn run(
             return RunOutcome::Refused { message, code };
         }
     };
+    let shown_dir = work_dir.strip_prefix(&root).unwrap_or(&work_dir);
     let key = match allocation_key(pattern, project, scheme.key()) {
         Ok(key) => key,
         Err(error) => {
-            return RunOutcome::Failed(allocation_message(
-                &error,
-                pattern.as_str(),
-            ))
+            return RunOutcome::Failed(error.message(pattern, shown_dir))
         }
     };
     if pattern.is_tracker_owned() {
@@ -138,22 +93,14 @@ pub fn run(
     let filenames = FilesystemLister::new(&work_dir).filenames();
     match allocate(&scheme, key.as_ref(), count, &filenames) {
         Ok(ids) => RunOutcome::Allocated(ids),
-        Err(AllocationError::Overflow {
-            partial,
-            highest,
-            highest_file,
-            cap,
-        }) => RunOutcome::Overflow {
-            partial,
-            message: overflow_message(
-                highest,
-                highest_file.as_deref(),
-                cap,
-                pattern.as_str(),
-            ),
-        },
-        Err(other) => {
-            RunOutcome::Failed(allocation_message(&other, pattern.as_str()))
+        Err(error) => {
+            let message = error.message(pattern, shown_dir);
+            match error {
+                AllocationError::Overflow { partial, .. } => {
+                    RunOutcome::Overflow { partial, message }
+                }
+                _ => RunOutcome::Failed(message),
+            }
         }
     }
 }
