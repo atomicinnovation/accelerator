@@ -167,23 +167,23 @@
 //!   preview and discarding never select one.
 //!
 //! Every command that reads the ID scheme (`create`, `create-batch`,
-//! `id next`, `resolve`, `list`, `promote`, `rekey` and `sync`) reports
-//! its config refusals at start, each exiting `1` and naming the setting and
-//! value: `E_WORK_ID_PATTERN_INVALID`, `E_WORK_KEY_INVALID` and
+//! `id next`, `id check`, `resolve`, `list`, `promote`, `rekey` and `sync`)
+//! reports its config refusals at start, each exiting `1` and naming the
+//! setting and value: `E_WORK_ID_PATTERN_INVALID`, `E_WORK_KEY_INVALID` and
 //! `E_WORK_KEY_REQUIRED`. `list` reads the scheme without requiring a key, so
 //! it never gives `E_WORK_KEY_REQUIRED`, and `id canonicalise` maps them to
 //! its own `E_PATTERN*` codes. Commands that never read the scheme (`show`,
 //! `diff`, `update`, `template-hints`, `link-external-id`) do not refuse.
 //!
 //! `work sync`, `work promote`, `work create`, `work create-batch`,
-//! `work id next` and `work update --push` hold the identity-run lock
-//! for their whole run, and before reading or writing anything refuse with
-//! `E_REKEY_IN_PROGRESS` (`4`) while a re-key is in progress,
-//! `E_REKEY_PLAN_UNREADABLE` (`4`) while its plan cannot be read, and
-//! `E_IDENTITY_RUN_BUSY` (`1`) when another identity command still holds the
-//! lock after a 60 s wait. `work create --push` refuses too, writing nothing:
-//! a deliberate exception to its save-intent contract, as plain `work create`
-//! refuses.
+//! `work id next`, `work id check` and `work update --push` hold the
+//! identity-run lock for their whole run, and before reading or writing
+//! anything refuse with `E_REKEY_IN_PROGRESS` (`4`) while a re-key is in
+//! progress, `E_REKEY_PLAN_UNREADABLE` (`4`) while its plan cannot be read,
+//! and `E_IDENTITY_RUN_BUSY` (`1`) when another identity command still holds
+//! the lock after a 60 s wait. `work create --push` refuses too, writing
+//! nothing: a deliberate exception to its save-intent contract, as plain
+//! `work create` refuses.
 //!
 //! `work create --id` refuses an ID it cannot write under, after the
 //! identity-run refusals and the config refusals above, writing nothing and
@@ -192,6 +192,8 @@
 //! order. Each exits `1`, deliberately: `work create`'s other argument
 //! refusals (`E_PATTERN_*`, `E_WORK_*`) already do, although the `1` band
 //! reads "an internal error" and other collision refusals exit `4`.
+//! `work id check` gives the same refusals, exiting `1`, except
+//! `E_ID_WITH_PROJECT`, since it takes no `--project`.
 
 use tracker::TrackerError;
 

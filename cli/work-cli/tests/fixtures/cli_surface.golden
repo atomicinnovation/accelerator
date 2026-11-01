@@ -12,7 +12,7 @@ Commands:
   create-batch      Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took
   update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
-  id                Work-item IDs: canonicalise an existing item's ID, or see the IDs allocation would give next
+  id                Work-item IDs: canonicalise an existing item's ID, see the IDs allocation would give next, or check an ID for a new item
   list              List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
   sync              Reconcile local work items with the configured remote tracker (`work.integration`)
   promote           Promote one draft onto an issue the tracker creates for it, under `work.id_pattern: "{tracker}"`: the draft ID is retired to the tracker key across `meta/`, as `work sync` does for every draft
@@ -88,7 +88,7 @@ Options:
       --relates-to <RELATES_TO>      A related work item; repeatable
       --source <SOURCE>              The source document reference
       --project <PROJECT>            The project code, when the configured pattern needs one
-      --id <ID>                      The exact ID to write the item under, as `work.id_pattern` renders it (e.g. `0400` or `PP-0400`), instead of the next allocated number; automatic numbering continues above the highest number already used (per key under a key pattern), so an ID above it moves the sequence there. Refused, writing nothing, with `--project`, under `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact shape, and for an ID a work item already holds (see `exit_codes`)
+      --id <ID>                      The exact ID to write the item under, as `work.id_pattern` renders it (e.g. `0400` or `PP-0400`), instead of the next allocated number; automatic numbering continues above the highest number already used (per key under a key pattern), so an ID above it moves the sequence there. Refused, writing nothing, with `--project`, under `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact shape, and for an ID a work item already holds (see `exit_codes`). Check one first with `work id check`
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
@@ -153,13 +153,14 @@ Options:
   -h, --help  Print help
 
 === accelerator-work id --help ===
-Work-item IDs: canonicalise an existing item's ID, or see the IDs allocation would give next
+Work-item IDs: canonicalise an existing item's ID, see the IDs allocation would give next, or check an ID for a new item
 
 Usage: accelerator-work id <COMMAND>
 
 Commands:
   canonicalise  Canonicalise an existing work item's ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one), for referring to that item
   next          Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  check         Check an ID for a new work item, writing nothing. Prints `exact\t<id>` when the ID is in the pattern's exact shape, `other-key\t<id>\t<key>` when it is but its key differs from the configured key, or `corrected\t<id>` when padding its number or adding `work.key` makes it so; on either of the last two, a third field names the configured key when the ID's key differs from it. Pass the printed ID to `work create --id`. A request with no correction is refused as typed; a correctable one is checked, and refused if need be, in its corrected form, with the `E_ID_*` code `work create --id` gives that form (see `exit_codes`). A pass reserves nothing. An ID an interrupted `--push` create wrote reports `E_ID_TAKEN`: that item is saved unsynced, so check the tracker and reconcile it with `/sync-work-items`
   help          Print this message or the help of the given subcommand(s)
 
 Options:
@@ -194,6 +195,17 @@ Options:
 
   -h, --help
           Print help (see a summary with '-h')
+
+=== accelerator-work id check --help ===
+Check an ID for a new work item, writing nothing. Prints `exact\t<id>` when the ID is in the pattern's exact shape, `other-key\t<id>\t<key>` when it is but its key differs from the configured key, or `corrected\t<id>` when padding its number or adding `work.key` makes it so; on either of the last two, a third field names the configured key when the ID's key differs from it. Pass the printed ID to `work create --id`. A request with no correction is refused as typed; a correctable one is checked, and refused if need be, in its corrected form, with the `E_ID_*` code `work create --id` gives that form (see `exit_codes`). A pass reserves nothing. An ID an interrupted `--push` create wrote reports `E_ID_TAKEN`: that item is saved unsynced, so check the tracker and reconcile it with `/sync-work-items`
+
+Usage: accelerator-work id check <ID>
+
+Arguments:
+  <ID>  The requested ID
+
+Options:
+  -h, --help  Print help
 
 === accelerator-work list --help ===
 List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it

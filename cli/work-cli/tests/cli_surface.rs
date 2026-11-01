@@ -21,6 +21,7 @@ const SUBCOMMANDS: &[&[&str]] = &[
     &["id"],
     &["id", "canonicalise"],
     &["id", "next"],
+    &["id", "check"],
     &["list"],
     &["sync"],
     &["promote"],
