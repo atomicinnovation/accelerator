@@ -43,7 +43,7 @@ class Preflight:
     power_source: str | NoReading
     mise_jobs: int | NoReading
     tracked: tuple[TrackedProcess, ...]
-    running: tuple[str, ...]
+    running: tuple[str, ...] | NoReading
     ide_commands: tuple[str, ...]
     keep: bool
 
@@ -70,29 +70,36 @@ def _preflight_warnings(preflight: Preflight) -> Iterator[str]:
         yield "the working copy does not match the measured commit"
     if preflight.power_source != AC_POWER:
         yield f"the host is on {preflight.power_source}, not {AC_POWER}"
+    if isinstance(preflight.running, NoReading):
+        yield f"the tracked processes are unknown: {preflight.running}"
+        return
     for name in RETAKE_WHEN_MISSING:
         if name not in preflight.running:
             yield f"{name} is not running"
 
 
-def preflight_report(preflight: Preflight) -> str:
+def _tracked_processes(preflight: Preflight) -> Iterator[str]:
+    running = preflight.running
+    if isinstance(running, NoReading):
+        yield f"  tracked processes: {running}"
+        return
+    yield f"  tracked processes running: {', '.join(running)}"
     not_running = [
-        each.name
-        for each in preflight.tracked
-        if each.name not in preflight.running
+        each.name for each in preflight.tracked if each.name not in running
     ]
+    if not_running:
+        yield f"  tracked processes not running: {', '.join(not_running)}"
+
+
+def preflight_report(preflight: Preflight) -> str:
     lines = [
         "preflight:",
         f"  commit: {preflight.commit}, {_working_copy(preflight)}",
         f"  host settings: {preflight.host_settings}",
         f"  power: {preflight.power_source}",
         f"  mise jobs: {preflight.mise_jobs}",
-        f"  tracked processes running: {', '.join(preflight.running)}",
+        *_tracked_processes(preflight),
     ]
-    if not_running:
-        lines.append(
-            f"  tracked processes not running: {', '.join(not_running)}"
-        )
     if preflight.ide_commands:
         lines.append("  IDE command lines matched:")
         lines.extend(f"    {command}" for command in preflight.ide_commands)

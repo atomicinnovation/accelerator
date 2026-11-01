@@ -22,6 +22,7 @@ from tasks.shared.build_measurement.reports import (
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
+    PS_ARGV,
 )
 from tests.unit.tasks.shared.build_measurement.doubles import (
     measured_build,
@@ -240,6 +241,9 @@ def _preflight(**overrides) -> Preflight:
     )
 
 
+_NO_PS_READING = NoReading(argv=PS_ARGV)
+
+
 def _warnings(preflight: Preflight) -> list[str]:
     return [
         line
@@ -275,6 +279,21 @@ class TestPreflightReport:
             "  commit: d55cad6d85, working copy differs in 7 paths: "
             "file-0, file-1, file-2, file-3, file-4, …"
         )
+
+    def test_unread_tracked_processes_are_reported_as_unknown(self):
+        report = preflight_report(
+            _preflight(running=_NO_PS_READING, ide_commands=(), keep=False)
+        ).splitlines()
+        assert f"  tracked processes: {_NO_PS_READING}" in report
+        assert not any("not running" in line for line in report)
+
+    def test_unread_tracked_processes_give_one_warning_with_keep(self):
+        assert _warnings(
+            _preflight(running=_NO_PS_READING, ide_commands=())
+        ) == [
+            "warning: with --keep, the tracked processes are unknown: "
+            f"{_NO_PS_READING}"
+        ]
 
     def test_a_clean_preflight_with_keep_warns_of_nothing(self):
         assert _warnings(_preflight()) == []

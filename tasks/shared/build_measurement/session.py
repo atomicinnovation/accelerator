@@ -43,6 +43,7 @@ from tasks.shared.build_measurement.provenance import (
     measured_commit,
 )
 from tasks.shared.build_measurement.record import run_id
+from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
     Preflight,
     SessionOutcome,
@@ -242,11 +243,8 @@ class _Session:
         )
 
     def _preflight(self, provenance: _Provenance) -> None:
-        try:
-            ps_output = self.ports.diagnostics(PS_ARGV)
-        except FileNotFoundError, PermissionError:
-            ps_output = ""
         tracked = self.settings.tracked
+        running, ide_commands = self._tracked_now(tracked)
         self._progress(
             preflight_report(
                 Preflight(
@@ -256,16 +254,25 @@ class _Session:
                     power_source=self.host.power.source,
                     mise_jobs=provenance.mise.jobs,
                     tracked=tracked,
-                    running=running_tracked(ps_output, tracked),
-                    ide_commands=tuple(
-                        command
-                        for each in tracked
-                        if each.name == IDE
-                        for command in matching_commands(ps_output, each)
-                    ),
+                    running=running,
+                    ide_commands=ide_commands,
                     keep=self.settings.keep,
                 )
             )
+        )
+
+    def _tracked_now(
+        self, tracked: tuple[TrackedProcess, ...]
+    ) -> tuple[tuple[str, ...] | NoReading, tuple[str, ...]]:
+        try:
+            ps_output = self.ports.diagnostics(PS_ARGV)
+        except FileNotFoundError, PermissionError:
+            return NoReading(argv=PS_ARGV), ()
+        return running_tracked(ps_output, tracked), tuple(
+            command
+            for each in tracked
+            if each.name == IDE
+            for command in matching_commands(ps_output, each)
         )
 
     def _idle_load(self) -> float | None:

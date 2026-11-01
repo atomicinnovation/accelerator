@@ -8,6 +8,7 @@ from tasks.shared.build_measurement.errors import (
     UnsupportedPlatformError,
 )
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
+from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.session import (
     IDLE_SAMPLE_SECONDS,
     OrphanedBuild,
@@ -404,6 +405,19 @@ class TestProgress:
         )
         assert f"    {IDE_COMMAND}" in preflight.splitlines()
         assert PS_ARGV in session.diagnostics_calls
+
+    def test_a_failed_ps_probe_leaves_the_tracked_processes_unknown(
+        self, session
+    ):
+        session.probes[PS_ARGV] = FileNotFoundError("ps")
+        session.measure(runs=1)
+        [preflight] = [
+            line for line in session.progress if line.startswith("preflight:")
+        ]
+        assert (
+            f"  tracked processes: {NoReading(argv=PS_ARGV)}"
+            in preflight.splitlines()
+        )
 
     def test_settings_track_the_default_processes_without_ide_patterns(
         self, session
