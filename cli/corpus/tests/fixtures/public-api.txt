@@ -647,6 +647,7 @@ pub fn corpus::metadata::FilenameTimestampFormat::fmt(&self, f: &mut core::fmt::
 impl core::marker::Copy for corpus::metadata::FilenameTimestampFormat
 impl core::marker::StructuralPartialEq for corpus::metadata::FilenameTimestampFormat
 pub struct corpus::metadata::ArtifactMetadata
+pub corpus::metadata::ArtifactMetadata::author: core::option::Option<alloc::string::String>
 pub corpus::metadata::ArtifactMetadata::datetime_utc: alloc::string::String
 pub corpus::metadata::ArtifactMetadata::filename_timestamp: alloc::string::String
 pub corpus::metadata::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
@@ -660,6 +661,7 @@ impl core::fmt::Debug for corpus::metadata::ArtifactMetadata
 pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
 pub struct corpus::metadata::RepositoryFacts
+pub corpus::metadata::RepositoryFacts::author: core::option::Option<alloc::string::String>
 pub corpus::metadata::RepositoryFacts::name: alloc::string::String
 pub corpus::metadata::RepositoryFacts::revision: core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::metadata::RepositoryFacts
@@ -1259,6 +1261,7 @@ impl core::fmt::Debug for corpus::typed_ref::TypedRef
 pub fn corpus::typed_ref::TypedRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::typed_ref::TypedRef
 pub struct corpus::ArtifactMetadata
+pub corpus::ArtifactMetadata::author: core::option::Option<alloc::string::String>
 pub corpus::ArtifactMetadata::datetime_utc: alloc::string::String
 pub corpus::ArtifactMetadata::filename_timestamp: alloc::string::String
 pub corpus::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
@@ -1322,6 +1325,7 @@ impl core::fmt::Debug for corpus::record::Record
 pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::record::Record
 pub struct corpus::RepositoryFacts
+pub corpus::RepositoryFacts::author: core::option::Option<alloc::string::String>
 pub corpus::RepositoryFacts::name: alloc::string::String
 pub corpus::RepositoryFacts::revision: core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::metadata::RepositoryFacts
