@@ -2969,7 +2969,7 @@ within each run.
 
 #### Manual Verification:
 
-- [ ] `mise run measure:build -- --isolate test:unit:cli --runs 1` reports a
+- [x] `mise run measure:build -- --isolate test:unit:cli --runs 1` reports a
       nextest phase close to the one in the research document's isolated
       phase table (149 s), adjusted for whatever has landed since.
 
@@ -4065,9 +4065,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 ## Implementation Notes
 
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
-Phase 5 is complete and not yet pushed. Phase 6's code is complete; its
-manual run and its after-merge work-item edits are outstanding. Phases 7–10
-have not started.
+Phase 5 is complete and not yet pushed. Phase 6 is complete apart from its
+after-merge work-item edits. Phases 7–10 have not started.
 
 ### Phase 6 isolation mode
 
@@ -4094,6 +4093,13 @@ Where the phase departed from the plan:
   `test_session.py`.
 - **Task set.** An isolated record's `task_set` stays the `default`
   closure, as the schema is unchanged.
+- **Manual run.** `build_2026-11-01T201329Z_engywook_warm-no-op_devtools_isolated`
+  (not kept), at `bc16c8bb` on AC power, idle load 30.4%: nextest phase
+  171.4 s, the log's own `Summary` figure, against the research's 149 s.
+  The suite has grown from 6,407 to 6,609 tests, which scales 149 s to
+  about 154 s, and the IDE used 310 CPU-seconds in the 315 s run. The
+  priming run's phase was 165.7 s. Task duration 315.1 s against the
+  research's 247 s, and queueing 0.1 s from the invocation's start.
 
 ### Phases 1–4 review round
 
