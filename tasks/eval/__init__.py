@@ -105,15 +105,21 @@ def _claude_version_allowed(root: Path) -> str:
     return version
 
 
-def _recorded_settings(
-    directory: Path, model: str, config_dir: str
-) -> tuple[str, str]:
+def _run_settings(
+    directory: Path,
+    given: ask_and_report_runs.RunSettings,
+    check_only: bool,
+    rerun_errored: bool,
+) -> ask_and_report_runs.RunSettings:
+    recorded_run = (directory / ask_and_report_runs.RESULTS).exists()
+    if not (rerun_errored or (check_only and recorded_run)):
+        return given
     recorded = ask_and_report_runs.load_settings(directory)
-    if conflict := ask_and_report_runs.settings_conflict(
-        recorded, model, config_dir
+    if rerun_errored and (
+        conflict := ask_and_report_runs.settings_conflict(recorded, given)
     ):
         raise Exit(conflict, code=1)
-    return recorded.model, recorded.config_dir
+    return recorded
 
 
 def _sessions_to_run(
@@ -188,11 +194,16 @@ def ask_and_report(
     if problems := preflight_problems(files, evals, toolchain):
         raise Exit("\n".join(problems), code=1)
     directory = Path(out) if out else Path(tempfile.mkdtemp(prefix="ask-"))
-    if rerun_errored:
-        model, config_dir = _recorded_settings(directory, model, config_dir)
-    settings = ask_and_report_runs.RunSettings(version, model, config_dir)
-    flags = turn_flags(root, model or None)
-    env = session_env(toolchain, Path(config_dir) if config_dir else None)
+    settings = _run_settings(
+        directory,
+        ask_and_report_runs.RunSettings(version, model, config_dir),
+        check_only,
+        rerun_errored,
+    )
+    flags = turn_flags(root, settings.model or None)
+    env = session_env(
+        toolchain, Path(settings.config_dir) if settings.config_dir else None
+    )
     try:
         if not check_only and (
             refusal := authentication_refusal(root, evals, flags, env)
