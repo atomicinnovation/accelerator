@@ -13,7 +13,7 @@ blocks: ["work-item:PP-868"]
 blocked_by: ["work-item:PP-861", "work-item:PP-863", "work-item:PP-864", "work-item:PP-866", "work-item:PP-892"]
 relates_to: ["work-item:PP-867", "work-item:PP-868", "work-item:PP-891", "work-item:PP-897", "work-item:PP-923", "work-item:PP-936"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-10-31T16:02:54+00:00"
+last_updated: "2026-11-01T20:26:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -90,7 +90,9 @@ from the current findings, with the VCS as its history.
       `source_profiles` or not installed — is not research `conduct` can
       do: it holds back only an item with no answered pair, and that
       refusal names `conduct`'s skipped-pair recovery (add the profile to
-      the brief, or fix its name in the outline) instead of `conduct SLUG`.
+      the brief, or fix its name in the outline) before closing with
+      `conduct SLUG` then `synthesise SLUG`, since fixing the brief or
+      outline leaves the pair for `conduct` to research.
   - The CLI owns the count rule and the gates, so no verb counts files or
     orders gates itself. Neither command writes anything:
     - `accelerator research topic counts SLUG` derives `round_count`,
