@@ -10,7 +10,6 @@ SESSION_TIMEOUT = 1800
 
 
 def common_flags(plugin_root: Path, allowed_tools: Sequence[str]) -> list[str]:
-    """Return the flags every eval session passes, whatever its grant."""
     return [
         "--plugin-dir",
         str(plugin_root),
