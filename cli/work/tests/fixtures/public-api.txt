@@ -2082,6 +2082,8 @@ pub enum work::sync::push_precondition::MarkerState<'a>
 pub work::sync::push_precondition::MarkerState::Absent
 pub work::sync::push_precondition::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::push_precondition::MarkerState::Unreadable
+impl<'a> work::sync::push_precondition::MarkerState<'a>
+pub const fn work::sync::push_precondition::MarkerState<'a>::of<E>(parsed: &'a core::result::Result<core::option::Option<work::sync::push_precondition::PendingPush>, E>) -> Self
 pub enum work::sync::push_precondition::OrderPrecondition<C>
 pub work::sync::push_precondition::OrderPrecondition::Adopt(tracker::ExternalId)
 pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere
@@ -2422,6 +2424,8 @@ pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::MarkerState::Unreadable
+impl<'a> work::sync::push_precondition::MarkerState<'a>
+pub const fn work::sync::push_precondition::MarkerState<'a>::of<E>(parsed: &'a core::result::Result<core::option::Option<work::sync::push_precondition::PendingPush>, E>) -> Self
 pub enum work::sync::OrderPrecondition<C>
 pub work::sync::OrderPrecondition::Adopt(tracker::ExternalId)
 pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere

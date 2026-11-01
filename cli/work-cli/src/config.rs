@@ -59,6 +59,35 @@ pub fn announced_scheme(
     read_scheme(config).map(announced)
 }
 
+pub struct WorkItemLocation {
+    pub scheme: WorkItemIdScheme,
+    pub root: PathBuf,
+    pub work_dir: PathBuf,
+}
+
+/// The opening every command that writes or allocates IDs shares: the
+/// scheme, its deprecation notice printed once, then the repository root
+/// and the work directory. It creates nothing.
+///
+/// # Errors
+///
+/// A message when the scheme or the work directory cannot be read.
+pub fn locate_work_items(
+    start: &Path,
+    config: &dyn ConfigAccess,
+) -> Result<WorkItemLocation, String> {
+    let scheme =
+        announced_scheme_with_key(config).map_err(|error| error.to_string())?;
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let work_dir =
+        resolve_work_dir(config, &root).map_err(|error| error.to_string())?;
+    Ok(WorkItemLocation {
+        scheme,
+        root,
+        work_dir,
+    })
+}
+
 pub fn templates_dir(
     config: &dyn ConfigAccess,
 ) -> Result<String, kernel::Error> {

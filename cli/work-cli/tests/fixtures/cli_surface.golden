@@ -8,7 +8,7 @@ Commands:
   template-hints    Print the work-item template's hint values for a frontmatter field (e.g. `kind`, `status`, `priority`), one per line. Always exits 0
   show              Print a work item: the whole file, or a single frontmatter field
   diff              Show a per-section diff between two work-item-shaped files, for conflict-resolution review. `local` is the `-` side, `remote` is the `+` side
-  create            Atomically create a new work item under the configured pattern, self-allocating its own ID
+  create            Atomically create a new work item under the configured pattern, allocating its own ID unless `--id` names it
   create-batch      Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took
   update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
@@ -70,7 +70,7 @@ Options:
   -h, --help  Print help
 
 === accelerator-work create --help ===
-Atomically create a new work item under the configured pattern, self-allocating its own ID
+Atomically create a new work item under the configured pattern, allocating its own ID unless `--id` names it
 
 Usage: accelerator-work create [OPTIONS] <TITLE> <KIND> <PRIORITY>
 
@@ -89,6 +89,7 @@ Options:
       --relates-to <RELATES_TO>      A related work item; repeatable
       --source <SOURCE>              The source document reference
       --project <PROJECT>            The project code, when the configured pattern needs one
+      --id <ID>                      The exact ID to write the item under, as `work.id_pattern` renders it (e.g. `0400` or `PP-0400`), instead of the next allocated number; automatic numbering continues above the highest number already used (per key under a key pattern), so an ID above it moves the sequence there. Refused, writing nothing, with `--project`, under `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact shape, and for an ID a work item already holds (see `exit_codes`)
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body

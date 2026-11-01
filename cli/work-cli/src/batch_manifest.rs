@@ -72,6 +72,7 @@ impl ManifestEntry {
             producer: authorship.producer.to_owned(),
             body_file: self.body_file.clone(),
             push: authorship.push,
+            id: None,
             dry_run: false,
         }
     }
