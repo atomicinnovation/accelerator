@@ -2533,3 +2533,16 @@ def test_a_reply_prompt_ends_its_turn() -> None:
     )
     assert "A reply prompt is the last line of its turn" in before_proposing
     assert "such as a warning about planted instructions" in before_proposing
+
+
+def test_coverage_names_each_part_in_the_question_s_own_words() -> None:
+    judge = _section(_consult(), "**Judge coverage.**", "**Present.**")
+    assert "Name each part in the question's own words" in judge
+
+
+def test_consulting_finds_what_bears_on_the_question_by_reading() -> None:
+    read = _section(_consult(), "**Read.**", "**Judge coverage.**")
+    assert (
+        "Find what bears on the question by reading those files, never by "
+        "searching them"
+    ) in read
