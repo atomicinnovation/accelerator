@@ -9,7 +9,6 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 last_updated: "2026-10-29T19:46:28+00:00"
@@ -111,11 +110,10 @@ and became the last task to finish.
 
 ## Dependencies
 
-- Blocked by: 0368's `measure:build` harness and its warm no-op
-  baseline. 0361 measures its 200 s target against that baseline, so it
-  must be recorded before any part of this item merges. Work may start
-  before then; only merging waits. Remove the `blocked_by` edge once that
-  baseline is recorded.
+- Blocked by: none. 0368's warm no-op baseline, which 0361 measures its
+  200 s target against, is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+  so this item may merge.
 - Blocks: none
 
 ## Assumptions

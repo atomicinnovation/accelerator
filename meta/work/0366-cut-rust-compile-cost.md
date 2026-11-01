@@ -99,13 +99,13 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Dependencies
 
-- Blocked by: 0368's `measure:build` harness and its warm no-op
-  baseline. 0361 measures its 200 s target against that baseline, so it
-  must be recorded before any part of this item merges. Work may start
-  before then; only merging waits. This item also needs 0368's cold
-  cache state (its Requirement 4) merged first, because its unit-count
-  criterion and debug-info trial compare cold records. Remove the
-  `blocked_by` edge once both the baseline and the cold state are in.
+- Blocked by: 0368's cold cache state (its Requirement 4), because this
+  item's unit-count criterion and debug-info trial compare cold records.
+  0368's warm no-op baseline, which 0361 measures its 200 s target
+  against, is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+  so the edge now waits for the cold state only. Remove it once the cold
+  state is in.
 - Blocked by: 0362, which lands first. Collapsing the debug builds must
   keep `test:integration:hooks`'s launcher and `accelerator-vcs` builds
   working, and the debug-info trial changes the launcher size that 0362's

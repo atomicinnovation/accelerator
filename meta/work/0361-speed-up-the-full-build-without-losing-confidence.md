@@ -124,6 +124,13 @@ and per-finding evidence. The combined what-if result is what the 200 s
 target was set from: 244 s with five quick wins, and 170–190 s projected
 once the log-rotation tests are fixed.
 
+The 200 s criterion compares against 0368's warm no-op baseline,
+`meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`
+(median 315.1 s over three runs at `007b2dd6`, `devtools` host
+settings). The closing comparison runs
+`mise run measure:compare-builds -- <baseline> <final>`, whose first line
+must report no differing condition.
+
 ## Drafting Notes
 
 - Grouped the research's A/B/C recommendations into seven children, as

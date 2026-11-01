@@ -10,7 +10,6 @@ kind: "task"
 priority: "high"
 parent: "work-item:0361"
 blocks: ["work-item:0366"]
-blocked_by: ["work-item:0368"]
 relates_to: ["work-item:0165", "work-item:0182"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "ci"]
@@ -173,11 +172,10 @@ None.
 
 ## Dependencies
 
-- Blocked by: 0368's `measure:build` harness and its warm no-op
-  baseline. 0361 measures its 200 s target against that
-  baseline, so it must be recorded before any part of this item merges,
-  A1 included. Work may start before then; only merging waits. Remove the
-  `blocked_by` edge once that baseline is recorded.
+- Blocked by: none. 0368's warm no-op baseline, which 0361 measures its
+  200 s target against, is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+  so this item may merge.
 - Blocks: 0366, which reshapes what this item builds on: the
   `build:cli:dev` and `build:cli:vcs:dev` edges the hooks suite uses, the
   in-pytest builds, and the debug launcher's size, which the speed ratios

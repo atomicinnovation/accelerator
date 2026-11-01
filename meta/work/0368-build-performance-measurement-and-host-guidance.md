@@ -9,7 +9,7 @@ status: "ready"
 kind: "task"
 priority: "high"
 parent: "work-item:0361"
-blocks: ["work-item:0362", "work-item:0363", "work-item:0364", "work-item:0365", "work-item:0366", "work-item:0367"]
+blocks: ["work-item:0365", "work-item:0366"]
 relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
@@ -352,14 +352,11 @@ None.
   have each landed or been abandoned. That is not a `blocked_by` edge,
   since this item blocks those three and only one requirement waits on
   them.
-- Blocks: 0362, 0363, 0364, 0365, 0366 and 0367, through Requirements 1,
-  2, 5 and 7 alone: the warm full-run path of the `measure:build` harness
-  and its warm no-op baseline. The edge gates merging only, and is
-  discharged once the baseline is recorded, whether or not this item is
-  done, except for two consumers: 0365 also waits for Requirement 3 and
-  0366 for Requirement 4 (see Consumers). Isolation mode and the
-  incremental and cold states may land after the baseline, and the host
-  guidance (Requirements 8–9) blocks nothing.
+- Blocks: 0365 and 0366 only. The warm no-op baseline is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+  which discharged the edge to 0362, 0363, 0364 and 0367. 0365 still
+  waits for Requirement 3 and 0366 for Requirement 4 (see Consumers).
+  The host guidance (Requirements 8–9) blocks nothing.
 - Consumers: 0365 compares the nextest phase of an isolated
   `test:unit:cli` (Requirements 1 and 3); 0366 counts cold compile units
   (Requirement 4), comparing cold records before and after its change.
