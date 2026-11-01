@@ -451,7 +451,9 @@ to compare with the baseline):
   changes nothing: `none`, `devtools` (the terminal and IDE are in the
   Developer Tools list in System Settings › Privacy & Security) or
   `devtools+ide-exclusion` (the IDE also excludes the build's output folders).
-  Omitted, it records `unspecified`, which compares with no other record.
+  Omitted, it records `unspecified`, which compares with no other record. The
+  steps for each setting are in
+  [Faster local builds on macOS](../CONTRIBUTING.md#faster-local-builds-on-macos).
 - keep the IDE open on the project, so the IDE and `fsnotifier` are measured.
 - make no commit in any workspace while a run is going: the launcher's
   `build.rs` watches the parent `.git/HEAD`.

@@ -1349,6 +1349,7 @@ class TestMeasureNamespaceDocs:
             "--cache-state cold",
             "cold-trash-",
             ".accelerator-dev-launcher",
+            "CONTRIBUTING.md#faster-local-builds-on-macos",
         ):
             assert required in section, required
 
