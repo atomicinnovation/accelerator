@@ -4,7 +4,6 @@
 mod batch_journal;
 mod batch_manifest;
 mod bounded_roots;
-mod canonicalise_id;
 mod cli;
 mod config;
 mod create;
@@ -13,10 +12,10 @@ mod diff;
 mod exit_codes;
 mod finaliser;
 mod finished_run;
+mod id;
 mod identity_run;
 mod identity_workspace;
 mod list;
-mod next_number;
 mod promote;
 mod promotion_report;
 mod rekey;
@@ -421,55 +420,6 @@ fn run_link_external_id(path: &Path, external_id: &str) -> ExitCode {
     }
 }
 
-fn run_canonicalise_id(input: &str) -> ExitCode {
-    let (_, composed) = match composed_here(Intent::Read) {
-        Ok(composed) => composed,
-        Err(code) => return code,
-    };
-    let service: &dyn ConfigAccess = &composed.service;
-    match canonicalise_id::run(service, input) {
-        canonicalise_id::RunOutcome::Canonicalised(id) => {
-            println!("{id}");
-            ExitCode::SUCCESS
-        }
-        canonicalise_id::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
-    let (start, composed) = match composed_here(Intent::Read) {
-        Ok(composed) => composed,
-        Err(code) => return code,
-    };
-    let service: &dyn ConfigAccess = &composed.service;
-    match next_number::run(&start, service, project, count) {
-        next_number::RunOutcome::Allocated(ids) => {
-            for id in ids {
-                println!("{id}");
-            }
-            ExitCode::SUCCESS
-        }
-        next_number::RunOutcome::Overflow { partial, message } => {
-            for id in partial {
-                println!("{id}");
-            }
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-        next_number::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-        next_number::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
-    }
-}
-
 fn run_list(args: &cli::ListArgs) -> ExitCode {
     let (start, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
@@ -631,10 +581,9 @@ fn main() -> ExitCode {
         Command::LinkExternalId { path, external_id } => {
             run_link_external_id(&path, &external_id)
         }
-        Command::CanonicaliseId { input } => run_canonicalise_id(&input),
-        Command::NextNumber { project, count } => {
-            run_next_number(project.as_deref(), count)
-        }
+        Command::Id { action } => id::run(action),
+        Command::NextNumber(_) => id::retired(cli::RETIRED_NEXT_NUMBER),
+        Command::CanonicaliseId(_) => id::retired(cli::RETIRED_CANONICALISE_ID),
         Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
         Command::Promote(args) => run_promote(&args),

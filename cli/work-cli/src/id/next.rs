@@ -1,4 +1,4 @@
-//! Adapter/binary wiring for `work next-number`: a thin display wrapper
+//! Adapter/binary wiring for `work id next`: a thin display wrapper
 //! around `work::next_number::allocate`, or `work::draft_id::mint_draft_ids`
 //! under `{tracker}`. It writes nothing in the corpus and commits no number;
 //! it takes the identity-run lock under `.accelerator/state/`, so it never
@@ -20,6 +20,7 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::locate_work_items;
 use crate::config::WorkItemLocation;
+use crate::identity_run::IdentityRunStart;
 
 pub enum RunOutcome {
     Allocated(Vec<String>),
@@ -61,6 +62,7 @@ pub fn run(
     config: &dyn ConfigAccess,
     project: Option<&str>,
     count: u32,
+    identity_run: &IdentityRunStart<'_>,
 ) -> RunOutcome {
     let WorkItemLocation {
         scheme,
@@ -71,7 +73,7 @@ pub fn run(
         Err(message) => return RunOutcome::Failed(message),
     };
     let pattern = scheme.pattern();
-    let _identity_run = match crate::identity_run::begin(&root, "next-number") {
+    let _identity_run = match identity_run(&root, "id next") {
         Ok(guard) => guard,
         Err(refusal) => {
             let (message, code) = crate::identity_run::refused(refusal, &root);
@@ -118,6 +120,9 @@ mod tests {
     use ::config::Scalar;
     use ::config::Value;
     use work::draft_id::DraftId;
+    use work::identity_run::waiting_line;
+    use work::identity_run::IdentityRunRefusal;
+    use work::rekey::outcome::Holder;
 
     use super::run;
     use super::RunOutcome;
@@ -160,7 +165,7 @@ mod tests {
             _value: &str,
             _level: Level,
         ) -> Result<(), ConfigError> {
-            unreachable!("next-number never writes config")
+            unreachable!("id next never writes config")
         }
     }
 
@@ -171,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn next_number_refuses_while_a_rekey_is_in_progress() {
+    fn id_next_refuses_while_a_rekey_is_in_progress() {
         let numeric = crate::test_support::FakeConfig(HashMap::new());
         let configs: [&dyn ConfigAccess; 2] = [&numeric, &TrackerConfig::new()];
         for config in configs {
@@ -179,9 +184,9 @@ mod tests {
             crate::test_support::rekey_in_progress(root.path());
 
             let RunOutcome::Refused { message, code } =
-                run(root.path(), config, None, 1)
+                run(root.path(), config, None, 1, &crate::identity_run::begin)
             else {
-                panic!("next-number allocated during a re-key");
+                panic!("id next allocated during a re-key");
             };
 
             assert_eq!(code, crate::exit_codes::UNRESOLVED);
@@ -193,13 +198,17 @@ mod tests {
     }
 
     #[test]
-    fn next_number_under_tracker_returns_distinct_draft_ids() {
+    fn id_next_under_tracker_returns_distinct_draft_ids() {
         let root = repo();
 
-        let RunOutcome::Allocated(ids) =
-            run(root.path(), &TrackerConfig::new(), None, 5)
-        else {
-            panic!("next-number under {{tracker}} mints drafts");
+        let RunOutcome::Allocated(ids) = run(
+            root.path(),
+            &TrackerConfig::new(),
+            None,
+            5,
+            &crate::identity_run::begin,
+        ) else {
+            panic!("id next under {{tracker}} mints drafts");
         };
 
         assert_eq!(ids.len(), 5);
@@ -208,15 +217,46 @@ mod tests {
     }
 
     #[test]
-    fn next_number_with_project_under_tracker_is_e_pattern_key_unused() {
+    fn id_next_with_project_under_tracker_is_e_pattern_key_unused() {
         let root = repo();
 
-        let RunOutcome::Failed(message) =
-            run(root.path(), &TrackerConfig::new(), Some("ENG"), 1)
-        else {
+        let RunOutcome::Failed(message) = run(
+            root.path(),
+            &TrackerConfig::new(),
+            Some("ENG"),
+            1,
+            &crate::identity_run::begin,
+        ) else {
             panic!("--project names no token under {{tracker}}");
         };
 
         assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
+    }
+
+    #[test]
+    fn a_command_waiting_on_id_next_names_it() {
+        let root = repo();
+        let holder = std::cell::RefCell::new(None);
+        let recording = |_: &std::path::Path, command: &str| {
+            holder.replace(Some(command.to_owned()));
+            Err(IdentityRunRefusal::Busy(None))
+        };
+
+        let _ = run(
+            root.path(),
+            &crate::test_support::FakeConfig(HashMap::new()),
+            None,
+            1,
+            &recording,
+        );
+
+        let waiting = waiting_line(Some(&Holder {
+            pid: 4242,
+            command: holder.take(),
+        }));
+        assert!(
+            waiting.starts_with("waiting for accelerator work id next "),
+            "{waiting}"
+        );
     }
 }

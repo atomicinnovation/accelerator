@@ -12,8 +12,7 @@ Commands:
   create-batch      Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took
   update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
-  canonicalise-id   Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
-  next-number       Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  id                Work-item IDs: canonicalise an existing item's ID, or see the IDs allocation would give next
   list              List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
   sync              Reconcile local work items with the configured remote tracker (`work.integration`)
   promote           Promote one draft onto an issue the tracker creates for it, under `work.id_pattern: "{tracker}"`: the draft ID is retired to the tracker key across `meta/`, as `work sync` does for every draft
@@ -153,10 +152,23 @@ Arguments:
 Options:
   -h, --help  Print help
 
-=== accelerator-work canonicalise-id --help ===
-Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
+=== accelerator-work id --help ===
+Work-item IDs: canonicalise an existing item's ID, or see the IDs allocation would give next
 
-Usage: accelerator-work canonicalise-id <INPUT>
+Usage: accelerator-work id <COMMAND>
+
+Commands:
+  canonicalise  Canonicalise an existing work item's ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one), for referring to that item
+  next          Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  help          Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-work id canonicalise --help ===
+Canonicalise an existing work item's ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one), for referring to that item
+
+Usage: accelerator-work id canonicalise <INPUT>
 
 Arguments:
   <INPUT>  The ID or bare number to canonicalise
@@ -164,12 +176,12 @@ Arguments:
 Options:
   -h, --help  Print help
 
-=== accelerator-work next-number --help ===
+=== accelerator-work id next --help ===
 Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number.
 
 Under `work.id_pattern: "{tracker}"` the IDs are provisional draft IDs, for items written under `meta/work/drafts/`; `work create` places a draft there itself.
 
-Usage: accelerator-work next-number [OPTIONS]
+Usage: accelerator-work id next [OPTIONS]
 
 Options:
       --project <PROJECT>

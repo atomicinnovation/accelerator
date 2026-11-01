@@ -1,4 +1,4 @@
-//! Adapter/binary wiring for `work canonicalise-id`.
+//! Adapter/binary wiring for `work id canonicalise`.
 
 use ::config::ConfigAccess;
 use work::id_pattern::PatternError;

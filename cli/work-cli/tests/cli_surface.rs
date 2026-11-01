@@ -9,21 +9,22 @@ use std::process::Command;
 
 type TestError = Box<dyn std::error::Error>;
 
-const SUBCOMMANDS: &[&str] = &[
-    "resolve",
-    "template-hints",
-    "show",
-    "diff",
-    "create",
-    "create-batch",
-    "update",
-    "link-external-id",
-    "canonicalise-id",
-    "next-number",
-    "list",
-    "sync",
-    "promote",
-    "rekey",
+const SUBCOMMANDS: &[&[&str]] = &[
+    &["resolve"],
+    &["template-hints"],
+    &["show"],
+    &["diff"],
+    &["create"],
+    &["create-batch"],
+    &["update"],
+    &["link-external-id"],
+    &["id"],
+    &["id", "canonicalise"],
+    &["id", "next"],
+    &["list"],
+    &["sync"],
+    &["promote"],
+    &["rekey"],
 ];
 
 fn help(args: &[&str]) -> Result<String, TestError> {
@@ -43,8 +44,9 @@ fn the_full_cli_surface_matches_the_committed_golden() -> Result<(), TestError>
     for subcommand in SUBCOMMANDS {
         write!(
             actual,
-            "=== accelerator-work {subcommand} --help ===\n{}\n",
-            help(&[subcommand])?
+            "=== accelerator-work {} --help ===\n{}\n",
+            subcommand.join(" "),
+            help(subcommand)?
         )?;
     }
 

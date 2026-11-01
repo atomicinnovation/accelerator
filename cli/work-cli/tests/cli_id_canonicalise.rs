@@ -1,5 +1,4 @@
-//! CLI-boundary tests for `work canonicalise-id`, cross-checked against the
-//! `work-item-canonicalise-id.golden` fixture.
+//! CLI-boundary tests for `work id canonicalise`.
 
 // The `{project}`/`{number:04d}` DSL tokens in test literals are not
 // formatting args.
@@ -16,7 +15,7 @@ fn scratch_repo(
     project: &str,
 ) -> Result<tempfile::TempDir, TestError> {
     let dir = tempfile::Builder::new()
-        .prefix("work-cli-canonicalise-id-")
+        .prefix("work-cli-id-canonicalise-")
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".accelerator"))?;
     let config = format!(
@@ -28,7 +27,7 @@ fn scratch_repo(
 
 fn run(dir: &Path, input: &str) -> Result<std::process::Output, TestError> {
     Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
-        .args(["canonicalise-id", input])
+        .args(["id", "canonicalise", input])
         .current_dir(dir)
         .output()?)
 }
@@ -82,7 +81,7 @@ fn bare_number_under_a_project_pattern_with_project_configured(
 #[test]
 fn bare_number_under_a_key_pattern_honours_work_key() -> Result<(), TestError> {
     let dir = tempfile::Builder::new()
-        .prefix("work-cli-canonicalise-id-key-")
+        .prefix("work-cli-id-canonicalise-key-")
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".accelerator"))?;
     fs::write(
