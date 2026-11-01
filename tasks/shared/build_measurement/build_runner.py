@@ -13,7 +13,7 @@ from tasks.shared.build_measurement.log_files import open_log
 from tasks.shared.build_measurement.session import BuildGroup
 from tasks.shared.build_measurement.timeline import StampedLine, stamped_text
 from tasks.shared.clock import Clock
-from tasks.shared.processes import ProcessOps, reap_session
+from tasks.shared.processes import ProcessGroupOps, reap_session
 from tasks.shared.signals import (
     UNWIND_SIGNALS,
     Interruption,
@@ -45,7 +45,7 @@ def _decoded(stdout: IO[bytes]) -> io.TextIOWrapper:
 class SubprocessBuildRunner:
     root: Path
     clock: Clock
-    procs: ProcessOps
+    procs: ProcessGroupOps
     build_group: BuildGroup
     grace: float = 5.0
 

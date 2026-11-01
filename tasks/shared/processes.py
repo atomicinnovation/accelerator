@@ -43,6 +43,11 @@ class ProcessOps(Protocol):
     def children(self, pid: int) -> list[tuple[int, float]]: ...
     def terminate(self, pid: int) -> None: ...
     def kill(self, pid: int) -> None: ...
+
+
+class ProcessGroupOps(ProcessOps, Protocol):
+    """``ProcessOps`` plus process-group inspection + signalling."""
+
     def signal_group(self, pgid: int, number: int) -> None: ...
     def group_of(self, pid: int) -> int | None: ...
     def own_group(self) -> int: ...
@@ -51,7 +56,7 @@ class ProcessOps(Protocol):
 
 
 class PsutilProcessOps:
-    """Real ``ProcessOps`` backed by psutil + ``os.kill``."""
+    """Real ``ProcessGroupOps`` backed by psutil + ``os.kill``."""
 
     def is_alive(self, pid: int) -> bool:
         # A killed-but-not-yet-reaped child reads as a zombie; treat it as dead
@@ -174,7 +179,7 @@ def reap_tree(pid: int, procs: ProcessOps, clock: Clock, grace: float) -> None:
 
 
 def reap_session(
-    leader: int, procs: ProcessOps, clock: Clock, grace: float
+    leader: int, procs: ProcessGroupOps, clock: Clock, grace: float
 ) -> None:
     """Reap ``leader``'s process group and every descendant it spawned.
 
@@ -205,7 +210,7 @@ def reap_session(
 
 
 def _reap_leaderless_group(
-    pgid: int, procs: ProcessOps, clock: Clock, grace: float
+    pgid: int, procs: ProcessGroupOps, clock: Clock, grace: float
 ) -> None:
     procs.signal_group(pgid, signal.SIGTERM)
     deadline = clock.now() + grace

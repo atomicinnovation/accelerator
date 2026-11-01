@@ -43,7 +43,7 @@ class FakeProc:
 
 
 class FakeProcs:
-    """In-memory process tree implementing the ProcessOps protocol."""
+    """In-memory process tree implementing the ProcessGroupOps protocol."""
 
     def __init__(self):
         self.procs: dict[int, FakeProc] = {}

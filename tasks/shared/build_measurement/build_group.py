@@ -10,7 +10,7 @@ from pathlib import Path
 from tasks.shared.build_measurement.locations import BUILD_PGID
 from tasks.shared.build_measurement.session import OrphanedBuild
 from tasks.shared.files import atomic_write_text
-from tasks.shared.processes import ProcessOps
+from tasks.shared.processes import ProcessGroupOps
 
 _FIELDS = 2
 _FIRST_ORDINARY_PID = 2
@@ -19,7 +19,7 @@ _FIRST_ORDINARY_PID = 2
 @dataclass(frozen=True, slots=True)
 class BuildGroupFile:
     root: Path
-    procs: ProcessOps
+    procs: ProcessGroupOps
 
     @property
     def path(self) -> Path:
