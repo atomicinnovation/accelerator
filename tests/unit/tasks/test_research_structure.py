@@ -160,6 +160,14 @@ def test_research_topic_grants_the_fetch_its_researchers_inherit() -> None:
     assert FETCH_GRANT in frontmatter_bash_rules(_read(RESEARCH_TOPIC))
 
 
+def test_research_topic_grants_the_read_of_the_citing_once_rule() -> None:
+    frontmatter, _ = _split(_read(RESEARCH_TOPIC))
+    assert (
+        "  - Read(/${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/"
+        "citing-once/**)"
+    ) in frontmatter.splitlines()
+
+
 def _research_topic_prose() -> str:
     return _prose(RESEARCH_TOPIC)
 
