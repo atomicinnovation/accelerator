@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T22:23:42+00:00"
+last_updated: "2026-11-01T22:25:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4067,8 +4067,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
 Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
 were made before merging rather than after. Phase 7's code is complete and
-not yet pushed, and its manual runs pass; its work-item edits wait for the
-merge.
+not yet pushed; its manual runs pass, and its work-item edits were made
+before merging.
 Phases 8–10 have not started.
 
 ### Phases 1–4 review round
@@ -4214,8 +4214,11 @@ Where the phase departed from the plan:
 - **Mutation check.** The real-workspace session tests were written after
   the session hook; disabling the `prepare_timed_run` call fails three of
   them.
-- **Work items.** The 0366 and 0368 edits wait for the merge, as the phase
-  says.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0366's `blocked_by` is `["work-item:0362"]`, and
+  0368's emptied `blocks` was deleted by hand. 0366's Dependencies gain a
+  "Measured with" bullet naming the cold command and the baseline. If this
+  branch is abandoned, 0366's edge to 0368 should be restored.
 
 Verification: the phase's tests, `mise run build-system:check` and the full
 `mise run` (exit 0, 341 s, the fixers changing nothing) passed locally. CI
