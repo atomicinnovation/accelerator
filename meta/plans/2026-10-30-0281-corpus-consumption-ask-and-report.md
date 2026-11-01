@@ -5,7 +5,7 @@ title: "Corpus Consumption: Ask and Report Implementation Plan"
 date: "2026-10-30T01:35:27+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0281"
 parent: "work-item:0281"
 derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-report"]
