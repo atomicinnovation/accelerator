@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T22:45:00+00:00"
+last_updated: "2026-11-01T23:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -253,10 +253,10 @@ Verify with `mise run` (the full local CI mirror) and the recorded
 | The `--id` preflight | `locate_work_items` in `work-cli/src/config.rs`, shared by every create, the dry-run, `work id next` and `work id check`; `admit_requested_id` and `refuse_if_requested_id_taken` in `work-cli/src/requested_id.rs` | One order in one place; 0351 inherits the seam |
 | Where `--project` is parsed | `work::next_number::allocation_key`, the one rule, on the allocation path and under `{tracker}` in `creation_context`, after admission: a keyless or `{tracker}` pattern gives `E_PATTERN_KEY_UNUSED` before any parse, and under `{key}` it parses into an `IdKey` or gives `E_WORK_KEY_INVALID`. With `--id`, `E_ID_WITH_PROJECT` sees the raw value first, and `admit` reads it only to choose its example | One rule in the domain; `--id 0400 --project 1X` is refused as `E_ID_WITH_PROJECT` |
 | How a requested ID reaches the write | `work_adapters::creation::LocalId::{Allocate, Requested}`, which `create_local_item` takes and only the local-ownership arms pass; `RequestedId` carries the scheme it was admitted under | The adapter owns the locked order (precondition, taken check, write); a requested ID cannot reach a tracker strategy |
-| The pending-push precondition | `work::sync::unfinished_push` decides the digest-free marker states and `push_precondition` evaluates it first; one adapter marker reader serves `check_pending_push` (after allocation, as today; for a requested ID, before the taken check and only with `--push`) and the dry-run's `refuse_unfinished_push` (with `--id` and `--push`, skipped with no integration) | One domain decision per marker state; a re-run after an unknown push outcome gets `E_PUSH_PENDING`'s recovery; the dry-run renders no body |
+| The pending-push precondition | `work::sync::unfinished_push` decides the digest-free marker states and `push_precondition` evaluates it first; one adapter marker reader serves `check_pending_push` (after allocation, as today; for a requested ID, before the taken check and only with `--push`) and the dry-run's `refuse_unfinished_push` (with `--id` and `--push`, under the integration the real create reads) | One domain decision per marker state; a re-run after an unknown push outcome gets `E_PUSH_PENDING`'s recovery; the dry-run renders no body |
 | `--dry-run --id` before Phase 8 | A usage error (`conflicts_with`, exit 2) | Every shipped build is strict or complete; Phase 8 only widens |
 | Where check 5 runs (real create) | In the `Requested` arm, under the create lock | Same atomic step as the write; precedes the push |
-| Dry-run | With `--id` only, in the real create's order: scheme read, checks 1-4, the digest-free pending-push arms with `--push` and an integration, check 5, then the preview; `integration_state` is read once, as a `Result`, and a missing integration fails where the real create's does (before check 5 with `--push`, after the `--id` checks otherwise) with today's text; a plain dry-run reads as today; no lock | A plain dry-run stays byte-identical; 0351 later folds both calls into its shared validation |
+| Dry-run | With `--id` only, in the real create's order: scheme read, checks 1-4, the digest-free pending-push arms with `--push`, check 5, then the preview; `integration_state` is read once, as a `Result`, and an integration that cannot be read fails where the real create's does (before the marker check and check 5 with `--push`, after the `--id` checks otherwise) with today's text; an unset `work.integration` is no error, since it resolves to the catalogue default `""` for both; a plain dry-run reads as today; no lock | A plain dry-run stays byte-identical; 0351 later folds both calls into its shared validation |
 | Collision check signature | Takes the listing and no lock guard | 0351 runs it on the dry-run without locks |
 | `E_` names | `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`, `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH`, `E_ID_TAKEN`; variants `WithProject`, `TrackerOwned`, `DraftReserved`, `PatternMismatch`, `Taken` | Each variant reads as its code, as `NotRekeyed`'s do; the skill names the codes rather than matching `E_ID_` |
 | Where messages render | `Display` on the domain refusal, as `NotRekeyed` does; the shape clause from `IdPattern::describe()` | One text for the real create, the dry-run and 0351; a clause names a key or literal text only when the pattern has one |
@@ -2915,7 +2915,11 @@ code: the scheme read (with the integration rule), checks 1 to 4, then,
 with `--push` and an integration, the pending-push arms that need no
 rendered body, then check 5, then the existing preview. A re-run after an
 unknown push outcome therefore reports `E_PUSH_PENDING` as the real create
-does. A missing integration still fails only after the `--id` checks. Without `--id`, nothing changes. The real create's other checks
+does. An integration that cannot be read fails only after checks 1 to 4.
+An unset `work.integration` is not such a failure: it resolves to the
+catalogue default `""`, so the real create and the dry-run both read the
+marker under that name and reach the taken check. Without `--id`, nothing
+changes. The real create's other checks
 (author, template, overflow, and the request fingerprint) stay off the
 dry-run until 0351. So with a taken `--id` and template drift the dry-run
 reports `E_ID_TAKEN` where the real create reports the drift, and after a
@@ -2938,8 +2942,9 @@ these with the digest.
   - each gives `Failed` with the real create's code;
   - no `Previewed` or `PreviewFailed`;
   - `tracker.calls()` is empty;
-  - `repo.path("meta/work")` does not exist after the four admission
-    refusals.
+  - the `meta/` tree is unchanged, so `meta/work/` does not exist after
+    the four admission refusals;
+  - the message equals the real create's for the same arguments.
 - `a_dry_run_with_an_untaken_id_previews_as_without_one` — under `numeric`
   and `keyed`, the outcome equals the no-`--id` dry-run's: the same
   `Previewed` line, or the same `PreviewFailed` code against a
@@ -2979,16 +2984,16 @@ The pending-push tests run with `push: true` only, since a create without
 - `a_dry_run_after_a_created_unwritten_push_previews` — after
   `CreatedUnwritten` under `--id 0400`, the dry-run gives `Previewed`, and
   the real `--push` create then reuses the recorded key.
-- `a_dry_run_without_an_integration_skips_the_precondition` — with no
-  `work.integration`, a corrupt marker for the item's slug leaves `--id 0400`
-  with exactly the outcome of the same dry-run without `--id`.
 - `a_dry_run_without_an_integration_refuses_the_id_first` — with no
   `work.integration`, `--dry-run --id 400` gives `E_ID_PATTERN_MISMATCH`,
   not the missing-integration failure.
-- `a_pushed_dry_run_reports_a_missing_integration_before_the_taken_check` —
-  with no `work.integration` and `0400` taken, `--push --dry-run --id 0400`
-  gives the missing-integration failure, as the real create does, not
-  `E_ID_TAKEN`.
+- `a_pushed_dry_run_reports_an_unreadable_integrations_dir_before_the_taken_check`
+  — over a config double whose `paths.integrations` read fails, with `0400`
+  taken: `--push --dry-run --id 0400` gives that read error, equal to the
+  real `--push` create's, not `E_ID_TAKEN`; without `--push` the dry-run
+  gives `E_ID_TAKEN`. `work.integration` cannot stand in for the failing
+  key: `resolve_scheme`'s tracker-integration check reads it first, so the
+  scheme read fails before any `--id` check.
 - `a_dry_run_without_push_reads_no_push_marker` — with an integration and a
   corrupt marker for the item's slug, `--dry-run --id 0400` without `--push`
   previews.
@@ -2998,7 +3003,24 @@ The pending-push tests run with `push: true` only, since a create without
 - `an_unfinished_push_needs_no_digest` — `unfinished_push` gives
   `E_PUSH_PENDING`'s reason for an `Attempted` marker and the unreadable
   reason for an unreadable one, and nothing for an absent or `Created`
-  marker; `push_precondition`'s existing tests hold.
+  marker; `push_precondition`'s existing tests hold. Seen red (no
+  `unfinished_push`) and landed with the domain change as its own commit.
+
+The `create.rs` tests ran against the unchanged dry-run first: ten were red
+(the refusal, config-error, malformed-pattern, unlistable-corpus, lock,
+pending-push, unreadable-marker and refuse-the-ID-first tests, the
+missing-integration test as first written, and `a_dry_run_accepts_an_id`),
+and the rest passed as pins, since a dry-run that ignores `--id` already
+previews. The missing-integration test then failed against the wiring
+because an unset `work.integration` previews; it was replaced by the
+unreadable-integrations-dir test, written after the wiring, which would
+fail if the preflight ignored the read error under `--push`.
+The case table names a `holding_0400` constructor, a `RepoFor` whose
+repository holds `meta/work/0400-other.md`, so it stays a four-tuple under
+clippy's type-complexity limit. `CreateArgs` derives `Clone`, so a test
+builds the dry-run's arguments from the real create's, and
+`PushingRepo::run_args_under(config, ..)` runs a create under another
+`ConfigAccess`, which `run_args` delegates to with the repository's own.
 
 #### 2. Changes
 
@@ -3035,9 +3057,13 @@ closed, and it is empty for a missing one.
 fn refuse_requested_id_before_preview(
     location: &WorkItemLocation,
     args: &CreateArgs,
-    integration: Option<&IntegrationState>,
+    integration: Result<&IntegrationState, &String>,
 ) -> Result<(), String>;
 ```
+
+It takes the integration as a `Result`, not an `Option`: under `--push`
+it must report the read error after checks 1 to 4, which an `Option`
+would discard.
 
 - `integration_state(config, root)` is extracted from
   `CreationContext::integration_state` (`create.rs:432-438`) as a free
@@ -3046,35 +3072,43 @@ fn refuse_requested_id_before_preview(
 - With `--id`, the dry-run branch runs `locate_work_items`, which reads the
   scheme and discovers the root; then reads `integration_state` once, keeping
   the `Result`; then calls this preflight with
-  `integration.as_ref().ok()`. With `--push`, an `Err` is reported after
+  `integration.as_ref()`. With `--push`, an `Err` is reported after
   checks 1 to 4 and before the marker check and check 5, as the real
   create reports it before its taken check; without `--push` it is
   reported as the preview's failure after all five. Either way it keeps
   today's text. Without `--id` the branch is unchanged: it
   reads `work.integration` as today, so a plain dry-run stays
   byte-identical.
-- The preflight runs `admit_requested_id`; then, with `--push` and an
-  integration, `refuse_unfinished_push` for the item's slug; then
+- The preflight runs `admit_requested_id`; then, with `--push`,
+  `refuse_unfinished_push` for the item's slug; then
   `refuse_if_requested_id_taken`, in that order, as the real create does.
 - It creates no directory and takes no lock.
 - `--id` loses `conflicts_with = "dry_run"`, and
   `a_dry_run_with_an_id_is_a_usage_error` becomes
   `a_dry_run_accepts_an_id`.
-- `run_with`'s `args.dry_run` branch takes that path when
-  `args.id.is_some()`, returning `RunOutcome::Failed` on a refusal, and
-  passes the integration state it read to the existing preview.
+- `run_with` first sends `args.dry_run && args.id.is_some()` to
+  `preview_requested_id`, which returns `RunOutcome::Failed` on a refusal
+  and passes the integration state it read to the existing `preview_push`;
+  the plain `args.dry_run` branch follows untouched.
+
+The dry-run work landed as one commit after the domain commit; it is
+covered by unit tests, so it has no subprocess test of its own.
 
 **File**: `cli/work-cli/src/cli.rs`
-**Changes**: the `--dry-run` help adds that an `--id` the real create would
-refuse is refused first, before the tracker is contacted, and that a pass
-reserves nothing. Update the golden to match.
+**Changes**: the `--dry-run` help adds: "With `--id`, an ID the real
+create would refuse is refused first, as the real create refuses it,
+before the tracker is contacted; an ID that passes is not reserved."
+Clap renders each doc comment as one golden line, so the golden's
+`--dry-run` line is edited to match.
 
 **File**: `cli/work/tests/fixtures/public-api.txt`
 **Changes**: regenerate and read the diff: only `unfinished_push` appears.
 
 **File**: `CHANGELOG.md`
-**Changes**: extend the `work create --id` entry: `--dry-run --id` refuses
-as the real create does.
+**Changes**: the `work create --id` entry's last sentence, "`--id` cannot
+yet be combined with `--dry-run`", becomes "`--dry-run --id` runs the same
+checks in the same order, without taking a lock, and refuses an ID as the
+real create would before the tracker is contacted".
 
 ### Success Criteria
 
@@ -3092,7 +3126,12 @@ as the real create does.
 
 - [x] With an integration configured, `accelerator work create "Probe" task low --push --dry-run --id 0400`
       prints the same preview line as without `--id`, and `--id 400` exits 1
-      with `E_ID_PATTERN_MISMATCH` without contacting the tracker.
+      with `E_ID_PATTERN_MISMATCH` without contacting the tracker. Run in
+      this repository against Linear with `0900`, since `0400` may be held
+      here: both print `linear\t(no user-resolvable type/project fields)`
+      at exit 0, `--id 900` exits 1 with
+      `E_ID_PATTERN_MISMATCH: ... Did you mean '0900'?`, and the working
+      copy is unchanged.
 
 ---
 
@@ -3755,7 +3794,8 @@ Phase 7 runs one representative of its class through `work create`.
 | Skill: a pending-push refusal under `--id` is relayed without a re-run | 11 | evals 63, 70, 72 |
 | Under `{tracker}`, tracker keys are compared whole | 4 | `a_tracker_key_is_compared_whole_under_tracker` |
 | An unclassifiable ID names its cause | 4 | `an_unclassifiable_id_names_its_cause` |
-| A dry-run refuses the ID before a missing integration | 8 | `a_dry_run_without_an_integration_refuses_the_id_first` |
+| A dry-run refuses the ID with no integration configured | 8 | `a_dry_run_without_an_integration_refuses_the_id_first` |
+| An unreadable integration fails a pushed dry-run before the taken check | 8 | `a_pushed_dry_run_reports_an_unreadable_integrations_dir_before_the_taken_check` |
 | Refusals show a requested ID escaped, and omit an example they cannot render | 6 | `a_requested_id_is_shown_escaped`; `a_missing_key_omits_the_example` |
 | Re-key: a draft ID never sets the fresh-number floor | 4 | `a_draft_id_never_sets_the_fresh_number_floor` |
 | Allocation counts a legacy number under the configured key | 4 | `allocation_counts_a_legacy_number_under_the_configured_key` |
