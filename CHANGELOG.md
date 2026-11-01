@@ -518,6 +518,9 @@
   commands `ask` runs after a reply prompt for permission, and are denied in
   a headless session; adding `Bash(accelerator corpus *)` and
   `Bash(accelerator research topic *)` to your allow rules avoids that.
+- **research-topic grants a `Read` of the citing-once rule**, scoped to its
+  directory in the plugin, so `synthesise`, `ask` and `report` read the rule
+  without a permission prompt.
 - **`accelerator corpus metadata derive` prints an `Author:` line**: the
   checkout's configured `user.name`, from jj inside a jj repository and from
   git otherwise, omitted when none is set. A skill fills `author` from it

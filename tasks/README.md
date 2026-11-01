@@ -596,8 +596,8 @@ they share, the citing-once rule or the model.
     `mise run` while it exists.
   - Every turn loads project settings only (`--setting-sources project`) and
     no MCP server (`--strict-mcp-config`). Its `--allowedTools` is the skill's
-    declared grant less `research fetch`, a `Read` of the citing-once rule and
-    `Skill`, since a skill's own grant lasts one query.
+    declared grant, its `${CLAUDE_PLUGIN_ROOT}` filled in, less `research
+    fetch`, plus `Skill`, since a skill's own grant lasts one query.
   - Sessions inherit the environment and config dir unless `--config-dir`
     names one. Under project-only settings, authenticate with that config
     dir's own login or provider variables exported in the shell;

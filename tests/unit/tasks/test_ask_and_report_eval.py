@@ -291,7 +291,7 @@ def _flag(command: list[str], name: str) -> str:
     return command[command.index(name) + 1]
 
 
-def test_the_grant_is_the_skill_s_less_fetch_plus_the_rule_and_skill() -> None:
+def test_the_grant_is_the_skill_s_at_its_plugin_root_less_fetch() -> None:
     grant = ",".join(conversation.research_topic_grant(REPO_ROOT))
 
     assert grant == GRANT.replace("<plugin_root>", str(REPO_ROOT))
