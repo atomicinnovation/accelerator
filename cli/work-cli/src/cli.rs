@@ -52,7 +52,7 @@ pub enum Command {
         remote: PathBuf,
     },
     /// Atomically create a new work item under the configured pattern,
-    /// self-allocating its own ID.
+    /// allocating its own ID unless `--id` names it.
     Create(Box<CreateArgs>),
     /// Create every item a JSON manifest describes, parents first, each as
     /// `create` would, linking each child's `parent` to the ID its parent
@@ -333,6 +333,15 @@ pub struct CreateArgs {
     /// The project code, when the configured pattern needs one.
     #[arg(long)]
     pub project: Option<String>,
+    /// The exact ID to write the item under, as `work.id_pattern` renders
+    /// it (e.g. `0400` or `PP-0400`), instead of the next allocated number;
+    /// automatic numbering continues above the highest number already used
+    /// (per key under a key pattern), so an ID above it moves the sequence
+    /// there. Refused, writing nothing, with `--project`, under
+    /// `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact
+    /// shape, and for an ID a work item already holds (see `exit_codes`).
+    #[arg(long, conflicts_with = "dry_run")]
+    pub id: Option<String>,
     /// The author. Falls back to the current VCS identity when omitted.
     #[arg(long)]
     pub author: Option<String>,
@@ -503,6 +512,36 @@ mod tests {
     fn a_non_negative_integer_including_zero_parses_to_a_bound() {
         assert_eq!(parse_ceiling("25"), Ok(Ceiling::Bounded(25)));
         assert_eq!(parse_ceiling("0"), Ok(Ceiling::Bounded(0)));
+    }
+
+    #[test]
+    fn create_batch_rejects_an_id_argument() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "create-batch",
+            "--manifest",
+            "m.json",
+            "--id",
+            "0400",
+        ]);
+
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn a_dry_run_with_an_id_is_a_usage_error() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "create",
+            "T",
+            "task",
+            "low",
+            "--dry-run",
+            "--id",
+            "0400",
+        ]);
+
+        assert!(parsed.is_err());
     }
 
     #[test]

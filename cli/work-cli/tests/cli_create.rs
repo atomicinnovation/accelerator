@@ -515,3 +515,69 @@ fn the_deprecation_notice_is_printed_once_per_command() -> Result<(), TestError>
     }
     Ok(())
 }
+
+fn work_dir_listing(repo: &Path) -> Result<Vec<PathBuf>, TestError> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(repo.join("meta/work"))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect();
+    entries.sort();
+    Ok(entries)
+}
+
+#[test]
+fn a_refused_id_exits_1_with_its_code_on_stderr_and_writes_nothing(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let before = work_dir_listing(repo.path())?;
+
+    let output = run(
+        repo.path(),
+        &["create", "Probe", "task", "low", "--id", "400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.starts_with("Error: E_ID_PATTERN_MISMATCH:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("{number:04d}"), "{stderr}");
+    assert_eq!(work_dir_listing(repo.path())?, before);
+    Ok(())
+}
+
+#[test]
+fn a_taken_id_exits_1_naming_the_holder() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/work/0400-other.md"), "")?;
+
+    let output = run(
+        repo.path(),
+        &["create", "Probe", "task", "low", "--id", "0400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("E_ID_TAKEN"), "{stderr}");
+    assert!(stderr.contains("0400-other.md"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn create_batch_with_an_id_is_an_unrecognised_argument() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    let before = work_dir_listing(repo.path())?;
+
+    let output = run(
+        repo.path(),
+        &["create-batch", "--manifest", "m.json", "--id", "0400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("--id"), "{stderr}");
+    assert_eq!(work_dir_listing(repo.path())?, before);
+    Ok(())
+}

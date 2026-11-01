@@ -255,6 +255,15 @@
 
 ### Added
 
+- **`work create --id <ID>` names the new item's ID.** The item is written
+  under exactly that ID, with `NNNN` in the body replaced by it, and pushed
+  as any other create when `--push` is given; automatic numbering continues
+  above the highest number used. It is refused, writing nothing and sending
+  nothing, with `E_ID_WITH_PROJECT` beside `--project`, `E_ID_TRACKER_OWNED`
+  under `{tracker}`, `E_ID_DRAFT_RESERVED` for a `draft-` ID,
+  `E_ID_PATTERN_MISMATCH` for an ID not in the exact shape
+  `work.id_pattern` renders, and `E_ID_TAKEN` naming the item that already
+  holds it. `--id` cannot yet be combined with `--dry-run`.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a

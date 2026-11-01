@@ -42,6 +42,18 @@ pub enum MarkerState<'a> {
     Present(&'a PendingPush),
 }
 
+impl<'a> MarkerState<'a> {
+    /// The state of a marker as parsed from disk, whatever its parse error.
+    #[must_use]
+    pub const fn of<E>(parsed: &'a Result<Option<PendingPush>, E>) -> Self {
+        match parsed {
+            Err(_) => Self::Unreadable,
+            Ok(None) => Self::Absent,
+            Ok(Some(marker)) => Self::Present(marker),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefusalReason {
     MarkerUnreadable,
@@ -470,6 +482,26 @@ mod tests {
             ),
             OrderPrecondition::CreateUnmarked
         );
+    }
+
+    #[test]
+    fn a_marker_reads_as_absent_unreadable_or_present() {
+        let marker = PendingPush::Attempted {
+            request: fingerprint("d"),
+        };
+        let absent: Result<Option<PendingPush>, ()> = Ok(None);
+        let unreadable: Result<Option<PendingPush>, ()> = Err(());
+        let present: Result<Option<PendingPush>, ()> = Ok(Some(marker.clone()));
+
+        assert!(matches!(MarkerState::of(&absent), MarkerState::Absent));
+        assert!(matches!(
+            MarkerState::of(&unreadable),
+            MarkerState::Unreadable
+        ));
+        assert!(matches!(
+            MarkerState::of(&present),
+            MarkerState::Present(read) if *read == marker
+        ));
     }
 
     #[test]

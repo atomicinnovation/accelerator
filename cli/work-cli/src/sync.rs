@@ -6102,6 +6102,7 @@ mod tests {
                 producer: "create-work-item".to_owned(),
                 body_file: None,
                 push: true,
+                id: None,
                 dry_run: false,
             },
             &StubRegistry(Rc::clone(tracker)),

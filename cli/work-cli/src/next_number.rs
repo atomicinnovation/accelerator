@@ -18,8 +18,8 @@ use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::config::announced_scheme_with_key;
-use crate::config::resolve_work_dir;
+use crate::config::locate_work_items;
+use crate::config::WorkItemLocation;
 
 pub enum RunOutcome {
     Allocated(Vec<String>),
@@ -62,16 +62,15 @@ pub fn run(
     project: Option<&str>,
     count: u32,
 ) -> RunOutcome {
-    let scheme = match announced_scheme_with_key(config) {
-        Ok(scheme) => scheme,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
+    let WorkItemLocation {
+        scheme,
+        root,
+        work_dir,
+    } = match locate_work_items(start, config) {
+        Ok(location) => location,
+        Err(message) => return RunOutcome::Failed(message),
     };
     let pattern = scheme.pattern();
-    let root = config_adapters::FileConfigStore::discover_root(start);
-    let work_dir = match resolve_work_dir(config, &root) {
-        Ok(dir) => dir,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
-    };
     let _identity_run = match crate::identity_run::begin(&root, "next-number") {
         Ok(guard) => guard,
         Err(refusal) => {
