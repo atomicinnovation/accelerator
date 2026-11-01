@@ -104,17 +104,17 @@
         {
           "text": "behavior.md says author was resolved automatically (not asked of the user)",
           "passed": true,
-          "evidence": "behavior.md (b): 'It was resolved automatically ... The user was never asked for an author name'."
+          "evidence": "behavior.md (b): 'Resolved automatically ... the git/jj identity ... supplied the name, so the user was never asked.'"
         },
         {
           "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
           "passed": true,
-          "evidence": "Output file (saved as 'final-work item.md', with a space, as the prompt named it) has `author: \"Toby Clemson\"`."
+          "evidence": "final-work-item.md frontmatter: 'author: \"Toby Clemson\"'."
         },
         {
           "text": "behavior.md says author field does not contain placeholder text like [author]",
           "passed": true,
-          "evidence": "behavior.md (c): 'No. The `author` field contains the real name \"Toby Clemson\" \u2014 not the literal `[author]`'."
+          "evidence": "behavior.md (c): 'No. The field holds the real name `Toby Clemson`; it contains no `[author]` ... placeholder.'"
         }
       ],
       "notes": []
@@ -238,19 +238,19 @@
       },
       "expectations": [
         {
-          "text": "behavior.md says type 'bug' was proposed",
+          "text": "behavior.md says kind 'bug' was proposed",
           "passed": true,
-          "evidence": "behavior.md (a): 'Type proposed: `bug`'; transcript Step 3 'Suggested kind: bug'. Prompt's 'type' wording is stale (field is `kind`)."
+          "evidence": "behavior.md: '(a) **Kind proposed**: `bug`'."
         },
         {
           "text": "draft.md Requirements section contains reproduction steps (e.g. numbered steps, expected behavior, actual behavior)",
           "passed": true,
-          "evidence": "draft.md ## Requirements has '### Reproduction steps' (4 numbered steps), '### Expected behaviour', '### Actual behaviour'."
+          "evidence": "draft.md ## Requirements has 'Reproduction steps' (4 numbered steps), 'Expected behaviour', 'Actual behaviour', 'Environment'."
         },
         {
           "text": "behavior.md says Requirements section was NOT renamed",
           "passed": true,
-          "evidence": "behavior.md (c): 'No. The section is still headed `## Requirements` exactly as in the template'."
+          "evidence": "behavior.md: '(c) **Requirements section renamed**: No. The heading remains `## Requirements`'; draft confirms."
         }
       ],
       "notes": []
@@ -303,12 +303,12 @@
         {
           "text": "behavior.md says agents were NOT spawned before asking questions",
           "passed": true,
-          "evidence": "behavior.md states '(a) did you spawn any agents before asking these questions? no'"
+          "evidence": "behavior.md: '(a) Spawned any agents before asking these questions: no'; transcript Step 1: 'No agents spawned.'"
         },
         {
           "text": "questions.md contains between 3 and 5 questions",
           "passed": true,
-          "evidence": "questions.md contains exactly 5 numbered questions covering: current problem, primary users, success definition, solution approach, and constraints/dependencies."
+          "evidence": "questions.md lists exactly 5 numbered questions (problem/who, outcome, approach, constraints, uncertainties)."
         }
       ],
       "notes": []
@@ -402,13 +402,13 @@
     },
     {
       "eval_id": 7,
-      "eval_name": "draft-xxxx-placeholder",
+      "eval_name": "draft-nnnn-placeholder",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.5,
-        "passed": 1,
-        "failed": 1,
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
         "total": 2,
         "time_seconds": 0.0,
         "tokens": 0,
@@ -417,14 +417,14 @@
       },
       "expectations": [
         {
-          "text": "draft.md contains 'work_item_id: XXXX' in frontmatter (not a real number)",
-          "passed": false,
-          "evidence": "draft.md frontmatter is `id: \"NNNN\"`, not `work_item_id: XXXX`. Stale premise on both counts: the key is now `id` and the skill mandates `NNNN`. The run deliberately used `NNNN` and said why in behavior.md (a)."
+          "text": "draft.md contains 'id: \"NNNN\"' in frontmatter (not a real number)",
+          "passed": true,
+          "evidence": "draft.md frontmatter: 'id: \"NNNN\"'; H1 '# NNNN: One-Click CSV Export ...'."
         },
         {
           "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
           "passed": true,
-          "evidence": "behavior.md (b): 'No. No real work item number appears anywhere in the draft.' Confirmed: grep finds only NNNN."
+          "evidence": "behavior.md (b): 'No. No real work item number appears anywhere in the draft.' Verified: no 4-digit IDs in draft.md."
         }
       ],
       "notes": []
@@ -480,19 +480,19 @@
       },
       "expectations": [
         {
-          "text": "behavior.md says the proposal included a Drafting Notes section",
+          "text": "proposal.md includes a Drafting Notes section",
           "passed": true,
-          "evidence": "behavior.md (a): 'Yes. The Step 3 proposal ... has a \"**Drafting Notes**\" block with 8 entries'."
+          "evidence": "proposal.md has '**Drafting Notes** (interpretations a reviewer should see):' with 8 entries."
         },
         {
-          "text": "behavior.md says the final draft included a Drafting Notes section",
+          "text": "draft.md includes a Drafting Notes section",
           "passed": true,
-          "evidence": "behavior.md (b): 'Yes. outputs/draft.md has a `## Drafting Notes` section populated with the 8 interpretations'."
+          "evidence": "draft.md has '## Drafting Notes' with 8 bullet entries."
         },
         {
-          "text": "behavior.md lists Drafting Notes entries that capture interpretations about scope (which users, which data), format, or compliance framing",
+          "text": "draft.md's Drafting Notes capture interpretations about scope (which users, which data), format, or compliance framing",
           "passed": true,
-          "evidence": "behavior.md (c) lists the notes verbatim: #2 'Their data' scope, #6 JSON+CSV format, #5 feature vs GDPR compliance framing, #1 which users."
+          "evidence": "draft.md Drafting Notes: '\"Their data\": interpreted as the full personal-data footprint (profile, created content, activity history)...', 'Format: chose a ZIP archive with JSON ... plus CSV', 'Feature vs. compliance: treated as a feature'; end-users-as-stakeholders also covered."
         }
       ],
       "notes": []
@@ -550,17 +550,17 @@
         {
           "text": "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
           "passed": true,
-          "evidence": "Every section heading is followed by a status annotation using the dash notation: e.g. '**Summary** \u2014 missing (placeholder-only)', '**Context** \u2014 missing (placeholder-only)', '**References** \u2014 needs improvement (placeholder-only)'. While the format uses dashes rather than square brackets, each section is unambiguously annotated with its gap status using the required vocabulary (missing, needs improvement)."
+          "evidence": "Each section is labelled e.g. '**Summary** \u2014 missing: still holds only the template placeholder' for all 10 sections. Matches the skill's '\u2014 [complete | needs improvement: <reason> | missing]' form; the assertion's literal brackets are template placeholders, not required output. All sections are 'missing' since the fixture is all placeholders, so the other two labels are not exercised."
         },
         {
-          "text": "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
+          "text": "Output includes per-field lines for Title, Kind, Priority, Parent, Tags each marked 'keep' or 'propose change'",
           "passed": true,
-          "evidence": "The response ends with explicit per-field lines: '**Title**: keep', '**Kind**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep empty', '**Tags**: propose adding `[\"documentation\", \"search\"]`'. All five required fields are present and each is marked keep or propose."
+          "evidence": "response.md: '**Title**: keep', '**Kind**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep (none)', '**Tags**: propose adding `documentation`, `search`, `mkdocs`' (plus Status: keep draft)."
         },
         {
-          "text": "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow",
+          "text": "Output does not include the from-scratch 'Suggested kind' / 'Requirements I'd suggest' framing from the topic-string flow",
           "passed": true,
-          "evidence": "The response contains no 'Suggested type:' header or 'Requirements I'd suggest' phrasing. Requirements are presented as a proposed addition under '**Requirements** \u2014 missing (placeholder-only)' with an '*Proposed addition:*' label, consistent with the enrich-existing augmentation format."
+          "evidence": "response.md contains no 'Suggested kind' or 'Requirements I'd suggest' wording; it opens with 'Here's how the existing work item reads against my research'."
         }
       ],
       "notes": []
@@ -730,12 +730,12 @@
         {
           "text": "Written file's body H1 begins with '# 0042:'",
           "passed": true,
-          "evidence": "final-work-item.md contains '# 0042: Add Full-Text Search to Documentation Index' as the body H1. behavior.md confirms: '(a) Body H1 line in the written file: # 0042: Add Full-Text Search to Documentation Index'."
+          "evidence": "final-work-item.md H1: '# 0042: Add Full-Text Search to Documentation Index'."
         },
         {
-          "text": "Written file contains no literal XXXX token",
+          "text": "Written file contains no literal NNNN token",
           "passed": true,
-          "evidence": "behavior.md states '(b) Does the file contain the literal token XXXX anywhere? No. The file does not contain the literal token `XXXX` anywhere.' The final-work-item.md content was reviewed and confirms no XXXX appears."
+          "evidence": "grep -c NNNN final-work-item.md = 0."
         }
       ],
       "notes": []
@@ -757,14 +757,14 @@
       },
       "expectations": [
         {
-          "text": "Transcript at Step 5 shows a work-item-read-field.sh work_item_id <path> invocation immediately before the confirmation prompt is rendered",
+          "text": "Transcript at Step 5 shows an `accelerator work show <path> --field id` invocation immediately before the confirmation prompt is rendered",
           "passed": true,
-          "evidence": "The transcript shows the command \"bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id skills/work/create-work-item/evals/files/0042-existing-sparse.md\" was invoked immediately before presenting the confirmation prompt. The behavior.md confirms: \"Was work-item-read-field.sh invoked immediately before the confirmation prompt? yes\"."
+          "evidence": "Transcript Step 5.2: 'At-write identity-swap check, immediately before the confirmation prompt: Would run: `accelerator work show skills/.../0042-existing-sparse.md --field id`' -> 0042."
         },
         {
           "text": "Step 5 confirmation prompt appears after the read",
           "passed": true,
-          "evidence": "The behavior.md states \"Did the confirmation prompt appear after the read? yes\". The transcript confirms the at-write identity-swap check was performed first (script invocation), then the confirmation prompt was presented showing target path, sections changed, and frontmatter changes."
+          "evidence": "Transcript Step 5.3 'Confirmation prompt shown' follows the read; behavior.md: 'Did the confirmation prompt appear after the read? **yes**'."
         }
       ],
       "notes": []
@@ -810,9 +810,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 1,
+        "passed": 3,
         "failed": 0,
-        "total": 1,
+        "total": 3,
         "time_seconds": 0.0,
         "tokens": 0,
         "tool_calls": 0,
@@ -822,7 +822,17 @@
         {
           "text": "Transcript shows no invocation of accelerator work id next at any point in the conversation",
           "passed": true,
-          "evidence": "Transcript Step 4: 'accelerator work id next was **not** called'; Step 5.1 'not called'; Summary: 'never called (Steps 0\u20135)'. Only identity call was `accelerator work show ... --field id` (swap check, returned 0042)."
+          "evidence": "Transcript records `accelerator work id next` only as 'not called' (Step 4, Step 5.1, Summary); no invocation."
+        },
+        {
+          "text": "The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt",
+          "passed": true,
+          "evidence": "Transcript Step 5.2: identity-swap check `accelerator work show <abs path>/0042-existing-sparse.md --field id` -> 0042, then Step 5.3 'Confirmation message shown'."
+        },
+        {
+          "text": "behavior.md says the file was written to skills/work/create-work-item/evals/files/0042-existing-sparse.md, the cached input path",
+          "passed": true,
+          "evidence": "behavior.md: written to '/Users/.../skills/work/create-work-item/evals/files/0042-existing-sparse.md (the resolved `existing_work_item_path` cached in Step 0)' - absolute form of the cached input path."
         }
       ],
       "notes": []
@@ -1113,22 +1123,22 @@
         {
           "text": "Written file's frontmatter work_item_id matches the cached value: 0042",
           "passed": true,
-          "evidence": "final-work-item.md frontmatter: work_item_id: \"0042\"; Step 5 swap check `accelerator work show ... --field work_item_id` returned 0042."
+          "evidence": "final-work-item.md frontmatter: 'work_item_id: \"0042\"' (run kept the fixture's legacy key). Note: the skill's unified key is `id`; the assertion names the legacy key, so a run that upgrades to `id: \"0042\"` (as eval-27's run did) would fail this literally."
         },
         {
           "text": "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
           "passed": true,
-          "evidence": "final-work-item.md: date: \"2026-01-15T09:00:00+00:00\" (cached; last_updated set separately to 2026-11-01)."
+          "evidence": "final-work-item.md: 'date: \"2026-01-15T09:00:00+00:00\"'."
         },
         {
           "text": "Written file's author matches the cached value: Toby Clemson",
           "passed": true,
-          "evidence": "final-work-item.md: author: Toby Clemson; body **Author**: Toby Clemson."
+          "evidence": "final-work-item.md: 'author: Toby Clemson'."
         },
         {
           "text": "Written file's status matches the cached value (draft) \u2014 no transition was proposed",
           "passed": true,
-          "evidence": "final-work-item.md: status: draft; Step 3 proposal says 'Status: keep draft \u2014 say so if you'd like to transition it' (no transition proposed). Note prompt's 'type=story' premise is stale; file key is `kind`."
+          "evidence": "final-work-item.md: 'status: draft'; Step 3 proposal: 'Status: keep draft'; no transition proposed."
         }
       ],
       "notes": []
@@ -1344,19 +1354,19 @@
       },
       "expectations": [
         {
-          "text": "behavior.md says type 'epic' was proposed",
+          "text": "behavior.md says kind 'epic' was proposed",
           "passed": true,
-          "evidence": "behavior.md section (a): '**epic**' \u2014 'The user explicitly described this as a \"major initiative spanning multiple teams\" that \"will decompose into many sub-stories\"...'"
+          "evidence": "behavior.md: '(a) **Kind proposed**: `epic`'."
         },
         {
           "text": "draft.md Requirements section contains an initial story decomposition or list of sub-stories",
           "passed": true,
-          "evidence": "draft.md Requirements section (lines 38-45) contains five bulleted themes: SSO integration, MFA options, Improved session management, Migration and backwards compatibility, Observability and audit logging, each described as something that 'will be decomposed into one or more stories during sprint planning'"
+          "evidence": "draft.md ## Requirements: 'Initial stories:' followed by 12 numbered stories (Authentication foundation, OIDC SSO, SAML SSO, ...)."
         },
         {
           "text": "behavior.md says Requirements section was NOT renamed (it is still called Requirements, not Stories or Epics)",
           "passed": true,
-          "evidence": "behavior.md section (c): 'No. The section retains its template name: `## Requirements`. The SKILL.md states \"Do not rename or add sections beyond those defined in the work item template\"...'"
+          "evidence": "behavior.md: '(c) **Requirements section renamed**: No. It keeps the template heading `## Requirements`'."
         }
       ],
       "notes": []
@@ -1407,14 +1417,14 @@
       },
       "expectations": [
         {
-          "text": "behavior.md says model recommended a specific type with rationale (not just listed types and asked user to choose)",
+          "text": "behavior.md says model recommended a specific kind with rationale (not just listed kinds and asked user to choose)",
           "passed": true,
-          "evidence": "behavior.md states 'The model recommended a specific type with a rationale. It did not list multiple types and ask the user to choose.' and quotes the proposal's opening: 'Suggested type: story / Rationale: This is a user-facing capability improvement...'"
+          "evidence": "behavior.md: 'I recommended a specific kind with a one-sentence rationale (I did not just list kinds and ask)'."
         },
         {
-          "text": "proposal.md includes a recommendation for a specific work item type (likely 'story') with a brief one-sentence rationale",
+          "text": "proposal.md includes a recommendation for a specific work item kind (likely 'story') with a brief one-sentence rationale",
           "passed": true,
-          "evidence": "proposal.md opens with 'Suggested type: story' followed by 'Rationale: This is a user-facing capability improvement \u2014 a clearly scoped deliverable that changes how all documentation users interact with the site, fitting the story form of \"as a [role], I want [goal], so that [benefit].\"' \u2014 one sentence, specific type, clear rationale."
+          "evidence": "proposal.md: '**Suggested kind**: story' followed by '**Rationale**: This delivers a user-visible capability ... so it fits a story; ...' (one long sentence)."
         }
       ],
       "notes": []
@@ -1523,9 +1533,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 2,
+        "passed": 3,
         "failed": 0,
-        "total": 2,
+        "total": 3,
         "time_seconds": 0.0,
         "tokens": 0,
         "tool_calls": 0,
@@ -1541,6 +1551,11 @@
           "text": "behavior.md says no work item file was written to disk",
           "passed": true,
           "evidence": "behavior.md: 'Was any work item file written to disk? **no.**'"
+        },
+        {
+          "text": "The transcript shows no accelerator work id next or accelerator work create command",
+          "passed": true,
+          "evidence": "Transcript mentions both commands only as 'not called' in the session-ends summary; no invocation recorded."
         }
       ],
       "notes": []
@@ -1586,9 +1601,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 3,
+        "passed": 2,
         "failed": 0,
-        "total": 3,
+        "total": 2,
         "time_seconds": 0.0,
         "tokens": 0,
         "tool_calls": 0,
@@ -1601,14 +1616,9 @@
           "evidence": "draft.md ends with '## References'."
         },
         {
-          "text": "behavior.md lists references that include research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
+          "text": "draft.md's References section includes research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
           "passed": true,
-          "evidence": "behavior.md (b) lists https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/ and https://example.com/2025/elasticsearch-eol."
-        },
-        {
-          "text": "behavior.md confirms the research URLs from Step 2 are reflected in the References section",
-          "passed": true,
-          "evidence": "behavior.md (c): 'Yes \u2014 all four sources returned by the (simulated) web-search-researcher appear.'"
+          "evidence": "draft.md References lists https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/ and https://example.com/2025/elasticsearch-eol."
         }
       ],
       "notes": []
@@ -1644,7 +1654,7 @@
     },
     {
       "eval_id": 13,
-      "eval_name": "template-driven-types",
+      "eval_name": "template-driven-kinds",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
@@ -1659,14 +1669,14 @@
       },
       "expectations": [
         {
-          "text": "behavior.md says 'chore' was considered as a valid type (not dismissed as invalid)",
+          "text": "behavior.md says 'chore' was considered as a valid kind (not dismissed as invalid)",
           "passed": true,
-          "evidence": "behavior.md (b): 'Yes ... evaluated `chore` against `task` and `story`, and chose `chore`'."
+          "evidence": "behavior.md (b): 'Considered `chore` as valid: Yes ... I compared it with `task` and chose `chore`'."
         },
         {
-          "text": "behavior.md says the type list was treated as open-ended (from template) rather than a hardcoded list of five types",
+          "text": "behavior.md says the kind list was treated as open-ended (from template) rather than a hardcoded list of five kinds",
           "passed": true,
-          "evidence": "behavior.md (c): 'Open-ended ... used whatever values the loaded template exposes'. It also notes the stale premise: the field is `kind`, not `type`."
+          "evidence": "behavior.md (c): 'Open-ended, read from the template. I did not limit myself to the five kinds the skill's prose mentions'."
         }
       ],
       "notes": []
@@ -1690,17 +1700,17 @@
         {
           "text": "Transcript shows exactly one invocation of accelerator work id next during Step 5",
           "passed": true,
-          "evidence": "Transcript Step 5.1: `accelerator work id next` \u2192 0043, 'the only invocation in the run'; Step 4 explicitly 'NOT called'."
+          "evidence": "Transcript Step 5.1: `accelerator work id next` -> 0043; not called anywhere else (Step 4 explicitly 'NOT called')."
         },
         {
-          "text": "Written file's work_item_id is the value returned by that invocation (0043)",
+          "text": "Written file's id is the value returned by that invocation (0043)",
           "passed": true,
-          "evidence": "final-work-item.md frontmatter `id: \"0043\"`. Stale premise: the field is now `id` (work_item_id is the legacy key); value matches."
+          "evidence": "final-work-item.md: 'id: \"0043\"'."
         },
         {
           "text": "Written file's body H1 begins with '# 0043:'",
           "passed": true,
-          "evidence": "final-work-item.md H1: '# 0043: Dark Mode Toggle on the Settings Page' (CLI substitutes NNNN; prompt's XXXX premise is stale)."
+          "evidence": "final-work-item.md H1: '# 0043: Dark Mode Toggle on the Settings Page'."
         }
       ],
       "notes": []
@@ -1996,9 +2006,9 @@
   "run_summary": {
     "with_skill": {
       "pass_rate": {
-        "mean": 0.9878,
-        "stddev": 0.0771,
-        "min": 0.5,
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
         "max": 1.0
       },
       "time_seconds": {
@@ -2051,6 +2061,8 @@
     "Evals 35 and 36 ({tracker} push-gate decline and preview failure) were run with_skill only on 2026-09-28, by claude-sonnet-5; both passed on the first run.",
     "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
     "Evals 6, 7, 8, 11, 12, 13, 14, 25, 26, 32, 35, 36, 37, 38 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call.",
-    "Eval 7 failed one expectation, 'draft.md contains work_item_id: XXXX', which predates the `id` field and the skill's `NNNN` placeholder; the run wrote `id: \"NNNN\"` as the skill requires. Evals 6, 7, 8, 11, 12, 13 and 14 have no expectations in evals.json, so they were graded against the expectations their earlier runs recorded."
+    "Eval 7 failed one expectation, 'draft.md contains work_item_id: XXXX', which predates the `id` field and the skill's `NNNN` placeholder; the run wrote `id: \"NNNN\"` as the skill requires. Evals 6, 7, 8, 11, 12, 13 and 14 have no expectations in evals.json, so they were graded against the expectations their earlier runs recorded. Superseded by the re-run of the corrected eval below.",
+    "Evals 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 24, 25, 26, 27, 31, 32 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call.",
+    "The executor of eval 26 read evals.json before writing its outputs, so that run was not blind."
   ]
 }
