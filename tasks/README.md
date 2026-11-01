@@ -285,10 +285,11 @@ launcher's cache/verify layout, the hook envelope shape, `jj`'s colocation
 default, and a revset anchoring two deleted files. `measure:teardown` is the
 documented escape from the stale-manifest start-up refusal.
 
-**Launcher size and summary latency.** `measure:launcher-size` builds the
-launcher with the shipped (stripped) release profile for
-`aarch64-apple-darwin` and prints its byte size with the host model, OS and
-load. `measure:summary-latency` builds the release launcher and
+#### Launcher size and summary latency
+
+`measure:launcher-size` builds the launcher with the shipped (stripped) release
+profile for `aarch64-apple-darwin` and prints its byte size with the host model,
+OS and load. `measure:summary-latency` builds the release launcher and
 `accelerator-vcs`, then times `accelerator config summary --format=hook` in a
 git, a non-colocated jj and a colocated jj fixture repository, each tracking an
 owner-only `.accelerator/config.local.md`. Each repository is timed in two
@@ -308,14 +309,74 @@ report records the commit, the index entry count and, for jj, the operation-log
 length. Before and after figures are comparable only when taken on the same
 host.
 
-**Build timing.** `measure:build` times `mise run default`: one priming run,
-whose wall-clock is recorded and discarded, then `--runs` timed runs (default
-3). Per task it records duration, queueing delay, cargo unit counts, lock wait
-and nextest phase; per run, CPU busy in 30-second buckets and the CPU-seconds
-of `syspolicyd`, `XprotectService`, the IDE and `fsnotifier`. It needs no quiet
+#### Warm dispatch
+
+**What a warm-dispatch run requires.** A quiet darwin-arm64 host with no other Claude Code
+session active against the same plugin root; no `ACCELERATOR_*` override set
+except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/
+hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest backends
+resolvable (`sha256sum` and Perl `shasum`, the latter needed for the fallback
+cells, which are otherwise recorded not applicable); network egress to the
+release base URL; ~8 minutes, up to ~30 if the interval escalates, inside a
+35-minute wall-clock budget. The artefact manifest lives at
+`.accelerator-measure/manifest.json` under the plugin root — gitignored, and
+deliberately **not** under `bin/`, which is the launcher's live cache root whose
+entry set is itself an integrity witness. Delete it by hand only as a last
+resort; `mise run measure:teardown` is the supported path.
+
+**linux-arm64 is a calibrated platform too.** Run it on a native aarch64 guest
+(a Colima `vz` VM on a darwin-arm64 host, or bare metal), never an emulated one,
+which invalidates every timing figure. The dispatch-latency figures need only
+the same tool set as darwin; the `verifier::sha256_hex` throughput decomposition
+additionally needs the musl cross-target toolchain — `musl-tools` for `musl-gcc`,
+`CARGO_BUILD_TARGET=aarch64-unknown-linux-musl`, and
+`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc` — because that one term
+is built in-session while the warm-dispatch artefact itself is fetched, not
+built. Its ceilings and its ratio budget are **VM-scoped and provisional**
+pending a bare-metal or CI-hosted aarch64 confirmation. Its dispatch-overhead
+ratio is a larger multiple than darwin's — the linux shell baseline is far
+faster, so the same dispatch cost is a larger multiple of it — so `linux-arm64`
+carries its own `ratio_threshold`/`ratio_target` rather than the global 1.4 /
+0.0036, leaving darwin's tighter guard untouched.
+
+**Before a real run, rehearse.** `mise run measure:warm-dispatch -- --rehearse`
+drives the whole path — recovery, fixture, both farms, floors, pilot, sampling,
+the composition budget and teardown — at a token sample count, records the
+violations it would otherwise refuse on, and stamps its record non-gating. It is
+a smoke run and never evidence; its record is gitignored for that reason.
+
+**The composition budget.** `close_the_budget` sums seven measured terms and
+reports the residual against `max(±1.5 ms, propagated)`. Sub-operations of a
+summed term — `verifier::sha256_hex` and `TrustedKeys::verifies` are both inside
+`reverify` — are recorded as context and never summed, or the budget would
+double-count them. The residual is expected to be **negative and outside the
+band**: the bootstrap's shell logic beyond bash startup and the two
+`sha256_file` calls is not separately measurable without editing the script, so
+it shows up as an unattributed share rather than being hidden inside a derived
+term. That share is reported as `uncross_checked_fraction`, which is the honest
+form of the limitation.
+
+**`verifier::sha256_hex` throughput.** The harness reports the term's latency,
+not its rate. It also emits the size it timed over — the dispatched sub-binary's
+byte length — which `tasks/measure.py` persists as `asset_bytes` under
+`record["terms"]`, beside `cache_root_bytes`. The throughput is then a recorded
+derivation, not a hand-division:
+
+```text
+verifier::sha256_hex throughput (decimal MB/s) =
+    asset_bytes / (median_ms * 1000)
+```
+
+#### Build timing
+
+`measure:build` times `mise run default`: one priming run, whose wall-clock is
+recorded and discarded, then `--runs` timed runs (default 3). Per task it
+records duration, queueing delay, cargo unit counts, lock wait and nextest
+phase; per run, CPU busy in 30-second buckets and the CPU-seconds of
+`syspolicyd`, `XprotectService`, the IDE and `fsnotifier`. It needs no quiet
 host: it samples idle load for 30 seconds first and records and prints it
-instead. Each session writes its logs and `record.json` to a run directory
-under `.accelerator-measure/build/`; `--keep` also writes the record to
+instead. Each session writes its logs and `record.json` to a run directory under
+`.accelerator-measure/build/`; `--keep` also writes the record to
 `meta/measurements/<run id>.json` for the operator to commit, unless the record
 holds a fetch failure. The harness never commits. `--ide-pattern` replaces the
 IntelliJ and RustRover defaults with a regex searched in each process's full
@@ -382,62 +443,6 @@ to compare with the baseline):
   `record.json` to `meta/measurements/<run id>.json` and commit it there.
 - the baseline commit's launcher release must stay published until 0361
   closes.
-
-**What a warm-dispatch run requires.** A quiet darwin-arm64 host with no other Claude Code
-session active against the same plugin root; no `ACCELERATOR_*` override set
-except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/
-hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest backends
-resolvable (`sha256sum` and Perl `shasum`, the latter needed for the fallback
-cells, which are otherwise recorded not applicable); network egress to the
-release base URL; ~8 minutes, up to ~30 if the interval escalates, inside a
-35-minute wall-clock budget. The artefact manifest lives at
-`.accelerator-measure/manifest.json` under the plugin root — gitignored, and
-deliberately **not** under `bin/`, which is the launcher's live cache root whose
-entry set is itself an integrity witness. Delete it by hand only as a last
-resort; `mise run measure:teardown` is the supported path.
-
-**linux-arm64 is a calibrated platform too.** Run it on a native aarch64 guest
-(a Colima `vz` VM on a darwin-arm64 host, or bare metal), never an emulated one,
-which invalidates every timing figure. The dispatch-latency figures need only
-the same tool set as darwin; the `verifier::sha256_hex` throughput decomposition
-additionally needs the musl cross-target toolchain — `musl-tools` for `musl-gcc`,
-`CARGO_BUILD_TARGET=aarch64-unknown-linux-musl`, and
-`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc` — because that one term
-is built in-session while the warm-dispatch artefact itself is fetched, not
-built. Its ceilings and its ratio budget are **VM-scoped and provisional**
-pending a bare-metal or CI-hosted aarch64 confirmation. Its dispatch-overhead
-ratio is a larger multiple than darwin's — the linux shell baseline is far
-faster, so the same dispatch cost is a larger multiple of it — so `linux-arm64`
-carries its own `ratio_threshold`/`ratio_target` rather than the global 1.4 /
-0.0036, leaving darwin's tighter guard untouched.
-
-**Before a real run, rehearse.** `mise run measure:warm-dispatch -- --rehearse`
-drives the whole path — recovery, fixture, both farms, floors, pilot, sampling,
-the composition budget and teardown — at a token sample count, records the
-violations it would otherwise refuse on, and stamps its record non-gating. It is
-a smoke run and never evidence; its record is gitignored for that reason.
-
-**The composition budget.** `close_the_budget` sums seven measured terms and
-reports the residual against `max(±1.5 ms, propagated)`. Sub-operations of a
-summed term — `verifier::sha256_hex` and `TrustedKeys::verifies` are both inside
-`reverify` — are recorded as context and never summed, or the budget would
-double-count them. The residual is expected to be **negative and outside the
-band**: the bootstrap's shell logic beyond bash startup and the two
-`sha256_file` calls is not separately measurable without editing the script, so
-it shows up as an unattributed share rather than being hidden inside a derived
-term. That share is reported as `uncross_checked_fraction`, which is the honest
-form of the limitation.
-
-**`verifier::sha256_hex` throughput.** The harness reports the term's latency,
-not its rate. It also emits the size it timed over — the dispatched sub-binary's
-byte length — which `tasks/measure.py` persists as `asset_bytes` under
-`record["terms"]`, beside `cache_root_bytes`. The throughput is then a recorded
-derivation, not a hand-division:
-
-```text
-verifier::sha256_hex throughput (decimal MB/s) =
-    asset_bytes / (median_ms * 1000)
-```
 
 ### The eval namespace
 
