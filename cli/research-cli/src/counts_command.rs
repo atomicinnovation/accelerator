@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use corpus::scan::DirReader;
+use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 use corpus_adapters::YamlFrontmatter;
 use research::topic::counts::StoredCount;
@@ -20,7 +21,7 @@ use crate::topic_command::Printed;
 ///
 /// A message when the set's directories or files cannot be read; a stored
 /// count that is missing or unreadable is a mismatch, never an error.
-pub fn run_counts<F: DirReader + FileReader>(
+pub fn run_counts<F: DirReader + FileReader + DirectoryProbe>(
     set_root: &Path,
     fs: &F,
 ) -> Result<Printed, String> {

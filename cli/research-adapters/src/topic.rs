@@ -183,26 +183,26 @@ pub fn list_reports<F: DirReader>(
     Ok(fs.list(&set_root.join("reports"))?.unwrap_or_default())
 }
 
-/// The counts the set's `findings/` and `reports/` give, beside the
-/// manifest's `round_count`, `finding_count` and `report_count` and
+/// The counts the files in the set's `findings/` and `reports/` give, beside
+/// the manifest's `round_count`, `finding_count` and `report_count` and
 /// `synthesis.md`'s `rounds_covered`.
 ///
-/// A stored value is read as a whole number, bare or quoted; one that is
-/// absent is missing, and any other is unreadable rather than an error.
+/// A directory is never counted, whatever its name. A stored value is read
+/// as a whole number, bare or quoted; one that is absent is missing, and any
+/// other is unreadable rather than an error.
 ///
 /// # Errors
 ///
 /// A [`kernel::Error`] when a directory cannot be listed or a file read fails
 /// for a reason other than absence.
-pub fn read_counts<F: DirReader + FileReader>(
+pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
     set_root: &Path,
     fs: &F,
     parser: &dyn FrontmatterParser,
 ) -> Result<CountsReading, kernel::Error> {
     let findings_dir = set_root.join("findings");
-    let entries = fs.list(&findings_dir)?.unwrap_or_default();
-    let mut entries: Vec<&str> = entries.iter().map(String::as_str).collect();
-    entries.sort_unstable();
+    let entries = files_in(&findings_dir, fs)?;
+    let entries: Vec<&str> = entries.iter().map(String::as_str).collect();
     let findings = CountedFindings::of(&entries, |name| {
         let fields = fields_of(&findings_dir.join(name), fs, parser)?;
         Ok::<_, kernel::Error>(match stored_count(fields.as_ref(), "round") {
@@ -210,9 +210,8 @@ pub fn read_counts<F: DirReader + FileReader>(
             StoredCount::Missing | StoredCount::Unreadable(_) => None,
         })
     })?;
-    let reports = list_reports(set_root, fs)?;
-    let mut reports: Vec<&str> = reports.iter().map(String::as_str).collect();
-    reports.sort_unstable();
+    let reports = files_in(&set_root.join("reports"), fs)?;
+    let reports: Vec<&str> = reports.iter().map(String::as_str).collect();
     let manifest = fields_of(&set_root.join("manifest.md"), fs, parser)?;
     let synthesis = fields_of(&set_root.join("synthesis.md"), fs, parser)?;
     Ok(CountsReading {
@@ -225,6 +224,20 @@ pub fn read_counts<F: DirReader + FileReader>(
         findings,
         reports: CountedReports::of(&reports),
     })
+}
+
+fn files_in<F: DirReader + DirectoryProbe>(
+    dir: &Path,
+    fs: &F,
+) -> Result<Vec<String>, kernel::Error> {
+    let mut files: Vec<String> = fs
+        .list(dir)?
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|name| !fs.is_dir(&dir.join(name)))
+        .collect();
+    files.sort_unstable();
+    Ok(files)
 }
 
 /// The `status` the set's manifest records.
@@ -1164,6 +1177,25 @@ mod tests {
 
         assert_eq!(counts.reports.names(), ["a.md"]);
         assert_eq!(counts.stored.report_count, StoredCount::Count(1));
+        Ok(())
+    }
+
+    #[test]
+    fn a_directory_named_like_a_document_is_not_counted(
+    ) -> Result<(), TestError> {
+        let fs = manifest("report_count: 1\n")
+            .with_file(
+                "/set/findings/01-a-web.md",
+                &frontmatter_of("round: 1\n"),
+            )
+            .with_dir("/set/findings/02-b-web.md")
+            .with_file("/set/reports/a.md", "")
+            .with_dir("/set/reports/b.md");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.findings.finding_count(), 1);
+        assert_eq!(counts.reports.names(), ["a.md"]);
         Ok(())
     }
 
