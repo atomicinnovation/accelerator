@@ -1,5 +1,6 @@
 import os
 import signal
+import subprocess
 import sys
 import textwrap
 import threading
@@ -287,6 +288,28 @@ class TestInterruption:
         [(pgid, _)] = build_group.remembered
         assert build_group.forgotten == 1
         _wait_until(lambda: not PsutilProcessOps().group_alive(pgid))
+
+    def test_a_signal_as_the_build_starts_still_reaps_it(
+        self, tmp_path, monkeypatch
+    ):
+        started = []
+        real_popen = subprocess.Popen
+
+        def popen_then_signal(*args, **kwargs):
+            child = real_popen(*args, **kwargs)
+            started.append(child.pid)
+            os.kill(os.getpid(), signal.SIGTERM)
+            return child
+
+        monkeypatch.setattr(subprocess, "Popen", popen_then_signal)
+        build_group = FakeBuildGroup()
+        with pytest.raises(KeyboardInterrupt), unwinding_signals():
+            _runner(tmp_path, build_group=build_group).run(
+                _IGNORES_SIGTERM, epoch=Clock().now(), log=tmp_path / "run.log"
+            )
+        [pid] = started
+        _wait_until(lambda: not PsutilProcessOps().group_alive(pid))
+        assert build_group.forgotten == 1
 
     def test_a_group_that_survives_the_reap_is_named_with_its_kill_command(
         self, tmp_path

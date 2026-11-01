@@ -44,24 +44,30 @@ class SubprocessBuildRunner:
     ) -> BuildResult:
         started = self.clock.now()
         with unwind_then_defer(UNWIND_SIGNALS) as interruption:
-            child = subprocess.Popen(
-                argv,
-                cwd=self.root,
-                env=_direct_run_environment(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
+            child: subprocess.Popen[bytes] | None = None
             try:
-                self._remember(child.pid)
+                with deferred_signals(UNWIND_SIGNALS):
+                    child = self._start(argv)
+                    self._remember(child.pid)
                 lines = self._stream(child, epoch=epoch, log=log)
                 exit_status = child.wait()
             finally:
-                self._end(child, interruption)
+                if child is not None:
+                    self._end(child, interruption)
         return BuildResult(
             lines=lines,
             exit_status=exit_status,
             wall_clock_seconds=self.clock.now() - started,
+        )
+
+    def _start(self, argv: Sequence[str]) -> subprocess.Popen[bytes]:
+        return subprocess.Popen(
+            argv,
+            cwd=self.root,
+            env=_direct_run_environment(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
 
     def _remember(self, pid: int) -> None:
