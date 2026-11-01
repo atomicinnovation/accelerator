@@ -80,6 +80,14 @@ class UnmeasurableDirectoryError(MeasurementRefusedError):
     pass
 
 
+class UnsafeDeletionError(MeasurementRefusedError):
+    pass
+
+
+class MissingTouchTargetError(MeasurementRefusedError):
+    pass
+
+
 class UnknownTaskError(MeasurementRefusedError):
     def __init__(self, closest: Sequence[tuple[str, str | None]]) -> None:
         listed = "; ".join(
