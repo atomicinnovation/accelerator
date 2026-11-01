@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T22:25:04+00:00"
+last_updated: "2026-11-01T22:57:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3403,6 +3403,10 @@ Then Phase 7's `locate_work_items`, `RequestedId::propose`, and
 `refuse_if_requested_id_taken` on the proposed ID. Print the verdict from
 the `Proposal` variant. It takes no create lock and creates no directory.
 
+As built, `id::check::run` locates the work items before beginning the
+identity run, as `id::next::run` does, since the run needs the repository
+root. The CLI prints a refusal as `Error: <message>`, as `work create` does.
+
 **File**: `cli/work-cli/src/exit_codes.rs`
 **Changes**: name `work id check` beside `work id next` in the identity-run
 paragraph and in the config-refusal paragraph. Its refusals are `work create --id`'s, exiting 1, except
@@ -3418,16 +3422,19 @@ on the lock and refuse during a re-key, as `work id next` does.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p accelerator-work id::check`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_id_check --test cli_surface`
-- [ ] `mise run cli:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo nextest run -p accelerator-work id::check`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_id_check --test cli_surface`
+- [x] `mise run cli:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] In a scratch repository, `accelerator work id check 400` prints
+- [x] In a scratch repository, `accelerator work id check 400` prints
       `corrected\t0400`. After `accelerator work create "Probe" task low --id 0400`,
       the same check refuses with `E_ID_TAKEN` naming `0400-probe.md`.
+
+Run against `cli/target/debug/accelerator-work` in a scratch repository
+whose bare `.git` carries no identity, so the create passed `--author`.
 
 ---
 
