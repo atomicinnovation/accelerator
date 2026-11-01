@@ -72,7 +72,32 @@ class FullBuild:
         )
 
 
-type BuildScope = FullBuild
+def isolated_log_suffix(task: str) -> str:
+    return "-" + task.replace(":", "_")
+
+
+@dataclass(frozen=True, slots=True)
+class IsolatedTasks:
+    tasks: tuple[str, ...]
+    mode: ClassVar[Mode] = Mode.ISOLATED
+
+    @property
+    def isolated_tasks(self) -> tuple[str, ...]:
+        return self.tasks
+
+    def invocations(self, graph: TaskGraph) -> tuple[Invocation, ...]:
+        return tuple(
+            Invocation(
+                argv=("mise", "run", "--output", "prefix", "--skip-deps", task),
+                log_suffix=isolated_log_suffix(task),
+                graph=graph.isolated(task),
+                reported=(task,),
+            )
+            for task in self.tasks
+        )
+
+
+type BuildScope = FullBuild | IsolatedTasks
 
 
 def _host_settings(label: str) -> HostSettings:
@@ -93,6 +118,18 @@ def _compiled(pattern: str) -> str:
             f"--ide-pattern '{pattern}' is not a regular expression: {error}"
         ) from None
     return pattern
+
+
+def _scope(isolate: Sequence[str]) -> BuildScope:
+    if not isolate:
+        return FullBuild()
+    repeated = [
+        task for task in dict.fromkeys(isolate) if isolate.count(task) > 1
+    ]
+    if repeated:
+        named = ", ".join(f"'{task}'" for task in repeated)
+        raise InvalidSettingsError(f"--isolate names {named} more than once")
+    return IsolatedTasks(tuple(isolate))
 
 
 def _tracked(ide_patterns: Sequence[str]) -> tuple[TrackedProcess, ...]:
@@ -122,6 +159,7 @@ class BuildSettings:
         keep: bool,
         host_settings: str,
         ide_patterns: Sequence[str],
+        isolate: Sequence[str] = (),
     ) -> Self:
         if runs < 1:
             raise InvalidSettingsError("--runs must be at least 1")
@@ -131,5 +169,5 @@ class BuildSettings:
             keep=keep,
             host_settings=_host_settings(host_settings),
             tracked=_tracked(ide_patterns),
-            scope=FullBuild(),
+            scope=_scope(isolate),
         )

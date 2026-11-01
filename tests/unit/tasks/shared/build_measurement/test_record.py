@@ -19,6 +19,7 @@ from tasks.shared.build_measurement.measured_build import (
     CONDITIONS_MIRRORING_THE_HOST,
     CommitMatch,
     HostSettings,
+    Mode,
 )
 from tasks.shared.build_measurement.record import (
     RUN_ID_PREFIX,
@@ -111,6 +112,15 @@ class TestRunId:
             "warm-no-op",
             str(label),
         ]
+
+    def test_an_isolated_run_id_ends_isolated(self):
+        assert run_id(
+            STARTED_AT,
+            "engywook",
+            cache_state=BuildCacheState.WARM_NO_OP,
+            host_settings=HostSettings.DEVTOOLS,
+            mode=Mode.ISOLATED,
+        ).split("_")[-2:] == ["devtools", "isolated"]
 
 
 class TestRecordText:
@@ -314,8 +324,21 @@ class TestParseRecord:
                     )
                 ]
             ),
+            measured_build(
+                mode=Mode.ISOLATED,
+                isolated_tasks=("build:cli",),
+                run_id=(
+                    "build_2026-10-30T162000Z_engywook_warm-no-op_devtools"
+                    "_isolated"
+                ),
+            ),
         ],
-        ids=["failed-skipped-absent", "host-no-reading", "ps-gap"],
+        ids=[
+            "failed-skipped-absent",
+            "host-no-reading",
+            "ps-gap",
+            "isolated",
+        ],
     )
     def test_a_record_reads_back_equal_to_what_was_written(self, measured):
         assert parse_record(record_text(measured), source=_SOURCE) == measured

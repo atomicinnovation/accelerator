@@ -83,3 +83,31 @@ def test_a_roll_up_with_an_empty_run_is_not_runnable():
 def test_a_non_list_run_is_refused():
     with pytest.raises(TaskGraphError, match="mise tasks --json"):
         TaskGraph.parse(_mise_tasks({"name": "a", "run": "invoke a"}))
+
+
+def test_an_isolated_task_has_no_dependencies():
+    isolated = _GRAPH.isolated("lint:check")
+    assert isolated.dependencies_of("lint:check") == ()
+    assert isolated.closure("lint:check") == frozenset()
+
+
+def test_isolating_a_task_keeps_the_rest_of_the_graph():
+    isolated = _GRAPH.isolated("lint:check")
+    assert isolated.dependencies_of("check") == ("lint:check",)
+    assert isolated.runnable == _GRAPH.runnable
+
+
+def test_every_named_task_is_known_to_the_graph():
+    assert _GRAPH.unknown(["test", "deps:install"]) == ()
+
+
+def test_a_task_missing_from_the_graph_is_unknown():
+    assert _GRAPH.unknown(["test", "tset", "lint"]) == ("tset", "lint")
+
+
+def test_an_unknown_task_has_its_closest_known_name():
+    assert _GRAPH.closest_to("lint:chek") == "lint:check"
+
+
+def test_an_unknown_task_far_from_every_name_has_no_closest():
+    assert _GRAPH.closest_to("frobnicate") is None

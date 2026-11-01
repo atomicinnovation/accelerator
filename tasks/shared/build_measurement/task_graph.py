@@ -1,6 +1,7 @@
+import difflib
 import json
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Self
 
@@ -75,3 +76,15 @@ class TaskGraph:
                 reached.add(task)
                 frontier.extend(self.dependencies_of(task))
         return frozenset(reached)
+
+    def isolated(self, task: str) -> Self:
+        return replace(
+            self, depends=MappingProxyType({**self.depends, task: ()})
+        )
+
+    def unknown(self, tasks: Iterable[str]) -> tuple[str, ...]:
+        return tuple(task for task in tasks if task not in self.depends)
+
+    def closest_to(self, task: str) -> str | None:
+        closest = difflib.get_close_matches(task, self.depends, n=1)
+        return closest[0] if closest else None

@@ -13,6 +13,7 @@ from tasks.shared.build_measurement.errors import (
 from tasks.shared.build_measurement.measured_build import (
     HostSettings,
     MeasuredBuild,
+    Mode,
 )
 from tasks.shared.files import atomic_write_text
 from tasks.shared.paths import MEASUREMENTS_RELATIVE
@@ -29,12 +30,14 @@ def run_id(
     *,
     cache_state: BuildCacheState,
     host_settings: HostSettings,
+    mode: Mode = Mode.FULL,
 ) -> str:
     fields = (
         f"{started_at.astimezone(dt.UTC):%Y-%m-%dT%H%M%SZ}",
         _NOT_A_HOSTNAME_CHARACTER.sub("-", hostname),
         str(cache_state),
         str(host_settings),
+        *((str(mode),) if mode is Mode.ISOLATED else ()),
     )
     return RUN_ID_PREFIX + "_".join(fields)
 

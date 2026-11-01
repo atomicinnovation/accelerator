@@ -8,6 +8,7 @@ from tasks.shared.build_measurement.measured_build import HostSettings, Mode
 from tasks.shared.build_measurement.settings import (
     BuildSettings,
     FullBuild,
+    IsolatedTasks,
     Priming,
     TimedRun,
     log_name,
@@ -23,7 +24,7 @@ _GRAPH = TaskGraph.parse(
         [
             {"name": "default", "depends": ["check", "test"], "run": []},
             {"name": "check", "depends": [], "run": ["invoke check"]},
-            {"name": "test", "depends": [], "run": ["invoke test"]},
+            {"name": "test", "depends": ["check"], "run": ["invoke test"]},
             {"name": "measure:build", "depends": [], "run": ["invoke m"]},
         ]
     )
@@ -37,6 +38,7 @@ def _settings(**overrides):
         "keep": False,
         "host_settings": "devtools",
         "ide_patterns": (),
+        "isolate": (),
     } | overrides
     return BuildSettings.of(**arguments)
 
@@ -96,6 +98,54 @@ def test_a_full_build_runs_default_once_reporting_its_closure():
     assert invocation.log_suffix == ""
     assert invocation.graph is _GRAPH
     assert invocation.reported == ("check", "test")
+
+
+def test_isolation_runs_each_named_task_alone_with_skip_deps_in_order():
+    invocations = IsolatedTasks(("test", "check")).invocations(_GRAPH)
+    assert [each.argv for each in invocations] == [
+        ("mise", "run", "--output", "prefix", "--skip-deps", "test"),
+        ("mise", "run", "--output", "prefix", "--skip-deps", "check"),
+    ]
+    assert [each.reported for each in invocations] == [("test",), ("check",)]
+
+
+def test_an_isolated_task_logs_under_its_name_with_colons_as_underscores():
+    [invocation] = IsolatedTasks(("test:unit:cli",)).invocations(_GRAPH)
+    assert invocation.log_suffix == "-test_unit_cli"
+    assert log_name(TimedRun(2), invocation.log_suffix) == (
+        "run-2-test_unit_cli.log"
+    )
+    assert log_name(Priming(), invocation.log_suffix) == (
+        "priming-test_unit_cli.log"
+    )
+
+
+def test_an_isolated_task_is_placed_in_a_graph_where_it_has_no_dependencies():
+    [invocation] = IsolatedTasks(("test",)).invocations(_GRAPH)
+    assert invocation.graph.dependencies_of("test") == ()
+
+
+def test_isolated_tasks_are_recorded_as_isolated_with_their_names():
+    scope = IsolatedTasks(("test", "check"))
+    assert scope.mode is Mode.ISOLATED
+    assert scope.isolated_tasks == ("test", "check")
+
+
+def test_settings_isolate_the_named_tasks():
+    assert _settings(isolate=["test", "check"]).scope == IsolatedTasks(
+        ("test", "check")
+    )
+
+
+def test_settings_without_isolated_tasks_run_a_full_build():
+    assert _settings(isolate=[]).scope == FullBuild()
+
+
+def test_settings_refuse_a_task_isolated_twice():
+    with pytest.raises(
+        InvalidSettingsError, match="--isolate names 'test' more than once"
+    ):
+        _settings(isolate=["test", "check", "test"])
 
 
 def test_a_full_build_is_recorded_as_full_with_no_isolated_tasks():
