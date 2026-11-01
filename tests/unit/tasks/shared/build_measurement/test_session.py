@@ -4,6 +4,7 @@ import pytest
 
 from tasks.shared.build_measurement.errors import (
     HistoryError,
+    OrphanedBuildError,
     SessionInProgressError,
     UnsupportedPlatformError,
 )
@@ -12,7 +13,6 @@ from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.session import (
     IDLE_SAMPLE_SECONDS,
     OrphanedBuild,
-    OrphanedBuildError,
     measure_build,
 )
 from tasks.shared.build_measurement.timeline import TaskOutcome

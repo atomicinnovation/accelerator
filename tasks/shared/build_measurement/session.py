@@ -22,7 +22,7 @@ from tasks.shared.build_measurement.analysis import (
 from tasks.shared.build_measurement.cpu_load import cpu_readings, idle_load
 from tasks.shared.build_measurement.errors import (
     HistoryError,
-    MeasurementRefusedError,
+    OrphanedBuildError,
 )
 from tasks.shared.build_measurement.fetch_failures import fetch_failures
 from tasks.shared.build_measurement.host import (
@@ -116,21 +116,6 @@ class BuildGroup(Protocol):
     def orphaned(self) -> OrphanedBuild | None: ...
 
 
-class OrphanedBuildError(MeasurementRefusedError):
-    def __init__(self, orphan: OrphanedBuild) -> None:
-        members = "\n".join(
-            f"  {pid} {command}" for pid, command in orphan.members
-        )
-        super().__init__(
-            f"an earlier measure:build's build may still be running as "
-            f"process group {orphan.pgid}:\n{members}\n"
-            f"if these are an earlier measure:build's mise, cargo or "
-            f"nextest, stop them with `kill -TERM -{orphan.pgid}` (then "
-            f"`kill -KILL -{orphan.pgid}` for any that survive) and retry; "
-            f"if none is, delete {orphan.path}"
-        )
-
-
 @dataclass(frozen=True, slots=True)
 class BuildPorts:
     system: Callable[[], str]
@@ -153,7 +138,7 @@ def measure_build(settings: BuildSettings, ports: BuildPorts) -> SessionOutcome:
     with ports.session_lock():
         orphan = ports.build_group.orphaned()
         if orphan is not None:
-            raise OrphanedBuildError(orphan)
+            raise OrphanedBuildError(orphan.pgid, orphan.members, orphan.path)
         return _Session(settings, ports).run()
 
 
