@@ -1,7 +1,9 @@
 import datetime as dt
 import platform
+import shlex
 import socket
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 from tasks.shared.build_measurement.build_group import BuildGroupFile
@@ -27,7 +29,7 @@ from tasks.shared.repository import NotARepositoryError, repository_kind
 _SAMPLE_INTERVAL_SECONDS = 1
 _PS_TICK_TIMEOUT_SECONDS = 5.0
 _IOSTAT_ARGV = ("iostat", "-w", str(_SAMPLE_INTERVAL_SECONDS))
-_MISE_TASKS_ARGV = ("mise", "tasks", "--json")
+MISE_TASKS_ARGV = ("mise", "tasks", "--json")
 
 
 def history_of(root: Path) -> History:
@@ -40,9 +42,11 @@ def history_of(root: Path) -> History:
     return JjHistory(root) if kind.is_jj else GitHistory(root)
 
 
-def _mise_tasks_json(root: Path) -> str:
+def mise_tasks_json(
+    root: Path, *, argv: Sequence[str] = MISE_TASKS_ARGV
+) -> str:
     completed = subprocess.run(
-        _MISE_TASKS_ARGV,
+        argv,
         cwd=root,
         check=False,
         capture_output=True,
@@ -50,7 +54,7 @@ def _mise_tasks_json(root: Path) -> str:
     )
     if completed.returncode != 0:
         raise TaskGraphError(
-            f"{' '.join(_MISE_TASKS_ARGV)} failed: {completed.stderr.strip()}"
+            f"{shlex.join(argv)} failed: {completed.stderr.strip()}"
         )
     return completed.stdout
 
@@ -76,7 +80,7 @@ def real_ports(root: Path) -> BuildPorts:
         history=history_of(root),
         diagnostics=ambient_diagnostic_runner,
         kernel_hostname=socket.gethostname,
-        mise_tasks=lambda: _mise_tasks_json(root),
+        mise_tasks=lambda: mise_tasks_json(root),
         clock=clock,
         utc_now=lambda: dt.datetime.now(tz=dt.UTC),
         progress=_progress,
