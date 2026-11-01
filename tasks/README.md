@@ -524,7 +524,10 @@ citing-once rule (`skills/research/outputters/citing-once/SKILL.md`) across
   binary may lack. The launcher runs them only beside the gitignored
   `.accelerator-dev-launcher` marker, the operator's consent to unverified
   binaries: the task refuses without it, never creates or removes it, and
-  reminds you to remove it, since `mise run` fails while it exists.
+  reminds you to remove it, since `mise run` fails while it exists. A
+  session's `PATH` starts with this checkout's `bin/`, so an installed
+  launcher earlier on it, such as a `~/.local/bin/accelerator` link, cannot
+  run a released CLI in its place.
 
 - **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
   its criteria, each criterion its citations, the note or finding each sits
@@ -551,8 +554,9 @@ directory.
 #### eval:ask-and-report
 
 `eval:ask-and-report` checks research-topic's `ask` and `report` verbs across
-111 multi-turn sessions over a reference corpus. Run it after changing either
-verb, the consulting steps they share, the citing-once rule or the model.
+111 multi-turn sessions over a reference corpus, in about 18 minutes at the
+default `--jobs 6`. Run it after changing either verb, the consulting steps
+they share, the citing-once rule or the model.
 
 - **Fixtures** live under `skills/research/research-topic/evals/`: a project
   holding the `llm-agent-planning` set, two variants overlaid on it, and

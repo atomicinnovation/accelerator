@@ -455,7 +455,7 @@ depends = [
 run = "invoke eval.citing-once"
 
 [tasks."eval:ask-and-report"]
-description = "Run the ask-and-report behavioural eval: 111 multi-turn headless claude sessions consulting a reference corpus (needs claude, network and model usage, and the dev CLI builds)"
+description = "Run the ask-and-report behavioural eval: 111 multi-turn headless claude sessions consulting a reference corpus (needs claude, network and model usage, and the dev CLI builds; ~18 min at the default 6 sessions at once)"
 depends = [
   "deps:install:python",
   "build:cli:dev",
