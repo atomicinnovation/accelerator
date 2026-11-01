@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T16:00:00+00:00"
+last_updated: "2026-11-01T21:32:40+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4068,39 +4068,6 @@ Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
 Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
 were made before merging rather than after. Phases 7–10 have not started.
 
-### Phase 6 isolation mode
-
-Where the phase departed from the plan:
-
-- **Graph loaded once.** `measure_build` parses `mise tasks --json` before
-  the session lock, for the name check, and hands that graph to the session,
-  which no longer parses it again in its provenance step. The opening order
-  is therefore platform, task graph, lock, orphan check, for a full build as
-  well.
-- **Name-check helpers.** `TaskGraph` gained `isolated(task)`,
-  `unknown(tasks)` and `closest_to(task)`. `UnknownTaskError` formats each
-  unknown name as `'tset' (closest: 'test')` or `(no close match)`.
-- **Exit-status fill.** `CapturedInvocation.timeline` fills a failed task's
-  missing `exit_status` from the invocation's only when the invocation
-  reports one task, through `Timeline.with_exit_status_unprinted_by_mise`.
-- **Log pointer.** `isolated_log_suffix` lives in `settings.py`, and the
-  summary's failed-task pointer uses it when the record's mode is
-  `isolated`.
-- **Run id.** `run_id` takes `mode` and appends `_isolated` for an isolated
-  session; the record test covers the suffix.
-- **Test placement.** The duplicate-name refusal is tested in
-  `test_settings.py`, beside the other settings refusals, rather than in
-  `test_session.py`.
-- **Task set.** An isolated record's `task_set` stays the `default`
-  closure, as the schema is unchanged.
-- **Manual run.** `build_2026-11-01T201329Z_engywook_warm-no-op_devtools_isolated`
-  (not kept), at `bc16c8bb` on AC power, idle load 30.4%: nextest phase
-  171.4 s, the log's own `Summary` figure, against the research's 149 s.
-  The suite has grown from 6,407 to 6,609 tests, which scales 149 s to
-  about 154 s, and the IDE used 310 CPU-seconds in the 315 s run. The
-  priming run's phase was 165.7 s. Task duration 315.1 s against the
-  research's 247 s, and queueing 0.1 s from the invocation's start.
-
 ### Phases 1–4 review round
 
 PR #175's first review
@@ -4170,14 +4137,64 @@ plan:
   `blocked_by: []`, which the frontmatter validator rejects as an empty
   placeholder; the four emptied keys were deleted by hand.
 
+### Phase 6 isolation mode
+
+Where the phase departed from the plan:
+
+- **Graph loaded once.** `measure_build` parses `mise tasks --json` before
+  the session lock, for the name check, and hands that graph to the session,
+  which no longer parses it again in its provenance step. The opening order
+  is therefore platform, task graph, lock, orphan check, for a full build as
+  well.
+- **Name-check helpers.** `TaskGraph` gained `isolated(task)`,
+  `unknown(tasks)` and `closest_to(task)`. `UnknownTaskError` formats each
+  unknown name as `'tset' (closest: 'test')` or `(no close match)`.
+- **Exit-status fill.** `CapturedInvocation.timeline` fills a failed task's
+  missing `exit_status` from the invocation's only when the invocation
+  reports one task, through `Timeline.with_exit_status_unprinted_by_mise`.
+- **Log pointer.** `isolated_log_suffix` lives in `settings.py`, and the
+  summary's failed-task pointer uses it when the record's mode is
+  `isolated`.
+- **Run id.** `run_id` takes `mode` and appends `_isolated` for an isolated
+  session; the record test covers the suffix.
+- **Test placement.** The duplicate-name refusal is tested in
+  `test_settings.py`, beside the other settings refusals, rather than in
+  `test_session.py`.
+- **Task set.** An isolated record's `task_set` stays the `default`
+  closure, as the schema is unchanged.
+- **Wording.** The `measure:build` docstring opens "Time a build" and
+  names `default` or each `--isolate` task, and the `mise.toml`
+  description says "Time the default build, or each --isolate task
+  alone". The `mise.toml` comment was left as it was.
+- **Settings.** `BuildSettings.of` takes `isolate` with no default, like
+  `ide_patterns`, so every caller says which scope it builds.
+- **Manual run.** `build_2026-11-01T201329Z_engywook_warm-no-op_devtools_isolated`
+  (not kept), at `bc16c8bb` on AC power, idle load 30.4%: nextest phase
+  171.4 s, the log's own `Summary` figure, against the research's 149 s.
+  The suite has grown from 6,407 to 6,609 tests, which scales 149 s to
+  about 154 s, and the IDE used 310 CPU-seconds in the 315 s run. The
+  priming run's phase was 165.7 s. Task duration 315.1 s against the
+  research's 247 s, and queueing 0.1 s from the invocation's start.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0365 no longer lists `blocked_by`, and 0368's
+  `blocks` is `["work-item:0366"]`. As in Phase 5, the emptied
+  `blocked_by: []` was deleted by hand. If this branch is abandoned, 0365's
+  edge to 0368 should be restored.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 458 s, the fixers changing nothing) passed locally at
+`98d2de64`. CI has not run on it yet.
+
 ### Deferred to later phases
 
 The review's structural findings were deferred. Each fits a later phase:
 
-- **Phases 6 and 7.** `BuildCacheState`, `Mode` and `BuildScope` gain their
-  other variants, and the recurring condition parameters may become one
-  value object. A `RunDirectory` port and a rename of `test_imports.py`'s
-  `_PURE` partition fit isolation mode.
+- **Phase 7.** `BuildCacheState` gains its other variants, and the
+  recurring condition parameters (`cache_state`, `mode`, `isolated_tasks`,
+  `host_settings`) may become one value object. Phase 6 added `Mode`'s and
+  `BuildScope`'s isolated variants but not the `RunDirectory` port or the
+  rename of `test_imports.py`'s `_PURE` partition; both still fit, now
+  beside the cold state's workspace port.
 - **Any phase.** A `ports.py` for the port protocols and their value types
   now split across `session.py`, `provenance.py` and `analysis.py`; a
   `tasks/measure_build.py` split from `tasks/measure.py`; `measure:build`
