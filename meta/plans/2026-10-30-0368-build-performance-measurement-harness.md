@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T21:55:48+00:00"
+last_updated: "2026-11-01T22:23:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3408,10 +3408,10 @@ than a `partial`, which ruff's RUF009 flags.
 
 #### Manual Verification:
 
-- [ ] `mise run measure:build -- --cache-state cold --runs 1` deletes and rebuilds both
+- [x] `mise run measure:build -- --cache-state cold --runs 1` deletes and rebuilds both
       directories. `deps:install:node` succeeds in the run. The record says
       `cold` and has no priming entry.
-- [ ] `mise run measure:build -- --cache-state incremental --runs 1` leaves
+- [x] `mise run measure:build -- --cache-state incremental --runs 1` leaves
       `jj diff cli/kernel/src/lib.rs` empty.
 
 ---
@@ -4067,7 +4067,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
 Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
 were made before merging rather than after. Phase 7's code is complete and
-not yet pushed; its manual runs and work-item edits are outstanding.
+not yet pushed, and its manual runs pass; its work-item edits wait for the
+merge.
 Phases 8–10 have not started.
 
 ### Phases 1–4 review round
@@ -4219,6 +4220,19 @@ Where the phase departed from the plan:
 Verification: the phase's tests, `mise run build-system:check` and the full
 `mise run` (exit 0, 341 s, the fixers changing nothing) passed locally. CI
 has not run on it yet.
+
+Manual runs, at `aa31e6a7` on AC power with `--host-settings devtools`,
+neither kept:
+- **Cold.** `build_2026-11-01T220320Z_engywook_cold_devtools`: idle load
+  19.8%, priming skipped and `priming: null`, wall-clock 435.5 s, no task
+  failed. It deleted a 39 GB `cli/target` and the frontend's
+  `node_modules`, and the run rebuilt both (`cli/target` 17 GB after);
+  `deps:install:node` succeeded in 4.1 s, and no `cold-trash-1` remained.
+  Units: 1,275 compiling, 543 checking, 17 documenting. The IDE used
+  817 CPU-seconds, indexing the rebuilt tree.
+- **Incremental.** `build_2026-11-01T221211Z_engywook_incremental_devtools`:
+  priming 308.6 s, the timed run 334.1 s, no task failed, 76 units
+  compiling. `jj diff cli/kernel/src/lib.rs` was empty afterwards.
 
 ### Deferred to later phases
 
