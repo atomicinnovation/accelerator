@@ -21,6 +21,7 @@ pub mod own_identity;
 pub mod path_component;
 pub mod promotion;
 pub mod rekey;
+pub mod requested_id;
 pub mod resolve;
 pub mod retirement;
 pub mod section_diff;

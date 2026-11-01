@@ -309,6 +309,7 @@ pub(crate) enum LiteralCase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DigitWidth {
     Any,
+    AtMost,
     Exact,
 }
 
@@ -394,8 +395,10 @@ fn walk_from<'a>(
             walk_from(later, after, walk, finished, Some(run), digits)
         }),
         Segment::Number { width } => take_digits(rest)
-            .filter(|(run, _)| {
-                walk.digits == DigitWidth::Any || run.len() == *width
+            .filter(|(run, _)| match walk.digits {
+                DigitWidth::Any => true,
+                DigitWidth::AtMost => run.len() <= *width,
+                DigitWidth::Exact => run.len() == *width,
             })
             .find_map(|(run, after)| {
                 walk_from(later, after, walk, finished, key, Some(run))
@@ -509,6 +512,84 @@ impl IdPattern {
         };
         IdParts::from_reading(&self.walk(text, walk)?)
     }
+
+    /// `text` read as a correction may complete it: literals as written, a
+    /// key run or, where the pattern has a key, none together with the
+    /// literal after it, and at most the pattern's width of digits.
+    pub(crate) fn read_correctable(&self, text: &str) -> Option<IdParts> {
+        let walk = Walk {
+            literals: LiteralCase::Exact,
+            digits: DigitWidth::AtMost,
+        };
+        if text.len() > MAX_ID_BYTES {
+            return None;
+        }
+        let read = |segments: &[Segment]| {
+            walk_from(segments, text, walk, &str::is_empty, None, None)
+                .and_then(|reading| IdParts::from_reading(&reading))
+        };
+        read(&self.segments).or_else(|| {
+            self.references_key()
+                .then(|| read(&self.segments_without_key()))
+                .flatten()
+        })
+    }
+
+    fn segments_without_key(&self) -> Vec<Segment> {
+        let mut segments = Vec::new();
+        let mut after_key = false;
+        for segment in &self.segments {
+            let skipped = *segment == Segment::Key
+                || (after_key && matches!(segment, Segment::Literal(_)));
+            after_key = *segment == Segment::Key;
+            if !skipped {
+                segments.push(segment.clone());
+            }
+        }
+        segments
+    }
+
+    pub(crate) fn keying(&self) -> PatternKeying {
+        if self.is_tracker_owned() {
+            PatternKeying::Tracker
+        } else if self.references_key() {
+            PatternKeying::Keyed
+        } else {
+            PatternKeying::Keyless
+        }
+    }
+
+    /// The shape the pattern renders, in words, naming a key and literal
+    /// text only when the pattern has them.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        if let [Segment::Number { width }] = self.segments.as_slice() {
+            return format!(
+                "a {width}-digit number from {:0width$} to {}, with no key",
+                1,
+                "9".repeat(*width)
+            );
+        }
+        let parts: Vec<String> = self
+            .segments
+            .iter()
+            .map(|segment| match segment {
+                Segment::Literal(literal) => format!("'{literal}'"),
+                Segment::Key => "a key of letters and digits".to_owned(),
+                Segment::Number { width } => format!("a {width}-digit number"),
+                Segment::Tracker => "an ID the tracker assigns".to_owned(),
+            })
+            .collect();
+        let separator = if parts.len() > 2 { ", then " } else { " then " };
+        parts.join(separator)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PatternKeying {
+    Keyed,
+    Keyless,
+    Tracker,
 }
 
 fn segments_of(characters: &[char]) -> Result<Vec<Segment>, PatternError> {
@@ -909,6 +990,24 @@ mod tests {
             prefix_number("\u{212A}-0500-x.md", "{key}-{number:04d}"),
             None
         );
+    }
+
+    #[test]
+    fn the_mismatch_description_follows_the_pattern() {
+        let cases = [
+            (
+                "{number:04d}",
+                "a 4-digit number from 0001 to 9999, with no key",
+            ),
+            (
+                "{key}-{number:04d}",
+                "a key of letters and digits, then '-', then a 4-digit number",
+            ),
+            ("v{number:03d}", "'v' then a 3-digit number"),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(pattern(text).describe(), expected, "{text}");
+        }
     }
 
     #[test]
