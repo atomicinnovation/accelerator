@@ -12,9 +12,9 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0363", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/175"
 pr_number: 175
 tags: ["build-system", "measurement", "performance", "mise", "macos"]
-revision: "244760759693f68adb242796d2400dbf4287d1f3"
+revision: "326827d136552baf707afb14a379b0bfe940442c"
 repository: "accelerator"
-last_updated: "2026-10-31T19:03:13+00:00"
+last_updated: "2026-11-01T10:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -47,10 +47,10 @@ host guidance follow in later phases.
   launcher, advisory-database and npm-registry fetch failures.
 - **Host activity analysis** (`cpu_load.py`, `tracked_processes.py`,
   `samplers.py`, `across_runs.py`). `iostat` and `ps` sample once a second in
-  the background. CPU busy is bucketed into 30-second windows, and CPU-seconds
-  are attributed to `syspolicyd`, `XprotectService`, the IDE and `fsnotifier`.
-  Each figure carries a `presence` of `measured`, `flagged` or `absent`, and a
-  spread across runs.
+  the background, in the C locale whatever the operator's. CPU busy is bucketed
+  into 30-second windows, and CPU-seconds are attributed to `syspolicyd`,
+  `XprotectService`, the IDE and `fsnotifier`. Each figure carries a `presence`
+  of `measured`, `flagged` or `absent`, and a spread across runs.
 - **Provenance and record** (`provenance.py`, `history.py`, `host.py`,
   `record.py`, `record_model.py`). The measured commit is the nearest
   first-parent commit that changes anything outside `meta/measurements/`, so
@@ -63,16 +63,26 @@ host guidance follow in later phases.
   domain runs over injected ports, with real ports composed in one place. It
   holds a per-workspace session lock, runs the build in its own process group
   and records that group's id in `build.pgid` so a later session can detect an
-  orphan. On Ctrl-C it reaps the whole group. The build runner drops inherited
+  orphan. It reaps the whole group on Ctrl-C, and after a normal exit if any
+  member outlives `mise`; `build.pgid` stays while the group survives, and
+  signals are held while the build starts so an interrupt cannot orphan it.
+  A failed `ps` probe is reported as no reading, not as every tracked process
+  missing. The build runner drops inherited
   `MISE_TASK_*` and sets `MISE_TASK_TIMINGS=1`. Without that, an enclosing
   `mise run` silences every `Finished in` line.
-- **Shared extractions, no behaviour change.**
+- **Shared extractions.** Behaviour is unchanged except where noted.
   - Signal unwinding moves into `tasks/shared/signals.py`.
   - Tree and process-group reaping move into `tasks/shared/processes.py`; the
-    dev host server now calls `reap_tree`.
+    dev host server now calls `reap_tree`. Group operations form a separate
+    `ProcessGroupOps` port, so the dev lifecycle depends only on `ProcessOps`.
+    New: `reap_session` also reaps a group whose leader has already exited.
   - Diagnostic runners move into `tasks/shared/diagnostics.py`, and
     `repository_kind` into `tasks/shared/repository.py`.
-- **Docs and meta.** `tasks/README.md` documents build timing, run directories,
+- **Warm-dispatch teardown.** Its containment check now refuses
+  `.accelerator-measure/build`, which the two harnesses' shared scratch root
+  would otherwise admit for removal.
+- **Docs and meta.** `tasks/README.md` gives each measure harness its own
+  section and documents build timing, run directories,
   how to read a record, schema evolution and the operator protocol for baseline
   runs. The PR also adds the 0361–0369 work items, the two research documents,
   the 0368 plan and the plan and work-item reviews.
@@ -89,11 +99,11 @@ host guidance follow in later phases.
 ## Testing
 
 - [x] Harness, signal, process, repository, measure and mise-guard tests pass
-  locally: 2374 passed, 2 skipped
+  locally: 2398 passed, 2 skipped
   (`uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_{signals,processes,repository}.py tests/unit/tasks/test_{measure,mise}.py`)
 - [x] `mise run build-system:check` passes (ruff, format, pyrefly strict: 0 errors)
 - [x] Full local CI mirror `mise run` passed at the end of each phase, as
-  recorded in the plan (not re-run for this description)
+  recorded in the plan, and again after the first review round
 - [x] Analysis is checked against a real captured warm no-op run on the
   reference host (`test_captured_run.py` over the `warm-no-op-*` golden
   fixtures)
@@ -103,7 +113,9 @@ host guidance follow in later phases.
   log follows the build.
 - [ ] Tasks unit lane on both CI OSes (ubuntu and macOS). Real-`jj`/`git` tests
   are gated by `require`, which fails in CI rather than skipping, so they need
-  this PR's CI run.
+  this PR's CI run. Earlier ubuntu runs failed one test that assumed a
+  non-root user cannot signal process group 1; the hosted runner can, so the
+  test now forces the `PermissionError` it was probing for.
 
 ## Notes for Reviewers
 
