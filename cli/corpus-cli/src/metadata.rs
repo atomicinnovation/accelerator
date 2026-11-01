@@ -50,6 +50,7 @@ mod tests {
             filename_timestamp: "2026-07-13_09-05-07".to_owned(),
             repository_name: Some("accelerator".to_owned()),
             revision: Some("abc123".to_owned()),
+            author: Some("Ada Author".to_owned()),
         };
         let outcome = run_derive(
             Ok(metadata),
@@ -60,6 +61,7 @@ mod tests {
             .contains("Current Date/Time (UTC): 2026-07-13T09:05:07+00:00"));
         assert!(outcome.stdout.contains("Current Revision: abc123"));
         assert!(outcome.stdout.contains("Repository Name: accelerator"));
+        assert!(outcome.stdout.contains("Author: Ada Author"));
         assert_eq!(outcome.stderr, String::new());
         Ok(())
     }

@@ -40,6 +40,7 @@ fn facts(revision: Option<&str>) -> RepositoryFacts {
     RepositoryFacts {
         name: "accelerator".to_owned(),
         revision: revision.map(str::to_owned),
+        author: Some("Ada Author".to_owned()),
     }
 }
 
@@ -60,6 +61,7 @@ fn every_field_is_derived_from_the_clock_and_the_repository() {
             revision: Some(
                 "84a6b82ae0ee9964a036d54cd5e7a00db01bad11".to_owned()
             ),
+            author: Some("Ada Author".to_owned()),
         }
     );
 }
@@ -74,6 +76,7 @@ fn no_repository_blanks_the_name_and_the_revision() {
 
     assert_eq!(derived.repository_name, None);
     assert_eq!(derived.revision, None);
+    assert_eq!(derived.author, None);
     assert_eq!(
         derived.datetime_utc, "2026-07-13T09:05:07+00:00",
         "the timestamps stand alone — they do not need a repository"
@@ -163,6 +166,35 @@ fn the_filename_line_is_labelled_the_way_its_helper_labels_it() {
 }
 
 #[test]
+fn the_block_names_the_repository_s_configured_author_last() {
+    let block = render(
+        &derive(
+            &FakeClock,
+            Some(&facts(Some("abc"))),
+            FilenameTimestampFormat::DateOnly,
+        ),
+        FilenameTimestampFormat::DateOnly,
+    );
+
+    assert_eq!(block.lines().last(), Some("Author: Ada Author"));
+}
+
+#[test]
+fn an_unconfigured_author_drops_only_its_line() {
+    let facts = RepositoryFacts {
+        author: None,
+        ..facts(Some("abc"))
+    };
+    let block = render(
+        &derive(&FakeClock, Some(&facts), FilenameTimestampFormat::DateOnly),
+        FilenameTimestampFormat::DateOnly,
+    );
+
+    assert!(!block.contains("Author:"));
+    assert!(block.contains("Repository Name: accelerator"));
+}
+
+#[test]
 fn a_repository_less_block_omits_the_revision_and_name_lines() {
     let block = render(
         &derive(&FakeClock, None, FilenameTimestampFormat::DateOnly),
@@ -171,6 +203,7 @@ fn a_repository_less_block_omits_the_revision_and_name_lines() {
 
     assert!(!block.contains("Current Revision:"));
     assert!(!block.contains("Repository Name:"));
+    assert!(!block.contains("Author:"));
     assert!(block.contains("Current Date/Time (UTC):"));
 }
 

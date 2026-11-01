@@ -518,6 +518,10 @@
   commands `ask` runs after a reply prompt for permission, and are denied in
   a headless session; adding `Bash(accelerator corpus *)` and
   `Bash(accelerator research topic *)` to your allow rules avoids that.
+- **`accelerator corpus metadata derive` prints an `Author:` line**: the
+  checkout's configured `user.name`, from jj inside a jj repository and from
+  git otherwise, omitted when none is set. A skill fills `author` from it
+  rather than running a VCS command of its own.
 - **`/accelerator:research-topic report SLUG QUESTION`** answers a question
   from the same kind of set as `ask`, then, once you accept, writes
   `reports/<question-slug>.md` with its `coverage` (`answered` or `partial`),
