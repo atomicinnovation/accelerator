@@ -356,12 +356,14 @@ record by a function over its raw JSON, applied before validation, so committed
 records stay readable. A record is read by code at least as new as the code
 that wrote it.
 
-Taking a baseline or condition record:
+Taking a baseline or condition record (one taken under a changed host setting,
+to compare with the baseline):
 
-- `--host-settings` names the settings already in force and changes nothing:
-  `none`, `devtools` (the terminal and IDE are in the Developer Tools list in
-  System Settings › Privacy & Security) or `devtools+ide-exclusion` (the IDE
-  also excludes the build's output folders).
+- `--host-settings` is required. It names the settings already in force and
+  changes nothing: `none`, `devtools` (the terminal and IDE are in the
+  Developer Tools list in System Settings › Privacy & Security) or
+  `devtools+ide-exclusion` (the IDE also excludes the build's output folders).
+  Omitted, it records `unspecified`, which compares with no other record.
 - keep the IDE open on the project, so the IDE and `fsnotifier` are measured.
 - make no commit in any workspace while a run is going: the launcher's
   `build.rs` watches the parent `.git/HEAD`.
