@@ -2963,9 +2963,9 @@ within each run.
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -4065,7 +4065,35 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 ## Implementation Notes
 
 Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
-Phase 5 is complete and not yet pushed. Phases 6–10 have not started.
+Phase 5 is complete and not yet pushed. Phase 6's code is complete; its
+manual run and its after-merge work-item edits are outstanding. Phases 7–10
+have not started.
+
+### Phase 6 isolation mode
+
+Where the phase departed from the plan:
+
+- **Graph loaded once.** `measure_build` parses `mise tasks --json` before
+  the session lock, for the name check, and hands that graph to the session,
+  which no longer parses it again in its provenance step. The opening order
+  is therefore platform, task graph, lock, orphan check, for a full build as
+  well.
+- **Name-check helpers.** `TaskGraph` gained `isolated(task)`,
+  `unknown(tasks)` and `closest_to(task)`. `UnknownTaskError` formats each
+  unknown name as `'tset' (closest: 'test')` or `(no close match)`.
+- **Exit-status fill.** `CapturedInvocation.timeline` fills a failed task's
+  missing `exit_status` from the invocation's only when the invocation
+  reports one task, through `Timeline.with_exit_status_unprinted_by_mise`.
+- **Log pointer.** `isolated_log_suffix` lives in `settings.py`, and the
+  summary's failed-task pointer uses it when the record's mode is
+  `isolated`.
+- **Run id.** `run_id` takes `mode` and appends `_isolated` for an isolated
+  session; the record test covers the suffix.
+- **Test placement.** The duplicate-name refusal is tested in
+  `test_settings.py`, beside the other settings refusals, rather than in
+  `test_session.py`.
+- **Task set.** An isolated record's `task_set` stays the `default`
+  closure, as the schema is unchanged.
 
 ### Phases 1–4 review round
 
