@@ -333,8 +333,9 @@ be turned back into a record, since the task graph, provenance and settings are
 not kept there.
 
 **Reading a build record.** A record is named
-`build_<UTC time>_<hostname>_<cache state>_<label>`, its fields joined by `_`
-so each boundary is unambiguous; a counter would collide across jj workspaces.
+`build_<UTC time>_<hostname>_<cache state>_<host settings>`, the last being the
+`--host-settings` value, its fields joined by `_` so each boundary is
+unambiguous; a counter would collide across jj workspaces.
 The commit is the nearest first-parent commit that changes anything outside
 `meta/measurements/`, so a kept record, committed or not, leaves the measured
 commit unchanged. Every per-run time is seconds from that run's start, and
