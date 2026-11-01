@@ -758,7 +758,7 @@ consumed):
 A work item carries two distinct identity fields:
 
 - **`id`** — the **local own-identity**, allocated locally by
-  `accelerator work create` (via `accelerator work next-number`) under
+  `accelerator work create` (via `accelerator work id next`) under
   the configured `id_pattern`. It is **always a quoted YAML string**,
   regardless of the pattern: new work items write `id: "0001"` under
   the default pattern and `id: "PROJ-0001"` under

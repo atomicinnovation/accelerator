@@ -363,7 +363,7 @@ requirements, etc.) applies equally to existing and proposed content.
 
 1. **Draft a complete work item** from the agreed proposal using the template
    structure loaded at the top of this skill. Use `NNNN` as the placeholder
-   work item number throughout. Do NOT call `accelerator work next-number` at this step.
+   work item number throughout. Do NOT call `accelerator work id next` at this step.
 
 2. **Kind-specific content placement**:
    - story/epic: open the `Summary` section with a user story statement —
@@ -396,7 +396,7 @@ changes before I write it to disk:
 6. **Continue to challenge** during the review loop — flag untestable criteria,
    vague requirements, or gaps surfaced by research that remain unaddressed.
    Iterate until the user explicitly approves. **`accelerator work
-   next-number` is never called during this loop.**
+   id next` is never called during this loop.**
 
 ### In enrich-existing mode
 
@@ -423,7 +423,7 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-**A re-key in progress.** `accelerator work next-number` and
+**A re-key in progress.** `accelerator work id next` and
 `accelerator work create` (with or without `--push`) refuse before reading or
 writing anything while an `accelerator work rekey` run is unfinished. Before
 any other branch on a non-zero exit from one of them, check its stderr for
@@ -440,11 +440,11 @@ Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
 assigns the key on a push, and `accelerator work create` mints the draft ID
 itself, so its first stdout line is the only path to report.
 
-1. **Call `accelerator work next-number`** to get the next full ID under the
+1. **Call `accelerator work id next`** to get the next full ID under the
    configured pattern:
 
 ```
-accelerator work next-number
+accelerator work id next
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
@@ -554,7 +554,7 @@ concurrently. Please re-run /create-work-item.
       Every "save locally" above is the step 6 `accelerator work create`
       call with no `--push`, so under `{tracker}` it writes a draft that
       `/sync-work-items` promotes later. Never write the file with the
-      `Write` tool, and never call `accelerator work next-number` for it.
+      `Write` tool, and never call `accelerator work id next` for it.
 
       Then, when a push is still on the table:
 
@@ -653,7 +653,7 @@ Work item created: `<path>`
 
 ### In enrich-existing mode
 
-1. Do **not** call `accelerator work next-number`. The target path is the
+1. Do **not** call `accelerator work id next`. The target path is the
    resolved `existing_work_item_path` cached in Step 0.
 
 2. **At-write identity-swap check** (best-effort guard): immediately before
@@ -745,7 +745,7 @@ completing.
 ## Quality Guidelines
 
 - Never write a file without explicit user approval.
-- Never call `accelerator work next-number` before the user approves the draft.
+- Never call `accelerator work id next` before the user approves the draft.
 - The slug must be a meaningful kebab-case title, not raw input text.
 - Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
@@ -803,7 +803,7 @@ pattern, never a placeholder; sourced from `work_item_id` on legacy
 files) and the title as confirmed or replaced in Step 3.
 
 **Script avoidance** (enrich-existing mode): `accelerator work
-next-number` is never called. The number is already cached. The path-existence guard in Step 5
+id next` is never called. The number is already cached. The path-existence guard in Step 5
 does not apply — overwrite is the intended behaviour once the at-write
 identity-swap check passes.
 
@@ -840,7 +840,7 @@ identity-swap check passes.
   industry standards, external technology, or otherwise. When in doubt,
   prefer to spawn research — over-asking is cheaper than producing a
   vague or poorly-grounded proposal.
-- If `accelerator work next-number` exits non-zero, abort and surface the
+- If `accelerator work id next` exits non-zero, abort and surface the
   error message verbatim.
 
 !`accelerator config instructions create-work-item --fail-safe`

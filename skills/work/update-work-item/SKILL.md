@@ -158,7 +158,7 @@ with two options:
 **`parent` — canonicalised**: normalise the value via
 
 ```
-accelerator work canonicalise-id <input>
+accelerator work id canonicalise <input>
 ```
 
 before writing. The canonicaliser produces the full ID under the

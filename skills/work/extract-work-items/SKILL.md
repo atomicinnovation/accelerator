@@ -335,15 +335,15 @@ applying the same skeleton + assumptions note as 3.4. Do not ask
 further questions. Already-skipped candidates stay skipped. Jump to
 Step 4.
 
-#### 3.7 No `accelerator work next-number` calls in Step 3
+#### 3.7 No `accelerator work id next` calls in Step 3
 
-`accelerator work next-number` is not called at any point during Step 3,
+`accelerator work id next` is not called at any point during Step 3,
 regardless of which option the user picks. Writing happens exclusively
 in Step 4 after all approvals — enriched and thin — are collected.
 
 ### Step 4: Write Work Items
 
-**A re-key in progress.** `accelerator work next-number` and
+**A re-key in progress.** `accelerator work id next` and
 `accelerator work create-batch` refuse before reading or writing anything
 while an `accelerator work rekey` run is unfinished. Before any other branch
 on a non-zero exit from one of them, check its stderr for these codes; in
@@ -362,7 +362,7 @@ instead of this step.
 1. **Count approved (non-skipped) items: N.**
 
 2. **If N is 0**: print "No work items approved — nothing written." and exit
-   cleanly. Do NOT call `accelerator work next-number`.
+   cleanly. Do NOT call `accelerator work id next`.
 
 3. **Otherwise**:
 
@@ -391,7 +391,7 @@ instead of this step.
       Compute *display-only* projected IDs by calling, per distinct
       project code:
       ```
-      accelerator work next-number --project <code> --count <count-for-that-project>
+      accelerator work id next --project <code> --count <count-for-that-project>
       ```
       These calls do not commit numbers; the same call is re-issued after
       every amendment to keep the table accurate.
@@ -459,7 +459,7 @@ instead of this step.
    f. **Allocate per distinct project code**, in original presentation
       order:
       ```
-      accelerator work next-number --project <code> --count <count>
+      accelerator work id next --project <code> --count <count>
       ```
       One call per distinct project code; `--project` is omitted when
       the pattern lacks `{project}`. If any allocator call exits
@@ -592,7 +592,7 @@ before completing.
    - `tags`, `blocks`, `blocked_by`, `relates_to`, `derived_from` and
      `source` follow the same omit-when-empty rules as the frontmatter in
      Step 4 h. `body_file` is relative to the manifest's directory.
-   - Do not call `accelerator work next-number`, and never write an item
+   - Do not call `accelerator work id next`, and never write an item
      with the `Write` tool: `create-batch` mints every ID and writes every
      file.
 
@@ -695,17 +695,17 @@ before completing.
 ## Quality Guidelines
 
 - Under `{tracker}`, Step 4 under `{tracker}` replaces Step 4: the
-  `accelerator work next-number` rules below apply only to other patterns.
+  `accelerator work id next` rules below apply only to other patterns.
 
-- Never call `accelerator work next-number` before all approvals are collected.
+- Never call `accelerator work id next` before all approvals are collected.
   The number space is shared and finite; consuming numbers for drafts the
   user might still skip creates gaps that are impossible to clean up later.
-- Never call `accelerator work next-number` when N=0. An all-skipped session must
+- Never call `accelerator work id next` when N=0. An all-skipped session must
   exit cleanly with no side effects.
-- If `accelerator work next-number` exits non-zero, abort immediately and surface
+- If `accelerator work id next` exits non-zero, abort immediately and surface
   the script's error output verbatim — even if it emitted some numbers on
   stdout before failing, treat the entire batch as failed.
-- Verify all target slugs are free BEFORE calling `accelerator work next-number` —
+- Verify all target slugs are free BEFORE calling `accelerator work id next` —
   collision checks happen before number allocation, by slug pattern, since
   numbers are not yet known. Under a `{project}` pattern the collision
   check is **project-aware**: the same slug under two different project
@@ -748,7 +748,7 @@ before completing.
   before writing the batch. Never write `[author]` or any placeholder.
 - "Accept remaining as-is" only marks unreviewed candidates as approved
   (thin) — it does not resurrect skipped candidates, and writing still
-  happens exclusively in Step 4 after the single `accelerator work next-number`
+  happens exclusively in Step 4 after the single `accelerator work id next`
   call.
 - Source-derived content stays faithful to what the source documents say.
   Do not silently invent requirements. When you make an interpretation while
