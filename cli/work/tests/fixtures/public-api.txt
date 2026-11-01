@@ -2185,6 +2185,7 @@ impl core::marker::StructuralPartialEq for work::sync::push_precondition::Reques
 pub fn work::sync::push_precondition::order_precondition<C>(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carrier: &dyn core::ops::function::Fn(&tracker::ExternalId) -> core::option::Option<C>) -> work::sync::push_precondition::OrderPrecondition<C>
 pub fn work::sync::push_precondition::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::push_precondition::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
+pub const fn work::sync::push_precondition::unfinished_push(marker: &work::sync::push_precondition::MarkerState<'_>) -> core::option::Option<work::sync::push_precondition::RefusalReason>
 pub mod work::sync::state
 pub enum work::sync::state::SyncState
 pub work::sync::state::SyncState::Conflict
@@ -2848,6 +2849,7 @@ pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) 
 pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
 pub fn work::sync::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
+pub const fn work::sync::unfinished_push(marker: &work::sync::push_precondition::MarkerState<'_>) -> core::option::Option<work::sync::push_precondition::RefusalReason>
 pub mod work::tags
 pub enum work::tags::TagAction
 pub work::tags::TagAction::Add
