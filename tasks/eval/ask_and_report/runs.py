@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from tasks.eval.ask_and_report.checks import (
     Bounds,
@@ -307,38 +307,55 @@ class RunSettings:
     config_dir: str
 
 
-def settings_conflict(
-    recorded: RunSettings, model: str, config_dir: str
-) -> str | None:
-    """Name a rerun option that differs from the run it reruns, if any."""
-    for option, given, held in (
-        ("--model", model, recorded.model),
-        ("--config-dir", config_dir, recorded.config_dir),
+def settings_conflict(recorded: RunSettings, given: RunSettings) -> str | None:
+    """Name a rerun setting that differs from the run it reruns, if any.
+
+    An empty model or config dir is not given, so it takes the run's.
+    """
+    for setting, offered, held in (
+        ("--model", given.model, recorded.model),
+        ("--config-dir", given.config_dir, recorded.config_dir),
+        ("Claude Code", given.claude_version, recorded.claude_version),
     ):
-        if given and given != held:
-            return f"{option} {given} differs from the run's {held or 'none'}"
+        if offered and offered != held:
+            return (
+                f"{setting} {offered} differs from the run's {held or 'none'}"
+            )
     return None
+
+
+def _recorded_sessions(out: Path) -> list[dict[str, Any]]:
+    results = out / RESULTS
+    if not results.exists():
+        return []
+    return json.loads(results.read_text())["sessions"]
+
+
+def _recorded(result: SessionResult) -> dict[str, Any]:
+    return asdict(result) | {
+        "status": result.status,
+        "errored": [
+            {"turn": e.turn, "reason": e.reason} for e in result.errored
+        ],
+    }
 
 
 def save_results(
     results: Sequence[SessionResult], out: Path, settings: RunSettings
 ) -> None:
+    """Record the run's settings and each session's result.
+
+    A narrowed run replaces only the sessions it judged, so the run's
+    other sessions keep their results.
+    """
+    judged = {result.session: _recorded(result) for result in results}
+    kept = [
+        judged.pop(session["session"], session)
+        for session in _recorded_sessions(out)
+    ]
     (out / RESULTS).write_text(
         json.dumps(
-            asdict(settings)
-            | {
-                "sessions": [
-                    asdict(result)
-                    | {
-                        "status": result.status,
-                        "errored": [
-                            {"turn": e.turn, "reason": e.reason}
-                            for e in result.errored
-                        ],
-                    }
-                    for result in results
-                ]
-            },
+            asdict(settings) | {"sessions": kept + list(judged.values())},
             indent=2,
         )
     )

@@ -623,8 +623,10 @@ but the pre-flight. Before any session, the task checks the marker, a Claude
 Code of at least 2.1.144, the pre-flight, then a one-turn authentication
 probe. `--rerun-errored --out <dir>` moves each errored session aside to
 `<session>.errored-<n>/` and reruns it with the run's recorded `--model` and
-`--config-dir`. It never reruns a failed session: rerunning one until it
-passed would let a 2/3 judgement pass as 3/3.
+`--config-dir`, refusing on another Claude Code version. It never reruns a
+failed session: rerunning one until it passed would let a 2/3 judgement pass
+as 3/3. Both keep the run's recorded settings in `results.json`, and a
+narrowed re-judge or rerun replaces only the sessions it judged.
 
 ### The runtime pin guard
 
