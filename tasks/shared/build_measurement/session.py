@@ -19,6 +19,8 @@ from tasks.shared.build_measurement.analysis import (
     CapturedSession,
     analyse_session,
 )
+from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.cpu_load import cpu_readings, idle_load
 from tasks.shared.build_measurement.errors import (
     HistoryError,
@@ -58,6 +60,7 @@ from tasks.shared.build_measurement.settings import (
     SessionRun,
     TimedRun,
     log_name,
+    trash_name,
 )
 from tasks.shared.build_measurement.task_graph import TaskGraph
 from tasks.shared.build_measurement.timeline import (
@@ -117,6 +120,15 @@ class BuildGroup(Protocol):
     def orphaned(self) -> OrphanedBuild | None: ...
 
 
+class Workspace(Protocol):
+    def has_dev_launcher_marker(self) -> bool: ...
+    def verify(self, state: BuildCacheState) -> None: ...
+    def prepare_timed_run(
+        self, state: BuildCacheState, *, trash: Path
+    ) -> UnremovedTrash | None: ...
+    def leftover_trash(self) -> tuple[FoundTrash, ...]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class BuildPorts:
     system: Callable[[], str]
@@ -132,6 +144,7 @@ class BuildPorts:
     progress: Callable[[str], None]
     session_lock: Callable[[], AbstractContextManager[None]]
     build_group: BuildGroup
+    workspace: Workspace
 
 
 def _require_known(tasks: Sequence[str], graph: TaskGraph) -> None:
@@ -146,6 +159,7 @@ def measure_build(settings: BuildSettings, ports: BuildPorts) -> SessionOutcome:
     require_macos(ports.system())
     graph = TaskGraph.parse(ports.mise_tasks())
     _require_known(settings.scope.isolated_tasks, graph)
+    ports.workspace.verify(settings.cache_state)
     with ports.session_lock():
         orphan = ports.build_group.orphaned()
         if orphan is not None:
@@ -309,7 +323,9 @@ class _Session:
         return tuple(captured)
 
     def _priming(self) -> PrimingRun | None:
-        if not self.settings.cache_state.primes:
+        state = self.settings.cache_state
+        if not state.primes:
+            self._progress(f"priming skipped ({state})")
             return None
         self._progress("priming build")
         epoch = self.ports.clock.now()
@@ -321,6 +337,7 @@ class _Session:
     def _timed_run(self, run: TimedRun) -> CapturedRun:
         ports = self.ports
         self._progress(f"timed run {run.number}/{self.settings.runs}")
+        self._prepare(run)
         epoch = ports.clock.now()
         with ExitStack() as stack:
             cpu = ports.cpu_sampler.start(
@@ -355,6 +372,16 @@ class _Session:
             )
         )
         return captured
+
+    def _prepare(self, run: TimedRun) -> None:
+        state = self.settings.cache_state
+        if state.deletions:
+            self._progress("  deleting before this run:")
+            for path in state.deletions:
+                self._progress(f"    {self.settings.root / path}")
+        self.ports.workspace.prepare_timed_run(
+            state, trash=self.logs / trash_name(run)
+        )
 
     def _matches_at_end(self, commit: str) -> bool | None:
         try:

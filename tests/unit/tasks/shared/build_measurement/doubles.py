@@ -234,16 +234,19 @@ def _write_stamped(log: Path, lines) -> None:
 
 
 class ScriptedBuildRunner:
-    def __init__(self, clock, scripts, events=None):
+    def __init__(self, clock, scripts, events=None, observe=None):
         self.clock = clock
         self.scripts = list(scripts)
         self.events = events if events is not None else []
+        self.observe = observe
         self.calls: list[tuple[tuple[str, ...], Path]] = []
 
     def run(self, argv, *, epoch, log):
         script = self.scripts[len(self.calls)]
         self.calls.append((tuple(argv), log))
         self.events.append(f"build {log.name}")
+        if self.observe is not None:
+            self.observe(log)
         if script.raises is not None:
             raise script.raises()
         offset = self.clock.now() - epoch
@@ -341,6 +344,46 @@ class FakeSessionLock:
             self.events.append("unlock")
 
 
+class RecordingWorkspace:
+    def __init__(
+        self,
+        clock,
+        events,
+        *,
+        unremoved=None,
+        found=(),
+        marker=False,
+        preparation_seconds=0.0,
+    ):
+        self.clock = clock
+        self.events = events
+        self.unremoved = unremoved or {}
+        self.found = found
+        self.marker = marker
+        self.preparation_seconds = preparation_seconds
+        self.prepared: list[tuple[BuildCacheState, Path]] = []
+
+    def has_dev_launcher_marker(self):
+        return self.marker
+
+    def verify(self, state):
+        self.events.append(f"verify {state}")
+
+    def prepare_timed_run(self, state, *, trash):
+        self.events.append(f"prepare {trash.name}")
+        self.prepared.append((state, trash))
+        self.clock.t += self.preparation_seconds
+        answer = self.unremoved.get(trash.name)
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
+
+    def leftover_trash(self):
+        if isinstance(self.found, BaseException):
+            raise self.found
+        return tuple(self.found)
+
+
 def _untouched(name):
     def fail(*args, **kwargs):
         raise AssertionError(f"the {name} port was touched")
@@ -371,6 +414,7 @@ def untouchable_ports(**overrides) -> BuildPorts:
         "progress": _untouched("progress"),
         "session_lock": _untouched("session_lock"),
         "build_group": _Untouchable("build_group"),
+        "workspace": _Untouchable("workspace"),
     }
     return BuildPorts(**(ports | overrides))
 
@@ -458,13 +502,19 @@ class FakeSession:
     orphan: OrphanedBuild | None = None
     lock_refusal: Exception | None = None
     sampler_start_delay: float = 0.0
+    observe: object = None
+    workspace: object = None
     events: list = field(default_factory=list)
     progress: list = field(default_factory=list)
     diagnostics_calls: list = field(default_factory=list)
 
     def __post_init__(self):
         self.clock = FakeClock(start=100.0)
-        self.build = ScriptedBuildRunner(self.clock, self.scripts, self.events)
+        self.build = ScriptedBuildRunner(
+            self.clock, self.scripts, self.events, self.observe
+        )
+        if self.workspace is None:
+            self.workspace = RecordingWorkspace(self.clock, self.events)
         self.cpu_sampler = ScriptedSampler(
             self.clock,
             "cpu",
@@ -512,6 +562,7 @@ class FakeSession:
             "progress": progress,
             "session_lock": self.lock.held,
             "build_group": self.build_group,
+            "workspace": self.workspace,
         }
         return BuildPorts(**(ports | overrides))
 

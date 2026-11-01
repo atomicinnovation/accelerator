@@ -21,6 +21,7 @@ from tasks.shared.build_measurement.samplers import (
 from tasks.shared.build_measurement.session import BuildPorts
 from tasks.shared.build_measurement.session_lock import WorkspaceSessionLock
 from tasks.shared.build_measurement.tracked_processes import PS_ARGV
+from tasks.shared.build_measurement.workspace import FilesystemWorkspace
 from tasks.shared.clock import Clock
 from tasks.shared.diagnostics import ambient_diagnostic_runner
 from tasks.shared.processes import PsutilProcessOps
@@ -86,4 +87,5 @@ def real_ports(root: Path) -> BuildPorts:
         progress=_progress,
         session_lock=WorkspaceSessionLock(root).held,
         build_group=build_group,
+        workspace=FilesystemWorkspace(root),
     )

@@ -2,6 +2,7 @@ import datetime as dt
 
 import pytest
 
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
@@ -60,11 +61,18 @@ class TestOpening:
             )
         assert not (tmp_path / RUN_DIRECTORY_ROOT).exists()
 
-    def test_the_session_opens_in_one_order(self, session):
-        session.measure(runs=1)
+    @pytest.mark.parametrize("state", ["warm-no-op", "incremental", "cold"])
+    def test_the_session_opens_in_one_order(self, session, state):
+        session.measure(runs=1, cache_state=state)
         events = session.events
-        assert events[:4] == ["platform", "task graph", "lock", "orphan check"]
-        assert events[4].startswith("progress run directory:")
+        assert events[:5] == [
+            "platform",
+            "task graph",
+            f"verify {state}",
+            "lock",
+            "orphan check",
+        ]
+        assert events[5].startswith("progress run directory:")
 
     def test_a_held_lock_refuses_before_anything_else_runs(self, tmp_path):
         session = FakeSession(
@@ -72,7 +80,12 @@ class TestOpening:
         )
         with pytest.raises(SessionInProgressError):
             session.measure()
-        assert session.events == ["platform", "task graph", "lock"]
+        assert session.events == [
+            "platform",
+            "task graph",
+            "verify warm-no-op",
+            "lock",
+        ]
         assert not (tmp_path / RUN_DIRECTORY_ROOT).exists()
 
     def test_an_orphaned_build_refuses_while_the_lock_is_held(self, tmp_path):
@@ -87,6 +100,7 @@ class TestOpening:
         assert session.events == [
             "platform",
             "task graph",
+            "verify warm-no-op",
             "lock",
             "orphan check",
             "unlock",
@@ -444,6 +458,76 @@ class TestIsolation:
         assert f"failed: test (run 1, see {run_directory}/run-1-test.log)" in (
             summary
         )
+
+
+class TestCacheStates:
+    def test_preparation_precedes_each_timed_run_but_not_priming(self, session):
+        session.measure(runs=2, cache_state="incremental")
+        events = [
+            event
+            for event in session.events
+            if event.startswith(("prepare", "build"))
+        ]
+        assert events == [
+            "build priming.log",
+            "prepare cold-trash-1",
+            "build run-1.log",
+            "prepare cold-trash-2",
+            "build run-2.log",
+        ]
+
+    def test_preparation_finishes_before_the_runs_epoch_and_samplers(
+        self, tmp_path
+    ):
+        session = FakeSession(tmp_path)
+        session.workspace.preparation_seconds = 50.0
+        measured = session.measure(runs=1, cache_state="cold").measured
+        events = session.events
+        assert events.index("prepare cold-trash-1") < events.index(
+            "start cpu run-1-iostat.log"
+        )
+        [run] = measured.runs
+        assert run.wall_clock_seconds == 6.5
+        assert run.tasks["build"].start_seconds == 0.0
+
+    def test_each_timed_run_has_its_own_trash_directory(self, session):
+        session.measure(runs=2, cache_state="cold")
+        assert [trash for _, trash in session.workspace.prepared] == [
+            session.run_directory / "cold-trash-1",
+            session.run_directory / "cold-trash-2",
+        ]
+
+    def test_each_timed_run_is_prepared_for_the_sessions_state(self, session):
+        session.measure(runs=2, cache_state="cold")
+        assert {state for state, _ in session.workspace.prepared} == {
+            BuildCacheState.COLD
+        }
+
+    def test_a_cold_session_never_primes(self, session):
+        measured = session.measure(runs=2, cache_state="cold").measured
+        assert [log.name for _, log in session.build.calls] == [
+            "run-1.log",
+            "run-2.log",
+        ]
+        assert measured.priming is None
+
+    def test_progress_says_priming_was_skipped_and_what_is_being_deleted(
+        self, session
+    ):
+        session.measure(runs=1, cache_state="cold")
+        root = session.tmp_path
+        progress = session.progress
+        start = progress.index("timed run 1/1")
+        assert "priming skipped (cold)" in progress[:start]
+        assert progress[start + 1 : start + 4] == [
+            "  deleting before this run:",
+            f"    {root / 'cli/target'}",
+            f"    {root / 'cli/visualiser/frontend/node_modules'}",
+        ]
+
+    def test_a_state_that_deletes_nothing_names_no_deletion(self, session):
+        session.measure(runs=1, cache_state="incremental")
+        assert not any("deleting" in line for line in session.progress)
 
 
 class TestInterruption:

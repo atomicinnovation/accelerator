@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import ClassVar, Self
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.cold_trash import TRASH_PREFIX
 from tasks.shared.build_measurement.errors import (
     IncompatibleSettingsError,
     InvalidSettingsError,
@@ -42,6 +43,10 @@ type SessionRun = Priming | TimedRun
 
 def log_name(run: SessionRun, suffix: str = "") -> str:
     return f"{run.log_stem}{suffix}.log"
+
+
+def trash_name(run: TimedRun) -> str:
+    return f"{TRASH_PREFIX}{run.number}"
 
 
 @dataclass(frozen=True, slots=True)

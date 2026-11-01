@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 
 import pytest
 
@@ -12,6 +13,7 @@ from tasks.shared.build_measurement.workspace import (
     FilesystemWorkspace,
     delete_from_disk,
 )
+from tests.unit.tasks.shared.build_measurement.doubles import FakeSession
 
 KERNEL = "cli/kernel/src/lib.rs"
 TARGET = "cli/target"
@@ -29,16 +31,17 @@ def _sentinel(root, directory, name="sentinel", content=b"built"):
 def _checkout(root):
     _sentinel(root, "cli/kernel/src", "lib.rs", b"pub fn kernel() {}\n")
     _sentinel(root, TARGET, "debug/accelerator", b"x" * 100)
+    _sentinel(root, TARGET)
     _sentinel(root, FRONTEND_MODULES, "react/index.js")
     _sentinel(root, DOCS_MODULES, "astro/index.js")
-    run_directory = root / RUN_DIRECTORY_ROOT / "build_run"
-    run_directory.mkdir(parents=True)
-    return run_directory
 
 
 @pytest.fixture
 def run_directory(tmp_path):
-    return _checkout(tmp_path)
+    _checkout(tmp_path)
+    run_directory = tmp_path / RUN_DIRECTORY_ROOT / "build_run"
+    run_directory.mkdir(parents=True)
+    return run_directory
 
 
 def _fails_without_removing(path):
@@ -283,3 +286,119 @@ def test_the_dev_launcher_marker_is_read_from_the_real_file(tmp_path):
     assert not workspace.has_dev_launcher_marker()
     (tmp_path / ".accelerator-dev-launcher").touch()
     assert workspace.has_dev_launcher_marker()
+
+
+@dataclass(frozen=True)
+class Observation:
+    kernel_mtime: float
+    kernel_bytes: bytes
+    target_built: bool
+    frontend_installed: bool
+    docs_installed: bool
+
+
+class ObservedBuild:
+    """Records what each build sees, then rebuilds as a real build would."""
+
+    def __init__(self, root, during=None):
+        self.root = root
+        self.during = during or {}
+        self.seen: dict[str, Observation] = {}
+
+    def __call__(self, log):
+        root = self.root
+        kernel = root / KERNEL
+        self.seen[log.name] = Observation(
+            kernel_mtime=kernel.stat().st_mtime,
+            kernel_bytes=kernel.read_bytes(),
+            target_built=(root / TARGET / "sentinel").exists(),
+            frontend_installed=(root / FRONTEND_MODULES).exists(),
+            docs_installed=(root / DOCS_MODULES / "astro/index.js").exists(),
+        )
+        os.utime(kernel, (0, 0))
+        _sentinel(root, TARGET)
+        _sentinel(root, FRONTEND_MODULES, "react/index.js")
+        if log.name in self.during:
+            self.during[log.name](root)
+
+
+def _observed_session(tmp_path, *, state, runs=2, during=None):
+    _checkout(tmp_path)
+    os.utime(tmp_path / KERNEL, (0, 0))
+    observed = ObservedBuild(tmp_path, during)
+    session = FakeSession(
+        tmp_path, observe=observed, workspace=FilesystemWorkspace(tmp_path)
+    )
+    return (
+        session,
+        observed,
+        lambda: session.measure(runs=runs, cache_state=state),
+    )
+
+
+class TestObservedSessions:
+    def test_incremental_touches_the_kernel_before_each_timed_run(
+        self, tmp_path
+    ):
+        _, observed, measure = _observed_session(tmp_path, state="incremental")
+        measure()
+        seen = observed.seen
+        assert seen["priming.log"].kernel_mtime == 0
+        assert seen["run-1.log"].kernel_mtime > 0
+        assert seen["run-2.log"].kernel_mtime > 0
+        assert {each.kernel_bytes for each in seen.values()} == {
+            b"pub fn kernel() {}\n"
+        }
+
+    def test_incremental_primes_first(self, tmp_path):
+        session, _, measure = _observed_session(tmp_path, state="incremental")
+        measure()
+        assert session.build.calls[0][1].name == "priming.log"
+
+    def test_cold_deletes_the_target_and_frontend_node_modules_before_each_run(
+        self, tmp_path
+    ):
+        _, observed, measure = _observed_session(tmp_path, state="cold")
+        measure()
+        for log in ("run-1.log", "run-2.log"):
+            assert not observed.seen[log].target_built
+            assert not observed.seen[log].frontend_installed
+
+    def test_cold_never_primes(self, tmp_path):
+        _, observed, measure = _observed_session(tmp_path, state="cold")
+        measure()
+        assert list(observed.seen) == ["run-1.log", "run-2.log"]
+
+    def test_cold_leaves_docs_site_node_modules_alone(self, tmp_path):
+        _, observed, measure = _observed_session(tmp_path, state="cold")
+        measure()
+        assert all(each.docs_installed for each in observed.seen.values())
+        assert (tmp_path / DOCS_MODULES / "astro/index.js").exists()
+
+    @pytest.mark.parametrize("state", ["warm-no-op", "incremental"])
+    def test_without_cold_a_sentinel_in_cli_target_survives(
+        self, tmp_path, state
+    ):
+        _, observed, measure = _observed_session(tmp_path, state=state)
+        measure()
+        assert all(each.target_built for each in observed.seen.values())
+
+    def test_each_deletion_rechecks_containment(self, tmp_path):
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+
+        def relink_target(root):
+            _replace_with_symlink(root / TARGET, elsewhere)
+
+        _, observed, measure = _observed_session(
+            tmp_path, state="cold", during={"run-1.log": relink_target}
+        )
+        with pytest.raises(UnsafeDeletionError, match="cli/target"):
+            measure()
+        assert list(observed.seen) == ["run-1.log"]
+        assert (tmp_path / FRONTEND_MODULES / "react/index.js").exists()
+
+    def test_the_record_states_the_cache_state(self, tmp_path):
+        _, _, measure = _observed_session(tmp_path, state="cold", runs=1)
+        conditions = measure().measured.conditions
+        assert conditions.cache_state is BuildCacheState.COLD
