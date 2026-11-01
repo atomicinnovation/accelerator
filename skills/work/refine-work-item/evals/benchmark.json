@@ -60,9 +60,9 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill proposes between 2 and 5 candidate child work items", "passed": true, "evidence": "Response proposes 3 candidate child stories derived from the epic's Requirements."},
-        {"text": "Proposed children are described as story type since parent is epic", "passed": true, "evidence": "Children are described as stories, consistent with epic→story derivation rule."},
-        {"text": "Grammar legend appears: 'Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel'", "passed": true, "evidence": "Grammar legend appears immediately below the numbered child list."}
+        {"text": "The skill proposes between 2 and 5 candidate child work items", "passed": true, "evidence": "Proposal lists 3 children (Redis Session Management, Token Validator Consolidation, Auth Audit Logging); within 2-5."},
+        {"text": "The proposed children are described as kind story (since parent is epic)", "passed": true, "evidence": "response.md: 'Parent kind is `epic`, so each child will be kind **story**'; each item tagged '(story)'."},
+        {"text": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel", "passed": true, "evidence": "Exact legend line present in response.md directly under the numbered list: 'Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel'."}
       ],
       "notes": []
     },
@@ -163,9 +163,9 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill proposes between 2 and 4 candidate child work items for story decomposition", "passed": true, "evidence": "Response proposes 3 candidate child tasks within the 2-4 range for story type."},
-        {"text": "Proposed children are described as task type since parent is story", "passed": true, "evidence": "Children are described as tasks, consistent with story→task derivation rule."},
-        {"text": "Grammar legend appears in the proposal", "passed": true, "evidence": "Grammar legend appears immediately below the numbered child list."}
+        {"text": "The skill proposes between 2 and 4 candidate child work items (story decomposition uses 2-4 range)", "passed": true, "evidence": "Proposal lists 3 child tasks (read-only profile page, display-name update, avatar upload); within 2-4."},
+        {"text": "The proposed children are described as kind task (since parent is a story)", "passed": true, "evidence": "response.md: 'Parent kind is `story`, so children will be `kind: task` (2–4 children)'; write plan states kind: \"task\"."},
+        {"text": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel", "passed": true, "evidence": "Exact legend line present in response.md immediately under the numbered list."}
       ],
       "notes": []
     },
@@ -256,8 +256,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "The skill calls accelerator work id next with --count 3 (or equivalent count) exactly once, not once per child", "passed": true, "evidence": "Transcript 'Allocation': single simulated call `accelerator work id next --count 3` returning 0043, 0044, 0045; no per-child allocation calls appear anywhere."},
-        {"text": "The skill emits a completion ledger listing each written child file and the total count of allocated vs written", "passed": true, "evidence": "response.md: 'Wrote 0043 — Redis-Backed Session Management' / '...0044...' / '...0045...' / 'Allocated 3 numbers, wrote 3 files.' Children listed by ID and title (the SKILL.md ledger format), not by file path."}
+        {"text": "The skill calls accelerator work id next with --count 3 (or equivalent count) exactly once, not once per child", "passed": true, "evidence": "Transcript Allocation: single 'accelerator work id next --count 3' call returning 0043, 0044, 0045; no per-child allocation calls."},
+        {"text": "The skill emits a completion ledger listing each written child by ID and title, then the count of numbers allocated against files written", "passed": true, "evidence": "response.md: 'Wrote 0043 — Redis-Backed Session Management' ... 'Wrote 0045 — ...' then 'Allocated 3 numbers, wrote 3 files.' — matches SKILL.md step 4 ledger format."}
       ],
       "notes": []
     },
@@ -267,9 +267,9 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Hierarchy display uses Unicode box-drawing characters (├── and └──) not ASCII dashes", "passed": true, "evidence": "Response includes ├── and └── Unicode box-drawing characters in the tree display."},
-        {"text": "Tree shows parent at top, children indented with two spaces, ├── for first two, └── for last", "passed": true, "evidence": "Tree correctly uses ├── for children 0043 and 0044, └── for child 0045, with two-space indentation."},
-        {"text": "All four work items (0042, 0043, 0044, 0045) appear in the hierarchy display", "passed": true, "evidence": "All four work item IDs and titles appear in the hierarchy tree."}
+        {"text": "The hierarchy display uses Unicode box-drawing characters (├── and └──) not ASCII dashes", "passed": true, "evidence": "hierarchy.md and transcript Step 5 use '├──' and '└──'; no ASCII dash tree."},
+        {"text": "The tree shows parent at top level, children indented with two spaces, using ├── for first two children and └── for the last child", "passed": true, "evidence": "'0042 — User Auth Rework (kind: epic, status: draft)' at column 0; children indented two spaces; '├──' for 0043 and 0044, '└──' for 0045."},
+        {"text": "All four work items (0042, 0043, 0044, 0045) appear in the hierarchy display", "passed": true, "evidence": "0042, 0043, 0044, 0045 all appear in the tree in hierarchy.md."}
       ],
       "notes": []
     },
@@ -428,10 +428,11 @@
       "eval_id": 37,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: 'a work-item re-key is unfinished in this repository' and 'Run `/rekey-work-items` to finish the re-key, or to undo it.' It does not relay the raw `accelerator work rekey` commands."},
-        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md contains only 'none', the form the prompt asked for when nothing is written; this covers both no child and no parent edit. response.md backs it up: 'No child work items were created, and `meta/work/0042-search.md` is unchanged.' commands.md shows the run stopped after the one exit-4 call."}
+        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: 'a work-item re-key is unfinished ... Run `/rekey-work-items` to finish the re-key, or to undo it.' Matches the SKILL.md E_REKEY_IN_PROGRESS branch; the raw `accelerator work rekey` commands from stderr are not passed on."},
+        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "files.md is exactly 'none\\n'. Transcript agrees: no children written, no parent edit; response.md says 'No child work items were created, and meta/work/0042-search.md is unchanged.'"},
+        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "commands.md lists only 'accelerator work id next --count 3' (exit 4) and says no further accelerator commands were run."}
       ],
       "notes": []
     }
@@ -465,6 +466,7 @@
   },
   "notes": [
     "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
-    "Evals 22 and 37 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call. Both passed."
+    "Evals 22 and 37 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call. Both passed.",
+    "Evals 5, 14, 22, 23 and 37 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their wording was brought into line with the skill (kind for type, the ledger and files.md wording, a check that a refused allocation runs nothing further); all passed. The executors of evals 14 and 23 read evals.json before writing their outputs, so those runs were not blind."
   ]
 }

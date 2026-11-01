@@ -8,7 +8,7 @@
 
 | Metric | With Skill | Old Skill | Delta |
 |--------|-----------|-----------|-------|
-| Pass Rate | 99% (n=41) | 81% (n=18) | +0.18 |
+| Pass Rate | 100% (n=41) | 81% (n=18) | +0.19 |
 
 ## Per-Eval Results
 
@@ -17,8 +17,8 @@
 - ✓ **epic-type-requirements** (10): 3/3 (100%)
 - ✓ **drafting-notes-populated** (11): 3/3 (100%)
 - ✓ **author-resolution** (12): 3/3 (100%)
-- ✓ **template-driven-types** (13): 2/2 (100%)
-- ✓ **references-populated** (14): 3/3 (100%)
+- ✓ **template-driven-kinds** (13): 2/2 (100%)
+- ✓ **references-populated** (14): 2/2 (100%)
 - ✓ **enrich-existing-path-like** (15): 3/3 (100%)
 - ✓ **enrich-existing-numeric-single-match** (16): 3/3 (100%)
 - ✓ **enrich-existing-numeric-multi-match** (17): 3/3 (100%)
@@ -33,7 +33,7 @@
 - ✓ **enrich-existing-self-not-duplicate** (23): 2/2 (100%)
 - ✓ **enrich-existing-augmentation-proposal** (24): 3/3 (100%)
 - ✓ **enrich-existing-preserves-identity** (25): 4/4 (100%)
-- ✓ **enrich-existing-no-id-next-call** (26): 1/1 (100%)
+- ✓ **enrich-existing-no-id-next-call** (26): 3/3 (100%)
 - ✓ **enrich-existing-h1-real-number** (27): 2/2 (100%)
 - ✓ **enrich-existing-overwrites-path** (28): 2/2 (100%)
 - ✓ **enrich-existing-status-preserved** (29): 2/2 (100%)
@@ -47,8 +47,8 @@
 - ✓ **model-proposes-type** (4): 2/2 (100%)
 - ✓ **challenge-untestable-ac** (5): 2/2 (100%)
 - ✓ **bug-type-requirements** (6): 3/3 (100%)
-- ~ **draft-xxxx-placeholder** (7): 1/2 (50%)
-- ✓ **number-not-consumed** (8): 2/2 (100%)
+- ✓ **draft-nnnn-placeholder** (7): 2/2 (100%)
+- ✓ **number-not-consumed** (8): 3/3 (100%)
 - ✓ **near-duplicate-surfaced** (9): 3/3 (100%)
 
 ### old_skill
