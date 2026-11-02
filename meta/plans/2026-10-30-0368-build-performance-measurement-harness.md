@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-01T22:25:54+00:00"
+last_updated: "2026-11-02T00:07:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4064,12 +4064,10 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 
 ## Implementation Notes
 
-Progress as of 2026-11-01: Phases 1–4 are complete and merged as PR #175.
-Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
-were made before merging rather than after. Phase 7's code is complete and
-not yet pushed; its manual runs pass, and its work-item edits were made
-before merging.
-Phase 8 is complete and not yet pushed. Phases 9 and 10 have not started.
+Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
+Phases 5–8 are complete, their automated and manual checks pass, and none
+is pushed yet; Phases 6 and 7 made their work-item edits before merging
+rather than after. Phases 9 and 10 have not started.
 
 ### Phases 1–4 review round
 
