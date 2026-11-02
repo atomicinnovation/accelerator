@@ -3486,7 +3486,7 @@ pointer Phase 4 leaves for this phase.
 
 #### Manual Verification:
 
-- [ ] Following the steps on the reference host shows the terminal and IDE
+- [x] Following the steps on the reference host shows the terminal and IDE
       under Developer Tools after a restart.
 
 ---
@@ -4069,8 +4069,7 @@ Phases 5 and 6 are complete and not yet pushed; Phase 6's work-item edits
 were made before merging rather than after. Phase 7's code is complete and
 not yet pushed; its manual runs pass, and its work-item edits were made
 before merging.
-Phase 8's docs are complete and not yet pushed; its manual check is
-outstanding. Phases 9 and 10 have not started.
+Phase 8 is complete and not yet pushed. Phases 9 and 10 have not started.
 
 ### Phases 1–4 review round
 
@@ -4256,6 +4255,12 @@ Where the phase departed from the plan:
 Verification: the phase's tests and the full `mise run` (exit 0, 407 s, the
 fixers changing nothing) passed locally at `180121e4`. CI has not run on it
 yet.
+
+Manual check, on 2026-11-02: the system TCC database's
+`kTCCServiceDeveloperTool` rows allow Ghostty, IntelliJ IDEA (its bundle id
+is `com.jetbrains.intellij-EAP`), PyCharm and RustRover. Each running app
+started on 2026-10-30, after its row was last changed. No tmux or zellij
+was running.
 
 ### Deferred to later phases
 
