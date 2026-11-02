@@ -5,7 +5,7 @@ title: "Explicit Work Item ID on accelerator work create Implementation Plan"
 date: "2026-10-29T14:30:08+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0319"
 parent: "work-item:0319"
 derived_from: ["codebase-research:2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-02T00:04:06+00:00"
+last_updated: "2026-11-02T09:19:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3514,6 +3514,18 @@ characterisation and is exempt from failing first.
 `test_evals_structure.py::test_the_real_skills_tree_passes` fails until
 `benchmark.json` covers ids 39 to 72 with `with_skill` runs.
 
+As built, each prompt quotes the refusal and verdict lines a local
+`accelerator-work` printed for the same request, and outputs go to
+`commands.md`, `response.md`, `questions.md`, `files.md` and, for 48 and
+66, `body.md`. Evals 58, 59, 60 and 66 first passed in full on the old
+skill, so each gained one expectation that run misses: 58 no
+`work resolve` call; 59 no `work id next` and `--id='0400'` on the dry-run;
+60 all three recovery choices; 66 `--id='0400'` on the first dry-run and
+`--push` create. Every other eval failed first, except the six exempt. The
+skill-creator workspace lives in the gitignored `meta/eval-workspaces/`,
+since a snapshot `SKILL.md` under `skills/` raises
+`test_skill_permissions.py`'s injection census.
+
 **File**: `tests/unit/tasks/test_explicit_id_scope.py` (new), with synthetic
 `tmp_path` trees beside the real-tree assertion, as
 `test_skill_permissions.py` has:
@@ -3657,6 +3669,12 @@ modelled on `test_boundary_evals.py`:
      `work id check` does.
    - `--id` and `--project` are never passed together.
 
+As built, *Identity-run refusals* is a section of its own ahead of Step 0,
+which both Step 0 and Step 5 apply, and *Requested ID recovery* is a
+subsection of Step 0. Step 5 gathers the requested-ID rules in one
+**For a requested ID** block, and steps 6.3, 7.1 and 7.3 each point to it
+ahead of their own branches.
+
 #### 3. Benchmark
 
 **Files**: `skills/work/create-work-item/evals/benchmark.json`, `benchmark.md`
@@ -3671,6 +3689,13 @@ modelled on `test_boundary_evals.py`:
   `with_skill` run of evals 39 to 72 must have `pass_rate` 1.0, which
   `test_every_explicit_id_eval_passes_fully` enforces. The mean alone would
   let several new evals fail outright.
+
+As built, on 2026-11-02 with claude-opus-5-5, every `with_skill` run of
+evals 39 to 72 passes in full, and the suite's mean is 0.9956 over 75 runs.
+Eval 26, which this phase does not touch, failed one expectation: its run
+did not show the identity-swap check's order against the confirmation
+prompt. The 34 `old_skill` runs bring that configuration's mean to 0.6211.
+Executors simulated every `accelerator` call and graders ran separately.
 
 #### 4. Docs and changelog
 
@@ -3702,6 +3727,16 @@ rather than drafting an item it cannot write.
 - [x] With an integration configured and `0400` taken, the push gate relays
       `E_ID_TAKEN` and offers another ID or automatic allocation, rather than
       saving locally.
+
+Run as resumed `claude -p` sessions with `--plugin-dir` on this checkout,
+the installed prerelease and all hooks disabled, and `accelerator` resolved
+to the local builds through the dev launcher. `AskUserQuestion` was
+disallowed, so the skill asked its questions in plain text. The second check
+used `work.integration: linear` with no credentials: `0400` settled as
+`exact` in Step 0, `0400-search-filters.md` was written before the draft was
+approved, and the dry-run's `E_ID_TAKEN` was relayed with all three
+recovery choices. Linear was never contacted, since the refusal precedes
+any tracker request.
 
 ---
 
