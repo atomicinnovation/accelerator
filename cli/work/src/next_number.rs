@@ -55,8 +55,15 @@ impl AllocationError {
                 numbers_held,
                 ..
             } => {
-                let highest_file =
-                    highest_file.as_deref().unwrap_or("<unknown>");
+                let Some(highest_file) =
+                    highest_file.as_deref().filter(|_| highest >= cap)
+                else {
+                    return format!(
+                        "E_PATTERN_OVERFLOW: number space exhausted \
+                         (highest={highest}, cap={cap}). Archive completed \
+                         work items or widen the pattern."
+                    );
+                };
                 if highest > cap {
                     return format!(
                         "E_PATTERN_OVERFLOW: out-of-width file '{}' has \
@@ -443,6 +450,37 @@ mod tests {
         assert!(!message.contains("lower"), "{message}");
         assert!(message.contains("Archive completed work items"));
         assert!(message.contains("widen the pattern"), "{message}");
+    }
+
+    fn overflowed(
+        scheme: &WorkItemIdScheme,
+        count: u32,
+        filenames: &[String],
+    ) -> String {
+        let error = allocate(scheme, None, count, filenames).unwrap_err();
+        error.message(scheme.pattern(), Path::new("meta/work"))
+    }
+
+    #[test]
+    fn a_request_crossing_the_cap_names_no_item_as_holding_it() {
+        let message = overflowed(&numeric(), 3, &names(&["9997-x.md"]));
+
+        assert_eq!(
+            message,
+            "E_PATTERN_OVERFLOW: number space exhausted (highest=9997, \
+             cap=9999). Archive completed work items or widen the pattern."
+        );
+    }
+
+    #[test]
+    fn a_request_beyond_the_cap_of_an_empty_directory_names_no_file() {
+        let message = overflowed(&scheme("{number:02d}", None), 100, &[]);
+
+        assert_eq!(
+            message,
+            "E_PATTERN_OVERFLOW: number space exhausted (highest=0, \
+             cap=99). Archive completed work items or widen the pattern."
+        );
     }
 
     #[test]
