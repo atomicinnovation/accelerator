@@ -2,8 +2,6 @@
 ``accelerator work`` command.
 
 ``/extract-work-items`` and every other skill let the CLI allocate IDs.
-Synthetic ``tmp_path`` trees exercise each branch, plus a real-tree
-assertion.
 """
 
 import re
