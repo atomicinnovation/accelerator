@@ -431,8 +431,6 @@ description = "Time the default build, or each --isolate task alone: a priming r
 depends = ["deps:install:python"]
 run = "invoke measure.build"
 
-# Operator-run; reads two kept records, no build. See
-# tasks/README.md#the-measure-namespace.
 [tasks."measure:compare-builds"]
 description = "Compare two measure:build records, previous then current: differing conditions first, then each change in seconds and as a ratio with its noise verdict (--task adds a task's duration and nextest phase)"
 depends = ["deps:install:python"]
