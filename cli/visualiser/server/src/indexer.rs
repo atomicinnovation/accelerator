@@ -2558,7 +2558,6 @@ mod refresh_tests {
         (idx, work)
     }
 
-    // ── Step 2.14 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_picks_up_external_edit() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2590,7 +2589,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.15 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_updates_etag_on_change() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2617,7 +2615,6 @@ mod refresh_tests {
         assert_eq!(new_entry.etag, etag_of(&raw));
     }
 
-    // ── Step 2.16 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_deleted_file() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2646,7 +2643,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.17 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_does_not_disturb_unrelated_entries() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2678,7 +2674,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.18 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_rebuilds_secondary_indexes_for_work_items_and_decisions(
     ) {
@@ -2702,7 +2697,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.19 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_serialises_with_concurrent_rescan() {
         use std::sync::Arc as StdArc;
@@ -2793,7 +2787,6 @@ mod reverse_index_tests {
         (idx, plan, review)
     }
 
-    // ── Step 1.0 ────────────────────────────────────────────────────────────
     #[test]
     fn normalize_absolute_collapses_dot_and_dotdot_lexically() {
         // Cases come from Step 1.0 of the plan.
@@ -2820,7 +2813,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.1 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_populated_on_initial_scan() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2831,7 +2823,6 @@ mod reverse_index_tests {
         assert_eq!(inbound[0].path, review_path);
     }
 
-    // ── Step 1.2 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_round_trips_via_canonical_root() {
         // tempfile::tempdir on macOS gives /var/folders/... which is a
@@ -2876,7 +2867,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "round-trip via canonical entry path");
     }
 
-    // ── Step 1.3 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_excludes_reviews_without_target_field() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2914,7 +2904,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.4 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_tolerates_target_pointing_at_missing_file() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2953,7 +2942,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.5 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_supports_multiple_reviews_per_target() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3008,7 +2996,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.5b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_on_unchanged_review_keeps_set_size_one() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3021,7 +3008,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "BTreeSet dedup-by-construction holds");
     }
 
-    // ── Step 1.5c ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_on_renamed_review_with_unchanged_target() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3046,7 +3032,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.6 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_adds_review_to_reverse_index() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3088,7 +3073,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1);
     }
 
-    // ── Step 1.7 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_review_from_reverse_index_on_target_change() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3129,7 +3113,6 @@ mod reverse_index_tests {
         assert_eq!(inbound_b.len(), 1, "new key under B must be present");
     }
 
-    // ── Step 1.7b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_target_migration_is_atomic_under_single_writer_lock() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3212,7 +3195,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.8 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_review_from_reverse_index_on_deletion() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3227,7 +3209,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.8b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn delete_target_plan_with_inbound_reviews() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3278,7 +3259,6 @@ mod reverse_index_tests {
         assert!(idx.get(&rev_canon).await.is_some());
     }
 
-    // ── Step 1.9 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_survives_full_rescan() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3289,7 +3269,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
     }
 
-    // ── Step 1.10 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_admits_every_target_carrying_doc_type() {
         // Target resolution admits every doc type carrying a `target:`
@@ -3380,7 +3359,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.11 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn target_path_from_entry_rejects_malformed_values() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3437,7 +3415,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.12 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3473,7 +3450,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.13 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn concurrent_rescan_and_target_migration_under_rescan_lock() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3550,8 +3526,6 @@ mod reverse_index_tests {
             "review must be under exactly one target (B)"
         );
     }
-
-    // ── Work-item cross-ref reverse index tests ──────────────────────────
 
     async fn build_indexer_with_work_items(
         tmp: &Path,
@@ -3765,7 +3739,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Frontmatter-first id: resolution ────────────────────────────────────
     #[tokio::test]
     async fn id_uses_frontmatter_when_present() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3791,7 +3764,6 @@ mod reverse_index_tests {
         assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
     }
 
-    // ── Unified `id:` read path ─────────────────────────────────────────────
     fn fc_for(s: &str) -> crate::file_driver::FileContent {
         crate::file_driver::FileContent {
             bytes: s.as_bytes().to_vec(),
@@ -3928,11 +3900,6 @@ mod reverse_index_tests {
             .expect("indexed");
         assert_eq!(entry.work_item_id, None);
     }
-
-    // ── Typed-linkage `target:` resolution ───────────────────────────────────
-    //
-    // Introduces a `plans_by_id` secondary index and teaches
-    // `target_path_from_entry` to resolve `target: "plan:<id>"` against it.
 
     #[tokio::test]
     async fn target_path_resolves_typed_linkage_plan_form() {
