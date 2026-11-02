@@ -11,7 +11,7 @@ pub fn derive(
     filename: &str,
     ids: &dyn IdConvention,
 ) -> Option<String> {
-    let stem = filename.strip_suffix(".md")?;
+    let stem = markdown_stem(filename)?;
     match kind {
         DocTypeKey::Decisions => strip_prefix_numbered(stem, "ADR-"),
         DocTypeKey::WorkItems => derive_work_item(filename, ids)
@@ -44,13 +44,18 @@ pub fn derive_work_item(
     filename: &str,
     ids: &dyn IdConvention,
 ) -> Option<String> {
-    let stem = filename.strip_suffix(".md")?;
+    let stem = markdown_stem(filename)?;
     let tail = &stem[ids.slug_start(stem)?..];
     if tail.is_empty() {
         None
     } else {
         Some(tail.to_owned())
     }
+}
+
+fn markdown_stem(filename: &str) -> Option<&str> {
+    let (stem, extension) = filename.rsplit_once('.')?;
+    extension.eq_ignore_ascii_case("md").then_some(stem)
 }
 
 fn derive_work_item_review(
@@ -234,6 +239,14 @@ mod tests {
             Some("template-subcommand")
         );
         assert_eq!(derive(DocTypeKey::WorkItems, "0001.md", &NUMERIC), None);
+    }
+
+    #[test]
+    fn work_items_keep_their_slug_under_an_upper_case_extension() {
+        assert_eq!(
+            derive(DocTypeKey::WorkItems, "0400-probe.MD", &NUMERIC).as_deref(),
+            Some("probe")
+        );
     }
 
     #[test]
