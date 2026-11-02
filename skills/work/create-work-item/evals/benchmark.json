@@ -46,7 +46,41 @@
       "35",
       "36",
       "37",
-      "38"
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "49",
+      "50",
+      "51",
+      "52",
+      "53",
+      "54",
+      "55",
+      "56",
+      "57",
+      "58",
+      "59",
+      "60",
+      "61",
+      "62",
+      "63",
+      "64",
+      "65",
+      "66",
+      "67",
+      "68",
+      "69",
+      "70",
+      "71",
+      "72"
     ],
     "runs_per_configuration": 1
   },
@@ -86,40 +120,6 @@
       "notes": []
     },
     {
-      "eval_id": 12,
-      "eval_name": "author-resolution",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says author was resolved automatically (not asked of the user)",
-          "passed": true,
-          "evidence": "behavior.md (b): 'Resolved automatically ... the git/jj identity ... supplied the name, so the user was never asked.'"
-        },
-        {
-          "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
-          "passed": true,
-          "evidence": "final-work-item.md frontmatter: 'author: \"Toby Clemson\"'."
-        },
-        {
-          "text": "behavior.md says author field does not contain placeholder text like [author]",
-          "passed": true,
-          "evidence": "behavior.md (c): 'No. The field holds the real name `Toby Clemson`; it contains no `[author]` ... placeholder.'"
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 1,
       "eval_name": "bare-invocation",
       "configuration": "old_skill",
@@ -149,40 +149,6 @@
           "text": "Response does not write any work item files",
           "passed": true,
           "evidence": "transcript.md explicitly states 'No work item files were written' and the outputs directory contains only response.md."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 1,
-      "eval_name": "bare-invocation",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response invites the user to describe their problem or goal",
-          "passed": true,
-          "evidence": "response.md opens with 'To get started, describe what you want to achieve \u2014 what's the problem or goal?' and offers examples, clearly inviting the user to provide their initial description."
-        },
-        {
-          "text": "Response does not proceed further or ask business context questions",
-          "passed": true,
-          "evidence": "The response only asks for the initial topic description; it does not ask about pain point, success criteria, or any Step 1 business context. transcript.md confirms the agent stopped after producing this message."
-        },
-        {
-          "text": "Response does not write any work item files",
-          "passed": true,
-          "evidence": "transcript.md explicitly states 'no files are written' and the outputs directory contains only response.md \u2014 no work item files were created."
         }
       ],
       "notes": []
@@ -222,40 +188,6 @@
       "notes": []
     },
     {
-      "eval_id": 6,
-      "eval_name": "bug-type-requirements",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says kind 'bug' was proposed",
-          "passed": true,
-          "evidence": "behavior.md: '(a) **Kind proposed**: `bug`'."
-        },
-        {
-          "text": "draft.md Requirements section contains reproduction steps (e.g. numbered steps, expected behavior, actual behavior)",
-          "passed": true,
-          "evidence": "draft.md ## Requirements has 'Reproduction steps' (4 numbered steps), 'Expected behaviour', 'Actual behaviour', 'Environment'."
-        },
-        {
-          "text": "behavior.md says Requirements section was NOT renamed",
-          "passed": true,
-          "evidence": "behavior.md: '(c) **Requirements section renamed**: No. The heading remains `## Requirements`'; draft confirms."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 3,
       "eval_name": "business-context-first",
       "configuration": "old_skill",
@@ -280,35 +212,6 @@
           "text": "questions.md contains between 3 and 5 questions",
           "passed": true,
           "evidence": "questions.md contains exactly 5 numbered questions covering: pain point and current behaviour, user perspective on done, solution/approach preference, constraints/deadlines/dependencies, and uncertainties or research requests."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 3,
-      "eval_name": "business-context-first",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says agents were NOT spawned before asking questions",
-          "passed": true,
-          "evidence": "behavior.md: '(a) Spawned any agents before asking these questions: no'; transcript Step 1: 'No agents spawned.'"
-        },
-        {
-          "text": "questions.md contains between 3 and 5 questions",
-          "passed": true,
-          "evidence": "questions.md lists exactly 5 numbered questions (problem/who, outcome, approach, constraints, uncertainties)."
         }
       ],
       "notes": []
@@ -343,35 +246,6 @@
       "notes": []
     },
     {
-      "eval_id": 5,
-      "eval_name": "challenge-untestable-ac",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "response.md does NOT accept 'should work correctly' as a valid acceptance criterion (does not just add it)",
-          "passed": true,
-          "evidence": "response.md opens with 'I can't accept \"Search should work correctly\" as written \u2014 it isn't testable.' The criterion was explicitly rejected and not added to a draft."
-        },
-        {
-          "text": "response.md pushes back and asks for something measurable or testable instead",
-          "passed": true,
-          "evidence": "response.md asks 'What would \"working correctly\" actually look like in practice?' and offers four concrete candidate interpretations (result accuracy, ranking, edge cases, special characters/archived pages) to help the user articulate a measurable criterion."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 7,
       "eval_name": "draft-xxxx-placeholder",
       "configuration": "old_skill",
@@ -396,35 +270,6 @@
           "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
           "passed": true,
           "evidence": "behavior.md states under '(b) Does the draft contain any real work item number (0001, 0002, etc.)?': 'No. The draft contains no real numeric work item ID anywhere in its content. The only identifier present is the XXXX placeholder.'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 7,
-      "eval_name": "draft-nnnn-placeholder",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "draft.md contains 'id: \"NNNN\"' in frontmatter (not a real number)",
-          "passed": true,
-          "evidence": "draft.md frontmatter: 'id: \"NNNN\"'; H1 '# NNNN: One-Click CSV Export ...'."
-        },
-        {
-          "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
-          "passed": true,
-          "evidence": "behavior.md (b): 'No. No real work item number appears anywhere in the draft.' Verified: no 4-digit IDs in draft.md."
         }
       ],
       "notes": []
@@ -464,40 +309,6 @@
       "notes": []
     },
     {
-      "eval_id": 11,
-      "eval_name": "drafting-notes-populated",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "proposal.md includes a Drafting Notes section",
-          "passed": true,
-          "evidence": "proposal.md has '**Drafting Notes** (interpretations a reviewer should see):' with 8 entries."
-        },
-        {
-          "text": "draft.md includes a Drafting Notes section",
-          "passed": true,
-          "evidence": "draft.md has '## Drafting Notes' with 8 bullet entries."
-        },
-        {
-          "text": "draft.md's Drafting Notes capture interpretations about scope (which users, which data), format, or compliance framing",
-          "passed": true,
-          "evidence": "draft.md Drafting Notes: '\"Their data\": interpreted as the full personal-data footprint (profile, created content, activity history)...', 'Format: chose a ZIP archive with JSON ... plus CSV', 'Feature vs. compliance: treated as a feature'; end-users-as-stakeholders also covered."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 24,
       "eval_name": "enrich-existing-augmentation-proposal",
       "configuration": "old_skill",
@@ -527,40 +338,6 @@
           "text": "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow",
           "passed": false,
           "evidence": "The old skill response explicitly uses '**Suggested type**: story' on line 3 and '**Requirements I'd suggest**:' on line 6, which is the canonical from-scratch topic-string framing. The entire response follows the new-creation proposal format rather than an enrich-existing augmentation format."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 24,
-      "eval_name": "enrich-existing-augmentation-proposal",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
-          "passed": true,
-          "evidence": "Each section is labelled e.g. '**Summary** \u2014 missing: still holds only the template placeholder' for all 10 sections. Matches the skill's '\u2014 [complete | needs improvement: <reason> | missing]' form; the assertion's literal brackets are template placeholders, not required output. All sections are 'missing' since the fixture is all placeholders, so the other two labels are not exercised."
-        },
-        {
-          "text": "Output includes per-field lines for Title, Kind, Priority, Parent, Tags each marked 'keep' or 'propose change'",
-          "passed": true,
-          "evidence": "response.md: '**Title**: keep', '**Kind**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep (none)', '**Tags**: propose adding `documentation`, `search`, `mkdocs`' (plus Status: keep draft)."
-        },
-        {
-          "text": "Output does not include the from-scratch 'Suggested kind' / 'Requirements I'd suggest' framing from the topic-string flow",
-          "passed": true,
-          "evidence": "response.md contains no 'Suggested kind' or 'Requirements I'd suggest' wording; it opens with 'Here's how the existing work item reads against my research'."
         }
       ],
       "notes": []
@@ -605,399 +382,6 @@
       "notes": []
     },
     {
-      "eval_id": 21,
-      "eval_name": "enrich-existing-gap-analysis",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response contains a 'Complete:' listing and a 'Gaps:' listing",
-          "passed": true,
-          "evidence": "Response contains 'Complete: none (frontmatter identity fields are populated ...)' and 'Gaps:' followed by a list of sections"
-        },
-        {
-          "text": "Each gap entry is tagged with exactly one of: empty, placeholder-only, instructional-prose, or partial",
-          "passed": true,
-          "evidence": "All ten gap entries are tagged '(placeholder-only)': Summary, Context, Requirements, Acceptance Criteria, Open Questions, Dependencies, Assumptions, Technical Notes, Drafting Notes, References"
-        },
-        {
-          "text": "Step 1 follow-up questions target only sections listed under Gaps",
-          "passed": true,
-          "evidence": "Follow-up questions address Summary, Context, Requirements, Acceptance Criteria, Dependencies, and Open Questions \u2014 all sections explicitly listed under Gaps; no question targets a section listed as Complete"
-        },
-        {
-          "text": "Transcript shows no broad-discovery questions (the default Step 1 vagueness check is not run)",
-          "passed": true,
-          "evidence": "Questions are targeted at specific missing sections (e.g. 'Summary \u2014 what and why', 'Context \u2014 background and constraints') rather than generic discovery prompts like 'what pain point' or 'what is the desired outcome'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": "21b",
-      "eval_name": "enrich-existing-gap-instructional-prose",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The Summary section is classified as a gap with the tag 'instructional-prose'",
-          "passed": true,
-          "evidence": "Gaps list includes '- Summary (instructional-prose)'"
-        },
-        {
-          "text": "Step 1 asks a follow-up question targeting the instructional-prose Summary",
-          "passed": true,
-          "evidence": "Follow-up question 1 is explicitly labelled 'Business value and beneficiaries (Summary gap)' and asks about the problem users face and who the primary users are"
-        },
-        {
-          "text": "The instructional-prose section is NOT classified as 'partial' or 'placeholder-only'",
-          "passed": true,
-          "evidence": "Summary is tagged '(instructional-prose)' \u2014 not 'partial' or 'placeholder-only'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": "21a",
-      "eval_name": "enrich-existing-gap-mixed-section",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The Summary section is classified as a gap with the tag 'partial'",
-          "passed": true,
-          "evidence": "Gaps list includes '- Summary (partial)'"
-        },
-        {
-          "text": "Step 1 asks a follow-up question about the Summary section",
-          "passed": true,
-          "evidence": "Follow-up questions reference the Summary: 'The Summary establishes that users need full-text search on the documentation index, but the remaining sections are entirely unfilled.' \u2014 the first question asks about 'Impact and scope of the problem' targeting the Summary gap"
-        },
-        {
-          "text": "Other fully-bracketed sections are tagged 'empty' or 'placeholder-only', not 'partial'",
-          "passed": true,
-          "evidence": "Context, Requirements, Acceptance Criteria, Open Questions, Dependencies, Assumptions, Drafting Notes, References are all tagged '(placeholder-only)'; Technical Notes is tagged '(instructional-prose)'. None of the other sections are tagged 'partial'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 27,
-      "eval_name": "enrich-existing-h1-real-number",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Written file's body H1 begins with '# 0042:'",
-          "passed": true,
-          "evidence": "final-work-item.md H1: '# 0042: Add Full-Text Search to Documentation Index'."
-        },
-        {
-          "text": "Written file contains no literal NNNN token",
-          "passed": true,
-          "evidence": "grep -c NNNN final-work-item.md = 0."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 31,
-      "eval_name": "enrich-existing-identity-swap-check-performed",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Transcript at Step 5 shows an `accelerator work show <path> --field id` invocation immediately before the confirmation prompt is rendered",
-          "passed": true,
-          "evidence": "Transcript Step 5.2: 'At-write identity-swap check, immediately before the confirmation prompt: Would run: `accelerator work show skills/.../0042-existing-sparse.md --field id`' -> 0042."
-        },
-        {
-          "text": "Step 5 confirmation prompt appears after the read",
-          "passed": true,
-          "evidence": "Transcript Step 5.3 'Confirmation prompt shown' follows the read; behavior.md: 'Did the confirmation prompt appear after the read? **yes**'."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 18,
-      "eval_name": "enrich-existing-missing-path-fallback",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response includes a warning that names the input path meta/work/9999-nope.md explicitly",
-          "passed": true,
-          "evidence": "First line reads: 'No work item at meta/work/9999-nope.md \u2014 interpreting as topic string.'"
-        },
-        {
-          "text": "Response indicates the input is being interpreted as a topic string",
-          "passed": true,
-          "evidence": "First line ends with '\u2014 interpreting as topic string' and the subsequent paragraph describes the string as looking like 'a file path rather than a topic description'"
-        },
-        {
-          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
-          "passed": true,
-          "evidence": "Response continues with Step 0 discovery questions asking what the user wants to capture as a work item, with example phrasings"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 26,
-      "eval_name": "enrich-existing-no-id-next-call",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Transcript shows no invocation of accelerator work id next at any point in the conversation",
-          "passed": true,
-          "evidence": "Transcript records `accelerator work id next` only as 'not called' (Step 4, Step 5.1, Summary); no invocation."
-        },
-        {
-          "text": "The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt",
-          "passed": true,
-          "evidence": "Transcript Step 5.2: identity-swap check `accelerator work show <abs path>/0042-existing-sparse.md --field id` -> 0042, then Step 5.3 'Confirmation message shown'."
-        },
-        {
-          "text": "behavior.md says the file was written to skills/work/create-work-item/evals/files/0042-existing-sparse.md, the cached input path",
-          "passed": true,
-          "evidence": "behavior.md: written to '/Users/.../skills/work/create-work-item/evals/files/0042-existing-sparse.md (the resolved `existing_work_item_path` cached in Step 0)' - absolute form of the cached input path."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 17,
-      "eval_name": "enrich-existing-numeric-multi-match",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response lists both matching files as numbered options",
-          "passed": true,
-          "evidence": "Response lists two numbered options: '1. `skills/work/create-work-item/evals/files/0042-existing-sparse.md`' and '2. `skills/work/create-work-item/evals/files/0042-other-slug.md`'"
-        },
-        {
-          "text": "Response asks the user to select a file by number or specify the full path",
-          "passed": true,
-          "evidence": "Response ends with: 'Which would you like to open? Reply with the number (1 or 2) or specify the full path.'"
-        },
-        {
-          "text": "Response does not proceed into enrich mode \u2014 waits for user selection",
-          "passed": true,
-          "evidence": "The response stops after presenting the options and asking the user to choose; no gap analysis or enrichment questions follow"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 20,
-      "eval_name": "enrich-existing-numeric-no-match-fallback",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response includes a warning that names the input number 9999 explicitly",
-          "passed": true,
-          "evidence": "First line reads: 'No work item numbered 9999 found in meta/work \u2014 interpreting as topic string.'"
-        },
-        {
-          "text": "Response indicates the input is being interpreted as a topic string",
-          "passed": true,
-          "evidence": "First line ends with '\u2014 interpreting as topic string' and the next paragraph refers to the string '9999' as 'a number rather than a topic description'"
-        },
-        {
-          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
-          "passed": true,
-          "evidence": "Response continues with Step 0 discovery questions: 'What problem are you trying to solve, or what feature do you want to add? Who is affected by it?'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 16,
-      "eval_name": "enrich-existing-numeric-single-match",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response cites the resolved file's work_item_id (0042) or title",
-          "passed": true,
-          "evidence": "response.md opens: 'I've read the existing work item (`skills/work/create-work-item/evals/files/0042-existing-sparse.md`).' The title 'Add Full-Text Search to Documentation Index' is also referenced explicitly."
-        },
-        {
-          "text": "Response does not ask topic-clarification questions",
-          "passed": true,
-          "evidence": "The response proceeds directly to a gap analysis listing all sparse/placeholder sections, then asks targeted content questions about the existing work item's gaps (current search experience, audience, content structure, success criteria, constraints). It does not ask what the user wants to build or what topic to pursue."
-        },
-        {
-          "text": "Response indicates enrich mode \u2014 reading the existing file and preparing to identify gaps",
-          "passed": true,
-          "evidence": "response.md explicitly states 'I've read the existing work item' and provides a structured 'Complete / Gaps' analysis listing every placeholder-only section before asking gap-filling questions \u2014 clearly indicating enrich mode operation."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": "30a",
-      "eval_name": "enrich-existing-oblique-status-mention",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Model asks a clarifying question about the user's status intent rather than inferring a transition",
-          "passed": true,
-          "evidence": "The response.md shows the model kept status: draft and appended an explicit clarifying question: \"you mentioned 'this is now in flight'; did you mean you'd like to transition the status to `in-progress`? If so, please confirm and I'll include that change.\" The behavior report confirms this is exactly what the Identity Field Rules require."
-        },
-        {
-          "text": "Model does NOT unilaterally propose a status transition (e.g. draft \u2192 in-progress) without a clarifying question",
-          "passed": true,
-          "evidence": "The behavior report confirms the model did not infer draft \u2192 in-progress or any other transition. It preserved the cached status (draft) and surfaced the ambiguity before making any change. No transition was proposed or shown in the frontmatter summary without confirmation."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 28,
-      "eval_name": "enrich-existing-overwrites-path",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The Write tool's target path equals skills/work/create-work-item/evals/files/0042-existing-sparse.md",
-          "passed": true,
-          "evidence": "behavior.md states '(a) What path did you write the file to? skills/work/create-work-item/evals/files/0042-existing-sparse.md', confirming the target path is exactly the cached existing_work_item_path from Step 0."
-        },
-        {
-          "text": "The post-write confirmation message reads 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'",
-          "passed": true,
-          "evidence": "behavior.md states '(b) What confirmation message did you print after writing? Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md', exactly matching the expected template."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 15,
       "eval_name": "enrich-existing-path-like",
       "configuration": "old_skill",
@@ -1027,40 +411,6 @@
           "text": "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)",
           "passed": false,
           "evidence": "The old skill has no enrich-existing mode. The response treats the path-like input as a malformed topic string and asks for clarification. It does not read any existing file or perform gap analysis."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 15,
-      "eval_name": "enrich-existing-path-like",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response cites the file's existing title or work_item_id (0042)",
-          "passed": true,
-          "evidence": "response.md opens: 'I've read the existing work item (`skills/work/create-work-item/evals/files/0042-existing-sparse.md`).' It also references the title 'Add Full-Text Search to Documentation Index' and describes the frontmatter details, confirming it identified and cites the 0042 file."
-        },
-        {
-          "text": "Response does not ask 'what do you want to achieve' or similar topic-clarification questions",
-          "passed": true,
-          "evidence": "The response goes straight into gap analysis and then asks targeted content questions (problem/pain point, scope, desired outcome, solution approach, dependencies). It does not ask what the user wants to build or what topic to pursue \u2014 it already knows the topic from the existing file."
-        },
-        {
-          "text": "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)",
-          "passed": true,
-          "evidence": "response.md explicitly states 'I've read the existing work item' and follows with a structured gap analysis ('Complete: none / Gaps: ...'), indicating the skill is operating in enrich mode and reviewing the existing file for gaps."
         }
       ],
       "notes": []
@@ -1105,205 +455,6 @@
       "notes": []
     },
     {
-      "eval_id": 25,
-      "eval_name": "enrich-existing-preserves-identity",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Written file's frontmatter work_item_id matches the cached value: 0042",
-          "passed": true,
-          "evidence": "final-work-item.md frontmatter: 'work_item_id: \"0042\"' (run kept the fixture's legacy key). Note: the skill's unified key is `id`; the assertion names the legacy key, so a run that upgrades to `id: \"0042\"` (as eval-27's run did) would fail this literally."
-        },
-        {
-          "text": "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
-          "passed": true,
-          "evidence": "final-work-item.md: 'date: \"2026-01-15T09:00:00+00:00\"'."
-        },
-        {
-          "text": "Written file's author matches the cached value: Toby Clemson",
-          "passed": true,
-          "evidence": "final-work-item.md: 'author: Toby Clemson'."
-        },
-        {
-          "text": "Written file's status matches the cached value (draft) \u2014 no transition was proposed",
-          "passed": true,
-          "evidence": "final-work-item.md: 'status: draft'; Step 3 proposal: 'Status: keep draft'; no transition proposed."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 22,
-      "eval_name": "enrich-existing-rich-confirms",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response confirms there are no obvious gaps",
-          "passed": true,
-          "evidence": "Response states 'Gaps: (none)' and 'No obvious gaps remain' explicitly: 'This work item is thoroughly specified \u2014 all sections contain substantive content ... No obvious gaps remain.'"
-        },
-        {
-          "text": "Response asks what the user wants to add or improve",
-          "passed": true,
-          "evidence": "Response asks: 'What would you like to add or improve?' followed by concrete examples of possible enhancements"
-        },
-        {
-          "text": "Response does not re-ask the default Step 1 discovery questions (e.g. 'what pain point', 'what is the desired outcome')",
-          "passed": true,
-          "evidence": "No generic discovery questions appear; suggestions offered are specific to the rich content already present (e.g. 'Resolve or expand the open question about cross-version search scope')"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 23,
-      "eval_name": "enrich-existing-self-not-duplicate",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response continues into Step 3 augmentation framing referencing the input file by its preserved work_item_id (0042) and title",
-          "passed": true,
-          "evidence": "The response is titled '# Step 3: Augmentation Proposal for Work Item 0042' and opens with a transition note explicitly referencing the resolved input file 'skills/work/create-work-item/evals/files/0042-existing-sparse.md' with title 'Add Full-Text Search to Documentation Index'. The augmentation proposal then proceeds section by section for this work item."
-        },
-        {
-          "text": "Response does NOT enumerate the duplicate-handling options ('Proceed with new', 'Exit and update', 'Continue creating linked')",
-          "passed": true,
-          "evidence": "The response contains no mention of 'Proceed with new', 'Exit and update', or 'Continue creating linked' options. The transition note explains that the single result returned by the documents-locator agent is the input file itself, which is excluded by the self-exclusion rule, and then proceeds directly to augmentation."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 30,
-      "eval_name": "enrich-existing-status-changed",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Step 3 surfaces the proposed transition draft \u2192 in-progress and asks for explicit confirmation",
-          "passed": true,
-          "evidence": "The behavior report confirms Step 3 showed \"**Status**: draft \u2192 in-progress (transition requested \u2014 please confirm)\" and asked for user confirmation before accepting the change."
-        },
-        {
-          "text": "Written file's frontmatter status is in-progress",
-          "passed": true,
-          "evidence": "The written file's frontmatter contains status: in-progress and the body metadata block reads **Status**: In-Progress."
-        },
-        {
-          "text": "Transcript shows the model did not propose a status change before the user explicitly asked for one",
-          "passed": true,
-          "evidence": "The behavior report confirms the status transition was not proposed unsolicited. The user explicitly requested it in Step 1 with \"Fill in the gaps. Also, set status to in-progress.\" The model did not volunteer a transition during gap analysis or any prior turn."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 29,
-      "eval_name": "enrich-existing-status-preserved",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Written file's status is in-progress",
-          "passed": true,
-          "evidence": "The written file's frontmatter contains status: in-progress, and the body metadata block reads **Status**: In Progress. The cached value was in-progress and was preserved unchanged."
-        },
-        {
-          "text": "Transcript contains no proposed status transition",
-          "passed": true,
-          "evidence": "The behavior report confirms no status transition was proposed. The Step 3 augmentation proposal surfaced \"Status: keep in-progress \u2014 say so if you'd like to transition it\" as an affordance only. No user request for a change was made, so no transition appeared in any step."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 19,
-      "eval_name": "enrich-existing-unparseable-frontmatter",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Response prints the unparseable-frontmatter diagnostic containing the substring 'Could not parse frontmatter'",
-          "passed": true,
-          "evidence": "Response begins: 'Could not parse frontmatter in skills/work/create-work-item/evals/files/0099-broken-frontmatter.md \u2014 the file may be corrupted.'"
-        },
-        {
-          "text": "Conversation aborts \u2014 no Step 1 business-context or gap-analysis questions follow",
-          "passed": true,
-          "evidence": "Response contains only the error diagnostic and instructions to fix the file; no questions about business context, gaps, or enrichment follow"
-        },
-        {
-          "text": "Response does NOT fall back to topic-string handling",
-          "passed": true,
-          "evidence": "There is no mention of interpreting the input as a topic string, and no Step 0 discovery questions appear in the response"
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 10,
       "eval_name": "epic-type-requirements",
       "configuration": "old_skill",
@@ -1338,40 +489,6 @@
       "notes": []
     },
     {
-      "eval_id": 10,
-      "eval_name": "epic-type-requirements",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says kind 'epic' was proposed",
-          "passed": true,
-          "evidence": "behavior.md: '(a) **Kind proposed**: `epic`'."
-        },
-        {
-          "text": "draft.md Requirements section contains an initial story decomposition or list of sub-stories",
-          "passed": true,
-          "evidence": "draft.md ## Requirements: 'Initial stories:' followed by 12 numbered stories (Authentication foundation, OIDC SSO, SAML SSO, ...)."
-        },
-        {
-          "text": "behavior.md says Requirements section was NOT renamed (it is still called Requirements, not Stories or Epics)",
-          "passed": true,
-          "evidence": "behavior.md: '(c) **Requirements section renamed**: No. It keeps the template heading `## Requirements`'."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 4,
       "eval_name": "model-proposes-type",
       "configuration": "old_skill",
@@ -1396,35 +513,6 @@
           "text": "proposal.md includes a recommendation for a specific work item type (likely 'story') with a brief one-sentence rationale",
           "passed": true,
           "evidence": "proposal.md opens with 'Suggested type: story' and 'Rationale: This is a user-facing feature with a concrete, testable outcome (users can search and receive ranked results within 2 seconds). It maps cleanly to a story.' \u2014 one sentence identifying the type and explaining why."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 4,
-      "eval_name": "model-proposes-type",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says model recommended a specific kind with rationale (not just listed kinds and asked user to choose)",
-          "passed": true,
-          "evidence": "behavior.md: 'I recommended a specific kind with a one-sentence rationale (I did not just list kinds and ask)'."
-        },
-        {
-          "text": "proposal.md includes a recommendation for a specific work item kind (likely 'story') with a brief one-sentence rationale",
-          "passed": true,
-          "evidence": "proposal.md: '**Suggested kind**: story' followed by '**Rationale**: This delivers a user-visible capability ... so it fits a story; ...' (one long sentence)."
         }
       ],
       "notes": []
@@ -1464,40 +552,6 @@
       "notes": []
     },
     {
-      "eval_id": 9,
-      "eval_name": "near-duplicate-surfaced",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "response.md surfaces the existing work item (mentions the filename or title '0001-add-search-to-docs.md' or 'Add full-text search to documentation index')",
-          "passed": true,
-          "evidence": "response.md line 3: '**`meta/work/0001-add-search-to-docs.md`**' and line 4: 'Title: Add full-text search to documentation index'"
-        },
-        {
-          "text": "response.md offers the user numbered options (e.g. proceed with new, exit and update existing, continue linked)",
-          "passed": true,
-          "evidence": "response.md lines 9-11 show three numbered options: 1. Proceed with a new work item, 2. Exit and update the existing work item instead, 3. Continue creating a new work item linked to the existing one as a parent"
-        },
-        {
-          "text": "behavior.md says the skill did NOT silently continue creating a new work item",
-          "passed": true,
-          "evidence": "behavior.md section (c): 'No. The skill explicitly prohibits silently continuing or modifying the existing work item inline when a non-closed near-duplicate is found. The response halts at the options prompt and waits for the user's choice before proceeding to Step 3.'"
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 8,
       "eval_name": "number-not-consumed",
       "configuration": "old_skill",
@@ -1522,40 +576,6 @@
           "text": "behavior.md says no work item file was written to disk",
           "passed": true,
           "evidence": "behavior.md states under 'Was any work item file written to disk?': 'No.' with the explanation that 'Never write a file without explicit user approval' held correctly."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 8,
-      "eval_name": "number-not-consumed",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says accelerator work id next was NOT called at any point",
-          "passed": true,
-          "evidence": "behavior.md: 'Was `accelerator work id next` called at any point? **no**'."
-        },
-        {
-          "text": "behavior.md says no work item file was written to disk",
-          "passed": true,
-          "evidence": "behavior.md: 'Was any work item file written to disk? **no.**'"
-        },
-        {
-          "text": "The transcript shows no accelerator work id next or accelerator work create command",
-          "passed": true,
-          "evidence": "Transcript mentions both commands only as 'not called' in the session-ends summary; no invocation recorded."
         }
       ],
       "notes": []
@@ -1595,35 +615,6 @@
       "notes": []
     },
     {
-      "eval_id": 14,
-      "eval_name": "references-populated",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "draft.md contains a References section (## References)",
-          "passed": true,
-          "evidence": "draft.md ends with '## References'."
-        },
-        {
-          "text": "draft.md's References section includes research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
-          "passed": true,
-          "evidence": "draft.md References lists https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/ and https://example.com/2025/elasticsearch-eol."
-        }
-      ],
-      "notes": []
-    },
-    {
       "eval_id": 13,
       "eval_name": "template-driven-types",
       "configuration": "old_skill",
@@ -1648,69 +639,6 @@
           "text": "behavior.md says the type list was treated as open-ended (from template) rather than a hardcoded list of five types",
           "passed": true,
           "evidence": "behavior.md section (c) states the old skill's instruction explicitly reads: 'Valid types come from the work item template's `type` field (loaded at the top of this skill) \u2014 do not hardcode the list.' It concludes: 'The old skill's architecture is type-list-open (reads from template). It does not have a hardcoded five-type list in the instruction text.'"
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 13,
-      "eval_name": "template-driven-kinds",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 2,
-        "failed": 0,
-        "total": 2,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "behavior.md says 'chore' was considered as a valid kind (not dismissed as invalid)",
-          "passed": true,
-          "evidence": "behavior.md (b): 'Considered `chore` as valid: Yes ... I compared it with `task` and chose `chore`'."
-        },
-        {
-          "text": "behavior.md says the kind list was treated as open-ended (from template) rather than a hardcoded list of five kinds",
-          "passed": true,
-          "evidence": "behavior.md (c): 'Open-ended, read from the template. I did not limit myself to the five kinds the skill's prose mentions'."
-        }
-      ],
-      "notes": []
-    },
-    {
-      "eval_id": 32,
-      "eval_name": "topic-string-flow-still-calls-id-next",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 3,
-        "failed": 0,
-        "total": 3,
-        "time_seconds": 0.0,
-        "tokens": 0,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Transcript shows exactly one invocation of accelerator work id next during Step 5",
-          "passed": true,
-          "evidence": "Transcript Step 5.1: `accelerator work id next` -> 0043; not called anywhere else (Step 4 explicitly 'NOT called')."
-        },
-        {
-          "text": "Written file's id is the value returned by that invocation (0043)",
-          "passed": true,
-          "evidence": "final-work-item.md: 'id: \"0043\"'."
-        },
-        {
-          "text": "Written file's body H1 begins with '# 0043:'",
-          "passed": true,
-          "evidence": "final-work-item.md H1: '# 0043: Dark Mode Toggle on the Settings Page'."
         }
       ],
       "notes": []
@@ -1745,6 +673,1216 @@
       "notes": []
     },
     {
+      "eval_id": 39,
+      "eval_name": "requested_id_is_never_resolved_as_an_existing_item",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": false,
+          "evidence": "commands.md: step 1 runs `accelerator work resolve -- '--id 0400 dark mode toggle'`"
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": false,
+          "evidence": "commands.md: \"`accelerator work id check -- '0400'` was never called\""
+        },
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim, naming meta/work/0400-search-filters.md, before any business-context question or draft",
+          "passed": false,
+          "evidence": "response.md paraphrases ('0400 is already taken by meta/work/0400-search-filters.md'); no E_ID_TAKEN text, and proceeds to business questions"
+        },
+        {
+          "text": "files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "files.md: \"none\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 40,
+      "eval_name": "requested_id_is_the_projected_id_on_both_creates",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md states that the item's ID will be 0400",
+          "passed": false,
+          "evidence": "response.md never states the ID in advance; only reports 'Work item created: meta/work/0400-dark-mode-toggle.md' after the push"
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": false,
+          "evidence": "commands.md step 2: `accelerator work id next`"
+        },
+        {
+          "text": "Both the `--push --dry-run` create and the `--push` create in commands.md carry `--id='0400'`",
+          "passed": false,
+          "evidence": "commands.md steps 3 and 4: neither create carries --id"
+        },
+        {
+          "text": "No command in commands.md carries `--project`",
+          "passed": true,
+          "evidence": "commands.md: no command includes --project"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 41,
+      "eval_name": "requested_id_under_tracker_is_refused_before_composing",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TRACKER_OWNED message verbatim before any business-context question or draft",
+          "passed": false,
+          "evidence": "response.md paraphrases ('Linear assigns every work item's ID. I can't give this item 0400'); E_ID_TRACKER_OWNED text absent; commands.md says work id check was never run"
+        },
+        {
+          "text": "The choices offered are automatic allocation (the tracker flow) and cancelling, with no option to name another ID",
+          "passed": false,
+          "evidence": "questions.md: \"none\"; response.md offers no choice, goes straight to business-context questions"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work resolve` was run"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 42,
+      "eval_name": "a_push_gate_refusal_of_the_requested_id_is_not_saved_locally",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim",
+          "passed": true,
+          "evidence": "response.md quotes the full 'Error: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md ...' message unchanged"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": false,
+          "evidence": "commands.md step 4: `accelerator work create \"Dark mode toggle\" story medium --status draft ...` after the failed dry-run"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": false,
+          "evidence": "questions.md: \"none\""
+        },
+        {
+          "text": "The skill makes no choice for the user",
+          "passed": false,
+          "evidence": "response.md: 'Saving the work item locally instead (unsynced)' and created meta/work/0401-dark-mode-toggle.md"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 43,
+      "eval_name": "short_requested_number_is_proposed_padded_and_confirmed",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md or questions.md proposes 0400 and asks for confirmation before any business-context question",
+          "passed": false,
+          "evidence": "questions.md: \"none\"; response.md says 'this skill has no --id option, so I can't reserve ID 400' and goes to business questions"
+        },
+        {
+          "text": "commands.md shows the `accelerator work create` carrying `--id='0400'`",
+          "passed": false,
+          "evidence": "commands.md step 3: create carries no --id flag"
+        },
+        {
+          "text": "No `accelerator work create` in commands.md carries `--id='400'`",
+          "passed": true,
+          "evidence": "commands.md: the only create has no --id"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 44,
+      "eval_name": "exact_requested_id_needs_no_confirmation",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Neither response.md nor questions.md asks the user to confirm the ID",
+          "passed": true,
+          "evidence": "questions.md: \"none\"; response.md asks no ID confirmation"
+        },
+        {
+          "text": "response.md says 0400 will be used",
+          "passed": false,
+          "evidence": "response.md: 'this skill has no --id option \u2014 the work item's ID is allocated automatically'; 0400 only appears in the post-write path"
+        },
+        {
+          "text": "commands.md shows the `accelerator work create` carrying `--id='0400'`",
+          "passed": false,
+          "evidence": "commands.md step 3: create carries no --id; ID came from `accelerator work id next`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 45,
+      "eval_name": "key_pattern_requests_are_proposed_with_their_key",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Session 1 proposes PP-0400 exactly and asks the user to confirm it",
+          "passed": false,
+          "evidence": "response.md Session 1: 'This skill has no `--id` option... so I'm not using `400` as the ID.' No PP-0400 proposed."
+        },
+        {
+          "text": "Sessions 2 and 3 propose XY-0400 and xy-0400 exactly as printed, each saying its key differs from the configured PP",
+          "passed": false,
+          "evidence": "response.md Sessions 2-3 say 'I'm not using `XY-400`/`xy-400` as the ID'; no XY-0400/xy-0400 and no mention of PP."
+        },
+        {
+          "text": "Session 4 asks no confirmation, says it is using PO-0400, and notes its key differs from the configured PP",
+          "passed": false,
+          "evidence": "response.md Session 4: 'I'm not using `PO-0400` as the ID'; no key-difference note."
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '<request>'`, single-quoted, for each request",
+          "passed": false,
+          "evidence": "commands.md: 'never calls `accelerator work id check`'; only `accelerator work resolve \"--id ... dark mode toggle\"` per session."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 46,
+      "eval_name": "requests_with_no_exact_form_are_explained_against_the_pattern",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Each session in response.md relays its refusal's stderr verbatim",
+          "passed": false,
+          "evidence": "response.md relays no E_ID_PATTERN_MISMATCH/E_ID_DRAFT_RESERVED text; commands.md: '`accelerator work id check` was not run'."
+        },
+        {
+          "text": "No session proposes an ID of its own, such as 0000, 1000, 4000, 0400 or XY-0400",
+          "passed": true,
+          "evidence": "response.md: each session says 'I can't reserve `<id>`' and defers allocation; no alternative ID proposed."
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md lists only preprocessor config calls and `accelerator work resolve` per session."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 47,
+      "eval_name": "the_skill_waits_for_the_users_choice_after_a_declined_proposal",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": false,
+          "evidence": "questions.md: 'none'."
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` and no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work resolve -- '--id 400 dark mode toggle'`; 'No other `accelerator` commands were run.'"
+        },
+        {
+          "text": "The skill makes no choice for the user",
+          "passed": false,
+          "evidence": "Run never reached the declined-proposal choice; response.md decides unilaterally: 'I can't promise `0400`. I'll treat your request as a new work item'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 48,
+      "eval_name": "a_new_id_after_a_collision_is_used_on_both_creates",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0401'` after the refused dry-run",
+          "passed": true,
+          "evidence": "commands.md item 3: `accelerator work id check -- '0401'` after item 2's E_ID_TAKEN dry-run."
+        },
+        {
+          "text": "The dry-run and the `--push` create after it both carry `--id='0401'`",
+          "passed": false,
+          "evidence": "commands.md items 4 and 5 carry `--id 0401` (unquoted, space-separated), not `--id='0401'`."
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md only asks 'name another ID, or let the next number be allocated?' and the push offer."
+        },
+        {
+          "text": "body.md is the approved draft unchanged, with NNNN still in its H1",
+          "passed": true,
+          "evidence": "body.md matches the approved draft; H1 '# NNNN: Dark mode toggle'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 49,
+      "eval_name": "automatic_allocation_after_a_refusal_uses_id_next",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md item 2: `accelerator work id next` -> 0412."
+        },
+        {
+          "text": "The `accelerator work create` in commands.md carries no `--id`",
+          "passed": true,
+          "evidence": "commands.md item 3: `accelerator work create \"Dark mode toggle\" story medium --status draft --author ... --body-file ...` with no --id."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 50,
+      "eval_name": "automatic_allocation_after_a_tracker_refusal_follows_the_tracker_flow",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md lists resolve, two work creates and frontmatter validate only."
+        },
+        {
+          "text": "No `accelerator work create` in commands.md carries `--id`",
+          "passed": true,
+          "evidence": "commands.md items 2 and 3 have no --id."
+        },
+        {
+          "text": "After the dry-run and the declined push, commands.md shows `accelerator work create` without `--push`",
+          "passed": true,
+          "evidence": "commands.md item 3: `accelerator work create \"Dark mode toggle\" story medium --status draft ... --body-file ...` with no --push, after item 2's --push --dry-run."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 51,
+      "eval_name": "a_refusal_from_the_pushed_create_resumes_at_the_push",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim",
+          "passed": true,
+          "evidence": "response.md quotes 'Error: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.' unchanged"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": false,
+          "evidence": "questions.md holds only the two push-gate questions; the recovery was a free-text question in response.md offering only 'name another ID, or let the next number be allocated', with no cancel option"
+        },
+        {
+          "text": "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then the dry-run, then the `--push` create, in that order, the last two carrying `--id='0401'`",
+          "passed": false,
+          "evidence": "commands.md shows id check -- '0401', dry-run, then --push create in order, but both carry `--id '0401'` (space-separated), not `--id='0401'`"
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md moves from the 0401 choice straight to the push preview and create; no business-context questions"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 52,
+      "eval_name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id check`",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work resolve \"add --id <ID> to accelerator work create\"`"
+        },
+        {
+          "text": "response.md treats the whole argument, adding --id <ID> to accelerator work create, as the topic",
+          "passed": true,
+          "evidence": "response.md: 'I'm treating it as the topic: add an `--id <ID>` option to `accelerator work create`'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 53,
+      "eval_name": "an_id_given_with_an_equals_sign_is_requested",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": false,
+          "evidence": "commands.md shows only `accelerator work resolve '--id=0400 dark mode'`; no id check"
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": false,
+          "evidence": "commands.md: `accelerator work resolve '--id=0400 dark mode'` exit 1"
+        },
+        {
+          "text": "response.md treats `dark mode` as the topic",
+          "passed": true,
+          "evidence": "response.md: 'I'll take the topic to be **dark mode**'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 54,
+      "eval_name": "an_id_with_a_single_quote_runs_no_command",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id` and no `accelerator work create` call",
+          "passed": true,
+          "evidence": "commands.md lists only config calls and `accelerator work resolve`; notes work id next was not called"
+        },
+        {
+          "text": "response.md says an ID cannot contain a single quote",
+          "passed": false,
+          "evidence": "response.md says /create-work-item has no --id option and that `04'00` isn't valid under the {number:04d} pattern; never says an ID cannot contain a single quote"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": false,
+          "evidence": "questions.md: 'none'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 55,
+      "eval_name": "a_non_id_error_from_the_push_gate_aborts",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the stderr verbatim",
+          "passed": true,
+          "evidence": "response.md quotes 'Error: could not list meta/work/drafts: Permission denied (os error 13)' unchanged"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": false,
+          "evidence": "commands.md step 3 runs `accelerator work create \"Dark mode toggle\" story medium --status draft ...` after the failed dry-run, saving locally"
+        },
+        {
+          "text": "response.md prints the approved draft and says the user can re-run /create-work-item",
+          "passed": false,
+          "evidence": "response.md reports a local save to meta/work/0057-dark-mode-toggle.md and points to /sync-work-items; it neither prints the draft nor mentions re-running /create-work-item"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 56,
+      "eval_name": "a_rekey_in_progress_at_step_0_points_to_rekey_work_items",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 1,
+        "failed": 1,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
+          "passed": false,
+          "evidence": "response.md never mentions a re-key in progress; the id check was never run (commands.md), so the skill went to business-context questions"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` and no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md shows only `accelerator work resolve '--id 0400 dark mode toggle'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 57,
+      "eval_name": "a_trailing_id_flag_is_requested",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": false,
+          "evidence": "commands.md: \"Not run: `accelerator work id check -- '0400'`\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": false,
+          "evidence": "commands.md: \"1. `accelerator work resolve 'dark mode toggle --id 0400'`\""
+        },
+        {
+          "text": "response.md treats `dark mode toggle` as the topic",
+          "passed": true,
+          "evidence": "response.md: '\"dark mode toggle\" is clear enough to start from ... treating `--id 0400` as not applicable rather than as part of the topic'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 58,
+      "eval_name": "an_id_without_a_topic_asks_for_one",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md asks the user what the work item is about",
+          "passed": true,
+          "evidence": "response.md: \"what do you want this work item to capture \u2014 what's the problem or goal?\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work resolve -- '--id 0400'`; no work create"
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": false,
+          "evidence": "commands.md entry 1: `accelerator work resolve -- '--id 0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 59,
+      "eval_name": "cancel_after_drafting_prints_the_draft",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md prints the approved draft after the user cancels",
+          "passed": true,
+          "evidence": "response.md Message 2: \"Cancelled... Your approved draft of \\\"Dark mode toggle\\\" is below\" followed by the full body H1 through References"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": true,
+          "evidence": "commands.md: dry-run is the last command; \"No further `accelerator` commands were run\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`, and the dry-run carries `--id='0400'`",
+          "passed": false,
+          "evidence": "commands.md entry 2 runs `accelerator work id next`; dry-run `accelerator work create \"Dark mode toggle\" story medium --push --dry-run --body-file ...` carries no --id"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 60,
+      "eval_name": "a_local_create_refusal_resumes_at_the_local_create",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then an `accelerator work create` carrying `--id='0401'`",
+          "passed": true,
+          "evidence": "commands.md: entry 2 `accelerator work id check -- '0401'`, entry 3 `accelerator work create ... --id '0401'`"
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md contains only the refusal relay, ID prompt and success message; no business-context question"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": false,
+          "evidence": "questions.md: \"none\"; response.md offers only another ID or next-number allocation, no cancel option"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 61,
+      "eval_name": "a_recovery_id_with_a_single_quote_runs_no_command",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 3,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No command in commands.md carries `04'01`",
+          "passed": false,
+          "evidence": "commands.md \u00a73: `accelerator work id check -- '04'\\''01'` passes the value 04'01 to a command"
+        },
+        {
+          "text": "response.md says an ID cannot contain a single quote",
+          "passed": false,
+          "evidence": "response.md says `04'01` 'isn't a valid ID' because the pattern means four digits ('has an apostrophe in it'), citing an invented E_ID_INVALID pattern mismatch; it does not state that an ID cannot contain a single quote"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling again after `04'01`",
+          "passed": false,
+          "evidence": "questions.md Question 2 offers 'Use 0401', 'Name another ID', 'Allocate the next number' \u2014 no cancel option"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 62,
+      "eval_name": "a_new_id_named_before_drafting_is_checked_then_drafted",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0401'` before response.md asks any business-context question",
+          "passed": false,
+          "evidence": "commands.md: 'neither `id check` call named in the task was made'"
+        },
+        {
+          "text": "response.md goes on to ask business-context questions and present a draft",
+          "passed": true,
+          "evidence": "response.md \u00a71 asks five business-context questions; \u00a73 presents the draft"
+        },
+        {
+          "text": "The dry-run and the `--push` create in commands.md both carry `--id='0401'`",
+          "passed": false,
+          "evidence": "commands.md \u00a73 dry-run and \u00a74 --push create carry no --id flag; ID came from invented `accelerator work id next`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 63,
+      "eval_name": "a_pending_push_under_an_id_is_relayed_without_a_rerun",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_PUSH_PENDING message verbatim",
+          "passed": true,
+          "evidence": "response.md quotes the full stderr unchanged in a code block: 'Error: E_PUSH_PENDING: a previous create attempt for 'Dark mode toggle' at ... remove the marker to retry.'"
+        },
+        {
+          "text": "response.md prints the approved draft",
+          "passed": false,
+          "evidence": "response.md never prints the draft body; it only says 'Your approved draft is unchanged, so I can use it as-is on the retry.'"
+        },
+        {
+          "text": "questions.md offers no recovery choice, and commands.md shows no `accelerator work id check` after the `--push` create",
+          "passed": true,
+          "evidence": "questions.md has only the push-gate question; commands.md ends at the failed --push create ('No further commands')."
+        },
+        {
+          "text": "response.md does not suggest re-running /create-work-item or the create",
+          "passed": false,
+          "evidence": "response.md: 'If it does not exist, remove the marker and re-run `/create-work-item` to retry the push.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 64,
+      "eval_name": "a_config_refusal_from_resolve_stops_before_drafting",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_WORK_ID_PATTERN_INVALID message verbatim",
+          "passed": false,
+          "evidence": "response.md never mentions E_WORK_ID_PATTERN_INVALID; it treats the input as a topic."
+        },
+        {
+          "text": "response.md asks no business-context question and presents no draft",
+          "passed": false,
+          "evidence": "response.md asks five business-context questions ('Problem and audience', 'Desired outcome', ...)."
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: 'no `work id next` or `work create` call was made'; last command is work resolve."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 65,
+      "eval_name": "a_busy_identity_run_at_step_0_is_retried_not_aborted",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says another identity command is still running and to retry once it ends",
+          "passed": false,
+          "evidence": "response.md never mentions E_IDENTITY_RUN_BUSY or a running rekey; it says /create-work-item doesn't take --id and asks business-context questions."
+        },
+        {
+          "text": "questions.md offers no recovery choice such as naming another ID or allocating automatically",
+          "passed": true,
+          "evidence": "questions.md: 'none'."
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work resolve`; 'No ... `accelerator work create` call was made'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 66,
+      "eval_name": "automatic_allocation_after_a_push_refusal_resumes_at_the_push",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id next` after the refused `--push` create",
+          "passed": true,
+          "evidence": "commands.md: entry 2 refused --push create (exit 1), entry 3 `accelerator work id next` -> 0412"
+        },
+        {
+          "text": "response.md states the new projected ID 0412",
+          "passed": true,
+          "evidence": "response.md: \"The next free ID is **0412**\""
+        },
+        {
+          "text": "After `work id next`, commands.md shows the dry-run, then the `--push` create, neither carrying `--id`",
+          "passed": true,
+          "evidence": "commands.md entries 4 (dry-run) and 5 (--push create) carry no --id"
+        },
+        {
+          "text": "response.md asks no business-context question again, and body.md is the approved draft unchanged",
+          "passed": true,
+          "evidence": "response.md has only push previews/results; body.md matches the approved draft H1 through References exactly"
+        },
+        {
+          "text": "The first dry-run and the first `--push` create both carry `--id='0400'`",
+          "passed": false,
+          "evidence": "commands.md entry 1 dry-run `--push --dry-run --body-file ...` has no --id; only the first --push create carries `--id '0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 67,
+      "eval_name": "the_welcome_tip_is_absent_under_tracker",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 1,
+        "failed": 0,
+        "total": 1,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md does not mention `--id`",
+          "passed": true,
+          "evidence": "response.md welcome text contains no '--id'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 68,
+      "eval_name": "a_welcome_reply_carrying_an_id_is_requested",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 1,
+        "failed": 2,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The welcome text in response.md says the reply can start with `--id <ID>`, shaped like `{number:04d}`",
+          "passed": false,
+          "evidence": "response.md Response 1 welcome text has no mention of `--id` or an ID shape; it only asks the user to describe the goal."
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": false,
+          "evidence": "commands.md: \"`accelerator work id check -- '0400'` was **not** run\"."
+        },
+        {
+          "text": "response.md treats `dark mode` as the topic",
+          "passed": true,
+          "evidence": "response.md Response 2: \"I'll treat \\\"dark mode\\\" as the topic\" followed by business-context questions."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 69,
+      "eval_name": "a_resolve_invalid_after_a_deprecation_warning_is_a_topic",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+          "passed": true,
+          "evidence": "response.md: \"Let's shape a work item for a **dark mode toggle**\" then five questions on problem, outcome, approach, scope, constraints."
+        },
+        {
+          "text": "response.md does not stop on the resolver's output as an error",
+          "passed": true,
+          "evidence": "response.md proceeds to questions; the warning is only a side note: \"It doesn't affect creating this work item.\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 70,
+      "eval_name": "a_pending_push_at_the_push_gate_is_relayed_without_a_rerun",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_PUSH_PENDING message verbatim",
+          "passed": true,
+          "evidence": "response.md code block contains the full E_PUSH_PENDING stderr unchanged."
+        },
+        {
+          "text": "response.md prints the approved draft",
+          "passed": false,
+          "evidence": "response.md never prints the draft body (no '# NNNN: Dark mode toggle' / Summary / Requirements); it saves locally and reports a path instead."
+        },
+        {
+          "text": "questions.md offers no recovery choice",
+          "passed": true,
+          "evidence": "questions.md: \"none\"."
+        },
+        {
+          "text": "response.md does not suggest re-running /create-work-item or the create",
+          "passed": false,
+          "evidence": "response.md: \"If you need `0400`, rename the file ... or re-run once a pinned ID is supported.\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 71,
+      "eval_name": "a_topic_in_a_repository_without_a_work_directory_is_drafted",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+          "passed": true,
+          "evidence": "response.md: \"Got it \u2014 a dark mode toggle ... I'll treat it as a new topic\" then five business-context questions."
+        },
+        {
+          "text": "response.md does not stop on the resolver's output as an error",
+          "passed": true,
+          "evidence": "response.md does not surface E_RESOLVE_INVALID as an error; it proceeds to questions."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 72,
+      "eval_name": "a_marker_refusal_under_an_id_is_relayed_without_a_rerun",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Each session in response.md relays its stderr verbatim",
+          "passed": true,
+          "evidence": "response.md Sessions 1-3 each show the given E_PUSH_MARKER_UNREADABLE / E_PUSH_FINGERPRINT_MISMATCH stderr unchanged in a code block."
+        },
+        {
+          "text": "Each session in response.md prints the approved draft",
+          "passed": false,
+          "evidence": "No session prints the draft body; Sessions 2 and 3 only say \"Your approved draft is above\"; Session 1 saves locally and gives a path."
+        },
+        {
+          "text": "No session offers a recovery choice such as naming another ID or allocating automatically",
+          "passed": true,
+          "evidence": "questions.md: Session 1 none; Sessions 2-3 only the initial push/save-locally question, no recovery choice after the failure."
+        },
+        {
+          "text": "No session suggests re-running /create-work-item or the create",
+          "passed": false,
+          "evidence": "response.md Session 2: \"Before you re-run `/create-work-item`...\"; Session 3: \"remove ... and re-run `/create-work-item`\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "bare-invocation",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response invites the user to describe their problem or goal",
+          "passed": true,
+          "evidence": "response.md: \"To get started, describe what you want to achieve \u2014 what's the problem or goal?\""
+        },
+        {
+          "text": "Response does not proceed further or ask business context questions",
+          "passed": true,
+          "evidence": "response.md only invites a description, outlines the process and notes the --id option; no business context questions"
+        },
+        {
+          "text": "Response does not write any work item files",
+          "passed": true,
+          "evidence": "outputs/ contains only response.md; no work item written"
+        }
+      ],
+      "notes": []
+    },
+    {
       "eval_id": 2,
       "eval_name": "vague-topic",
       "configuration": "with_skill",
@@ -1763,12 +1901,1084 @@
         {
           "text": "Response asks at least one clarifying question about what 'improve things' means",
           "passed": true,
-          "evidence": "response.md asks three questions: (1) What specifically needs improving? (2) What is the problem you're experiencing or observing? (3) What would 'improved' look like when you're done? All three target the vagueness of 'improve things'."
+          "evidence": "response.md: \"What specifically do you want to improve?\""
         },
         {
           "text": "Response does not skip ahead to ask business context questions (e.g. about pain point, success criteria)",
           "passed": true,
-          "evidence": "The questions are aimed at disambiguating the vague topic so a subject can be identified, not at gathering Step 1 business context. transcript.md confirms the agent 'did not proceed to Step 1 (business context questions)' and stopped after the vagueness check."
+          "evidence": "response.md asks only what is to be improved and what outcome is meant; defers: \"Once the subject is clear, I'll ask a few questions about the business context\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "business-context-first",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says agents were NOT spawned before asking questions",
+          "passed": true,
+          "evidence": "behavior.md: \"Spawned any agents before asking these questions: no\""
+        },
+        {
+          "text": "questions.md contains between 3 and 5 questions",
+          "passed": true,
+          "evidence": "questions.md has 5 numbered questions (Problem and audience, Desired outcome, Approach in mind, Constraints and dependencies, Uncertainty and research)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "model-proposes-type",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says model recommended a specific kind with rationale (not just listed kinds and asked user to choose)",
+          "passed": true,
+          "evidence": "behavior.md: \"I recommended a specific kind with a rationale rather than listing kinds and asking\"; suggested kind: story"
+        },
+        {
+          "text": "proposal.md includes a recommendation for a specific work item kind (likely 'story') with a brief one-sentence rationale",
+          "passed": true,
+          "evidence": "proposal.md: \"**Suggested kind**: story\" with \"**Rationale**: This is a user-facing capability with a clear user, problem and measurable outcome ... so a story fits better than a spike.\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "challenge-untestable-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md does NOT accept 'should work correctly' as a valid acceptance criterion (does not just add it)",
+          "passed": true,
+          "evidence": "response.md: \"'Search should work correctly' isn't something anyone could test as written... I don't want to put a vague criterion into the draft.\""
+        },
+        {
+          "text": "response.md pushes back and asks for something measurable or testable instead",
+          "passed": true,
+          "evidence": "response.md: \"What would a passing test actually look like here?\" plus measurable options and offer to rewrite as Given/When/Then"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "bug-type-requirements",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says kind 'bug' was proposed",
+          "passed": true,
+          "evidence": "behavior.md: \"What kind was proposed? `bug`\""
+        },
+        {
+          "text": "draft.md Requirements section contains reproduction steps (e.g. numbered steps, expected behavior, actual behavior)",
+          "passed": true,
+          "evidence": "draft.md ## Requirements has ### Reproduction steps (numbered 1-4), ### Expected behaviour, ### Actual behaviour, ### Environment"
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed",
+          "passed": true,
+          "evidence": "behavior.md: \"Is the Requirements section renamed? No. It keeps the template heading `## Requirements`\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "draft-nnnn-placeholder",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains 'id: \"NNNN\"' in frontmatter (not a real number)",
+          "passed": true,
+          "evidence": "draft.md frontmatter: id: \"NNNN\""
+        },
+        {
+          "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
+          "passed": true,
+          "evidence": "behavior.md: \"No. No real work item number appears anywhere in the draft.\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "number-not-consumed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says accelerator work id next was NOT called at any point",
+          "passed": true,
+          "evidence": "behavior.md: \"Was accelerator work id next called at any point? **no**\""
+        },
+        {
+          "text": "behavior.md says no work item file was written to disk",
+          "passed": true,
+          "evidence": "behavior.md: \"Was any work item file written to disk? **no**\""
+        },
+        {
+          "text": "The transcript shows no accelerator work id next or accelerator work create command",
+          "passed": true,
+          "evidence": "behavior.md (the only output file, recording the simulated flow) shows neither command run; both are mentioned only as not reached (Step 5 never reached)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "near-duplicate-surfaced",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md surfaces the existing work item (mentions the filename or title '0001-add-search-to-docs.md' or 'Add full-text search to documentation index')",
+          "passed": true,
+          "evidence": "response.md: \"`meta/work/0001-add-search-to-docs.md` **Title**: Add full-text search to documentation index\""
+        },
+        {
+          "text": "response.md offers the user numbered options (e.g. proceed with new, exit and update existing, continue linked)",
+          "passed": true,
+          "evidence": "response.md: 1. Proceed with a new work item, 2. Exit and update the existing work item instead, 3. Continue creating a new work item linked to 0001"
+        },
+        {
+          "text": "behavior.md says the skill did NOT silently continue creating a new work item",
+          "passed": true,
+          "evidence": "behavior.md: \"Did you silently continue creating a new work item? No. I stopped at the end of Step 2\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "eval_name": "epic-type-requirements",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says kind 'epic' was proposed",
+          "passed": true,
+          "evidence": "behavior.md: \"Kind proposed: `epic`\""
+        },
+        {
+          "text": "draft.md Requirements section contains an initial story decomposition or list of sub-stories",
+          "passed": true,
+          "evidence": "draft.md ## Requirements: \"This epic decomposes into the following initial stories\" followed by 13 numbered stories"
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed (it is still called Requirements, not Stories or Epics)",
+          "passed": true,
+          "evidence": "behavior.md: \"Requirements section renamed: No. It stays `## Requirements`\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 11,
+      "eval_name": "drafting-notes-populated",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "proposal.md includes a Drafting Notes section",
+          "passed": true,
+          "evidence": "proposal.md: '**Drafting Notes** (interpretations a reviewer should see):' with seven entries, separate from Assumptions and Open questions"
+        },
+        {
+          "text": "draft.md includes a Drafting Notes section",
+          "passed": true,
+          "evidence": "draft.md: '## Drafting Notes' section with seven entries"
+        },
+        {
+          "text": "draft.md's Drafting Notes capture interpretations about scope (which users, which data), format, or compliance framing",
+          "passed": true,
+          "evidence": "draft.md Drafting Notes: '\"Their data\" scoped to data owned by or attributed to the user...'; 'Format choice: JSON as the canonical machine-readable format... ZIP archive'; 'Framed as a \"control over their data\" feature rather than compliance'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "eval_name": "author-resolution",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says author was resolved automatically (not asked of the user)",
+          "passed": true,
+          "evidence": "behavior.md (b): 'It was resolved automatically... The user was never asked for the author name'"
+        },
+        {
+          "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
+          "passed": true,
+          "evidence": "final-work-item.md frontmatter: 'author: Toby Clemson'"
+        },
+        {
+          "text": "behavior.md says author field does not contain placeholder text like [author]",
+          "passed": true,
+          "evidence": "behavior.md (c): 'No. The `author` field contains `Toby Clemson`, not `[author]` or any other placeholder'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "template-driven-kinds",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says 'chore' was considered as a valid kind (not dismissed as invalid)",
+          "passed": true,
+          "evidence": "behavior.md (a) 'chore'; (b) 'Yes... so `chore` is a valid kind. I weighed it against `task` and chose `chore`'"
+        },
+        {
+          "text": "behavior.md says the kind list was treated as open-ended (from template) rather than a hardcoded list of five kinds",
+          "passed": true,
+          "evidence": "behavior.md (c): 'Open-ended... valid kinds come from the work item template's `kind` field and must not be hardcoded... all six, including `chore`'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "references-populated",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains a References section (## References)",
+          "passed": true,
+          "evidence": "draft.md: '## References' present at end of draft"
+        },
+        {
+          "text": "draft.md's References section includes research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
+          "passed": true,
+          "evidence": "draft.md References lists https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/, https://example.com/2025/elasticsearch-eol"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 15,
+      "eval_name": "enrich-existing-path-like",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response cites the file's existing title or work_item_id (0042)",
+          "passed": true,
+          "evidence": "response.md: 'the frontmatter and H1 are in place: 0042, \"Add Full-Text Search to Documentation Index\"'"
+        },
+        {
+          "text": "Response does not ask 'what do you want to achieve' or similar topic-clarification questions",
+          "passed": true,
+          "evidence": "response.md: 'The title already gives the deliverable... so I won't ask what this is about'; all five questions target gap sections"
+        },
+        {
+          "text": "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)",
+          "passed": true,
+          "evidence": "response.md: 'I've read the existing work item (...0042-existing-sparse.md). Here's what looks complete and what still needs work' followed by Complete/Gaps listing"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 16,
+      "eval_name": "enrich-existing-numeric-single-match",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response cites the resolved file's work_item_id (0042) or title",
+          "passed": true,
+          "evidence": "response.md: 'The frontmatter identity is in place... `0042`... The title, \"Add Full-Text Search to Documentation Index\"'"
+        },
+        {
+          "text": "Response does not ask topic-clarification questions",
+          "passed": true,
+          "evidence": "response.md: questions target gap sections (Summary/Context, Requirements, Acceptance Criteria, etc.); title is taken as the deliverable"
+        },
+        {
+          "text": "Response indicates enrich mode \u2014 reading the existing file and preparing to identify gaps",
+          "passed": true,
+          "evidence": "response.md: 'I've read the existing work item (...0042-existing-sparse.md)' plus Complete/Gaps analysis"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 17,
+      "eval_name": "enrich-existing-numeric-multi-match",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response lists both matching files as numbered options",
+          "passed": true,
+          "evidence": "response.md: '1. **0042: Add Full-Text Search to Documentation Index**... 0042-existing-sparse.md' and '2. **0042: Add Full-Text Search to API Reference**... 0042-other-slug.md'"
+        },
+        {
+          "text": "Response asks the user to select a file by number or specify the full path",
+          "passed": true,
+          "evidence": "response.md: 'Which one do you mean? Reply with **1** or **2**, or re-run with the path to name it exactly'"
+        },
+        {
+          "text": "Response does not proceed into enrich mode \u2014 waits for user selection",
+          "passed": true,
+          "evidence": "response.md: 'I have not checked frontmatter, entered enrich-existing mode, spawned any agents or written any file'; ends with the selection question"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 18,
+      "eval_name": "enrich-existing-missing-path-fallback",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response includes a warning that names the input path meta/work/9999-nope.md explicitly",
+          "passed": true,
+          "evidence": "response.md: 'No work item matching meta/work/9999-nope.md \u2014 interpreting as topic string.'"
+        },
+        {
+          "text": "Response indicates the input is being interpreted as a topic string",
+          "passed": true,
+          "evidence": "response.md: '\u2014 interpreting as topic string' and 'Treated as a topic, `meta/work/9999-nope.md` doesn't describe anything...'"
+        },
+        {
+          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
+          "passed": true,
+          "evidence": "response.md: treats the pseudo-path as a vague topic and asks 'could you clarify which of these you meant?' with options, then describes next steps"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 19,
+      "eval_name": "enrich-existing-unparseable-frontmatter",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response prints the unparseable-frontmatter diagnostic containing the substring 'Could not parse frontmatter'",
+          "passed": true,
+          "evidence": "response.md: 'Could not parse frontmatter in skills/work/create-work-item/evals/files/0099-broken-frontmatter.md \u2014 the file may be corrupted.'"
+        },
+        {
+          "text": "Conversation aborts \u2014 no Step 1 business-context or gap-analysis questions follow",
+          "passed": true,
+          "evidence": "response.md ends after the diagnostic and fix hint; no questions or gap analysis"
+        },
+        {
+          "text": "Response does NOT fall back to topic-string handling",
+          "passed": true,
+          "evidence": "response.md contains no 'interpreting as topic string' text and no topic handling"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 20,
+      "eval_name": "enrich-existing-numeric-no-match-fallback",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response includes a warning that names the input number 9999 explicitly",
+          "passed": true,
+          "evidence": "response.md: 'No work item matching 9999 \u2014 interpreting as topic string.'"
+        },
+        {
+          "text": "Response indicates the input is being interpreted as a topic string",
+          "passed": true,
+          "evidence": "response.md: 'interpreting as topic string' and 'Taken as a topic, \"9999\" doesn't tell me what the work item is about'"
+        },
+        {
+          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
+          "passed": true,
+          "evidence": "response.md: asks 'Could you describe what you want to achieve \u2014 what's the problem or goal?' with examples and follow-ups"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 21,
+      "eval_name": "enrich-existing-gap-analysis",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response contains a 'Complete:' listing and a 'Gaps:' listing",
+          "passed": true,
+          "evidence": "response.md: 'Complete: none' and 'Gaps:' list of ten sections"
+        },
+        {
+          "text": "Each gap entry is tagged with exactly one of: empty, placeholder-only, instructional-prose, or partial",
+          "passed": true,
+          "evidence": "response.md: every gap entry tagged '(placeholder-only)', e.g. '- Summary (placeholder-only)'"
+        },
+        {
+          "text": "Step 1 follow-up questions target only sections listed under Gaps",
+          "passed": true,
+          "evidence": "response.md: questions are labelled Summary/Context, Requirements, Acceptance Criteria, Technical Notes/Assumptions, Dependencies/Open Questions/References \u2014 all listed as gaps"
+        },
+        {
+          "text": "Transcript shows no broad-discovery questions (the default Step 1 vagueness check is not run)",
+          "passed": true,
+          "evidence": "response.md: no vagueness check or 'what do you want to achieve'; questions are 'anchored on the title' and section-specific"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "21a",
+      "eval_name": "enrich-existing-gap-mixed-section",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Summary section is classified as a gap with the tag 'partial'",
+          "passed": true,
+          "evidence": "response.md: '- Summary (partial) \u2014 one substantive sentence (...) followed by a residual placeholder'"
+        },
+        {
+          "text": "Step 1 asks a follow-up question about the Summary section",
+          "passed": true,
+          "evidence": "response.md: '**Summary (partial) \u2014 impact and scope**' with questions 1 and 2"
+        },
+        {
+          "text": "Other fully-bracketed sections are tagged 'empty' or 'placeholder-only', not 'partial'",
+          "passed": true,
+          "evidence": "response.md: Context through Drafting Notes all '(placeholder-only)'; only References is tagged '(instructional-prose)', and response.md shows it holds the unbracketed example line 'Source: `path/to/source-document.md`', so it is not a fully-bracketed section; nothing besides Summary is tagged partial"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "21b",
+      "eval_name": "enrich-existing-gap-instructional-prose",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Summary section is classified as a gap with the tag 'instructional-prose'",
+          "passed": true,
+          "evidence": "response.md: '- Summary (instructional-prose)'"
+        },
+        {
+          "text": "Step 1 asks a follow-up question targeting the instructional-prose Summary",
+          "passed": true,
+          "evidence": "response.md: '1. **Summary \u2014 problem and beneficiaries**: What problem does full-text search solve today, and who hits it?'"
+        },
+        {
+          "text": "The instructional-prose section is NOT classified as 'partial' or 'placeholder-only'",
+          "passed": true,
+          "evidence": "response.md: Summary tagged only '(instructional-prose)'; note says 'I'm treating it as a gap, not as content'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 22,
+      "eval_name": "enrich-existing-rich-confirms",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response confirms there are no obvious gaps",
+          "passed": true,
+          "evidence": "response.md: 'Gaps: none' and 'I don't see any obvious gaps to chase.'"
+        },
+        {
+          "text": "Response asks what the user wants to add or improve",
+          "passed": true,
+          "evidence": "response.md: 'what would you like to add or improve?' with five options"
+        },
+        {
+          "text": "Response does not re-ask the default Step 1 discovery questions (e.g. 'what pain point', 'what is the desired outcome')",
+          "passed": true,
+          "evidence": "response.md: 'rather than ask discovery questions you've already answered'; no pain-point/outcome questions"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 23,
+      "eval_name": "enrich-existing-self-not-duplicate",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response continues into Step 3 augmentation framing referencing the input file by its preserved work_item_id (0042) and title",
+          "passed": true,
+          "evidence": "response.md: \"That is the file we're enriching, so I've excluded it ... I'll continue enriching 0042\" then \"Here's how the existing work item reads against my research\"; title 'Add Full-Text Search to Documentation Index' quoted"
+        },
+        {
+          "text": "Response does NOT enumerate the duplicate-handling options ('Proceed with new', 'Exit and update', 'Continue creating linked')",
+          "passed": true,
+          "evidence": "response.md: none of the three options appear; states \"nothing to reconcile\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 24,
+      "eval_name": "enrich-existing-augmentation-proposal",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
+          "passed": true,
+          "evidence": "response.md: every section (Summary through References) headed '\u2014 missing (placeholder-only)'"
+        },
+        {
+          "text": "Output includes per-field lines for Title, Kind, Priority, Parent, Tags each marked 'keep' or 'propose change'",
+          "passed": true,
+          "evidence": "response.md: '**Title**: keep ...', '**Kind**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep (none)', '**Tags**: keep the existing empty list'"
+        },
+        {
+          "text": "Output does not include the from-scratch 'Suggested kind' / 'Requirements I'd suggest' framing from the topic-string flow",
+          "passed": true,
+          "evidence": "response.md: neither phrase present; uses 'Here's how the existing work item reads against my research' framing"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 25,
+      "eval_name": "enrich-existing-preserves-identity",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's frontmatter work_item_id matches the cached value: 0042",
+          "passed": true,
+          "evidence": "final-work-item.md: work_item_id: \"0042\""
+        },
+        {
+          "text": "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
+          "passed": true,
+          "evidence": "final-work-item.md: date: \"2026-01-15T09:00:00+00:00\""
+        },
+        {
+          "text": "Written file's author matches the cached value: Toby Clemson",
+          "passed": true,
+          "evidence": "final-work-item.md: author: Toby Clemson"
+        },
+        {
+          "text": "Written file's status matches the cached value (draft) \u2014 no transition was proposed",
+          "passed": true,
+          "evidence": "final-work-item.md: status: draft; behavior.md: 'no status change was requested, so none was proposed or applied'; confirmation '(status: draft unchanged)'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 26,
+      "eval_name": "enrich-existing-no-id-next-call",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript shows no invocation of accelerator work id next at any point in the conversation",
+          "passed": true,
+          "evidence": "behavior.md call log lists only resolve, work show, locator, Write, validate; 'accelerator work id next ... never invoked'"
+        },
+        {
+          "text": "The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt",
+          "passed": false,
+          "evidence": "behavior.md calls it the 'at-write identity-swap check' and the call log places it directly before the Write; the confirmation prompt is shown separately, so nothing clearly puts the check immediately before the prompt"
+        },
+        {
+          "text": "behavior.md says the file was written to skills/work/create-work-item/evals/files/0042-existing-sparse.md, the cached input path",
+          "passed": true,
+          "evidence": "behavior.md: written to '.../visualisation-system/skills/work/create-work-item/evals/files/0042-existing-sparse.md \u2014 the existing_work_item_path resolved and cached in Step 0'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 27,
+      "eval_name": "enrich-existing-h1-real-number",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's body H1 begins with '# 0042:'",
+          "passed": true,
+          "evidence": "final-work-item.md: '# 0042: Add Full-Text Search to Documentation Index'"
+        },
+        {
+          "text": "Written file contains no literal NNNN token",
+          "passed": true,
+          "evidence": "final-work-item.md: grep for NNNN returns 0 matches"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 28,
+      "eval_name": "enrich-existing-overwrites-path",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Write tool's target path equals skills/work/create-work-item/evals/files/0042-existing-sparse.md",
+          "passed": true,
+          "evidence": "behavior.md (a): 'skills/work/create-work-item/evals/files/0042-existing-sparse.md', overwritten in place"
+        },
+        {
+          "text": "The post-write confirmation message reads 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'",
+          "passed": true,
+          "evidence": "behavior.md (b): 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 29,
+      "eval_name": "enrich-existing-status-preserved",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's status is in-progress",
+          "passed": true,
+          "evidence": "final-work-item.md: status: in-progress"
+        },
+        {
+          "text": "Transcript contains no proposed status transition",
+          "passed": true,
+          "evidence": "behavior.md: Step 3 '**Status**: keep in-progress'; confirmation '(status: in-progress unchanged)'; no transition proposed"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 30,
+      "eval_name": "enrich-existing-status-changed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Step 3 surfaces the proposed transition draft \u2192 in-progress and asks for explicit confirmation",
+          "passed": true,
+          "evidence": "behavior.md Step 3: '**Status**: draft \u2192 in-progress (you asked to set status to in-progress \u2014 please confirm this transition)'"
+        },
+        {
+          "text": "Written file's frontmatter status is in-progress",
+          "passed": true,
+          "evidence": "final-work-item.md: status: in-progress"
+        },
+        {
+          "text": "Transcript shows the model did not propose a status change before the user explicitly asked for one",
+          "passed": true,
+          "evidence": "behavior.md: Step 1 gap analysis has no status mention; the transition first appears in Step 3, after the user's 'set status to in-progress'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "30a",
+      "eval_name": "enrich-existing-oblique-status-mention",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Model asks a clarifying question about the user's status intent rather than inferring a transition",
+          "passed": true,
+          "evidence": "response.md: 'you mentioned \"this is now in flight.\" I've left the status as `draft`... Which did you mean? 1. Change the status... 2. Leave the status as `draft`'"
+        },
+        {
+          "text": "Model does NOT unilaterally propose a status transition (e.g. draft \u2192 in-progress) without a clarifying question",
+          "passed": true,
+          "evidence": "response.md: '**Status**: keep `draft`'; in-progress appears only as an example inside the clarifying question"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 31,
+      "eval_name": "enrich-existing-identity-swap-check-performed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript at Step 5 shows an `accelerator work show <path> --field id` invocation immediately before the confirmation prompt is rendered",
+          "passed": true,
+          "evidence": "behavior.md: step 2 'accelerator work show skills/work/create-work-item/evals/files/0042-existing-sparse.md --field id \u2192 0042', step 3 'Confirmation prompt presented'"
+        },
+        {
+          "text": "Step 5 confirmation prompt appears after the read",
+          "passed": true,
+          "evidence": "behavior.md: 'Did the confirmation prompt appear after the read? **yes**'; sequence shows read (2) then prompt (3)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 32,
+      "eval_name": "topic-string-flow-still-calls-id-next",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript shows exactly one invocation of accelerator work id next during Step 5",
+          "passed": true,
+          "evidence": "behavior.md: 'Yes \u2014 exactly once.' at 'Step 5 (Write Work Item)'; not called in Steps 0-4"
+        },
+        {
+          "text": "Written file's id is the value returned by that invocation (0043)",
+          "passed": true,
+          "evidence": "final-work-item.md frontmatter: 'id: \"0043\"'"
+        },
+        {
+          "text": "Written file's body H1 begins with '# 0043:'",
+          "passed": true,
+          "evidence": "final-work-item.md: '# 0043: Add dark mode to the settings page'"
         }
       ],
       "notes": []
@@ -1792,22 +3002,22 @@
         {
           "text": "The response states the remote issue ENG-42 exists",
           "passed": true,
-          "evidence": "Opens: 'The push reached the tracker and created ENG-42, but I can't link it locally'."
+          "evidence": "response.md: 'The Linear issue **ENG-42** was created'; 'ENG-42 already exists in Linear'"
         },
         {
           "text": "The response names meta/work/0017-dark-mode.md as the holder",
           "passed": true,
-          "evidence": "'`meta/work/0017-dark-mode.md` already claims ENG-42 as its `external_id`'."
+          "evidence": "response.md: '`meta/work/0017-dark-mode.md` already carries ENG-42'"
         },
         {
           "text": "The response tells the user to run work promote draft-k7mq3x after resolving the collision",
           "passed": true,
-          "evidence": "'Once that's sorted, run: accelerator work promote draft-k7mq3x'."
+          "evidence": "response.md: 'fix meta/work/0017-dark-mode.md ... Then promote the draft... accelerator work promote draft-k7mq3x'"
         },
         {
           "text": "The response does not suggest re-running the create",
           "passed": true,
-          "evidence": "It offers only resolving the collision (delete or merge the draft, or fix the holder) then promoting; no re-create."
+          "evidence": "response.md: 'Please **don't re-run `/create-work-item`** for this item.'"
         }
       ],
       "notes": []
@@ -1831,22 +3041,22 @@
         {
           "text": "The response warns that a remote issue may already exist",
           "passed": true,
-          "evidence": "'a Linear issue may already have been created'."
+          "evidence": "response.md: 'A Linear issue may already exist for this work item.'"
         },
         {
           "text": "The response offers work promote draft-k7mq3x --adopt <KEY> when the issue exists",
           "passed": true,
-          "evidence": "'If it was created, adopt it onto this draft: accelerator work promote draft-k7mq3x --adopt <KEY>'."
+          "evidence": "response.md: 'If the issue **exists**... accelerator work promote draft-k7mq3x --adopt <KEY>'"
         },
         {
           "text": "The response offers work promote draft-k7mq3x --create otherwise",
           "passed": true,
-          "evidence": "'If it was not created, create it fresh from the draft: accelerator work promote draft-k7mq3x --create'."
+          "evidence": "response.md: 'If the issue **does not exist**... accelerator work promote draft-k7mq3x --create'"
         },
         {
           "text": "The response does not suggest re-running the create",
           "passed": true,
-          "evidence": "'please don't just re-run `/create-work-item`'."
+          "evidence": "response.md: '**Do not re-run `/create-work-item`.**'"
         }
       ],
       "notes": []
@@ -1870,22 +3080,22 @@
         {
           "text": "The decline option's label reads 'No, save as draft'",
           "passed": true,
-          "evidence": "push-offer.md option 2 label: '**No, save as draft**'."
+          "evidence": "push-offer.md: '2. **No, save as draft**'"
         },
         {
           "text": "commands.md shows no call to accelerator work id next",
           "passed": true,
-          "evidence": "commands.md lists only the `--push --dry-run` preview and the plain `work create`; no `work id next` (transcript: 'under {tracker} skip steps 1-3')."
+          "evidence": "commands.md lists only two work create calls and a frontmatter validate; id next mentioned only as skipped"
         },
         {
           "text": "After the decline, commands.md shows accelerator work create without --push",
           "passed": true,
-          "evidence": "commands.md #2: `accelerator work create \"Dark mode\" story medium --status draft --author \"Toby Clemson\" --producer create-work-item --body-file <body-tmp>` (no --push)."
+          "evidence": "commands.md step 2: 'accelerator work create \"Dark mode\" story medium --status draft ... --body-file <body-tmp>' (no --push)"
         },
         {
           "text": "The response names meta/work/drafts/draft-k7mq3x-dark-mode.md as a draft that /sync-work-items promotes later",
           "passed": true,
-          "evidence": "response.md: 'Work item saved as draft: `meta/work/drafts/draft-k7mq3x-dark-mode.md` \u2014 push declined; /sync-work-items promotes it'."
+          "evidence": "response.md: 'Work item saved as draft: `meta/work/drafts/draft-k7mq3x-dark-mode.md` \u2014 push declined; /sync-work-items promotes it'"
         }
       ],
       "notes": []
@@ -1909,22 +3119,22 @@
         {
           "text": "The response says the tracker could not be reached and offers to save now or retry the preview",
           "passed": true,
-          "evidence": "response.md \u00a71: 'Linear was unreachable ... You have two options: 1. Save it locally now. 2. Retry the preview.'"
+          "evidence": "response.md: 'the tracker is unreachable right now' with options '1. Save it locally now' and '2. Retry the preview'"
         },
         {
           "text": "commands.md shows accelerator work create without --push after the user chose to save",
           "passed": true,
-          "evidence": "commands.md #2: `accelerator work create \"Dark mode\" story medium --status draft --author ... --body-file ...` with no --push, after 'Just save it now'."
+          "evidence": "commands.md step 2: 'accelerator work create \"Dark mode\" story medium --status draft ... --body-file <body-tmp>' (no --push)"
         },
         {
           "text": "commands.md shows no call to accelerator work id next and no file written by hand",
           "passed": true,
-          "evidence": "commands.md has no `work id next`; transcript 'No `Write` tool for the work item'. Only a scratch body file (simulated) for --body-file, which is not the work item."
+          "evidence": "commands.md: only preview, create, and validate; no id next and no hand write"
         },
         {
           "text": "The response names meta/work/drafts/draft-p4t9wz-dark-mode.md as a draft",
           "passed": true,
-          "evidence": "response.md \u00a72: 'Work item saved as draft: `meta/work/drafts/draft-p4t9wz-dark-mode.md` (tracker unreachable).'"
+          "evidence": "response.md: 'Work item saved as draft: `meta/work/drafts/draft-p4t9wz-dark-mode.md`'"
         }
       ],
       "notes": []
@@ -1948,17 +3158,17 @@
         {
           "text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
           "passed": true,
-          "evidence": "response.md: 'an earlier re-key of the work item IDs is unfinished ... Run `/rekey-work-items` to finish the re-key (or to undo it)'."
+          "evidence": "response.md: 'a work item re-key run is unfinished... Run `/rekey-work-items` to finish or undo the re-key'"
         },
         {
           "text": "commands.md shows the work id next call and no accelerator work create",
           "passed": true,
-          "evidence": "commands.md: only `accelerator work id next` (exit 4); 'no `accelerator work create`'."
+          "evidence": "commands.md: only 'accelerator work id next'"
         },
         {
           "text": "files.md says no file was written or edited",
           "passed": true,
-          "evidence": "files.md: 'none'."
+          "evidence": "files.md: 'none'"
         }
       ],
       "notes": []
@@ -1982,22 +3192,1198 @@
         {
           "text": "response.md says a re-key is still running and to retry once it ends",
           "passed": true,
-          "evidence": "response.md: 'Another identity command is still running: `accelerator work rekey` (pid 4242) ... Once that re-key run (pid 4242) finishes, I'll retry Step 5'."
+          "evidence": "response.md: '`accelerator work rekey` (pid 4242) is still running... Once the re-key run finishes, I'll retry'"
         },
         {
           "text": "response.md does not name `/rekey-work-items` and offers no Finish or Undo choice",
           "passed": true,
-          "evidence": "response.md contains no `/rekey-work-items` and no Finish/Undo choice; only 'Let me know when it's done, or ask me to try again.'"
+          "evidence": "response.md: no mention of /rekey-work-items; only offers to wait or cancel"
         },
         {
           "text": "commands.md shows the work id next call and no accelerator work create",
           "passed": true,
-          "evidence": "commands.md: only `accelerator work id next` (exit 1, E_IDENTITY_RUN_BUSY); 'no `accelerator work create`'."
+          "evidence": "commands.md: '1. `accelerator work id next`' and 'No further `accelerator` command was run'"
         },
         {
           "text": "files.md says no file was written or edited",
           "passed": true,
-          "evidence": "files.md: 'none'."
+          "evidence": "files.md: 'none'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 39,
+      "eval_name": "requested_id_is_never_resolved_as_an_existing_item",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work id check -- '0400'` and states work resolve was not run"
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": true,
+          "evidence": "commands.md item 1: `accelerator work id check -- '0400'`, exit 1"
+        },
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim, naming meta/work/0400-search-filters.md, before any business-context question or draft",
+          "passed": true,
+          "evidence": "response.md opens with the full E_ID_TAKEN text in a code block, then only the next-step choice; no business questions or draft"
+        },
+        {
+          "text": "files.md says no file was written or edited",
+          "passed": true,
+          "evidence": "files.md: 'none'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 40,
+      "eval_name": "requested_id_is_the_projected_id_on_both_creates",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md states that the item's ID will be 0400",
+          "passed": true,
+          "evidence": "response.md: '**ID**: 0400 (your requested ID)'"
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md contains only the dry-run, the --push create and a frontmatter validate"
+        },
+        {
+          "text": "Both the `--push --dry-run` create and the `--push` create in commands.md carry `--id='0400'`",
+          "passed": true,
+          "evidence": "commands.md items 1 and 2 both end with `--id='0400'`"
+        },
+        {
+          "text": "No command in commands.md carries `--project`",
+          "passed": true,
+          "evidence": "No --project in any command in commands.md"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 41,
+      "eval_name": "requested_id_under_tracker_is_refused_before_composing",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TRACKER_OWNED message verbatim before any business-context question or draft",
+          "passed": true,
+          "evidence": "response.md opens with the full E_ID_TRACKER_OWNED text; no business questions or draft follow"
+        },
+        {
+          "text": "The choices offered are automatic allocation (the tracker flow) and cancelling, with no option to name another ID",
+          "passed": true,
+          "evidence": "questions.md options: 'Allocate automatically' (tracker flow) and 'Cancel' only"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md lists only `accelerator work id check -- '0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 42,
+      "eval_name": "a_push_gate_refusal_of_the_requested_id_is_not_saved_locally",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim",
+          "passed": true,
+          "evidence": "response.md first line is the full E_ID_TAKEN message unchanged"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": true,
+          "evidence": "commands.md: 'No further commands: nothing was written' after the dry-run"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": true,
+          "evidence": "questions.md options: 'Name another ID', 'Allocate automatically', 'Cancel'"
+        },
+        {
+          "text": "The skill makes no choice for the user",
+          "passed": true,
+          "evidence": "questions.md: '(Waiting for the user's answer \u2014 no option chosen.)'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 43,
+      "eval_name": "short_requested_number_is_proposed_padded_and_confirmed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md or questions.md proposes 0400 and asks for confirmation before any business-context question",
+          "passed": true,
+          "evidence": "response.md Message 1: 'Use 0400? ... Please confirm' precedes Message 2's business questions"
+        },
+        {
+          "text": "commands.md shows the `accelerator work create` carrying `--id='0400'`",
+          "passed": true,
+          "evidence": "commands.md item 2 create ends with `--id='0400'`"
+        },
+        {
+          "text": "No `accelerator work create` in commands.md carries `--id='400'`",
+          "passed": true,
+          "evidence": "The only create in commands.md carries `--id='0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 44,
+      "eval_name": "exact_requested_id_needs_no_confirmation",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Neither response.md nor questions.md asks the user to confirm the ID",
+          "passed": true,
+          "evidence": "questions.md: 'none'; response.md Message 1 says 'Using 0400.' with no confirmation request"
+        },
+        {
+          "text": "response.md says 0400 will be used",
+          "passed": true,
+          "evidence": "response.md: 'Using 0400.'"
+        },
+        {
+          "text": "commands.md shows the `accelerator work create` carrying `--id='0400'`",
+          "passed": true,
+          "evidence": "commands.md item 2 create includes `--id='0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 45,
+      "eval_name": "key_pattern_requests_are_proposed_with_their_key",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Session 1 proposes PP-0400 exactly and asks the user to confirm it",
+          "passed": true,
+          "evidence": "response.md Session 1: 'Use PP-0400 for this work item? ... Reply yes to use PP-0400'"
+        },
+        {
+          "text": "Sessions 2 and 3 propose XY-0400 and xy-0400 exactly as printed, each saying its key differs from the configured PP",
+          "passed": true,
+          "evidence": "response.md: 'Use XY-0400? Its key XY differs from the configured PP.' and 'Use xy-0400? Its key xy differs from the configured PP.'"
+        },
+        {
+          "text": "Session 4 asks no confirmation, says it is using PO-0400, and notes its key differs from the configured PP",
+          "passed": true,
+          "evidence": "response.md Session 4: 'Using PO-0400. Its key PO differs from the configured PP.' then business questions, no confirmation"
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '<request>'`, single-quoted, for each request",
+          "passed": true,
+          "evidence": "commands.md: id check -- '400', 'XY-400', 'xy-400', 'PO-0400'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 46,
+      "eval_name": "requests_with_no_exact_form_are_explained_against_the_pattern",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Each session in response.md relays its refusal's stderr verbatim",
+          "passed": true,
+          "evidence": "response.md: all seven sessions quote the full given stderr unchanged in a code block, e.g. Session 4 \"Error: E_ID_DRAFT_RESERVED: 'draft-k7mq3x' has the draft- form reserved...\" and Session 7 \"...shaped like 'PP-0001': a key of letters and digits, then '-', then a 4-digit number.\""
+        },
+        {
+          "text": "No session proposes an ID of its own, such as 0000, 1000, 4000, 0400 or XY-0400",
+          "passed": true,
+          "evidence": "response.md: every session offers only Name another ID / Allocate automatically / Cancel; no ID is suggested"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md: each session ends at `accelerator work id check -- '<id>'` (exit 1); no work create appears"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 47,
+      "eval_name": "the_skill_waits_for_the_users_choice_after_a_declined_proposal",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": true,
+          "evidence": "questions.md: options \"Name another ID\", \"Allocate automatically\", \"Cancel\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` and no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work id check -- '400'`; \"No other accelerator command was run\""
+        },
+        {
+          "text": "The skill makes no choice for the user",
+          "passed": true,
+          "evidence": "questions.md: \"Waiting for the user's answer; no option was chosen on their behalf.\"; response.md ends waiting for the choice"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 48,
+      "eval_name": "a_new_id_after_a_collision_is_used_on_both_creates",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0401'` after the refused dry-run",
+          "passed": true,
+          "evidence": "commands.md: step 3 `accelerator work id check -- '0401'` follows step 2's E_ID_TAKEN dry-run"
+        },
+        {
+          "text": "The dry-run and the `--push` create after it both carry `--id='0401'`",
+          "passed": true,
+          "evidence": "commands.md: step 4 dry-run and step 5 --push create both end `--id='0401'`"
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md: after recovery only asks \"Which ID would you like to use instead?\" and the push gate; \"Your approved draft is unchanged.\""
+        },
+        {
+          "text": "body.md is the approved draft unchanged, with NNNN still in its H1",
+          "passed": true,
+          "evidence": "body.md: identical to the approved draft, H1 \"# NNNN: Dark mode toggle\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 49,
+      "eval_name": "automatic_allocation_after_a_refusal_uses_id_next",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: step 2 `accelerator work id next` printing 0412"
+        },
+        {
+          "text": "The `accelerator work create` in commands.md carries no `--id`",
+          "passed": true,
+          "evidence": "commands.md: step 3 `accelerator work create \"Dark mode toggle\" story medium --status draft --author \"Ada Lovelace\" --producer create-work-item --body-file ...` has no --id"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 50,
+      "eval_name": "automatic_allocation_after_a_tracker_refusal_follows_the_tracker_flow",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: commands run are id check, dry-run create, create, frontmatter validate; prose notes \"no accelerator work id next is called\""
+        },
+        {
+          "text": "No `accelerator work create` in commands.md carries `--id`",
+          "passed": true,
+          "evidence": "commands.md: both the dry-run (step 2) and the create (step 3) have no --id"
+        },
+        {
+          "text": "After the dry-run and the declined push, commands.md shows `accelerator work create` without `--push`",
+          "passed": true,
+          "evidence": "commands.md: step 3 `accelerator work create \"Dark mode toggle\" story medium --status draft --author \"Ada Lovelace\" --producer create-work-item --body-file ...` after the dry-run, no --push"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 51,
+      "eval_name": "a_refusal_from_the_pushed_create_resumes_at_the_push",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_ID_TAKEN message verbatim",
+          "passed": true,
+          "evidence": "response.md: code block \"Error: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\""
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": true,
+          "evidence": "questions.md #2: \"Name another ID\", \"Allocate automatically\", \"Cancel\""
+        },
+        {
+          "text": "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then the dry-run, then the `--push` create, in that order, the last two carrying `--id='0401'`",
+          "passed": true,
+          "evidence": "commands.md: steps 4 (id check -- '0401'), 5 (--dry-run ... --id='0401'), 6 (--push ... --id='0401') in order"
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md: after the refusal only asks for the replacement ID; \"Your approved draft is unchanged.\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 52,
+      "eval_name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id check`",
+          "passed": true,
+          "evidence": "commands.md: only config preprocessor commands and `accelerator work resolve 'add --id <ID> to accelerator work create'`; \"No accelerator work id check was run\""
+        },
+        {
+          "text": "response.md treats the whole argument, adding --id <ID> to accelerator work create, as the topic",
+          "passed": true,
+          "evidence": "response.md: \"I'll treat \\\"add --id <ID> to accelerator work create\\\" as the topic for a new work item\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 53,
+      "eval_name": "an_id_given_with_an_equals_sign_is_requested",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": true,
+          "evidence": "commands.md item 8: `accelerator work id check -- '0400'`, exit 0"
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": true,
+          "evidence": "commands.md lists only config calls and work id check; no work resolve"
+        },
+        {
+          "text": "response.md treats `dark mode` as the topic",
+          "passed": true,
+          "evidence": "response.md: \"Before I look into dark mode, a few questions...\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 54,
+      "eval_name": "an_id_with_a_single_quote_runs_no_command",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows no `accelerator work id` and no `accelerator work create` call",
+          "passed": true,
+          "evidence": "commands.md: \"none\" - no accelerator command run"
+        },
+        {
+          "text": "response.md says an ID cannot contain a single quote",
+          "passed": true,
+          "evidence": "response.md: \"an ID cannot contain a single quote (`'`)\""
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": true,
+          "evidence": "questions.md options: Name another ID, Allocate automatically, Cancel"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 55,
+      "eval_name": "a_non_id_error_from_the_push_gate_aborts",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the stderr verbatim",
+          "passed": true,
+          "evidence": "response.md code block: \"Error: could not list meta/work/drafts: Permission denied (os error 13)\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": true,
+          "evidence": "commands.md: dry-run is the last command; \"No further accelerator commands were run\""
+        },
+        {
+          "text": "response.md prints the approved draft and says the user can re-run /create-work-item",
+          "passed": true,
+          "evidence": "response.md prints full draft and \"you can re-run `/create-work-item --id 0400 dark mode toggle`\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 56,
+      "eval_name": "a_rekey_in_progress_at_step_0_points_to_rekey_work_items",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
+          "passed": true,
+          "evidence": "response.md: \"a work item re-key is unfinished\" ... \"Run `/rekey-work-items` to finish or undo the re-key\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` and no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work id check -- '0400'` (exit 4)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 57,
+      "eval_name": "a_trailing_id_flag_is_requested",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": true,
+          "evidence": "commands.md item 1: `accelerator work id check -- '0400'`, exit 0"
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": true,
+          "evidence": "commands.md contains only the id check"
+        },
+        {
+          "text": "response.md treats `dark mode toggle` as the topic",
+          "passed": true,
+          "evidence": "response.md: \"Let's shape the work item for **dark mode toggle**\""
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 58,
+      "eval_name": "an_id_without_a_topic_asks_for_one",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md asks the user what the work item is about",
+          "passed": true,
+          "evidence": "response.md: \"What is the work item about?\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md contains only `accelerator work id check -- '0400'`"
+        },
+        {
+          "text": "commands.md shows no `accelerator work resolve` call",
+          "passed": true,
+          "evidence": "commands.md contains only the id check"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 59,
+      "eval_name": "cancel_after_drafting_prints_the_draft",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md prints the approved draft after the user cancels",
+          "passed": true,
+          "evidence": "response.md 'After Cancel' section prints the full draft body"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create` after the dry-run",
+          "passed": true,
+          "evidence": "commands.md: dry-run is last; \"No further accelerator commands were run\""
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`, and the dry-run carries `--id='0400'`",
+          "passed": true,
+          "evidence": "commands.md: no work id next; dry-run ends `--id='0400'`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 60,
+      "eval_name": "a_local_create_refusal_resumes_at_the_local_create",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then an `accelerator work create` carrying `--id='0401'`",
+          "passed": true,
+          "evidence": "commands.md: after E_ID_TAKEN create (#1), #2 `accelerator work id check -- '0401'` then #3 `accelerator work create ... --id='0401'`"
+        },
+        {
+          "text": "response.md asks no business-context question again",
+          "passed": true,
+          "evidence": "response.md: after the refusal only asks 'Which ID would you like to use instead?'; no business-context questions"
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling",
+          "passed": true,
+          "evidence": "questions.md: options 'Name another ID', 'Allocate automatically', 'Cancel'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 61,
+      "eval_name": "a_recovery_id_with_a_single_quote_runs_no_command",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No command in commands.md carries `04'01`",
+          "passed": true,
+          "evidence": "commands.md: only the dry-run with --id='0400'; notes 04'01 was refused before any command"
+        },
+        {
+          "text": "response.md says an ID cannot contain a single quote",
+          "passed": true,
+          "evidence": "response.md Message 3: \"an ID cannot contain a single quote\""
+        },
+        {
+          "text": "questions.md offers naming another ID, allocating automatically and cancelling again after `04'01`",
+          "passed": true,
+          "evidence": "questions.md Question 2 (after 04'01 refused): Name another ID / Allocate automatically / Cancel"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 62,
+      "eval_name": "a_new_id_named_before_drafting_is_checked_then_drafted",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id check -- '0401'` before response.md asks any business-context question",
+          "passed": true,
+          "evidence": "commands.md #2 is id check -- '0401'; response.md asks business-context questions only after 'Using 0401.'"
+        },
+        {
+          "text": "response.md goes on to ask business-context questions and present a draft",
+          "passed": true,
+          "evidence": "response.md: five business-context questions, then 'Here's my draft work item' with the body"
+        },
+        {
+          "text": "The dry-run and the `--push` create in commands.md both carry `--id='0401'`",
+          "passed": true,
+          "evidence": "commands.md #3 dry-run and #4 --push create both end with --id='0401'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 63,
+      "eval_name": "a_pending_push_under_an_id_is_relayed_without_a_rerun",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_PUSH_PENDING message verbatim",
+          "passed": true,
+          "evidence": "response.md: full 'Error: E_PUSH_PENDING: ... Inspect it, then remove the marker to retry.' unchanged"
+        },
+        {
+          "text": "response.md prints the approved draft",
+          "passed": true,
+          "evidence": "response.md: 'Here is your approved draft' followed by the full body H1 through References"
+        },
+        {
+          "text": "questions.md offers no recovery choice, and commands.md shows no `accelerator work id check` after the `--push` create",
+          "passed": true,
+          "evidence": "questions.md: only the push offer; commands.md: no commands after #3 --push create"
+        },
+        {
+          "text": "response.md does not suggest re-running /create-work-item or the create",
+          "passed": true,
+          "evidence": "response.md: ends after printing the draft; no re-run suggestion beyond the verbatim stderr"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 64,
+      "eval_name": "a_config_refusal_from_resolve_stops_before_drafting",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_WORK_ID_PATTERN_INVALID message verbatim",
+          "passed": true,
+          "evidence": "response.md: 'E_WORK_ID_PATTERN_INVALID: work.id_pattern '{nmber:04d}': unknown token '{nmber:04d}' in pattern' unchanged"
+        },
+        {
+          "text": "response.md asks no business-context question and presents no draft",
+          "passed": true,
+          "evidence": "response.md: only relays the error and 'I've stopped here'"
+        },
+        {
+          "text": "commands.md shows no `accelerator work id next`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work resolve dark mode toggle`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 65,
+      "eval_name": "a_busy_identity_run_at_step_0_is_retried_not_aborted",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md says another identity command is still running and to retry once it ends",
+          "passed": true,
+          "evidence": "response.md: 'another identity command is still running' ... 'Once that re-key run has finished, let me know and I'll retry the check'"
+        },
+        {
+          "text": "questions.md offers no recovery choice such as naming another ID or allocating automatically",
+          "passed": true,
+          "evidence": "questions.md: 'none'"
+        },
+        {
+          "text": "commands.md shows no `accelerator work create`",
+          "passed": true,
+          "evidence": "commands.md: only `accelerator work id check -- '0400'`; states no work create made"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 66,
+      "eval_name": "automatic_allocation_after_a_push_refusal_resumes_at_the_push",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows `accelerator work id next` after the refused `--push` create",
+          "passed": true,
+          "evidence": "commands.md #3 `accelerator work id next` follows #2 refused --push create"
+        },
+        {
+          "text": "response.md states the new projected ID 0412",
+          "passed": true,
+          "evidence": "response.md: 'the new projected ID is **0412**'"
+        },
+        {
+          "text": "After `work id next`, commands.md shows the dry-run, then the `--push` create, neither carrying `--id`",
+          "passed": true,
+          "evidence": "commands.md #4 dry-run and #5 --push create, neither has --id"
+        },
+        {
+          "text": "response.md asks no business-context question again, and body.md is the approved draft unchanged",
+          "passed": true,
+          "evidence": "response.md: no business-context questions; body.md matches the approved body exactly"
+        },
+        {
+          "text": "The first dry-run and the first `--push` create both carry `--id='0400'`",
+          "passed": true,
+          "evidence": "commands.md #1 and #2 both carry --id='0400'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 67,
+      "eval_name": "the_welcome_tip_is_absent_under_tracker",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 1,
+        "failed": 0,
+        "total": 1,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md does not mention `--id`",
+          "passed": true,
+          "evidence": "response.md contains only the opening welcome text; no `--id` anywhere"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 68,
+      "eval_name": "a_welcome_reply_carrying_an_id_is_requested",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The welcome text in response.md says the reply can start with `--id <ID>`, shaped like `{number:04d}`",
+          "passed": true,
+          "evidence": "response.md Turn 1: \"Start your reply with `--id <ID>`, shaped like `{number:04d}`, to choose the ID yourself\""
+        },
+        {
+          "text": "commands.md shows `accelerator work id check -- '0400'`",
+          "passed": true,
+          "evidence": "commands.md: \"1. `accelerator work id check -- '0400'` Exit code: 0\""
+        },
+        {
+          "text": "response.md treats `dark mode` as the topic",
+          "passed": true,
+          "evidence": "response.md Turn 2: \"Using 0400.\" then \"\\\"Dark mode\\\" names a feature...\" with clarifying questions about dark mode"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 69,
+      "eval_name": "a_resolve_invalid_after_a_deprecation_warning_is_a_topic",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+          "passed": true,
+          "evidence": "response.md: \"I'll treat it as the topic for a new one\" followed by questions on problem/audience, outcome, scope, constraints"
+        },
+        {
+          "text": "response.md does not stop on the resolver's output as an error",
+          "passed": true,
+          "evidence": "response.md notes the deprecation warning \"doesn't block anything here\" and proceeds to Step 1 questions"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 70,
+      "eval_name": "a_pending_push_at_the_push_gate_is_relayed_without_a_rerun",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_PUSH_PENDING message verbatim",
+          "passed": true,
+          "evidence": "response.md code block contains the full stderr unchanged, from \"Error: E_PUSH_PENDING:\" to \"remove the marker to retry.\""
+        },
+        {
+          "text": "response.md prints the approved draft",
+          "passed": true,
+          "evidence": "response.md prints the full body '# NNNN: Dark mode toggle' through '## References' plus draft details"
+        },
+        {
+          "text": "questions.md offers no recovery choice",
+          "passed": true,
+          "evidence": "questions.md: \"none\""
+        },
+        {
+          "text": "response.md does not suggest re-running /create-work-item or the create",
+          "passed": true,
+          "evidence": "response.md contains no re-run suggestion; ends with draft details"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 71,
+      "eval_name": "a_topic_in_a_repository_without_a_work_directory_is_drafted",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+          "passed": true,
+          "evidence": "response.md: \"I'll treat it as the topic for a new one\" then five business-context questions"
+        },
+        {
+          "text": "response.md does not stop on the resolver's output as an error",
+          "passed": true,
+          "evidence": "response.md proceeds past E_RESOLVE_INVALID straight to questions; no error stop"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 72,
+      "eval_name": "a_marker_refusal_under_an_id_is_relayed_without_a_rerun",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Each session in response.md relays its stderr verbatim",
+          "passed": true,
+          "evidence": "response.md Sessions 1-2 quote E_PUSH_MARKER_UNREADABLE and Session 3 E_PUSH_FINGERPRINT_MISMATCH in full, unchanged"
+        },
+        {
+          "text": "Each session in response.md prints the approved draft",
+          "passed": true,
+          "evidence": "response.md each session prints the body '# NNNN: Dark mode toggle' through '## References' (with frontmatter)"
+        },
+        {
+          "text": "No session offers a recovery choice such as naming another ID or allocating automatically",
+          "passed": true,
+          "evidence": "questions.md: Session 1 none; Sessions 2-3 only the pre-error push/save-locally question; response.md offers no choice after errors"
+        },
+        {
+          "text": "No session suggests re-running /create-work-item or the create",
+          "passed": true,
+          "evidence": "response.md: no session suggests a re-run; each ends after printing the draft"
         }
       ],
       "notes": []
@@ -2006,9 +4392,9 @@
   "run_summary": {
     "with_skill": {
       "pass_rate": {
-        "mean": 1.0,
-        "stddev": 0.0,
-        "min": 1.0,
+        "mean": 0.9956,
+        "stddev": 0.0385,
+        "min": 0.6667,
         "max": 1.0
       },
       "time_seconds": {
@@ -2026,8 +4412,8 @@
     },
     "old_skill": {
       "pass_rate": {
-        "mean": 0.8056,
-        "stddev": 0.3888,
+        "mean": 0.6211,
+        "stddev": 0.3507,
         "min": 0.0,
         "max": 1.0
       },
@@ -2045,13 +4431,13 @@
       }
     },
     "delta": {
-      "pass_rate": "+0.19",
+      "pass_rate": "+0.37",
       "time_seconds": "+0.0",
       "tokens": "+0"
     }
   },
   "notes": [
-    "with_skill achieves 100% pass rate (35/35 evals) with zero failures.",
+    "with_skill passes 74 of 75 evals in full; eval 26 fails one of three expectations (see below).",
     "old_skill runs were limited to 18 representative evals; the remaining 17 enrich-existing evals were omitted since they all test a mode that does not exist in the old skill \u2014 including them would trivially inflate the delta without adding insight.",
     "old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.",
     "eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values \u2014 showing identity is not preserved.",
@@ -2063,6 +4449,9 @@
     "Evals 6, 7, 8, 11, 12, 13, 14, 25, 26, 32, 35, 36, 37, 38 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call.",
     "Eval 7 failed one expectation, 'draft.md contains work_item_id: XXXX', which predates the `id` field and the skill's `NNNN` placeholder; the run wrote `id: \"NNNN\"` as the skill requires. Evals 6, 7, 8, 11, 12, 13 and 14 have no expectations in evals.json, so they were graded against the expectations their earlier runs recorded. Superseded by the re-run of the corrected eval below.",
     "Evals 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 24, 25, 26, 27, 31, 32 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call.",
-    "The executor of eval 26 read evals.json before writing its outputs, so that run was not blind."
+    "The executor of eval 26 read evals.json before writing its outputs, so that run was not blind.",
+    "Evals 39 to 72 (`/create-work-item --id`) were run old_skill on 2026-11-02, by claude-opus-5-5, against a snapshot of the skill taken before the change; executors simulated every accelerator call. Each fails at least one expectation except 49, 50, 52, 67, 69 and 71, which characterise behaviour the old skill already had.",
+    "Evals 58, 59, 60 and 66 first passed in full on the old skill. Each gained one expectation the old run misses (no `work resolve` on a requested ID, no `work id next` and `--id` on the dry-run, all three recovery choices, `--id` on the first dry-run and `--push` create), and their old_skill runs were re-graded.",
+    "The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt."
   ]
 }
