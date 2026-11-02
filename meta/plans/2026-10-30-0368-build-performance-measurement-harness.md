@@ -3872,13 +3872,13 @@ units total: 73 → 73, +0 (×1.000)
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_mise.py tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_mise.py tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `mise run measure:compare-builds -- <baseline> <baseline> --task
+- [x] `mise run measure:compare-builds -- <baseline> <baseline> --task
       test:unit:cli` on the committed baseline reports zero change, within
       noise, `conditions match`, no task-set difference, equal unit
       totals, and zero change for `test:unit:cli`.
@@ -4065,9 +4065,10 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 ## Implementation Notes
 
 Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
-Phases 5–8 are complete, their automated and manual checks pass, and none
+Phases 5–9 are complete, their automated and manual checks pass, and none
 is pushed yet; Phases 6 and 7 made their work-item edits before merging
-rather than after. Phases 9 and 10 have not started.
+rather than after, and Phase 9's wait for merging. Phase 10 has not
+started.
 
 ### Phases 1–4 review round
 
@@ -4259,6 +4260,45 @@ Manual check, on 2026-11-02: the system TCC database's
 is `com.jetbrains.intellij-EAP`), PyCharm and RustRover. Each running app
 started on 2026-10-30, after its row was last changed. No tmux or zellij
 was running.
+
+### Phase 9 record comparison
+
+Where the phase departed from the plan:
+
+- **Change values.** `MeasuredChange` holds both medians, and `seconds` and
+  `ratio` are properties of them, since the report prints both medians.
+  `ChangeFromIdle` holds only the current median; its `seconds` is that
+  median.
+- **Wall-clock.** It is built as a `MeasuredChange` directly. A zero
+  wall-clock median would fail on its ratio rather than become a
+  `ChangeFromIdle`.
+- **Reading records.** `record.read_record(path)` refuses a missing or
+  unreadable file with `UnreadableRecordError` naming it, as `parse_record`
+  does a malformed one; the task calls it for both paths.
+- **Arguments.** The two record paths are invoke positionals,
+  `positional=["previous", "current"]`, so
+  `mise run measure:compare-builds -- <previous> <current>` parses.
+- **Ruff.** `pyproject.toml` allows `×` as a confusable, since `RUF001`
+  flags every ratio in the report's literals.
+- **Wording.** Records with the same label are named `previous` and
+  `current` in sentences, rather than by a label shared by both. Differing
+  conditions are separated by `; `, since a tuple value holds commas. The
+  remaining variants render as `0.0 s → 3.2 s, +3.2 s (no ratio from
+  zero)`, `149.2 s in the 'none' record, not in every 'devtools' run`,
+  `not compared, tracked by different patterns ('none': …; 'devtools': not
+  tracked)`, `not in the 'devtools' record`, `in neither record (closest:
+  '…')`, and `flagged failed in the 'devtools' record`.
+- **Extra tests.** Several differing conditions, one shared label, a
+  process tracked on one side only, a missing record file, a named task
+  reaching the task's output, and help for every argument.
+- **Work-item edits.** 0365's and 0366's Technical Notes are left for after
+  merging, as the plan says.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 447 s, the fixers changing nothing) passed locally. CI
+has not run on it yet. `mise run measure:compare-builds` over the committed baseline and
+itself, with `--task test:unit:cli`, reported `conditions match`, zero change
+within noise on every line, an unchanged task set and equal unit totals.
 
 ### Deferred to later phases
 
