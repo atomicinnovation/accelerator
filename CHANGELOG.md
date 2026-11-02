@@ -518,9 +518,9 @@
   with no alias: the old names run nothing, name their replacement on stderr
   and exit 2.
 - **`E_PATTERN_OVERFLOW` names the item at the cap.** When `work create` or
-  `work id next` runs out of numbers, the refusal names the file holding
-  the highest number and, when a lower number is free, suggests moving that
-  item to it before archiving or widening the pattern.
+  `work id next` runs out of numbers because an item holds the cap, the
+  refusal names that item's file and, when a lower number is free, suggests
+  moving the item to it before archiving or widening the pattern.
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
