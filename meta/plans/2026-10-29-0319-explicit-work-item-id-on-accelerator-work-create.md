@@ -13,7 +13,7 @@ relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-01T22:57:43+00:00"
+last_updated: "2026-11-02T00:04:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3369,6 +3369,13 @@ the real create reports `E_PUSH_PENDING`. Its help says so.
 `cli/work-cli/tests/fixtures/cli_surface.golden`: `SUBCOMMANDS` gains
 `id check`; edit the golden by hand.
 
+As built, `each_refusal_carries_the_code_work_create_gives` refuses
+`{tracker}` with `0400`, and `draft-k7mq3x`, `XY-400` and `0` under
+`numeric`. It pins each code literally and against `work create --dry-run
+--id` on the same repository. `a_check_writes_nothing` covers every
+verdict and refusal case above; the re-key and config-error cases stop
+before reading the corpus. The hand-edited golden matched on the first run.
+
 #### 2. Changes
 
 **File**: `cli/work-cli/src/cli.rs`
@@ -3409,8 +3416,9 @@ root. The CLI prints a refusal as `Error: <message>`, as `work create` does.
 
 **File**: `cli/work-cli/src/exit_codes.rs`
 **Changes**: name `work id check` beside `work id next` in the identity-run
-paragraph and in the config-refusal paragraph. Its refusals are `work create --id`'s, exiting 1, except
-`E_ID_WITH_PROJECT`, since it takes no `--project`.
+paragraph and in the config-refusal paragraph. Its refusals are
+`work create --id`'s, exiting 1, except `E_ID_WITH_PROJECT`, since it takes
+no `--project`.
 
 **File**: `CHANGELOG.md`
 **Changes**: `### Added`: `work id check <ID>`. The identity-run lock entry
@@ -3433,8 +3441,9 @@ on the lock and refuse during a re-key, as `work id next` does.
       `corrected\t0400`. After `accelerator work create "Probe" task low --id 0400`,
       the same check refuses with `E_ID_TAKEN` naming `0400-probe.md`.
 
-Run against `cli/target/debug/accelerator-work` in a scratch repository
-whose bare `.git` carries no identity, so the create passed `--author`.
+Run against `cli/target/debug/accelerator-work` directly, not through the
+launcher, in a scratch repository whose bare `.git` carries no identity,
+so the create passed `--author`.
 
 ---
 
