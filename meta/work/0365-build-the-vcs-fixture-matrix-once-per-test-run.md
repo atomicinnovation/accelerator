@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0361"
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-10-30T01:47:37+00:00"
+last_updated: "2026-11-02T09:00:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -105,6 +105,9 @@ when the phase ran alone.
 - Variable, `matrix_root` and `build_or_adopt`:
   `cli/vcs-test-support/src/fixtures.rs:25-116`.
 - A per-test rebuild: `cli/vcs-adapters/tests/classify.rs:177`.
+- Comparing the before and after isolated records:
+  `mise run measure:compare-builds -- <before> <after> --task test:unit:cli`.
+  Its nextest-phase line carries the change and the noise verdict.
 
 ## Drafting Notes
 

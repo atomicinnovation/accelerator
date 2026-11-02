@@ -12,7 +12,7 @@ parent: "work-item:0361"
 blocked_by: ["work-item:0362"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-11-01T22:25:37+00:00"
+last_updated: "2026-11-02T09:00:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -127,6 +127,9 @@ dependencies could shorten links and hashing, but that has not been measured.
 - In-test builds: `tests/support/artefacts.py:56-93`.
 - The two clippy feature passes: `tasks/lint/server.py:15`.
 - The only profile override today is for release: `cli/Cargo.toml:260-262`.
+- Comparing the before and after cold records:
+  `mise run measure:compare-builds -- <before> <after>`. Its unit-totals lines
+  carry the counts, and its wall-clock line carries the median change.
 
 ## Drafting Notes
 
