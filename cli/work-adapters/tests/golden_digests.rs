@@ -259,7 +259,7 @@ fn locked_version(package: &str) -> Result<String, TestError> {
 /// The history as of the most recent recipe or parser version; `recipe.json`
 /// may only extend it.
 fn recorded_history() -> Vec<RecipeRecord> {
-    vec![record(1, &["0.13.4", "0.13.5"])]
+    vec![record(1, &["0.13.4", "0.13.5", "0.13.6"])]
 }
 
 fn record(recipe: u64, versions: &[&str]) -> RecipeRecord {
