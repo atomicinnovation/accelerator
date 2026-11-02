@@ -255,6 +255,14 @@
 
 ### Added
 
+- **`/create-work-item --id <ID>` names the new item's ID.** Given as the
+  argument's leading or trailing `--id`, or at the start of the reply to the
+  welcome text, the ID is settled with `work id check` before drafting: an
+  exact ID is used as given, a short or differently-keyed one is proposed in
+  full, and a refusal is relayed with a choice of another ID, automatic
+  allocation or cancelling. Both the push-gate preview and the create carry
+  the ID, and a refusal after drafting resumes where it stopped with the
+  approved draft unchanged.
 - **`work create --id <ID>` names the new item's ID.** The item is written
   under exactly that ID, with `NNNN` in the body replaced by it, and pushed
   as any other create when `--push` is given; automatic numbering continues
@@ -837,6 +845,10 @@
 
 ### Fixed
 
+- **`/create-work-item` stops on a configuration error from `work resolve`.**
+  Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
+  `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than
+  drafting an item it cannot write.
 - **`migrate` sees uncommitted changes when `.accelerator/` sits below the
   repository root.** Its dirty-tree pre-flight read paths relative to the
   repository rather than the config root, found none under `meta/` or
