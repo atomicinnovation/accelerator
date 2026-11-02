@@ -15,9 +15,9 @@ kind = "platform"
 workspace = true
 
 # The conventions are pure string, path, and value logic. The infra they need —
-# the scan regex, the doc-type table, a clock, a VCS probe — arrives by injection
-# through ports declared here. The pup rule additionally permits `kernel::Error`:
-# `StoreError`'s boundary mapping is its first use, so the kernel dependency is
-# carried for that.
+# the work-item ID readings, the doc-type table, a clock, a VCS probe — arrives
+# by injection through ports declared here. The pup rule additionally permits
+# `kernel::Error`: `StoreError`'s boundary mapping is its first use, so the
+# kernel dependency is carried for that.
 [dependencies]
 kernel = { path = "../kernel" }

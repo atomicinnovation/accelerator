@@ -709,9 +709,6 @@ mod tests {
 
     #[test]
     fn path_shape_parent_resolves_to_work_item_cluster() {
-        // Integration-level coverage of the path-shape `parent:` resolution
-        // (id_from_value's TypedRef::Path → extract_id branch): a plan whose
-        // `parent:` is a work-item path clusters with that work item.
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(
             DocTypeKey::WorkItems,

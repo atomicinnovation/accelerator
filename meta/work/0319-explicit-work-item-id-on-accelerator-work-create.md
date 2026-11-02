@@ -388,8 +388,8 @@ None.
 
 - In a real create, the first four checks run before `creation_context`
   creates the work directory. The scheme they need is read inside it.
-  `creation_context` already refuses `--project` under `IdOwnership::Tracker` with
-  `E_PATTERN_KEY_UNUSED`. The collision check takes the place of the
+  `creation_context` already refuses `--project` under
+  `IdOwnership::Tracker` with `E_PATTERN_KEY_UNUSED`. The collision check takes the place of the
   `allocate_id` step and runs once, under the create lock (the
   `LockdirLock` that serialises creates in the work directory). That step
   sits in the same atomic write as the `NNNN` substitution and before

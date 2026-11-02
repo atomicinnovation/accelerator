@@ -25,7 +25,6 @@ pub fn run(action: IdAction) -> ExitCode {
     }
 }
 
-/// Names a retired verb's replacement and runs nothing.
 pub fn retired(pointer: &str) -> ExitCode {
     eprintln!("{pointer}");
     ExitCode::from(exit_codes::USAGE)
