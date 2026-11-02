@@ -111,6 +111,8 @@ ignore = [
     "PLR0911", "PLR0913",  # opinionated return-count / argument-count thresholds
     "PLR2004",  # magic-value comparisons are readable in this tooling (named constants would add indirection)
 ]
+# The build-record comparison prints ratios as ×0.847, deliberately.
+allowed-confusables = ["×"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests are held to a looser standard: asserts are the point, fixtures/mocks skip
