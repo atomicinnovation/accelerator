@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
 revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-11-02T00:07:43+00:00"
+last_updated: "2026-11-02T09:03:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -4066,9 +4066,11 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 
 Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
 Phases 5–9 are complete, their automated and manual checks pass, and none
-is pushed yet; Phases 6 and 7 made their work-item edits before merging
-rather than after, and so did Phase 9. Phase 10 has not
-started.
+is pushed yet; Phases 6, 7 and 9 made their work-item edits before merging
+rather than after. Phase 10 has not started: it waits on 0362 (`ready`),
+0363 and 0367 (both `draft`) landing or being abandoned, and its three
+condition records need the operator to change the host settings by hand
+between sessions.
 
 ### Phases 1–4 review round
 
@@ -4296,14 +4298,18 @@ Where the phase departed from the plan:
   `measure:compare-builds` command for their before and after records.
 
 Verification: the phase's tests, `mise run build-system:check` and the full
-`mise run` (exit 0, 447 s, the fixers changing nothing) passed locally. CI
-has not run on it yet. `mise run measure:compare-builds` over the committed baseline and
-itself, with `--task test:unit:cli`, reported `conditions match`, zero change
-within noise on every line, an unchanged task set and equal unit totals.
+`mise run` (exit 0, 447 s, the fixers changing nothing) passed locally at
+`5cf30aa3`. CI has not run on it yet.
+
+Manual check: `mise run measure:compare-builds` over the committed baseline
+and itself, with `--task test:unit:cli`, reported `conditions match`, zero
+change within noise on every line, an unchanged task set and equal unit
+totals.
 
 ### Deferred to later phases
 
-The review's structural findings were deferred. Each fits a later phase:
+The review's structural findings were deferred, and Phase 9 took none of
+them up. Each fits a later phase:
 
 - **Any later phase.** The recurring condition parameters (`cache_state`,
   `mode`, `isolated_tasks`, `host_settings`) may become one value object.
