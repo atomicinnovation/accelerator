@@ -674,9 +674,6 @@ async fn linked_count_reflects_inbound_merge_dedup() {
 // ── RCA inbound linkage (work item 0110, AC #5) ─────────────────────────────
 #[tokio::test]
 async fn related_endpoint_surfaces_rca_linked_to_a_work_item() {
-    // An RCA whose frontmatter links to a work item (via `parent:`) appears in
-    // that work item's declaredInbound through work_item_refs_by_id, with
-    // docType `root-cause-analyses`.
     let tmp = tempfile::tempdir().unwrap();
     let work = tmp.path().join("meta/work");
     let issues = tmp.path().join("meta/research/issues");
