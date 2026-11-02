@@ -4067,7 +4067,7 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
 Phases 5–9 are complete, their automated and manual checks pass, and none
 is pushed yet; Phases 6 and 7 made their work-item edits before merging
-rather than after, and Phase 9's wait for merging. Phase 10 has not
+rather than after, and so did Phase 9. Phase 10 has not
 started.
 
 ### Phases 1–4 review round
@@ -4291,8 +4291,9 @@ Where the phase departed from the plan:
 - **Extra tests.** Several differing conditions, one shared label, a
   process tracked on one side only, a missing record file, a named task
   reaching the task's output, and help for every argument.
-- **Work-item edits.** 0365's and 0366's Technical Notes are left for after
-  merging, as the plan says.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0365's and 0366's Technical Notes each gain the
+  `measure:compare-builds` command for their before and after records.
 
 Verification: the phase's tests, `mise run build-system:check` and the full
 `mise run` (exit 0, 447 s, the fixers changing nothing) passed locally. CI
