@@ -12,7 +12,7 @@ parent: "work-item:0146"
 blocks: ["work-item:0351"]
 relates_to: ["work-item:0228", "work-item:0230", "work-item:0302", "work-item:0343"]
 tags: ["work", "cli", "allocation"]
-last_updated: "2026-10-27T17:39:01+00:00"
+last_updated: "2026-11-02T09:21:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-905"
@@ -49,7 +49,7 @@ a user-requested ID has no path through the skill either.
 - Add an `--id <ID>` option to `accelerator work create`. When omitted,
   allocation stays max+1 per key, ignoring any gap an `--id` leaves. The
   per-key scan ignores letter case in every allocator, `work create` and
-  `work next-number` alike, so `pp-0500` counts in `PP`'s sequence and the
+  `work id next` alike, so `pp-0500` counts in `PP`'s sequence and the
   skill's projection agrees with the write.
 - Require an `--id` in the exact shape the configured `work.id_pattern`
   produces: the `{number}` padding exactly, and a key segment wherever the
@@ -99,11 +99,13 @@ a user-requested ID has no path through the skill either.
   - The user supplies it through a dedicated `--id <ID>` skill argument,
     parsed before `work resolve`, so it is never read as a reference to an
     existing item.
-  - An exact-form request is used as given. Otherwise the skill may make
-    only two corrections: left-pad a short number, and, under a `{key}`
-    pattern, add `work.key` to a request with no key. A key the request
-    carries is kept, in its letter case. The skill proposes the result and
-    continues only once the user confirms. A request no such correction
+  - The skill settles the requested ID with `work id check` before
+    composing the item. An exact-form request is used as given. Otherwise
+    `work id check` may make only two corrections, which the skill
+    proposes: left-pad a short number, and, under a `{key}` pattern, add
+    `work.key` to a request with no key. A key the request carries is kept,
+    in its letter case. The skill continues only once the user confirms
+    the proposal. A request no such correction
     makes exact has no exact form: out of range, over-padded, a draft ID,
     a key under a keyless pattern, a missing separator, or not an ID. The
     skill explains it against the pattern before composing the item,
@@ -120,10 +122,21 @@ a user-requested ID has no path through the skill either.
     remains, through the skill's normal `{tracker}` flow. The skill waits
     for the user's choice and never makes it; once the user asks for
     automatic allocation, it proceeds as it would with no requested ID.
-- Add `--id` only to `work create` and `/create-work-item`.
-  `extract-work-items` and `create-batch` keep automatic allocation, and no
-  change to `/sync-work-items` is in scope; its criterion below guards
-  against regression.
+- Group the ID verbs under `work id`. `work id canonicalise` and
+  `work id next` replace `canonicalise-id` and `next-number` with unchanged
+  behaviour and no alias. A new `work id check <ID>` prints the exact ID,
+  the exact ID with a note that its key differs from `work.key`, or the one
+  correction the skill may propose, or refuses as `work create --id`
+  would, writing nothing.
+- Move work-item identity out of the general-purpose `corpus` crates into
+  `work`, consolidating the pattern grammar, the canonicaliser, the
+  tracker-key grammar and the taken rule on the way. `corpus` keeps general
+  ports for slugs, clusters and linkage.
+- Add the `--id` flag only to `work create`, and take a requested ID only
+  in `/create-work-item` and `work id check`. `extract-work-items` and
+  `create-batch` keep automatic allocation, and no change to
+  `/sync-work-items` is in scope; its criterion below guards against
+  regression.
 
 ## Acceptance Criteria
 
@@ -261,13 +274,12 @@ a user-requested ID has no path through the skill either.
       when it calls the CLI, then no call carries `--id`.
 - [ ] Given an existing item `0400` under `{number:04d}`, when
       `/create-work-item --id 0400 <topic>` starts, then it makes no `work
-      resolve` call on `0400`, does not load item 0400, composes a new item
-      about `<topic>`, and relays the collision refusal from `work create
-      --id 0400`.
+      resolve` call on `0400`, does not load item 0400, and relays the
+      collision refusal from `work id check` before composing an item.
 - [ ] Given a requested ID, when the skill shows the projected ID, then it
       shows the requested ID; and when it creates the item, then it passes
       that ID via `--id` on the push-gate dry-run and the real create,
-      having made no `work next-number` call.
+      having made no `work id next` call.
 - [ ] Given the `{tracker}` pattern and a requested ID, when the skill
       starts, then it refuses the ID before composing the item, explaining
       that the tracker owns every ID.
@@ -296,11 +308,37 @@ a user-requested ID has no path through the skill either.
       dry-run and the real create.
 - [ ] Given a declined proposal, a CLI refusal or a request with no exact
       form under a numeric pattern, when the user asks for automatic
-      allocation, then the skill projects the ID with `work next-number`
+      allocation, then the skill projects the ID with `work id next`
       and calls `work create` without `--id`.
 - [ ] Given a `{tracker}` refusal, when the user asks for automatic
       allocation, then the skill continues through its `{tracker}` flow
       and passes no `--id`.
+- [ ] Given `{number:04d}` and `0400` not taken, when `work id check 0400`
+      runs, then it prints `exact` with `0400`; given `400`, it prints
+      `corrected` with `0400`.
+- [ ] Given `{key}-{number:04d}` with `work.key: PP` and `XY-0400` not
+      taken, when `work id check XY-0400` runs, then it prints `other-key`
+      with `XY-0400`, noting the configured key `PP`.
+- [ ] Given any `--id` that `work create` refuses, when `work id check`
+      runs with that ID, then it exits with the same refusal; and whatever
+      it prints or refuses, it writes nothing.
+- [ ] Given `work canonicalise-id` or `work next-number`, when either runs,
+      then it runs nothing, exits 2 and names its replacement under
+      `work id`.
+- [ ] Given the `corpus` crates, when their public items are listed, then
+      none names work-item identity.
+- [ ] Given `PROJ-42`, when the CLI, filters, resolution and the
+      visualiser's clusters canonicalise it, then each yields `PROJ-0042`.
+- [ ] Given IDs whose keys differ only in letter case, when the visualiser
+      matches them, then it ignores case and shows each ID as written.
+- [ ] Given `v{number:03d}`, when an item is allocated, then it writes
+      `v001`; and when `work rekey` runs, then it re-keys `v001`.
+- [ ] Given a `work rekey` run plan targeting a path outside the work
+      directory, when the re-key runs, then it refuses.
+- [ ] Given a malformed `work.id_pattern` or `work.key`, when any command
+      reads it, then it refuses, naming the setting.
+- [ ] Given the existing migrations, when they run, then their outputs do
+      not change, except m0002 under a newly refused pattern.
 
 ## Open Questions
 
@@ -348,8 +386,9 @@ None.
 
 ## Technical Notes
 
-- In a real create, the first four checks run before `creation_context`,
-  which already refuses `--project` under `IdOwnership::Tracker` with
+- In a real create, the first four checks run before `creation_context`
+  creates the work directory. The scheme they need is read inside it.
+  `creation_context` already refuses `--project` under `IdOwnership::Tracker` with
   `E_PATTERN_KEY_UNUSED`. The collision check takes the place of the
   `allocate_id` step and runs once, under the create lock (the
   `LockdirLock` that serialises creates in the work directory). That step
@@ -362,8 +401,8 @@ None.
   `{id}-{slug}.md` path and misses a same-ID file under another slug. The
   collision check matches the identity set `work resolve` uses, which
   `Creation::identities` in `work-adapters/src/creation.rs` already lists
-  for draft minting. It adds a filename scan from `compile_scan_regex`,
-  keyed on the key parsed from the `--id` rather than `work.key`. Aliases
+  for draft minting. It adds the filename prefix read by
+  `work::id_pattern`, keyed on the key parsed from the `--id` rather than `work.key`. Aliases
   count because `work resolve` treats an ID held as one item's alias and
   another's `id` as ambiguous.
 - `compile_scan_regex` embeds the key literally, so the collision scan
