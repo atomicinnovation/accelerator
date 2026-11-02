@@ -5,7 +5,7 @@ title: "Build-Performance Measurement Harness and Host Guidance Implementation P
 date: "2026-10-30T17:19:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0368"
 parent: "work-item:0368"
 derived_from: ["codebase-research:2026-10-30-0368-build-performance-measurement-harness", "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
@@ -32,8 +32,8 @@ With the harness in place, the plan records the warm no-op baseline that
 0362–0367 wait on, and adds the isolation mode and the incremental and cold
 cache states that 0365 and 0366 measure with. `measure:compare-builds`
 then applies the comparability and citation rules to two records. Last,
-the plan documents the macOS host settings in `CONTRIBUTING.md` and cites
-their measured effect.
+the plan documents the macOS host settings in `CONTRIBUTING.md`. Measuring
+and citing their effect moved to 0370.
 
 ## Current State Analysis
 
@@ -98,7 +98,7 @@ their measured effect.
   `measure:compare-builds` commands whose lines carry their before-and-after
   changes.
 - **Host guidance.** `CONTRIBUTING.md` gives the host-settings steps and
-  their tradeoffs, and cites the three condition records.
+  their tradeoffs. 0370 cites the three condition records there.
 - **Verification.** `mise run` exits 0 after every code phase.
 
 ### Key Discoveries
@@ -3889,6 +3889,10 @@ units total: 73 → 73, +0 (×1.000)
 
 ### Overview
 
+This phase moved to 0370 on 2026-11-02, so 0368 could close before 0362,
+0363 and 0367 land. Its steps below are 0370's starting point, and its
+criteria stay unchecked here.
+
 This phase covers Requirement 9. It records the `none`, `devtools` and
 `devtools+ide-exclusion` conditions at one commit and cites their changes in
 `CONTRIBUTING.md`. It starts only once 0362, 0363 and 0367 have each landed
@@ -4007,7 +4011,7 @@ from the two `measure:compare-builds` reports. It contains:
     directly over fake ports rooted at `tmp_path`.
 - **Documentation.** `TestMeasureNamespaceDocs` pins the README's measure
   section, `TestHostSettingsGuidance` the `CONTRIBUTING.md` steps, and
-  Phase 10's tests check each cited record and figure against
+  0370's tests will check each cited record and figure against
   `compare_records`.
 
 ### Integration Tests:
@@ -4067,10 +4071,8 @@ breaking edit without an upgrade fails CI in the commit that makes it.
 Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
 Phases 5–9 are complete, their automated and manual checks pass, and none
 is pushed yet; Phases 6, 7 and 9 made their work-item edits before merging
-rather than after. Phase 10 has not started: it waits on 0362 (`ready`),
-0363 and 0367 (both `draft`) landing or being abandoned, and its three
-condition records need the operator to change the host settings by hand
-between sessions.
+rather than after. Phase 10 moved to 0370, which 0362, 0363 and 0367
+block, and 0368's Requirement 9 is now a pointer to it, so 0368 is done.
 
 ### Phases 1–4 review round
 
