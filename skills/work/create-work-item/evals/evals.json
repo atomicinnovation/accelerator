@@ -523,6 +523,418 @@
         "commands.md shows the work id next call and no accelerator work create",
         "files.md says no file was written or edited"
       ]
+    },
+    {
+      "id": 39,
+      "name": "requested_id_is_never_resolved_as_an_existing_item",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty. The work items directory holds meta/work/0400-search-filters.md, an item whose id is 0400.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, or `none`.\n",
+      "expected_output": "The skill never passes 0400 to work resolve. It runs work id check -- '0400', relays its E_ID_TAKEN message verbatim before any business-context question or draft, and writes nothing.",
+      "files": [],
+      "expectations": [
+        "commands.md shows no `accelerator work resolve` call",
+        "commands.md shows `accelerator work id check -- '0400'`",
+        "response.md relays the E_ID_TAKEN message verbatim, naming meta/work/0400-search-filters.md, before any business-context question or draft",
+        "files.md says no file was written or edited"
+      ]
+    },
+    {
+      "id": 40,
+      "name": "requested_id_is_the_projected_id_on_both_creates",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 0 and printing:\n\nmeta/work/0400-dark-mode-toggle.md\nwrite-once\tENG-812\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The projected ID is 0400. work id next is never called. The dry-run and the --push create both carry --id='0400' and neither carries --project.",
+      "files": [],
+      "expectations": [
+        "response.md states that the item's ID will be 0400",
+        "commands.md shows no `accelerator work id next`",
+        "Both the `--push --dry-run` create and the `--push` create in commands.md carry `--id='0400'`",
+        "No command in commands.md carries `--project`"
+      ]
+    },
+    {
+      "id": 41,
+      "name": "requested_id_under_tracker_is_refused_before_composing",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nError: E_ID_TRACKER_OWNED: pattern '{tracker}' lets the tracker assign every ID, so none can be requested. Create the item without one: it is saved as a draft and takes the tracker's key when pushed.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The skill relays the E_ID_TRACKER_OWNED message verbatim before any business-context question or draft, offers only automatic allocation through the tracker flow or cancelling, and runs no work create.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_ID_TRACKER_OWNED message verbatim before any business-context question or draft",
+        "The choices offered are automatic allocation (the tracker flow) and cancelling, with no option to name another ID",
+        "commands.md shows no `accelerator work create`"
+      ]
+    },
+    {
+      "id": 42,
+      "name": "a_push_gate_refusal_of_the_requested_id_is_not_saved_locally",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The E_ID_TAKEN message is relayed verbatim, nothing is saved locally, and the user is asked to choose another ID, automatic allocation or cancelling.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_ID_TAKEN message verbatim",
+        "commands.md shows no `accelerator work create` after the dry-run",
+        "questions.md offers naming another ID, allocating automatically and cancelling",
+        "The skill makes no choice for the user"
+      ]
+    },
+    {
+      "id": 43,
+      "name": "short_requested_number_is_proposed_padded_and_confirmed",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 400 dark mode toggle`\n\nSimulate `accelerator work id check -- '400'` exiting 0 and printing:\n\ncorrected\t0400\n\nThe user confirms the proposal. When the skill asks its business-context questions, the user answers: \"Night-time users find the light theme glaring. Success is a toggle in Settings that persists. Medium priority.\" The user then approves the proposal and this draft unchanged (story \"Dark mode toggle\", kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nSimulate the Step 5 create exiting 0 and printing:\n\nmeta/work/0400-dark-mode-toggle.md\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "0400 is proposed and confirmed before any business-context question; the create carries only --id='0400'.",
+      "files": [],
+      "expectations": [
+        "response.md or questions.md proposes 0400 and asks for confirmation before any business-context question",
+        "commands.md shows the `accelerator work create` carrying `--id='0400'`",
+        "No `accelerator work create` in commands.md carries `--id='400'`"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "exact_requested_id_needs_no_confirmation",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 0 and printing:\n\nexact\t0400\n\nWhen the skill asks its business-context questions, the user answers: \"Night-time users find the light theme glaring. Success is a toggle in Settings that persists. Medium priority.\" The user then approves the proposal and this draft unchanged (story \"Dark mode toggle\", kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nSimulate the Step 5 create exiting 0 and printing:\n\nmeta/work/0400-dark-mode-toggle.md\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "No question confirms the ID; the skill says 0400 will be used and passes --id='0400'.",
+      "files": [],
+      "expectations": [
+        "Neither response.md nor questions.md asks the user to confirm the ID",
+        "response.md says 0400 will be used",
+        "commands.md shows the `accelerator work create` carrying `--id='0400'`"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "key_pattern_requests_are_proposed_with_their_key",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{key}-{number:04d}` and **Active integration** is empty.\n\nRun four separate sessions, each stopping after the skill's first message to the user. In each, simulate `accelerator work id check` exiting 0 with the line given:\n\n1. `/create-work-item --id 400 dark mode toggle` prints `corrected\tPP-0400`\n2. `/create-work-item --id XY-400 dark mode toggle` prints `corrected\tXY-0400\tPP`\n3. `/create-work-item --id xy-400 dark mode toggle` prints `corrected\txy-0400\tPP`\n4. `/create-work-item --id PO-0400 dark mode toggle` prints `other-key\tPO-0400\tPP`\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, per session, in order, in full.\n- response.md: everything you tell the user, under a heading per session.\n",
+      "expected_output": "Each corrected ID is proposed exactly as printed, the last two naming the configured key PP as differing; PO-0400 is used with no question and the key difference is noted.",
+      "files": [],
+      "expectations": [
+        "Session 1 proposes PP-0400 exactly and asks the user to confirm it",
+        "Sessions 2 and 3 propose XY-0400 and xy-0400 exactly as printed, each saying its key differs from the configured PP",
+        "Session 4 asks no confirmation, says it is using PO-0400, and notes its key differs from the configured PP",
+        "commands.md shows `accelerator work id check -- '<request>'`, single-quoted, for each request"
+      ]
+    },
+    {
+      "id": 46,
+      "name": "requests_with_no_exact_form_are_explained_against_the_pattern",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nRun seven separate sessions, each stopping when the skill waits for the user. In each, `accelerator work id check` exits 1 with the stderr given.\n\nUnder injected **ID pattern** `{number:04d}`, **Active integration** empty:\n\n1. `/create-work-item --id 0 dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: '0' is not in the exact shape of pattern '{number:04d}'. Write it as the pattern renders it, shaped like '0001': a 4-digit number from 0001 to 9999, with no key.\n2. `/create-work-item --id 10000 dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: '10000' is not in the exact shape of pattern '{number:04d}'. Write it as the pattern renders it, shaped like '0001': a 4-digit number from 0001 to 9999, with no key.\n3. `/create-work-item --id 04000 dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: '04000' is not in the exact shape of pattern '{number:04d}'. Write it as the pattern renders it, shaped like '0001': a 4-digit number from 0001 to 9999, with no key.\n4. `/create-work-item --id draft-k7mq3x dark mode toggle`: Error: E_ID_DRAFT_RESERVED: 'draft-k7mq3x' has the draft- form reserved for provisional drafts. Choose an ID in the shape of pattern '{number:04d}', shaped like '0001'.\n5. `/create-work-item --id XY-400 dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: 'XY-400' is not in the exact shape of pattern '{number:04d}'. Write it as the pattern renders it, shaped like '0001': a 4-digit number from 0001 to 9999, with no key.\n6. `/create-work-item --id foo dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: 'foo' is not in the exact shape of pattern '{number:04d}'. Write it as the pattern renders it, shaped like '0001': a 4-digit number from 0001 to 9999, with no key.\n\nUnder injected **ID pattern** `{key}-{number:04d}`, **Active integration** empty:\n\n7. `/create-work-item --id XY400 dark mode toggle`: Error: E_ID_PATTERN_MISMATCH: 'XY400' is not in the exact shape of pattern '{key}-{number:04d}'. Write it as the pattern renders it, shaped like 'PP-0001': a key of letters and digits, then '-', then a 4-digit number.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, per session, in order, in full.\n- response.md: everything you tell the user, under a heading per session.\n",
+      "expected_output": "Each refusal is relayed verbatim; the skill proposes no ID of its own and runs no work create.",
+      "files": [],
+      "expectations": [
+        "Each session in response.md relays its refusal's stderr verbatim",
+        "No session proposes an ID of its own, such as 0000, 1000, 4000, 0400 or XY-0400",
+        "commands.md shows no `accelerator work create`"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "the_skill_waits_for_the_users_choice_after_a_declined_proposal",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 400 dark mode toggle`\n\nSimulate `accelerator work id check -- '400'` exiting 0 and printing:\n\ncorrected\t0400\n\nThe user declines the proposal.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The skill offers another ID, automatic allocation or cancelling, waits, and runs no work create.",
+      "files": [],
+      "expectations": [
+        "questions.md offers naming another ID, allocating automatically and cancelling",
+        "commands.md shows no `accelerator work create` and no `accelerator work id next`",
+        "The skill makes no choice for the user"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "a_new_id_after_a_collision_is_used_on_both_creates",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to name another ID and gives `0401`. Simulate `accelerator work id check -- '0401'` exiting 0 and printing `exact\t0401`. Simulate the next dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 0 and printing:\n\nmeta/work/0401-dark-mode-toggle.md\nwrite-once\tENG-812\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n- body.md: the exact content of the --body-file passed to the last `accelerator work create`.\n",
+      "expected_output": "work id check -- '0401' is called; the dry-run and the --push create after it both carry --id='0401'; no business-context question is asked again and the approved draft is unchanged.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id check -- '0401'` after the refused dry-run",
+        "The dry-run and the `--push` create after it both carry `--id='0401'`",
+        "response.md asks no business-context question again",
+        "body.md is the approved draft unchanged, with NNNN still in its H1"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "automatic_allocation_after_a_refusal_uses_id_next",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses automatic allocation. When the skill asks its business-context questions, the user answers: \"Night-time users find the light theme glaring. Success is a toggle in Settings that persists. Medium priority.\" The user then approves the proposal and this draft unchanged (story \"Dark mode toggle\", kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nSimulate `accelerator work id next` printing `0412`, and the Step 5 create exiting 0 and printing:\n\nmeta/work/0412-dark-mode-toggle.md\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "work id next is called and the create carries no --id.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id next`",
+        "The `accelerator work create` in commands.md carries no `--id`"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "automatic_allocation_after_a_tracker_refusal_follows_the_tracker_flow",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nError: E_ID_TRACKER_OWNED: pattern '{tracker}' lets the tracker assign every ID, so none can be requested. Create the item without one: it is saved as a draft and takes the tracker's key when pushed.\n\nThe user chooses automatic allocation. When the skill asks its business-context questions, the user answers: \"Night-time users find the light theme glaring. Success is a toggle in Settings that persists. Medium priority.\" The user then approves the proposal and this draft unchanged (story \"Dark mode toggle\", kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nSimulate the push-gate dry-run exiting 0 and printing:\n\nlinear\t(no user-resolvable type/project fields)\n\nThe user declines the push. Simulate the create exiting 0 and printing:\n\nmeta/work/drafts/draft-k7mq3x-dark-mode-toggle.md\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "No work id next and no --id after the refusal; the normal {tracker} flow follows.",
+      "files": [],
+      "expectations": [
+        "commands.md shows no `accelerator work id next`",
+        "No `accelerator work create` in commands.md carries `--id`",
+        "After the dry-run and the declined push, commands.md shows `accelerator work create` without `--push`"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "a_refusal_from_the_pushed_create_resumes_at_the_push",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to name another ID and gives `0401`. Simulate `accelerator work id check -- '0401'` exiting 0 and printing `exact\t0401`, the next dry-run exiting 0 and printing the same preview line, and, if the user is asked again, the user accepting the push. Simulate the next `--push` create exiting 0 and printing:\n\nmeta/work/0401-dark-mode-toggle.md\nwrite-once\tENG-812\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The E_ID_TAKEN stderr is relayed verbatim and all three recovery choices are offered; after 0401 the skill runs work id check, then the dry-run, then the --push create, each with --id='0401', asking no business-context question again.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_ID_TAKEN message verbatim",
+        "questions.md offers naming another ID, allocating automatically and cancelling",
+        "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then the dry-run, then the `--push` create, in that order, the last two carrying `--id='0401'`",
+        "response.md asks no business-context question again"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item add --id <ID> to accelerator work create`\n\nSimulate `accelerator work resolve` exiting 1 with stderr `E_RESOLVE_INVALID: input '<argument>' is not a recognised path, full ID, or bare number`, with the argument it was given in place of `<argument>`. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "No work id check runs; the whole argument is the topic.",
+      "files": [],
+      "expectations": [
+        "commands.md shows no `accelerator work id check`",
+        "response.md treats the whole argument, adding --id <ID> to accelerator work create, as the topic"
+      ]
+    },
+    {
+      "id": 53,
+      "name": "an_id_given_with_an_equals_sign_is_requested",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id=0400 dark mode`\n\nSimulate `accelerator work id check -- '0400'` exiting 0 and printing `exact\t0400`. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "work id check -- '0400' is called and the topic is dark mode.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id check -- '0400'`",
+        "commands.md shows no `accelerator work resolve` call",
+        "response.md treats `dark mode` as the topic"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "an_id_with_a_single_quote_runs_no_command",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 04'00 dark mode`\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "No work id or work create call runs; the skill says an ID cannot contain a single quote and offers the three recovery choices.",
+      "files": [],
+      "expectations": [
+        "commands.md shows no `accelerator work id` and no `accelerator work create` call",
+        "response.md says an ID cannot contain a single quote",
+        "questions.md offers naming another ID, allocating automatically and cancelling"
+      ]
+    },
+    {
+      "id": 55,
+      "name": "a_non_id_error_from_the_push_gate_aborts",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: could not list meta/work/drafts: Permission denied (os error 13)\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The stderr is relayed verbatim; no work create follows and nothing is saved locally; the approved draft is printed with a line saying the user can re-run.",
+      "files": [],
+      "expectations": [
+        "response.md relays the stderr verbatim",
+        "commands.md shows no `accelerator work create` after the dry-run",
+        "response.md prints the approved draft and says the user can re-run /create-work-item"
+      ]
+    },
+    {
+      "id": 56,
+      "name": "a_rekey_in_progress_at_step_0_points_to_rekey_work_items",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 4 with this stderr:\n\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The skill says a re-key is unfinished and to run /rekey-work-items to finish or undo it; it runs no work create and no work id next.",
+      "files": [],
+      "expectations": [
+        "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
+        "commands.md shows no `accelerator work create` and no `accelerator work id next`"
+      ]
+    },
+    {
+      "id": 57,
+      "name": "a_trailing_id_flag_is_requested",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item dark mode toggle --id 0400`\n\nSimulate `accelerator work id check -- '0400'` exiting 0 and printing `exact\t0400`. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "work id check -- '0400' is called and the topic is dark mode toggle.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id check -- '0400'`",
+        "commands.md shows no `accelerator work resolve` call",
+        "response.md treats `dark mode toggle` as the topic"
+      ]
+    },
+    {
+      "id": 58,
+      "name": "an_id_without_a_topic_asks_for_one",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400`\n\nIf the skill runs `accelerator work id check -- '0400'`, simulate it exiting 0 and printing `exact\t0400`. Stop when the skill waits for the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The skill asks for the topic before any work create.",
+      "files": [],
+      "expectations": [
+        "response.md asks the user what the work item is about",
+        "commands.md shows no `accelerator work create`",
+        "commands.md shows no `accelerator work resolve` call"
+      ]
+    },
+    {
+      "id": 59,
+      "name": "cancel_after_drafting_prints_the_draft",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to cancel.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The approved draft is printed and no work create runs after the dry-run.",
+      "files": [],
+      "expectations": [
+        "response.md prints the approved draft after the user cancels",
+        "commands.md shows no `accelerator work create` after the dry-run",
+        "commands.md shows no `accelerator work id next`, and the dry-run carries `--id='0400'`"
+      ]
+    },
+    {
+      "id": 60,
+      "name": "a_local_create_refusal_resumes_at_the_local_create",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the Step 6 create exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to name another ID and gives `0401`. Simulate `accelerator work id check -- '0401'` exiting 0 and printing `exact\t0401`, and the next create exiting 0 and printing:\n\nmeta/work/0401-dark-mode-toggle.md\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "work id check -- '0401' is called, then the Step 6 create re-runs with --id='0401'; no business-context question is asked again.",
+      "files": [],
+      "expectations": [
+        "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then an `accelerator work create` carrying `--id='0401'`",
+        "response.md asks no business-context question again",
+        "questions.md offers naming another ID, allocating automatically and cancelling"
+      ]
+    },
+    {
+      "id": 61,
+      "name": "a_recovery_id_with_a_single_quote_runs_no_command",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to name another ID and gives `04'01`.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "No command carries 04'01; the skill says an ID cannot contain a single quote and offers the three recovery choices again.",
+      "files": [],
+      "expectations": [
+        "No command in commands.md carries `04'01`",
+        "response.md says an ID cannot contain a single quote",
+        "questions.md offers naming another ID, allocating automatically and cancelling again after `04'01`"
+      ]
+    },
+    {
+      "id": 62,
+      "name": "a_new_id_named_before_drafting_is_checked_then_drafted",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses to name another ID and gives `0401`. Simulate `accelerator work id check -- '0401'` exiting 0 and printing `exact\t0401`. When the skill asks its business-context questions, the user answers: \"Night-time users find the light theme glaring. Success is a toggle in Settings that persists. Medium priority.\" The user then approves the proposal and this draft unchanged (story \"Dark mode toggle\", kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nSimulate the push-gate dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 0 and printing:\n\nmeta/work/0401-dark-mode-toggle.md\nwrite-once\tENG-812\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "work id check -- '0401' runs before drafting; drafting follows; the dry-run and the --push create both carry --id='0401'.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id check -- '0401'` before response.md asks any business-context question",
+        "response.md goes on to ask business-context questions and present a draft",
+        "The dry-run and the `--push` create in commands.md both carry `--id='0401'`"
+      ]
+    },
+    {
+      "id": 63,
+      "name": "a_pending_push_under_an_id_is_relayed_without_a_rerun",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 1 with this stderr:\n\nError: E_PUSH_PENDING: a previous create attempt for 'Dark mode toggle' at meta/integrations/jira/pending-push/3f9c2a.json (recorded at 2026-11-01T10:12:00Z) has an unknown outcome — a remote issue may already exist. Inspect it, then remove the marker to retry.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The stderr is relayed verbatim and the approved draft printed; no recovery choices, no work id check, and no line suggesting a re-run.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_PUSH_PENDING message verbatim",
+        "response.md prints the approved draft",
+        "questions.md offers no recovery choice, and commands.md shows no `accelerator work id check` after the `--push` create",
+        "response.md does not suggest re-running /create-work-item or the create"
+      ]
+    },
+    {
+      "id": 64,
+      "name": "a_config_refusal_from_resolve_stops_before_drafting",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{nmber:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item dark mode toggle`\n\nSimulate `accelerator work resolve` exiting 1 with this stderr:\n\nE_WORK_ID_PATTERN_INVALID: work.id_pattern '{nmber:04d}': unknown token '{nmber:04d}' in pattern\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The stderr is relayed verbatim; the skill neither drafts nor calls work id next.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_WORK_ID_PATTERN_INVALID message verbatim",
+        "response.md asks no business-context question and presents no draft",
+        "commands.md shows no `accelerator work id next`"
+      ]
+    },
+    {
+      "id": 65,
+      "name": "a_busy_identity_run_at_step_0_is_retried_not_aborted",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 1 with this stderr:\n\nwaiting for accelerator work rekey (pid 4242) to finish\nError: E_IDENTITY_RUN_BUSY: `accelerator work rekey` (pid 4242) is still running. Re-run once it finishes.\n\nStop when the skill waits for the user's choice; do not choose for them.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The skill says another identity command is running and to retry once it ends; no recovery choices; no work create.",
+      "files": [],
+      "expectations": [
+        "response.md says another identity command is still running and to retry once it ends",
+        "questions.md offers no recovery choice such as naming another ID or allocating automatically",
+        "commands.md shows no `accelerator work create`"
+      ]
+    },
+    {
+      "id": 66,
+      "name": "automatic_allocation_after_a_push_refusal_resumes_at_the_push",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 0 and printing:\n\njira\tStory\tconfigured\tENG\tconfigured\n\nThe user accepts the push. Simulate the `--push` create exiting 1 with this stderr:\n\nError: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\n\nThe user chooses automatic allocation. Simulate `accelerator work id next` printing `0412`, the next dry-run exiting 0 and printing the same preview line, and, if the user is asked again, the user accepting the push. Simulate the next `--push` create exiting 0 and printing:\n\nmeta/work/0412-dark-mode-toggle.md\nwrite-once\tENG-812\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n- body.md: the exact content of the --body-file passed to the last `accelerator work create`.\n",
+      "expected_output": "work id next is called and the new projected ID stated; the dry-run, then the --push create, run without --id; no business-context question again; the approved draft is unchanged.",
+      "files": [],
+      "expectations": [
+        "commands.md shows `accelerator work id next` after the refused `--push` create",
+        "response.md states the new projected ID 0412",
+        "After `work id next`, commands.md shows the dry-run, then the `--push` create, neither carrying `--id`",
+        "response.md asks no business-context question again, and body.md is the approved draft unchanged",
+        "The first dry-run and the first `--push` create both carry `--id='0400'`"
+      ]
+    },
+    {
+      "id": 67,
+      "name": "the_welcome_tip_is_absent_under_tracker",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nThe user invokes: `/create-work-item` with no argument. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The welcome text carries no --id tip.",
+      "files": [],
+      "expectations": [
+        "response.md does not mention `--id`"
+      ]
+    },
+    {
+      "id": 68,
+      "name": "a_welcome_reply_carrying_an_id_is_requested",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item` with no argument. To the skill's welcome text, the user replies: `--id 0400 dark mode`\n\nSimulate `accelerator work id check -- '0400'` exiting 0 and printing `exact\t0400`. Stop after the skill's response to that reply.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The welcome text offers the --id tip shaped like {number:04d}; the reply's ID is checked with work id check -- '0400' and the topic is dark mode.",
+      "files": [],
+      "expectations": [
+        "The welcome text in response.md says the reply can start with `--id <ID>`, shaped like `{number:04d}`",
+        "commands.md shows `accelerator work id check -- '0400'`",
+        "response.md treats `dark mode` as the topic"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "a_resolve_invalid_after_a_deprecation_warning_is_a_topic",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{project}-{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item dark mode toggle`\n\nSimulate `accelerator work resolve` exiting 1 with this stderr:\n\nWarning: 'work.default_project_code' is deprecated and will be removed in 1.25.0. Run /accelerator:migrate to materialise the replacement configuration keys.\nE_RESOLVE_INVALID: input 'dark mode toggle' is not a recognised path, full ID, or bare number\n\nStop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The argument is drafted as a topic.",
+      "files": [],
+      "expectations": [
+        "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+        "response.md does not stop on the resolver's output as an error"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "a_pending_push_at_the_push_gate_is_relayed_without_a_rerun",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`. The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nYou are at Step 5. Simulate the push-gate dry-run exiting 1 with this stderr:\n\nError: E_PUSH_PENDING: a previous create attempt for 'Dark mode toggle' at meta/integrations/jira/pending-push/3f9c2a.json (recorded at 2026-11-01T10:12:00Z) has an unknown outcome — a remote issue may already exist. Inspect it, then remove the marker to retry.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The stderr is relayed verbatim and the approved draft printed; no recovery choices and no line suggesting a re-run.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_PUSH_PENDING message verbatim",
+        "response.md prints the approved draft",
+        "questions.md offers no recovery choice",
+        "response.md does not suggest re-running /create-work-item or the create"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "a_topic_in_a_repository_without_a_work_directory_is_drafted",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty. The repository has no meta/work/ directory.\n\nThe user invokes: `/create-work-item dark mode toggle`\n\nSimulate `accelerator work resolve` exiting 1 with this stderr:\n\nE_RESOLVE_INVALID: input 'dark mode toggle' is not a recognised path, full ID, or bare number\n\nStop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
+      "expected_output": "The argument is drafted as a topic.",
+      "files": [],
+      "expectations": [
+        "response.md treats `dark mode toggle` as the topic and asks business-context questions about it",
+        "response.md does not stop on the resolver's output as an error"
+      ]
+    },
+    {
+      "id": 72,
+      "name": "a_marker_refusal_under_an_id_is_relayed_without_a_rerun",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is `jira`.\n\nRun three separate sessions. In each, The user invoked `/create-work-item --id 0400 dark mode toggle`, and Step 0's `accelerator work id check -- '0400'` printed `exact\t0400` and exited 0. Steps 1 to 4 have run: the user answered the business-context questions and approved this draft of a story titled \"Dark mode toggle\" (kind story, priority medium, no parent, no tags), body H1 through References:\n\n# NNNN: Dark mode toggle\n\n## Summary\n\nAs a user, I want a dark mode toggle in Settings, so that the app is comfortable to use at night.\n\n## Requirements\n\n- A toggle in Settings switches between the light and dark themes.\n- The choice persists across sessions.\n\n## Acceptance Criteria\n\n- Given dark mode is on, when I reload the app, then it opens in dark mode.\n\n## References\n\nEach is at Step 5.\n\n1. The push-gate dry-run exits 1 with this stderr:\n\nError: E_PUSH_MARKER_UNREADABLE: the pending-push marker at meta/integrations/jira/pending-push/3f9c2a.json could not be parsed; a previous create may have partially applied. Inspect or remove the marker before retrying.\n\n2. The push-gate dry-run exits 0 printing `jira\tStory\tconfigured\tENG\tconfigured`, the user accepts the push, and the `--push` create exits 1 with this stderr:\n\nError: E_PUSH_MARKER_UNREADABLE: the pending-push marker at meta/integrations/jira/pending-push/3f9c2a.json could not be parsed; a previous create may have partially applied. Inspect or remove the marker before retrying.\n\n3. The push-gate dry-run exits 0 printing `jira\tStory\tconfigured\tENG\tconfigured`, the user accepts the push, and the `--push` create exits 1 with this stderr:\n\nError: E_PUSH_FINGERPRINT_MISMATCH: the pending-push marker at meta/integrations/jira/pending-push/3f9c2a.json was recorded for a different request with the same title but a different body or kind. Remove the marker to force a new create.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, per session, in order, in full.\n- response.md: everything you tell the user, under a heading per session.\n- questions.md: every AskUserQuestion you present, per session, or `none`.\n",
+      "expected_output": "In each session the stderr is relayed verbatim and the approved draft printed; no recovery choices and no line suggesting a re-run.",
+      "files": [],
+      "expectations": [
+        "Each session in response.md relays its stderr verbatim",
+        "Each session in response.md prints the approved draft",
+        "No session offers a recovery choice such as naming another ID or allocating automatically",
+        "No session suggests re-running /create-work-item or the create"
+      ]
     }
   ]
 }
