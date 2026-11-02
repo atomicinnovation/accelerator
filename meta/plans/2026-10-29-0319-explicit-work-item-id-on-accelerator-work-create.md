@@ -3697,9 +3697,9 @@ rather than drafting an item it cannot write.
 
 #### Manual Verification
 
-- [ ] `/create-work-item --id 400 <topic>` in a scratch repository proposes
+- [x] `/create-work-item --id 400 <topic>` in a scratch repository proposes
       `0400`, then writes `0400-<slug>.md` after confirmation.
-- [ ] With an integration configured and `0400` taken, the push gate relays
+- [x] With an integration configured and `0400` taken, the push gate relays
       `E_ID_TAKEN` and offers another ID or automatic allocation, rather than
       saving locally.
 
