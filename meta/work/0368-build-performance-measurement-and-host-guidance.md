@@ -5,11 +5,11 @@ title: "Build-performance measurement and host guidance"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "high"
 parent: "work-item:0361"
-relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness"]
+relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness", "work-item:0370"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
 last_updated: "2026-11-01T22:25:37+00:00"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0368: Build-performance measurement and host guidance
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -31,8 +31,8 @@ repository. Turning them into a `measure:build` task, and recording a warm
 no-op baseline as the median of three runs, lets every other item in the
 epic show its saving. Alongside it, documenting the host settings expected
 to cut background contention should give contributors a faster local build
-without weakening any of the build's checks; Requirement 9 measures by how
-much. The Developer Tools exemption does trade away XProtect scanning of
+without weakening any of the build's checks; 0370 measures by how much.
+The Developer Tools exemption does trade away XProtect scanning of
 anything the exempted app launches, and the guidance says so.
 
 ## Context
@@ -156,10 +156,10 @@ Web research since adds three facts:
    the record holds a fetch failure; the harness never commits. That holds
    for every `--keep` run, not only baseline and condition records: under
    jj a kept file joins the working-copy commit at once, and a
-   fetch-failed record is never one to commit. Keep the baseline, the three host-settings
-   condition records, and any record a consumer's acceptance criterion
-   cites. The metadata includes a host-settings label, given with
-   `--host-settings` as `none`, `devtools` or `devtools+ide-exclusion`,
+   fetch-failed record is never one to commit. Keep the baseline, 0370's
+   three host-settings condition records, and any record a consumer's
+   acceptance criterion cites. The metadata includes a host-settings
+   label, given with `--host-settings` as `none`, `devtools` or `devtools+ide-exclusion`,
    and `unspecified` by default. The recorded commit is the nearest
    commit on the first-parent chain behind the working copy that differs
    from its own first parent outside `meta/measurements/`. The working
@@ -189,26 +189,8 @@ Web research since adds three facts:
    - state that the exemption stops XProtect scanning anything the
      exempted app launches;
    - state that an IDE exclusion stops indexing but not file watching.
-9. Measure the host settings and commit the records, then cite them in
-   `CONTRIBUTING.md`:
-   - record `none`, then `devtools`, then `devtools+ide-exclusion`, each a
-     warm no-op `--runs 3` on the reference host at one commit;
-   - take them once 0362, 0363 and 0367 have each landed or been
-     abandoned, since those remove most of what the settings save;
-     Requirement 8's steps may land earlier;
-   - cite each step's effect as the change from the previous condition in
-     median wall-clock and in each tracked process's median CPU-seconds,
-     both in seconds and as a ratio, stating the IDE exclusion's effect
-     as on top of the exemption;
-   - where a condition's median lies within the previous condition's
-     [min, max], for wall-clock or for a tracked process's CPU-seconds,
-     say that figure's change was not distinguishable from noise on the
-     reference host;
-   - name a change to or from absent in words, for example
-     "`XprotectService` did not run in any `devtools` run", with no ratio
-     and no noise verdict;
-   - retake a condition record in which `syspolicyd`, the IDE or
-     `fsnotifier` is absent from any timed run.
+9. Moved to 0370: measure the host settings, commit the three condition
+   records and cite their effect in `CONTRIBUTING.md`.
 10. Keep `measure:build` out of the `check` and `default` closures.
 
 Out of scope: Linux support, Spotlight exclusions, IDEs other than
@@ -314,23 +296,9 @@ JetBrains, and gating `check` or CI on any figure.
       taken on the reference host, from a clean working copy, at a commit
       containing none of their changes, with an empty `fetch_failures`
       list and a host-settings label other than `unspecified`.
-- [ ] Given the three host-settings condition records, then they are
-      labelled `none`, `devtools` and `devtools+ide-exclusion`, are
-      comparable under Requirement 7 apart from that label, share one
-      commit and `--runs 3`, were taken at a commit
-      after 0362, 0363 and 0367 each landed or were abandoned, have empty
-      `fetch_failures` lists, and show `syspolicyd`, the IDE and
-      `fsnotifier` present in every timed run.
 - [ ] Given `CONTRIBUTING.md`, when a contributor reads it, then it gives
-      the steps for both settings, states the exemption's security
-      tradeoff and that IDE exclusion does not stop file watching, and
-      cites each step's change in median wall-clock and per-process
-      CPU-seconds, in seconds and as a ratio, from the three condition
-      records, naming the host. It states the IDE exclusion's effect as
-      on top of the exemption, and says which changes were within noise:
-      those where the condition's median lies within the previous
-      condition's [min, max]. A change to or from absent is named in
-      words, with no ratio or noise verdict.
+      the steps for both settings, and states the exemption's security
+      tradeoff and that IDE exclusion does not stop file watching.
 - [ ] Given `check` and `default`, when their task closure is computed,
       then neither reaches `measure:build`, as enforced by the
       transitive-closure guard in `tests/unit/tasks/test_mise.py`.
@@ -338,8 +306,8 @@ JetBrains, and gating `check` or CI on any figure.
       priming, cache-state setup, sentinels, isolation mode, `--keep`, the
       kept-record commit and the non-macOS refusal), then each is
       verified against a stub build and stub samplers. Only the
-      end-to-end `--keep` record, the baseline and the three condition
-      records need real runs on the reference host.
+      end-to-end `--keep` record and the baseline need real runs on the
+      reference host.
 
 ## Open Questions
 
@@ -347,17 +315,14 @@ None.
 
 ## Dependencies
 
-- Blocked by: none. Requirement 9 alone waits until 0362, 0363 and 0367
-  have each landed or been abandoned. That is not a `blocked_by` edge,
-  since those three waited on this item's baseline and only one
-  requirement waits on them.
+- Blocked by: none.
 - Blocks: none. The warm no-op baseline is recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
   which discharged the edge to 0362, 0363, 0364 and 0367. Isolation mode
   (`--isolate`) discharged 0365's wait on Requirement 3, and the cold
   cache state (`--cache-state cold`) discharged 0366's wait on
   Requirement 4.
-  The host guidance (Requirements 8–9) blocks nothing.
+  The host guidance (Requirement 8) blocks nothing.
 - Consumers: 0365 compares the nextest phase of an isolated
   `test:unit:cli` (Requirements 1 and 3); 0366 counts cold compile units
   (Requirement 4), comparing cold records before and after its change.
@@ -381,6 +346,9 @@ None.
 - Related: 0367, whose freshness guard on `deps:install:node` must treat
   a deleted `node_modules` as stale, or a cold run would skip the
   reinstall and its frontend tasks would fail.
+- Related: 0370, split from this item's Requirement 9, which measures the
+  host settings with `measure:build` once 0362, 0363 and 0367 have each
+  landed or been abandoned, and cites them under the guidance.
 - Related: 0369, which changes what `default` runs and so what
   `measure:build` times. 0369 is blocked by 0361, so it merges only
   after the epic's closing comparison. An out-of-order merge would still
@@ -396,8 +364,6 @@ None.
   a quiet host.
 - The host guidance targets JetBrains IDEs, the only IDE observed; other
   IDEs are neither documented nor measured.
-- Ratios between the host-setting conditions carry over to other Macs;
-  absolute figures do not.
 
 ## Technical Notes
 
@@ -450,9 +416,6 @@ None.
 - A cold run at the default of 3 takes about 25 minutes and fetches npm
   packages each time. Cargo unit counts do not vary between runs, so
   `--runs 1` is enough for 0366's counts.
-- Record the no-settings condition first: undoing the Developer Tools
-  exemption can need a reboot. Keep the IDE open on the project for every
-  condition, or its CPU never shows.
 
 ## Drafting Notes
 
@@ -495,9 +458,9 @@ None.
 - The harness records idle load rather than refusing a busy host. The
   research host idled at 22–30%, so a quiet-host gate would refuse the
   machine that produced every figure.
-- Measured the settings cumulatively (neither, exemption, both) rather than
-  as a full 2×2 grid, which keeps it to about 9 timed runs. The IDE
-  exclusion's effect without the exemption is therefore not isolated.
+- Split Requirement 9 out as 0370 so this item could close before 0362,
+  0363 and 0367 land: its condition records wait on them, and nothing
+  else in this item does.
 - Left Spotlight exclusions out: no credible measurement of their effect
   on Rust or Node builds was found.
 
@@ -506,7 +469,7 @@ None.
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
 - Implementation research, including the mise probes:
   `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
-- Related: 0361, 0362, 0363, 0364, 0365, 0366, 0367, 0369
+- Related: 0361, 0362, 0363, 0364, 0365, 0366, 0367, 0369, 0370
 - Precedent: 0189 (`measure:warm-dispatch` records under
   `meta/measurements/`)
 - nextest, macOS installation notes:
