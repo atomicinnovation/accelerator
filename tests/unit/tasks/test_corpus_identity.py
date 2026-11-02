@@ -1,10 +1,3 @@
-"""Tests for the corpus-identity guard in ``tasks/lint/corpus_identity.py``.
-
-Work-item identity belongs to the ``work`` crates. A ``cli/corpus`` or
-``cli/corpus-adapters`` source naming one of its items has pulled it back
-into the general-purpose corpus crates.
-"""
-
 from pathlib import Path
 
 from tasks.lint import corpus_identity

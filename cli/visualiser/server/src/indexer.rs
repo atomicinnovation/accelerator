@@ -889,10 +889,6 @@ impl Indexer {
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Lexical path helpers.
-// ──────────────────────────────────────────────────────────────────────
-
 /// Lexically clean an absolute path: collapse `.` and `..` segments
 /// without touching the filesystem.
 ///
@@ -988,16 +984,9 @@ fn find_entry_for_deleted(
         .cloned()
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Secondary-index update / remove helpers.
-//
-// Each helper takes (storage, [context], new_entry, previous) — except
-// `remove_from_*` which only needs the entry being removed. They are
-// async only because the per-index `RwLock::write().await` acquisition
-// is async; the bodies are otherwise straight map mutation. They are
-// expected to be called *while the caller holds `entries.write()`* —
-// see the lock-ordering invariant on `Indexer`.
-// ──────────────────────────────────────────────────────────────────────
+// The secondary-index helpers below are async only for the per-index
+// `RwLock::write().await`, and must be called while the caller holds
+// `entries.write()`, per the lock-ordering invariant on `Indexer`.
 
 async fn update_adr_by_id(
     map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
@@ -1151,10 +1140,6 @@ async fn remove_from_reviews_by_target(
         }
     }
 }
-
-// ──────────────────────────────────────────────────────────────────────
-// Work-item cross-reference identity keys.
-// ──────────────────────────────────────────────────────────────────────
 
 /// The identity key a raw cross-reference, bare or a typed `work-item:`
 /// reference, joins `work_item_by_id` on, or `None` for a value that names
@@ -3786,8 +3771,6 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        // Filename is bare-numeric but frontmatter declares a prefixed `id:`
-        // — frontmatter wins.
         std::fs::write(
             work_dir.join("0001-foo.md"),
             "---\ntitle: F\nid: \"ENG-0042\"\n---\n",
