@@ -1227,6 +1227,13 @@ async fn remove_from_work_item_refs_by_target(
     }
 }
 
+fn markdown_stem(filename: &str) -> &str {
+    filename
+        .rsplit_once('.')
+        .filter(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+        .map_or(filename, |(stem, _)| stem)
+}
+
 fn build_entry(
     kind: DocTypeKey,
     path: PathBuf,
@@ -1236,7 +1243,6 @@ fn build_entry(
 ) -> IndexEntry {
     let parsed = frontmatter::parse(&content.bytes);
     let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-    let filename_stem = filename.strip_suffix(".md").unwrap_or(filename);
 
     // For nested-manifest doc types (e.g. design inventories) the slug
     // source is the parent directory name, not the manifest filename.
@@ -1288,8 +1294,7 @@ fn build_entry(
     };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.
-    let title_fallback_stem =
-        slug_filename.strip_suffix(".md").unwrap_or(filename_stem);
+    let title_fallback_stem = markdown_stem(&slug_filename);
     let title = frontmatter::title_from(
         &parsed.state,
         &parsed.body,
@@ -1846,6 +1851,8 @@ mod identity_join_tests {
         let entry = entry_at(&idx, tmp.path(), item.0).await;
 
         assert_eq!(entry.r#type, DocTypeKey::WorkItems);
+        assert_eq!(entry.slug.as_deref(), Some("x"));
+        assert_eq!(entry.title, "X");
     }
 
     #[tokio::test]
