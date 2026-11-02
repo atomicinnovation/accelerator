@@ -747,7 +747,8 @@
   `resolve`, `list`, `promote`, `rekey` and `sync` refuse a malformed
   `work.id_pattern`, or a malformed `work.key` under a `{key}` pattern, as
   `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`, quoting the
-  value; an invalid `--project` gives `E_WORK_KEY_INVALID` too.
+  value; an invalid `--project` gives `E_WORK_KEY_INVALID` too, an empty
+  `--project ""` included, where it gave `E_PATTERN_MISSING_KEY`.
   `work id canonicalise` keeps its own codes. `work list` refuses where it
   fell back to the default scheme.
 - **A short full ID is canonicalised through the pattern.** `work list`,
