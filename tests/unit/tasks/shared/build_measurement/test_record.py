@@ -24,6 +24,7 @@ from tasks.shared.build_measurement.measured_build import (
 from tasks.shared.build_measurement.record import (
     RUN_ID_PREFIX,
     parse_record,
+    read_record,
     record_text,
     run_id,
     write_measured_build,
@@ -378,6 +379,17 @@ class TestParseRecord:
     def test_a_truncated_record_is_refused(self):
         with pytest.raises(UnreadableRecordError):
             parse_record(record_text(measured_build())[:200], source=_SOURCE)
+
+    def test_a_record_file_reads_back_equal_to_what_was_written(self, tmp_path):
+        measured = measured_build()
+        path = tmp_path / "record.json"
+        path.write_text(record_text(measured))
+        assert read_record(path) == measured
+
+    def test_a_missing_record_file_is_refused_naming_it(self, tmp_path):
+        missing = tmp_path / "missing.json"
+        with pytest.raises(UnreadableRecordError, match=str(missing)):
+            read_record(missing)
 
     @pytest.mark.parametrize("field", sorted(CONDITIONS_MIRRORING_THE_HOST))
     def test_a_condition_disagreeing_with_the_host_is_refused(self, field):

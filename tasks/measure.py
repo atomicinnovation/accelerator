@@ -29,10 +29,17 @@ from typing import Protocol, Self
 from invoke import Context, Exit, task
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.comparison import (
+    compare_records,
+    comparison_report,
+)
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
-from tasks.shared.build_measurement.record import write_measured_build
+from tasks.shared.build_measurement.record import (
+    read_record,
+    write_measured_build,
+)
 from tasks.shared.build_measurement.reports import summary_report
 from tasks.shared.build_measurement.session import BuildPorts, measure_build
 from tasks.shared.build_measurement.settings import BuildSettings
@@ -3752,4 +3759,42 @@ def build(
             cache_state=cache_state,
         ),
         real_ports,
+    )
+
+
+@task(
+    name="compare-builds",
+    positional=["previous", "current"],
+    iterable=["task"],
+    help={
+        "previous": "The earlier build record, a measure:build record.json.",
+        "current": "The later build record, compared with the earlier.",
+        "task": (
+            "Also compare this task's duration and nextest phase; repeat "
+            "for several."
+        ),
+    },
+)
+def compare_builds(
+    context: Context,
+    previous: str,
+    current: str,
+    task: list[str] | None = None,
+) -> None:
+    """Compare two build records: the changes and whether they compare.
+
+    The first line names every condition that differs between the records,
+    the host-settings label included, or says the conditions match. Then
+    the wall-clock and each tracked process's CPU-seconds, each change with
+    its ratio and noise verdict, the task-set difference and the cargo unit
+    totals. `--task` adds that task's duration and nextest phase. Exits 0
+    whenever both records parse, whether or not they compare.
+    """
+    del context
+    try:
+        records = read_record(Path(previous)), read_record(Path(current))
+    except MeasurementRefusedError as error:
+        raise Exit(str(error), code=1) from error
+    print(
+        comparison_report(compare_records(*records, tasks=task or ())), end=""
     )

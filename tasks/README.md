@@ -277,7 +277,8 @@ name — `test:integration:measure` does not carry the
 contain.
 
 **Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host,
-and `measure:build` is operator-run on a macOS host.
+`measure:build` is operator-run on a macOS host, and `measure:compare-builds`
+is operator-run on any host.
 `test:integration:measure` is the namespace's owner against rot — n = 2, floors
 only, no gating figure — and belongs to its own non-blocking CI job, because a
 module no automated path executes rots invisibly against volatile external
@@ -411,6 +412,18 @@ is gone, until the launcher is rebuilt with the `cargo build` in
 `CONTRIBUTING.md`'s "Local development"; a cold session warns of this in the
 preflight and again however it ends.
 
+**Comparing build records.** `measure:compare-builds <previous> <current>`
+applies the comparability rule, the host-settings label included: its first
+line names every condition that differs, with both values, or says
+`conditions match`, and the next two give both records' run ids. It exits 0
+whenever both records parse, so the reader decides what may differ; a
+baseline-to-final comparison must show none differing. Each change is given in
+seconds and as a ratio, and is within noise when the current median lies in
+the previous record's [min, max]. A figure absent or flagged on either side is
+named in words, and a process tracked by different patterns is named but not
+compared. `--task <name>` adds that task's duration and nextest-phase changes;
+the cargo unit totals, with their total, are always compared.
+
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
 behind a kept record, and are safe to delete by hand when no `measure:build`
@@ -471,6 +484,11 @@ to compare with the baseline):
   baseline commit (`jj new <commit>` or `git checkout <commit>`) without
   `--keep`, go back to the current checkout, then copy the run directory's
   `record.json` to `meta/measurements/<run id>.json` and commit it there.
+- before pushing or describing the change that holds a kept record (under jj
+  it joins the working-copy commit at once), compare it with the previous kept
+  record of the same condition using `measure:compare-builds`, and look into
+  any change beyond noise. A condition's first record has nothing to compare
+  with, so the step is skipped.
 - the baseline commit's launcher release must stay published while records
   are still compared with the baseline: a re-measurement from that commit
   downloads it in the hooks smoke test.

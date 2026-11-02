@@ -58,6 +58,16 @@ def parse_record(text: str, *, source: Path) -> MeasuredBuild:
         ) from error
 
 
+def read_record(path: Path) -> MeasuredBuild:
+    try:
+        text = path.read_text()
+    except OSError as error:
+        raise UnreadableRecordError(
+            f"{path} could not be read: {error.strerror}"
+        ) from error
+    return parse_record(text, source=path)
+
+
 @dataclass(frozen=True, slots=True)
 class WrittenRecord:
     record: Path
