@@ -43,6 +43,10 @@ meeting notes, design docs. Under `{tracker}` it creates the batch
 through `accelerator work create-batch` after one push offer, linking each
 child to its parent's key or draft.
 
+Pass `--id` to `create-work-item` to choose an item's ID yourself, for
+example when other branches have unmerged items; the skill checks the ID
+before drafting.
+
 ## Sharpening before planning
 
 After drafting and before planning:
