@@ -12,7 +12,7 @@ parent: "work-item:0146"
 blocks: ["work-item:0351"]
 relates_to: ["work-item:0228", "work-item:0230", "work-item:0302", "work-item:0343"]
 tags: ["work", "cli", "allocation"]
-last_updated: "2026-11-02T09:21:43+00:00"
+last_updated: "2026-11-02T11:36:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-905"
@@ -41,7 +41,7 @@ on other branches, so parallel work clashes at merge. Today's workaround
 writes the file by hand, which skips the `NNNN` substitution (replacing
 the template's ID placeholder throughout the body), the create-time
 validation, and `--push`, leaving the item unsynced. `/create-work-item`
-projects the ID with `work next-number` before calling `work create`, so
+projects the ID with `work id next` before calling `work create`, so
 a user-requested ID has no path through the skill either.
 
 ## Requirements
@@ -402,15 +402,15 @@ None.
   collision check matches the identity set `work resolve` uses, which
   `Creation::identities` in `work-adapters/src/creation.rs` already lists
   for draft minting. It adds the filename prefix read by
-  `work::id_pattern`, keyed on the key parsed from the `--id` rather than `work.key`. Aliases
-  count because `work resolve` treats an ID held as one item's alias and
-  another's `id` as ambiguous.
-- `compile_scan_regex` embeds the key literally, so the collision scan
-  and both allocators that scan per key, `allocate_id` in `create.rs` and
-  `work next-number` (`work-cli/src/next_number.rs`), need to ignore
-  letter case. That is the one change to automatic allocation. The
-  visualiser also compiles the scan regex but does not allocate, so it
-  stays as is. Re-key's `default_key_floor` already ignores key case.
+  `work::id_pattern`, keyed on the key parsed from the `--id` rather than
+  `work.key`. Aliases count because `work resolve` treats an ID held as one
+  item's alias and another's `id` as ambiguous.
+- `work::id_pattern` reads a filename's key ignoring letter case, so the
+  collision check and both allocators that scan per key, `allocate_id` in
+  `create.rs` and `work id next` (`work-cli/src/id/next.rs`), ignore it
+  alike. That is the one change to automatic allocation. The visualiser
+  reads IDs through the same grammar but does not allocate. Re-key's
+  `default_key_floor` already ignores key case.
 - The re-key guard runs in `run_with` through the identity run, before
   `create_item`, so the `--id` checks inside `create_item` follow it.
 - `--dry-run` currently returns from `run_with` before `creation_context`,
@@ -441,6 +441,7 @@ None.
 
 - `cli/work-cli/src/create.rs`, `cli/work-cli/src/main.rs`,
   `cli/work/src/next_number.rs`, `cli/work-adapters/src/creation.rs`,
-  `cli/corpus-adapters/src/work_item_pattern.rs`
+  `cli/work/src/id_pattern.rs`, `cli/work-cli/src/id/check.rs`,
+  `cli/work-cli/src/id/next.rs`
 - `skills/work/create-work-item/SKILL.md`
 - Related: 0146, 0228, 0230, 0302, 0343, 0351
