@@ -78,6 +78,8 @@ Decomposition:
 - 0366: Cut Rust compile cost (B2, B5)
 - 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
 - 0368: Build-performance measurement and host guidance (C1, C2)
+- 0370: Measure and cite the macOS host settings' effect on the build
+  (C2, split from 0368)
 
 ## Acceptance Criteria
 
@@ -155,4 +157,4 @@ must report no differing condition.
 ## References
 
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
-- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369
+- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370

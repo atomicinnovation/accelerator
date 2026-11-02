@@ -9,7 +9,7 @@ status: "ready"
 kind: "task"
 priority: "high"
 parent: "work-item:0361"
-blocks: ["work-item:0366"]
+blocks: ["work-item:0366", "work-item:0370"]
 relates_to: ["work-item:0165", "work-item:0182"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "ci"]
@@ -188,7 +188,9 @@ None.
   the hooks, entrypoint and skill-invocation suites take that edge in
   place of `build_shim()`, and the shim keeps the `minisign-verify`
   override. Both items also edit the dev-profile table in
-  `cli/Cargo.toml` (see Technical Notes).
+  `cli/Cargo.toml` (see Technical Notes). It also blocks 0370, which
+  measures the macOS host settings once this item, 0363 and 0367 have
+  each landed or been abandoned.
 - Relies on 0165's release-time re-verification. Once this item lands,
   `prerelease:finalise` and `release:finalise` are the only check of the
   committed public key against a genuine release signature, so they must

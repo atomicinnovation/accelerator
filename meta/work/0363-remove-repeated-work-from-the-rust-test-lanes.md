@@ -14,6 +14,7 @@ tags: ["build-system", "performance", "testing", "rust", "coverage"]
 last_updated: "2026-10-29T19:46:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+blocks: ["work-item:0370"]
 ---
 
 # 0363: Remove repeated work from the Rust test lanes
@@ -114,7 +115,8 @@ and became the last task to finish.
   200 s target against, is recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
   so this item may merge.
-- Blocks: none
+- Blocks: 0370, which measures the macOS host settings once this item,
+  0362 and 0367 have each landed or been abandoned.
 
 ## Assumptions
 
