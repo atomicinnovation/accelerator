@@ -926,9 +926,9 @@ using the cached immutable `id` (the full ID produced by the configured
 pattern, never a placeholder; sourced from `work_item_id` on legacy
 files) and the title as confirmed or replaced in Step 3.
 
-**Script avoidance** (enrich-existing mode): `accelerator work
-id next` is never called. The number is already cached. The path-existence guard in Step 5
-does not apply — overwrite is the intended behaviour once the at-write
+**Script avoidance** (enrich-existing mode): `accelerator work id next` is
+never called. The number is already cached. The path-existence guard in Step
+5 does not apply — overwrite is the intended behaviour once the at-write
 identity-swap check passes.
 
 - `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00` format
