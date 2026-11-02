@@ -3690,10 +3690,10 @@ rather than drafting an item it cannot write.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:tasks` (the evals-structure guard and the scope pin)
-- [ ] `mise run docs:generate:check`
-- [ ] `mise run docs:check`
-- [ ] `mise run` exits 0
+- [x] `mise run test:unit:tasks` (the evals-structure guard and the scope pin)
+- [x] `mise run docs:generate:check`
+- [x] `mise run docs:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
