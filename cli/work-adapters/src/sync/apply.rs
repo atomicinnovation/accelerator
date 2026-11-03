@@ -37,6 +37,7 @@ pub use crate::sync::attempt::Landing;
 
 use crate::sync::adoption_records;
 use crate::sync::adoption_records::AdoptionRecord;
+use crate::sync::attempt::Checkpoint;
 use crate::sync::attempt::ItemAttempt;
 use crate::sync::attempt::PublishError;
 use crate::sync::attempt::StepError;
@@ -1495,6 +1496,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             attempted_at: request.attempted_at,
             failure: None,
         };
+        let before_marker = attempt.checkpoint();
         self.write_marker(
             attempt,
             request.marker_path,
@@ -1515,7 +1517,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             ),
             Err(TrackerError::Terminal { detail }) => self
                 .record_terminal_failure(request, attempt, fingerprint, detail),
-            Err(source) => Err(self.abandon_attempt(request, attempt, source)),
+            Err(source) => Err(self.abandon_attempt(
+                request,
+                attempt,
+                before_marker,
+                source,
+            )),
         }
     }
 
@@ -1539,15 +1546,19 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
     /// A marker left behind here would refuse the next run's create as a
     /// prior attempt of unknown outcome, so failing to clear it is the
-    /// item's failure.
+    /// item's failure; once cleared, only what landed before it remains.
     fn abandon_attempt(
         &self,
         request: &CreateFromLocalRequest<'_>,
-        attempt: &ItemAttempt,
+        attempt: &mut ItemAttempt,
+        before_marker: Checkpoint,
         source: TrackerError,
     ) -> ApplyError {
         match self.clear_marker(request.marker_path) {
-            Ok(()) => attempt.tracker_failure(SyncOperation::Create, source),
+            Ok(()) => {
+                attempt.roll_back_to(before_marker);
+                attempt.tracker_failure(SyncOperation::Create, source)
+            }
             Err(leftover) => attempt.io_failure(
                 SyncOperation::MarkerWrite,
                 format!(

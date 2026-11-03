@@ -62,6 +62,14 @@ pub struct Attempted<T> {
     pub created: Option<ExternalId>,
 }
 
+/// What had landed at a point in an attempt, to return to once a later
+/// step's own landing is undone.
+#[derive(Clone, Copy)]
+pub struct Checkpoint {
+    progress: ItemProgress,
+    last_landing: Option<Landing>,
+}
+
 /// `observe_*` steps never count as landed; `land_*` steps count once they
 /// succeed, and record the [`Landing`] later failures name.
 pub struct ItemAttempt {
@@ -159,11 +167,27 @@ impl ItemAttempt {
         Ok(key)
     }
 
+    pub const fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            progress: self.progress,
+            last_landing: self.last_landing,
+        }
+    }
+
+    pub const fn roll_back_to(&mut self, checkpoint: Checkpoint) {
+        self.progress = checkpoint.progress;
+        self.last_landing = checkpoint.last_landing;
+    }
+
     pub fn record_kept_edits(&mut self, copy: Option<PathBuf>) {
         self.kept_edits = copy;
     }
 
+    /// A failure after anything landed may have left the item changed,
+    /// whatever refused, so it is reported as an I/O failure that may have
+    /// landed and a retry never assumes a clean slate.
     pub fn finish<T>(self, result: Result<T, ApplyError>) -> Attempted<T> {
+        let result = result.map_err(|error| self.after_any_landing(error));
         Attempted {
             result,
             kept_edits: self.kept_edits,
@@ -192,6 +216,16 @@ impl ItemAttempt {
             item_id: self.item_id.clone(),
             operation,
             source,
+        }
+    }
+
+    fn after_any_landing(&self, error: ApplyError) -> ApplyError {
+        if self.progress == ItemProgress::MayHaveLanded
+            && error.progress() == ItemProgress::NothingLanded
+        {
+            self.io_failure(error.operation(), error.cause())
+        } else {
+            error
         }
     }
 
@@ -311,6 +345,25 @@ mod tests {
                 "after pull: injected".to_owned()
             )
         );
+    }
+
+    #[test]
+    fn a_refusal_after_a_landing_may_have_landed() {
+        let mut attempt = ItemAttempt::begin("0001");
+        attempt
+            .land_local(SyncOperation::LinkExternalId, None, || {
+                Ok::<(), PublishError<&str>>(())
+            })
+            .expect("the unlink landed");
+
+        let finished = attempt.finish::<()>(Err(
+            ApplyError::LocalChangedSinceClassified {
+                item_id: "0001".to_owned(),
+            },
+        ));
+
+        let error = finished.result.expect_err("the attempt failed");
+        assert_eq!(error.progress(), ItemProgress::MayHaveLanded);
     }
 
     #[test]

@@ -5042,6 +5042,29 @@ fn an_unconfirmed_adopt_can_be_cleared_by_create() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_relink_create_failing_after_its_unlink_is_terminal(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues().failing_create(TrackerError::Retryable {
+        detail: "jira create: could not connect".to_owned(),
+    });
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = relinking(
+        &fixture,
+        &tracker,
+        &author,
+        &item,
+        PendingPushOrder::Create,
+    )?;
+
+    assert_eq!(*author.unlinked.borrow(), [item.path]);
+    assert_eq!(failure_for(&report, "0001").class, FailureClass::Terminal);
+    Ok(())
+}
+
+#[test]
 fn a_refused_relink_create_leaves_the_link_in_place() -> Result<(), TestError> {
     let fixture = Fixture::new()?;
     let (item, _) = unconfirmed_link(&fixture)?;
