@@ -884,11 +884,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let _held = attempt.observe_local(SyncOperation::LockLocal, || {
             self.lock_item(request)
         })?;
-        let current = attempt
+        let decided = attempt
             .observe_local(SyncOperation::ReadLocal, || read_local(request))?;
-        ensure_unchanged_since_classified(request, &current)?;
+        ensure_unchanged_since_classified(request, &decided)?;
         let kept = attempt.observe_local(SyncOperation::KeepEdits, || {
-            self.keep_edits_unless_synced(request, &current)
+            self.keep_edits_unless_synced(request, &decided)
         })?;
         attempt.record_kept_edits(kept);
         let fingerprints = attempt
@@ -897,7 +897,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             })?;
         let current = attempt
             .observe_local(SyncOperation::ReadLocal, || read_local(request))?;
-        ensure_unchanged_since_classified(request, &current)?;
+        ensure_unchanged_since_decided(request, &decided, &current)?;
         attempt.land_local(
             SyncOperation::WriteLocal,
             Some(Landing::Pull),
@@ -1723,6 +1723,22 @@ fn read_local(
 
 fn read_file(path: &Path) -> Result<String, StepError<std::io::Error>> {
     std::fs::read_to_string(path).map_err(StepError::Failed)
+}
+
+/// The copy decision holds only for the content it was made on, so the
+/// file must still read exactly that before the pull writes over it.
+fn ensure_unchanged_since_decided(
+    request: &PullRequest<'_>,
+    decided: &str,
+    current: &str,
+) -> Result<(), ApplyError> {
+    if current == decided {
+        Ok(())
+    } else {
+        Err(ApplyError::LocalChangedSinceClassified {
+            item_id: request.id.to_owned(),
+        })
+    }
 }
 
 fn ensure_unchanged_since_classified(

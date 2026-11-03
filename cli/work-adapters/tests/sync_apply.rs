@@ -1552,6 +1552,25 @@ fn a_file_edited_while_its_copy_was_kept_is_not_pulled_over(
 }
 
 #[test]
+fn a_file_changed_after_its_copy_decision_is_not_pulled_over(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, CLASSIFIED);
+    let fake = Fake::default();
+    fake.report_status(Dirtiness::Dirty);
+    fake.rewrite_on_copy_recorded(&item_path, item_content());
+
+    let attempt = pull_with(&fake, &pull_request(&item_path));
+
+    assert!(matches!(
+        attempt.result,
+        Err(ApplyError::LocalChangedSinceClassified { .. })
+    ));
+    assert!(fake.calls().iter().all(|call| !call.starts_with("write:")));
+    Ok(())
+}
+
+#[test]
 fn a_pull_failing_after_its_copy_still_reports_kept_edits(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
