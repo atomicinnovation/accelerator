@@ -630,7 +630,10 @@ pub enum RecoveryNotice {
 }
 
 /// Whether a person has dealt with `original`'s copy in `dir`: the original
-/// matches it again, or the copy has been deleted or cannot be read.
+/// matches it again, or the copy has been deleted.
+///
+/// A copy that cannot be read may still hold the only edits, so it is never
+/// settled.
 pub fn copy_settled(
     recovery: &dyn RecoveryCopies,
     dir: &Path,
@@ -638,9 +641,7 @@ pub fn copy_settled(
 ) -> bool {
     matches!(
         recovery.compare_copy(&recovery.mirrored_copy(dir, original)),
-        CopyComparison::Equal
-            | CopyComparison::CopyMissing
-            | CopyComparison::CopyUnreadable
+        CopyComparison::Equal | CopyComparison::CopyMissing
     )
 }
 
@@ -778,7 +779,8 @@ mod tests {
     }
 
     #[test]
-    fn a_copy_is_settled_once_its_original_matches_it_or_it_is_deleted() {
+    fn a_copy_is_settled_only_once_its_original_matches_it_or_it_is_deleted(
+    ) {
         let settled = |comparison| {
             copy_settled(
                 &Comparing(comparison),
@@ -789,7 +791,7 @@ mod tests {
 
         assert!(settled(CopyComparison::Equal));
         assert!(settled(CopyComparison::CopyMissing));
-        assert!(settled(CopyComparison::CopyUnreadable));
+        assert!(!settled(CopyComparison::CopyUnreadable));
         assert!(!settled(CopyComparison::Different));
         assert!(!settled(CopyComparison::OriginalUnreadable));
     }
