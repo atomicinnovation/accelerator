@@ -779,8 +779,7 @@ mod tests {
     }
 
     #[test]
-    fn a_copy_is_settled_only_once_its_original_matches_it_or_it_is_deleted(
-    ) {
+    fn a_copy_is_settled_only_once_its_original_matches_it_or_it_is_deleted() {
         let settled = |comparison| {
             copy_settled(
                 &Comparing(comparison),

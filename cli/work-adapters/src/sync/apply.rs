@@ -1125,18 +1125,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     ) -> Result<CreatedLocally, ApplyError> {
         match order {
             PendingPushOrder::Adopt(key) => {
-                let refused = |refusal| ApplyError::OrderRefused {
-                    item_id: request.item_id.to_owned(),
-                    order: order.clone(),
-                    refusal: Box::new(refusal),
-                };
-                if let Some(blocking) = request.corpus_blocked_by {
-                    return Err(ApplyError::CorpusIncomplete {
-                        subject: request.item_id.to_owned(),
-                        deferred: IncompleteCorpusDeferral::Adopt(key.into()),
-                        blocking,
-                    });
-                }
+                let refused = order_refused(request, order);
+                adopt_awaits_no_incomplete_corpus(request, order)?;
                 let key = ExternalId::from(key);
                 match (request.carrier_of)(&key) {
                     Some(KeyCarrier::WorkItem(carrier))
@@ -1278,20 +1268,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         order: &PendingPushOrder,
     ) -> Result<CreatedLocally, ApplyError> {
         let marker = &reading.state();
-        let refused = |refusal| ApplyError::OrderRefused {
-            item_id: request.item_id.to_owned(),
-            order: order.clone(),
-            refusal: Box::new(refusal),
-        };
-        if let (PendingPushOrder::Adopt(key), Some(blocking)) =
-            (order, request.corpus_blocked_by)
-        {
-            return Err(ApplyError::CorpusIncomplete {
-                subject: request.item_id.to_owned(),
-                deferred: IncompleteCorpusDeferral::Adopt(key.into()),
-                blocking,
-            });
-        }
+        let refused = order_refused(request, order);
+        adopt_awaits_no_incomplete_corpus(request, order)?;
         let has_marker = !matches!(marker, MarkerState::Absent);
         let decision = match (reading, order) {
             (
@@ -1711,6 +1689,35 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt.observe_local(SyncOperation::BaselineSet, || {
             self.set_baseline(attempt.item_id(), &remote_updated, fingerprints)
         })
+    }
+}
+
+fn order_refused<'a>(
+    request: &'a CreateFromLocalRequest<'_>,
+    order: &'a PendingPushOrder,
+) -> impl Fn(OrderRefusal) -> ApplyError + 'a {
+    |refusal| ApplyError::OrderRefused {
+        item_id: request.item_id.to_owned(),
+        order: order.clone(),
+        refusal: Box::new(refusal),
+    }
+}
+
+/// An unusable file may already carry the key an adopt order names, so the
+/// adopt waits until the corpus is complete.
+fn adopt_awaits_no_incomplete_corpus(
+    request: &CreateFromLocalRequest<'_>,
+    order: &PendingPushOrder,
+) -> Result<(), ApplyError> {
+    match (order, request.corpus_blocked_by) {
+        (PendingPushOrder::Adopt(key), Some(blocking)) => {
+            Err(ApplyError::CorpusIncomplete {
+                subject: request.item_id.to_owned(),
+                deferred: IncompleteCorpusDeferral::Adopt(key.into()),
+                blocking,
+            })
+        }
+        _ => Ok(()),
     }
 }
 
