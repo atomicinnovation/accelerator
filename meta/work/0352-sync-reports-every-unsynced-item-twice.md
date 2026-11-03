@@ -103,8 +103,9 @@ Changes:
 
 ## Assumptions
 
-- No script parses the `noop\tunsynced` row; `/sync-work-items` has no entry
-  for it.
+- No script parses the `noop\tunsynced` row. `/sync-work-items` treats it as
+  belonging to no group when the same id also has a `failed`,
+  `create-from-local` or `adopt` row.
 
 ## Technical Notes
 
@@ -112,6 +113,11 @@ Changes:
   (`cli/work-adapters/src/sync/dossiers.rs:90`), as does the decide golden
   (`cli/work/tests/fixtures/work-item-sync-decide.golden:32-34`); taking the
   entry out of the plan after planning should leave both untouched.
+- `/sync-work-items` carries an interim membership-table rule that ignores the
+  duplicate `noop\tunsynced` row beside a create's row, pinned by
+  `test_a_create_s_duplicate_noop_row_joins_no_group`. It works around the
+  duplicate and does not fix it; remove the rule once each unsynced item is
+  reported once.
 
 ## References
 

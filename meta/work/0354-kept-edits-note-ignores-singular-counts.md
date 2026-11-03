@@ -5,7 +5,7 @@ title: "Kept-Edits Note Ignores Singular Counts"
 date: "2026-10-24T11:40:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "bug"
 priority: "low"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ external_id: "PP-929"
 # 0354: Kept-Edits Note Ignores Singular Counts
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

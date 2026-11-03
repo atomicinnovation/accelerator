@@ -5,7 +5,7 @@ title: "Sync Work Items Skill Ignores the Summary Record"
 date: "2026-10-24T11:40:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "low"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ external_id: "PP-928"
 # 0353: Sync Work Items Skill Ignores the Summary Record
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
