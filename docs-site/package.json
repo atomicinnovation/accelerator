@@ -21,7 +21,7 @@
   "overrides": {
     "astro-rehype-relative-markdown-links": {
       "astro": "$astro",
-      "zod": "^4.6.6"
+      "zod": "4.6.7"
     },
     "devalue": "^5.9.3",
     "svgo": "^4.1.0",
