@@ -107,6 +107,17 @@ impl RunFailure {
     }
 }
 
+impl From<&ApplyError> for RunFailure {
+    fn from(error: &ApplyError) -> Self {
+        Self::error(
+            error.item_id(),
+            error.operation(),
+            error.cause(),
+            error.class(),
+        )
+    }
+}
+
 /// How much of the corpus a run looked at, which decides what it may judge
 /// about the corpus as a whole.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -225,22 +236,10 @@ impl RunReport {
     pub fn failures(&self) -> impl Iterator<Item = RunFailure> + '_ {
         let rows =
             self.reported.iter().filter_map(|item| match &item.outcome {
-                ItemOutcome::Failed(error) => Some(RunFailure::error(
-                    error.item_id(),
-                    error.operation(),
-                    error.cause(),
-                    error.class(),
-                )),
+                ItemOutcome::Failed(error) => Some(RunFailure::from(error)),
                 _ => None,
             });
-        let refused_orders = self.refused_orders.iter().map(|error| {
-            RunFailure::error(
-                error.item_id(),
-                error.operation(),
-                error.cause(),
-                error.class(),
-            )
-        });
+        let refused_orders = self.refused_orders.iter().map(RunFailure::from);
         let unclassifiable = self.unclassifiable.iter().map(|item| {
             RunFailure::error(
                 &item.id,
@@ -254,12 +253,7 @@ impl RunReport {
                 .iter()
                 .map(|deferral| match deferral {
                     DiscoveryDeferral::CorpusIncomplete(error) => {
-                        RunFailure::error(
-                            error.item_id(),
-                            error.operation(),
-                            error.cause(),
-                            error.class(),
-                        )
+                        RunFailure::from(error)
                     }
                     DiscoveryDeferral::PendingPush(deferral) => {
                         RunFailure::error(
