@@ -260,7 +260,13 @@ nothing was written:
 exit code: a `4` run can carry retryable failures and a `71` run may also carry
 conflicts. Every failure also prints `error: <id-path-or-dash>: <operation>
 failed: <cause>` on stderr (`would fail` on a preview), except a refused or
-rolled-back key change, which is a `failed` row only. A `record-baseline` row
+rolled-back key change, which is a `failed` row only. A preview does not yet
+read a create's pending-push marker, so a pending push the run would refuse
+fails only on the run itself: for each `create-from-local` row in a preview,
+read the marker at
+`<paths.integrations>/<work.integration>/pending-push/<id>.json`; if one
+exists, tell the user the preview cannot confirm that item and follow the
+recovery skill's pending-push recovery before the real run. A `record-baseline` row
 (state `locally-modified`) means only the item's baseline was recorded and
 nothing was sent or written: the local change touched no field the tracker
 holds, or both sides already agree. A `push` row also covers a title sent

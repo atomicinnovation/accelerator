@@ -335,6 +335,18 @@ class TestDispatch:
     ) -> None:
         assert f"**{record}**" in output_section
 
+    def test_a_clean_preview_does_not_vouch_for_a_pending_push(
+        self, output_section: str
+    ) -> None:
+        text = _prose(output_section)
+        assert "A preview does not yet read a create's pending-push marker" in (
+            text
+        )
+        assert (
+            "`<paths.integrations>/<work.integration>/pending-push/<id>.json`"
+            in text
+        )
+
     def test_every_unidentified_kind_is_advised(
         self, output_section: str
     ) -> None:

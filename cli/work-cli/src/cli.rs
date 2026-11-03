@@ -153,7 +153,9 @@ pub enum Command {
     /// Every failure prints `error: <id-or-path-or-dash>: <operation>
     /// failed: <cause>` on stderr (`would fail` on a preview), except a
     /// refused or rolled-back key change, which is a `failed` row awaiting
-    /// a human. The report on
+    /// a human. A preview does not yet read a create's pending-push marker,
+    /// so a pending push the run would refuse fails only on the run itself.
+    /// The report on
     /// stdout is authoritative: check its `failed` rows and `#\tunidentified`
     /// records whatever the exit code, since a run that exits 4 can carry
     /// retryable failures and a 71 run may also carry conflicts. Besides the
