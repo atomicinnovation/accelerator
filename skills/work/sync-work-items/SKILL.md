@@ -344,6 +344,9 @@ file aside first, in the timestamped form the files rule gives.
   settled; `skipped\tincomplete-corpus` means none is imported until the
   `#\tunidentified` files are repaired.
 - **`#\tnote`**: relay as information.
+- **`#\tsummary\tsynced\t<N>`**: the number of items already in sync, which
+  the report counts instead of listing. It is informational; an empty corpus
+  reports `0`.
 - **`#\tadopt\t<id>\t<KEY>\t<title>`**: show the quoted title and ask the user
   to confirm it is the issue they meant before the order runs.
 - **`note: <id>: adopt:`** (stderr, apply run): relay that the adopted issue
@@ -373,8 +376,8 @@ file aside first, in the timestamped form the files rule gives.
   a `conflict` row will raise a dossier for).
 - **`#\tkept-edits\t<id>\t<kind>\t<item-path>\t<copy-path>`**: local edits a
   pull replaced, kept at `<copy-path>`. `<kind>` is `this-run`, `earlier` or
-  `unrecorded` (item path `-`, the sixth field the directory); there may be no
-  row for the id.
+  `unrecorded`; for `unrecorded`, `<item-path>` is `-` and `<copy-path>` names
+  the directory. There may be no row for the id.
   - `earlier` and `unrecorded` records recur on every run until handled,
     because nothing deletes an unsettled copy automatically. Show the
     directory and offer to merge anything wanted.
@@ -382,7 +385,8 @@ file aside first, in the timestamped form the files rule gives.
     `accelerator work sync --target <id> --discard-kept-edits <id>`, the
     narrow form, after first running it with `--preview` and listing every
     directory it would discard. Say it is a real sync of that item, which
-    removes every kept copy of that item (confirmation rule); a CLI discard is
+    removes every kept copy of that item (confirmation rule); without
+    `--target`, `--discard-kept-edits` syncs every item. A CLI discard is
     the one deletion with no move-aside, because the copy is itself the
     backup.
   - An `unrecorded` record with id `-` cannot be discarded by id: ask the user
@@ -455,9 +459,11 @@ the cause is fixed:
 | `conflicts-skipped`, `not-found`, `remote-absent`, `not promoted` | their Step 5 group | yes |
 | `record-baseline` row | `recorded` | no |
 | `#\tkept-edits` | `kept-edits:` | no |
+| `#\tsummary\tsynced\t<N>` | `in sync:` (the count) | no |
 | `adopt` or `relink` row | `adopted: <id> → <KEY>` (annotated "conflict to resolve on next sync" when a `note: <id>: adopt:` line exists) | no |
 | `#\tunidentified` `unreadable`, `undecodable` or `malformed`, targeted run | listed once, with its `warning:` | no |
 | `#\tunidentified` `no-frontmatter` or `no-id` | listed once | no |
+| `noop\tunsynced` row for an id that also has a `failed`, `create-from-local` or `adopt` row | none: that row speaks for the item | no |
 
 Example: `needs-retry: 0001, meta/work/0002-x.md (unreadable), sync baseline
 (not saved)`.
@@ -572,8 +578,8 @@ unchanged.
 **Normalise the typed token to one of `remote|local|skip` (or `local|skip` for
 the reduced prompt) in the skill** before
 emitting — empty or unrecognised input **re-asks once, then resolves to `skip`**
-— never routing the raw token into `--resolve`, whose warn-and-skip would discard
-a typo silently. There is deliberately **no Enter default**: 'Recommended: keep
+— never routing the raw token into `--resolve`, which refuses an unrecognised
+order with exit 2 and so would stop the whole run over a typo. There is deliberately **no Enter default**: 'Recommended: keep
 remote' steers the choice but still requires typing the word, so a reflexive
 Enter never discards local edits. Emit an **override-log** line for a `local`
 win (e.g. `OVERRIDE <id> (<external_id>): pushed local→remote`).
@@ -670,6 +676,7 @@ needs-attention:       <ids and paths>
 needs-upgrade:         <ids>   (baseline written by a newer plugin)
 recorded:              <ids>   (local metadata changed; nothing to send)
 kept-edits:            <id>: <copy path>
+in sync:               <N> items
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```

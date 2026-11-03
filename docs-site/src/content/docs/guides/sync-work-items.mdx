@@ -163,14 +163,20 @@ both directions.
    - `needs-attention` — inspect or repair before re-running, a broken
      work file listed by path included.
    - `needs-upgrade` — a newer plugin wrote the item's baseline.
+   - `conflicts-skipped`, `not-found`, `remote-absent` and `not promoted`
+     — the item was left for you to decide.
 
-   Two further groups are informational:
+   Further groups are informational:
 
    - `recorded` — only the baseline was recorded; nothing was sent or
      written.
    - `kept-edits` — local edits a pull replaced, kept until you merge
      them back by hand (the skill shows the copy beside the item) and run
      `accelerator work sync --target <id> --discard-kept-edits <id>`.
+   - `adopted` — an adopt or relink order linked the item to an existing
+     issue.
+   - `in sync` — how many items were already in sync, from the report's
+     `#\tsummary\tsynced\t<N>` record.
 
    A Markdown file in the work directory with no frontmatter or no `id`
    (a README, say) is listed as `no-frontmatter` or `no-id` on every run

@@ -161,8 +161,8 @@ pub enum Command {
     /// retryable failures and a 71 run may also carry conflicts. Besides the
     /// item rows — whose actions include `adopt` and `relink` — it prints
     /// `#\tunidentified\t<path>\t<kind>` for each work file sync cannot use,
-    /// `#\tkept-edits\t<id>\t<when>\t<item>\t<copy>` for local edits a pull
-    /// kept, `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
+    /// `#\tkept-edits\t<id>\t<kind>\t<item-path>\t<copy-path>` for local
+    /// edits a pull kept, `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an adopt
     /// order links, and `#\tstale-dossier\t<id>\t<path>` for a conflict
     /// dossier that no longer describes its item; discovery reads
     /// `skipped\tincomplete-corpus` or `skipped\tpending-push` when it
@@ -443,7 +443,8 @@ pub struct SyncArgs {
     #[arg(long = "target")]
     pub targets: Vec<String>,
     /// Remove the local edits an earlier pull kept for this work item;
-    /// repeatable. A discard happens on an apply run, so the narrow form is
+    /// repeatable. A discard happens on an apply run, which without
+    /// `--target` syncs every item, so the narrow form is
     /// `--target <id> --discard-kept-edits <id>`.
     #[arg(long = "discard-kept-edits", value_name = "ID")]
     pub discard_kept_edits: Vec<String>,

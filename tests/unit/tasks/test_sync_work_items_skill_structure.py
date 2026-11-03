@@ -320,6 +320,7 @@ class TestDispatch:
             "`<draft>\\tnot-promoted\\tunsynced\\t<reason>`",
             "`#\\tdiscovery`",
             "`#\\tnote`",
+            "`#\\tsummary\\tsynced\\t<N>`",
             "`#\\tadopt\\t<id>\\t<KEY>\\t<title>`",
             "`note: <id>: adopt:`",
             "`noop\\tindeterminate\\tunsupported-recipe`",
@@ -437,6 +438,23 @@ class TestMembership:
         adopted = next(row for row in rows if "`adopt`" in row[0])
         assert "`adopted: <id> → <KEY>`" in adopted[1]
         assert adopted[2] == "no"
+
+    def test_the_summary_record_never_blocks_completion(
+        self, output_section: str
+    ) -> None:
+        rows = _table_rows(output_section, "Record")
+        summary = next(row for row in rows if "`#\\tsummary" in row[0])
+        assert "`in sync:`" in summary[1]
+        assert summary[2] == "no"
+
+    def test_a_create_s_duplicate_noop_row_joins_no_group(
+        self, output_section: str
+    ) -> None:
+        rows = _table_rows(output_section, "Record")
+        duplicate = next(
+            row for row in rows if row[0].startswith("`noop\\tunsynced`")
+        )
+        assert duplicate[2] == "no"
 
     def test_completion_needs_a_clean_exit_and_no_blocking_group(
         self, output_section: str
