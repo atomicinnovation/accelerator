@@ -90,7 +90,7 @@ revising for eight major findings in four areas:
   but not a valid ID the skill wrongly rejects. At minimum, record the
   departure and its cost in the Decisions table. A cheap middle path is for
   the skill to check its proposed form against `work canonicalise-id` output,
-  or to defer CLI validation to 0351's validate-only `--dry-run` as a named
+  or to defer CLI validation to 0371's validate-only `--dry-run` as a named
   follow-up.
 - **Align other ID readers now or defer them**: Compatibility offers widening
   `normalise_id` and `is_canonical_id_token` to the taken rule's key grammar.
@@ -187,7 +187,7 @@ revising for eight major findings in four areas:
   `creation_context`'s opening steps and orders the checks differently
   **Location**: Phase 4 §2
   Extract one preflight helper that both paths call. Narrow the parity claim
-  and its traceability row to the five `--id` refusals until 0351.
+  and its traceability row to the five `--id` refusals until 0371.
 - 🔵 **Code Quality + Correctness + Architecture + Test Coverage**: The
   "refactor first" step changes behaviour and leaves malformed patterns
   unspecified
@@ -358,8 +358,8 @@ revising for eight major findings in four areas:
   the pup import rule require. Only `admit` can build a `RequestedId`, so
   mismatch-before-collision is enforced by types.
 - ✅ Refusals render once through `Display`, following `NotRekeyed`, so the
-  real create, the dry-run and 0351 share one text.
-- ✅ The collision check takes no lock guard, built for 0351's lock-free
+  real create, the dry-run and 0371 share one text.
+- ✅ The collision check takes no lock guard, built for 0371's lock-free
   validation. A plain dry-run stays byte-identical.
 - ✅ `compile_ignoring_case` is a new constructor, so the visualiser is
   untouched. One `key_sequence::scanner_for` replaces two duplicated scanner
@@ -384,7 +384,7 @@ revising for eight major findings in four areas:
    Add a Decisions row that names ADR-0045, the third copy of the grammar,
    and the cost: a valid ID the skill wrongly rejects is never backstopped.
    Either have the skill compare its proposal with `work canonicalise-id`,
-   or name a follow-up for 0351's validate-only dry-run.
+   or name a follow-up for 0371's validate-only dry-run.
 2. **Consolidate the pattern grammar and the held-ID rule in `work`**
    (addresses: grammar walked three times; equivalence rule private;
    refactor-first changes behaviour; malformed patterns unspecified)
@@ -455,7 +455,7 @@ revising for eight major findings in four areas:
 **Summary**: The plan is structurally sound. The domain model lives in the
 regex-free `work` core, the collision check sits at the existing lock-held
 `allocate` seam before the push, and the lock-free check signature is built
-to fit 0351. The main risks are in domain coherence and the division of
+to fit 0371. The main risks are in domain coherence and the division of
 labour:
 
 - the skill takes on deterministic classification, which ADR-0045 assigns
@@ -467,7 +467,7 @@ labour:
 
 **Strengths**: reuses the `allocate` seam under the lock before the push;
 the domain sits in `work`, within ADR-0053 and pup; `refuse_if_taken` is
-pure over data already read; the lock-free check signature fits 0351;
+pure over data already read; the lock-free check signature fits 0371;
 admission precedes `create_dir_all`; `compile_ignoring_case` leaves the
 visualiser untouched; the dry-run without `--id` is byte-identical; scope
 deferrals are explicit.
@@ -478,7 +478,7 @@ deferrals are explicit.
   against ADR-0045, unacknowledged** (Phase 5 §2 step 3; Decisions). Skill
   and CLI can disagree on what is exact, and the backstop misses wrongful
   rejections. Record the departure, and move classification towards the
-  CLI or name a follow-up for 0351's validate-only dry-run.
+  CLI or name a follow-up for 0371's validate-only dry-run.
 - 🟡 major / medium — **The key-and-number equivalence rule is buried in
   `RequestedId`, while `identity.rs` and `rekey::sequence` keep their own**
   (Phase 2 §3). There are three rules that can disagree on `400` against
@@ -494,7 +494,7 @@ deferrals are explicit.
   `KeySequenceScanners` port in `work`, implemented once in an adapter.
 - 🔵 minor / medium — **The dry-run preflight repeats `creation_context`'s
   opening and orders the checks differently** (Phase 4 §2). Extract one
-  helper, and state that parity covers only the `--id` refusals until 0351.
+  helper, and state that parity covers only the `--id` refusals until 0371.
 - 🔵 minor / medium — **A pushed `--id` create retried after an unknown
   outcome is unaddressed** (Phase 3 §4). `E_ID_TAKEN` fires before
   `E_PUSH_PENDING`. State the intended behaviour and pin it with a
@@ -629,7 +629,7 @@ opt-in.
 
 - 🔵 minor / medium — **The dry-run collision refusal can differ from the
   real create's** (Phase 4). Narrow the claim to apply when the non-`--id`
-  checks pass, and record the gap as 0351's.
+  checks pass, and record the gap as 0371's.
 - 🔵 minor / medium — **Unrecognised number specs leave admission
   unspecified and change `work resolve`** (Phase 2 §1). Validate the pattern
   before admission, state that an empty or number-less segment list admits
@@ -711,7 +711,7 @@ Changed rather than Breaking.
 covers the 14 existing codes; `Segment` stays `pub(crate)`; the visualiser's
 case-sensitive scan is pinned; one shared scanner keeps the projection and
 the write in step; case-insensitive comparison behaves the same on APFS and
-Linux; the design is forward-compatible with 0351; the skill and binary
+Linux; the design is forward-compatible with 0371; the skill and binary
 ship in lockstep.
 
 **Findings**:
