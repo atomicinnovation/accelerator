@@ -23,7 +23,11 @@ use work::inventory::NamesWorkItem;
 use work::tracker_key::TrackerKey;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::fetch::LocalItem;
+use work_adapters::sync::operation::SyncOperation;
+use work_adapters::sync::report::FailureSeverity;
+use work_adapters::sync::report::RunFailure;
 
 /// Names work items from filenames as the configured id scheme lays them
 /// out, drafts included.
@@ -95,7 +99,7 @@ impl VcsConflicts {
         start: &Path,
         repository: &dyn RepositoryProbe,
         reporter: &dyn VcsReporter,
-    ) -> (Self, Option<String>) {
+    ) -> (Self, Option<RunFailure>) {
         let unknown = |root: PathBuf| Self {
             root,
             conflicted: BTreeSet::new(),
@@ -123,12 +127,17 @@ impl VcsConflicts {
             ),
             Err(_) => (
                 unknown(facts.root),
-                Some(format!(
-                    "warning: -: identify-local failed: could not read \
-                     conflict status from {}; relying on conflict markers in \
-                     file text",
-                    vcs_name(facts.kind)
-                )),
+                Some(RunFailure {
+                    subject: "-".to_owned(),
+                    operation: SyncOperation::IdentifyLocal,
+                    cause: format!(
+                        "could not read conflict status from {}; relying on \
+                         conflict markers in file text",
+                        vcs_name(facts.kind)
+                    ),
+                    class: FailureClass::Retryable,
+                    severity: FailureSeverity::Warning,
+                }),
             ),
         }
     }
@@ -275,7 +284,7 @@ mod tests {
         let (conflicts, warning) =
             VcsConflicts::read(dir.path(), &InProcessProbe, &FailingReporter);
 
-        assert_eq!(warning, None);
+        assert!(warning.is_none());
         assert!(!conflicts.is_conflicted(&dir.path().join("0001-x.md")));
     }
 
@@ -293,7 +302,11 @@ mod tests {
             VcsConflicts::read(dir.path(), &InProcessProbe, &FailingReporter);
 
         assert_eq!(
-            warning.as_deref(),
+            warning
+                .map(|warning| crate::report_records::failure_line(
+                    &warning, "failed"
+                ))
+                .as_deref(),
             Some(
                 "warning: -: identify-local failed: could not read conflict \
                  status from git; relying on conflict markers in file text"

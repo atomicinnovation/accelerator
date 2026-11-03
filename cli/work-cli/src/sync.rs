@@ -2139,7 +2139,7 @@ fn prepare_sync(
     let (conflicts, conflicts_unread) =
         VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
     if let Some(warning) = conflicts_unread {
-        console.warn(warning);
+        console.warn(failure_line(&warning, "failed"));
     }
     let (items, inventory) = discover_corpus(&work_dir, &names, &conflicts)
         .map_err(Refusal::error)?;
