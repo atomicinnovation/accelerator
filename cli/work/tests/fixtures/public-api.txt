@@ -1708,22 +1708,26 @@ pub enum work::sync::push_precondition::MarkerState<'a>
 pub work::sync::push_precondition::MarkerState::Absent
 pub work::sync::push_precondition::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::push_precondition::MarkerState::Unreadable
-pub enum work::sync::push_precondition::OrderPrecondition
-pub work::sync::push_precondition::OrderPrecondition::Adopt
-pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere(tracker::ExternalId)
-pub work::sync::push_precondition::OrderPrecondition::AlreadyWritten
+pub enum work::sync::push_precondition::OrderPrecondition<C>
+pub work::sync::push_precondition::OrderPrecondition::Adopt(tracker::ExternalId)
+pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere
+pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere::key: tracker::ExternalId
+pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere::recorded: tracker::ExternalId
+pub work::sync::push_precondition::OrderPrecondition::AlreadyWritten(C)
 pub work::sync::push_precondition::OrderPrecondition::Create
 pub work::sync::push_precondition::OrderPrecondition::CreateUnlessIssueExists(tracker::ExternalId)
 pub work::sync::push_precondition::OrderPrecondition::CreateUnmarked
 pub work::sync::push_precondition::OrderPrecondition::KeyCarried
-impl core::clone::Clone for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::clone(&self) -> work::sync::push_precondition::OrderPrecondition
-impl core::cmp::Eq for work::sync::push_precondition::OrderPrecondition
-impl core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::eq(&self, other: &work::sync::push_precondition::OrderPrecondition) -> bool
-impl core::fmt::Debug for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition
+pub work::sync::push_precondition::OrderPrecondition::KeyCarried::carrier: C
+pub work::sync::push_precondition::OrderPrecondition::KeyCarried::key: tracker::ExternalId
+impl<C: core::clone::Clone> core::clone::Clone for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::clone(&self) -> work::sync::push_precondition::OrderPrecondition<C>
+impl<C: core::cmp::Eq> core::cmp::Eq for work::sync::push_precondition::OrderPrecondition<C>
+impl<C: core::cmp::PartialEq> core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::eq(&self, other: &work::sync::push_precondition::OrderPrecondition<C>) -> bool
+impl<C: core::fmt::Debug> core::fmt::Debug for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<C> core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition<C>
 pub enum work::sync::push_precondition::PendingPush
 pub work::sync::push_precondition::PendingPush::Attempted
 pub work::sync::push_precondition::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
@@ -1802,7 +1806,7 @@ pub fn work::sync::push_precondition::RequestFingerprint::eq(&self, other: &work
 impl core::fmt::Debug for work::sync::push_precondition::RequestFingerprint
 pub fn work::sync::push_precondition::RequestFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::RequestFingerprint
-pub fn work::sync::push_precondition::order_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::push_precondition::order_precondition<C>(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carrier: &dyn core::ops::function::Fn(&tracker::ExternalId) -> core::option::Option<C>) -> work::sync::push_precondition::OrderPrecondition<C>
 pub fn work::sync::push_precondition::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::push_precondition::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
 pub mod work::sync::state
@@ -2044,22 +2048,26 @@ pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::MarkerState::Unreadable
-pub enum work::sync::OrderPrecondition
-pub work::sync::OrderPrecondition::Adopt
-pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere(tracker::ExternalId)
-pub work::sync::OrderPrecondition::AlreadyWritten
+pub enum work::sync::OrderPrecondition<C>
+pub work::sync::OrderPrecondition::Adopt(tracker::ExternalId)
+pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere
+pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere::key: tracker::ExternalId
+pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere::recorded: tracker::ExternalId
+pub work::sync::OrderPrecondition::AlreadyWritten(C)
 pub work::sync::OrderPrecondition::Create
 pub work::sync::OrderPrecondition::CreateUnlessIssueExists(tracker::ExternalId)
 pub work::sync::OrderPrecondition::CreateUnmarked
 pub work::sync::OrderPrecondition::KeyCarried
-impl core::clone::Clone for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::clone(&self) -> work::sync::push_precondition::OrderPrecondition
-impl core::cmp::Eq for work::sync::push_precondition::OrderPrecondition
-impl core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::eq(&self, other: &work::sync::push_precondition::OrderPrecondition) -> bool
-impl core::fmt::Debug for work::sync::push_precondition::OrderPrecondition
-pub fn work::sync::push_precondition::OrderPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition
+pub work::sync::OrderPrecondition::KeyCarried::carrier: C
+pub work::sync::OrderPrecondition::KeyCarried::key: tracker::ExternalId
+impl<C: core::clone::Clone> core::clone::Clone for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::clone(&self) -> work::sync::push_precondition::OrderPrecondition<C>
+impl<C: core::cmp::Eq> core::cmp::Eq for work::sync::push_precondition::OrderPrecondition<C>
+impl<C: core::cmp::PartialEq> core::cmp::PartialEq for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::eq(&self, other: &work::sync::push_precondition::OrderPrecondition<C>) -> bool
+impl<C: core::fmt::Debug> core::fmt::Debug for work::sync::push_precondition::OrderPrecondition<C>
+pub fn work::sync::push_precondition::OrderPrecondition<C>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<C> core::marker::StructuralPartialEq for work::sync::push_precondition::OrderPrecondition<C>
 pub enum work::sync::PendingPush
 pub work::sync::PendingPush::Attempted
 pub work::sync::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
@@ -2456,7 +2464,7 @@ pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
-pub fn work::sync::order_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::OrderPrecondition
+pub fn work::sync::order_precondition<C>(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carrier: &dyn core::ops::function::Fn(&tracker::ExternalId) -> core::option::Option<C>) -> work::sync::push_precondition::OrderPrecondition<C>
 pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, orders: &work::sync::plan::PlanOrders<'_>) -> work::sync::plan::SyncPlan
 pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome
 pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition

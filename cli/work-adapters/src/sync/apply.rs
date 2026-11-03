@@ -1104,20 +1104,19 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn relink(
         &mut self,
         request: &CreateFromLocalRequest<'_>,
+        order: &PendingPushOrder,
     ) -> Attempted<CreatedLocally> {
         let mut attempt = ItemAttempt::begin(request.item_id);
-        let result = self.relink_steps(request, &mut attempt);
+        let result = self.relink_steps(request, order, &mut attempt);
         attempt.finish(result)
     }
 
     fn relink_steps(
         &self,
         request: &CreateFromLocalRequest<'_>,
+        order: &PendingPushOrder,
         attempt: &mut ItemAttempt,
     ) -> Result<CreatedLocally, ApplyError> {
-        let Some(order) = request.order else {
-            unreachable!("a relink is planned only for an order")
-        };
         match order {
             PendingPushOrder::Adopt(key) => {
                 let refused = |refusal| ApplyError::OrderRefused {
@@ -1287,12 +1286,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 blocking,
             });
         }
-        let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
-        let carrier_of = |key: &ExternalId| {
-            (request.carrier_of)(key).unwrap_or_else(|| {
-                unreachable!("the order was refused because {key} is carried")
-            })
-        };
         let has_marker = !matches!(marker, MarkerState::Absent);
         let decision = match (reading, order) {
             (
@@ -1302,35 +1295,19 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 },
                 PendingPushOrder::Create,
             ) => OrderPrecondition::CreateUnlessIssueExists(recorded.clone()),
-            _ => order_precondition(marker, &digest, order, &is_carried),
+            _ => order_precondition(marker, &digest, order, request.carrier_of),
         };
         match decision {
-            OrderPrecondition::AlreadyWritten => {
-                let carrier = match marker {
-                    MarkerState::Present(PendingPush::Created {
-                        external_id,
-                        ..
-                    }) => carrier_of(external_id),
-                    _ => unreachable!(
-                        "only a created marker's issue is already written"
-                    ),
-                };
+            OrderPrecondition::AlreadyWritten(carrier) => {
                 Err(refused(OrderRefusal::AlreadyWritten { carrier }))
             }
-            OrderPrecondition::KeyCarried => {
-                let key = adopted_key(order);
-                let carrier = carrier_of(&key);
+            OrderPrecondition::KeyCarried { key, carrier } => {
                 Err(refused(OrderRefusal::KeyCarried { key, carrier }))
             }
-            OrderPrecondition::Adopt => self.adopt(
-                request,
-                attempt,
-                &adopted_key(order),
-                has_marker,
-                refused,
-            ),
-            OrderPrecondition::AdoptIfMarkerKeyMovedHere(recorded) => {
-                let key = adopted_key(order);
+            OrderPrecondition::Adopt(key) => {
+                self.adopt(request, attempt, &key, has_marker, refused)
+            }
+            OrderPrecondition::AdoptIfMarkerKeyMovedHere { recorded, key } => {
                 match attempt.observe_tracker(SyncOperation::Adopt, || {
                     self.tracker.locate(&recorded)
                 })? {
@@ -1732,15 +1709,6 @@ pub fn issue_title(issue: &RemoteIssue) -> String {
     remote_projection::split_projected(&issue.body)
         .title
         .to_owned()
-}
-
-fn adopted_key(order: &PendingPushOrder) -> ExternalId {
-    match order {
-        PendingPushOrder::Adopt(key) => key.into(),
-        PendingPushOrder::Create => {
-            unreachable!("only an adopt order names a key to adopt")
-        }
-    }
 }
 
 fn same_key(left: &ExternalId, right: &ExternalId) -> bool {

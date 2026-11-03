@@ -1250,6 +1250,15 @@ impl LocalCreate<'_> {
         matches!(self.planned.action(), Action::Relink)
     }
 
+    /// The order a relink carries out; `None` for a plain create.
+    const fn relink_order(&self) -> Option<&PendingPushOrder> {
+        if self.relinks() {
+            self.planned.order()
+        } else {
+            None
+        }
+    }
+
     const fn adopts(&self) -> bool {
         matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
     }
@@ -1703,6 +1712,30 @@ fn apply_planned_action(
     }
 }
 
+/// Where an item's create keeps its pending-push marker and its adoption
+/// record, both named by the item's id.
+struct CreateStatePaths {
+    marker: PathBuf,
+    adoption_record: PathBuf,
+}
+
+impl CreateStatePaths {
+    fn for_item(request: &SyncRequest<'_>, id: &str) -> Option<Self> {
+        Some(Self {
+            marker: crate::sync::pending_push::for_item(
+                request.integrations_root,
+                request.integration,
+                id,
+            )?,
+            adoption_record: crate::sync::adoption_records::path(
+                request.integrations_root,
+                request.integration,
+                id,
+            )?,
+        })
+    }
+}
+
 fn apply_local_create(
     applier: &mut ItemApplier<'_, '_>,
     create: &LocalCreate<'_>,
@@ -1716,11 +1749,8 @@ fn apply_local_create(
         Ok(inputs) => inputs,
         Err(error) => return (create.report(ItemOutcome::Failed(error)), None),
     };
-    let Some(marker_path) = crate::sync::pending_push::for_item(
-        request.integrations_root,
-        request.integration,
-        &item.id,
-    ) else {
+    let Some(state_paths) = CreateStatePaths::for_item(request, &item.id)
+    else {
         return (
             create.report(ItemOutcome::Failed(
                 ItemAttempt::begin(&item.id).io_failure(
@@ -1731,21 +1761,14 @@ fn apply_local_create(
             None,
         );
     };
-    let Some(adoption_record_path) = crate::sync::adoption_records::path(
-        request.integrations_root,
-        request.integration,
-        &item.id,
-    ) else {
-        unreachable!("an id that names a marker names an adoption record")
-    };
     let local_create = CreateFromLocalRequest {
         item_id: &item.id,
         file_path: &item.path,
         title: &title,
         body: &body,
         kind: &kind,
-        marker_path: &marker_path,
-        adoption_record_path: &adoption_record_path,
+        marker_path: &state_paths.marker,
+        adoption_record_path: &state_paths.adoption_record,
         author,
         carrier_of,
         corpus_blocked_by: request.inventory.blocking_fault(),
@@ -1754,10 +1777,9 @@ fn apply_local_create(
         tracker_name: request.integration,
         attempted_at,
     };
-    let attempted = if create.relinks() {
-        applier.relink(&local_create)
-    } else {
-        applier.create_from_local(&local_create)
+    let attempted = match create.relink_order() {
+        Some(order) => applier.relink(&local_create, order),
+        None => applier.create_from_local(&local_create),
     };
     match attempted.result {
         Ok(created) => (

@@ -161,19 +161,23 @@ pub fn push_precondition(
 }
 
 /// What a pending-push order does over the item's marker, before the
-/// tracker is asked whether the issues it names exist.
+/// tracker is asked whether the issues it names exist; `C` is whatever
+/// names the item carrying a key.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OrderPrecondition {
+pub enum OrderPrecondition<C> {
     /// The marker's created issue is already carried, so neither order can
     /// tell which item is the real one.
-    AlreadyWritten,
+    AlreadyWritten(C),
     /// Another item already carries the key to adopt.
-    KeyCarried,
+    KeyCarried { key: ExternalId, carrier: C },
     /// Adopt the typed key once the tracker confirms it.
-    Adopt,
+    Adopt(ExternalId),
     /// The marker records an issue created under another key: adopt only
     /// if that issue has since moved to the typed key.
-    AdoptIfMarkerKeyMovedHere(ExternalId),
+    AdoptIfMarkerKeyMovedHere {
+        recorded: ExternalId,
+        key: ExternalId,
+    },
     /// Create anew; the attempt's marker replaces any marker in place.
     Create,
     /// The marker records a created issue: create only once the tracker
@@ -186,27 +190,31 @@ pub enum OrderPrecondition {
 /// Adopt never falls through to a create, and a create never ignores an
 /// issue a marker says exists.
 #[must_use]
-pub fn order_precondition(
+pub fn order_precondition<C>(
     marker: &MarkerState<'_>,
     request_digest: &str,
     order: &PendingPushOrder,
-    corpus_carries: &dyn Fn(&ExternalId) -> bool,
-) -> OrderPrecondition {
-    if push_precondition(marker, request_digest, corpus_carries)
-        == PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
-    {
-        return OrderPrecondition::AlreadyWritten;
-    }
+    corpus_carrier: &dyn Fn(&ExternalId) -> Option<C>,
+) -> OrderPrecondition<C> {
     let recorded = match marker {
         MarkerState::Present(PendingPush::Created { external_id, .. }) => {
             Some(external_id)
         }
         _ => None,
     };
+    let is_carried = |key: &ExternalId| corpus_carrier(key).is_some();
+    if push_precondition(marker, request_digest, &is_carried)
+        == PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
+    {
+        if let Some(carrier) = recorded.and_then(corpus_carrier) {
+            return OrderPrecondition::AlreadyWritten(carrier);
+        }
+    }
     match order {
         PendingPushOrder::Adopt(key) => {
-            if corpus_carries(&ExternalId::from(key)) {
-                return OrderPrecondition::KeyCarried;
+            let key = ExternalId::from(key);
+            if let Some(carrier) = corpus_carrier(&key) {
+                return OrderPrecondition::KeyCarried { key, carrier };
             }
             match recorded {
                 Some(recorded)
@@ -214,11 +222,12 @@ pub fn order_precondition(
                         .as_str()
                         .eq_ignore_ascii_case(key.as_str()) =>
                 {
-                    OrderPrecondition::AdoptIfMarkerKeyMovedHere(
-                        recorded.clone(),
-                    )
+                    OrderPrecondition::AdoptIfMarkerKeyMovedHere {
+                        recorded: recorded.clone(),
+                        key,
+                    }
                 }
-                _ => OrderPrecondition::Adopt,
+                _ => OrderPrecondition::Adopt(key),
             }
         }
         PendingPushOrder::Create => match (marker, recorded) {
@@ -321,6 +330,10 @@ mod tests {
         }
     }
 
+    fn uncarried(_: &ExternalId) -> Option<&'static str> {
+        None
+    }
+
     #[test]
     fn neither_order_settles_an_already_written_marker() {
         let marker = created("d", "ENG-1");
@@ -333,9 +346,9 @@ mod tests {
                     &MarkerState::Present(&marker),
                     "d",
                     &order,
-                    &|_| true
+                    &|_| Some("0002")
                 ),
-                OrderPrecondition::AlreadyWritten
+                OrderPrecondition::AlreadyWritten("0002")
             );
         }
     }
@@ -347,9 +360,12 @@ mod tests {
                 &MarkerState::Absent,
                 "d",
                 &PendingPushOrder::Adopt(key("ENG-2")),
-                &|carried| carried.as_str() == "ENG-2"
+                &|carried| (carried.as_str() == "ENG-2").then_some("0002")
             ),
-            OrderPrecondition::KeyCarried
+            OrderPrecondition::KeyCarried {
+                key: ExternalId::new("ENG-2".to_owned()),
+                carrier: "0002",
+            }
         );
     }
 
@@ -368,9 +384,9 @@ mod tests {
                     &marker,
                     "d",
                     &PendingPushOrder::Adopt(key("ENG-2")),
-                    &|_| false
+                    &uncarried
                 ),
-                OrderPrecondition::Adopt
+                OrderPrecondition::Adopt(ExternalId::new("ENG-2".to_owned()))
             );
         }
     }
@@ -383,9 +399,9 @@ mod tests {
                 &MarkerState::Present(&marker),
                 "d",
                 &PendingPushOrder::Adopt(key("ENG-2")),
-                &|_| false
+                &uncarried
             ),
-            OrderPrecondition::Adopt
+            OrderPrecondition::Adopt(ExternalId::new("ENG-2".to_owned()))
         );
     }
 
@@ -398,11 +414,12 @@ mod tests {
                 &MarkerState::Present(&marker),
                 "d",
                 &PendingPushOrder::Adopt(key("ENG-2")),
-                &|_| false
+                &uncarried
             ),
-            OrderPrecondition::AdoptIfMarkerKeyMovedHere(ExternalId::new(
-                "ENG-1".to_owned()
-            ))
+            OrderPrecondition::AdoptIfMarkerKeyMovedHere {
+                recorded: ExternalId::new("ENG-1".to_owned()),
+                key: ExternalId::new("ENG-2".to_owned()),
+            }
         );
     }
 
@@ -414,7 +431,7 @@ mod tests {
                 &MarkerState::Present(&marker),
                 "d",
                 &PendingPushOrder::Create,
-                &|_| false
+                &uncarried
             ),
             OrderPrecondition::CreateUnlessIssueExists(ExternalId::new(
                 "ENG-1".to_owned()
@@ -435,7 +452,7 @@ mod tests {
                     &marker,
                     "d",
                     &PendingPushOrder::Create,
-                    &|_| false
+                    &uncarried
                 ),
                 OrderPrecondition::Create
             );
@@ -449,7 +466,7 @@ mod tests {
                 &MarkerState::Absent,
                 "d",
                 &PendingPushOrder::Create,
-                &|_| false
+                &uncarried
             ),
             OrderPrecondition::CreateUnmarked
         );
