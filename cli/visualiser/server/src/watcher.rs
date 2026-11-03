@@ -964,9 +964,12 @@ mod tests {
     /// The one test of the OS adapter itself; every other test feeds the
     /// watcher scripted events.
     #[tokio::test]
-    #[ignore = "waits on the OS's file notifications, which a loaded \
-                fseventsd delays by minutes; run with \
-                `mise run test:integration:visualiser-os-watcher`"]
+    #[cfg_attr(
+        target_os = "macos",
+        ignore = "waits on the OS's file notifications, which a loaded \
+                  fseventsd delays by minutes; run with \
+                  `mise run test:integration:visualiser-os-watcher`"
+    )]
     async fn the_os_watcher_reports_a_write_under_a_registered_directory() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().canonicalize().unwrap();
@@ -1114,6 +1117,35 @@ mod tier_path_index_tests {
         let canon_at_lookup = canonicalise_path_or_ancestor(&user_path).await;
         let names = idx.names_for(&canon_at_lookup);
         assert_eq!(names, &["a".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn a_tier_registered_through_a_symlinked_root_is_found_from_the_canonical_path(
+    ) {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let alias = tmp.path().join("alias");
+        std::os::unix::fs::symlink(&root, &alias).unwrap();
+        std::fs::write(root.join("p.md"), "x").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: alias.join("user-future.md"),
+                plugin_default: alias.join("p.md"),
+                config_override_source: None,
+            },
+        );
+        let idx = TierPathIndex::build(&map).await;
+        let reported = root.canonicalize().unwrap();
+
+        for tier in ["p.md", "user-future.md"] {
+            let canon =
+                canonicalise_path_or_ancestor(&reported.join(tier)).await;
+            assert_eq!(idx.names_for(&canon), &["a".to_string()], "{tier}");
+        }
     }
 }
 

@@ -39,13 +39,13 @@ def visualiser_os_watcher(context: Context) -> None:
 
     Every other watcher and SSE test feeds the watcher scripted events; this
     one waits on the OS's own notifications, which a loaded macOS fseventsd
-    delays by minutes, so it stays out of `test:integration` and the bare
-    default task. Run it on a quiet machine after changing the watcher's OS
-    adapter or the `notify` dependency.
+    delays by minutes, so on macOS it stays out of `test:integration` and the
+    bare default task. Run it on a quiet machine after changing the watcher's
+    OS adapter or the `notify` dependency.
     """
     context.run(
         f"cargo test --manifest-path {CARGO_TOML} --lib "
-        f"--no-default-features --features dev-frontend -- --ignored "
+        f"--no-default-features --features dev-frontend -- --include-ignored "
         f"--exact watcher::tests::"
         f"the_os_watcher_reports_a_write_under_a_registered_directory"
     )
