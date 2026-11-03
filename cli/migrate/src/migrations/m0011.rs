@@ -40,6 +40,9 @@ const STATE_RULES: [&str; 5] = [
     "state/integrations/*/adopted/",
 ];
 
+/// The one integrations root `STATE_RULES` already cover.
+const DEFAULT_INTEGRATIONS_ROOT: &str = ".accelerator/state/integrations";
+
 const RECOVERY_DIRECTORIES: [&str; 2] =
     ["retirement-recovery", "sync-recovery"];
 
@@ -102,7 +105,7 @@ fn moved_integrations_root(
                 .components()
                 .all(|component| matches!(component, Component::Normal(_)))
         })
-        .filter(|relative| !relative.starts_with(".accelerator/state"))
+        .filter(|relative| *relative != Path::new(DEFAULT_INTEGRATIONS_ROOT))
         .map(Path::to_path_buf))
 }
 
@@ -338,6 +341,38 @@ mod tests {
              /meta/integrations/*/conflicts/\n\
              /meta/integrations/*/adopted/\n"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn an_integrations_root_elsewhere_under_state_is_ignored_from_the_root(
+    ) -> TestResult {
+        let ctx = Context {
+            integrations: Some(".accelerator/state/trackers".to_owned()),
+            ..Context::new()
+        };
+
+        Migration0011.apply(&ctx)?;
+
+        assert_eq!(
+            ctx.content(".gitignore"),
+            "/.accelerator/state/trackers/*/pending-push/\n\
+             /.accelerator/state/trackers/*/conflicts/\n\
+             /.accelerator/state/trackers/*/adopted/\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_default_integrations_root_needs_no_root_rules() -> TestResult {
+        let ctx = Context {
+            integrations: Some(".accelerator/state/integrations".to_owned()),
+            ..Context::new()
+        };
+
+        Migration0011.apply(&ctx)?;
+
+        assert_eq!(ctx.content(".gitignore"), "");
         Ok(())
     }
 
