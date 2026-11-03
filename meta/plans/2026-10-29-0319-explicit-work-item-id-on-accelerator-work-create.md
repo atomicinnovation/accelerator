@@ -9,7 +9,7 @@ status: "done"
 work_item_id: "work-item:0319"
 parent: "work-item:0319"
 derived_from: ["codebase-research:2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create"]
-relates_to: ["work-item:0351", "work-item:0302", "work-item:0230"]
+relates_to: ["work-item:0371", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
@@ -250,16 +250,16 @@ Verify with `mise run` (the full local CI mirror) and the recorded
 | Literal text in a pattern | Part of the exact shape, case-sensitive; held IDs and filenames match it ignoring ASCII case | "The exact shape the pattern produces"; allocation renders it once `render` replaces `canonicalise_id` |
 | Number range | Exact width and non-zero | Exact width already bounds the cap |
 | Where checks 1-4 run (real create) | After `locate_work_items`, before `create_dir_all` | A refusal leaves no empty `meta/work/`; config and pattern errors come first, as they do for every create |
-| The `--id` preflight | `locate_work_items` in `work-cli/src/config.rs`, shared by every create, the dry-run, `work id next` and `work id check`; `admit_requested_id` and `refuse_if_requested_id_taken` in `work-cli/src/requested_id.rs` | One order in one place; 0351 inherits the seam |
+| The `--id` preflight | `locate_work_items` in `work-cli/src/config.rs`, shared by every create, the dry-run, `work id next` and `work id check`; `admit_requested_id` and `refuse_if_requested_id_taken` in `work-cli/src/requested_id.rs` | One order in one place; 0371 inherits the seam |
 | Where `--project` is parsed | `work::next_number::allocation_key`, the one rule, on the allocation path and under `{tracker}` in `creation_context`, after admission: a keyless or `{tracker}` pattern gives `E_PATTERN_KEY_UNUSED` before any parse, and under `{key}` it parses into an `IdKey` or gives `E_WORK_KEY_INVALID`. With `--id`, `E_ID_WITH_PROJECT` sees the raw value first, and `admit` reads it only to choose its example | One rule in the domain; `--id 0400 --project 1X` is refused as `E_ID_WITH_PROJECT` |
 | How a requested ID reaches the write | `work_adapters::creation::LocalId::{Allocate, Requested}`, which `create_local_item` takes and only the local-ownership arms pass; `RequestedId` carries the scheme it was admitted under | The adapter owns the locked order (precondition, taken check, write); a requested ID cannot reach a tracker strategy |
 | The pending-push precondition | `work::sync::unfinished_push` decides the digest-free marker states and `push_precondition` evaluates it first; one adapter marker reader serves `check_pending_push` (after allocation, as today; for a requested ID, before the taken check and only with `--push`) and the dry-run's `refuse_unfinished_push` (with `--id` and `--push`, under the integration the real create reads) | One domain decision per marker state; a re-run after an unknown push outcome gets `E_PUSH_PENDING`'s recovery; the dry-run renders no body |
 | `--dry-run --id` before Phase 8 | A usage error (`conflicts_with`, exit 2) | Every shipped build is strict or complete; Phase 8 only widens |
 | Where check 5 runs (real create) | In the `Requested` arm, under the create lock | Same atomic step as the write; precedes the push |
-| Dry-run | With `--id` only, in the real create's order: scheme read, checks 1-4, the digest-free pending-push arms with `--push`, check 5, then the preview; `integration_state` is read once, as a `Result`, and an integration that cannot be read fails where the real create's does (before the marker check and check 5 with `--push`, after the `--id` checks otherwise) with today's text; an unset `work.integration` is no error, since it resolves to the catalogue default `""` for both; a plain dry-run reads as today; no lock | A plain dry-run stays byte-identical; 0351 later folds both calls into its shared validation |
-| Collision check signature | Takes the listing and no lock guard | 0351 runs it on the dry-run without locks |
+| Dry-run | With `--id` only, in the real create's order: scheme read, checks 1-4, the digest-free pending-push arms with `--push`, check 5, then the preview; `integration_state` is read once, as a `Result`, and an integration that cannot be read fails where the real create's does (before the marker check and check 5 with `--push`, after the `--id` checks otherwise) with today's text; an unset `work.integration` is no error, since it resolves to the catalogue default `""` for both; a plain dry-run reads as today; no lock | A plain dry-run stays byte-identical; 0371 later folds both calls into its shared validation |
+| Collision check signature | Takes the listing and no lock guard | 0371 runs it on the dry-run without locks |
 | `E_` names | `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`, `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH`, `E_ID_TAKEN`; variants `WithProject`, `TrackerOwned`, `DraftReserved`, `PatternMismatch`, `Taken` | Each variant reads as its code, as `NotRekeyed`'s do; the skill names the codes rather than matching `E_ID_` |
-| Where messages render | `Display` on the domain refusal, as `NotRekeyed` does; the shape clause from `IdPattern::describe()` | One text for the real create, the dry-run and 0351; a clause names a key or literal text only when the pattern has one |
+| Where messages render | `Display` on the domain refusal, as `NotRekeyed` does; the shape clause from `IdPattern::describe()` | One text for the real create, the dry-run and 0371; a clause names a key or literal text only when the pattern has one |
 | Skill correction | `work id check` decides exactness and the one correction through `RequestedId::propose`; the skill only asks the user to confirm a correction | ADR-0045 puts deterministic procedure in the CLI; a grammar in prose would be another copy with no backstop |
 | `work id check` verdicts | `exact\t<id>`; `other-key\t<id>\t<key>` for an exact ID whose key differs from the configured key ignoring case, naming that key with the deprecated alias resolved; `corrected\t<id>`, with `\t<key>` when the corrected ID's key differs too | The CLI reads both keys, so the skill never parses an ID or reads config |
 | ID verbs | One `work id` group: `canonicalise` (was `canonicalise-id`), `next` (was `next-number`) and `check` (new), with no alias for the old names | Noun-verb groups, as `accelerator corpus` has; the lenient `canonicalise` and the exact `check` sit under one help page |
@@ -300,7 +300,7 @@ invalid value gives `E_WORK_KEY_INVALID: --project '<value>': <reason>`.
 - No alias-aware automatic allocation. Aliases count only in the taken check.
 - No re-key guard on the dry-run, no move of `run_with`'s early return, and
   no dry-run run of the real create's other checks (author, template,
-  overflow) in its order (all 0351).
+  overflow) in its order (all 0371).
 - No visibility of other branches: "taken" means the local work directory.
 - No change to `work resolve`'s matching rules beyond the one canonicaliser
   and refusing a malformed pattern; it moves onto the shared walking
@@ -2921,13 +2921,13 @@ catalogue default `""`, so the real create and the dry-run both read the
 marker under that name and reach the taken check. Without `--id`, nothing
 changes. The real create's other checks
 (author, template, overflow, and the request fingerprint) stay off the
-dry-run until 0351. So with a taken `--id` and template drift the dry-run
+dry-run until 0371. So with a taken `--id` and template drift the dry-run
 reports `E_ID_TAKEN` where the real create reports the drift, and after a
 `CreatedUnwritten` push whose title, body or kind has since changed, the
 dry-run previews where the real create refuses with
 `E_PUSH_FINGERPRINT_MISMATCH`. When a `Created` marker sits beside an item
 that was already written, the dry-run gives `E_ID_TAKEN` where the real
-create gives `E_PUSH_ALREADY_WRITTEN` (`creation.rs:689-698`); 0351 closes
+create gives `E_PUSH_ALREADY_WRITTEN` (`creation.rs:689-698`); 0371 closes
 these with the digest.
 
 ### Changes Required
@@ -2970,7 +2970,7 @@ Pins in `create.rs`, which pass from the start:
 - `a_dry_run_without_an_id_resolves_no_scheme` — `{key}-{number:04d}` with no
   `work.key` still previews.
 - `a_dry_run_with_an_id_is_still_not_guarded` — a re-key in progress and a
-  valid `--id` still preview. 0351 inverts this.
+  valid `--id` still preview. 0371 inverts this.
 
 The pending-push tests run with `push: true` only, since a create without
 `--push` reads no marker (Phase 7's `a_local_create_with_an_id_reads_no_push_marker`):
@@ -4003,7 +4003,7 @@ Edits to `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`:
 - Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Review: `meta/reviews/work/0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
 - Plan review: `meta/reviews/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
-- Follow-on: `meta/work/0351-invocation-validation-on-accelerator-work-create-dry-run.md`
+- Follow-on: `meta/work/0371-invocation-validation-on-accelerator-work-create-dry-run.md`
 - Precedent plans: `meta/plans/2026-10-15-0302-work-item-re-key-command.md`,
   `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
 - Collision seam: `cli/work-adapters/src/creation.rs:462-705`

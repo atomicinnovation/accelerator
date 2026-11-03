@@ -115,7 +115,7 @@ Three structural findings frame the scoping work:
   retiring old IDs into `aliases`. See 0302, with alias normalisation in 0343.
 - **Explicit IDs on create** — let a caller name the ID `work create` writes,
   refusing taken, mismatched, draft-form and `{tracker}` IDs. See 0319, with
-  general dry-run validation in 0351.
+  general dry-run validation in 0371.
 
 ## Design
 
@@ -303,7 +303,7 @@ Resolved during refinement (2026-08-30):
 - 0338 — Linear update overwrites fields it was not given (`accelerator
   linear update` sends empty title / description and drops named flags; sync
   is unaffected).
-- 0351 — Invocation validation on `accelerator work create --dry-run`
+- 0371 — Invocation validation on `accelerator work create --dry-run`
   (parity with the real create's checks; blocked by 0319).
 
 ### Future candidates (deferred from 0229 refinement)

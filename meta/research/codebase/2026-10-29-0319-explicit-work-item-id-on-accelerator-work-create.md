@@ -397,9 +397,9 @@ message shape:
   check, work-directory creation, author and template resolution, and the
   create lock.
 - **No guard.** `create_dry_run_is_not_guarded` (`create.rs:1044-1060`) pins the
-  absence of the re-key guard, and 0351 inverts it. 0351 also needs
+  absence of the re-key guard, and 0371 inverts it. 0371 also needs
   allocation to work without `CreateLockGuard`, so a collision check that can
-  run only with the guard would not compose with 0351.
+  run only with the guard would not compose with 0371.
 
 ### Push path
 
@@ -637,7 +637,7 @@ Every `E_` identifier `work create` can emit today:
   produced the five-check order, the distinct identifiers, dry-run parity, the
   skill's recovery rules and the key-and-number taken rule. The `E_` names were
   "deferred to planning by decision".
-- `meta/work/0351-invocation-validation-on-accelerator-work-create-dry-run.md`:
+- `meta/work/0371-invocation-validation-on-accelerator-work-create-dry-run.md`:
   moves `run_with`'s early return and folds in 0319's five checks. It needs a
   lock-free allocation path.
 - `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`: the
@@ -684,7 +684,7 @@ Every `E_` identifier `work create` can emit today:
   only on `work create`".
 - **Scheme resolution on the dry-run path.** 0319 requires a dry-run without
   `--id` to stay unchanged. Resolving the scheme only when `--id` is present
-  avoids new `E_WORK_*` failures on plain dry-runs. 0351 later makes them
+  avoids new `E_WORK_*` failures on plain dry-runs. 0371 later makes them
   unconditional.
 - **Order against `create_dir_all`.** Do 0319's "writes nothing" criteria count
   an empty `meta/work/` created by `creation_context`? `meta_tree` asserts on

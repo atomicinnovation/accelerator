@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0351"
+id: "0371"
 title: "Invocation Validation on accelerator work create --dry-run"
 date: "2026-10-28T19:37:23+00:00"
 author: "Toby Clemson"
@@ -16,7 +16,7 @@ last_updated: "2026-10-28T19:37:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-# 0351: Invocation Validation on accelerator work create --dry-run
+# 0371: Invocation Validation on accelerator work create --dry-run
 
 **Kind**: Story
 **Status**: Draft
