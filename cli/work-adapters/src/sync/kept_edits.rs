@@ -185,8 +185,18 @@ impl KeptEditsRetention<'_> {
         Ok(KeptEditsReview { entries })
     }
 
+    /// A directory version control may track came with the repository, so
+    /// a discard leaves it for a person to untrack first.
     fn named_for_discard(&self, entry: KeptEdits, dir: &Path) -> KeptEdits {
-        if !entry.id().is_some_and(|id| self.discarding.contains(id)) {
+        let named = entry.id().is_some_and(|id| self.discarding.contains(id));
+        let committed = matches!(
+            entry,
+            KeptEdits::Unrecorded {
+                provenance: Provenance::Tracked | Provenance::TrackingUnknown,
+                ..
+            }
+        );
+        if !named || committed {
             return entry;
         }
         let item = match &entry {

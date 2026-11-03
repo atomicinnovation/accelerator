@@ -712,6 +712,24 @@ fn an_unrecorded_directory_is_discarded_by_its_id() {
 }
 
 #[test]
+fn a_committed_recovery_directory_is_never_discarded() {
+    for tracking in [FileTracking::Tracked, FileTracking::Unknown] {
+        let mut repo = Repo::new().discarding("0001");
+        let item = repo.item("0001", SYNCED);
+        let dir = repo.keep("1700000000-k7mq3x-0001", &item, SYNCED);
+        repo.tracking.answer(repo.location(&dir), tracking);
+
+        let swept = repo.sweep();
+
+        assert!(
+            matches!(swept.as_slice(), [KeptEdits::Unrecorded { .. }]),
+            "{swept:?}"
+        );
+        assert!(repo.location(&dir).is_dir());
+    }
+}
+
+#[test]
 fn a_discard_naming_no_kept_copy_says_so() {
     let repo = Repo::new().discarding("0009");
 
