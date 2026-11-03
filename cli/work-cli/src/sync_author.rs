@@ -13,6 +13,7 @@ use ::config::ConfigAccess;
 use corpus::lock::ExclusiveLock as _;
 use corpus::lock::LockName;
 use corpus::AtomicWrite;
+use corpus::FileRemove;
 use corpus::FilenameTimestampFormat;
 use corpus::IdOwnership;
 use corpus_adapters::metadata::derive_at;
@@ -46,6 +47,7 @@ use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
 use work_adapters::sync::pending_push::Marker;
 
+use crate::bounded_roots::BoundedRoot;
 use crate::config::resolve_scheme;
 
 /// The default kind, status, and priority an imported remote issue is authored
@@ -59,7 +61,8 @@ const IMPORTED_PRODUCER: &str = "sync-work-items";
 pub struct ConfiguredLocalAuthor<'a> {
     config: &'a dyn ConfigAccess,
     root: PathBuf,
-    work_dir: PathBuf,
+    work_items: BoundedRoot,
+    integrations: BoundedRoot,
     identity_run: &'a IdentityRunGuard,
 }
 
@@ -68,23 +71,32 @@ impl<'a> ConfiguredLocalAuthor<'a> {
     pub const fn new(
         config: &'a dyn ConfigAccess,
         root: PathBuf,
-        work_dir: PathBuf,
+        work_items: BoundedRoot,
+        integrations: BoundedRoot,
         identity_run: &'a IdentityRunGuard,
     ) -> Self {
         Self {
             config,
             root,
-            work_dir,
+            work_items,
+            integrations,
             identity_run,
         }
     }
 }
 
 impl ConfiguredLocalAuthor<'_> {
+    fn work_dir(&self) -> &Path {
+        self.work_items.root()
+    }
+
+    fn work_store(&self) -> FileCorpusStore {
+        bounded_store(&self.work_items)
+    }
     /// The key a pulled issue takes as its `id`, refused when another item
     /// already holds it or links to it.
     fn adoptable(&self, key: &ExternalId) -> Result<String, kernel::Error> {
-        let files = FilesystemWorkItemFiles::new(&self.work_dir).files()?;
+        let files = FilesystemWorkItemFiles::new(self.work_dir()).files()?;
         let items = identities(&files);
         self.refuse_keys_held_by_promotions(key, &items)?;
         if let Some(held) = holder_of(key.as_str(), &items) {
@@ -105,13 +117,8 @@ impl ConfiguredLocalAuthor<'_> {
         Ok(key.as_str().to_owned())
     }
 
-    fn pending_push_location(&self) -> Option<(PathBuf, String)> {
-        let integration =
-            crate::config::effective_nonempty(self.config, "work.integration")
-                .ok()?;
-        let integrations_root =
-            crate::sync::integrations_dir(self.config, &self.root).ok()?;
-        Some((integrations_root, integration))
+    fn integration(&self) -> Option<String> {
+        crate::config::effective_nonempty(self.config, "work.integration").ok()
     }
 
     /// Refuses a key a live promotion holds or may hold: a record naming it
@@ -123,14 +130,15 @@ impl ConfiguredLocalAuthor<'_> {
         key: &ExternalId,
         items: &[ItemIdentity],
     ) -> Result<(), kernel::Error> {
-        let Some((integrations_root, integration)) =
-            self.pending_push_location()
-        else {
+        let Some(integration) = self.integration() else {
             return Ok(());
         };
-        let store = FileCorpusStore::new(&integrations_root);
-        let records =
-            FilePromotionRecords::new(&integrations_root, &integration, &store);
+        let store = bounded_store(&self.integrations);
+        let records = FilePromotionRecords::new(
+            self.integrations.root(),
+            &integration,
+            &store,
+        );
         let draft_exists = |draft: &DraftId| {
             items
                 .iter()
@@ -182,24 +190,23 @@ impl ConfiguredLocalAuthor<'_> {
     /// Removes each legacy `created` pending-push marker naming `key`: its
     /// issue now has a local file, so no create can resume from it.
     fn spend_created_markers(&self, key: &ExternalId) {
-        let Some((integrations_root, integration)) =
-            self.pending_push_location()
-        else {
+        let Some(integration) = self.integration() else {
             return;
         };
         let Ok(markers) = work_adapters::sync::pending_push::outstanding(
-            &integrations_root,
+            self.integrations.root(),
             &integration,
         ) else {
             return;
         };
+        let store = bounded_store(&self.integrations);
         for (path, marker) in markers.into_iter().flatten() {
             if let Marker::Legacy(PendingPush::Created {
                 external_id, ..
             }) = marker
             {
                 if same_key(&external_id, key) {
-                    std::fs::remove_file(&path).ok();
+                    FileRemove::remove(&store, &path).ok();
                 }
             }
         }
@@ -208,6 +215,12 @@ impl ConfiguredLocalAuthor<'_> {
 
 fn same_key(left: &ExternalId, right: &ExternalId) -> bool {
     left.as_str().eq_ignore_ascii_case(right.as_str())
+}
+
+/// A store over `root` that refuses to write once the root no longer
+/// resolves inside its bound, as a directory swapped for a link would not.
+fn bounded_store(root: &BoundedRoot) -> FileCorpusStore {
+    FileCorpusStore::within_project(root.root(), root.bound())
 }
 
 fn failed(message: impl std::fmt::Display) -> kernel::Error {
@@ -220,7 +233,15 @@ pub fn link_external_id(
     path: &Path,
     external_id: &ExternalId,
 ) -> Result<(), kernel::Error> {
-    rewrite_frontmatter(path, |mapping| {
+    set_external_id(&store_beside(path), path, external_id)
+}
+
+fn set_external_id(
+    store: &dyn AtomicWrite,
+    path: &Path,
+    external_id: &ExternalId,
+) -> Result<(), kernel::Error> {
+    rewrite_frontmatter(store, path, |mapping| {
         mapping.set(
             "external_id".to_owned(),
             Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
@@ -229,12 +250,11 @@ pub fn link_external_id(
 }
 
 /// Removes `path`'s `external_id`, so the item can be created anew.
-///
-/// # Errors
-///
-/// When the file cannot be locked, read, parsed or rewritten.
-pub fn unlink_external_id(path: &Path) -> Result<(), kernel::Error> {
-    rewrite_frontmatter(path, |mapping| {
+fn clear_external_id(
+    store: &dyn AtomicWrite,
+    path: &Path,
+) -> Result<(), kernel::Error> {
+    rewrite_frontmatter(store, path, |mapping| {
         *mapping = std::mem::take(mapping)
             .into_iter()
             .filter(|(key, _)| key != "external_id")
@@ -245,10 +265,11 @@ pub fn unlink_external_id(path: &Path) -> Result<(), kernel::Error> {
 /// Rewrites `path`'s frontmatter under the file's lock, as one atomic
 /// write.
 fn rewrite_frontmatter(
+    store: &dyn AtomicWrite,
     path: &Path,
     change: impl FnOnce(&mut Mapping),
 ) -> Result<(), kernel::Error> {
-    let work_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let work_dir = work_dir_of(path);
     let _held = LockdirLock::new(work_dir)
         .acquire(&LockName::ForFile(path.to_path_buf()))
         .map_err(failed)?;
@@ -259,9 +280,16 @@ fn rewrite_frontmatter(
     };
     change(mapping);
     let rendered = document::render(Some(&content), &yaml).map_err(failed)?;
-    let store = FileCorpusStore::new(work_dir);
-    AtomicWrite::write(&store, path, rendered.as_bytes()).map_err(failed)?;
+    store.write(path, rendered.as_bytes()).map_err(failed)?;
     Ok(())
+}
+
+fn work_dir_of(path: &Path) -> &Path {
+    path.parent().unwrap_or_else(|| Path::new("."))
+}
+
+fn store_beside(path: &Path) -> FileCorpusStore {
+    FileCorpusStore::new(work_dir_of(path))
 }
 
 impl LocalAuthor for ConfiguredLocalAuthor<'_> {
@@ -274,8 +302,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let title = issue.title.as_str();
         let description = issue.body.as_str();
 
-        std::fs::create_dir_all(&self.work_dir).map_err(failed)?;
-        let retirement_locks = LockdirLock::new(&self.work_dir);
+        std::fs::create_dir_all(self.work_dir()).map_err(failed)?;
+        let retirement_locks = LockdirLock::new(self.work_dir());
         let _retirement = match scheme.ownership() {
             IdOwnership::Local => None,
             IdOwnership::Tracker => Some(
@@ -289,7 +317,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let id = match scheme.ownership() {
             IdOwnership::Local => crate::create::allocate_id(
                 &scheme,
-                &self.work_dir,
+                self.work_dir(),
                 project.as_deref(),
                 &create,
             )
@@ -338,8 +366,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let content = format!("{frontmatter_block}\n{description}{terminator}");
 
         let slug = crate::create::slugify(title);
-        let target = self.work_dir.join(format!("{id}-{slug}.md"));
-        let store = FileCorpusStore::new(&self.work_dir);
+        let target = self.work_dir().join(format!("{id}-{slug}.md"));
+        let store = self.work_store();
         work_adapters::sync::create::exclusive_write(
             &store,
             &target,
@@ -356,11 +384,11 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         path: &Path,
         external_id: &ExternalId,
     ) -> Result<(), kernel::Error> {
-        link_external_id(path, external_id)
+        set_external_id(&self.work_store(), path, external_id)
     }
 
     fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
-        unlink_external_id(path)
+        clear_external_id(&self.work_store(), path)
     }
 }
 
@@ -396,6 +424,10 @@ mod tests {
     use work_adapters::sync::pending_push;
 
     use super::ConfiguredLocalAuthor;
+    use crate::bounded_roots::BoundedRoot;
+    use crate::bounded_roots::ConfiguredRoot;
+    use crate::bounded_roots::RootKey;
+    use ::config::provenance::PathSource;
     use work::identity_run::IdentityRunGuard;
 
     struct FakeConfig(HashMap<String, String>);
@@ -475,11 +507,24 @@ mod tests {
             self.dir.path().join("integrations")
         }
 
+        fn bounded(&self, key: RootKey, path: PathBuf) -> BoundedRoot {
+            BoundedRoot::for_configured(
+                &ConfiguredRoot {
+                    key,
+                    path,
+                    source: PathSource::Default,
+                },
+                self.dir.path(),
+            )
+            .expect("an in-repository root")
+        }
+
         fn author(&self) -> ConfiguredLocalAuthor<'_> {
             ConfiguredLocalAuthor::new(
                 &self.config,
                 self.dir.path().to_path_buf(),
-                self.work_dir(),
+                self.bounded(RootKey::Work, self.work_dir()),
+                self.bounded(RootKey::Integrations, self.integrations()),
                 &self.identity_run,
             )
         }
@@ -687,6 +732,27 @@ mod tests {
     }
 
     #[test]
+    fn a_work_directory_swapped_for_a_link_out_is_not_written_through() {
+        let repo = TrackerRepo::new();
+        let path = repo.write_item("0001-legacy.md", "id: \"0001\"\n");
+        let author = repo.author();
+        let outside = tempfile::tempdir().expect("tempdir");
+        let moved = outside.path().join("work");
+        std::fs::create_dir(&moved).expect("outside work dir");
+        std::fs::copy(&path, moved.join("0001-legacy.md")).expect("copy out");
+        std::fs::remove_dir_all(repo.work_dir()).expect("remove");
+        std::os::unix::fs::symlink(&moved, repo.work_dir()).expect("link");
+
+        let linked = author
+            .link_external_id(&path, &ExternalId::new("ENG-5".to_owned()));
+
+        assert!(linked.is_err(), "the link is refused");
+        let content = std::fs::read_to_string(moved.join("0001-legacy.md"))
+            .expect("read");
+        assert!(!content.contains("ENG-5"), "{content}");
+    }
+
+    #[test]
     fn a_link_waits_for_an_edit_holding_the_file_lock_and_keeps_it() {
         use corpus::lock::ExclusiveLock as _;
 
@@ -729,7 +795,9 @@ mod tests {
             "id: \"0001\"\nexternal_id: \"ENG-5\"\nstatus: \"ready\"\n",
         );
 
-        super::unlink_external_id(&path).expect("the unlink lands");
+        repo.author()
+            .unlink_external_id(&path)
+            .expect("the unlink lands");
 
         let content = std::fs::read_to_string(&path).expect("read");
         assert!(!content.contains("external_id"), "{content}");

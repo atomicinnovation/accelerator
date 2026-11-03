@@ -1932,11 +1932,10 @@ pub fn run_sync_with(
             config,
             workspace,
             repo_root,
-            work_dir,
-            integrations_root,
             tracker: tracker.as_ref(),
             identity_run,
             scheme,
+            roots,
         },
         |ports, settlement, baseline| {
             for warning in
@@ -2294,11 +2293,10 @@ struct RunAssembly<'a> {
     config: &'a dyn ConfigAccess,
     workspace: &'a IdentityWorkspace,
     repo_root: &'a Path,
-    work_dir: &'a Path,
-    integrations_root: &'a Path,
     tracker: &'a dyn tracker::RemoteTracker,
     identity_run: &'a IdentityRunGuard,
     scheme: &'a WorkItemIdScheme,
+    roots: &'a ValidatedRoots,
 }
 
 /// Builds the stores and ports a run writes through and hands them to
@@ -2314,8 +2312,14 @@ fn assemble_run<T>(
     let workspace = assembly.workspace;
     let stores = assembly.stores;
     let project_store = FileCorpusStore::new(assembly.repo_root);
-    let state_store = FileCorpusStore::new(workspace.state_dir());
-    let integrations_store = FileCorpusStore::new(assembly.integrations_root);
+    let state_store = FileCorpusStore::within_project(
+        workspace.state_dir(),
+        assembly.repo_root,
+    );
+    let integrations_store = FileCorpusStore::within_project(
+        assembly.roots.integrations.root(),
+        assembly.roots.integrations.bound(),
+    );
     let mut baseline_store =
         workspace.baseline(stores.integration_state.as_ref());
     let retirement_baseline =
@@ -2347,7 +2351,8 @@ fn assemble_run<T>(
     let author = crate::sync_author::ConfiguredLocalAuthor::new(
         assembly.config,
         assembly.repo_root.to_path_buf(),
-        assembly.work_dir.to_path_buf(),
+        assembly.roots.work_items.clone(),
+        assembly.roots.integrations.clone(),
         assembly.identity_run,
     );
     let ports = SyncPorts {
