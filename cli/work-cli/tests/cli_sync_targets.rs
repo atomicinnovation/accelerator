@@ -121,8 +121,6 @@ fn an_out_of_directory_path_target_exits_six() -> Result<(), TestError> {
 fn an_unmanaged_in_directory_file_exits_three() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     work_item(repo.path(), "0001", Some("PP-1"))?;
-    // A real .md inside the work directory that is not a discovered work item
-    // (no `id` frontmatter, so `discover_items` skips it).
     fs::write(repo.path().join("meta/work/notes.md"), "not a work item\n")?;
     let output = run(repo.path(), &["--target", "meta/work/notes.md"])?;
     assert_eq!(output.status.code(), Some(3));

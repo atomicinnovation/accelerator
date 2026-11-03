@@ -12,8 +12,15 @@ role = "technical-library"
 [lints]
 workspace = true
 
+[features]
+# Enable only from dev-dependencies.
+test-support = []
+
 [dependencies]
 kernel = { path = "../kernel" }
 rand = { workspace = true }
 tempfile = { workspace = true }
 rustix = { workspace = true }
+
+[dev-dependencies]
+store = { path = ".", features = ["test-support"] }

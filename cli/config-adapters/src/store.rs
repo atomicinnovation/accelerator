@@ -590,6 +590,17 @@ impl TemplateOverride for FileConfigStore {
     }
 }
 
+/// State one machine's syncs leave behind that must never be committed:
+/// recovery copies, pending-push markers, conflict dossiers and adoption
+/// records. The shared baseline and catalogue stay committed.
+const MACHINE_LOCAL_SYNC_STATE: [&str; 5] = [
+    "state/retirement-recovery/",
+    "state/sync-recovery/",
+    "state/integrations/*/pending-push/",
+    "state/integrations/*/conflicts/",
+    "state/integrations/*/adopted/",
+];
+
 impl Scaffold for FileConfigStore {
     fn init(
         &self,
@@ -604,6 +615,9 @@ impl Scaffold for FileConfigStore {
         let inner = accelerator.join(".gitignore");
         ensure_line(&inner, "config.local.md")?;
         ensure_line(&inner, &format!("{TEMP_PREFIX}*"))?;
+        for machine_local in MACHINE_LOCAL_SYNC_STATE {
+            ensure_line(&inner, machine_local)?;
+        }
         ensure_keepable_dir(&accelerator.join("state"))?;
         for extension in ["skills", "lenses", "templates"] {
             ensure_keepable_dir(&accelerator.join(extension))?;
@@ -783,10 +797,13 @@ fn io_error(path: &Path, error: &std::io::Error) -> ConfigError {
 fn to_config_error(error: WriteError) -> ConfigError {
     match error {
         WriteError::UnsafePath { path } => ConfigError::UnsafePath { path },
-        WriteError::NotWritable { path } => ConfigError::Io {
+        WriteError::NotWritable { path, detail } => ConfigError::Io {
             path,
-            detail: "not writable".to_owned(),
+            detail: format!("not writable: {detail}"),
         },
+        WriteError::NotDurable { path, detail } => {
+            ConfigError::Io { path, detail }
+        }
         WriteError::CrossFilesystem { path } => ConfigError::Io {
             path,
             detail: "atomic rename crossed a filesystem boundary".to_owned(),
@@ -846,9 +863,42 @@ mod tests {
     };
     use tempfile::TempDir;
 
-    use super::FileConfigStore;
+    use store::WriteError;
+
+    use super::{to_config_error, FileConfigStore};
 
     type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn a_refused_write_keeps_its_path_and_permission_detail() {
+        let error = to_config_error(WriteError::NotWritable {
+            path: "/r/.accelerator/config.md".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        });
+        assert_eq!(
+            error,
+            ConfigError::Io {
+                path: "/r/.accelerator/config.md".to_owned(),
+                detail: "not writable: Permission denied (os error 13)"
+                    .to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_write_that_may_not_survive_a_crash_keeps_naming_its_file() {
+        let error = to_config_error(WriteError::NotDurable {
+            path: "/r/.accelerator/config.md".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        });
+        assert_eq!(
+            error,
+            ConfigError::Io {
+                path: "/r/.accelerator/config.md".to_owned(),
+                detail: "Input/output error (os error 5)".to_owned(),
+            }
+        );
+    }
 
     fn tempdir() -> Result<TempDir, TestError> {
         Ok(tempfile::Builder::new().prefix("cfg-adapters-").tempdir()?)
@@ -1147,6 +1197,34 @@ mod tests {
             0o664,
             "a team write must preserve the shared mode"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn init_ignores_machine_local_sync_state() -> Result<(), TestError> {
+        use config::Scaffold as _;
+
+        let root = tempdir()?;
+        let store = FileConfigStore::at(root.path());
+
+        store.init(&[], "meta/tmp")?;
+        store.init(&[], "meta/tmp")?;
+
+        let gitignore =
+            fs::read_to_string(root.path().join(".accelerator/.gitignore"))?;
+        for rule in [
+            "state/retirement-recovery/",
+            "state/sync-recovery/",
+            "state/integrations/*/pending-push/",
+            "state/integrations/*/conflicts/",
+            "state/integrations/*/adopted/",
+        ] {
+            assert_eq!(
+                gitignore.lines().filter(|line| *line == rule).count(),
+                1,
+                "{rule}: {gitignore}"
+            );
+        }
         Ok(())
     }
 

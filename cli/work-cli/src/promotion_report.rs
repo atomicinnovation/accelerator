@@ -9,6 +9,7 @@ use work_adapters::promotion::PromotionOutcome;
 use work_adapters::promotion::PromotionRow;
 
 use crate::exit_codes;
+use crate::report_records::TsvRecord;
 
 #[must_use]
 pub fn promotion_line(row: &PromotionRow) -> String {
@@ -39,15 +40,23 @@ pub fn detail_lines(row: &PromotionRow) -> impl Iterator<Item = String> + '_ {
 
 #[must_use]
 pub fn detail_line(id: &str, detail: &Detail) -> String {
-    let path = detail.path.display();
-    match &detail.source {
-        DetailSource::Holder => format!("#\tdetail\t{id}\tholder\t{path}"),
-        DetailSource::Vcs => format!("#\tdetail\t{id}\tvcs\t{path}"),
+    let path = detail.path.display().to_string();
+    let source = |kind: &str| vec![kind.to_owned(), path.clone()];
+    let fields = match &detail.source {
+        DetailSource::Holder => source("holder"),
+        DetailSource::Vcs => source("vcs"),
         DetailSource::Recovery { location } => {
-            format!("#\tdetail\t{id}\trecovery\t{path}\t{}", location.display())
+            [source("recovery"), vec![location.display().to_string()]].concat()
         }
-        DetailSource::Item => format!("#\tdetail\t{id}\titem\t{path}"),
-    }
+        DetailSource::Item => source("item"),
+    };
+    TsvRecord::of(
+        ["#", "detail", id]
+            .into_iter()
+            .map(str::to_owned)
+            .chain(fields),
+    )
+    .to_string()
 }
 
 #[must_use]
@@ -59,5 +68,38 @@ pub const fn promotion_exit(row: &PromotionRow) -> u8 {
         PromotionOutcome::Previewed | PromotionOutcome::Promoted(_) => {
             exit_codes::CLEAN
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use work_adapters::promotion::Detail;
+    use work_adapters::promotion::DetailSource;
+
+    use super::detail_line;
+
+    #[test]
+    fn an_ordinary_promotion_detail_line_is_byte_identical() {
+        let detail = |source| Detail {
+            source,
+            path: PathBuf::from("meta/work/0001-child.md"),
+        };
+
+        assert_eq!(
+            detail_line("draft-k7mq3x", &detail(DetailSource::Vcs)),
+            "#\tdetail\tdraft-k7mq3x\tvcs\tmeta/work/0001-child.md"
+        );
+        assert_eq!(
+            detail_line(
+                "draft-k7mq3x",
+                &detail(DetailSource::Recovery {
+                    location: PathBuf::from(".accelerator/state/r"),
+                })
+            ),
+            "#\tdetail\tdraft-k7mq3x\trecovery\tmeta/work/0001-child.md\t\
+             .accelerator/state/r"
+        );
     }
 }

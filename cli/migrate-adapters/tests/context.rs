@@ -77,6 +77,7 @@ fn a_relative_integrations_root_is_resolved_against_the_project_root(
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );
@@ -109,6 +110,7 @@ fn an_absolute_integrations_root_is_used_as_configured() -> Result<(), TestError
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );
@@ -128,6 +130,7 @@ fn an_absent_integrations_root_realigns_nothing() -> Result<(), TestError> {
         dir.path(),
         Capabilities {
             sync_baselines: &baselines,
+            version_control: None,
             ..composition.capabilities()
         },
     );
@@ -151,5 +154,23 @@ fn a_bare_number_is_canonicalised_under_the_configured_pattern(
     let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
 
     assert_eq!(ctx.canonicalise_work_item_id("7")?, "ACME-0007");
+    Ok(())
+}
+
+#[test]
+fn a_path_through_a_dotdot_in_a_missing_directory_is_refused(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+    let target = dir.path().join("missing/../templates/plan.md");
+
+    let written = ctx.write(&target, "x");
+    let read = ctx.read(&target);
+
+    assert!(written.is_err());
+    assert!(read.is_err());
+    assert!(!dir.path().join("missing").exists());
+    assert!(!dir.path().join("templates/plan.md").exists());
     Ok(())
 }

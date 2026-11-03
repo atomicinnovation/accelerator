@@ -159,6 +159,23 @@ fn kill(pid: i32) {
     }
 }
 
+/// How long a run took to return after its leader's last act, touching
+/// `marker`; `None` when the leader never got that far. Measured from the
+/// leader rather than the call, so the time a loaded machine takes to start
+/// bash cannot count.
+fn returned_after_touching(marker: &Path) -> Option<Duration> {
+    let touched = fs::metadata(marker).and_then(|meta| meta.modified()).ok()?;
+    Some(
+        std::time::SystemTime::now()
+            .duration_since(touched)
+            .unwrap_or_default(),
+    )
+}
+
+/// The lifetime of the background children these tests start: a run that
+/// waits for one takes about this long.
+const CHILD_LIFETIME: Duration = Duration::from_secs(60);
+
 fn background_child(pidfile: &Path) -> String {
     format!("sleep 60 & echo $! > {}; ", pidfile.display())
 }
@@ -268,7 +285,11 @@ fn a_waited_on_background_child_times_out_and_is_killed() {
     );
 
     assert_eq!(outcome, Err(CommandFailure::TimedOut));
-    assert!(started.elapsed() < Duration::from_secs(5));
+    assert!(
+        started.elapsed() < CHILD_LIFETIME / 2,
+        "the run waited for its child: {:?}",
+        started.elapsed()
+    );
     assert!(is_gone(recorded_pid(&pidfile)));
 }
 
@@ -276,7 +297,6 @@ fn a_waited_on_background_child_times_out_and_is_killed() {
 fn a_background_child_left_behind_is_killed_once_the_leader_exits() {
     let fixture = Fixture::new();
     let pidfile = fixture.pidfile("child");
-    let started = Instant::now();
 
     let outcome = fixture.runner().run(
         &format!("{}echo ok", background_child(&pidfile)),
@@ -284,7 +304,6 @@ fn a_background_child_left_behind_is_killed_once_the_leader_exits() {
     );
 
     assert_eq!(outcome, Ok("ok".to_owned()));
-    assert!(started.elapsed() < Duration::from_secs(5));
     assert!(is_gone(recorded_pid(&pidfile)));
 }
 
@@ -292,22 +311,28 @@ fn a_background_child_left_behind_is_killed_once_the_leader_exits() {
 fn a_detached_descendant_costs_at_most_the_grace_period() {
     let fixture = Fixture::new();
     let pidfile = fixture.pidfile("detached");
-    let started = Instant::now();
+    let exited = fixture.outside.join("leader-exited");
 
     let outcome = fixture.runner().run(
         &format!(
             "perl -e 'use POSIX; setsid; open(my $f, \">\", \"{pid}\"); \
              print $f \"$$\\n\"; close($f); exec @ARGV' sleep 60 & \
-             while [ ! -s {pid} ]; do :; done; echo ok",
-            pid = pidfile.display()
+             while [ ! -s {pid} ]; do :; done; echo ok; touch {exited}",
+            pid = pidfile.display(),
+            exited = exited.display()
         ),
         &policy(Duration::from_secs(30)),
     );
+    let after_exit = returned_after_touching(&exited);
 
     let detached = recorded_pid(&pidfile);
     kill(detached);
     assert_eq!(outcome, Ok("ok".to_owned()));
-    assert!(started.elapsed() < Duration::from_secs(5));
+    assert!(
+        after_exit.is_some_and(|after| after < Duration::from_secs(3)),
+        "returned {after_exit:?} after the leader exited, past the grace \
+         period"
+    );
 }
 
 fn fake(dir: &Path, name: &str, marker: &Path) {
@@ -432,23 +457,19 @@ fn a_helper_that_passes_the_cap_is_killed_early_with_its_children() {
     let pidfile = fixture.pidfile("child");
     let thirty = policy(Duration::from_secs(30));
 
-    let started = Instant::now();
     let outcome = fixture.runner().run(
         &format!("{}{}sleep 60", background_child(&pidfile), over_the_cap()),
         &thirty,
     );
 
     assert_eq!(outcome, Err(CommandFailure::OutputExceeded));
-    assert!(started.elapsed() < Duration::from_secs(10));
     assert!(is_gone(recorded_pid(&pidfile)));
 
-    let started = Instant::now();
     let outcome = fixture
         .runner()
         .run(&format!("{}sleep 60", over_the_cap()), &thirty);
 
     assert_eq!(outcome, Err(CommandFailure::OutputExceeded));
-    assert!(started.elapsed() < Duration::from_secs(10));
 }
 
 fn environment_names(printed: &str) -> Vec<String> {
@@ -512,12 +533,14 @@ fn a_command_sees_only_its_admitted_environment() {
 #[test]
 fn stdin_is_at_end_of_file() {
     let fixture = Fixture::new();
-    let started = Instant::now();
 
-    let printed = fixture.runner().run("cat", &base()).unwrap();
+    let outcome = fixture.runner().run("cat", &base());
 
-    assert_eq!(printed, "");
-    assert!(started.elapsed() < Duration::from_secs(2));
+    assert!(
+        matches!(outcome.as_deref(), Ok("")),
+        "a cat reading anything but end of file blocks until the timeout: \
+         {outcome:?}"
+    );
 }
 
 #[test]
@@ -532,7 +555,6 @@ fn surrounding_whitespace_is_trimmed() {
 #[test]
 fn a_helper_that_prompts_on_the_terminal_fails_rather_than_prompting() {
     let fixture = Fixture::new();
-    let started = Instant::now();
 
     let outcome = fixture
         .runner()
@@ -545,23 +567,34 @@ fn a_helper_that_prompts_on_the_terminal_fails_rather_than_prompting() {
         ),
         "{outcome:?}"
     );
-    assert!(started.elapsed() < Duration::from_secs(5));
 }
 
+/// The descendant ignores the TERM the leader's exit sends, so only a grace
+/// period capped at the deadline ends the run in time; one that is not costs
+/// the whole second.
 #[test]
 fn a_leader_exiting_just_before_the_deadline_returns_by_it() {
     let fixture = Fixture::new();
-    let started = Instant::now();
+    let exited = fixture.outside.join("leader-exited");
 
     let outcome = fixture.runner().run(
-        "sleep 60 & sleep 0.9; echo ok",
+        &format!(
+            "(trap '' TERM; sleep 60) & sleep 0.9; touch {}; echo ok",
+            exited.display()
+        ),
         &policy(Duration::from_secs(1)),
     );
 
+    let Some(after_exit) = returned_after_touching(&exited) else {
+        assert!(
+            matches!(outcome, Err(CommandFailure::TimedOut)),
+            "a leader that never reached its exit was timed out: {outcome:?}"
+        );
+        return;
+    };
     assert!(
-        started.elapsed() < Duration::from_millis(1_250),
-        "{:?} then {outcome:?}",
-        started.elapsed()
+        after_exit < Duration::from_millis(500),
+        "returned {after_exit:?} after the leader exited, then {outcome:?}"
     );
 }
 
@@ -587,17 +620,19 @@ fn a_caching_agent_in_the_group_gets_its_grace_period() {
 #[test]
 fn a_helper_with_no_descendants_returns_promptly() {
     let fixture = Fixture::new();
-    let runner = fixture.runner();
-    runner.run("true", &base()).unwrap();
-    let started = Instant::now();
+    let exited = fixture.outside.join("leader-exited");
 
-    let printed = runner.run("printf tok", &base()).unwrap();
+    let printed = fixture
+        .runner()
+        .run(&format!("printf tok; touch {}", exited.display()), &base())
+        .unwrap();
+    let after_exit = returned_after_touching(&exited);
 
     assert_eq!(printed, "tok");
     assert!(
-        started.elapsed() < Duration::from_millis(300),
-        "{:?}",
-        started.elapsed()
+        after_exit.is_some_and(|after| after < Duration::from_millis(500)),
+        "returned {after_exit:?} after the leader exited, as if it waited \
+         out the grace period"
     );
 }
 

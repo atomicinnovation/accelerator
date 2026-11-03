@@ -80,7 +80,7 @@ impl<'a> BaselineStore<'a> {
     /// # Errors
     ///
     /// [`StoreError`] on either the read or the write.
-    pub fn remove(&mut self, id: &str) -> Result<(), StoreError> {
+    pub fn remove(&self, id: &str) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         baseline.remove(id);
         self.write_document(&baseline)

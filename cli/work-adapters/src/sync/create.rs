@@ -14,6 +14,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
+use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
 
@@ -42,6 +43,51 @@ pub struct DiscoveredIssue {
     pub issue: RemoteIssue,
 }
 
+/// Why a [`LocalAuthor`] write failed: before anything landed, or after the
+/// file was written but before it was made durable, when it may be on disk.
+#[derive(Debug)]
+pub enum AuthorError {
+    Failed(kernel::Error),
+    NotDurable(kernel::Error),
+}
+
+impl From<kernel::Error> for AuthorError {
+    fn from(error: kernel::Error) -> Self {
+        Self::Failed(error)
+    }
+}
+
+impl From<AuthorError> for kernel::Error {
+    fn from(error: AuthorError) -> Self {
+        match error {
+            AuthorError::Failed(error) | AuthorError::NotDurable(error) => {
+                error
+            }
+        }
+    }
+}
+
+impl From<StoreError> for AuthorError {
+    fn from(error: StoreError) -> Self {
+        let cause = kernel::Error::Failed(error.to_string());
+        if matches!(error, StoreError::NotDurable { .. }) {
+            Self::NotDurable(cause)
+        } else {
+            Self::Failed(cause)
+        }
+    }
+}
+
+impl std::fmt::Display for AuthorError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Failed(error) | Self::NotDurable(error) => {
+                error.fmt(formatter)
+            }
+        }
+    }
+}
+
 /// Authors local work-item files the sync engine cannot compose itself.
 ///
 /// The engine holds the tracker port and the baseline; what it lacks is the
@@ -64,7 +110,7 @@ pub trait LocalAuthor {
     fn author_from_remote(
         &self,
         issue: &DiscoveredIssue,
-    ) -> Result<AuthoredLocal, kernel::Error>;
+    ) -> Result<AuthoredLocal, AuthorError>;
 
     /// Links an already-created remote id into an existing local draft's
     /// frontmatter, as one atomic write.
@@ -76,7 +122,21 @@ pub trait LocalAuthor {
         &self,
         path: &Path,
         external_id: &ExternalId,
-    ) -> Result<(), kernel::Error>;
+    ) -> Result<(), AuthorError>;
+
+    /// Removes the `external_id` from a local item's frontmatter, as one
+    /// atomic write, so the item can be created anew.
+    ///
+    /// # Errors
+    ///
+    /// When the file cannot be read, parsed, or rewritten, or when this
+    /// author cannot clear a link at all.
+    fn unlink_external_id(&self, path: &Path) -> Result<(), AuthorError> {
+        Err(AuthorError::Failed(kernel::Error::Failed(format!(
+            "cannot clear the external_id of {}",
+            path.display()
+        ))))
+    }
 }
 
 /// Writes `bytes` to `path` only when nothing is already there.
@@ -93,16 +153,14 @@ pub fn exclusive_write(
     store: &dyn AtomicWrite,
     path: &Path,
     bytes: &[u8],
-) -> Result<(), kernel::Error> {
+) -> Result<(), AuthorError> {
     if path.exists() {
-        return Err(kernel::Error::Failed(format!(
+        return Err(AuthorError::Failed(kernel::Error::Failed(format!(
             "refusing to overwrite an existing file: {}",
             path.display()
-        )));
+        ))));
     }
-    store
-        .write(path, bytes)
-        .map_err(|error| kernel::Error::Failed(error.to_string()))
+    Ok(store.write(path, bytes)?)
 }
 
 /// Folds an external id to a canonical comparison key.

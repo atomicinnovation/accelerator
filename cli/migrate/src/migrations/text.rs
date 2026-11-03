@@ -4,6 +4,11 @@
 //! structural YAML rewrite) so a migration's output stays byte-for-byte
 //! equal to the captured golden fixtures wherever nothing changed.
 
+use std::path::Path;
+
+use crate::ports::MigrationContext;
+use crate::ports::MigrationError;
+
 /// Applies `transform` to every line, preserving whether `content` ends with
 /// a trailing newline.
 pub fn map_lines(content: &str, transform: impl Fn(&str) -> String) -> String {
@@ -20,6 +25,33 @@ pub fn filter_lines(content: &str, keep: impl Fn(&str) -> bool) -> String {
         .map(str::to_owned)
         .collect();
     join_lines(content, &lines)
+}
+
+/// Creates `path` (empty) when it does not exist, whether or not `lines` is
+/// empty, then appends any of `lines` not already present as a whole line.
+pub(crate) fn ensure_lines(
+    ctx: &dyn MigrationContext,
+    path: &Path,
+    lines: &[&str],
+) -> Result<(), MigrationError> {
+    let existing = ctx.read(path)?;
+    let content = existing.clone().unwrap_or_default();
+    let mut updated = content.clone();
+    for line in lines {
+        let already_present =
+            content.lines().any(|existing_line| existing_line == *line);
+        if !already_present {
+            if !updated.is_empty() && !updated.ends_with('\n') {
+                updated.push('\n');
+            }
+            updated.push_str(line);
+            updated.push('\n');
+        }
+    }
+    if existing.is_none() || updated != content {
+        ctx.write(path, &updated)?;
+    }
+    Ok(())
 }
 
 fn join_lines(original: &str, lines: &[String]) -> String {

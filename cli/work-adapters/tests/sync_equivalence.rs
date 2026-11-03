@@ -196,7 +196,7 @@ fn each_named_legacy_unrenderable_remedy_settles_the_item() {
         MOVED_STAMP,
     ));
     let report = repo.resolving(9, Resolution::AcceptRemote);
-    assert_eq!(row(&report, 9).planned.action, Action::Pull);
+    assert_eq!(row(&report, 9).planned.action(), Action::Pull);
     assert!(repo.read(9).contains("Rendered"), "{}", repo.read(9));
     settles(&repo);
 }

@@ -120,7 +120,7 @@ similar = "=2.7.0"
 # non-parse code and every golden digest still holds; any other release bumps
 # the recipe.
 # `markdown` and `document` are the sole permitted wrappers (see deny.toml).
-pulldown-cmark = { version = "=0.13.5", default-features = false }
+pulldown-cmark = { version = "=0.13.6", default-features = false }
 # Unicode data for the plain-question gate: NFKC, general categories and
 # default-ignorable code points. Exact-pinned as a pair from one ICU4X release
 # so all three share a Unicode version. Both are already in the lock, with the

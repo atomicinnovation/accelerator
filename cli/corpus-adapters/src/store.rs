@@ -23,6 +23,7 @@ use crate::jsonl::{compose_record, parse_record, remove_prefix};
 /// process-global `umask`.
 pub struct FileCorpusStore {
     root: PathBuf,
+    project_root: PathBuf,
     lock: LockOptions,
     fresh_mode: u32,
 }
@@ -33,13 +34,28 @@ impl FileCorpusStore {
         Self::with_lock_options(root, LockOptions::default())
     }
 
+    /// A store whose root must itself resolve inside `project_root`, so a
+    /// root that is a symlink out of the project is refused.
+    #[must_use]
+    pub fn within_project(
+        root: impl Into<PathBuf>,
+        project_root: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            project_root: project_root.into(),
+            ..Self::new(root)
+        }
+    }
+
     #[must_use]
     pub fn with_lock_options(
         root: impl Into<PathBuf>,
         lock: LockOptions,
     ) -> Self {
+        let root = root.into();
         Self {
-            root: root.into(),
+            project_root: root.clone(),
+            root,
             lock,
             fresh_mode: 0o666 & !store::current_umask(),
         }
@@ -48,7 +64,7 @@ impl FileCorpusStore {
     fn bounds(&self) -> WriteBounds<'_> {
         WriteBounds {
             permitted_root: &self.root,
-            project_root: &self.root,
+            project_root: &self.project_root,
         }
     }
 
@@ -109,9 +125,11 @@ pub(crate) fn io(path: &Path, error: &IoError) -> StoreError {
     }
 }
 
-fn to_store_error(error: WriteError) -> StoreError {
+pub(crate) fn to_store_error(error: WriteError) -> StoreError {
     match error {
-        WriteError::NotWritable { path } => StoreError::NotWritable { path },
+        WriteError::NotWritable { path, detail } => {
+            StoreError::NotWritable { path, detail }
+        }
         WriteError::CrossFilesystem { path } => {
             StoreError::CrossFilesystem { path }
         }
@@ -120,6 +138,9 @@ fn to_store_error(error: WriteError) -> StoreError {
             StoreError::AlreadyExists { path }
         }
         WriteError::Io { path, detail } => StoreError::Io { path, detail },
+        WriteError::NotDurable { path, detail } => {
+            StoreError::NotDurable { path, detail }
+        }
         other => StoreError::Io {
             path: String::new(),
             detail: other.to_string(),
@@ -130,8 +151,8 @@ fn to_store_error(error: WriteError) -> StoreError {
 pub(crate) fn from_lock_error(error: lock::LockError) -> StoreError {
     match error {
         lock::LockError::Timeout { path } => StoreError::LockTimeout { path },
-        lock::LockError::NotWritable { path } => {
-            StoreError::NotWritable { path }
+        lock::LockError::NotWritable { path, detail } => {
+            StoreError::NotWritable { path, detail }
         }
         lock::LockError::Io { path, detail } => StoreError::Io { path, detail },
     }
@@ -257,9 +278,10 @@ mod tests {
         AtomicWrite, FileRemove, Outcome, Record, RecordStore, StoreError,
     };
     use store::lock::{acquire, LockError, LockOptions};
+    use store::WriteError;
     use tempfile::TempDir;
 
-    use super::{from_lock_error, FileCorpusStore};
+    use super::{from_lock_error, to_store_error, FileCorpusStore};
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -283,6 +305,20 @@ mod tests {
         fs::write(&target, b"old contents")?;
         FileCorpusStore::new(dir.path()).write(&target, b"new")?;
         assert_eq!(fs::read(&target)?, b"new");
+        Ok(())
+    }
+
+    #[test]
+    fn a_project_bounded_store_refuses_a_root_symlinked_out_of_the_project(
+    ) -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        let root = project.path().join("work");
+        std::os::unix::fs::symlink(elsewhere.path(), &root)?;
+        let result = FileCorpusStore::within_project(&root, project.path())
+            .write(&root.join("0001.md"), b"new");
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(!elsewhere.path().join("0001.md").exists());
         Ok(())
     }
 
@@ -447,15 +483,47 @@ mod tests {
     }
 
     #[test]
+    fn a_refused_write_keeps_its_permission_detail() {
+        let write = WriteError::NotWritable {
+            path: "/c/item.md".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
+        };
+        assert_eq!(
+            to_store_error(write),
+            StoreError::NotWritable {
+                path: "/c/item.md".to_owned(),
+                detail: "Permission denied (os error 13)".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn not_durable_maps_to_not_durable() {
+        let write = WriteError::NotDurable {
+            path: "/c/item.md".to_owned(),
+            detail: "Input/output error (os error 5)".to_owned(),
+        };
+        assert_eq!(
+            to_store_error(write),
+            StoreError::NotDurable {
+                path: "/c/item.md".to_owned(),
+                detail: "Input/output error (os error 5)".to_owned(),
+            }
+        );
+    }
+
+    #[test]
     fn an_unwritable_lockdir_is_a_store_not_writable_with_the_same_text() {
         let lock = LockError::NotWritable {
             path: "/c/log.jsonl.lockdir".to_owned(),
+            detail: "Permission denied (os error 13)".to_owned(),
         };
         let store = from_lock_error(lock.clone());
         assert_eq!(
             store,
             StoreError::NotWritable {
-                path: "/c/log.jsonl.lockdir".to_owned()
+                path: "/c/log.jsonl.lockdir".to_owned(),
+                detail: "Permission denied (os error 13)".to_owned(),
             }
         );
         assert_eq!(store.to_string(), lock.to_string());

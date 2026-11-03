@@ -33,6 +33,7 @@ use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 use crate::cli::PromoteArgs;
 use crate::exit_codes;
 use crate::identity_workspace::IdentityWorkspace;
+use crate::identity_workspace::OpenFailure;
 use crate::promotion_report::detail_lines;
 use crate::promotion_report::promotion_exit;
 use crate::promotion_report::promotion_line;
@@ -196,14 +197,19 @@ fn try_run(
             error.message(),
         )
     })?;
-    let workspace = IdentityWorkspace::open(
+    let (workspace, _) = IdentityWorkspace::for_identity_change(
         config,
         &root,
         &work_dir,
         &integrations_root,
         &integration,
     )
-    .map_err(&internal)?;
+    .map_err(|failure| match failure {
+        OpenFailure::Refused(refusal) => failed(exit_codes::UNCONFIGURED)(
+            crate::bounded_roots::configure_failure(&refusal),
+        ),
+        OpenFailure::Failed(message) => internal(message),
+    })?;
 
     let baseline_path = workspace.baseline_path();
     let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
@@ -260,23 +266,33 @@ fn try_run(
         &ports,
         workspace.state_dir(),
     );
+    Ok(promotion_report(&resumed, &row, &mode, &draft))
+}
+
+/// What a promotion reports, after the interrupted retirements it resumed.
+fn promotion_report(
+    resumed: &[IdentityRow],
+    row: &PromotionRow,
+    mode: &PromotionMode,
+    draft: &DraftId,
+) -> PromoteOutcome {
     let awaiting_human = resumed
         .iter()
         .any(IdentityRow::awaits_human)
         .then_some(exit_codes::UNRESOLVED);
-    let code = std::iter::once(promotion_exit(&row))
+    let code = std::iter::once(promotion_exit(row))
         .chain(awaiting_human)
         .max_by_key(|&code| severity(code))
         .unwrap_or(exit_codes::CLEAN);
     let mut lines: Vec<String> =
         resumed.iter().map(standalone_identity_line).collect();
-    lines.push(promotion_line(&row));
-    lines.extend(detail_lines(&row));
-    Ok(PromoteOutcome::Reported {
-        remedy: remedy_for(&row, &mode, &draft),
+    lines.push(promotion_line(row));
+    lines.extend(detail_lines(row));
+    PromoteOutcome::Reported {
+        remedy: remedy_for(row, mode, draft),
         lines,
         code,
-    })
+    }
 }
 
 #[cfg(test)]
@@ -517,6 +533,41 @@ mod tests {
     }
 
     #[test]
+    fn a_promote_with_a_symlinked_retirement_recovery_refuses_before_any_tracker_call(
+    ) {
+        let repo = Repo::new();
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+        let state = repo.path(".accelerator/state");
+        std::fs::create_dir_all(&state).unwrap();
+        std::os::unix::fs::symlink(
+            elsewhere.path(),
+            state.join("retirement-recovery"),
+        )
+        .unwrap();
+        let tracker = fresh();
+
+        let outcome = repo.promote(&tracker, None, false);
+
+        let PromoteOutcome::Failed { message, code } = outcome else {
+            panic!("a refused root fails the promotion: {outcome:?}");
+        };
+        assert_eq!(code, exit_codes::UNCONFIGURED);
+        assert!(
+            message.starts_with(
+                "error: -: configure failed: .accelerator/state/\
+                 retirement-recovery is a symlink to "
+            ),
+            "{message}"
+        );
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        assert!(repo.read(DRAFT_FILE).is_some(), "the draft is untouched");
+        assert!(std::fs::read_dir(elsewhere.path())
+            .unwrap()
+            .next()
+            .is_none());
+    }
+
+    #[test]
     fn promote_one_draft_matches_a_sync_promotion() {
         let promoted = Repo::new();
         let synced = Repo::new();
@@ -542,6 +593,7 @@ mod tests {
                 allow_unbounded: false,
                 no_promote: false,
                 targets: Vec::new(),
+                discard_kept_edits: Vec::new(),
             },
             &StubRegistry(fresh()),
             &NoFinaliser,

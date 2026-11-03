@@ -1707,8 +1707,10 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
         fn author_from_remote(
             &self,
             _issue: &work_adapters::sync::create::DiscoveredIssue,
-        ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error>
-        {
+        ) -> Result<
+            work_adapters::sync::create::AuthoredLocal,
+            work_adapters::sync::create::AuthorError,
+        > {
             panic!("a preview authors nothing")
         }
 
@@ -1716,7 +1718,7 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
             &self,
             _path: &Path,
             _external_id: &ExternalId,
-        ) -> Result<(), kernel::Error> {
+        ) -> Result<(), work_adapters::sync::create::AuthorError> {
             panic!("a preview links nothing")
         }
     }
@@ -1734,17 +1736,20 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
             tracker,
             parser: &CommonMarkBody,
             status: &Clean,
-            writer: &writer,
+            files: support::sync_files(&writer),
             clock: &Clock,
             author: &NoAuthor,
+            recovery_labels: &support::LabelsEveryId,
         },
         &mut baseline,
         &SyncRequest {
             corpus: &items,
+            inventory: &work_adapters::sync::fetch::inventory_of(&items),
             selection: ItemSelection::All,
             direction: work::sync::SyncDirection::Bidirectional,
             strategy: RetrievalStrategy::Bulk,
             resolutions: &std::collections::BTreeMap::new(),
+            pending_push_orders: &std::collections::BTreeMap::new(),
             max_pulls: tracker::Ceiling::Unlimited,
             max_pushes: tracker::Ceiling::Unlimited,
             mode: RunMode::Preview,
@@ -1758,8 +1763,8 @@ fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
     report
         .reported
         .iter()
-        .find(|item| item.planned.id == KEY)
-        .map(|item| item.planned.state)
+        .find(|item| item.planned.id() == KEY)
+        .map(|item| item.planned.state())
         .expect("the promoted item is reported")
 }
 

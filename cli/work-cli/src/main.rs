@@ -3,6 +3,7 @@
 
 mod batch_journal;
 mod batch_manifest;
+mod bounded_roots;
 mod canonicalise_id;
 mod cli;
 mod config;
@@ -11,6 +12,7 @@ mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod finished_run;
 mod identity_run;
 mod identity_workspace;
 mod list;
@@ -18,6 +20,7 @@ mod next_number;
 mod promote;
 mod promotion_report;
 mod rekey;
+mod report_records;
 mod resolve;
 mod show;
 mod sync;
@@ -267,6 +270,9 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
                 report.outcome.keyword(),
                 report.external_id.as_deref().unwrap_or("")
             );
+            if let Some(warning) = &report.warning {
+                eprintln!("{warning}");
+            }
             if let Some(cause) = &report.cause {
                 eprintln!("Error: {cause}");
             }
@@ -316,6 +322,9 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
     let print = |report: &create_batch::BatchReport| {
         for line in &report.lines {
             println!("{line}");
+        }
+        for warning in &report.warnings {
+            eprintln!("{warning}");
         }
         for cause in &report.causes {
             eprintln!("Error: {cause}");

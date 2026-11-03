@@ -14,8 +14,13 @@ use migrate::ports::DocTypeDir;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext;
 use migrate::ports::MigrationError;
+use migrate::ports::TrackedState;
+use migrate::ports::VersionControl;
 use store::NewFileMode;
 use store::WriteBounds;
+use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
+use vcs::VcsKind;
 
 use crate::corpus_index::FileCorpusIndex;
 use crate::manifest_store::FileManifestStore;
@@ -29,6 +34,15 @@ pub struct Capabilities<'a> {
     pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
     pub canonicaliser: &'a dyn corpus::work_item_id::WorkItemIdCanonicaliser,
     pub sync_baselines: &'a dyn migrate::ports::SyncBaselines,
+    pub version_control: Option<VersionControlled<'a>>,
+}
+
+/// The version control enclosing the root, and how to ask it what it
+/// tracks.
+#[derive(Clone, Copy)]
+pub struct VersionControlled<'a> {
+    pub kind: VcsKind,
+    pub tracking: &'a dyn RepositoryTracking,
 }
 
 pub struct FileMigrationContext<'a> {
@@ -216,6 +230,26 @@ impl MigrationContext for FileMigrationContext<'_> {
             .map_err(|error| MigrationError::new(error.to_string()))?;
         entries.sort();
         Ok(entries)
+    }
+
+    fn version_control(&self, under: &Path) -> Option<TrackedState> {
+        let controlled = self.capabilities.version_control?;
+        let kind = match controlled.kind {
+            VcsKind::Git => VersionControl::Git,
+            VcsKind::Jj => VersionControl::Jj,
+            VcsKind::None => return None,
+        };
+        let mut found = Vec::new();
+        walk(under, &mut found, false).ok()?;
+        found.sort();
+        let tracked = found
+            .into_iter()
+            .filter(|path| path.is_file())
+            .filter(|path| {
+                controlled.tracking.file_tracking(path) == FileTracking::Tracked
+            })
+            .collect();
+        Some(TrackedState { kind, tracked })
     }
 
     fn merge_move(&self, src: &Path, dst: &Path) -> Result<(), MigrationError> {

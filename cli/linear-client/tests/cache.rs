@@ -233,7 +233,7 @@ fn the_real_lock_under_a_read_only_state_dir_is_a_cache_io_failure() {
         error.to_string(),
         format!(
             "E_CACHE_IO: {lockdir}: cannot write under '{lockdir}': \
-             not writable"
+             not writable: Permission denied (os error 13)"
         )
     );
 }
@@ -925,4 +925,19 @@ fn a_forgiving_read_keeps_the_legacy_base_despite_a_damaged_teams_array() {
         document.base_entry().map(|base| base.key.as_str()),
         Some("AAA")
     );
+}
+
+#[test]
+fn a_state_dir_through_a_dotdot_in_a_missing_directory_is_refused() {
+    let dir = TempDir::new().expect("a temp dir");
+    let fs = SystemFilesystem::new(dir.path().to_path_buf());
+    let state = dir.path().join("missing/../state");
+
+    let error = fs
+        .write_atomic(&state.join("site.json"), b"{}")
+        .expect_err("a dotdot through a missing directory is refused");
+
+    assert!(error.to_string().contains("unsafe path"), "{error}");
+    assert!(!dir.path().join("missing").exists());
+    assert!(!dir.path().join("state/site.json").exists());
 }

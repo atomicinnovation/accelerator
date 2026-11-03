@@ -27,7 +27,7 @@ pub struct ItemSnapshot<'a> {
     remote_projection: Option<String>,
     digester: &'a BaselineDigester<'a>,
     mtime: OnceCell<Option<u64>>,
-    content: Result<String, String>,
+    content: Result<String, UnreadContent>,
     legacy_local: OnceCell<String>,
     local: OnceCell<LocalFingerprints>,
     legacy_remote: OnceCell<Option<String>>,
@@ -43,6 +43,23 @@ fn memoised<T: Clone>(
     }
     let value = compute()?;
     Ok(cell.get_or_init(|| value).clone())
+}
+
+/// Why a snapshot holds no content: the bytes are not UTF-8, which a retry
+/// reproduces, or the read itself failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnreadContent {
+    Undecodable,
+    Failed(String),
+}
+
+impl std::fmt::Display for UnreadContent {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Undecodable => formatter.write_str("not UTF-8"),
+            Self::Failed(detail) => formatter.write_str(detail),
+        }
+    }
 }
 
 impl<'a> ItemSnapshot<'a> {
@@ -61,7 +78,14 @@ impl<'a> ItemSnapshot<'a> {
             digester,
             mtime: OnceCell::new(),
             content: std::fs::read_to_string(path).map_err(|error| {
-                format!("could not read {}: {error}", path.display())
+                if error.kind() == std::io::ErrorKind::InvalidData {
+                    UnreadContent::Undecodable
+                } else {
+                    UnreadContent::Failed(format!(
+                        "could not read {}: {error}",
+                        path.display()
+                    ))
+                }
             }),
             legacy_local: OnceCell::new(),
             local: OnceCell::new(),
@@ -76,9 +100,17 @@ impl<'a> ItemSnapshot<'a> {
     ///
     /// When the file could not be read.
     pub fn content(&self) -> Result<&str, kernel::Error> {
-        self.content
-            .as_deref()
-            .map_err(|detail| kernel::Error::Failed(detail.clone()))
+        self.read()
+            .map_err(|unread| kernel::Error::Failed(unread.to_string()))
+    }
+
+    /// The local file as the snapshot read it, or why it could not be.
+    ///
+    /// # Errors
+    ///
+    /// When the file could not be read, or is not UTF-8.
+    pub fn read(&self) -> Result<&str, &UnreadContent> {
+        self.content.as_deref()
     }
 
     /// Both recipes' fingerprints of what classification read, for a

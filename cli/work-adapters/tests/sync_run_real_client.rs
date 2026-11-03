@@ -23,6 +23,7 @@ use config::credentials::Secret;
 use config::credentials::TokenSource;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::store::StoreError;
 use graphql_test_support::MockGraphQLServer;
 use http_test_support::MockHTTPServer;
@@ -87,6 +88,7 @@ const LINEAR_TEAM_ID: &str = "5c9f2a1b-0000-4000-8000-000000000001";
 struct Spy {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     writes: RefCell<Vec<PathBuf>>,
+    removals: RefCell<Vec<PathBuf>>,
 }
 
 impl Spy {
@@ -117,6 +119,14 @@ impl AtomicWrite for Spy {
     }
 }
 
+impl FileRemove for Spy {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        self.removals.borrow_mut().push(path.to_path_buf());
+        self.files.borrow_mut().remove(path);
+        Ok(())
+    }
+}
+
 struct AlwaysClean;
 
 impl WorkingCopyStatus for AlwaysClean {
@@ -133,7 +143,10 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
     fn author_from_remote(
         &self,
         _issue: &work_adapters::sync::create::DiscoveredIssue,
-    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
         panic!("the real-client scenarios never author from a discovery")
     }
 
@@ -141,7 +154,7 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
         &self,
         _path: &Path,
         _external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         panic!("the real-client scenarios never link an external id")
     }
 }
@@ -276,19 +289,22 @@ fn execute(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author: &author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
         selection: ItemSelection::All,
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
+        pending_push_orders: &BTreeMap::new(),
         max_pulls: tracker::Ceiling::Bounded(25),
         max_pushes: tracker::Ceiling::Bounded(25),
         mode,
@@ -374,13 +390,13 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
-        report.reported[0].planned.state,
+        report.reported[0].planned.state(),
         SyncState::LocallyModified,
         "remote unchanged (hash matches) + local changed classifies \
          locally-modified"
     );
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     Ok(())
@@ -516,9 +532,12 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
 
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
-    assert_eq!(report.reported[0].planned.state, SyncState::LocallyModified);
+    assert_eq!(
+        report.reported[0].planned.state(),
+        SyncState::LocallyModified
+    );
     assert!(matches!(
-        report.reported[0].planned.action,
+        report.reported[0].planned.action(),
         work::sync::Action::Push(_)
     ));
     Ok(())
@@ -767,9 +786,9 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
         .reported
         .iter()
         .filter(|item| {
-            item.planned.action == work::sync::Action::CreateFromRemote
+            item.planned.action() == work::sync::Action::CreateFromRemote
         })
-        .map(|item| item.planned.id.as_str())
+        .map(|item| item.planned.id())
         .collect();
     assert_eq!(
         created,
@@ -1317,7 +1336,10 @@ impl work_adapters::sync::create::LocalAuthor for RecordingAuthor {
     fn author_from_remote(
         &self,
         issue: &work_adapters::sync::create::DiscoveredIssue,
-    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
         self.bodies.borrow_mut().push(issue.body.clone());
         let path = self.dir.join("ENG-1.md");
         std::fs::write(&path, format!("{LOCAL_FRONTMATTER}\n{}", issue.body))
@@ -1332,7 +1354,7 @@ impl work_adapters::sync::create::LocalAuthor for RecordingAuthor {
         &self,
         _path: &Path,
         _external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         panic!("a pull-create never links an external id")
     }
 }
@@ -1351,18 +1373,21 @@ fn execute_targeted_pulling(
         tracker,
         parser: &CommonMarkBody,
         status: &status,
-        writer: spy,
+        files: support::sync_files(spy),
         clock: &clock,
         author,
+        recovery_labels: &support::LabelsEveryId,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
         selection: ItemSelection::Targeted { items, pull_ids },
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
+        pending_push_orders: &BTreeMap::new(),
         max_pulls: tracker::Ceiling::Bounded(25),
         max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,

@@ -5,6 +5,7 @@ pub store::lock::LockError::Io
 pub store::lock::LockError::Io::detail: alloc::string::String
 pub store::lock::LockError::Io::path: alloc::string::String
 pub store::lock::LockError::NotWritable
+pub store::lock::LockError::NotWritable::detail: alloc::string::String
 pub store::lock::LockError::NotWritable::path: alloc::string::String
 pub store::lock::LockError::Timeout
 pub store::lock::LockError::Timeout::path: alloc::string::String
@@ -56,7 +57,11 @@ pub store::WriteError::InsecurePermissions::path: alloc::string::String
 pub store::WriteError::Io
 pub store::WriteError::Io::detail: alloc::string::String
 pub store::WriteError::Io::path: alloc::string::String
+pub store::WriteError::NotDurable
+pub store::WriteError::NotDurable::detail: alloc::string::String
+pub store::WriteError::NotDurable::path: alloc::string::String
 pub store::WriteError::NotWritable
+pub store::WriteError::NotWritable::detail: alloc::string::String
 pub store::WriteError::NotWritable::path: alloc::string::String
 pub store::WriteError::UnsafePath
 pub store::WriteError::UnsafePath::path: alloc::string::String
