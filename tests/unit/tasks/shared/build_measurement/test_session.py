@@ -491,9 +491,9 @@ class TestCacheStates:
         session.workspace.preparation_seconds = 50.0
         measured = session.measure(runs=1, cache_state="cold").measured
         events = session.events
-        assert events.index("prepare cold-trash-1") < events.index(
-            "start cpu run-1-iostat.log"
-        )
+        run_start = events.index("start cpu run-1-iostat.log")
+        assert events.index("prepare cold-trash-1") < run_start
+        assert events.index("remove cold-trash-1") < run_start
         [run] = measured.runs
         assert run.wall_clock_seconds == 6.5
         assert run.tasks["build"].start_seconds == 0.0
@@ -536,6 +536,7 @@ class TestCacheStates:
     def test_a_state_that_deletes_nothing_names_no_deletion(self, session):
         session.measure(runs=1, cache_state="incremental")
         assert not any("deleting" in line for line in session.progress)
+        assert not any(event.startswith("remove") for event in session.events)
 
 
 def _unremoved(session, number):
@@ -567,6 +568,20 @@ class TestUnremovedTrash:
         ]
         assert notices_report([unremoved]) in session.progress
         assert not (session.run_directory / "record.json").exists()
+
+    def test_the_trash_that_stopped_the_session_is_never_safe_to_delete(
+        self, session
+    ):
+        unremoved = _unremoved(session, 1)
+        session.workspace.unremoved = {"cold-trash-1": unremoved}
+        session.workspace.found_later = (
+            FoundTrash(path=unremoved.path, size_bytes=unremoved.size_bytes),
+        )
+        with pytest.raises(TrashNotRemovedError):
+            session.measure(runs=3, cache_state="cold")
+        after = _after_preflight(session)
+        assert after.count(str(unremoved.path)) == 1
+        assert "safe to delete" not in after
 
     def test_unremoved_trash_from_the_last_run_becomes_a_notice(self, session):
         unremoved = _unremoved(session, 2)
@@ -651,11 +666,31 @@ def _ends_by_refusal(session):
     return TrashNotRemovedError
 
 
-def _ends_part_way_through_a_preparation(session):
-    session.workspace.unremoved = {
-        "cold-trash-1": UnsafeDeletionError("cli/target moved")
+def _ends_by_refusing_a_later_preparation(session):
+    session.workspace.refusals = {
+        "cold-trash-2": UnsafeDeletionError("cli/target moved")
     }
     session.workspace.found_later = (_EARLIER_TRASH,)
+    return UnsafeDeletionError
+
+
+def _ends_while_removing_the_first_trash(session):
+    session.workspace.unremoved = {"cold-trash-1": KeyboardInterrupt()}
+    return KeyboardInterrupt
+
+
+def _ends_during_idle_sampling(session):
+    def interrupted(seconds):
+        raise KeyboardInterrupt
+
+    session.clock.sleep = interrupted
+    return KeyboardInterrupt
+
+
+def _ends_by_refusing_the_first_preparation(session):
+    session.workspace.refusals = {
+        "cold-trash-1": UnsafeDeletionError("cli/target moved")
+    }
     return UnsafeDeletionError
 
 
@@ -680,11 +715,12 @@ class TestDevLauncherWarning:
         [
             _ends_by_interrupt,
             _ends_by_refusal,
-            _ends_part_way_through_a_preparation,
+            _ends_by_refusing_a_later_preparation,
+            _ends_while_removing_the_first_trash,
         ],
-        ids=["interrupt", "refusal", "part-way-preparation"],
+        ids=["interrupt", "refusal", "later-preparation", "trash-removal"],
     )
-    def test_the_dev_launcher_warning_is_repeated_however_the_session_ends(
+    def test_the_dev_launcher_warning_is_repeated_once_anything_is_deleted(
         self, session, ending
     ):
         session.workspace.marker = True
@@ -697,28 +733,41 @@ class TestDevLauncherWarning:
             assert notices_report([_EARLIER_TRASH]) in after
         assert str(session.run_directory) in session.progress[-1]
 
-    def test_a_session_ending_before_its_first_preparation_warns_once(
-        self, session
+    @pytest.mark.parametrize(
+        "ending",
+        [_ends_during_idle_sampling, _ends_by_refusing_the_first_preparation],
+        ids=["idle-sampling", "first-preparation"],
+    )
+    def test_a_session_ending_before_anything_is_deleted_warns_once(
+        self, session, ending
     ):
-        def interrupted(seconds):
-            raise KeyboardInterrupt
-
         session.workspace.marker = True
-        session.clock.sleep = interrupted
-        with pytest.raises(KeyboardInterrupt):
+        expected = ending(session)
+        with pytest.raises(expected):
             session.measure(runs=1, cache_state="cold")
         assert sum(_REBUILD in line for line in session.progress) == 1
 
+    @pytest.mark.parametrize(
+        ("unreadable", "reported"),
+        [
+            ("found_later", "the cold trash could not be listed: unreadable"),
+            (
+                "marker_later",
+                "the dev launcher marker could not be checked: unreadable",
+            ),
+        ],
+        ids=["trash", "marker"],
+    )
     def test_a_failing_exit_report_never_hides_why_the_session_ended(
-        self, session
+        self, session, unreadable, reported
     ):
         session.workspace.marker = True
-        session.workspace.found_later = PermissionError("trash unreadable")
+        setattr(session.workspace, unreadable, PermissionError("unreadable"))
         _ends_by_interrupt(session)
         with pytest.raises(KeyboardInterrupt):
             session.measure(runs=2, cache_state="cold")
         after = _after_preflight(session)
-        assert "the cold trash could not be listed: trash unreadable" in after
+        assert reported in after
         assert _REBUILD in after
 
 

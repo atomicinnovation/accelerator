@@ -350,24 +350,35 @@ class RecordingWorkspace:
         clock,
         events,
         *,
+        refusals=None,
         unremoved=None,
         found=(),
         found_later=None,
         marker=False,
+        marker_later=None,
         preparation_seconds=0.0,
     ):
         self.clock = clock
         self.events = events
+        self.refusals = refusals or {}
         self.unremoved = unremoved or {}
         self.found = found
         self.found_later = found_later
         self.listings = 0
         self.marker = marker
+        self.marker_later = marker_later
+        self.probes = 0
         self.preparation_seconds = preparation_seconds
         self.prepared: list[tuple[BuildCacheState, Path]] = []
 
     def has_dev_launcher_marker(self):
-        return self.marker
+        self.probes += 1
+        marker = self.marker
+        if self.probes > 1 and self.marker_later is not None:
+            marker = self.marker_later
+        if isinstance(marker, BaseException):
+            raise marker
+        return marker
 
     def verify(self, state):
         self.events.append(f"verify {state}")
@@ -376,6 +387,12 @@ class RecordingWorkspace:
         self.events.append(f"prepare {trash.name}")
         self.prepared.append((state, trash))
         self.clock.t += self.preparation_seconds
+        refusal = self.refusals.get(trash.name)
+        if refusal is not None:
+            raise refusal
+
+    def remove_trash(self, trash):
+        self.events.append(f"remove {trash.name}")
         answer = self.unremoved.get(trash.name)
         if isinstance(answer, BaseException):
             raise answer

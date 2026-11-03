@@ -11,7 +11,7 @@ from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import NoReturn, Protocol
+from typing import Protocol
 
 from tasks.shared.build_measurement.analysis import (
     BuildResult,
@@ -50,10 +50,10 @@ from tasks.shared.build_measurement.provenance import (
 from tasks.shared.build_measurement.record import run_id
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
-    DevLauncherNeedsRebuild,
     Preflight,
     SessionNotice,
     SessionOutcome,
+    dev_launcher_notices,
     notices_report,
     preflight_report,
     run_end_line,
@@ -128,9 +128,11 @@ class BuildGroup(Protocol):
 class Workspace(Protocol):
     def has_dev_launcher_marker(self) -> bool: ...
     def verify(self, state: BuildCacheState) -> None: ...
-    def prepare_timed_run(
-        self, state: BuildCacheState, *, trash: Path
-    ) -> UnremovedTrash | None: ...
+    def prepare_timed_run(self, state: BuildCacheState, *, trash: Path) -> None:
+        """Leaves every deletion in place when it raises."""
+        ...
+
+    def remove_trash(self, trash: Path) -> UnremovedTrash | None: ...
     def leftover_trash(self) -> tuple[FoundTrash, ...]: ...
 
 
@@ -205,6 +207,8 @@ class _Session:
         )
         self.run_directory = RUN_DIRECTORY_ROOT / self.run_id
         self.logs = settings.root / self.run_directory
+        self.has_deleted = False
+        self.unremoved: UnremovedTrash | None = None
 
     def run(self) -> SessionOutcome:
         self.logs.mkdir(parents=True)
@@ -355,23 +359,13 @@ class _Session:
         if deletes:
             exit_reports.push(self._report_deletion_notices_on_failure)
         runs: list[CapturedRun] = []
-        last_unremoved: tuple[UnremovedTrash, ...] = ()
         for number in range(1, self.settings.runs + 1):
             run = TimedRun(number)
             self._progress(f"timed run {number}/{self.settings.runs}")
-            unremoved = self._prepare(run)
+            self._prepare(run)
             runs.append(self._timed_run(run))
-            if unremoved is None:
-                continue
-            if number < self.settings.runs:
-                self._stop_for_unremoved(run, unremoved)
-            last_unremoved = (unremoved,)
-        if not deletes:
-            return tuple(runs), last_unremoved
-        return tuple(runs), (
-            *last_unremoved,
-            *self._deletion_notices(reported=last_unremoved),
-        )
+            self._stop_if_trash_would_pile_up(run)
+        return tuple(runs), self._deletion_notices() if deletes else ()
 
     def _report_deletion_notices_on_failure(
         self,
@@ -380,37 +374,50 @@ class _Session:
         _traceback: TracebackType | None,
     ) -> bool:
         if failure is not None:
-            notices = self._deletion_notices(reported=())
+            notices = self._deletion_notices()
             if notices:
                 self._progress(notices_report(notices))
         return False
 
-    def _deletion_notices(
-        self, *, reported: Sequence[UnremovedTrash]
-    ) -> tuple[SessionNotice, ...]:
+    def _deletion_notices(self) -> tuple[SessionNotice, ...]:
         """Never raises, so it cannot replace the reason a session ended."""
-        workspace = self.ports.workspace
+        unremoved = () if self.unremoved is None else (self.unremoved,)
+        return (
+            *unremoved,
+            *self._trash_found_besides(unremoved),
+            *dev_launcher_notices(
+                deleting=self.has_deleted,
+                marker_present=self._dev_launcher_marker_present(),
+            ),
+        )
+
+    def _trash_found_besides(
+        self, reported: Sequence[UnremovedTrash]
+    ) -> tuple[FoundTrash, ...]:
         reported_paths = {each.path for each in reported}
         try:
-            found = tuple(
+            return tuple(
                 each
-                for each in workspace.leftover_trash()
+                for each in self.ports.workspace.leftover_trash()
                 if each.path not in reported_paths
             )
         except OSError as error:
             self._progress(f"the cold trash could not be listed: {error}")
-            found = ()
-        try:
-            marker = workspace.has_dev_launcher_marker()
-        except OSError:
-            marker = True
-        rebuild = (DevLauncherNeedsRebuild(),) if marker else ()
-        return (*found, *rebuild)
+            return ()
 
-    def _stop_for_unremoved(
-        self, run: TimedRun, unremoved: UnremovedTrash
-    ) -> NoReturn:
-        self._progress(notices_report([unremoved]))
+    def _dev_launcher_marker_present(self) -> bool:
+        try:
+            return self.ports.workspace.has_dev_launcher_marker()
+        except OSError as error:
+            self._progress(
+                f"the dev launcher marker could not be checked: {error}"
+            )
+            return True
+
+    def _stop_if_trash_would_pile_up(self, run: TimedRun) -> None:
+        unremoved = self.unremoved
+        if unremoved is None or run.number == self.settings.runs:
+            return
         deletions = " and ".join(
             str(path) for path in self.settings.cache_state.deletions
         )
@@ -459,15 +466,19 @@ class _Session:
         )
         return captured
 
-    def _prepare(self, run: TimedRun) -> UnremovedTrash | None:
+    def _prepare(self, run: TimedRun) -> None:
         state = self.settings.cache_state
-        if state.deletions:
-            self._progress("  deleting before this run:")
-            for path in state.deletions:
-                self._progress(f"    {self.settings.root / path}")
-        return self.ports.workspace.prepare_timed_run(
-            state, trash=self.logs / trash_name(run)
-        )
+        workspace = self.ports.workspace
+        trash = self.logs / trash_name(run)
+        if not state.deletions:
+            workspace.prepare_timed_run(state, trash=trash)
+            return
+        self._progress("  deleting before this run:")
+        for path in state.deletions:
+            self._progress(f"    {self.settings.root / path}")
+        workspace.prepare_timed_run(state, trash=trash)
+        self.has_deleted = True
+        self.unremoved = workspace.remove_trash(trash)
 
     def _matches_at_end(self, commit: str) -> bool | None:
         try:

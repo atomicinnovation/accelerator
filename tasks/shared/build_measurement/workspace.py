@@ -56,18 +56,18 @@ class FilesystemWorkspace:
         for path in state.deletions:
             self._require_deletable(path)
 
-    def prepare_timed_run(
-        self, state: BuildCacheState, *, trash: Path
-    ) -> UnremovedTrash | None:
+    def prepare_timed_run(self, state: BuildCacheState, *, trash: Path) -> None:
         self.verify(state)
         for path in state.touches:
             os.utime(self.root / path)
         if not state.deletions:
-            return None
+            return
         self._require_in_run_root(trash)
         trash.mkdir(exist_ok=False)
-        for path in state.deletions:
-            self._move_aside(path, trash)
+        self._set_aside(state.deletions, trash)
+
+    def remove_trash(self, trash: Path) -> UnremovedTrash | None:
+        self._require_in_run_root(trash)
         failure = self.remove_tree(trash)
         if not trash.exists():
             return None
@@ -115,6 +115,21 @@ class FilesystemWorkspace:
                 f"refusing to move deletions into {trash}: it is outside "
                 f"{run_root}; nothing was deleted"
             )
+
+    def _set_aside(self, deletions: tuple[Path, ...], trash: Path) -> None:
+        try:
+            for path in deletions:
+                self._move_aside(path, trash)
+        except BaseException:
+            self._put_back(deletions, trash)
+            raise
+
+    def _put_back(self, deletions: tuple[Path, ...], trash: Path) -> None:
+        for path in deletions:
+            aside = trash / path
+            if aside.exists():
+                aside.rename(self.root / path)
+        self.remove_tree(trash)
 
     def _move_aside(self, path: Path, trash: Path) -> None:
         target = self.root / path

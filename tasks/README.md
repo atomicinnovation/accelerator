@@ -410,7 +410,7 @@ path and size, and all of it is safe to delete. With `.accelerator-dev-launcher`
 present, hooks using this checkout's dev launcher fail open while `cli/target`
 is gone, until the launcher is rebuilt with the `cargo build` in
 `CONTRIBUTING.md`'s "Local development"; a cold session warns of this in the
-preflight and again however it ends.
+preflight, and again however it ends once it has deleted anything.
 
 **Comparing build records.** `measure:compare-builds <previous> <current>`
 applies the comparability rule, the host-settings label included: its first

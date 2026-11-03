@@ -54,6 +54,12 @@ class DevLauncherNeedsRebuild:
 type SessionNotice = UnremovedTrash | FoundTrash | DevLauncherNeedsRebuild
 
 
+def dev_launcher_notices(
+    *, deleting: bool, marker_present: bool
+) -> tuple[DevLauncherNeedsRebuild, ...]:
+    return (DevLauncherNeedsRebuild(),) if deleting and marker_present else ()
+
+
 def _size(size_bytes: int) -> str:
     for scale, unit in _DECIMAL_UNITS:
         if size_bytes >= scale:
@@ -108,9 +114,10 @@ class Preflight:
 
     @property
     def dev_launcher_notices(self) -> tuple[DevLauncherNeedsRebuild, ...]:
-        if self.deletions and self.dev_launcher_marker:
-            return (DevLauncherNeedsRebuild(),)
-        return ()
+        return dev_launcher_notices(
+            deleting=bool(self.deletions),
+            marker_present=self.dev_launcher_marker,
+        )
 
 
 def _working_copy(preflight: Preflight) -> str:

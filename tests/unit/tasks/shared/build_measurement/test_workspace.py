@@ -1,5 +1,7 @@
+import contextlib
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -47,6 +49,29 @@ def run_directory(tmp_path):
 def _fails_without_removing(path):
     del path
     return PermissionError(13, "Permission denied", "cli/target/debug")
+
+
+@contextlib.contextmanager
+def _read_only_frontend(root, _monkeypatch):
+    frontend = (root / FRONTEND_MODULES).parent
+    frontend.chmod(0o555)
+    try:
+        yield PermissionError
+    finally:
+        frontend.chmod(0o755)
+
+
+@contextlib.contextmanager
+def _interrupted_frontend(_root, monkeypatch):
+    rename = Path.rename
+
+    def interrupted(source, target):
+        if source.name == "node_modules":
+            raise KeyboardInterrupt
+        return rename(source, target)
+
+    monkeypatch.setattr(Path, "rename", interrupted)
+    yield KeyboardInterrupt
 
 
 class TestVerification:
@@ -149,12 +174,9 @@ class TestPreparation:
         self, tmp_path, run_directory
     ):
         trash = run_directory / "cold-trash-1"
-        assert (
-            FilesystemWorkspace(tmp_path).prepare_timed_run(
-                BuildCacheState.COLD, trash=trash
-            )
-            is None
-        )
+        workspace = FilesystemWorkspace(tmp_path)
+        workspace.prepare_timed_run(BuildCacheState.COLD, trash=trash)
+        assert workspace.remove_trash(trash) is None
         assert not (tmp_path / TARGET).exists()
         assert not (tmp_path / FRONTEND_MODULES).exists()
         assert (tmp_path / DOCS_MODULES / "astro/index.js").exists()
@@ -180,17 +202,28 @@ class TestPreparation:
         assert (tmp_path / TARGET / "debug/accelerator").exists()
         assert not (run_directory / "cold-trash-1").exists()
 
-    def test_a_cold_target_is_moved_aside_before_it_is_removed(
+    def test_a_cold_target_is_moved_aside_until_the_trash_is_removed(
         self, tmp_path, run_directory
     ):
         trash = run_directory / "cold-trash-1"
-        unremoved = FilesystemWorkspace(
-            tmp_path, remove_tree=_fails_without_removing
-        ).prepare_timed_run(BuildCacheState.COLD, trash=trash)
+        FilesystemWorkspace(tmp_path).prepare_timed_run(
+            BuildCacheState.COLD, trash=trash
+        )
         assert not (tmp_path / TARGET).exists()
         assert (trash / TARGET / "debug/accelerator").read_bytes() == (
             b"x" * 100
         )
+
+    def test_trash_whose_removal_fails_is_unremoved(
+        self, tmp_path, run_directory
+    ):
+        trash = run_directory / "cold-trash-1"
+        FilesystemWorkspace(tmp_path).prepare_timed_run(
+            BuildCacheState.COLD, trash=trash
+        )
+        unremoved = FilesystemWorkspace(
+            tmp_path, remove_tree=_fails_without_removing
+        ).remove_trash(trash)
         assert unremoved is not None
         assert unremoved.path == trash.absolute()
         assert unremoved.size_bytes >= 100
@@ -202,9 +235,12 @@ class TestPreparation:
         self, tmp_path, run_directory
     ):
         trash = run_directory / "cold-trash-1"
+        FilesystemWorkspace(tmp_path).prepare_timed_run(
+            BuildCacheState.COLD, trash=trash
+        )
         unremoved = FilesystemWorkspace(
             tmp_path, remove_tree=lambda path: None
-        ).prepare_timed_run(BuildCacheState.COLD, trash=trash)
+        ).remove_trash(trash)
         assert unremoved is not None
         assert unremoved.cause == "the directory remained after removal"
 
@@ -217,6 +253,13 @@ class TestPreparation:
             )
         assert (tmp_path / TARGET).exists()
 
+    def test_removing_trash_outside_the_run_root_is_refused(
+        self, tmp_path, run_directory
+    ):
+        with pytest.raises(UnsafeDeletionError, match="outside"):
+            FilesystemWorkspace(tmp_path).remove_trash(tmp_path / TARGET)
+        assert (tmp_path / TARGET / "debug/accelerator").exists()
+
     def test_an_existing_trash_directory_is_never_reused(
         self, tmp_path, run_directory
     ):
@@ -227,6 +270,37 @@ class TestPreparation:
                 BuildCacheState.COLD, trash=trash
             )
         assert (tmp_path / TARGET).exists()
+
+    @pytest.mark.parametrize(
+        "obstruct",
+        [
+            pytest.param(
+                _read_only_frontend,
+                marks=pytest.mark.skipif(
+                    hasattr(os, "geteuid") and os.geteuid() == 0,
+                    reason="no permission stops root",
+                ),
+                id="refused",
+            ),
+            pytest.param(_interrupted_frontend, id="interrupted"),
+        ],
+    )
+    def test_a_failed_second_move_puts_the_first_back(
+        self, tmp_path, run_directory, monkeypatch, obstruct
+    ):
+        trash = run_directory / "cold-trash-1"
+        workspace = FilesystemWorkspace(tmp_path)
+        with (
+            obstruct(tmp_path, monkeypatch) as expected,
+            pytest.raises(expected),
+        ):
+            workspace.prepare_timed_run(BuildCacheState.COLD, trash=trash)
+        assert (tmp_path / TARGET / "debug/accelerator").read_bytes() == (
+            b"x" * 100
+        )
+        assert (tmp_path / FRONTEND_MODULES / "react/index.js").exists()
+        assert not trash.exists()
+        assert workspace.leftover_trash() == ()
 
 
 @pytest.mark.skipif(
@@ -363,6 +437,11 @@ class TestObservedSessions:
         for log in ("run-1.log", "run-2.log"):
             assert not observed.seen[log].target_built
             assert not observed.seen[log].frontend_installed
+
+    def test_a_cold_session_leaves_no_trash_behind(self, tmp_path):
+        _, _, measure = _observed_session(tmp_path, state="cold")
+        measure()
+        assert FilesystemWorkspace(tmp_path).leftover_trash() == ()
 
     def test_cold_never_primes(self, tmp_path):
         _, observed, measure = _observed_session(tmp_path, state="cold")
