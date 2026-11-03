@@ -418,7 +418,6 @@ fn parse_orders(
     Ok(orders)
 }
 
-/// A relink's row names the order it carries out.
 fn row_detail(planned: &PlannedAction) -> String {
     match (planned.action(), planned.order()) {
         (work::sync::Action::Relink, Some(order)) => order.to_string(),
@@ -939,7 +938,6 @@ fn unretired_adoption_warnings(report: &RunReport) -> Vec<String> {
         .collect()
 }
 
-/// What a person should know of a local create an order settled.
 fn create_notices(report: &RunReport) -> Vec<String> {
     report
         .reported
@@ -2281,8 +2279,6 @@ fn sync_request<'a>(
     })
 }
 
-/// The items whose kept edits `--discard-kept-edits` names, each one an id
-/// that can name a directory.
 fn ids_to_discard(
     scheme: &WorkItemIdScheme,
     named: &[String],

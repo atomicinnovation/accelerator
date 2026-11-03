@@ -136,7 +136,6 @@ pub struct KeptEditsRetention<'a> {
     pub discarding: &'a BTreeSet<String>,
 }
 
-/// The files at any depth under a directory.
 struct Contents {
     files: Vec<PathBuf>,
     holds_a_link: bool,

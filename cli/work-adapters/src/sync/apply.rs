@@ -85,7 +85,6 @@ impl FailureClass {
         Self::OrderRefused,
     ];
 
-    /// How a failed row names this class.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
