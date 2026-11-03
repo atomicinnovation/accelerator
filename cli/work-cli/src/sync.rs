@@ -1968,7 +1968,6 @@ pub fn run_sync_with(
         Ok(report) => report_finished_run(
             console,
             &FinishedRunContext {
-                config,
                 integration,
                 integrations_root,
                 repo_root,
@@ -2387,7 +2386,6 @@ fn assemble_run<T>(
 }
 
 struct FinishedRunContext<'a> {
-    config: &'a dyn ConfigAccess,
     integration: &'a str,
     integrations_root: &'a Path,
     repo_root: &'a Path,
@@ -2482,24 +2480,14 @@ fn report_finished_run(
         .integrations_root
         .join(context.integration)
         .join("conflicts");
-    let stale_dossiers = match crate::config::resolve_scheme(context.config) {
-        Ok(scheme) => persist_conflict_dossiers(
-            console,
-            context.dossier_store,
-            &conflicts_dir,
-            report,
-            &scheme,
-            &work_adapters::diff::render,
-        ),
-        Err(error) => {
-            console.warn(format_args!(
-                "warning: conflict dossiers not written — could not resolve \
-                 the work-item id scheme ({})",
-                single_line(&error.to_string())
-            ));
-            Vec::new()
-        }
-    };
+    let stale_dossiers = persist_conflict_dossiers(
+        console,
+        context.dossier_store,
+        &conflicts_dir,
+        report,
+        context.scheme,
+        &work_adapters::diff::render,
+    );
     let finished = FinishedRun {
         report,
         corpus_external_ids: context
