@@ -473,6 +473,7 @@ mod tests {
     use ::config::consent::Tracking;
     use ::config::provenance::PathSource;
 
+    use super::ignores_case;
     use super::BoundedRoot;
     use super::ConfiguredRoot;
     use super::RootKey;
@@ -724,6 +725,46 @@ mod tests {
         );
 
         assert_eq!(checked, Err(RootRefusal::Overlapping));
+    }
+
+    fn finds_a_file_under_its_upper_case_name(directory: &Path) -> bool {
+        std::fs::write(directory.join("probe"), "").expect("write probe");
+        let found = directory.join("PROBE").exists();
+        std::fs::remove_file(directory.join("probe")).expect("remove probe");
+        found
+    }
+
+    #[test]
+    fn ignores_case_agrees_with_the_filesystem() {
+        let layout = Layout::new();
+        let directory = layout.repository().join("meta/work");
+
+        assert_eq!(
+            ignores_case(&directory),
+            finds_a_file_under_its_upper_case_name(&directory)
+        );
+    }
+
+    #[test]
+    fn roots_differing_only_in_case_overlap_where_the_filesystem_ignores_case()
+    {
+        let layout = Layout::new();
+        let repository = layout.repository();
+
+        let checked = ValidatedRoots::check(
+            &configured(RootKey::Work, repository.join("Shared")),
+            &configured(
+                RootKey::Integrations,
+                repository.join("shared/integrations"),
+            ),
+            repository,
+        );
+
+        if finds_a_file_under_its_upper_case_name(repository) {
+            assert_eq!(checked, Err(RootRefusal::Overlapping));
+        } else {
+            assert!(checked.is_ok(), "{checked:?}");
+        }
     }
 
     #[test]
