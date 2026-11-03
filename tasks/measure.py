@@ -29,10 +29,8 @@ from typing import Protocol, Self
 from invoke import Context, Exit, task
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.comparison import (
-    compare_records,
-    comparison_report,
-)
+from tasks.shared.build_measurement.comparison import compare_records
+from tasks.shared.build_measurement.comparison_report import comparison_report
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
@@ -3787,8 +3785,9 @@ def compare_builds(
     the host-settings label included, or says the conditions match. Then
     the wall-clock and each tracked process's CPU-seconds, each change with
     its ratio and noise verdict, the task-set difference and the cargo unit
-    totals. `--task` adds that task's duration and nextest phase. Exits 0
-    whenever both records parse, whether or not they compare.
+    totals, when each record's runs agree on them. `--task` adds that
+    task's duration and nextest phase. Exits 0 whenever both records parse,
+    whether or not they compare.
     """
     del context
     try:

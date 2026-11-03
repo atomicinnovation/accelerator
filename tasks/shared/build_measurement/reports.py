@@ -30,6 +30,7 @@ from tasks.shared.build_measurement.tracked_processes import (
     IDE,
     TrackedProcess,
 )
+from tasks.shared.build_measurement.wording import plural
 from tasks.shared.paths import DEV_LAUNCHER_MARKER_NAME
 
 AC_POWER = "AC Power"
@@ -40,10 +41,6 @@ _DECIMAL_UNITS = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
 DEV_LAUNCHER_REBUILD = (
     "(cd cli && cargo build --workspace --exclude accelerator-visualiser)"
 )
-
-
-def _plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +124,7 @@ def _working_copy(preflight: Preflight) -> str:
     shown = ", ".join(paths[:_PATHS_SHOWN])
     more = ", …" if len(paths) > _PATHS_SHOWN else ""
     return (
-        f"working copy differs in {_plural(len(paths), 'path')}: {shown}{more}"
+        f"working copy differs in {plural(len(paths), 'path')}: {shown}{more}"
     )
 
 
@@ -232,7 +229,7 @@ class SessionOutcome:
 
 def _header(measured: MeasuredBuild) -> Iterator[str]:
     conditions = measured.conditions
-    runs = _plural(len(measured.runs), "run")
+    runs = plural(len(measured.runs), "run")
     yield (
         f"measure:build {measured.run_id} ({conditions.cache_state}, "
         f"{conditions.host_settings}, {runs})"
@@ -318,7 +315,7 @@ def _failures(measured: MeasuredBuild, run_directory: Path) -> Iterator[str]:
         flagged = sum(each.after_failure for each in run.tasks.values())
         yield (
             f"failed: {task} (run {run.index}, see {log}) — "
-            f"downstream flagged: {_plural(flagged, 'task')}"
+            f"downstream flagged: {plural(flagged, 'task')}"
         )
 
 
@@ -354,7 +351,7 @@ def _paths(
             f"{each.external_input} in run {each.run}" for each in failures
         )
         yield (
-            f"not kept: {_plural(len(failures), 'fetch failure')} "
+            f"not kept: {plural(len(failures), 'fetch failure')} "
             f"({where}); retake"
         )
 

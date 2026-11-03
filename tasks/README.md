@@ -415,14 +415,16 @@ preflight, and again however it ends once it has deleted anything.
 **Comparing build records.** `measure:compare-builds <previous> <current>`
 applies the comparability rule, the host-settings label included: its first
 line names every condition that differs, with both values, or says
-`conditions match`, and the next two give both records' run ids. It exits 0
+`conditions match`, and the next two give both records' run ids, each
+introduced by its host-settings label when the labels differ. It exits 0
 whenever both records parse, so the reader decides what may differ; a
 baseline-to-final comparison must show none differing. Each change is given in
 seconds and as a ratio, and is within noise when the current median lies in
 the previous record's [min, max]. A figure absent or flagged on either side is
 named in words, and a process tracked by different patterns is named but not
-compared. `--task <name>` adds that task's duration and nextest-phase changes;
-the cargo unit totals, with their total, are always compared.
+compared. `--task <name>` adds that task's duration and nextest-phase changes.
+The cargo unit totals, with their total, are compared when every run in each
+record agrees on them; otherwise the report names the record whose runs vary.
 
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs

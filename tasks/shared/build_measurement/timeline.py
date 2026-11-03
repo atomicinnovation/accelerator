@@ -56,6 +56,18 @@ class CargoUnits(RecordModel):
             documenting=self.documenting + other.documenting,
         )
 
+    @property
+    def by_kind(self) -> tuple[tuple[str, int], ...]:
+        return (
+            ("compiling", self.compiling),
+            ("checking", self.checking),
+            ("documenting", self.documenting),
+        )
+
+    @property
+    def total(self) -> int:
+        return self.compiling + self.checking + self.documenting
+
 
 class OwnFigures(RecordModel):
     outcome: TaskOutcome

@@ -8,6 +8,11 @@ from typing import Self
 from tasks.shared.build_measurement.errors import TaskGraphError
 
 
+def closest_task(task: str, known: Iterable[str]) -> str | None:
+    closest = difflib.get_close_matches(task, list(known), n=1)
+    return closest[0] if closest else None
+
+
 def _string_list(entry: Mapping[str, object], key: str) -> tuple[str, ...]:
     values = entry.get(key)
     if not isinstance(values, list) or not all(
@@ -86,5 +91,4 @@ class TaskGraph:
         return tuple(task for task in tasks if task not in self.depends)
 
     def closest_to(self, task: str) -> str | None:
-        closest = difflib.get_close_matches(task, self.depends, n=1)
-        return closest[0] if closest else None
+        return closest_task(task, self.depends)

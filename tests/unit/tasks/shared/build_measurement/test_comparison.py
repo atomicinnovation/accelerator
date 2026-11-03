@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 import pytest
 
 from tasks.shared.build_measurement.across_runs import (
@@ -16,16 +14,16 @@ from tasks.shared.build_measurement.comparison import (
     FigureOnOneSide,
     MeasuredChange,
     Noise,
-    RecordComparison,
     RecordSide,
     TaskComparison,
     TaskInNeither,
     TaskMissingFromOne,
     TrackedDifferently,
     UnitCountChange,
+    UnitsVaryAcrossRuns,
     compare_records,
-    comparison_report,
 )
+from tasks.shared.build_measurement.comparison_report import comparison_report
 from tasks.shared.build_measurement.measured_build import (
     ConditionDifference,
     HostSettings,
@@ -40,97 +38,21 @@ from tasks.shared.build_measurement.tracked_processes import (
     IDE,
     with_ide_patterns,
 )
+from tests.unit.tasks.shared.build_measurement.compared_records import (
+    DEVTOOLS_RUN_ID,
+    OS_VERSION_ARGV,
+    cpu_records,
+    record,
+    with_unit_cli,
+    worked_example_current,
+    worked_example_previous,
+)
 from tests.unit.tasks.shared.build_measurement.doubles import (
     REFERENCE_HOST,
     REFERENCE_MISE,
     FakeSession,
-    measured_build,
-    run_figures,
     task_figures,
 )
-
-_NONE_RUN_ID = "build_2026-11-02T091500Z_engywook_warm-no-op_none"
-_DEVTOOLS_RUN_ID = "build_2026-11-02T101200Z_engywook_warm-no-op_devtools"
-_OS_VERSION_ARGV = ("sw_vers", "-productVersion")
-
-
-def _processes(syspolicyd, ide, fsnotifier, xprotect=None):
-    return {
-        "syspolicyd": syspolicyd,
-        "XprotectService": xprotect,
-        IDE: ide,
-        "fsnotifier": fsnotifier,
-    }
-
-
-def _record(
-    *,
-    wall_clocks=(303.3, 309.4, 317.0),
-    process_cpu=None,
-    tasks=None,
-    host_settings=HostSettings.NONE,
-    run_id=_NONE_RUN_ID,
-    **overrides,
-):
-    per_run_tasks = tasks or [{"build:cli": task_figures()}] * len(wall_clocks)
-    per_run_cpu = process_cpu or [
-        _processes(10.0, 100.0, 5.0) for _ in wall_clocks
-    ]
-    runs = [
-        run_figures(
-            index,
-            wall_clock=wall_clock,
-            tasks=run_tasks,
-            process_cpu=cpu,
-        )
-        for index, (wall_clock, run_tasks, cpu) in enumerate(
-            zip(wall_clocks, per_run_tasks, per_run_cpu, strict=True),
-            start=1,
-        )
-    ]
-    return measured_build(
-        runs=runs, host_settings=host_settings, run_id=run_id, **overrides
-    )
-
-
-def _with_unit_cli(durations, nextest, units=None):
-    return [
-        {
-            "build:cli": task_figures(duration=2.0),
-            "test:unit:cli": task_figures(
-                duration=duration,
-                nextest=phase,
-                units=units or CargoUnits(compiling=61, checking=12),
-            ),
-        }
-        for duration, phase in zip(durations, nextest, strict=True)
-    ]
-
-
-def _worked_example_previous():
-    return _record(
-        wall_clocks=(303.3, 309.4, 317.0),
-        process_cpu=[
-            _processes(49.0, 295.0, 12.0),
-            _processes(51.3, 301.0, 12.4),
-            _processes(53.0, 305.0, 12.9),
-        ],
-        tasks=_with_unit_cli((290.0, 297.1, 300.0), (145.0, 149.2, 152.0)),
-    )
-
-
-def _worked_example_current():
-    return _record(
-        wall_clocks=(258.0, 262.0, 266.0),
-        process_cpu=[
-            _processes(11.0, 294.0, 11.8),
-            _processes(12.0, 296.4, 12.1),
-            _processes(13.0, 299.0, 12.5),
-        ],
-        tasks=_with_unit_cli((248.0, 251.0, 255.0), (115.0, 118.5, 121.0)),
-        host_settings=HostSettings.DEVTOOLS,
-        run_id=_DEVTOOLS_RUN_ID,
-    )
 
 
 def _process(comparison, name):
@@ -138,21 +60,8 @@ def _process(comparison, name):
     return change
 
 
-def _cpu_records(previous_cpu, current_cpu, **current_overrides):
-    previous = _record(process_cpu=[_processes(*each) for each in previous_cpu])
-    current = _record(
-        process_cpu=[_processes(*each) for each in current_cpu],
-        **{
-            "host_settings": HostSettings.DEVTOOLS,
-            "run_id": _DEVTOOLS_RUN_ID,
-            **current_overrides,
-        },
-    )
-    return previous, current
-
-
 def _syspolicyd_change(previous_cpu, current_cpu):
-    previous, current = _cpu_records(
+    previous, current = cpu_records(
         [(cpu, 100.0, 5.0) for cpu in previous_cpu],
         [(cpu, 100.0, 5.0) for cpu in current_cpu],
     )
@@ -162,7 +71,7 @@ def _syspolicyd_change(previous_cpu, current_cpu):
 class TestChanges:
     def test_a_change_is_given_in_seconds_and_as_a_ratio(self):
         comparison = compare_records(
-            _worked_example_previous(), _worked_example_current()
+            worked_example_previous(), worked_example_current()
         )
         assert comparison.wall_clock.seconds == pytest.approx(-47.4)
         assert comparison.wall_clock.ratio == pytest.approx(262.0 / 309.4)
@@ -185,8 +94,8 @@ class TestChanges:
         assert change.noise is Noise.BEYOND
 
     def test_a_previous_record_of_one_run_judges_no_noise(self):
-        previous = _record(wall_clocks=(309.4,))
-        current = _record(wall_clocks=(309.4,))
+        previous = record(wall_clocks=(309.4,))
+        current = record(wall_clocks=(309.4,))
         assert compare_records(previous, current).wall_clock.noise is (
             Noise.UNJUDGED
         )
@@ -226,6 +135,13 @@ class TestChanges:
         assert isinstance(change, MeasuredChange)
         assert change.ratio == 0.0
 
+    def test_a_wall_clock_from_an_idle_median_has_seconds_but_no_ratio(self):
+        previous = record(wall_clocks=(0.0, 0.0, 0.0))
+        current = record(run_id=DEVTOOLS_RUN_ID)
+        assert compare_records(previous, current).wall_clock == (
+            ChangeFromIdle("wall-clock", 309.4, Noise.BEYOND)
+        )
+
     def test_a_written_record_compared_with_itself_shows_no_change(
         self, tmp_path
     ):
@@ -248,7 +164,7 @@ class TestPresenceAndTracking:
     def test_a_process_absent_now_is_named_in_words_without_ratio_or_verdict(
         self,
     ):
-        previous, current = _cpu_records(
+        previous, current = cpu_records(
             [(10.0, 100.0, 5.0, 1.0)] * 3, [(10.0, 100.0, 5.0, None)] * 3
         )
         change = _process(compare_records(previous, current), "XprotectService")
@@ -264,7 +180,7 @@ class TestPresenceAndTracking:
         ) in report.splitlines()
 
     def test_a_process_absent_before_is_named_in_words(self):
-        previous, current = _cpu_records(
+        previous, current = cpu_records(
             [(10.0, 100.0, 5.0, None)] * 3, [(10.0, 100.0, 5.0, 1.0)] * 3
         )
         change = _process(compare_records(previous, current), "XprotectService")
@@ -275,7 +191,7 @@ class TestPresenceAndTracking:
         )
 
     def test_a_process_absent_from_both_records_is_named_as_unchanged(self):
-        previous, current = _cpu_records(
+        previous, current = cpu_records(
             [(10.0, 100.0, 5.0)] * 3, [(10.0, 100.0, 5.0)] * 3
         )
         comparison = compare_records(previous, current)
@@ -302,9 +218,9 @@ class TestPresenceAndTracking:
         flagged = [(10.0, 100.0, 5.0, cpu) for cpu in flagged_runs]
         steady = [(10.0, 100.0, 5.0, 1.0)] * 3
         if side is RecordSide.PREVIOUS:
-            previous, current = _cpu_records(flagged, steady)
+            previous, current = cpu_records(flagged, steady)
         else:
-            previous, current = _cpu_records(steady, flagged)
+            previous, current = cpu_records(steady, flagged)
         comparison = compare_records(previous, current)
         change = _process(comparison, "XprotectService")
         assert isinstance(change, ChangeInPresence)
@@ -319,7 +235,7 @@ class TestPresenceAndTracking:
 
     def test_a_process_tracked_by_different_patterns_is_not_compared(self):
         clion = with_ide_patterns(DEFAULT_TRACKED_PROCESSES, ["/MacOS/clion"])
-        previous, current = _cpu_records(
+        previous, current = cpu_records(
             [(10.0, 100.0, 5.0)] * 3, [(10.0, 100.0, 5.0)] * 3, tracked=clion
         )
         [default_ide] = [
@@ -337,13 +253,13 @@ class TestPresenceAndTracking:
             for each in DEFAULT_TRACKED_PROCESSES
             if each.name != "fsnotifier"
         )
-        previous = _record()
-        current = _record(
+        previous = record()
+        current = record(
             process_cpu=[{"syspolicyd": 1.0, "XprotectService": None, IDE: 1.0}]
             * 3,
             tracked=without_fsnotifier,
             host_settings=HostSettings.DEVTOOLS,
-            run_id=_DEVTOOLS_RUN_ID,
+            run_id=DEVTOOLS_RUN_ID,
         )
         change = _process(compare_records(previous, current), "fsnotifier")
         assert isinstance(change, TrackedDifferently)
@@ -369,8 +285,8 @@ _DIFFERING = {
 class TestConditions:
     @pytest.mark.parametrize("field", list(MeasurementConditions.model_fields))
     def test_each_differing_condition_is_named_with_both_values(self, field):
-        previous = _record()
-        current = _record(**_DIFFERING[field])
+        previous = record()
+        current = record(**_DIFFERING[field])
         comparison = compare_records(previous, current)
         assert comparison.differing_conditions == (
             ConditionDifference(
@@ -384,14 +300,14 @@ class TestConditions:
 
     def test_a_differing_label_is_reported_like_any_condition(self):
         comparison = compare_records(
-            _worked_example_previous(), _worked_example_current()
+            worked_example_previous(), worked_example_current()
         )
         assert comparison_report(comparison).splitlines()[0] == (
             "conditions differ: host_settings (none → devtools)"
         )
 
     def test_identical_conditions_read_as_matching(self):
-        comparison = compare_records(_record(), _record())
+        comparison = compare_records(record(), record())
         assert comparison_report(comparison).splitlines()[0] == (
             "conditions match"
         )
@@ -399,16 +315,16 @@ class TestConditions:
     @pytest.mark.parametrize("sides", ["both", "one"])
     def test_a_condition_with_no_reading_never_matches(self, sides):
         unread = REFERENCE_HOST.model_copy(
-            update={"os_version": NoReading(argv=_OS_VERSION_ARGV)}
+            update={"os_version": NoReading(argv=OS_VERSION_ARGV)}
         )
-        previous = _record(host=unread)
-        current = _record(host=unread if sides == "both" else REFERENCE_HOST)
+        previous = record(host=unread)
+        current = record(host=unread if sides == "both" else REFERENCE_HOST)
         [difference] = compare_records(previous, current).differing_conditions
         assert difference.field == "os_version"
 
 
 def _unit_cli_record(figures_per_run, **overrides):
-    return _record(
+    return record(
         tasks=[
             {"build:cli": task_figures(), "test:unit:cli": figures}
             for figures in figures_per_run
@@ -426,13 +342,28 @@ def _measured_unit_cli(durations, nextest=(None, None, None)):
     )
 
 
+_AGREEING_UNITS = (CargoUnits(compiling=61, checking=12),) * 3
+_VARYING_UNITS = (
+    CargoUnits(compiling=61, checking=12),
+    CargoUnits(compiling=61, checking=12),
+    CargoUnits(compiling=59, checking=12),
+)
+
+
+def _units_per_run(units_per_run):
+    return [
+        {"test:unit:cli": task_figures(duration=250.0, units=units)}
+        for units in units_per_run
+    ]
+
+
 class TestTasksAndUnits:
     def test_the_task_set_difference_lists_added_and_removed_tasks(self):
-        previous = _record(
+        previous = record(
             tasks=[{"build:cli": task_figures(), "lint:cli": task_figures()}]
             * 3
         )
-        current = _record(
+        current = record(
             tasks=[{"build:cli": task_figures(), "test:cli": task_figures()}]
             * 3
         )
@@ -442,8 +373,8 @@ class TestTasksAndUnits:
 
     def test_a_named_task_gets_its_duration_and_nextest_changes(self):
         comparison = compare_records(
-            _worked_example_previous(),
-            _worked_example_current(),
+            worked_example_previous(),
+            worked_example_current(),
             tasks=["test:unit:cli"],
         )
         assert comparison.named_tasks == (
@@ -469,11 +400,11 @@ class TestTasksAndUnits:
             "mode": Mode.ISOLATED,
             "isolated_tasks": ("test:unit:cli",),
         }
-        previous = _record(
+        previous = record(
             tasks=[{"test:unit:cli": task_figures(duration=300.0)}] * 3,
             **isolated,
         ).model_copy(update={"task_set": ("default", "build:cli")})
-        current = _record(
+        current = record(
             tasks=[{"test:unit:cli": task_figures(duration=250.0)}] * 3,
             **isolated,
         ).model_copy(update={"task_set": ("default", "build:cli")})
@@ -543,7 +474,7 @@ class TestTasksAndUnits:
     @pytest.mark.parametrize("side", list(RecordSide))
     def test_a_named_task_missing_from_a_record_is_said_so(self, side):
         with_task = _measured_unit_cli((290.0, 297.1, 300.0))
-        without_task = _record()
+        without_task = record()
         previous, current = (
             (without_task, with_task)
             if side is RecordSide.PREVIOUS
@@ -568,19 +499,19 @@ class TestTasksAndUnits:
 
     def test_no_task_is_compared_unless_named(self):
         comparison = compare_records(
-            _worked_example_previous(), _worked_example_current()
+            worked_example_previous(), worked_example_current()
         )
         assert comparison.named_tasks == ()
 
     def test_unit_totals_are_compared_as_counts_without_a_noise_verdict(self):
         cold = CargoUnits(compiling=1275, checking=543, documenting=17)
-        previous = _worked_example_previous()
-        current = _record(
-            tasks=_with_unit_cli(
+        previous = worked_example_previous()
+        current = record(
+            tasks=with_unit_cli(
                 (248.0, 251.0, 255.0), (115.0, 118.5, 121.0), units=cold
             ),
             host_settings=HostSettings.DEVTOOLS,
-            run_id=_DEVTOOLS_RUN_ID,
+            run_id=DEVTOOLS_RUN_ID,
         )
         comparison = compare_records(previous, current)
         assert comparison.unit_totals == (
@@ -595,225 +526,24 @@ class TestTasksAndUnits:
             lines
         )
 
-
-def _plain_comparison(**changes) -> RecordComparison:
-    base = compare_records(
-        _worked_example_previous(), _worked_example_current()
-    )
-    return replace(base, **changes)
-
-
-def _unit_cli_named(duration, nextest_phase=None):
-    return TaskComparison("test:unit:cli", duration, nextest_phase)
-
-
-_RENDERED = {
-    "change-from-idle": (
-        {
-            "processes": (
-                ChangeFromIdle(
-                    "syspolicyd", current_median=3.2, noise=Noise.BEYOND
-                ),
-            )
-        },
-        "syspolicyd: 0.0 s → 3.2 s, +3.2 s (no ratio from zero), beyond noise",
-    ),
-    "figure-on-one-side": (
-        {
-            "named_tasks": (
-                _unit_cli_named(
-                    MeasuredChange("test:unit:cli", 297.1, 251.0, Noise.BEYOND),
-                    FigureOnOneSide("test:unit:cli", 149.2, None),
-                ),
-            )
-        },
-        "test:unit:cli nextest phase: 149.2 s in the 'none' record, not in "
-        "every 'devtools' run",
-    ),
-    "tracked-differently": (
-        {
-            "processes": (
-                TrackedDifferently(IDE, ("/MacOS/idea",), ("/MacOS/clion",)),
-            )
-        },
-        "ide: not compared, tracked by different patterns ('none': "
-        "/MacOS/idea; 'devtools': /MacOS/clion)",
-    ),
-    "tracked-on-one-side": (
-        {
-            "processes": (
-                TrackedDifferently("fsnotifier", ("/fsnotifier",), ()),
-            )
-        },
-        "fsnotifier: not compared, tracked by different patterns ('none': "
-        "/fsnotifier; 'devtools': not tracked)",
-    ),
-    "task-missing-from-one": (
-        {
-            "named_tasks": (
-                TaskMissingFromOne("test:unit:cli", RecordSide.CURRENT),
-            )
-        },
-        "test:unit:cli: not in the 'devtools' record",
-    ),
-    "task-in-neither-with-closest": (
-        {"named_tasks": (TaskInNeither("test:unit:cl", "test:unit:cli"),)},
-        "test:unit:cl: in neither record (closest: 'test:unit:cli')",
-    ),
-    "task-in-neither-without-closest": (
-        {"named_tasks": (TaskInNeither("zzzz", None),)},
-        "zzzz: in neither record (no close match)",
-    ),
-    "flagged-side": (
-        {
-            "named_tasks": (
-                _unit_cli_named(
-                    ChangeInPresence(
-                        "test:unit:cli",
-                        Measured(),
-                        Flagged(caveats=(Caveat.FAILED, Caveat.NOT_RUN)),
-                    )
-                ),
-            )
-        },
-        "test:unit:cli duration: measured in every 'none' run; flagged "
-        "failed, not-run in the 'devtools' record",
-    ),
-    "unjudged": (
-        {
-            "wall_clock": MeasuredChange(
-                "wall-clock", 309.4, 262.0, Noise.UNJUDGED
-            )
-        },
-        "wall-clock: 309.4 s → 262.0 s, -47.4 s (×0.847), no spread to judge "
-        "noise (1 run)",
-    ),
-    "task-set-difference": (
-        {"tasks_added": ("test:cli",), "tasks_removed": ("lint:cli", "x")},
-        "task set: added test:cli; removed lint:cli, x",
-    ),
-    "skipped-on-both-sides": (
-        {
-            "named_tasks": (
-                _unit_cli_named(
-                    ChangeInPresence(
-                        "test:unit:cli",
-                        Absent(absence=Absence.SKIPPED),
-                        Absent(absence=Absence.SKIPPED),
-                    )
-                ),
-            )
-        },
-        "test:unit:cli duration: skipped in every 'none' and 'devtools' run",
-    ),
-}
-
-
-_WORKED_EXAMPLE = """\
-conditions differ: host_settings (none → devtools)
-previous: build_2026-11-02T091500Z_engywook_warm-no-op_none (3 runs)
-current: build_2026-11-02T101200Z_engywook_warm-no-op_devtools (3 runs)
-wall-clock: 309.4 s → 262.0 s, -47.4 s (×0.847), beyond noise
-syspolicyd: 51.3 s → 12.0 s, -39.3 s (×0.234), beyond noise
-XprotectService: did not run in any 'none' or 'devtools' run
-ide: 301.0 s → 296.4 s, -4.6 s (×0.985), within noise
-fsnotifier: 12.4 s → 12.1 s, -0.3 s (×0.976), within noise
-task set: unchanged
-test:unit:cli duration: 297.1 s → 251.0 s, -46.1 s (×0.845), beyond noise
-test:unit:cli nextest phase: 149.2 s → 118.5 s, -30.7 s (×0.794), beyond noise
-units compiling: 61 → 61, +0 (×1.000)
-units checking: 12 → 12, +0 (×1.000)
-units documenting: none in either record
-units total: 73 → 73, +0 (×1.000)
-"""
-
-
-class TestReport:
     @pytest.mark.parametrize(
-        ("changes", "line"), list(_RENDERED.values()), ids=list(_RENDERED)
-    )
-    def test_the_report_renders_every_change_in_words(self, changes, line):
-        report = comparison_report(_plain_comparison(**changes))
-        assert line in report.splitlines()
-
-    def test_the_report_names_both_records_by_run_id(self):
-        previous = _record(wall_clocks=(309.4,))
-        current = _record(run_id=_DEVTOOLS_RUN_ID)
-        lines = comparison_report(compare_records(previous, current))
-        assert lines.splitlines()[1:3] == [
-            f"previous: {_NONE_RUN_ID} (1 run)",
-            f"current: {_DEVTOOLS_RUN_ID} (3 runs)",
-        ]
-
-    @pytest.mark.parametrize(
-        ("previous_version", "expected"),
+        ("previous_units", "current_units", "varying"),
         [
+            (_VARYING_UNITS, _AGREEING_UNITS, (RecordSide.PREVIOUS,)),
+            (_AGREEING_UNITS, _VARYING_UNITS, (RecordSide.CURRENT,)),
             (
-                "26.4",
-                "os_version (unreadable (sw_vers -productVersion) → 26.4)",
+                _VARYING_UNITS,
+                _VARYING_UNITS,
+                (RecordSide.PREVIOUS, RecordSide.CURRENT),
             ),
-            (None, "os_version (unreadable in both records)"),
         ],
-        ids=["one", "both"],
+        ids=["previous", "current", "both"],
     )
-    def test_a_condition_with_no_reading_renders_its_command(
-        self, previous_version, expected
+    def test_unit_totals_are_not_compared_when_a_records_runs_disagree(
+        self, previous_units, current_units, varying
     ):
-        unread = NoReading(argv=_OS_VERSION_ARGV)
-        current_version = previous_version or unread
-        previous = _record(
-            host=REFERENCE_HOST.model_copy(update={"os_version": unread})
+        previous = record(tasks=_units_per_run(previous_units))
+        current = record(tasks=_units_per_run(current_units))
+        assert compare_records(previous, current).unit_totals == (
+            UnitsVaryAcrossRuns(varying)
         )
-        current = _record(
-            host=REFERENCE_HOST.model_copy(
-                update={"os_version": current_version}
-            )
-        )
-        first_line = comparison_report(
-            compare_records(previous, current)
-        ).splitlines()[0]
-        assert first_line == f"conditions differ: {expected}"
-
-    def test_a_tuple_condition_renders_comma_separated(self):
-        previous = _record()
-        current = _record(isolated_tasks=("test:unit:cli", "lint:cli"))
-        first_line = comparison_report(
-            compare_records(previous, current)
-        ).splitlines()[0]
-        assert first_line == (
-            "conditions differ: isolated_tasks (empty → test:unit:cli, "
-            "lint:cli)"
-        )
-
-    def test_several_differing_conditions_are_separated_by_semicolons(self):
-        previous = _record()
-        current = _record(
-            cache_state=BuildCacheState.COLD,
-            host_settings=HostSettings.DEVTOOLS,
-        )
-        first_line = comparison_report(
-            compare_records(previous, current)
-        ).splitlines()[0]
-        assert first_line == (
-            "conditions differ: cache_state (warm-no-op → cold); "
-            "host_settings (none → devtools)"
-        )
-
-    def test_records_with_one_label_are_named_previous_and_current(self):
-        previous, current = _cpu_records(
-            [(10.0, 100.0, 5.0)] * 3,
-            [(10.0, 100.0, 5.0)] * 3,
-            host_settings=HostSettings.NONE,
-        )
-        assert (
-            "XprotectService: did not run in any previous or current run"
-            in comparison_report(compare_records(previous, current))
-        )
-
-    def test_the_report_matches_the_worked_example(self):
-        comparison = compare_records(
-            _worked_example_previous(),
-            _worked_example_current(),
-            tasks=["test:unit:cli"],
-        )
-        assert comparison_report(comparison) == _WORKED_EXAMPLE
