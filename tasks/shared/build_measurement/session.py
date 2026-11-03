@@ -10,6 +10,7 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import Protocol
 
 from tasks.shared.build_measurement.analysis import (
@@ -19,10 +20,13 @@ from tasks.shared.build_measurement.analysis import (
     CapturedSession,
     analyse_session,
 )
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.cpu_load import cpu_readings, idle_load
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
+    TrashNotRemovedError,
+    UnknownTaskError,
 )
 from tasks.shared.build_measurement.fetch_failures import fetch_failures
 from tasks.shared.build_measurement.host import (
@@ -47,8 +51,15 @@ from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
     Preflight,
     SessionOutcome,
+    notices_report,
     preflight_report,
     run_end_line,
+)
+from tasks.shared.build_measurement.session_notices import (
+    FoundTrash,
+    SessionNotice,
+    UnremovedTrash,
+    dev_launcher_notices,
 )
 from tasks.shared.build_measurement.settings import (
     DEFAULT_TASK,
@@ -57,6 +68,7 @@ from tasks.shared.build_measurement.settings import (
     SessionRun,
     TimedRun,
     log_name,
+    trash_name,
 )
 from tasks.shared.build_measurement.task_graph import TaskGraph
 from tasks.shared.build_measurement.timeline import (
@@ -116,6 +128,17 @@ class BuildGroup(Protocol):
     def orphaned(self) -> OrphanedBuild | None: ...
 
 
+class Workspace(Protocol):
+    def has_dev_launcher_marker(self) -> bool: ...
+    def verify(self, state: BuildCacheState) -> None: ...
+    def prepare_timed_run(self, state: BuildCacheState, *, trash: Path) -> None:
+        """Leaves every deletion in place when it raises."""
+        ...
+
+    def remove_trash(self, trash: Path) -> UnremovedTrash | None: ...
+    def leftover_trash(self) -> tuple[FoundTrash, ...]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class BuildPorts:
     system: Callable[[], str]
@@ -131,15 +154,27 @@ class BuildPorts:
     progress: Callable[[str], None]
     session_lock: Callable[[], AbstractContextManager[None]]
     build_group: BuildGroup
+    workspace: Workspace
+
+
+def _require_known(tasks: Sequence[str], graph: TaskGraph) -> None:
+    unknown = graph.unknown(tasks)
+    if unknown:
+        raise UnknownTaskError(
+            [(task, graph.closest_to(task)) for task in unknown]
+        )
 
 
 def measure_build(settings: BuildSettings, ports: BuildPorts) -> SessionOutcome:
     require_macos(ports.system())
+    graph = TaskGraph.parse(ports.mise_tasks())
+    _require_known(settings.scope.isolated_tasks, graph)
+    ports.workspace.verify(settings.cache_state)
     with ports.session_lock():
         orphan = ports.build_group.orphaned()
         if orphan is not None:
             raise OrphanedBuildError(orphan.pgid, orphan.members, orphan.path)
-        return _Session(settings, ports).run()
+        return _Session(settings, ports, graph).run()
 
 
 def _run_hostname(host: HostDescription, ports: BuildPorts) -> str:
@@ -152,16 +187,18 @@ def _run_hostname(host: HostDescription, ports: BuildPorts) -> str:
 
 @dataclass(frozen=True, slots=True)
 class _Provenance:
-    graph: TaskGraph
     commit: str
     start_changes: tuple[str, ...]
     mise: MiseDescription
 
 
 class _Session:
-    def __init__(self, settings: BuildSettings, ports: BuildPorts) -> None:
+    def __init__(
+        self, settings: BuildSettings, ports: BuildPorts, graph: TaskGraph
+    ) -> None:
         self.settings = settings
         self.ports = ports
+        self.graph = graph
         self.started_at = ports.utc_now().replace(microsecond=0)
         self.host = observed_build_host(ports.diagnostics)
         self.run_id = run_id(
@@ -169,15 +206,19 @@ class _Session:
             _run_hostname(self.host, ports),
             cache_state=settings.cache_state,
             host_settings=settings.host_settings,
+            mode=settings.scope.mode,
         )
         self.run_directory = RUN_DIRECTORY_ROOT / self.run_id
         self.logs = settings.root / self.run_directory
+        self.has_deleted = False
+        self.unremoved: UnremovedTrash | None = None
 
     def run(self) -> SessionOutcome:
         self.logs.mkdir(parents=True)
         self._progress(f"run directory: {self.logs}")
         try:
-            return self._measure()
+            with ExitStack() as exit_reports:
+                return self._measure(exit_reports)
         except BaseException:
             self._progress(
                 f"stopped; the logs captured so far are in {self.logs}"
@@ -187,15 +228,12 @@ class _Session:
     def _progress(self, line: str) -> None:
         self.ports.progress(line)
 
-    def _measure(self) -> SessionOutcome:
+    def _measure(self, exit_reports: ExitStack) -> SessionOutcome:
         provenance = self._provenance()
         self._preflight(provenance)
         idle_load_percent = self._idle_load()
-        priming = self._priming(provenance.graph)
-        runs = tuple(
-            self._timed_run(TimedRun(number), provenance.graph)
-            for number in range(1, self.settings.runs + 1)
-        )
+        priming = self._priming()
+        runs, notices = self._timed_runs(exit_reports)
         captured = CapturedSession(
             run_id=self.run_id,
             run_directory=self.run_directory,
@@ -209,19 +247,20 @@ class _Session:
             host=self.host,
             mise=provenance.mise,
             idle_load_percent=idle_load_percent,
-            task_set=tuple(sorted(provenance.graph.closure(DEFAULT_TASK))),
+            task_set=tuple(sorted(self.graph.closure(DEFAULT_TASK))),
             priming=priming,
             runs=runs,
         )
         return SessionOutcome(
-            measured=analyse_session(captured), keep=self.settings.keep
+            measured=analyse_session(captured),
+            keep=self.settings.keep,
+            notices=notices,
         )
 
     def _provenance(self) -> _Provenance:
         history = self.ports.history
         commit = measured_commit(history)
         return _Provenance(
-            graph=TaskGraph.parse(self.ports.mise_tasks()),
             commit=commit,
             start_changes=differing_paths(history, commit),
             mise=observed_mise(self.ports.diagnostics),
@@ -230,6 +269,8 @@ class _Session:
     def _preflight(self, provenance: _Provenance) -> None:
         tracked = self.settings.tracked
         running, ide_commands = self._tracked_now(tracked)
+        state = self.settings.cache_state
+        workspace = self.ports.workspace
         self._progress(
             preflight_report(
                 Preflight(
@@ -242,9 +283,16 @@ class _Session:
                     running=running,
                     ide_commands=ide_commands,
                     keep=self.settings.keep,
+                    touches=self._absolute(state.touches),
+                    deletions=self._absolute(state.deletions),
+                    leftover_trash=workspace.leftover_trash(),
+                    dev_launcher_marker=workspace.has_dev_launcher_marker(),
                 )
             )
         )
+
+    def _absolute(self, paths: tuple[Path, ...]) -> tuple[Path, ...]:
+        return tuple(self.settings.root / path for path in paths)
 
     def _tracked_now(
         self, tracked: tuple[TrackedProcess, ...]
@@ -277,10 +325,10 @@ class _Session:
         return load
 
     def _build(
-        self, run: SessionRun, graph: TaskGraph, epoch: float
+        self, run: SessionRun, epoch: float
     ) -> tuple[CapturedInvocation, ...]:
         captured: list[CapturedInvocation] = []
-        for invocation in self.settings.scope.invocations(graph):
+        for invocation in self.settings.scope.invocations(self.graph):
             ready_from = self.ports.clock.now() - epoch
             log = self.logs / log_name(run, invocation.log_suffix)
             self._progress(f"  {shlex.join(invocation.argv)}: tail -f {log}")
@@ -295,19 +343,97 @@ class _Session:
             )
         return tuple(captured)
 
-    def _priming(self, graph: TaskGraph) -> PrimingRun | None:
-        if not self.settings.cache_state.primes:
+    def _priming(self) -> PrimingRun | None:
+        state = self.settings.cache_state
+        if not state.primes:
+            self._progress(f"priming skipped ({state})")
             return None
         self._progress("priming build")
         epoch = self.ports.clock.now()
-        self._build(Priming(), graph, epoch)
+        self._build(Priming(), epoch)
         wall_clock = self.ports.clock.now() - epoch
         self._progress(f"priming: {wall_clock:.1f} s (discarded)")
         return PrimingRun(wall_clock_seconds=wall_clock, discarded=True)
 
-    def _timed_run(self, run: TimedRun, graph: TaskGraph) -> CapturedRun:
+    def _timed_runs(
+        self, exit_reports: ExitStack
+    ) -> tuple[tuple[CapturedRun, ...], tuple[SessionNotice, ...]]:
+        deletes = bool(self.settings.cache_state.deletions)
+        if deletes:
+            exit_reports.push(self._report_deletion_notices_on_failure)
+        runs: list[CapturedRun] = []
+        for number in range(1, self.settings.runs + 1):
+            run = TimedRun(number)
+            self._progress(f"timed run {number}/{self.settings.runs}")
+            self._prepare(run)
+            runs.append(self._timed_run(run))
+            self._stop_if_trash_would_pile_up(run)
+        return tuple(runs), self._deletion_notices() if deletes else ()
+
+    def _report_deletion_notices_on_failure(
+        self,
+        failure: type[BaseException] | None,
+        _error: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> bool:
+        if failure is not None:
+            notices = self._deletion_notices()
+            if notices:
+                self._progress(notices_report(notices))
+        return False
+
+    def _deletion_notices(self) -> tuple[SessionNotice, ...]:
+        """Never raises, so it cannot replace the reason a session ended."""
+        unremoved = () if self.unremoved is None else (self.unremoved,)
+        return (
+            *unremoved,
+            *self._trash_found_besides(unremoved),
+            *dev_launcher_notices(
+                deleting=self.has_deleted,
+                marker_present=self._dev_launcher_marker_present(),
+            ),
+        )
+
+    def _trash_found_besides(
+        self, reported: Sequence[UnremovedTrash]
+    ) -> tuple[FoundTrash, ...]:
+        reported_paths = {each.path for each in reported}
+        try:
+            return tuple(
+                each
+                for each in self.ports.workspace.leftover_trash()
+                if each.path not in reported_paths
+            )
+        except OSError as error:
+            self._progress(f"the cold trash could not be listed: {error}")
+            return ()
+
+    def _dev_launcher_marker_present(self) -> bool:
+        try:
+            return self.ports.workspace.has_dev_launcher_marker()
+        except OSError as error:
+            self._progress(
+                f"the dev launcher marker could not be checked: {error}"
+            )
+            return True
+
+    def _stop_if_trash_would_pile_up(self, run: TimedRun) -> None:
+        unremoved = self.unremoved
+        if unremoved is None or run.number == self.settings.runs:
+            return
+        deletions = " and ".join(
+            str(path) for path in self.settings.cache_state.deletions
+        )
+        raise TrashNotRemovedError(
+            f"stopped before timed run {run.number + 1}: the cold trash "
+            f"from timed run {run.number} could not be removed "
+            f"({unremoved.cause}), and each further cold run would leave "
+            f"another copy of {deletions}; delete the trash listed above "
+            "once the cause is fixed"
+        )
+
+    def _timed_run(self, run: TimedRun) -> CapturedRun:
         ports = self.ports
-        self._progress(f"timed run {run.number}/{self.settings.runs}")
         epoch = ports.clock.now()
         with ExitStack() as stack:
             cpu = ports.cpu_sampler.start(
@@ -320,7 +446,7 @@ class _Session:
                 tracked=self.settings.tracked,
             )
             stack.callback(processes.stop)
-            invocations = self._build(run, graph, epoch)
+            invocations = self._build(run, epoch)
             wall_clock = ports.clock.now() - epoch
             captured = CapturedRun(
                 number=run.number,
@@ -342,6 +468,20 @@ class _Session:
             )
         )
         return captured
+
+    def _prepare(self, run: TimedRun) -> None:
+        state = self.settings.cache_state
+        workspace = self.ports.workspace
+        trash = self.logs / trash_name(run)
+        if not state.deletions:
+            workspace.prepare_timed_run(state, trash=trash)
+            return
+        self._progress("  deleting before this run:")
+        for path in state.deletions:
+            self._progress(f"    {self.settings.root / path}")
+        workspace.prepare_timed_run(state, trash=trash)
+        self.has_deleted = True
+        self.unremoved = workspace.remove_trash(trash)
 
     def _matches_at_end(self, commit: str) -> bool | None:
         try:

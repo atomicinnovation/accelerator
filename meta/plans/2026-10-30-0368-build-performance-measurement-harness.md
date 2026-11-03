@@ -5,15 +5,15 @@ title: "Build-Performance Measurement Harness and Host Guidance Implementation P
 date: "2026-10-30T17:19:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0368"
 parent: "work-item:0368"
 derived_from: ["codebase-research:2026-10-30-0368-build-performance-measurement-harness", "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
-revision: "d6b35fbf840dee28bbe3cb3a6be9d12d6b433438"
+revision: "e3f1b37c6b18213992f1577940f4416bdd835482"
 repository: "accelerator"
-last_updated: "2026-10-31T18:04:04+00:00"
+last_updated: "2026-11-02T09:03:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -32,8 +32,8 @@ With the harness in place, the plan records the warm no-op baseline that
 0362–0367 wait on, and adds the isolation mode and the incremental and cold
 cache states that 0365 and 0366 measure with. `measure:compare-builds`
 then applies the comparability and citation rules to two records. Last,
-the plan documents the macOS host settings in `CONTRIBUTING.md` and cites
-their measured effect.
+the plan documents the macOS host settings in `CONTRIBUTING.md`. Measuring
+and citing their effect moved to 0370.
 
 ## Current State Analysis
 
@@ -98,7 +98,7 @@ their measured effect.
   `measure:compare-builds` commands whose lines carry their before-and-after
   changes.
 - **Host guidance.** `CONTRIBUTING.md` gives the host-settings steps and
-  their tradeoffs, and cites the three condition records.
+  their tradeoffs. 0370 cites the three condition records there.
 - **Verification.** `mise run` exits 0 after every code phase.
 
 ### Key Discoveries
@@ -1478,7 +1478,7 @@ def require_macos(system: str) -> None: ...
 - [x] The new tests pass, including the real-repository ones:
       `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/shared/test_repository.py -v`
 - [x] The moved helpers leave warm-dispatch green: `uv run pytest tests/unit/tasks/test_measure.py -v`
-- [ ] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
+- [x] The tasks unit lane passes on both CI OSes: `mise run test:unit:tasks`
 - [x] Lint and types pass: `mise run build-system:check`
 - [x] The full local CI mirror passes: `mise run`
 
@@ -2836,15 +2836,15 @@ hand.
 
 #### Automated Verification:
 
-- [ ] Every edited work item's frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/<item>.md`
-- [ ] `test_every_committed_build_record_is_readable` now runs over the baseline, and `test_the_baseline_is_among_the_committed_records` passes: `uv run pytest tests/unit/tasks/shared/build_measurement/test_record.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The kept record parses and carries the baseline conditions: `jq -e '.fetch_failures == [] and .commit.matched and .conditions.host_settings != "unspecified" and .conditions.mise_jobs == 8 and (.runs | length) == 3 and ([.summary.processes | to_entries[] | select(.key != "XprotectService") | .value.presence.standing] | all(. == "measured"))' meta/measurements/<run-id>.json`
+- [x] Every edited work item's frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/<item>.md`
+- [x] `test_every_committed_build_record_is_readable` now runs over the baseline, and `test_the_baseline_is_among_the_committed_records` passes: `uv run pytest tests/unit/tasks/shared/build_measurement/test_record.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The kept record parses and carries the baseline conditions: `jq -e '.fetch_failures == [] and .commit.matched and .conditions.host_settings != "unspecified" and .conditions.mise_jobs == 8 and (.runs | length) == 3 and ([.summary.processes | to_entries[] | select(.key != "XprotectService") | .value.presence.standing] | all(. == "measured"))' meta/measurements/<run-id>.json`
 
 #### Manual Verification:
 
-- [ ] The baseline commit contains none of 0362–0367's changes.
-- [ ] The record's host fields name the reference host.
+- [x] The baseline commit contains none of 0362–0367's changes.
+- [x] The record's host fields name the reference host.
 
 ---
 
@@ -2963,13 +2963,13 @@ within each run.
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `mise run measure:build -- --isolate test:unit:cli --runs 1` reports a
+- [x] `mise run measure:build -- --isolate test:unit:cli --runs 1` reports a
       nextest phase close to the one in the research document's isolated
       phase table (149 s), adjusted for whatever has landed since.
 
@@ -3402,16 +3402,16 @@ than a `partial`, which ruff's RUF009 flags.
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `mise run measure:build -- --cache-state cold --runs 1` deletes and rebuilds both
+- [x] `mise run measure:build -- --cache-state cold --runs 1` deletes and rebuilds both
       directories. `deps:install:node` succeeds in the run. The record says
       `cold` and has no priming entry.
-- [ ] `mise run measure:build -- --cache-state incremental --runs 1` leaves
+- [x] `mise run measure:build -- --cache-state incremental --runs 1` leaves
       `jj diff cli/kernel/src/lib.rs` empty.
 
 ---
@@ -3481,12 +3481,12 @@ pointer Phase 4 leaves for this phase.
 
 #### Automated Verification:
 
-- [ ] The docs tests pass: `uv run pytest tests/unit/tasks/test_contributing.py tests/unit/tasks/test_measure.py -v`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The docs tests pass: `uv run pytest tests/unit/tasks/test_contributing.py tests/unit/tasks/test_measure.py -v`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] Following the steps on the reference host shows the terminal and IDE
+- [x] Following the steps on the reference host shows the terminal and IDE
       under Developer Tools after a restart.
 
 ---
@@ -3872,13 +3872,13 @@ units total: 73 → 73, +0 (×1.000)
 
 #### Automated Verification:
 
-- [ ] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_mise.py tests/unit/tasks/test_measure.py -v`
-- [ ] Lint and types pass: `mise run build-system:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] The tests pass: `uv run pytest tests/unit/tasks/shared/build_measurement tests/unit/tasks/test_mise.py tests/unit/tasks/test_measure.py -v`
+- [x] Lint and types pass: `mise run build-system:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `mise run measure:compare-builds -- <baseline> <baseline> --task
+- [x] `mise run measure:compare-builds -- <baseline> <baseline> --task
       test:unit:cli` on the committed baseline reports zero change, within
       noise, `conditions match`, no task-set difference, equal unit
       totals, and zero change for `test:unit:cli`.
@@ -3888,6 +3888,10 @@ units total: 73 → 73, +0 (×1.000)
 ## Phase 10: Host-settings measurements and citations
 
 ### Overview
+
+This phase moved to 0370 on 2026-11-02, so 0368 could close before 0362,
+0363 and 0367 land. Its steps below are 0370's starting point, and its
+criteria stay unchecked here.
 
 This phase covers Requirement 9. It records the `none`, `devtools` and
 `devtools+ide-exclusion` conditions at one commit and cites their changes in
@@ -4007,7 +4011,7 @@ from the two `measure:compare-builds` reports. It contains:
     directly over fake ports rooted at `tmp_path`.
 - **Documentation.** `TestMeasureNamespaceDocs` pins the README's measure
   section, `TestHostSettingsGuidance` the `CONTRIBUTING.md` steps, and
-  Phase 10's tests check each cited record and figure against
+  0370's tests will check each cited record and figure against
   `compare_records`.
 
 ### Integration Tests:
@@ -4034,7 +4038,7 @@ from the two `measure:compare-builds` reports. It contains:
   cold `--runs 3` takes about 25 minutes and fetches npm packages each run.
 - **Sampler cost.** The `ps` sampler runs `ps -ww -A` once a second. It keeps
   only tracked lines, so a run's `ps` log is kilobytes rather than about
-  30 MB. `iostat -w 2` costs nothing measurable.
+  30 MB. `iostat -w 1` costs nothing measurable.
 - **Measurement bias.** Per-process CPU is a lower bound: one-second
   sampling misses short-lived processes, and the post-build tail is not
   counted. The README's build-timing paragraph says so once, rather than
@@ -4061,6 +4065,268 @@ baseline every change to them follows one rule, which the README's
 
 `test_every_committed_build_record_is_readable` enforces the rule: a
 breaking edit without an upgrade fails CI in the commit that makes it.
+
+## Implementation Notes
+
+Progress as of 2026-11-02: Phases 1–4 are complete and merged as PR #175.
+Phases 5–9 are complete, their automated and manual checks pass, and none
+is pushed yet; Phases 6, 7 and 9 made their work-item edits before merging
+rather than after. Phase 10 moved to 0370, which 0362, 0363 and 0367
+block, and 0368's Requirement 9 is now a pointer to it, so 0368 is done.
+
+### Phases 1–4 review round
+
+PR #175's first review
+(`meta/reviews/prs/175-review-1.md`) changed the as-built code from what
+Phases 1–4 describe. Where the code now departs from the plan:
+
+- **Teardown.** `SubprocessBuildRunner` reaps whenever the build's group is
+  alive, not only while `mise` is, and forgets `build.pgid` only once the
+  group is gone, inside the deferred-signal block, so a group that survives
+  its reap leaves the file for the next session's orphan check.
+  `reap_session` also reaps a group whose leader has already exited:
+  `group_of` returns `None` for a reaped leader, so it signals the group by
+  the leader's pid, which cannot be reused while the group exists.
+- **Build start.** Signals are held from `Popen` until the group is
+  remembered, so an interrupt in that window still reaps the build.
+- **Sampling cadence.** `iostat` runs at `-w 1`, not `-w 2`, so both samplers
+  sample once a second. Both read their commands under `LC_ALL=C`.
+- **Stream sampler start.** It opens its log only after its command starts,
+  and kills the command if the log cannot open.
+- **Stamped logs.** `log_files.StampedLog` owns the `newline="\n"` decoding,
+  through `follow(pipe, clock, epoch)`, for the build runner and both
+  samplers.
+- **Process ports.** The five group operations moved from `ProcessOps` to a
+  `ProcessGroupOps(ProcessOps, Protocol)`. `reap_session`,
+  `SubprocessBuildRunner` and `BuildGroupFile` take it; the dev lifecycle
+  stays on `ProcessOps`.
+- **Provenance.** `differing_paths(history, commit)` replaces
+  `working_copy_matches`, and the session calls it for both the start and
+  the end check. `GitHistory` lists paths with `-z`, so `core.quotePath`
+  cannot quote them.
+- **Preflight.** `Preflight.running` is `tuple[str, ...] | NoReading`. A
+  failed `ps` probe reports no reading, and with `--keep` warns once,
+  instead of listing every tracked process as not running.
+- **Refusals and wiring.** `OrphanedBuildError` lives in `errors.py` and
+  takes the pgid, members and path. `wiring.mise_tasks_json` takes its argv
+  so its failure path is tested.
+- **Warm-dispatch teardown.** `_contained` refuses
+  `.accelerator-measure/build`, which the two harnesses' shared scratch root
+  would otherwise admit.
+- **README.** The measure namespace has a section per harness, and the
+  build-timing material follows warm dispatch.
+
+Verification after the round: the full `mise run` passed locally, and every
+CI lane passed on both OSes at `e3f1b37c`. Earlier ubuntu runs had failed one
+test that assumed a non-root user cannot signal process group 1; the hosted
+runner can, so the test now forces the `PermissionError` it probes for.
+
+### Phase 5 baseline
+
+The baseline is
+`meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`,
+committed with the test that names it. Where the phase departed from the
+plan:
+
+- **Commit.** It was measured at `007b2dd6`, a version bump on top of the
+  PR #175 merge, so `main` held none of 0362–0367's changes. Median
+  wall-clock 315.1 s (303.3–317.0), idle load 41.7%, every tracked process
+  `measured`.
+- **Host settings.** It is a `devtools` record, the settings in force,
+  not `none`, which the README asks for first. Phase 10's `none` record
+  therefore needs the Developer Tools exemption removed first, which can
+  need a reboot.
+- **Power.** A first attempt ran on battery, which `--keep` warns about
+  but `conditions` does not capture. It was discarded and retaken on AC.
+  Its median was 299.4 s, quicker than the AC record.
+- **Work-item edits.** `accelerator work update --remove` leaves an emptied
+  `blocked_by: []`, which the frontmatter validator rejects as an empty
+  placeholder; the four emptied keys were deleted by hand.
+
+### Phase 6 isolation mode
+
+Where the phase departed from the plan:
+
+- **Graph loaded once.** `measure_build` parses `mise tasks --json` before
+  the session lock, for the name check, and hands that graph to the session,
+  which no longer parses it again in its provenance step. The opening order
+  is therefore platform, task graph, lock, orphan check, for a full build as
+  well.
+- **Name-check helpers.** `TaskGraph` gained `isolated(task)`,
+  `unknown(tasks)` and `closest_to(task)`. `UnknownTaskError` formats each
+  unknown name as `'tset' (closest: 'test')` or `(no close match)`.
+- **Exit-status fill.** `CapturedInvocation.timeline` fills a failed task's
+  missing `exit_status` from the invocation's only when the invocation
+  reports one task, through `Timeline.with_exit_status_unprinted_by_mise`.
+- **Log pointer.** `isolated_log_suffix` lives in `settings.py`, and the
+  summary's failed-task pointer uses it when the record's mode is
+  `isolated`.
+- **Run id.** `run_id` takes `mode` and appends `_isolated` for an isolated
+  session; the record test covers the suffix.
+- **Test placement.** The duplicate-name refusal is tested in
+  `test_settings.py`, beside the other settings refusals, rather than in
+  `test_session.py`.
+- **Task set.** An isolated record's `task_set` stays the `default`
+  closure, as the schema is unchanged.
+- **Wording.** The `measure:build` docstring opens "Time a build" and
+  names `default` or each `--isolate` task, and the `mise.toml`
+  description says "Time the default build, or each --isolate task
+  alone". The `mise.toml` comment was left as it was.
+- **Settings.** `BuildSettings.of` takes `isolate` with no default, like
+  `ide_patterns`, so every caller says which scope it builds.
+- **Manual run.** `build_2026-11-01T201329Z_engywook_warm-no-op_devtools_isolated`
+  (not kept), at `bc16c8bb` on AC power, idle load 30.4%: nextest phase
+  171.4 s, the log's own `Summary` figure, against the research's 149 s.
+  The suite has grown from 6,407 to 6,609 tests, which scales 149 s to
+  about 154 s, and the IDE used 310 CPU-seconds in the 315 s run. The
+  priming run's phase was 165.7 s. Task duration 315.1 s against the
+  research's 247 s, and queueing 0.1 s from the invocation's start.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0365 no longer lists `blocked_by`, and 0368's
+  `blocks` is `["work-item:0366"]`. As in Phase 5, the emptied
+  `blocked_by: []` was deleted by hand. If this branch is abandoned, 0365's
+  edge to 0368 should be restored.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 458 s, the fixers changing nothing) passed locally at
+`98d2de64`. CI has not run on it yet.
+
+### Phase 7 cache states
+
+Where the phase departed from the plan:
+
+- **Preparation re-verifies.** `prepare_timed_run` calls `verify` before
+  changing anything, so the touch target is rechecked as well as the
+  deletions, and every check precedes the first move.
+- **Trash layout.** Each deleted directory keeps its checkout-relative path
+  inside the trash, as `cold-trash-<n>/cli/target`, so two targets can
+  never collide. A trash directory that already exists raises
+  `FileExistsError` rather than a refusal.
+- **The `--isolate` refusal** keys on `state.deletions`, not on `COLD`, and
+  names the state.
+- **Marker name.** `DEV_LAUNCHER_MARKER_NAME` lives in `tasks/shared/paths.py`;
+  `tasks/measure.py`'s three uses of the literal were left as they were.
+- **Notices.** The dev-launcher line is worded to hold before and after
+  the deletion, since the preflight renders it too. On success, found trash
+  leaves out the last run's `UnremovedTrash`, which it would otherwise
+  repeat. The exit report guards `OSError` only, as ruff's BLE001 forbids a
+  blind `except`, and a marker that cannot be read counts as present.
+- **Exit report scope.** The `ExitStack` spans the whole of `_measure`, and
+  the callback is pushed as the timed runs begin, so a failure in analysis
+  or the end-of-run check also repeats the warning.
+- **Mutation check.** The real-workspace session tests were written after
+  the session hook; disabling the `prepare_timed_run` call fails three of
+  them.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0366's `blocked_by` is `["work-item:0362"]`, and
+  0368's emptied `blocks` was deleted by hand. 0366's Dependencies gain a
+  "Measured with" bullet naming the cold command and the baseline. If this
+  branch is abandoned, 0366's edge to 0368 should be restored.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 341 s, the fixers changing nothing) passed locally. CI
+has not run on it yet.
+
+Manual runs, at `aa31e6a7` on AC power with `--host-settings devtools`,
+neither kept:
+- **Cold.** `build_2026-11-01T220320Z_engywook_cold_devtools`: idle load
+  19.8%, priming skipped and `priming: null`, wall-clock 435.5 s, no task
+  failed. It deleted a 39 GB `cli/target` and the frontend's
+  `node_modules`, and the run rebuilt both (`cli/target` 17 GB after);
+  `deps:install:node` succeeded in 4.1 s, and no `cold-trash-1` remained.
+  Units: 1,275 compiling, 543 checking, 17 documenting. The IDE used
+  817 CPU-seconds, indexing the rebuilt tree.
+- **Incremental.** `build_2026-11-01T221211Z_engywook_incremental_devtools`:
+  priming 308.6 s, the timed run 334.1 s, no task failed, 76 units
+  compiling. `jj diff cli/kernel/src/lib.rs` was empty afterwards.
+
+### Phase 8 host guidance
+
+Where the phase departed from the plan:
+
+- **Section shape.** The two settings are numbered steps, and the security
+  tradeoff and the file-watching limit follow as a bulleted list of costs,
+  rather than four numbered items.
+- **Extra content.** The exemption step says it takes effect only after a
+  restart and why it covers everything a listed app launches, and the
+  file-watching bullet links IJPL-2175.
+- **Extra test.** `TestHostSettingsGuidance` also asserts that the section
+  follows "Local development", and pins all three excluded folders.
+- **README link.** It is a sentence appended to the `--host-settings`
+  bullet, as a relative link, `../CONTRIBUTING.md#faster-local-builds-on-macos`.
+
+Verification: the phase's tests and the full `mise run` (exit 0, 407 s, the
+fixers changing nothing) passed locally at `180121e4`. CI has not run on it
+yet.
+
+Manual check, on 2026-11-02: the system TCC database's
+`kTCCServiceDeveloperTool` rows allow Ghostty, IntelliJ IDEA (its bundle id
+is `com.jetbrains.intellij-EAP`), PyCharm and RustRover. Each running app
+started on 2026-10-30, after its row was last changed. No tmux or zellij
+was running.
+
+### Phase 9 record comparison
+
+Where the phase departed from the plan:
+
+- **Change values.** `MeasuredChange` holds both medians, and `seconds` and
+  `ratio` are properties of them, since the report prints both medians.
+  `ChangeFromIdle` holds only the current median; its `seconds` is that
+  median.
+- **Wall-clock.** It is built as a `MeasuredChange` directly. A zero
+  wall-clock median would fail on its ratio rather than become a
+  `ChangeFromIdle`.
+- **Reading records.** `record.read_record(path)` refuses a missing or
+  unreadable file with `UnreadableRecordError` naming it, as `parse_record`
+  does a malformed one; the task calls it for both paths.
+- **Arguments.** The two record paths are invoke positionals,
+  `positional=["previous", "current"]`, so
+  `mise run measure:compare-builds -- <previous> <current>` parses.
+- **Ruff.** `pyproject.toml` allows `×` as a confusable, since `RUF001`
+  flags every ratio in the report's literals.
+- **Wording.** Records with the same label are named `previous` and
+  `current` in sentences, rather than by a label shared by both. Differing
+  conditions are separated by `; `, since a tuple value holds commas. The
+  remaining variants render as `0.0 s → 3.2 s, +3.2 s (no ratio from
+  zero)`, `149.2 s in the 'none' record, not in every 'devtools' run`,
+  `not compared, tracked by different patterns ('none': …; 'devtools': not
+  tracked)`, `not in the 'devtools' record`, `in neither record (closest:
+  '…')`, and `flagged failed in the 'devtools' record`.
+- **Extra tests.** Several differing conditions, one shared label, a
+  process tracked on one side only, a missing record file, a named task
+  reaching the task's output, and help for every argument.
+- **Work-item edits.** Made before merging, at the operator's request,
+  rather than after: 0365's and 0366's Technical Notes each gain the
+  `measure:compare-builds` command for their before and after records.
+
+Verification: the phase's tests, `mise run build-system:check` and the full
+`mise run` (exit 0, 447 s, the fixers changing nothing) passed locally at
+`5cf30aa3`. CI has not run on it yet.
+
+Manual check: `mise run measure:compare-builds` over the committed baseline
+and itself, with `--task test:unit:cli`, reported `conditions match`, zero
+change within noise on every line, an unchanged task set and equal unit
+totals.
+
+### Deferred to later phases
+
+The review's structural findings were deferred, and Phase 9 took none of
+them up. Each fits a later phase:
+
+- **Any later phase.** The recurring condition parameters (`cache_state`,
+  `mode`, `isolated_tasks`, `host_settings`) may become one value object.
+  Phases 6 and 7 added the isolated scope and the cache states, but not
+  that value object, the `RunDirectory` port or the rename of
+  `test_imports.py`'s `_PURE` partition.
+- **Any phase.** A `ports.py` for the port protocols and their value types
+  now split across `session.py`, `provenance.py` and `analysis.py`; a
+  `tasks/measure_build.py` split from `tasks/measure.py`; `measure:build`
+  placed beside the other `measure:*` tasks in `mise.toml`; a scratch
+  subdirectory per harness.
+- **Tests.** The sampler kill-after-timeout stop path, and a record surviving
+  a refused keep.
+- **Docs.** One README sentence on where macOS coupling reaches the record
+  schema.
 
 ## References
 

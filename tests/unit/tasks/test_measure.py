@@ -110,8 +110,12 @@ from tasks.measure import (
     write_personal_config,
 )
 from tasks.measure import build as build_task
+from tasks.measure import compare_builds as compare_builds_task
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
+from tasks.shared.build_measurement.record import record_text
+from tasks.shared.build_measurement.settings import FullBuild, IsolatedTasks
 from tasks.shared.build_measurement.tracked_processes import (
     DEFAULT_TRACKED_PROCESSES,
     with_ide_patterns,
@@ -177,6 +181,7 @@ from tests.unit.tasks.shared.build_measurement.doubles import (
     CLEAN_BUILD,
     TEST_FAILS,
     FakeSession,
+    measured_build,
 )
 
 REPO = Path(__file__).resolve().parents[3]
@@ -1339,6 +1344,17 @@ class TestMeasureNamespaceDocs:
             "lower bound",
             "`presence`",
             "`conditions`",
+            "--isolate",
+            "--skip-deps",
+            "run-2-test_unit_cli.log",
+            "_isolated",
+            "--cache-state incremental",
+            "--cache-state cold",
+            "cold-trash-",
+            ".accelerator-dev-launcher",
+            "CONTRIBUTING.md#faster-local-builds-on-macos",
+            "measure:compare-builds",
+            "--task",
         ):
             assert required in section, required
 
@@ -3886,7 +3902,59 @@ class TestBuildTask:
             "keep",
             "host_settings",
             "ide_pattern",
+            "isolate",
+            "cache_state",
         }
+
+    def test_isolated_tasks_reach_the_settings(self, monkeypatch):
+        settings = self.captured_settings(
+            monkeypatch, isolate=["test:unit:cli", "build:frontend"]
+        )
+        assert settings.scope == IsolatedTasks(
+            ("test:unit:cli", "build:frontend")
+        )
+
+    def test_no_isolated_task_measures_a_full_build(self, monkeypatch):
+        assert self.captured_settings(monkeypatch).scope == FullBuild()
+
+    def test_the_cache_state_defaults_to_warm_no_op(self, monkeypatch):
+        assert (
+            self.captured_settings(monkeypatch).cache_state
+            is BuildCacheState.WARM_NO_OP
+        )
+
+    def test_the_cache_state_reaches_the_settings(self, monkeypatch):
+        settings = self.captured_settings(monkeypatch, cache_state="cold")
+        assert settings.cache_state is BuildCacheState.COLD
+
+    def test_the_cache_state_help_names_what_cold_deletes(self):
+        help_text = build_task.help["cache_state"]
+        for required in (
+            "warm-no-op",
+            "incremental",
+            "cold",
+            "cli/target",
+            "cli/visualiser/frontend/node_modules",
+        ):
+            assert required in help_text, required
+
+    def test_isolate_with_cold_exits_one_and_nothing_is_deleted(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(measure_module, "REPO_ROOT", tmp_path)
+        built = [
+            tmp_path / "cli/target/debug/accelerator",
+            tmp_path / "cli/visualiser/frontend/node_modules/react/index.js",
+        ]
+        for path in built:
+            path.parent.mkdir(parents=True)
+            path.write_text("built")
+        with pytest.raises(
+            Exit, match="--isolate does not support --cache-state cold"
+        ) as refusal:
+            build_task(Context(), isolate=["test:unit:cli"], cache_state="cold")
+        assert refusal.value.code == 1
+        assert all(path.exists() for path in built)
 
     def test_repeated_flags_are_parsed_as_lists(self):
         context = ParserContext(
@@ -3899,9 +3967,14 @@ class TestBuildTask:
                 "a",
                 "--ide-pattern",
                 "b",
+                "--isolate",
+                "a",
+                "--isolate",
+                "b",
             ]
         )
         assert parsed.args.ide_pattern.value == ["a", "b"]
+        assert parsed.args.isolate.value == ["a", "b"]
 
 
 class TestMeasureBuildWith:
@@ -3942,3 +4015,63 @@ class TestMeasureBuildWith:
         self.run(session, runs=1, keep=True)
         [kept] = (tmp_path / "meta" / "measurements").iterdir()
         assert f"kept: {kept}" in capsys.readouterr().out
+
+
+class TestCompareBuildsTask:
+    def written(self, tmp_path, name, measured):
+        path = tmp_path / f"{name}.json"
+        path.write_text(record_text(measured))
+        return str(path)
+
+    def test_differing_conditions_still_exit_zero(self, tmp_path, capsys):
+        previous = self.written(
+            tmp_path, "none", measured_build(host_settings=HostSettings.NONE)
+        )
+        current = self.written(tmp_path, "devtools", measured_build())
+        compare_builds_task(Context(), previous, current)
+        assert capsys.readouterr().out.splitlines()[0] == (
+            "conditions differ: host_settings (none → devtools)"
+        )
+
+    def test_an_unreadable_record_exits_one_naming_the_file(self, tmp_path):
+        previous = self.written(tmp_path, "previous", measured_build())
+        unreadable = tmp_path / "current.json"
+        unreadable.write_text("{}")
+        with pytest.raises(Exit, match=str(unreadable)) as refusal:
+            compare_builds_task(Context(), previous, str(unreadable))
+        assert refusal.value.code == 1
+
+    def test_a_missing_record_exits_one_naming_the_file(self, tmp_path):
+        previous = self.written(tmp_path, "previous", measured_build())
+        missing = tmp_path / "missing.json"
+        with pytest.raises(Exit, match=str(missing)) as refusal:
+            compare_builds_task(Context(), previous, str(missing))
+        assert refusal.value.code == 1
+
+    def test_a_named_task_reaches_the_report(self, tmp_path, capsys):
+        record = self.written(tmp_path, "record", measured_build())
+        compare_builds_task(Context(), record, record, task=["build:cli"])
+        assert "build:cli duration: " in capsys.readouterr().out
+
+    def test_each_argument_has_help(self):
+        assert set(compare_builds_task.help) == {"previous", "current", "task"}
+
+    def test_repeated_task_flags_reach_the_comparison(self):
+        context = ParserContext(
+            name="measure.compare-builds",
+            args=compare_builds_task.get_arguments(),
+        )
+        [parsed] = Parser(contexts=[context]).parse_argv(
+            [
+                "measure.compare-builds",
+                "before.json",
+                "after.json",
+                "--task",
+                "a",
+                "--task",
+                "b",
+            ]
+        )
+        assert parsed.args.previous.value == "before.json"
+        assert parsed.args.current.value == "after.json"
+        assert parsed.args.task.value == ["a", "b"]

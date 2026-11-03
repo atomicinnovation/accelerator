@@ -1,7 +1,10 @@
-"""Warm-dispatch latency measurement (quiet host; outside `check`/`default`).
+"""The `measure` namespace: latency, size and build-timing measurements.
 
-Times the dispatched `vcs guard` (`G`) against the shell guard it replaced
-(`B`), recovered from history, and classifies the six cells C1-C6.
+`measure:warm-dispatch` times the dispatched `vcs guard` (`G`) against the
+shell guard it replaced (`B`), recovered from history, and classifies the six
+cells C1-C6. `measure:build` times the default build, or each isolated task,
+from a chosen cache state, and `measure:compare-builds` compares two of its
+records.
 
 Prerequisites and the reason the namespace sits outside the aggregate `check`
 are in `tasks/README.md`'s `### The measure namespace`.
@@ -28,10 +31,16 @@ from typing import Protocol, Self
 
 from invoke import Context, Exit, task
 
+from tasks.shared.build_measurement.cache_states import BuildCacheState
+from tasks.shared.build_measurement.comparison import compare_records
+from tasks.shared.build_measurement.comparison_report import comparison_report
 from tasks.shared.build_measurement.errors import MeasurementRefusedError
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
-from tasks.shared.build_measurement.record import write_measured_build
+from tasks.shared.build_measurement.record import (
+    read_record,
+    write_measured_build,
+)
 from tasks.shared.build_measurement.reports import summary_report
 from tasks.shared.build_measurement.session import BuildPorts, measure_build
 from tasks.shared.build_measurement.settings import BuildSettings
@@ -3688,9 +3697,12 @@ def measure_build_with(
 
 @task(
     name="build",
-    iterable=["ide_pattern"],
+    iterable=["ide_pattern", "isolate"],
     help={
-        "runs": "Timed runs (default 3).",
+        "runs": (
+            "Timed runs (default 3), after a priming run unless "
+            "--cache-state is cold."
+        ),
         "keep": (
             "Also write the record under meta/measurements/ for "
             "committing, unless it holds a fetch failure."
@@ -3707,6 +3719,13 @@ def measure_build_with(
             "the main executable, e.g. '/Contents/MacOS/clion(?:\\s|$)'. "
             "Repeat for several."
         ),
+        "isolate": "Run this task alone with --skip-deps; repeat for several.",
+        "cache_state": (
+            "warm-no-op (default), incremental or cold. incremental "
+            "touches cli/kernel/src/lib.rs before every timed run; cold "
+            "skips priming and deletes cli/target and "
+            "cli/visualiser/frontend/node_modules before every timed run."
+        ),
     },
 )
 def build(
@@ -3715,8 +3734,14 @@ def build(
     keep: bool = False,
     host_settings: str = str(HostSettings.UNSPECIFIED),
     ide_pattern: list[str] | None = None,
+    isolate: list[str] | None = None,
+    cache_state: str = str(BuildCacheState.WARM_NO_OP),
 ) -> None:
-    """Time a full `default` build: a priming run, then N timed runs.
+    """Time a build: a priming run, then N timed runs.
+
+    The build is `default`, or with `--isolate` each named task run alone.
+    `--cache-state cold` skips priming and deletes the build's caches
+    before every timed run, taking about 25 minutes at `--runs 3`.
 
     Writes `.accelerator-measure/build/<run-id>/`; `--keep` also writes the
     record under `meta/measurements/` for the operator to commit, unless it
@@ -3731,6 +3756,47 @@ def build(
             keep=keep,
             host_settings=host_settings,
             ide_patterns=ide_pattern or (),
+            isolate=isolate or (),
+            cache_state=cache_state,
         ),
         real_ports,
+    )
+
+
+@task(
+    name="compare-builds",
+    positional=["previous", "current"],
+    iterable=["task"],
+    help={
+        "previous": "The earlier build record, a measure:build record.json.",
+        "current": "The later build record, compared with the earlier.",
+        "task": (
+            "Also compare this task's duration and nextest phase; repeat "
+            "for several."
+        ),
+    },
+)
+def compare_builds(
+    context: Context,
+    previous: str,
+    current: str,
+    task: list[str] | None = None,
+) -> None:
+    """Compare two build records: the changes and whether they compare.
+
+    The first line names every condition that differs between the records,
+    the host-settings label included, or says the conditions match. Then
+    the wall-clock and each tracked process's CPU-seconds, each change with
+    its ratio and noise verdict, the task-set difference and the cargo unit
+    totals, when each record's runs agree on them. `--task` adds that
+    task's duration and nextest phase. Exits 0 whenever both records parse,
+    whether or not they compare.
+    """
+    del context
+    try:
+        records = read_record(Path(previous)), read_record(Path(current))
+    except MeasurementRefusedError as error:
+        raise Exit(str(error), code=1) from error
+    print(
+        comparison_report(compare_records(*records, tasks=task or ())), end=""
     )

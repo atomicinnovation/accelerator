@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import ClassVar, Self
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.errors import InvalidSettingsError
+from tasks.shared.build_measurement.errors import (
+    IncompatibleSettingsError,
+    InvalidSettingsError,
+)
+from tasks.shared.build_measurement.locations import TRASH_PREFIX
 from tasks.shared.build_measurement.measured_build import HostSettings, Mode
 from tasks.shared.build_measurement.task_graph import TaskGraph
 from tasks.shared.build_measurement.tracked_processes import (
@@ -41,6 +45,10 @@ def log_name(run: SessionRun, suffix: str = "") -> str:
     return f"{run.log_stem}{suffix}.log"
 
 
+def trash_name(run: TimedRun) -> str:
+    return f"{TRASH_PREFIX}{run.number}"
+
+
 @dataclass(frozen=True, slots=True)
 class Invocation:
     argv: tuple[str, ...]
@@ -72,7 +80,32 @@ class FullBuild:
         )
 
 
-type BuildScope = FullBuild
+def isolated_log_suffix(task: str) -> str:
+    return "-" + task.replace(":", "_")
+
+
+@dataclass(frozen=True, slots=True)
+class IsolatedTasks:
+    tasks: tuple[str, ...]
+    mode: ClassVar[Mode] = Mode.ISOLATED
+
+    @property
+    def isolated_tasks(self) -> tuple[str, ...]:
+        return self.tasks
+
+    def invocations(self, graph: TaskGraph) -> tuple[Invocation, ...]:
+        return tuple(
+            Invocation(
+                argv=("mise", "run", "--output", "prefix", "--skip-deps", task),
+                log_suffix=isolated_log_suffix(task),
+                graph=graph.isolated(task),
+                reported=(task,),
+            )
+            for task in self.tasks
+        )
+
+
+type BuildScope = FullBuild | IsolatedTasks
 
 
 def _host_settings(label: str) -> HostSettings:
@@ -85,6 +118,16 @@ def _host_settings(label: str) -> HostSettings:
         ) from None
 
 
+def _cache_state(state: str) -> BuildCacheState:
+    try:
+        return BuildCacheState(state)
+    except ValueError:
+        known = ", ".join(BuildCacheState)
+        raise InvalidSettingsError(
+            f"unknown --cache-state '{state}'; known: {known}"
+        ) from None
+
+
 def _compiled(pattern: str) -> str:
     try:
         re.compile(pattern)
@@ -93,6 +136,18 @@ def _compiled(pattern: str) -> str:
             f"--ide-pattern '{pattern}' is not a regular expression: {error}"
         ) from None
     return pattern
+
+
+def _scope(isolate: Sequence[str]) -> BuildScope:
+    if not isolate:
+        return FullBuild()
+    repeated = [
+        task for task in dict.fromkeys(isolate) if isolate.count(task) > 1
+    ]
+    if repeated:
+        named = ", ".join(f"'{task}'" for task in repeated)
+        raise InvalidSettingsError(f"--isolate names {named} more than once")
+    return IsolatedTasks(tuple(isolate))
 
 
 def _tracked(ide_patterns: Sequence[str]) -> tuple[TrackedProcess, ...]:
@@ -111,7 +166,7 @@ class BuildSettings:
     host_settings: HostSettings
     tracked: tuple[TrackedProcess, ...]
     scope: BuildScope
-    cache_state: BuildCacheState = BuildCacheState.WARM_NO_OP
+    cache_state: BuildCacheState
 
     @classmethod
     def of(
@@ -122,14 +177,29 @@ class BuildSettings:
         keep: bool,
         host_settings: str,
         ide_patterns: Sequence[str],
+        isolate: Sequence[str],
+        cache_state: str,
     ) -> Self:
         if runs < 1:
             raise InvalidSettingsError("--runs must be at least 1")
+        state = _cache_state(cache_state)
+        scope = _scope(isolate)
+        if isinstance(scope, IsolatedTasks) and state.deletions:
+            keeping = " or ".join(
+                each for each in BuildCacheState if not each.deletions
+            )
+            raise IncompatibleSettingsError(
+                f"--isolate does not support --cache-state {state}: an "
+                "isolated task runs with --skip-deps, so nothing would "
+                f"rebuild what {state} deletes; isolate under {keeping}, or "
+                f"time the full build {state}"
+            )
         return cls(
             root=root,
             runs=runs,
             keep=keep,
             host_settings=_host_settings(host_settings),
             tracked=_tracked(ide_patterns),
-            scope=FullBuild(),
+            scope=scope,
+            cache_state=state,
         )

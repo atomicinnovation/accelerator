@@ -46,6 +46,7 @@ class HostSettings(StrEnum):
 @unique
 class Mode(StrEnum):
     FULL = "full"
+    ISOLATED = "isolated"
 
 
 CONDITIONS_MIRRORING_THE_HOST = frozenset(

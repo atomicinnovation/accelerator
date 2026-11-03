@@ -19,10 +19,12 @@ from tasks.shared.build_measurement.measured_build import (
     CONDITIONS_MIRRORING_THE_HOST,
     CommitMatch,
     HostSettings,
+    Mode,
 )
 from tasks.shared.build_measurement.record import (
     RUN_ID_PREFIX,
     parse_record,
+    read_record,
     record_text,
     run_id,
     write_measured_build,
@@ -39,7 +41,11 @@ from tests.unit.tasks.shared.build_measurement.doubles import (
 )
 
 _SOURCE = Path("record.json")
-_BASELINE: Path | None = None
+_BASELINE = (
+    REPO_ROOT
+    / MEASUREMENTS_RELATIVE
+    / "build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json"
+)
 
 
 def _committed_build_records() -> list[Path]:
@@ -107,6 +113,15 @@ class TestRunId:
             "warm-no-op",
             str(label),
         ]
+
+    def test_an_isolated_run_id_ends_isolated(self):
+        assert run_id(
+            STARTED_AT,
+            "engywook",
+            cache_state=BuildCacheState.WARM_NO_OP,
+            host_settings=HostSettings.DEVTOOLS,
+            mode=Mode.ISOLATED,
+        ).split("_")[-2:] == ["devtools", "isolated"]
 
 
 class TestRecordText:
@@ -310,8 +325,26 @@ class TestParseRecord:
                     )
                 ]
             ),
+            measured_build(
+                mode=Mode.ISOLATED,
+                isolated_tasks=("build:cli",),
+                run_id=(
+                    "build_2026-10-30T162000Z_engywook_warm-no-op_devtools"
+                    "_isolated"
+                ),
+            ),
+            measured_build(
+                cache_state=BuildCacheState.COLD,
+                run_id="build_2026-10-30T162000Z_engywook_cold_devtools",
+            ),
         ],
-        ids=["failed-skipped-absent", "host-no-reading", "ps-gap"],
+        ids=[
+            "failed-skipped-absent",
+            "host-no-reading",
+            "ps-gap",
+            "isolated",
+            "cold",
+        ],
     )
     def test_a_record_reads_back_equal_to_what_was_written(self, measured):
         assert parse_record(record_text(measured), source=_SOURCE) == measured
@@ -346,6 +379,27 @@ class TestParseRecord:
     def test_a_truncated_record_is_refused(self):
         with pytest.raises(UnreadableRecordError):
             parse_record(record_text(measured_build())[:200], source=_SOURCE)
+
+    def test_a_record_file_reads_back_equal_to_what_was_written(self, tmp_path):
+        measured = measured_build()
+        path = tmp_path / "record.json"
+        path.write_text(record_text(measured))
+        assert read_record(path) == measured
+
+    def test_a_missing_record_file_is_refused_naming_it(self, tmp_path):
+        missing = tmp_path / "missing.json"
+        with pytest.raises(UnreadableRecordError, match=str(missing)):
+            read_record(missing)
+
+    def test_a_record_file_that_is_not_utf8_is_refused_naming_it(
+        self, tmp_path
+    ):
+        binary = tmp_path / "record.json"
+        binary.write_bytes(b"\xff\xfe{}")
+        with pytest.raises(
+            UnreadableRecordError, match=f"^{binary} is not UTF-8 text"
+        ):
+            read_record(binary)
 
     @pytest.mark.parametrize("field", sorted(CONDITIONS_MIRRORING_THE_HOST))
     def test_a_condition_disagreeing_with_the_host_is_refused(self, field):
@@ -543,6 +597,5 @@ def test_every_committed_build_record_is_readable(path):
     parse_record(path.read_text(), source=path)
 
 
-@pytest.mark.skipif(_BASELINE is None, reason="no baseline committed yet")
 def test_the_baseline_is_among_the_committed_records():
     assert _BASELINE in _committed_build_records()

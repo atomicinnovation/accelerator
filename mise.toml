@@ -427,9 +427,14 @@ run = "invoke measure.smoke-check"
 # operator-run, macOS-only build session of 20 minutes or more that no CI
 # job owns. See tasks/README.md#the-measure-namespace.
 [tasks."measure:build"]
-description = "Time a full default build: a priming run then N timed runs, per-task figures and host contention (macOS, ~20 min at --runs 3; writes .accelerator-measure/build/, --keep also writes meta/measurements/ unless a fetch failed)"
+description = "Time the default build, or each --isolate task alone, from a --cache-state (macOS, ~20 min at --runs 3; see tasks/README.md's Build timing)"
 depends = ["deps:install:python"]
 run = "invoke measure.build"
+
+[tasks."measure:compare-builds"]
+description = "Compare two measure:build records, previous then current: differing conditions first, then each change in seconds and as a ratio with its noise verdict (--task adds a task's duration and nextest phase)"
+depends = ["deps:install:python"]
+run = "invoke measure.compare-builds"
 
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test roll-up: a run needs the claude CLI, network egress and model usage. See

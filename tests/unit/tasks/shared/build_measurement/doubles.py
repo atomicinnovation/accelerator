@@ -144,7 +144,7 @@ def measured_build(
         task_set=tuple(sorted(runs[0].tasks)),
         tracked=tracked,
         priming=priming
-        if priming is not None
+        if priming is not None or not cache_state.primes
         else PrimingRun(wall_clock_seconds=318.2, discarded=True),
         runs=runs,
     )
@@ -217,6 +217,14 @@ def failed(task, at, status, *output):
     )
 
 
+def failed_alone(task, at, *output):
+    return (
+        (at, f"[{task}] $ invoke {task}"),
+        *((at + 0.01, f"[{task}] {line}") for line in output),
+        (at + 0.5, f"[{task}] ERROR task failed"),
+    )
+
+
 def skipped(task, at):
     return ((at, f"[{task}] sources up-to-date, skipping"),)
 
@@ -226,16 +234,19 @@ def _write_stamped(log: Path, lines) -> None:
 
 
 class ScriptedBuildRunner:
-    def __init__(self, clock, scripts, events=None):
+    def __init__(self, clock, scripts, events=None, observe=None):
         self.clock = clock
         self.scripts = list(scripts)
         self.events = events if events is not None else []
+        self.observe = observe
         self.calls: list[tuple[tuple[str, ...], Path]] = []
 
     def run(self, argv, *, epoch, log):
         script = self.scripts[len(self.calls)]
         self.calls.append((tuple(argv), log))
         self.events.append(f"build {log.name}")
+        if self.observe is not None:
+            self.observe(log)
         if script.raises is not None:
             raise script.raises()
         offset = self.clock.now() - epoch
@@ -333,6 +344,70 @@ class FakeSessionLock:
             self.events.append("unlock")
 
 
+class RecordingWorkspace:
+    def __init__(
+        self,
+        clock,
+        events,
+        *,
+        refusals=None,
+        unremoved=None,
+        found=(),
+        found_later=None,
+        marker=False,
+        marker_later=None,
+        preparation_seconds=0.0,
+    ):
+        self.clock = clock
+        self.events = events
+        self.refusals = refusals or {}
+        self.unremoved = unremoved or {}
+        self.found = found
+        self.found_later = found_later
+        self.listings = 0
+        self.marker = marker
+        self.marker_later = marker_later
+        self.probes = 0
+        self.preparation_seconds = preparation_seconds
+        self.prepared: list[tuple[BuildCacheState, Path]] = []
+
+    def has_dev_launcher_marker(self):
+        self.probes += 1
+        marker = self.marker
+        if self.probes > 1 and self.marker_later is not None:
+            marker = self.marker_later
+        if isinstance(marker, BaseException):
+            raise marker
+        return marker
+
+    def verify(self, state):
+        self.events.append(f"verify {state}")
+
+    def prepare_timed_run(self, state, *, trash):
+        self.events.append(f"prepare {trash.name}")
+        self.prepared.append((state, trash))
+        self.clock.t += self.preparation_seconds
+        refusal = self.refusals.get(trash.name)
+        if refusal is not None:
+            raise refusal
+
+    def remove_trash(self, trash):
+        self.events.append(f"remove {trash.name}")
+        answer = self.unremoved.get(trash.name)
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
+
+    def leftover_trash(self):
+        self.listings += 1
+        found = self.found
+        if self.listings > 1 and self.found_later is not None:
+            found = self.found_later
+        if isinstance(found, BaseException):
+            raise found
+        return tuple(found)
+
+
 def _untouched(name):
     def fail(*args, **kwargs):
         raise AssertionError(f"the {name} port was touched")
@@ -363,6 +438,7 @@ def untouchable_ports(**overrides) -> BuildPorts:
         "progress": _untouched("progress"),
         "session_lock": _untouched("session_lock"),
         "build_group": _Untouchable("build_group"),
+        "workspace": _Untouchable("workspace"),
     }
     return BuildPorts(**(ports | overrides))
 
@@ -426,6 +502,14 @@ ADVISORY_FAILS = BuildScript(
     ),
     wall_clock=6.5,
 )
+BUILD_ALONE = BuildScript(lines=succeeded("build", 0.0, 2.0), wall_clock=2.5)
+TEST_ALONE = BuildScript(
+    lines=succeeded("test", 1.0, 3.0, "Summary [   2.000s] 4 tests run"),
+    wall_clock=4.5,
+)
+TEST_FAILS_ALONE = BuildScript(
+    lines=failed_alone("test", 1.0, "boom"), exit_status=3, wall_clock=2.0
+)
 CPU_LINES = (
     (0.0, "  us sy id"),
     (0.0, " 1 2 3 4 5 6 7 8 9"),
@@ -442,13 +526,19 @@ class FakeSession:
     orphan: OrphanedBuild | None = None
     lock_refusal: Exception | None = None
     sampler_start_delay: float = 0.0
+    observe: object = None
+    workspace: object = None
     events: list = field(default_factory=list)
     progress: list = field(default_factory=list)
     diagnostics_calls: list = field(default_factory=list)
 
     def __post_init__(self):
         self.clock = FakeClock(start=100.0)
-        self.build = ScriptedBuildRunner(self.clock, self.scripts, self.events)
+        self.build = ScriptedBuildRunner(
+            self.clock, self.scripts, self.events, self.observe
+        )
+        if self.workspace is None:
+            self.workspace = RecordingWorkspace(self.clock, self.events)
         self.cpu_sampler = ScriptedSampler(
             self.clock,
             "cpu",
@@ -470,6 +560,10 @@ class FakeSession:
             self.events.append("platform")
             return "Darwin"
 
+        def mise_tasks():
+            self.events.append("task graph")
+            return GRAPH_JSON
+
         def progress(line):
             self.events.append(f"progress {line.splitlines()[0]}")
             self.progress.append(line)
@@ -484,7 +578,7 @@ class FakeSession:
                 self.probes, self.diagnostics_calls
             ),
             "kernel_hostname": lambda: "kernel-host",
-            "mise_tasks": lambda: GRAPH_JSON,
+            "mise_tasks": mise_tasks,
             "clock": self.clock,
             "utc_now": lambda: dt.datetime(
                 2026, 10, 30, 16, 20, 0, 123456, tzinfo=dt.UTC
@@ -492,16 +586,27 @@ class FakeSession:
             "progress": progress,
             "session_lock": self.lock.held,
             "build_group": self.build_group,
+            "workspace": self.workspace,
         }
         return BuildPorts(**(ports | overrides))
 
-    def settings(self, *, runs=3, keep=False, ide_patterns=()):
+    def settings(
+        self,
+        *,
+        runs=3,
+        keep=False,
+        ide_patterns=(),
+        isolate=(),
+        cache_state="warm-no-op",
+    ):
         return BuildSettings.of(
             root=self.tmp_path,
             runs=runs,
             keep=keep,
             host_settings="devtools",
             ide_patterns=ide_patterns,
+            isolate=isolate,
+            cache_state=cache_state,
         )
 
     def measure(self, **settings):

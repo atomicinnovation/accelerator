@@ -9,10 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0362", "work-item:0368"]
+blocked_by: ["work-item:0362"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-10-30T13:09:40+00:00"
+last_updated: "2026-11-02T09:00:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -99,13 +99,6 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Dependencies
 
-- Blocked by: 0368's `measure:build` harness and its warm no-op
-  baseline. 0361 measures its 200 s target against that baseline, so it
-  must be recorded before any part of this item merges. Work may start
-  before then; only merging waits. This item also needs 0368's cold
-  cache state (its Requirement 4) merged first, because its unit-count
-  criterion and debug-info trial compare cold records. Remove the
-  `blocked_by` edge once both the baseline and the cold state are in.
 - Blocked by: 0362, which lands first. Collapsing the debug builds must
   keep `test:integration:hooks`'s launcher and `accelerator-vcs` builds
   working, and the debug-info trial changes the launcher size that 0362's
@@ -114,6 +107,12 @@ dependencies could shorten links and hashing, but that has not been measured.
   this item brings the debug shim under a mise task, the hooks,
   entrypoint and skill-invocation suites take that edge in place of
   `build_shim()`, and the shim keeps 0362's `minisign-verify` override.
+- Measured with: 0368's cold cache state. This item's unit-count criterion
+  and debug-info trial compare cold records taken before and after the
+  change: `mise run measure:build -- --cache-state cold --runs 1`. 0368's
+  warm no-op baseline, which 0361 measures its 200 s target against, is
+  recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
 - Blocks: none
 
 ## Assumptions
@@ -128,6 +127,9 @@ dependencies could shorten links and hashing, but that has not been measured.
 - In-test builds: `tests/support/artefacts.py:56-93`.
 - The two clippy feature passes: `tasks/lint/server.py:15`.
 - The only profile override today is for release: `cli/Cargo.toml:260-262`.
+- Comparing the before and after cold records:
+  `mise run measure:compare-builds -- <before> <after>`. Its unit-totals lines
+  carry the counts, and its wall-clock line carries the median change.
 
 ## Drafting Notes
 

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.fetch_failures import (
     ExternalInput,
     FetchFailure,
@@ -13,11 +14,18 @@ from tasks.shared.build_measurement.measured_build import (
 )
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
+    DEV_LAUNCHER_REBUILD,
+    DevLauncherNeedsRebuild,
     Preflight,
     SessionOutcome,
+    notices_report,
     preflight_report,
     run_end_line,
     summary_report,
+)
+from tasks.shared.build_measurement.session_notices import (
+    FoundTrash,
+    UnremovedTrash,
 )
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (
@@ -37,6 +45,7 @@ _RUN_DIRECTORY = (
     / "build_2026-10-30T162000Z_engywook_warm-no-op_devtools"
 )
 _RECORD = _RUN_DIRECTORY / "record.json"
+_TRASH = _RUN_DIRECTORY / "cold-trash-3"
 _KEPT = (
     _ROOT
     / "meta/measurements"
@@ -50,9 +59,13 @@ _ADVISORY = FetchFailure(
 )
 
 
-def _summary(measured=None, *, keep=False, kept=None):
+def _summary(measured=None, *, keep=False, kept=None, notices=()):
     return summary_report(
-        SessionOutcome(measured=measured or measured_build(), keep=keep),
+        SessionOutcome(
+            measured=measured or measured_build(),
+            keep=keep,
+            notices=tuple(notices),
+        ),
         record_path=_RECORD,
         kept_path=kept,
     )
@@ -236,9 +249,20 @@ def _preflight(**overrides) -> Preflight:
                 "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea",
             ),
             keep=True,
+            touches=(),
+            deletions=(),
+            leftover_trash=(),
+            dev_launcher_marker=False,
         ),
         **overrides,
     )
+
+
+def _effects(state: BuildCacheState) -> dict:
+    return {
+        "touches": tuple(_ROOT / path for path in state.touches),
+        "deletions": tuple(_ROOT / path for path in state.deletions),
+    }
 
 
 _NO_PS_READING = NoReading(argv=PS_ARGV)
@@ -337,6 +361,57 @@ class TestPreflightReport:
         assert _warnings(_preflight(**overrides)) == [warning]
         assert _warnings(_preflight(**overrides, keep=False)) == []
 
+    @pytest.mark.parametrize(
+        ("state", "lines"),
+        [
+            (BuildCacheState.WARM_NO_OP, []),
+            (
+                BuildCacheState.INCREMENTAL,
+                [
+                    "  touches before each timed run: "
+                    "/checkout/cli/kernel/src/lib.rs"
+                ],
+            ),
+            (
+                BuildCacheState.COLD,
+                [
+                    "  deletes before each timed run:",
+                    "    /checkout/cli/target",
+                    "    /checkout/cli/visualiser/frontend/node_modules",
+                ],
+            ),
+        ],
+    )
+    def test_the_preflight_names_what_the_state_touches_and_deletes(
+        self, state, lines
+    ):
+        report = preflight_report(_preflight(**_effects(state)))
+        assert report.splitlines()[9:] == lines
+
+    def test_the_preflight_lists_trash_earlier_sessions_left(self):
+        found = FoundTrash(path=_TRASH, size_bytes=48_000_000)
+        report = preflight_report(_preflight(leftover_trash=(found,)))
+        assert report.splitlines()[-1] == f"  {notices_report([found])}"
+
+    def test_a_deleting_preflight_warns_of_the_dev_launcher_marker(self):
+        report = preflight_report(
+            _preflight(
+                **_effects(BuildCacheState.COLD), dev_launcher_marker=True
+            )
+        )
+        assert report.splitlines()[-1] == notices_report(
+            [DevLauncherNeedsRebuild()]
+        )
+
+    @pytest.mark.parametrize(
+        "state", [BuildCacheState.WARM_NO_OP, BuildCacheState.INCREMENTAL]
+    )
+    def test_a_preflight_that_deletes_nothing_ignores_the_marker(self, state):
+        report = preflight_report(
+            _preflight(**_effects(state), dev_launcher_marker=True)
+        )
+        assert DEV_LAUNCHER_REBUILD not in report
+
 
 class TestRunEndLine:
     def test_a_clean_run_gives_its_wall_clock(self):
@@ -394,3 +469,48 @@ class TestRunEndLine:
 
 def replace_run(failure: FetchFailure, run: int) -> FetchFailure:
     return failure.model_copy(update={"run": run})
+
+
+@pytest.mark.parametrize(
+    ("notice", "line"),
+    [
+        (
+            UnremovedTrash(
+                path=_TRASH,
+                size_bytes=3_210_000_000,
+                cause="[Errno 13] Permission denied: 'debug'",
+            ),
+            f"cold trash not removed: {_TRASH} (3.2 GB): [Errno 13] "
+            "Permission denied: 'debug'; delete it once the cause is fixed",
+        ),
+        (
+            FoundTrash(path=_TRASH, size_bytes=48_000_000),
+            f"cold trash left behind: {_TRASH} (48.0 MB); safe to delete",
+        ),
+        (
+            DevLauncherNeedsRebuild(),
+            "warning: .accelerator-dev-launcher is present, so hooks using "
+            "this checkout's dev launcher fail open from when cli/target is "
+            "deleted until the launcher is rebuilt: (cd cli && cargo build "
+            "--workspace --exclude accelerator-visualiser)",
+        ),
+    ],
+    ids=["unremoved", "found", "dev-launcher"],
+)
+def test_the_summary_renders_each_notice(notice, line):
+    assert notices_report([notice]) == line
+    assert _summary(notices=[notice]).splitlines()[-1] == line
+
+
+@pytest.mark.parametrize(
+    ("size_bytes", "shown"),
+    [(512, "512 B"), (2_500, "2.5 kB"), (48_000_000, "48.0 MB")],
+)
+def test_trash_sizes_are_shown_in_decimal_units(size_bytes, shown):
+    assert f"({shown})" in notices_report(
+        [FoundTrash(path=_TRASH, size_bytes=size_bytes)]
+    )
+
+
+def test_a_quiet_summary_ends_with_its_paths():
+    assert _summary().splitlines()[-1] == f"record: {_RECORD}"

@@ -8,7 +8,14 @@ _PACKAGE = "tasks.shared.build_measurement"
 _PACKAGE_DIR = REPO_ROOT / "tasks" / "shared" / "build_measurement"
 _SESSION = "session"
 _ADAPTERS = frozenset(
-    {"build_group", "build_runner", "history", "samplers", "session_lock"}
+    {
+        "build_group",
+        "build_runner",
+        "history",
+        "samplers",
+        "session_lock",
+        "workspace",
+    }
 )
 _COMPOSITION_ROOT = "wiring"
 _PURE = sorted(

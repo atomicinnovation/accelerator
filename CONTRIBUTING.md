@@ -33,6 +33,33 @@ is logged to `.accelerator-unverified.log` in the cache directory (`bin/`
 unless `ACCELERATOR_CACHE_DIR` is set); a sub-binary override is not logged
 there, and shows only as an `info` trace under `ACCELERATOR_LOG=info`.
 
+## Faster local builds on macOS
+
+Two host settings should shorten a full `mise run` on macOS:
+
+1. **Developer Tools exemption.** In System Settings › Privacy & Security ›
+   Developer Tools, add your terminal app, your JetBrains IDE, and tmux or
+   zellij if you use them. Restart each one; the exemption takes effect only
+   after a restart. macOS attributes each process to the app responsible for
+   it, so the exemption covers everything a listed app launches. It should
+   help because XProtect scans each newly linked or copied binary on its first
+   launch, serially, at about 100–300 ms each, and a coverage run relinks
+   hundreds of test binaries.
+2. **IDE exclusions.** Mark `cli/target`,
+   `cli/visualiser/frontend/node_modules` and `docs-site/node_modules` as
+   Excluded in the IDE. RustRover excludes `target` automatically only for an
+   attached Cargo project. They should help because the IDE otherwise indexes
+   everything the build writes.
+
+Each has a cost or a limit:
+
+- **Security.** XProtect no longer scans anything an exempted app launches,
+  including binaries the build downloads or links.
+- **File watching.** An exclusion stops indexing, not file watching.
+  `fsnotifier` watches all of `/` on macOS and the IDE filters its events
+  itself
+  ([IJPL-2175](https://youtrack.jetbrains.com/issue/IJPL-2175)).
+
 ## Linting, formatting, and type-checking
 
 Enforcement is **CI-only** — there are no pre-commit hooks. So before you push:

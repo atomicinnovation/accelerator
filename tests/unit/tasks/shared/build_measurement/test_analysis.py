@@ -39,6 +39,8 @@ _SETTINGS = BuildSettings.of(
     keep=False,
     host_settings="devtools",
     ide_patterns=(),
+    isolate=(),
+    cache_state="warm-no-op",
 )
 
 
@@ -132,6 +134,48 @@ def test_a_failure_in_one_run_is_reported_and_its_dependants_flagged():
 def test_a_non_zero_mise_exit_marks_the_run_even_with_no_failed_task():
     [run] = analyse_session(_session(_run(lines=(), exit_status=2))).runs
     assert run.contains_failure
+
+
+def _invocation(lines, *, exit_status, reported):
+    return CapturedInvocation(
+        result=BuildResult(
+            lines=lines, exit_status=exit_status, wall_clock_seconds=6.0
+        ),
+        graph=_GRAPH,
+        reported=reported,
+        ready_from=0.0,
+    )
+
+
+def test_a_full_builds_failed_task_never_takes_the_invocations_status():
+    lines = _lines(
+        (0.0, "[build] $ invoke build"),
+        (2.0, "[build] Finished in 2.0s"),
+        (2.5, "[test] $ invoke test"),
+        (4.0, "[test] ERROR task failed"),
+    )
+    reported = ("build", "report", "test")
+    test = (
+        _invocation(lines, exit_status=5, reported=reported)
+        .timeline()
+        .tasks["test"]
+    )
+    assert test.outcome is TaskOutcome.FAILED
+    assert test.exit_status is None
+
+
+def test_an_isolated_tasks_printed_status_outranks_the_invocations():
+    lines = _lines(
+        (0.0, "[test] $ invoke test"),
+        (1.0, "[test] boom"),
+        (1.5, "[test] exited with status 2"),
+    )
+    test = (
+        _invocation(lines, exit_status=5, reported=("test",))
+        .timeline()
+        .tasks["test"]
+    )
+    assert test.exit_status == 2
 
 
 def test_a_task_not_run_marks_the_run_even_when_mise_exits_zero():

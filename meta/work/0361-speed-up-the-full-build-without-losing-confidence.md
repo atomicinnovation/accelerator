@@ -12,7 +12,7 @@ blocks: ["work-item:0369"]
 relates_to: ["work-item:0369"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "ci"]
-last_updated: "2026-10-30T16:25:41+00:00"
+last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -78,6 +78,8 @@ Decomposition:
 - 0366: Cut Rust compile cost (B2, B5)
 - 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
 - 0368: Build-performance measurement and host guidance (C1, C2)
+- 0370: Measure and cite the macOS host settings' effect on the build
+  (C2, split from 0368)
 
 ## Acceptance Criteria
 
@@ -124,6 +126,13 @@ and per-finding evidence. The combined what-if result is what the 200 s
 target was set from: 244 s with five quick wins, and 170–190 s projected
 once the log-rotation tests are fixed.
 
+The 200 s criterion compares against 0368's warm no-op baseline,
+`meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`
+(median 315.1 s over three runs at `007b2dd6`, `devtools` host
+settings). The closing comparison runs
+`mise run measure:compare-builds -- <baseline> <final>`, whose first line
+must report no differing condition.
+
 ## Drafting Notes
 
 - Grouped the research's A/B/C recommendations into seven children, as
@@ -148,4 +157,4 @@ once the log-rotation tests are fixed.
 ## References
 
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
-- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369
+- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370

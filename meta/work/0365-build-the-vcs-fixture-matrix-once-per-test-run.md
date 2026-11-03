@@ -9,10 +9,9 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
-blocked_by: ["work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-10-30T01:47:37+00:00"
+last_updated: "2026-11-02T09:00:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -88,14 +87,12 @@ when the phase ran alone.
 
 ## Dependencies
 
-- Blocked by: 0368's `measure:build` harness and its warm no-op
-  baseline. 0361 measures its 200 s target against that baseline, so it
-  must be recorded before any part of this item merges. Work may start
-  before then; only merging waits. This item also needs 0368's isolation
-  mode (its Requirement 3) merged first, because its speed criterion
-  compares an isolated nextest phase against the commit before the
-  change. Remove the `blocked_by` edge once both the baseline and
-  isolation mode are in.
+- Blocked by: none. This item's speed criterion compares an isolated
+  nextest phase against the commit before the change, measured with 0368's
+  isolation mode: `mise run measure:build -- --isolate test:unit:cli`.
+  0368's warm no-op baseline, which 0361 measures its 200 s target
+  against, is recorded at
+  `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
 - Blocks: none
 
 ## Assumptions
@@ -108,6 +105,9 @@ when the phase ran alone.
 - Variable, `matrix_root` and `build_or_adopt`:
   `cli/vcs-test-support/src/fixtures.rs:25-116`.
 - A per-test rebuild: `cli/vcs-adapters/tests/classify.rs:177`.
+- Comparing the before and after isolated records:
+  `mise run measure:compare-builds -- <before> <after> --task test:unit:cli`.
+  Its nextest-phase line carries the change and the noise verdict.
 
 ## Drafting Notes
 

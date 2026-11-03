@@ -277,7 +277,8 @@ name — `test:integration:measure` does not carry the
 contain.
 
 **Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host,
-and `measure:build` is operator-run on a macOS host.
+`measure:build` is operator-run on a macOS host, and `measure:compare-builds`
+is operator-run on any host.
 `test:integration:measure` is the namespace's owner against rot — n = 2, floors
 only, no gating figure — and belongs to its own non-blocking CI job, because a
 module no automated path executes rots invisibly against volatile external
@@ -370,8 +371,9 @@ verifier::sha256_hex throughput (decimal MB/s) =
 
 #### Build timing
 
-`measure:build` times `mise run default`: one priming run, whose wall-clock is
-recorded and discarded, then `--runs` timed runs (default 3). Per task it
+`measure:build` times `mise run default`, or with `--isolate` each named task
+alone: one priming run, whose wall-clock is recorded and discarded (none under
+`--cache-state cold`), then `--runs` timed runs (default 3). Per task it
 records duration, queueing delay, cargo unit counts, lock wait and nextest
 phase; per run, CPU busy in 30-second buckets and the CPU-seconds of
 `syspolicyd`, `XprotectService`, the IDE and `fsnotifier`. It needs no quiet
@@ -386,6 +388,47 @@ IDE's helpers are not counted as IDE time. Per-process CPU is a lower bound:
 one-second sampling misses short-lived processes, and the tail after a build
 ends is not counted.
 
+**Isolation mode.** `--isolate <task>` runs each named task alone with
+`mise run --skip-deps`, one after another, under the same priming and repeat
+rules, and reports each one's start and end within the run; it does not run
+`default`. Each isolated task has its own log, with `:` in the task name
+written as `_`, so `test:unit:cli` logs to `run-2-test_unit_cli.log`. A name
+mise does not know is refused, with its closest match, before anything runs.
+
+**Cache states.** `--cache-state` picks what each timed run starts from, and
+defaults to `warm-no-op`. `--cache-state incremental` touches
+`cli/kernel/src/lib.rs` before each timed run, leaving its contents unchanged,
+and refuses to start when that file is missing or not a regular file.
+`--cache-state cold` skips priming and deletes `cli/target` and
+`cli/visualiser/frontend/node_modules` before each timed run. It takes about 25
+minutes at `--runs 3`, fetches npm packages every run, and is refused with
+`--isolate`. Every deleted directory passes through the run directory's
+`cold-trash-<n>/`, so the checkout only ever holds a directory whole or not at
+all. When that trash cannot be removed, the harness names it with its size and
+the cause; if timed runs remain it stops before the next one, and otherwise the
+summary reports it. Every preflight lists the trash earlier sessions left, by
+path and size, and all of it is safe to delete. With `.accelerator-dev-launcher`
+present, hooks using this checkout's dev launcher fail open while `cli/target`
+is gone, until the launcher is rebuilt with the `cargo build` in
+`CONTRIBUTING.md`'s "Local development"; a cold session warns of this in the
+preflight, and again however it ends once it has deleted anything.
+
+**Comparing build records.** `measure:compare-builds <previous> <current>` takes
+two record files, each a run directory's `record.json` or a kept
+`meta/measurements/<run id>.json`, and applies the comparability rule, the
+host-settings label included: its first line names every condition that differs,
+with both values, or says `conditions match`, and the next two give both
+records' run ids, each introduced by its host-settings label when the labels
+differ. It exits 0 whenever both records parse, so the reader decides what may
+differ; a baseline-to-final comparison must show none differing. Each change is
+given in seconds and as a ratio, and is within noise when the current median
+lies in the previous record's [min, max]; it is not judged when the previous
+record has a single run. A figure absent or flagged on either side is named in
+words, and a process tracked by different patterns is named but not compared.
+`--task <name>` adds that task's duration and nextest-phase changes. The cargo
+unit totals, with their total, are compared when every run in each record agrees
+on them; otherwise the report names the record whose runs vary.
+
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
 behind a kept record, and are safe to delete by hand when no `measure:build`
@@ -396,8 +439,9 @@ not kept there.
 
 **Reading a build record.** A record is named
 `build_<UTC time>_<hostname>_<cache state>_<host settings>`, the last being the
-`--host-settings` value, its fields joined by `_` so each boundary is
-unambiguous; a counter would collide across jj workspaces.
+`--host-settings` value, with `_isolated` appended in isolation mode, its fields
+joined by `_` so each boundary is unambiguous; a counter would collide across
+jj workspaces.
 The commit is the nearest first-parent commit that changes anything outside
 `meta/measurements/`, so a kept record, committed or not, leaves the measured
 commit unchanged. Every per-run time is seconds from that run's start, and
@@ -425,7 +469,9 @@ to compare with the baseline):
   changes nothing: `none`, `devtools` (the terminal and IDE are in the
   Developer Tools list in System Settings › Privacy & Security) or
   `devtools+ide-exclusion` (the IDE also excludes the build's output folders).
-  Omitted, it records `unspecified`, which compares with no other record.
+  Omitted, it records `unspecified`, which compares with no other record. The
+  steps for each setting are in
+  [Faster local builds on macOS](../CONTRIBUTING.md#faster-local-builds-on-macos).
 - keep the IDE open on the project, so the IDE and `fsnotifier` are measured.
 - make no commit in any workspace while a run is going: the launcher's
   `build.rs` watches the parent `.git/HEAD`.
@@ -443,6 +489,11 @@ to compare with the baseline):
   baseline commit (`jj new <commit>` or `git checkout <commit>`) without
   `--keep`, go back to the current checkout, then copy the run directory's
   `record.json` to `meta/measurements/<run id>.json` and commit it there.
+- before pushing or describing the change that holds a kept record (under jj
+  it joins the working-copy commit at once), compare it with the previous kept
+  record of the same condition using `measure:compare-builds`, and look into
+  any change beyond noise. A condition's first record has nothing to compare
+  with, so the step is skipped.
 - the baseline commit's launcher release must stay published while records
   are still compared with the baseline: a re-measurement from that commit
   downloads it in the hooks smoke test.

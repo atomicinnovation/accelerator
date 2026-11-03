@@ -15,24 +15,70 @@ from tasks.shared.build_measurement.fetch_failures import FetchFailure
 from tasks.shared.build_measurement.measured_build import (
     HostSettings,
     MeasuredBuild,
+    Mode,
     RunFigures,
 )
 from tasks.shared.build_measurement.record_model import NoReading
-from tasks.shared.build_measurement.settings import TimedRun, log_name
+from tasks.shared.build_measurement.session_notices import (
+    DevLauncherNeedsRebuild,
+    FoundTrash,
+    SessionNotice,
+    UnremovedTrash,
+    dev_launcher_notices,
+)
+from tasks.shared.build_measurement.settings import (
+    TimedRun,
+    isolated_log_suffix,
+    log_name,
+)
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (
     IDE,
     TrackedProcess,
 )
+from tasks.shared.build_measurement.wording import plural
+from tasks.shared.paths import DEV_LAUNCHER_MARKER_NAME
 
 AC_POWER = "AC Power"
 RETAKE_WHEN_MISSING = ("syspolicyd", IDE, "fsnotifier")
 _RETAKE_CAVEATS = frozenset({Caveat.ABSENT_IN_SOME_RUNS, Caveat.UNREADABLE})
 _PATHS_SHOWN = 5
+_DECIMAL_UNITS = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
+DEV_LAUNCHER_REBUILD = (
+    "(cd cli && cargo build --workspace --exclude accelerator-visualiser)"
+)
 
 
-def _plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+def _size(size_bytes: int) -> str:
+    for scale, unit in _DECIMAL_UNITS:
+        if size_bytes >= scale:
+            return f"{size_bytes / scale:.1f} {unit}"
+    return f"{size_bytes} B"
+
+
+def _notice_line(notice: SessionNotice) -> str:
+    match notice:
+        case UnremovedTrash(path=path, size_bytes=size_bytes, cause=cause):
+            return (
+                f"cold trash not removed: {path} ({_size(size_bytes)}): "
+                f"{cause}; delete it once the cause is fixed"
+            )
+        case FoundTrash(path=path, size_bytes=size_bytes):
+            return (
+                f"cold trash left behind: {path} ({_size(size_bytes)}); "
+                "safe to delete"
+            )
+        case DevLauncherNeedsRebuild():
+            return (
+                f"warning: {DEV_LAUNCHER_MARKER_NAME} is present, so hooks "
+                "using this checkout's dev launcher fail open from when "
+                "cli/target is deleted until the launcher is rebuilt: "
+                f"{DEV_LAUNCHER_REBUILD}"
+            )
+
+
+def notices_report(notices: Sequence[SessionNotice]) -> str:
+    return "\n".join(_notice_line(notice) for notice in notices)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +92,21 @@ class Preflight:
     running: tuple[str, ...] | NoReading
     ide_commands: tuple[str, ...]
     keep: bool
+    touches: tuple[Path, ...]
+    deletions: tuple[Path, ...]
+    leftover_trash: tuple[FoundTrash, ...]
+    dev_launcher_marker: bool
 
     @property
     def matches(self) -> bool:
         return not self.differing_paths
+
+    @property
+    def dev_launcher_notices(self) -> tuple[DevLauncherNeedsRebuild, ...]:
+        return dev_launcher_notices(
+            deleting=bool(self.deletions),
+            marker_present=self.dev_launcher_marker,
+        )
 
 
 def _working_copy(preflight: Preflight) -> str:
@@ -59,7 +116,7 @@ def _working_copy(preflight: Preflight) -> str:
     shown = ", ".join(paths[:_PATHS_SHOWN])
     more = ", …" if len(paths) > _PATHS_SHOWN else ""
     return (
-        f"working copy differs in {_plural(len(paths), 'path')}: {shown}{more}"
+        f"working copy differs in {plural(len(paths), 'path')}: {shown}{more}"
     )
 
 
@@ -91,6 +148,18 @@ def _tracked_processes(preflight: Preflight) -> Iterator[str]:
         yield f"  tracked processes not running: {', '.join(not_running)}"
 
 
+def _cache_state_effects(preflight: Preflight) -> Iterator[str]:
+    if preflight.touches:
+        touched = ", ".join(str(path) for path in preflight.touches)
+        yield f"  touches before each timed run: {touched}"
+    if preflight.deletions:
+        yield "  deletes before each timed run:"
+        yield from (f"    {path}" for path in preflight.deletions)
+    yield from (
+        f"  {_notice_line(found)}" for found in preflight.leftover_trash
+    )
+
+
 def preflight_report(preflight: Preflight) -> str:
     lines = [
         "preflight:",
@@ -103,6 +172,8 @@ def preflight_report(preflight: Preflight) -> str:
     if preflight.ide_commands:
         lines.append("  IDE command lines matched:")
         lines.extend(f"    {command}" for command in preflight.ide_commands)
+    lines.extend(_cache_state_effects(preflight))
+    lines.extend(_notice_line(each) for each in preflight.dev_launcher_notices)
     if preflight.keep:
         lines.extend(
             f"warning: with --keep, {warning}"
@@ -145,11 +216,12 @@ def run_end_line(
 class SessionOutcome:
     measured: MeasuredBuild
     keep: bool
+    notices: tuple[SessionNotice, ...]
 
 
 def _header(measured: MeasuredBuild) -> Iterator[str]:
     conditions = measured.conditions
-    runs = _plural(len(measured.runs), "run")
+    runs = plural(len(measured.runs), "run")
     yield (
         f"measure:build {measured.run_id} ({conditions.cache_state}, "
         f"{conditions.host_settings}, {runs})"
@@ -220,14 +292,22 @@ def _first_run_failing(measured: MeasuredBuild, task: str) -> RunFigures:
     return next(run for run in measured.runs if task in run.failed())
 
 
+def _log_suffix(measured: MeasuredBuild, task: str) -> str:
+    if measured.conditions.mode is Mode.ISOLATED:
+        return isolated_log_suffix(task)
+    return ""
+
+
 def _failures(measured: MeasuredBuild, run_directory: Path) -> Iterator[str]:
     for task in measured.failed_tasks:
         run = _first_run_failing(measured, task)
-        log = run_directory / log_name(TimedRun(run.index))
+        log = run_directory / log_name(
+            TimedRun(run.index), _log_suffix(measured, task)
+        )
         flagged = sum(each.after_failure for each in run.tasks.values())
         yield (
             f"failed: {task} (run {run.index}, see {log}) — "
-            f"downstream flagged: {_plural(flagged, 'task')}"
+            f"downstream flagged: {plural(flagged, 'task')}"
         )
 
 
@@ -263,7 +343,7 @@ def _paths(
             f"{each.external_input} in run {each.run}" for each in failures
         )
         yield (
-            f"not kept: {_plural(len(failures), 'fetch failure')} "
+            f"not kept: {plural(len(failures), 'fetch failure')} "
             f"({where}); retake"
         )
 
@@ -282,5 +362,6 @@ def summary_report(
         _output_contract_drift(measured),
         _fetch_failures(measured),
         _paths(outcome, record_path, kept_path),
+        (_notice_line(notice) for notice in outcome.notices),
     )
     return "\n".join(line for section in sections for line in section)
