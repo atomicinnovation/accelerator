@@ -14,6 +14,7 @@ use work_files::VcsConflicts;
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -34,11 +35,13 @@ use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
+use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
+use work::inventory::CorpusInventory;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
@@ -90,8 +93,10 @@ use work_adapters::sync::settled_run::SettledRunFailure;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::bounded_roots::configure_failure;
+use crate::bounded_roots::BoundedRoot;
 use crate::bounded_roots::ConfiguredRoot;
 use crate::bounded_roots::RootKey;
+use crate::bounded_roots::RootRefusal;
 use crate::bounded_roots::ValidatedRoots;
 use crate::cli::SyncArgs;
 use crate::exit_codes;
@@ -1354,12 +1359,11 @@ fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
 /// candidate under `--push-only` is contradictory and fails here, before any
 /// tracker contact, so the abort stays credential-free.
 fn build_selection(
-    console: &mut Console<'_>,
     corpus: &[LocalItem],
     targets: &[String],
     direction: SyncDirection,
     resolver: &dyn Fn(&str) -> RunOutcome,
-) -> Result<SelectedTargets, ExitCode> {
+) -> Result<SelectedTargets, Refusal> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
             scope: CorpusScope::WholeCorpus,
@@ -1372,10 +1376,12 @@ fn build_selection(
             if matches!(direction, SyncDirection::PushOnly)
                 && !found.remote_candidates.is_empty()
             {
-                for candidate in &found.remote_candidates {
-                    console.warn(push_only_remote_only(candidate).message());
-                }
-                return Err(ExitCode::from(exit_codes::USAGE));
+                let failures: Vec<TargetResolutionFailure> = found
+                    .remote_candidates
+                    .iter()
+                    .map(push_only_remote_only)
+                    .collect();
+                return Err(Refusal::of_targets(&failures));
             }
             Ok(SelectedTargets {
                 scope: CorpusScope::Targeted,
@@ -1383,12 +1389,7 @@ fn build_selection(
                 remote_candidates: found.remote_candidates,
             })
         }
-        Err(failures) => {
-            for failure in &failures {
-                console.warn(failure.message());
-            }
-            Err(ExitCode::from(highest_precedence_code(&failures)))
-        }
+        Err(failures) => Err(Refusal::of_targets(&failures)),
     }
 }
 
@@ -1881,7 +1882,6 @@ pub fn run_sync(
 }
 
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn run_sync_with(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -1894,269 +1894,49 @@ pub fn run_sync_with(
         console,
         stores,
     } = seams;
-    let direction = if args.push_only {
-        SyncDirection::PushOnly
-    } else if args.pull_only {
-        SyncDirection::PullOnly
-    } else {
-        SyncDirection::Bidirectional
-    };
-
-    let integration =
-        match crate::config::effective_nonempty(config, "work.integration") {
-            Ok(value) => value,
-            Err(error) => {
-                console.warn(error);
-                return ExitCode::from(exit_codes::ERROR);
-            }
-        };
-
-    if let Err(message) = validate_pull_config(config, &integration) {
-        console.warn(message);
-        return ExitCode::from(exit_codes::ERROR);
-    }
-
-    if let Err(message) = validate_push_config(config, &integration) {
-        console.warn(message);
-        return ExitCode::from(exit_codes::ERROR);
-    }
-
-    // The directory resolution and target validation run before the tracker's
-    // credential check, so a target-resolution abort is credential-independent.
-    let repo_root = config_adapters::FileConfigStore::discover_root(start);
-    let scheme = match crate::config::resolve_scheme(config) {
-        Ok(scheme) => scheme,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let discarding = match ids_to_discard(&scheme, &args.discard_kept_edits) {
-        Ok(ids) => ids,
-        Err(message) => {
-            console.warn(message);
-            return ExitCode::from(exit_codes::USAGE);
-        }
-    };
-    let (work, integrations) = match configured_roots(config, &repo_root) {
-        Ok(roots) => roots,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let roots = match ValidatedRoots::check(&work, &integrations, &repo_root) {
-        Ok(roots) => roots,
-        Err(refusal) => {
-            console.warn(configure_failure(&refusal));
-            return ExitCode::from(exit_codes::UNCONFIGURED);
-        }
-    };
-    let integration_state = match roots.integration_state(&integration) {
-        Ok(state) => state,
-        Err(refusal) => {
-            console.warn(configure_failure(&refusal));
-            return ExitCode::from(exit_codes::UNCONFIGURED);
-        }
-    };
-    let identity_run = match crate::identity_run::begin(&repo_root, "sync") {
-        Ok(guard) => guard,
-        Err(refusal) => {
-            let (message, code) =
-                crate::identity_run::refused(refusal, &repo_root);
-            console.warn(message);
-            return ExitCode::from(code);
-        }
-    };
-    let work_dir = roots.work_items.root().to_path_buf();
-    let integrations_root = roots.integrations.root().to_path_buf();
-
-    let orders = match parse_orders(&args.resolutions, &integration, &scheme) {
-        Ok(orders) => orders,
-        Err(message) => {
-            console.warn(message);
-            return ExitCode::from(exit_codes::USAGE);
-        }
-    };
-    let names = match ConfiguredNames::for_scheme(&scheme) {
-        Ok(names) => names,
-        Err(error) => {
-            console.warn(error);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let (conflicts, conflicts_unread) =
-        VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
-    if let Some(warning) = conflicts_unread {
-        console.warn(warning);
-    }
-    let (items, inventory) =
-        match discover_corpus(&work_dir, &names, &conflicts) {
-            Ok(corpus) => corpus,
-            Err(error) => {
-                console.warn(error);
-                return ExitCode::from(exit_codes::ERROR);
-            }
-        };
-
-    let canonical_work_dir = match work_dir.canonicalize() {
-        Ok(dir) => dir,
-        Err(error) => {
-            console.warn(format_args!(
-                "could not resolve the work directory {}: {}",
-                single_line(&work_dir.display().to_string()),
-                single_line(&error.to_string())
-            ));
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let resolver = |token: &str| {
-        crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
-    };
-    let selected = match build_selection(
-        console,
-        &items,
-        &args.targets,
-        direction,
-        &resolver,
+    let direction = sync_direction(args);
+    let prepared = match prepare_sync(
+        start, config, args, direction, *registry, console,
     ) {
-        Ok(selected) => selected,
-        Err(code) => return code,
+        Ok(prepared) => prepared,
+        Err(refusal) => return refusal.reported(console),
     };
-
-    let tracker = match registry.resolve(&integration) {
-        Ok(tracker) => tracker,
-        Err(
-            error @ (SelectionError::Unset
-            | SelectionError::Unrecognised { .. }),
-        ) => {
-            console.warn(error.message());
-            return ExitCode::from(exit_codes::UNRECOGNISED);
-        }
-        Err(error @ SelectionError::NotAvailable { .. }) => {
-            console.warn(error.message());
-            return ExitCode::from(exit_codes::NOT_AVAILABLE);
-        }
-        Err(error @ SelectionError::Unconfigured { .. }) => {
-            console.warn(error.message());
-            return ExitCode::from(exit_codes::UNCONFIGURED);
-        }
+    let planned = match sync_request(&prepared, config, args, direction) {
+        Ok(planned) => planned,
+        Err(refusal) => return refusal.reported(console),
     };
-
-    let pull_ids = if selected.remote_candidates.is_empty() {
-        Vec::new()
-    } else {
-        match confirm_remote_candidates(
-            tracker.as_ref(),
-            &selected.remote_candidates,
-        ) {
-            Ok(found) => found,
-            Err(failures) => {
-                for failure in &failures {
-                    console.warn(failure.message());
-                }
-                return ExitCode::from(highest_precedence_code(&failures));
-            }
-        }
-    };
-
-    let workspace = match IdentityWorkspace::for_sync(
-        config,
-        &repo_root,
-        &roots,
-        &integration,
-    ) {
-        Ok(workspace) => workspace,
-        Err(message) => {
-            console.warn(message);
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
+    let PreparedSync {
+        integration,
+        repo_root,
+        scheme,
+        discarding,
+        roots,
+        integration_state,
+        identity_run,
+        work_dir,
+        integrations_root,
+        items,
+        tracker,
+        workspace,
+        ..
+    } = &prepared;
     let recovery = workspace.recovery();
-    let discovery = WorkDirDiscovery {
-        work_dir: &work_dir,
-        root: &repo_root,
-        names: &names,
-        conflicts: &conflicts,
-    };
-    let mode = if args.preview {
-        RunMode::Preview
-    } else {
-        RunMode::Apply
-    };
-    let strategy = if args.per_item_reads {
-        RetrievalStrategy::PerItem
-    } else {
-        RetrievalStrategy::Bulk
-    };
-    let entities = if resolve_all_entities(config, &integration) {
-        tracker::EntityScope::WholeWorkspace
-    } else {
-        tracker::EntityScope::Keyed {
-            base: resolve_active_scope_key(
-                config,
-                &integration,
-                &integrations_root,
-            ),
-            additional: resolve_additional_entities(config, &integration),
-        }
-    };
-    let scope = tracker::SearchScope {
-        entities,
-        filters: resolve_pull_filters(config, &integration),
-    };
-    let selection = match selected.scope {
-        CorpusScope::WholeCorpus => ItemSelection::All,
-        CorpusScope::Targeted => ItemSelection::Targeted {
-            items: &selected.items,
-            pull_ids: &pull_ids,
-        },
-    };
-    let (config_max_pulls, max_pulls_source) =
-        resolve_max_items(config, &integration);
-    let (config_max_pushes, max_pushes_source) =
-        resolve_push_max_items(config, &integration);
-    let max_pulls = effective_max_pulls(args.max_pulls, config_max_pulls);
-    let max_pushes = effective_max_pushes(args.max_pushes, config_max_pushes);
-    if unbounded_gate_fires(
-        max_pulls,
-        work_adapters::sync::scope::is_broadened(&scope),
-        args.allow_unbounded,
-    ) {
-        console.warn(unbounded_gate_message(&integration));
-        return ExitCode::from(exit_codes::REFUSED_UNBOUNDED);
-    }
-    let request = SyncRequest {
-        corpus: &items,
-        inventory: &inventory,
-        selection,
-        direction,
-        strategy,
-        resolutions: &orders.resolutions,
-        pending_push_orders: &orders.pending_push,
-        max_pulls,
-        max_pushes,
-        mode,
-        integrations_root: &integrations_root,
-        integration: &integration,
-        scope,
-        promote: !args.no_promote,
-    };
+    let discovery = prepared.discovery();
 
     sweep_kept_recoveries(console, recovery);
     let stores =
-        SyncStores::bounded(&roots.work_items, &integration_state, stores);
+        SyncStores::bounded(&roots.work_items, integration_state, stores);
     let outcome = assemble_run(
         &RunAssembly {
             stores: &stores,
             config,
-            workspace: &workspace,
-            repo_root: &repo_root,
-            work_dir: &work_dir,
-            integrations_root: &integrations_root,
+            workspace,
+            repo_root,
+            work_dir,
+            integrations_root,
             tracker: tracker.as_ref(),
-            identity_run: &identity_run,
-            scheme: &scheme,
+            identity_run,
+            scheme,
         },
         |ports, settlement, baseline| {
             for warning in
@@ -2164,7 +1944,13 @@ pub fn run_sync_with(
             {
                 console.warn(warning);
             }
-            run_settled(&request, ports, settlement, baseline, &discovery)
+            run_settled(
+                &planned.request,
+                ports,
+                settlement,
+                baseline,
+                &discovery,
+            )
         },
     );
     match outcome {
@@ -2172,14 +1958,14 @@ pub fn run_sync_with(
             console,
             &FinishedRunContext {
                 config,
-                integration: &integration,
-                integrations_root: &integrations_root,
-                repo_root: &repo_root,
-                corpus: &items,
-                workspace: &workspace,
-                work_dir: &work_dir,
-                scheme: &scheme,
-                discarding: &discarding,
+                integration,
+                integrations_root,
+                repo_root,
+                corpus: items,
+                workspace,
+                work_dir,
+                scheme,
+                discarding,
                 finaliser: *finaliser,
                 dossier_store: stores.integration_state.as_ref(),
             },
@@ -2190,13 +1976,296 @@ pub fn run_sync_with(
             &failure,
             &RunErrorContext {
                 config,
-                integration: &integration,
-                max_pulls_source,
-                max_pushes_source,
+                integration,
+                max_pulls_source: planned.max_pulls_source,
+                max_pushes_source: planned.max_pushes_source,
             },
             recovery,
         ),
     }
+}
+
+const fn sync_direction(args: &SyncArgs) -> SyncDirection {
+    if args.push_only {
+        SyncDirection::PushOnly
+    } else if args.pull_only {
+        SyncDirection::PullOnly
+    } else {
+        SyncDirection::Bidirectional
+    }
+}
+
+/// Why a sync stops before it plans anything: the lines it prints and the
+/// code it exits with.
+#[derive(Debug)]
+struct Refusal {
+    lines: Vec<String>,
+    code: u8,
+}
+
+impl Refusal {
+    fn new(code: u8, cause: impl Display) -> Self {
+        Self {
+            lines: vec![cause.to_string()],
+            code,
+        }
+    }
+
+    fn error(cause: impl Display) -> Self {
+        Self::new(exit_codes::ERROR, cause)
+    }
+
+    fn usage(cause: impl Display) -> Self {
+        Self::new(exit_codes::USAGE, cause)
+    }
+
+    fn root(refusal: &RootRefusal) -> Self {
+        Self::new(exit_codes::UNCONFIGURED, configure_failure(refusal))
+    }
+
+    fn of_targets(failures: &[TargetResolutionFailure]) -> Self {
+        Self {
+            lines: failures
+                .iter()
+                .map(|failure| failure.message().to_owned())
+                .collect(),
+            code: highest_precedence_code(failures),
+        }
+    }
+
+    fn of_tracker(error: &SelectionError) -> Self {
+        let code = match error {
+            SelectionError::Unset | SelectionError::Unrecognised { .. } => {
+                exit_codes::UNRECOGNISED
+            }
+            SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
+            SelectionError::Unconfigured { .. } => exit_codes::UNCONFIGURED,
+        };
+        Self::new(code, error.message())
+    }
+
+    fn reported(self, console: &mut Console<'_>) -> ExitCode {
+        for line in self.lines {
+            console.warn(line);
+        }
+        ExitCode::from(self.code)
+    }
+}
+
+/// What a sync settles before it plans: its checked configuration and
+/// roots, the identity-run lock, the corpus and its selected targets, and
+/// the tracker.
+struct PreparedSync {
+    integration: String,
+    repo_root: PathBuf,
+    scheme: WorkItemIdScheme,
+    discarding: BTreeSet<String>,
+    roots: ValidatedRoots,
+    integration_state: BoundedRoot,
+    identity_run: IdentityRunGuard,
+    work_dir: PathBuf,
+    integrations_root: PathBuf,
+    orders: Orders,
+    names: ConfiguredNames,
+    conflicts: VcsConflicts,
+    items: Vec<LocalItem>,
+    inventory: CorpusInventory,
+    selected: SelectedTargets,
+    tracker: Box<dyn RemoteTracker>,
+    pull_ids: Vec<ExternalId>,
+    workspace: IdentityWorkspace,
+}
+
+/// The identity-run lock is taken only once the scheme, the
+/// `--discard-kept-edits` ids and the roots are checked, so a refused root
+/// or a usage error writes nothing, and before any work item is read.
+fn prepare_sync(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    args: &SyncArgs,
+    direction: SyncDirection,
+    registry: &dyn TrackerRegistry,
+    console: &mut Console<'_>,
+) -> Result<PreparedSync, Refusal> {
+    let integration =
+        crate::config::effective_nonempty(config, "work.integration")
+            .map_err(Refusal::error)?;
+    validate_pull_config(config, &integration).map_err(Refusal::error)?;
+    validate_push_config(config, &integration).map_err(Refusal::error)?;
+
+    // The directory resolution and target validation run before the tracker's
+    // credential check, so a target-resolution abort is credential-independent.
+    let repo_root = config_adapters::FileConfigStore::discover_root(start);
+    let scheme =
+        crate::config::resolve_scheme(config).map_err(Refusal::error)?;
+    let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
+        .map_err(Refusal::usage)?;
+    let (work, integrations) =
+        configured_roots(config, &repo_root).map_err(Refusal::error)?;
+    let roots = ValidatedRoots::check(&work, &integrations, &repo_root)
+        .map_err(|refusal| Refusal::root(&refusal))?;
+    let integration_state = roots
+        .integration_state(&integration)
+        .map_err(|refusal| Refusal::root(&refusal))?;
+    let identity_run =
+        crate::identity_run::begin(&repo_root, "sync").map_err(|refusal| {
+            let (message, code) =
+                crate::identity_run::refused(refusal, &repo_root);
+            Refusal::new(code, message)
+        })?;
+    let work_dir = roots.work_items.root().to_path_buf();
+    let integrations_root = roots.integrations.root().to_path_buf();
+
+    let orders = parse_orders(&args.resolutions, &integration, &scheme)
+        .map_err(Refusal::usage)?;
+    let names = ConfiguredNames::for_scheme(&scheme).map_err(Refusal::error)?;
+    let (conflicts, conflicts_unread) =
+        VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
+    if let Some(warning) = conflicts_unread {
+        console.warn(warning);
+    }
+    let (items, inventory) = discover_corpus(&work_dir, &names, &conflicts)
+        .map_err(Refusal::error)?;
+
+    let canonical_work_dir = work_dir.canonicalize().map_err(|error| {
+        Refusal::error(format_args!(
+            "could not resolve the work directory {}: {}",
+            single_line(&work_dir.display().to_string()),
+            single_line(&error.to_string())
+        ))
+    })?;
+    let resolver = |token: &str| {
+        crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
+    };
+    let selected =
+        build_selection(&items, &args.targets, direction, &resolver)?;
+
+    let tracker = registry
+        .resolve(&integration)
+        .map_err(|error| Refusal::of_tracker(&error))?;
+    let pull_ids = if selected.remote_candidates.is_empty() {
+        Vec::new()
+    } else {
+        confirm_remote_candidates(tracker.as_ref(), &selected.remote_candidates)
+            .map_err(|failures| Refusal::of_targets(&failures))?
+    };
+    let workspace =
+        IdentityWorkspace::for_sync(config, &repo_root, &roots, &integration)
+            .map_err(Refusal::error)?;
+    Ok(PreparedSync {
+        integration,
+        repo_root,
+        scheme,
+        discarding,
+        roots,
+        integration_state,
+        identity_run,
+        work_dir,
+        integrations_root,
+        orders,
+        names,
+        conflicts,
+        items,
+        inventory,
+        selected,
+        tracker,
+        pull_ids,
+        workspace,
+    })
+}
+
+impl PreparedSync {
+    fn discovery(&self) -> WorkDirDiscovery<'_> {
+        WorkDirDiscovery {
+            work_dir: &self.work_dir,
+            root: &self.repo_root,
+            names: &self.names,
+            conflicts: &self.conflicts,
+        }
+    }
+}
+
+/// A sync's request, and where its pull and push limits came from.
+struct PlannedRequest<'a> {
+    request: SyncRequest<'a>,
+    max_pulls_source: Option<::config::Level>,
+    max_pushes_source: Option<::config::Level>,
+}
+
+fn sync_request<'a>(
+    prepared: &'a PreparedSync,
+    config: &dyn ConfigAccess,
+    args: &SyncArgs,
+    direction: SyncDirection,
+) -> Result<PlannedRequest<'a>, Refusal> {
+    let integration = prepared.integration.as_str();
+    let entities = if resolve_all_entities(config, integration) {
+        tracker::EntityScope::WholeWorkspace
+    } else {
+        tracker::EntityScope::Keyed {
+            base: resolve_active_scope_key(
+                config,
+                integration,
+                &prepared.integrations_root,
+            ),
+            additional: resolve_additional_entities(config, integration),
+        }
+    };
+    let scope = tracker::SearchScope {
+        entities,
+        filters: resolve_pull_filters(config, integration),
+    };
+    let (config_max_pulls, max_pulls_source) =
+        resolve_max_items(config, integration);
+    let (config_max_pushes, max_pushes_source) =
+        resolve_push_max_items(config, integration);
+    let max_pulls = effective_max_pulls(args.max_pulls, config_max_pulls);
+    let max_pushes = effective_max_pushes(args.max_pushes, config_max_pushes);
+    if unbounded_gate_fires(
+        max_pulls,
+        work_adapters::sync::scope::is_broadened(&scope),
+        args.allow_unbounded,
+    ) {
+        return Err(Refusal::new(
+            exit_codes::REFUSED_UNBOUNDED,
+            unbounded_gate_message(integration),
+        ));
+    }
+    let selection = match prepared.selected.scope {
+        CorpusScope::WholeCorpus => ItemSelection::All,
+        CorpusScope::Targeted => ItemSelection::Targeted {
+            items: &prepared.selected.items,
+            pull_ids: &prepared.pull_ids,
+        },
+    };
+    Ok(PlannedRequest {
+        request: SyncRequest {
+            corpus: &prepared.items,
+            inventory: &prepared.inventory,
+            selection,
+            direction,
+            strategy: if args.per_item_reads {
+                RetrievalStrategy::PerItem
+            } else {
+                RetrievalStrategy::Bulk
+            },
+            resolutions: &prepared.orders.resolutions,
+            pending_push_orders: &prepared.orders.pending_push,
+            max_pulls,
+            max_pushes,
+            mode: if args.preview {
+                RunMode::Preview
+            } else {
+                RunMode::Apply
+            },
+            integrations_root: &prepared.integrations_root,
+            integration,
+            scope,
+            promote: !args.no_promote,
+        },
+        max_pulls_source,
+        max_pushes_source,
+    })
 }
 
 /// The items whose kept edits `--discard-kept-edits` names, each one an id
@@ -2973,10 +3042,7 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
         let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
 
-        let (mut out, mut err) = (std::io::sink(), std::io::sink());
-
         let outcome = build_selection(
-            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &["PP-999".to_owned()],
             SyncDirection::PushOnly,
@@ -3009,10 +3075,7 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", None)];
         let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
 
-        let (mut out, mut err) = (std::io::sink(), std::io::sink());
-
         let selected = build_selection(
-            &mut super::Console::new(&mut out, &mut err),
             &corpus,
             &[],
             SyncDirection::Bidirectional,
