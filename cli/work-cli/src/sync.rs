@@ -809,13 +809,14 @@ fn earlier_copies_note(earlier: &[&KeptCopy]) -> String {
         .iter()
         .filter_map(|kept| kept.kept_since)
         .min()
-        .and_then(utc_date)
+        .and_then(rfc3339_instant)
         .unwrap_or_else(|| "an unknown date".to_owned());
     let mut ids: Vec<String> =
         earlier.iter().map(|kept| single_line(&kept.id)).collect();
     ids.dedup();
+    let copies = if earlier.len() == 1 { "copy" } else { "copies" };
     format!(
-        "note: -: kept-edits-earlier: {} earlier copies still kept (oldest \
+        "note: -: kept-edits-earlier: {} earlier {copies} still kept (oldest \
          since {oldest}) for {}; discard each with accelerator work sync \
          --target <id> --discard-kept-edits <id>",
         earlier.len(),
@@ -823,8 +824,7 @@ fn earlier_copies_note(earlier: &[&KeptCopy]) -> String {
     )
 }
 
-/// `epoch` as an RFC 3339 instant in UTC.
-fn utc_date(epoch: u64) -> Option<String> {
+fn rfc3339_instant(epoch: u64) -> Option<String> {
     let seconds = i64::try_from(epoch).ok()?;
     let instant = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
     instant
@@ -3869,6 +3869,32 @@ mod tests {
                  --discard-kept-edits <id>",
             ]
         );
+    }
+
+    #[test]
+    fn one_earlier_copy_is_named_in_the_singular_once_per_item() {
+        use super::KeptEdits;
+
+        let notes =
+            super::kept_edits_notes(&review_of(vec![KeptEdits::KeptEarlier(
+                kept("0002", Some(1_700_000_000)),
+            )]));
+        let twice = super::kept_edits_notes(&review_of(vec![
+            KeptEdits::KeptEarlier(kept("0002", Some(1_700_000_000))),
+            KeptEdits::KeptEarlier(kept("0002", Some(1_600_000_000))),
+        ]));
+
+        assert!(
+            notes[0].contains(": 1 earlier copy still kept "),
+            "{}",
+            notes[0]
+        );
+        assert!(
+            twice[0].contains(": 2 earlier copies still kept "),
+            "{}",
+            twice[0]
+        );
+        assert!(twice[0].contains(" for 0002; "), "{}", twice[0]);
     }
 
     #[test]
