@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import ClassVar, Self
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.cold_trash import TRASH_PREFIX
 from tasks.shared.build_measurement.errors import (
     IncompatibleSettingsError,
     InvalidSettingsError,
 )
+from tasks.shared.build_measurement.locations import TRASH_PREFIX
 from tasks.shared.build_measurement.measured_build import HostSettings, Mode
 from tasks.shared.build_measurement.task_graph import TaskGraph
 from tasks.shared.build_measurement.tracked_processes import (
@@ -185,8 +185,14 @@ class BuildSettings:
         state = _cache_state(cache_state)
         scope = _scope(isolate)
         if isinstance(scope, IsolatedTasks) and state.deletions:
+            keeping = " or ".join(
+                each for each in BuildCacheState if not each.deletions
+            )
             raise IncompatibleSettingsError(
-                f"--isolate does not support --cache-state {state}"
+                f"--isolate does not support --cache-state {state}: an "
+                "isolated task runs with --skip-deps, so nothing would "
+                f"rebuild what {state} deletes; isolate under {keeping}, or "
+                f"time the full build {state}"
             )
         return cls(
             root=root,

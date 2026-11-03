@@ -1,14 +1,9 @@
 from enum import StrEnum, unique
 from pathlib import Path
 
-from tasks.shared.paths import CLI_DIR, CLI_TARGET_DIR, FRONTEND, REPO_ROOT
-
-INCREMENTAL_TOUCH = (CLI_DIR / "kernel" / "src" / "lib.rs").relative_to(
-    REPO_ROOT
-)
-COLD_DELETIONS = (
-    CLI_TARGET_DIR.relative_to(REPO_ROOT),
-    (FRONTEND / "node_modules").relative_to(REPO_ROOT),
+from tasks.shared.build_measurement.locations import (
+    COLD_DELETIONS,
+    INCREMENTAL_TOUCH,
 )
 
 

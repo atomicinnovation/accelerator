@@ -176,7 +176,12 @@ def test_settings_refuse_an_unknown_cache_state_listing_the_known_ones():
 def test_settings_refuse_isolate_with_cold():
     with pytest.raises(
         IncompatibleSettingsError,
-        match=r"^--isolate does not support --cache-state cold$",
+        match=(
+            r"^--isolate does not support --cache-state cold: an isolated "
+            r"task runs with --skip-deps, so nothing would rebuild what cold "
+            r"deletes; isolate under warm-no-op or incremental, or time the "
+            r"full build cold$"
+        ),
     ):
         _settings(isolate=["test"], cache_state="cold")
 

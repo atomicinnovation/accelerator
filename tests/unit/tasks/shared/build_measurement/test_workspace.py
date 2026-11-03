@@ -7,7 +7,7 @@ import pytest
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.errors import (
-    MissingTouchTargetError,
+    TouchTargetNotAFileError,
     UnsafeDeletionError,
 )
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
@@ -97,7 +97,7 @@ class TestVerification:
             real.write_text("")
             kernel.symlink_to(real)
         with pytest.raises(
-            MissingTouchTargetError,
+            TouchTargetNotAFileError,
             match=(
                 r"^cli/kernel/src/lib\.rs is missing or not a regular file; "
                 r"--cache-state incremental touches it before each timed run$"

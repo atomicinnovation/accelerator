@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.errors import (
     HistoryError,
     OrphanedBuildError,
@@ -18,7 +17,6 @@ from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import Mode
 from tasks.shared.build_measurement.record_model import NoReading
 from tasks.shared.build_measurement.reports import (
-    DevLauncherNeedsRebuild,
     notices_report,
     summary_report,
 )
@@ -26,6 +24,11 @@ from tasks.shared.build_measurement.session import (
     IDLE_SAMPLE_SECONDS,
     OrphanedBuild,
     measure_build,
+)
+from tasks.shared.build_measurement.session_notices import (
+    DevLauncherNeedsRebuild,
+    FoundTrash,
+    UnremovedTrash,
 )
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (

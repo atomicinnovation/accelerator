@@ -84,7 +84,7 @@ class UnsafeDeletionError(MeasurementRefusedError):
     pass
 
 
-class MissingTouchTargetError(MeasurementRefusedError):
+class TouchTargetNotAFileError(MeasurementRefusedError):
     pass
 
 

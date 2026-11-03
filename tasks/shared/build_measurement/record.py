@@ -60,10 +60,14 @@ def parse_record(text: str, *, source: Path) -> MeasuredBuild:
 
 def read_record(path: Path) -> MeasuredBuild:
     try:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
     except OSError as error:
         raise UnreadableRecordError(
             f"{path} could not be read: {error.strerror}"
+        ) from error
+    except UnicodeDecodeError as error:
+        raise UnreadableRecordError(
+            f"{path} is not UTF-8 text: {error.reason} at byte {error.start}"
         ) from error
     return parse_record(text, source=path)
 

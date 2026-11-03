@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.fetch_failures import (
     ExternalInput,
     FetchFailure,
@@ -23,6 +22,10 @@ from tasks.shared.build_measurement.reports import (
     preflight_report,
     run_end_line,
     summary_report,
+)
+from tasks.shared.build_measurement.session_notices import (
+    FoundTrash,
+    UnremovedTrash,
 )
 from tasks.shared.build_measurement.timeline import TaskOutcome
 from tasks.shared.build_measurement.tracked_processes import (

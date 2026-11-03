@@ -11,7 +11,6 @@ from tasks.shared.build_measurement.across_runs import (
     Measured,
     ProcessAcrossRuns,
 )
-from tasks.shared.build_measurement.cold_trash import FoundTrash, UnremovedTrash
 from tasks.shared.build_measurement.fetch_failures import FetchFailure
 from tasks.shared.build_measurement.measured_build import (
     HostSettings,
@@ -20,6 +19,13 @@ from tasks.shared.build_measurement.measured_build import (
     RunFigures,
 )
 from tasks.shared.build_measurement.record_model import NoReading
+from tasks.shared.build_measurement.session_notices import (
+    DevLauncherNeedsRebuild,
+    FoundTrash,
+    SessionNotice,
+    UnremovedTrash,
+    dev_launcher_notices,
+)
 from tasks.shared.build_measurement.settings import (
     TimedRun,
     isolated_log_suffix,
@@ -41,20 +47,6 @@ _DECIMAL_UNITS = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
 DEV_LAUNCHER_REBUILD = (
     "(cd cli && cargo build --workspace --exclude accelerator-visualiser)"
 )
-
-
-@dataclass(frozen=True, slots=True)
-class DevLauncherNeedsRebuild:
-    pass
-
-
-type SessionNotice = UnremovedTrash | FoundTrash | DevLauncherNeedsRebuild
-
-
-def dev_launcher_notices(
-    *, deleting: bool, marker_present: bool
-) -> tuple[DevLauncherNeedsRebuild, ...]:
-    return (DevLauncherNeedsRebuild(),) if deleting and marker_present else ()
 
 
 def _size(size_bytes: int) -> str:

@@ -134,6 +134,14 @@ class TaskFigures(OwnFigures):
             }
         )
 
+    def failed_silently_with(self, exit_status: int) -> Self:
+        if (
+            self.outcome is not TaskOutcome.FAILED
+            or self.exit_status is not None
+        ):
+            return self
+        return self.model_copy(update={"exit_status": exit_status})
+
 
 def failed_tasks(figures: Mapping[str, TaskFigures]) -> tuple[str, ...]:
     return tuple(
@@ -163,12 +171,7 @@ class Timeline:
         return type(self)(
             MappingProxyType(
                 {
-                    task: figures.model_copy(
-                        update={"exit_status": exit_status}
-                    )
-                    if figures.outcome is TaskOutcome.FAILED
-                    and figures.exit_status is None
-                    else figures
+                    task: figures.failed_silently_with(exit_status)
                     for task, figures in self.tasks.items()
                 }
             )

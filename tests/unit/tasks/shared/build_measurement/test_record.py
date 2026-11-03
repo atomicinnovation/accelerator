@@ -391,6 +391,16 @@ class TestParseRecord:
         with pytest.raises(UnreadableRecordError, match=str(missing)):
             read_record(missing)
 
+    def test_a_record_file_that_is_not_utf8_is_refused_naming_it(
+        self, tmp_path
+    ):
+        binary = tmp_path / "record.json"
+        binary.write_bytes(b"\xff\xfe{}")
+        with pytest.raises(
+            UnreadableRecordError, match=f"^{binary} is not UTF-8 text"
+        ):
+            read_record(binary)
+
     @pytest.mark.parametrize("field", sorted(CONDITIONS_MIRRORING_THE_HOST))
     def test_a_condition_disagreeing_with_the_host_is_refused(self, field):
         document = _document()

@@ -8,16 +8,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.shared.build_measurement.cache_states import BuildCacheState
-from tasks.shared.build_measurement.cold_trash import (
+from tasks.shared.build_measurement.errors import (
+    TouchTargetNotAFileError,
+    UnsafeDeletionError,
+)
+from tasks.shared.build_measurement.locations import (
+    RUN_DIRECTORY_ROOT,
     TRASH_PREFIX,
+)
+from tasks.shared.build_measurement.session_notices import (
     FoundTrash,
     UnremovedTrash,
 )
-from tasks.shared.build_measurement.errors import (
-    MissingTouchTargetError,
-    UnsafeDeletionError,
-)
-from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.paths import DEV_LAUNCHER_MARKER_NAME
 
 _REMAINED = "the directory remained after removal"
@@ -40,6 +42,12 @@ def size_on_disk(path: Path) -> int:
             with contextlib.suppress(OSError):
                 total += (directory / name).lstat().st_size
     return total
+
+
+def _deletion_refused(path: Path, why: str) -> UnsafeDeletionError:
+    return UnsafeDeletionError(
+        f"refusing to delete {path}: {why}; nothing was deleted"
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +96,7 @@ class FilesystemWorkspace:
     def _require_touchable(self, path: Path) -> None:
         target = self.root / path
         if target.is_symlink() or not target.is_file():
-            raise MissingTouchTargetError(
+            raise TouchTargetNotAFileError(
                 f"{path} is missing or not a regular file; --cache-state "
                 f"{BuildCacheState.INCREMENTAL} touches it before each timed "
                 "run"
@@ -97,16 +105,12 @@ class FilesystemWorkspace:
     def _require_deletable(self, path: Path) -> None:
         target = self.root / path
         if target.is_symlink():
-            self._refuse(path, f"it is a symlink to {target.readlink()}")
+            raise _deletion_refused(
+                path, f"it is a symlink to {target.readlink()}"
+            )
         root = self.root.resolve()
         if not target.resolve().is_relative_to(root):
-            self._refuse(path, f"it resolves outside {root}")
-
-    @staticmethod
-    def _refuse(path: Path, why: str) -> None:
-        raise UnsafeDeletionError(
-            f"refusing to delete {path}: {why}; nothing was deleted"
-        )
+            raise _deletion_refused(path, f"it resolves outside {root}")
 
     def _require_in_run_root(self, trash: Path) -> None:
         run_root = (self.root / RUN_DIRECTORY_ROOT).resolve()
