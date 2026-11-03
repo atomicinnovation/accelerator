@@ -547,6 +547,27 @@ fn stopped_run_lines(failure: &SettledRunFailure) -> Vec<String> {
     lines
 }
 
+/// The `failed` rows for items the plan never reached: those it could not
+/// classify and those whose order was refused.
+fn rowless_failure_lines(
+    report: &RunReport,
+) -> impl Iterator<Item = String> + '_ {
+    let unclassifiable = report.unclassifiable.iter().map(|item| {
+        TsvRecord::of([
+            item.id.as_str(),
+            "failed",
+            "-",
+            work_adapters::sync::report::UNCLASSIFIABLE_CLASS.keyword(),
+        ])
+        .to_string()
+    });
+    let refused_orders = report.refused_orders.iter().map(|error| {
+        TsvRecord::of([error.item_id(), "failed", "-", error.class().keyword()])
+            .to_string()
+    });
+    unclassifiable.chain(refused_orders)
+}
+
 fn render_report(finished: &FinishedRun<'_>) -> String {
     let report = finished.report;
     let settled_ids: BTreeSet<&str> = report
@@ -594,14 +615,7 @@ fn render_report(finished: &FinishedRun<'_>) -> String {
             .to_string(),
         );
     }
-    lines.extend(report.unclassifiable.iter().map(|item| {
-        TsvRecord::of([item.id.as_str(), "failed", "-", "retryable"])
-            .to_string()
-    }));
-    lines.extend(report.refused_orders.iter().map(|error| {
-        TsvRecord::of([error.item_id(), "failed", "-", error.class().keyword()])
-            .to_string()
-    }));
+    lines.extend(rowless_failure_lines(report));
     // Capture before appending the always-present discovery line, which would
     // otherwise make `is_empty()` false and drop the empty-run summary.
     let summary_needed = synced_count > 0 || lines.is_empty();

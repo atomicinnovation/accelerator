@@ -211,6 +211,10 @@ pub struct RunReport {
     pub keyed_read_budget_limited: bool,
 }
 
+/// An item the run could not classify fails retryably: classifying reads
+/// only, so nothing for it landed.
+pub const UNCLASSIFIABLE_CLASS: FailureClass = FailureClass::Retryable;
+
 impl RunReport {
     /// Every failure this run reports, in report order: a failed tracker
     /// read, failed rows (a preview's included), refused orders,
@@ -242,7 +246,7 @@ impl RunReport {
                 &item.id,
                 SyncOperation::ClassifyLocal,
                 item.reason.clone(),
-                FailureClass::Retryable,
+                UNCLASSIFIABLE_CLASS,
             )
         });
         let deferral =
