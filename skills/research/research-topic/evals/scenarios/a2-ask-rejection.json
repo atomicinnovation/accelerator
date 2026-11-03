@@ -1,0 +1,40 @@
+{
+  "family": "A2",
+  "title": "ask lets the user reject an answer",
+  "scenarios": [
+    {
+      "name": "a2-reject",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "reject",
+            "writes": []
+          }
+        },
+        {
+          "reply": "reject",
+          "expect": {
+            "writes": [],
+            "offers": "proposal"
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
+    }
+  ]
+}

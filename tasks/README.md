@@ -250,6 +250,7 @@ run. Each named build is one `invoke build.cli-dev --group <name>` and so one
 
 A lane depends on exactly the leaves for the binaries it runs, and
 `_CLI_DEV_BUILDS` in `tests/unit/tasks/test_mise.py` pins each lane's set.
+`_EVAL_CLI_DEV_BUILDS` pins each eval's set the same way.
 
 A binary whose package declares `test-loopback` (`jira`, `linear`,
 `research`) is built with it in every debug build. Two builds of one
@@ -500,19 +501,38 @@ to compare with the baseline):
 
 ### The eval namespace
 
+An `eval:*` task judges a skill's behaviour through headless `claude -p`
+sessions, so it needs the claude CLI, network egress and model usage. Every
+eval is in **neither** the aggregate `check`, the bare `default` task nor the
+`test` roll-up. A transitive-closure guard in `tests/unit/tasks/test_mise.py`,
+keyed on the `invoke eval.` run string, enforces that for any new eval task.
+The `test:integration:eval-fixtures` lane, not an eval, runs the reference
+corpus's pre-flight: with the debug CLI builds and no model, it checks that
+every variant of `skills/research/research-topic/evals/` validates and that
+every scenario reaches the gate and setup it declares.
+
+#### eval:citing-once
+
 `eval:citing-once` checks that composers and `synthesise` follow the
-citing-once rule (`skills/research/outputters/citing-once/SKILL.md`). It is in
-**neither** the aggregate `check`, the bare `default` task nor the `test`
-roll-up, because each of its 36 sessions is a headless `claude -p` run, so it
-needs the claude CLI, network egress and model usage. A transitive-closure
-guard in `tests/unit/tasks/test_mise.py`, keyed on the `invoke eval.` run
-string, enforces that. Run it after changing the rule, a carrier (the
-`composer` agent, `synthesise`, or the finding outputter), or the model.
+citing-once rule (`skills/research/outputters/citing-once/SKILL.md`) across
+36 sessions. Run it after changing the rule, a carrier (the `composer` agent,
+`synthesise`, or the finding outputter), or the model.
+
+- **Dev toolchain.** Sessions and the judge run the working tree's debug
+  builds of the launcher and the `corpus` and `research` sub-binaries
+  (`tasks/eval/toolchain.py`), since `synthesise` calls subcommands a released
+  binary may lack. The launcher runs them only beside the gitignored
+  `.accelerator-dev-launcher` marker, the operator's consent to unverified
+  binaries: the task refuses without it, never creates or removes it, and
+  reminds you to remove it, since `mise run` fails while it exists. A
+  session's `PATH` starts with this checkout's `bin/`, so an installed
+  launcher earlier on it, such as a `~/.local/bin/accelerator` link, cannot
+  run a released CLI in its place.
 
 - **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
   its criteria, each criterion its citations, the note or finding each sits
   in, and the entries it expects. The unit suite runs the rule's reading
-  (`tasks/eval/citing_once/rule.py`) over every fixture, so a fixture whose
+  (`tasks/eval/documents/rule.py`) over every fixture, so a fixture whose
   criteria share a source, or that the rule does not predict, fails `check`
   rather than a paid run.
 - **Sessions** load this repository with `--plugin-dir` and disable the
@@ -530,6 +550,63 @@ string, enforces that. Run it after changing the rule, a carrier (the
 and `--check-only --out <dir>` re-judges a finished run without spending
 anything. Projects, logs and `results.json` go to `--out`, or a new temporary
 directory.
+
+#### eval:ask-and-report
+
+`eval:ask-and-report` checks research-topic's `ask` and `report` verbs across
+111 multi-turn sessions over a reference corpus, in about 18 minutes at the
+default `--jobs 6`. Run it after changing either verb, the consulting steps
+they share, the citing-once rule or the model.
+
+- **Fixtures** live under `skills/research/research-topic/evals/`: a project
+  holding the `llm-agent-planning` set, two variants overlaid on it, and
+  `scenarios/*.json`. Each scenario names its setup, the gate it reaches, and
+  its turns: the reply each sends and what each must show. `check` cannot
+  build a project, so the `test:integration:eval-fixtures` lane runs the
+  pre-flight with the debug builds: every variant validates, every scenario
+  reaches its gate and setup, every Sources expectation is the rule's merge,
+  every freshness refusal names `consultable`'s mismatches, and every new
+  report takes `report-path`'s path. The task runs the same pre-flight first.
+- **Sessions** are one `claude -p` conversation each: the opening turn runs
+  the verb under a pre-assigned `--session-id`, and each later turn sends a
+  reply with `--resume`. The harness snapshots the project after every turn.
+  - The dev toolchain runs as for `eval:citing-once`, so the
+    `.accelerator-dev-launcher` marker must exist for the run and be removed
+    after it: `test_dev_launcher_marker_is_gitignored_and_unshipped` fails
+    `mise run` while it exists.
+  - Every turn loads project settings only (`--setting-sources project`) and
+    no MCP server (`--strict-mcp-config`). Its `--allowedTools` is the skill's
+    declared grant, its `${CLAUDE_PLUGIN_ROOT}` filled in, less `research
+    fetch`, plus `Skill`, since a skill's own grant lasts one query.
+  - Sessions inherit the environment and config dir unless `--config-dir`
+    names one. Under project-only settings, authenticate with that config
+    dir's own login or provider variables exported in the shell;
+    authentication in user settings (`apiKeyHelper`, an `env` block) does
+    not load.
+- **Judging** matches the fixed lines the skill prints
+  (`tasks/eval/ask_and_report/formats.py`), with no model-graded judge. Each
+  turn's criteria (`verdicts.py`) read its text, events and snapshot diff.
+  Every turn also meets the global checks (`checks.py`): no `.levels/` read,
+  no read outside the project but the rule, no other skill or plugin, no
+  spawn, no canary, coverage only after reading the rule, writes only where
+  declared, no permission denial, and only one simple command from a strict
+  Bash allow-list. A broken check ends the conversation at that turn.
+- **Errored or failed.** A turn is errored when it exits non-zero, times out,
+  leaves no log or exit status, logs no init event, or ends `is_error`. A
+  session that broke a criterion or check is failed; otherwise one with an
+  errored turn is errored.
+
+`--family`, `--verb` and `--scenario` narrow a run and combine, `--jobs` sets
+how many sessions run at once, `--model` and `--config-dir` reach every turn,
+and `--check-only --out <dir>` re-judges a finished run, skipping every gate
+but the pre-flight. Before any session, the task checks the marker, a Claude
+Code of at least 2.1.144, the pre-flight, then a one-turn authentication
+probe. `--rerun-errored --out <dir>` moves each errored session aside to
+`<session>.errored-<n>/` and reruns it with the run's recorded `--model` and
+`--config-dir`, refusing on another Claude Code version. It never reruns a
+failed session: rerunning one until it passed would let a 2/3 judgement pass
+as 3/3. Both keep the run's recorded settings in `results.json`, and a
+narrowed re-judge or rerun replaces only the sessions it judged.
 
 ### The runtime pin guard
 

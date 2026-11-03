@@ -1,0 +1,80 @@
+{
+  "family": "N2",
+  "title": "report follows the resolved template",
+  "scenarios": [
+    {
+      "name": "n2-user",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "templates": [
+          "user"
+        ]
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "sections": [
+                "Method"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "n2-user-and-config",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "templates": [
+          "user",
+          "config"
+        ]
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-plan-multi-step-tasks.md",
+              "sections": [
+                "Scope"
+              ],
+              "no_sections": [
+                "Method"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

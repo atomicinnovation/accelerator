@@ -1,12 +1,11 @@
 """Run one headless Claude Code session against this repository's plugin."""
 
 import json
-import subprocess
 from pathlib import Path
 
 from tasks.eval.citing_once.projects import Project
+from tasks.eval.headless.claude import common_flags
 
-INSTALLED_PLUGIN = "accelerator@atomic-innovation-prerelease"
 ALLOWED_TOOLS = (
     "Read",
     "Write",
@@ -21,7 +20,6 @@ ALLOWED_TOOLS = (
 FINDING_OUTPUTTER = "skills/research/outputters/finding-outputter/SKILL.md"
 RULE = "skills/research/outputters/citing-once/SKILL.md"
 FINDING_TEMPLATE = "templates/topic-research-finding.md"
-SESSION_TIMEOUT = 1800
 
 
 def session_command(prompt: str, plugin_root: Path) -> list[str]:
@@ -29,18 +27,8 @@ def session_command(prompt: str, plugin_root: Path) -> list[str]:
         "claude",
         "-p",
         prompt,
-        "--plugin-dir",
-        str(plugin_root),
-        "--settings",
-        json.dumps({"enabledPlugins": {INSTALLED_PLUGIN: False}}),
-        "--output-format",
-        "stream-json",
-        "--verbose",
+        *common_flags(plugin_root, ALLOWED_TOOLS),
         "--no-session-persistence",
-        "--permission-mode",
-        "acceptEdits",
-        "--allowedTools",
-        ",".join(ALLOWED_TOOLS),
     ]
 
 
@@ -77,24 +65,3 @@ def _question(project: Project) -> str:
 
 def synthesise_prompt(project: Project) -> str:
     return f"/accelerator:research-topic synthesise {project.slug}"
-
-
-def prepare_repository(project: Project) -> None:
-    for command in (
-        ["git", "init", "-q"],
-        ["git", "config", "user.name", "Eval Author"],
-        ["git", "config", "user.email", "eval@example.invalid"],
-    ):
-        subprocess.run(command, cwd=project.root, check=True)
-
-
-def run_session(command: list[str], project: Project, log: Path) -> int:
-    with log.open("w") as out, log.with_suffix(".err").open("w") as err:
-        return subprocess.run(
-            command,
-            cwd=project.root,
-            stdout=out,
-            stderr=err,
-            timeout=SESSION_TIMEOUT,
-            check=False,
-        ).returncode

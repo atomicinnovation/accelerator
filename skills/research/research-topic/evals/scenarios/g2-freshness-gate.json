@@ -1,0 +1,204 @@
+{
+  "family": "G2",
+  "title": "The freshness gate",
+  "scenarios": [
+    {
+      "name": "g2-round-count-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g2-round-count-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g2-finding-count-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records finding_count 9 but 10 findings are on disk"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g2-finding-count-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records finding_count 9 but 10 findings are on disk"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g2-rounds-covered-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "synthesis.md",
+            "field": "rounds_covered",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "the findings reach round 3 but synthesis.md covers up to round 2"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g2-rounds-covered-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "synthesis.md",
+            "field": "rounds_covered",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "the findings reach round 3 but synthesis.md covers up to round 2"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

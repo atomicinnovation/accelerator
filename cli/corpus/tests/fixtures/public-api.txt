@@ -337,9 +337,13 @@ pub fn corpus::frontmatter_validation::pipeline::validate_targets(files: &[std::
 pub fn corpus::frontmatter_validation::pipeline::validate_templates<R: corpus::scan::FileReader>(project_root: &std::path::Path, reader: &R) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>, kernel::Error>
 pub fn corpus::frontmatter_validation::pipeline::validate_text(content: &str, parser: &dyn corpus::frontmatter::FrontmatterParser) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
 pub mod corpus::frontmatter_validation::schema
+pub struct corpus::frontmatter_validation::schema::ExtraVocab
+pub corpus::frontmatter_validation::schema::ExtraVocab::extra: &'static str
+pub corpus::frontmatter_validation::schema::ExtraVocab::values: &'static [&'static str]
 pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
 pub corpus::frontmatter_validation::schema::SchemaRow::empty_list_extras: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::extra_vocabs: &'static [corpus::frontmatter_validation::schema::ExtraVocab]
 pub corpus::frontmatter_validation::schema::SchemaRow::forbidden_own_id_keys: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::kind: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::linkage_type: &'static str
@@ -355,7 +359,7 @@ pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [
 pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 15]
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 3]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
-pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 19]
+pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 20]
 pub fn corpus::frontmatter_validation::schema::named_key(name: &str) -> core::option::Option<&'static str>
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
@@ -427,6 +431,10 @@ pub fn corpus::frontmatter_validation::template_shape::schema_reference_template
 pub fn corpus::frontmatter_validation::template_shape::validate_template(row: &corpus::frontmatter_validation::schema::SchemaRow, frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
 pub mod corpus::frontmatter_validation::violation
 pub enum corpus::frontmatter_validation::violation::Violation
+pub corpus::frontmatter_validation::violation::Violation::BadExtraValue
+pub corpus::frontmatter_validation::violation::Violation::BadExtraValue::extra: &'static str
+pub corpus::frontmatter_validation::violation::Violation::BadExtraValue::value: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::BadExtraValue::vocab: alloc::string::String
 pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape
 pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape::key: alloc::string::String
 pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape::quoted: bool
@@ -482,6 +490,10 @@ impl core::fmt::Display for corpus::frontmatter_validation::violation::Violation
 pub fn corpus::frontmatter_validation::violation::Violation::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::violation::Violation
 pub enum corpus::frontmatter_validation::Violation
+pub corpus::frontmatter_validation::Violation::BadExtraValue
+pub corpus::frontmatter_validation::Violation::BadExtraValue::extra: &'static str
+pub corpus::frontmatter_validation::Violation::BadExtraValue::value: alloc::string::String
+pub corpus::frontmatter_validation::Violation::BadExtraValue::vocab: alloc::string::String
 pub corpus::frontmatter_validation::Violation::BadLinkageShape
 pub corpus::frontmatter_validation::Violation::BadLinkageShape::key: alloc::string::String
 pub corpus::frontmatter_validation::Violation::BadLinkageShape::quoted: bool
@@ -635,6 +647,7 @@ pub fn corpus::metadata::FilenameTimestampFormat::fmt(&self, f: &mut core::fmt::
 impl core::marker::Copy for corpus::metadata::FilenameTimestampFormat
 impl core::marker::StructuralPartialEq for corpus::metadata::FilenameTimestampFormat
 pub struct corpus::metadata::ArtifactMetadata
+pub corpus::metadata::ArtifactMetadata::author: core::option::Option<alloc::string::String>
 pub corpus::metadata::ArtifactMetadata::datetime_utc: alloc::string::String
 pub corpus::metadata::ArtifactMetadata::filename_timestamp: alloc::string::String
 pub corpus::metadata::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
@@ -648,6 +661,7 @@ impl core::fmt::Debug for corpus::metadata::ArtifactMetadata
 pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
 pub struct corpus::metadata::RepositoryFacts
+pub corpus::metadata::RepositoryFacts::author: core::option::Option<alloc::string::String>
 pub corpus::metadata::RepositoryFacts::name: alloc::string::String
 pub corpus::metadata::RepositoryFacts::revision: core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::metadata::RepositoryFacts
@@ -1247,6 +1261,7 @@ impl core::fmt::Debug for corpus::typed_ref::TypedRef
 pub fn corpus::typed_ref::TypedRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::typed_ref::TypedRef
 pub struct corpus::ArtifactMetadata
+pub corpus::ArtifactMetadata::author: core::option::Option<alloc::string::String>
 pub corpus::ArtifactMetadata::datetime_utc: alloc::string::String
 pub corpus::ArtifactMetadata::filename_timestamp: alloc::string::String
 pub corpus::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
@@ -1310,6 +1325,7 @@ impl core::fmt::Debug for corpus::record::Record
 pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::record::Record
 pub struct corpus::RepositoryFacts
+pub corpus::RepositoryFacts::author: core::option::Option<alloc::string::String>
 pub corpus::RepositoryFacts::name: alloc::string::String
 pub corpus::RepositoryFacts::revision: core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::metadata::RepositoryFacts

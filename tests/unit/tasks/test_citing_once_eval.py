@@ -1,24 +1,28 @@
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
+from invoke import Context
+from invoke.exceptions import Exit
 
 from tasks.eval.citing_once.fixtures import Composition, load_fixtures
 from tasks.eval.citing_once.logs import (
     composer_log_failures,
     synthesise_log_failures,
-    tool_calls,
 )
 from tasks.eval.citing_once.projects import build_project
-from tasks.eval.citing_once.rule import key_order
 from tasks.eval.citing_once.sessions import session_command
-from tasks.eval.citing_once.sources import parse_sources
 from tasks.eval.citing_once.verdicts import (
     criterion_failures,
     entry_differences,
     isolation_conflicts,
     predict,
 )
+from tasks.eval.documents.rule import key_order
+from tasks.eval.documents.sources import parse_sources
+from tasks.eval.headless.transcript import tool_calls
+from tasks.eval.toolchain import Toolchain
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RULE = REPO_ROOT / "skills/research/outputters/citing-once/SKILL.md"
@@ -314,6 +318,10 @@ def test_a_session_loads_the_repository_and_not_the_installed_plugin(
     assert command[command.index("--output-format") + 1] == "stream-json"
 
 
+def test_a_citing_once_session_persists_nothing() -> None:
+    assert "--no-session-persistence" in session_command("Reply OK.", REPO_ROOT)
+
+
 def test_each_planned_session_has_its_own_directory(tmp_path: Path) -> None:
     from tasks.eval.citing_once.runs import plan_sessions
 
@@ -344,3 +352,77 @@ def test_a_re_check_judges_only_sessions_on_disk(tmp_path: Path) -> None:
     (plans[0].directory / "project").mkdir(parents=True)
     (plans[0].directory / "project.json").write_text("{}")
     assert sessions_on_disk(plans) == [plans[0]]
+
+
+def test_a_citing_once_session_runs_the_dev_toolchain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tasks.eval.citing_once import runs
+
+    sessions: list[dict[str, str]] = []
+
+    def record(command, project, log, env) -> int:
+        sessions.append(env)
+        return 0
+
+    monkeypatch.setattr(runs, "run_session", record)
+    toolchain = Toolchain.debug(tmp_path / "repo")
+    plan = runs.plan_sessions(FIXTURE_SET, tmp_path, families=("S1",))[0]
+
+    runs.run_planned(plan, REPO_ROOT, SEED, toolchain)
+
+    assert len(sessions) == 1
+    for variable, binary in (
+        ("ACCELERATOR_LAUNCHER_BIN", toolchain.launcher),
+        ("ACCELERATOR_CORPUS_BIN", toolchain.corpus),
+        ("ACCELERATOR_RESEARCH_BIN", toolchain.research),
+    ):
+        assert sessions[0][variable] == str(binary)
+    assert sessions[0]["ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER"] == "1"
+
+
+def test_the_citing_once_judge_validates_with_the_dev_corpus_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tasks.eval.citing_once import runs
+
+    commands: list[list[str]] = []
+
+    def record(command, **_):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(runs.subprocess, "run", record)
+    toolchain = Toolchain.debug(tmp_path)
+    project = build_project(
+        _composition("s1"), _composition("s1").orders[0], tmp_path / "p", SEED
+    )
+
+    assert runs._validation_failure(project, toolchain) is None
+    assert commands[0][:4] == [
+        str(toolchain.corpus),
+        "frontmatter",
+        "validate",
+        "--file",
+    ]
+
+
+def test_the_citing_once_task_checks_the_marker_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tasks.eval as evals
+
+    planned: list[object] = []
+
+    def refuse(root: Path) -> None:
+        raise Exit("no marker", code=1)
+
+    monkeypatch.setattr(evals, "require_dev_launcher_marker", refuse)
+    monkeypatch.setattr(
+        evals, "plan_sessions", lambda *args: planned.append(args) or []
+    )
+
+    with pytest.raises(Exit):
+        evals.citing_once(Context())
+
+    assert planned == []

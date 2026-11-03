@@ -1051,7 +1051,7 @@ fn print_schema_emits_the_two_banks() -> Result<(), TestError> {
 fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
     let schema = print_schema("print-schema-rows")?;
     let rows = schema["rows"].as_array().ok_or("rows is not an array")?;
-    assert_eq!(rows.len(), 19);
+    assert_eq!(rows.len(), 20);
     let row_for = |template: &str| {
         rows.iter()
             .find(|row| row["template"] == template)
@@ -1067,6 +1067,7 @@ fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
             "required_extras": ["round", "question", "source_profile"],
             "optional_extras": ["depth"],
             "empty_list_extras": [],
+            "extra_vocabs": {},
             "status_vocab": ["complete"],
             "forbidden_own_id_keys": [],
             "typed_linkage_keys": ["parent", "relates_to"],
@@ -1089,6 +1090,23 @@ fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
             ],
             "optional_extras": ["search_budget"],
             "empty_list_extras": ["follow_ups"],
+            "extra_vocabs": {},
+            "status_vocab": ["complete"],
+            "forbidden_own_id_keys": [],
+            "typed_linkage_keys": ["parent", "relates_to"],
+        })
+    );
+    assert_eq!(
+        row_for("topic-research-report.md")?,
+        &serde_json::json!({
+            "template": "topic-research-report.md",
+            "linkage_type": "topic-research",
+            "kind": "report",
+            "code_state_anchored": false,
+            "required_extras": ["question", "rounds_covered", "coverage"],
+            "optional_extras": [],
+            "empty_list_extras": [],
+            "extra_vocabs": {"coverage": ["answered", "partial"]},
             "status_vocab": ["complete"],
             "forbidden_own_id_keys": [],
             "typed_linkage_keys": ["parent", "relates_to"],

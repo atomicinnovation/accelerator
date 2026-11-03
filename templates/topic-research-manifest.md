@@ -10,6 +10,7 @@ kind: "manifest"                              # (type, kind) discriminator
 slug: "{subject-slug}"                        # the set directory name
 round_count: 0
 finding_count: 0
+report_count: 0
 primary: "brief.md"                           # the set's current lead document
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                    # typed-linkage ref: "work-item:NNNN" or ""

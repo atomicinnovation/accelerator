@@ -3,7 +3,7 @@ name: citing-once
 description: The citing-once rule for a research Sources section. Decides
   when two citations are one source and what single entry cites it. Injected
   into the composer by the research-topic conduct verb and read by its
-  synthesise verb — not invoked directly.
+  synthesise, ask and report verbs — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---

@@ -389,6 +389,11 @@ description = "Run the producer-conformance guard (drives the real corpus valida
 depends = ["build:cli:dev", "build:cli:corpus:dev"]
 run = "invoke test.integration.conformance"
 
+[tasks."test:integration:eval-fixtures"]
+description = "Run the ask-and-report reference corpus pre-flight: every variant validates, and every scenario reaches its declared gate and setup (debug launcher, corpus and research builds; no model)"
+depends = ["build:cli:dev", "build:cli:corpus:dev", "build:cli:research:dev"]
+run = "invoke test.integration.eval-fixtures"
+
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python", "deps:install:cargo-sources"]
@@ -437,12 +442,27 @@ depends = ["deps:install:python"]
 run = "invoke measure.compare-builds"
 
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
-# test roll-up: a run needs the claude CLI, network egress and model usage. See
-# tasks/README.md#the-eval-namespace.
+# test roll-up, these evals: a run needs the claude CLI, network egress and
+# model usage. See tasks/README.md#the-eval-namespace.
 [tasks."eval:citing-once"]
-description = "Run the citing-once behavioural eval: headless claude sessions composing findings and dossiers, judged against a reading of the rule (needs claude, network and model usage; ~10 min at the default 6 sessions at once)"
-depends = ["deps:install:python"]
+description = "Run the citing-once behavioural eval: headless claude sessions composing findings and dossiers, judged against a reading of the rule (needs claude, network, model usage and the dev CLI builds; ~10 min at the default 6 sessions at once)"
+depends = [
+  "deps:install:python",
+  "build:cli:dev",
+  "build:cli:corpus:dev",
+  "build:cli:research:dev",
+]
 run = "invoke eval.citing-once"
+
+[tasks."eval:ask-and-report"]
+description = "Run the ask-and-report behavioural eval: 111 multi-turn headless claude sessions consulting a reference corpus (needs claude, network and model usage, and the dev CLI builds; ~18 min at the default 6 sessions at once)"
+depends = [
+  "deps:install:python",
+  "build:cli:dev",
+  "build:cli:corpus:dev",
+  "build:cli:research:dev",
+]
+run = "invoke eval.ask-and-report"
 
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
@@ -496,6 +516,7 @@ depends = [
     "test:integration:entrypoint",
     "test:integration:skill-invocation",
     "test:integration:conformance",
+    "test:integration:eval-fixtures",
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
