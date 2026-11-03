@@ -139,9 +139,13 @@ pub enum RootRefusal {
         path: PathBuf,
         target: PathBuf,
     },
-    Overlapping,
+    Overlapping {
+        work: PathBuf,
+        integrations: PathBuf,
+    },
     ContainsState {
         key: RootKey,
+        root: PathBuf,
     },
 }
 
@@ -211,15 +215,19 @@ impl fmt::Display for RootRefusal {
                 target.display(),
                 path.display()
             ),
-            Self::Overlapping => formatter.write_str(
+            Self::Overlapping { work, integrations } => write!(
+                formatter,
                 "paths.work and paths.integrations overlap; configure them as \
-                 separate directories",
+                 separate directories (they resolve to {} and {})",
+                work.display(),
+                integrations.display()
             ),
-            Self::ContainsState { key } => write!(
+            Self::ContainsState { key, root } => write!(
                 formatter,
                 "{} contains {STATE_DIR}; configure it as a directory beside \
-                 it",
-                key.config_key()
+                 it (it resolves to {})",
+                key.config_key(),
+                root.display()
             ),
         }
     }
@@ -320,14 +328,20 @@ impl ValidatedRoots {
         if work_path.starts_with(&integrations_path)
             || integrations_path.starts_with(&work_path)
         {
-            return Err(RootRefusal::Overlapping);
+            return Err(RootRefusal::Overlapping {
+                work: resolved_for_display(work_items.root()),
+                integrations: resolved_for_display(integrations.root()),
+            });
         }
-        for (key, root) in [
-            (RootKey::Work, &work_path),
-            (RootKey::Integrations, &integrations_path),
+        for (key, compared, root) in [
+            (RootKey::Work, &work_path, &work_items),
+            (RootKey::Integrations, &integrations_path, &integrations),
         ] {
-            if state_path.starts_with(root) {
-                return Err(RootRefusal::ContainsState { key });
+            if state_path.starts_with(compared) {
+                return Err(RootRefusal::ContainsState {
+                    key,
+                    root: resolved_for_display(root.root()),
+                });
             }
         }
         Ok(Self {
@@ -378,6 +392,10 @@ impl Comparable {
             resolved
         }
     }
+}
+
+fn resolved_for_display(path: &Path) -> PathBuf {
+    resolved_allowing_missing(path).unwrap_or_else(|| path.to_path_buf())
 }
 
 /// Whether the filesystem holding `directory` finds it under its own name
@@ -697,7 +715,10 @@ mod tests {
             repository,
         );
 
-        assert_eq!(checked, Err(RootRefusal::Overlapping));
+        assert!(
+            matches!(checked, Err(RootRefusal::Overlapping { .. })),
+            "{checked:?}"
+        );
     }
 
     #[test]
@@ -713,7 +734,13 @@ mod tests {
 
         assert_eq!(
             checked,
-            Err(RootRefusal::ContainsState { key: RootKey::Work })
+            Err(RootRefusal::ContainsState {
+                key: RootKey::Work,
+                root: repository
+                    .canonicalize()
+                    .expect("canonical")
+                    .join(".accelerator"),
+            })
         );
     }
 
@@ -733,7 +760,10 @@ mod tests {
             repository,
         );
 
-        assert_eq!(checked, Err(RootRefusal::Overlapping));
+        assert!(
+            matches!(checked, Err(RootRefusal::Overlapping { .. })),
+            "{checked:?}"
+        );
     }
 
     fn finds_a_file_under_its_upper_case_name(directory: &Path) -> bool {
@@ -770,7 +800,10 @@ mod tests {
         );
 
         if finds_a_file_under_its_upper_case_name(repository) {
-            assert_eq!(checked, Err(RootRefusal::Overlapping));
+            assert!(
+                matches!(checked, Err(RootRefusal::Overlapping { .. })),
+                "{checked:?}"
+            );
         } else {
             assert!(checked.is_ok(), "{checked:?}");
         }
@@ -864,16 +897,21 @@ mod tests {
                  then remove the link",
             ),
             (
-                RootRefusal::Overlapping,
+                RootRefusal::Overlapping {
+                    work: PathBuf::from("/repo/meta/work"),
+                    integrations: PathBuf::from("/repo/meta/work/state"),
+                },
                 "paths.work and paths.integrations overlap; configure them \
-                 as separate directories",
+                 as separate directories (they resolve to /repo/meta/work \
+                 and /repo/meta/work/state)",
             ),
             (
                 RootRefusal::ContainsState {
                     key: RootKey::Work,
+                    root: PathBuf::from("/repo/.accelerator"),
                 },
                 "paths.work contains .accelerator/state; configure it as a \
-                 directory beside it",
+                 directory beside it (it resolves to /repo/.accelerator)",
             ),
         ];
         for (refusal, text) in cases {
