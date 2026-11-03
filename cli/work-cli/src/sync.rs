@@ -750,7 +750,7 @@ fn kept_edits_notes(review: &KeptEditsReview) -> Vec<String> {
             | KeptEdits::Discarded { .. }
             | KeptEdits::NotDiscarded { .. }
             | KeptEdits::NothingToDiscard { .. } => {
-                notes.push(discard_note(entry));
+                notes.extend(discard_note(entry));
             }
         }
     }
@@ -760,24 +760,31 @@ fn kept_edits_notes(review: &KeptEditsReview) -> Vec<String> {
     notes
 }
 
-fn discard_note(entry: &KeptEdits) -> String {
+fn discard_note(entry: &KeptEdits) -> Option<String> {
     let id = single_line(entry.id().unwrap_or("-"));
     let directory = entry
         .directory()
         .map(|directory| single_line(&directory.display().to_string()))
         .unwrap_or_default();
     match entry {
-        KeptEdits::Discarding { .. } => {
-            format!("note: {id}: kept-edits: {directory} would be discarded")
-        }
+        KeptEdits::Discarding { .. } => Some(format!(
+            "note: {id}: kept-edits: {directory} would be discarded"
+        )),
         KeptEdits::Discarded { .. } => {
-            format!("note: {id}: kept-edits: discarded {directory}")
+            Some(format!("note: {id}: kept-edits: discarded {directory}"))
         }
-        KeptEdits::NotDiscarded { reason, .. } => format!(
+        KeptEdits::NotDiscarded { reason, .. } => Some(format!(
             "note: {id}: kept-edits: {directory} could not be discarded: {}",
             single_line(reason)
-        ),
-        _ => format!("note: {id}: kept-edits: no kept copy to discard"),
+        )),
+        KeptEdits::NothingToDiscard { .. } => {
+            Some(format!("note: {id}: kept-edits: no kept copy to discard"))
+        }
+        KeptEdits::KeptThisRun(_)
+        | KeptEdits::KeptEarlier(_)
+        | KeptEdits::Settled { .. }
+        | KeptEdits::Unrecorded { .. }
+        | KeptEdits::NotRemoved { .. } => None,
     }
 }
 
