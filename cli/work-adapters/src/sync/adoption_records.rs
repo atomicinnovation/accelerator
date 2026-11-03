@@ -177,13 +177,8 @@ impl<'a> AdoptionRecords<'a> {
     /// `item`'s record when it is trusted and vouches for the item's link.
     #[must_use]
     pub fn trusted(&self, item: &LocalItem) -> Option<AdoptionRecord> {
-        let path = self.path_of(&item.id)?;
-        let content = std::fs::read_to_string(&path).ok()?;
-        if self.tracking.file_tracking(&path) != FileTracking::Untracked {
-            return None;
-        }
-        read(&content)
-            .ok()
+        self.read(&item.id)
+            .map(|(_, record)| record)
             .filter(|record| record.vouches_for(item.external_id.as_ref()))
     }
 
@@ -259,10 +254,15 @@ impl<'a> AdoptionRecords<'a> {
             .map_err(|error| error.to_string())
     }
 
+    /// `id`'s record when it is trusted: a person could have committed a
+    /// tracked one, and rewriting it untracked would make it trusted.
     fn read(&self, id: &str) -> Option<(PathBuf, AdoptionRecord)> {
         let path = self.path_of(id)?;
-        let record = read(&std::fs::read_to_string(&path).ok()?).ok()?;
-        Some((path, record))
+        let content = std::fs::read_to_string(&path).ok()?;
+        if self.tracking.file_tracking(&path) != FileTracking::Untracked {
+            return None;
+        }
+        Some((path, read(&content).ok()?))
     }
 
     /// The ids among `items` whose link is unconfirmed: a trusted record
@@ -299,11 +299,22 @@ impl<'a> AdoptionRecords<'a> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::cell::RefCell;
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use corpus::store::AtomicWrite;
+    use corpus::store::FileRemove;
+    use corpus::store::StoreError;
     use tracker::ExternalId;
+    use vcs::tracking::FileTracking;
+    use vcs::tracking::RepositoryTracking;
+    use vcs::tracking::RootsAnswer;
 
     use super::read;
     use super::render;
     use super::AdoptionRecord;
+    use super::AdoptionRecords;
 
     fn key(raw: &str) -> ExternalId {
         ExternalId::new(raw.to_owned())
@@ -344,6 +355,57 @@ mod tests {
         ] {
             assert_eq!(read(&render(&record)).expect("a record"), record);
         }
+    }
+
+    struct Tracked;
+
+    impl RepositoryTracking for Tracked {
+        fn file_tracking(&self, _path: &Path) -> FileTracking {
+            FileTracking::Tracked
+        }
+
+        fn repository_roots(&self, _directory: &Path) -> RootsAnswer {
+            RootsAnswer {
+                roots: Vec::new(),
+                complete: false,
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct Writes(RefCell<Vec<PathBuf>>);
+
+    impl AtomicWrite for Writes {
+        fn write(&self, path: &Path, _bytes: &[u8]) -> Result<(), StoreError> {
+            self.0.borrow_mut().push(path.to_path_buf());
+            Ok(())
+        }
+    }
+
+    impl FileRemove for Writes {
+        fn remove(&self, path: &Path) -> Result<(), StoreError> {
+            self.0.borrow_mut().push(path.to_path_buf());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_tracked_record_is_neither_followed_nor_renamed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let records = AdoptionRecords::new(dir.path(), "jira", &Tracked);
+        let path = records.path_of("0001").expect("a record path");
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+        std::fs::write(&path, render(&record())).expect("record");
+        let store = Writes::default();
+
+        records
+            .follow(&store, "0001", &key("ENG-7"), &key("ENG-8"))
+            .expect("follow");
+        records
+            .rename(&store, "0001", "ENG-8", (&key("ENG-7"), &key("ENG-8")))
+            .expect("rename");
+
+        assert!(store.0.borrow().is_empty(), "{:?}", store.0.borrow());
     }
 
     #[test]
