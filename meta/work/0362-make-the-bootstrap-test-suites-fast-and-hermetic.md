@@ -13,7 +13,7 @@ blocks: ["work-item:0366", "work-item:0370"]
 relates_to: ["work-item:0165", "work-item:0182"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "ci"]
-last_updated: "2026-11-03T13:24:09+00:00"
+last_updated: "2026-11-03T17:58:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -145,8 +145,9 @@ Out of scope:
         downloader served;
       - the launcher dispatched: exit status 0, empty stderr, and stdout
         that parses as the `SessionStart` hook JSON
-        (`hookSpecificOutput.hookEventName` is `SessionStart`), which only
-        `accelerator-vcs` emits;
+        (`hookSpecificOutput.hookEventName` is `SessionStart`), which,
+        for `vcs detect`, only `accelerator-vcs` emits; the stub launcher
+        emits none;
       - stdout carries none of the workspace-boundary prohibitions
         (`do not edit files in` and its siblings) that `vcs detect` adds
         inside a secondary workspace.
@@ -207,8 +208,9 @@ None.
   verification behaviour: the shim compiles the same code.
 - CI's uniform ~8 s per case comes from the same per-call verification.
   The research says only that the pattern fits; it did not profile CI.
-- The larger Linux debug launcher does not erode the speed-up below 3×.
-  Its size was not measured.
+- The Linux debug launcher, probably larger than the 76 MB macOS one
+  because it embeds its DWARF, does not erode the speed-up below 3×. Its
+  size was not measured.
 
 ## Technical Notes
 
@@ -217,7 +219,7 @@ None.
   `tests/support/artefacts.py:56-93`.
 - `minisign-verify` dependency: `cli/verify/Cargo.toml:22`.
 - Today's smoke test:
-  `tests/integration/hooks/test_vcs_detect_registration.py:30-79`.
+  `tests/integration/hooks/test_vcs_detect_registration.py:30-81`.
 - `bin/accelerator` does not read `ACCELERATOR_BIN`. The `accelerator_env()`
   overlay in `tasks/test/helpers.py` sets it for suites that choose their
   entry point from it; today's smoke test calls `bin/accelerator` directly
@@ -233,11 +235,11 @@ None.
   the network. That, `assert_hermetic` and the download-log assertion
   together are the hermeticity check; no separate offline run is needed.
 - Serve the launcher that `test:integration:hooks` already builds through
-  its `build:cli:dev` edge (`tasks/test/integration.py:93-106`), copied out
-  of `cli/target/debug` with `claim_artefact`. The sibling
-  `test_research_guard_registration.py` already uses that build. Do not
-  call `build_launcher()`: its docstring forbids a suite from both calling
-  it and carrying the edge.
+  its `build:cli:dev` edge (`mise.toml:457-460`; the task itself is
+  `tasks/test/integration.py:114-127`), copied out of `cli/target/debug`
+  with `claim_artefact`. The sibling `test_research_guard_registration.py`
+  already uses that build. Do not call `build_launcher()`: its docstring
+  forbids a suite from both calling it and carrying the edge.
 - Build the shim with `build_shim()`. No mise task builds the debug shim.
 - `accelerator-vcs` comes from the existing `build:cli:vcs:dev` edge.
 - Keep the `ACCELERATOR_VCS_BIN` override. The launcher verifies the
@@ -268,8 +270,6 @@ None.
 - 0366 may add dependency-wide settings under `[profile.dev.package."*"]`.
   Cargo resolves each setting separately, with the named package winning,
   so the two compose; expect a textual conflict in the same table only.
-- The Linux debug launcher is probably larger than the 76 MB macOS one,
-  because it embeds its DWARF, but its size was not measured.
 
 ## Drafting Notes
 
