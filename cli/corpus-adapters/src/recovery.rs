@@ -184,6 +184,21 @@ fn write_durably(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
         .map_err(|error| io(path, &error))
 }
 
+/// The pull overwrites the original only once its copy is durable, and a
+/// copy in a folder whose own entry was never synced can vanish in a crash,
+/// so every folder from the copy's up to `root` is synced too.
+fn sync_directories_up_to(path: &Path, root: &Path) -> Result<(), StoreError> {
+    for dir in path.ancestors().skip(1) {
+        fs::File::open(dir)
+            .and_then(|handle| handle.sync_all())
+            .map_err(|error| io(dir, &error))?;
+        if dir == root {
+            break;
+        }
+    }
+    Ok(())
+}
+
 impl RecoveryCopies for FileRecoveryCopies {
     fn exists(&self, dir: &Path) -> bool {
         self.location(dir).is_dir()
@@ -218,7 +233,8 @@ impl RecoveryCopies for FileRecoveryCopies {
         if let Some(parent) = copy.parent() {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
         }
-        write_durably(&copy, bytes)
+        write_durably(&copy, bytes)?;
+        sync_directories_up_to(&copy, &self.state_root)
     }
 
     fn mark_restore_pending(
