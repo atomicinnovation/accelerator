@@ -1,0 +1,131 @@
+{
+  "skill_name": "explore-pr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/explore-pr",
+      "expected_output": "With no argument and no pull request on the current branch, asks which pull request to explore and shows example invocations with a number and an optional goal. Does not create a workspace, export files or spawn agents.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "checks the current branch for a pull request before asking"
+        },
+        {
+          "text": "asks for a pull request number or URL"
+        },
+        {
+          "text": "shows an example invocation such as /explore-pr 170"
+        },
+        {
+          "text": "does not create a workspace, run the bundled scripts or spawn agents"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/explore-pr 170",
+      "expected_output": "Fetches the pull request's metadata, reconnoitres its scale, CI, prior reviews and context, summarises what it found, and then asks the shape questions — goal, PR-specific custom views (including the ledger's subject) and delivery — in a single question set with a recommended default for each, before exporting files or spawning reading passes. The summary already names the figures that would explain the change, such as a before/after of the part of the system it reshapes.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "reports the change's scale split by layer and the CI state before asking anything"
+        },
+        {
+          "text": "proposes custom views specific to this pull request rather than a generic list"
+        },
+        {
+          "text": "asks about goal, custom views and delivery in one question set, each with a recommended option"
+        },
+        {
+          "text": "does not spawn reading passes before the shape is agreed"
+        },
+        {
+          "text": "names concrete figures (flow, sequence, tree, matrix, timeline or comparison) for the change's concepts before any prose is written"
+        },
+        {
+          "text": "opens its summary with the change's design (abstractions, responsibilities, dependency direction) before scale and line counts"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I've got a 9,000-line PR (#412) to review and I can't hold it all in my head. Can you make it easier to get through?",
+      "expected_output": "Recognises a request for this skill and runs it for pull request 412: reconnaissance, then the shape questions. Plans several reading passes because the change is large, and partitions chapters by concept rather than by file.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "treats the request as an explore-pr run for pull request 412"
+        },
+        {
+          "text": "plans more than one reading pass for a change of this size"
+        },
+        {
+          "text": "describes chapters by concept, not as a list of files"
+        },
+        {
+          "text": "asks each reading pass for figures by kind and subject for every chapter it writes"
+        },
+        {
+          "text": "spawns a design pass that writes design.json alongside the chapter passes"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/explore-pr 88 just a quick page, I only need to decide whether to merge",
+      "expected_output": "For a small pull request (under about 800 changed lines) reads the change itself instead of spawning reading passes, takes the merge decision as the agreed goal without asking about it again, and still builds, smoke-checks and delivers a page whose overview opens with a figure and whose every chapter opens with at least one. It writes the design summary before any chapter, even though it reads the change itself.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "does not ask about the goal, which the argument already gives"
+        },
+        {
+          "text": "does not spawn reading passes for a small change"
+        },
+        {
+          "text": "runs the build and the smoke check before delivering"
+        },
+        {
+          "text": "the build reports no chapter or overview without a figure"
+        },
+        {
+          "text": "writes design.json, and every chapter names at least one abstraction or decision"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "The explore-pr page for #301 came out as walls of text. Can you fix it?",
+      "expected_output": "Treats prose-heavy chapters as a defect: rebuilds the content picture-first, giving each chapter figures that carry its mechanism (for example a sequence of the request lifecycle and a matrix of the authorisation decision), cuts the prose those figures make redundant down to why, risks and checks, and confirms the build reports no chapter without a figure.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "adds figures of the content model's kinds to the chapters rather than rewording the prose"
+        },
+        {
+          "text": "removes or shortens prose that a new figure makes redundant"
+        },
+        {
+          "text": "rebuilds and confirms there are no missing-figure warnings"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I've read every line of #77 and I still don't understand how it fits together. Can you help?",
+      "expected_output": "Treats this as a request about design rather than lines: runs the skill with the emphasis on the Design view — the change's shape in a paragraph and a layered architecture figure, its key abstractions and how they collaborate, each design decision with the alternatives it was chosen over and what it costs, its fit with the existing architecture's principles, and where the next change would go — and points the reviewer at the 'understand the design' path first.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "frames the help around the design (abstractions, responsibilities, dependencies, decisions), not a line-by-line walkthrough"
+        },
+        {
+          "text": "produces design content: a summary, an architecture figure, abstractions, decisions with alternatives and costs, and the fit with existing principles"
+        },
+        {
+          "text": "recommends starting with the Design view and the 'understand the design' path"
+        }
+      ]
+    }
+  ]
+}
