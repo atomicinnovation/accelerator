@@ -151,7 +151,10 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
     fn author_from_remote(
         &self,
         _issue: &work_adapters::sync::create::DiscoveredIssue,
-    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
         panic!("no scenario in this suite authors from a discovered issue")
     }
 
@@ -159,7 +162,7 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
         &self,
         _path: &Path,
         _external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         panic!("no scenario in this suite links an external id")
     }
 }

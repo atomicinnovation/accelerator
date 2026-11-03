@@ -1218,8 +1218,10 @@ mod tests {
         fn author_from_remote(
             &self,
             _issue: &work_adapters::sync::create::DiscoveredIssue,
-        ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error>
-        {
+        ) -> Result<
+            work_adapters::sync::create::AuthoredLocal,
+            work_adapters::sync::create::AuthorError,
+        > {
             unreachable!("a preview authors nothing")
         }
 
@@ -1227,7 +1229,7 @@ mod tests {
             &self,
             _path: &Path,
             _external_id: &ExternalId,
-        ) -> Result<(), kernel::Error> {
+        ) -> Result<(), work_adapters::sync::create::AuthorError> {
             unreachable!("a preview links nothing")
         }
     }

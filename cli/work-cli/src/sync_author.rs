@@ -42,6 +42,7 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
 use work_adapters::retirement::acquire_retirement_lock;
+use work_adapters::sync::create::AuthorError;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
@@ -233,14 +234,14 @@ pub fn link_external_id(
     path: &Path,
     external_id: &ExternalId,
 ) -> Result<(), kernel::Error> {
-    set_external_id(&store_beside(path), path, external_id)
+    Ok(set_external_id(&store_beside(path), path, external_id)?)
 }
 
 fn set_external_id(
     store: &dyn AtomicWrite,
     path: &Path,
     external_id: &ExternalId,
-) -> Result<(), kernel::Error> {
+) -> Result<(), AuthorError> {
     rewrite_frontmatter(store, path, |mapping| {
         mapping.set(
             "external_id".to_owned(),
@@ -253,7 +254,7 @@ fn set_external_id(
 fn clear_external_id(
     store: &dyn AtomicWrite,
     path: &Path,
-) -> Result<(), kernel::Error> {
+) -> Result<(), AuthorError> {
     rewrite_frontmatter(store, path, |mapping| {
         *mapping = std::mem::take(mapping)
             .into_iter()
@@ -268,7 +269,7 @@ fn rewrite_frontmatter(
     store: &dyn AtomicWrite,
     path: &Path,
     change: impl FnOnce(&mut Mapping),
-) -> Result<(), kernel::Error> {
+) -> Result<(), AuthorError> {
     let work_dir = work_dir_of(path);
     let _held = LockdirLock::new(work_dir)
         .acquire(&LockName::ForFile(path.to_path_buf()))
@@ -276,11 +277,11 @@ fn rewrite_frontmatter(
     let content = std::fs::read_to_string(path).map_err(failed)?;
     let mut yaml = document::parse(&content).map_err(failed)?;
     let Yaml::Mapping(mapping) = &mut yaml else {
-        return Err(failed("frontmatter is not a mapping"));
+        return Err(failed("frontmatter is not a mapping").into());
     };
     change(mapping);
     let rendered = document::render(Some(&content), &yaml).map_err(failed)?;
-    store.write(path, rendered.as_bytes()).map_err(failed)?;
+    store.write(path, rendered.as_bytes())?;
     Ok(())
 }
 
@@ -296,7 +297,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
     fn author_from_remote(
         &self,
         issue: &DiscoveredIssue,
-    ) -> Result<AuthoredLocal, kernel::Error> {
+    ) -> Result<AuthoredLocal, AuthorError> {
         let scheme = resolve_scheme(self.config)?;
         let project = scheme.key.clone();
         let title = issue.title.as_str();
@@ -383,11 +384,11 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         &self,
         path: &Path,
         external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), AuthorError> {
         set_external_id(&self.work_store(), path, external_id)
     }
 
-    fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
+    fn unlink_external_id(&self, path: &Path) -> Result<(), AuthorError> {
         clear_external_id(&self.work_store(), path)
     }
 }
@@ -529,7 +530,7 @@ mod tests {
             )
         }
 
-        fn pull(&self, key: &str) -> Result<AuthoredLocal, kernel::Error> {
+        fn pull(&self, key: &str) -> Result<AuthoredLocal, super::AuthorError> {
             self.pull_body(key, "What it is.")
         }
 
@@ -537,7 +538,7 @@ mod tests {
             &self,
             key: &str,
             body: &str,
-        ) -> Result<AuthoredLocal, kernel::Error> {
+        ) -> Result<AuthoredLocal, super::AuthorError> {
             let key = ExternalId::new(key.to_owned());
             self.author().author_from_remote(&DiscoveredIssue {
                 external_id: key.clone(),

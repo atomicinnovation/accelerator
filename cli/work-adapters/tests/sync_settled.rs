@@ -272,20 +272,21 @@ impl LocalAuthor for FileAuthor {
     fn author_from_remote(
         &self,
         issue: &DiscoveredIssue,
-    ) -> Result<AuthoredLocal, kernel::Error> {
+    ) -> Result<AuthoredLocal, work_adapters::sync::create::AuthorError> {
         self.imported
             .borrow_mut()
             .push(issue.external_id.to_string());
-        Err(kernel::Error::Failed(
-            "imports are recorded, not written".into(),
-        ))
+        Err(
+            kernel::Error::Failed("imports are recorded, not written".into())
+                .into(),
+        )
     }
 
     fn link_external_id(
         &self,
         path: &Path,
         external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         let content = fs::read_to_string(path)
             .map_err(|error| kernel::Error::Failed(error.to_string()))?;
         let linked: String = content
@@ -299,7 +300,7 @@ impl LocalAuthor for FileAuthor {
             })
             .collect();
         fs::write(path, linked)
-            .map_err(|error| kernel::Error::Failed(error.to_string()))
+            .map_err(|error| kernel::Error::Failed(error.to_string()).into())
     }
 }
 

@@ -46,6 +46,7 @@ use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
+use crate::sync::create::AuthorError;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
@@ -735,6 +736,13 @@ fn item_write_error(id: &str, error: StoreError) -> PublishError<StoreError> {
     }
 }
 
+const fn published_by_author(error: AuthorError) -> PublishError<AuthorError> {
+    match error {
+        AuthorError::NotDurable(_) => PublishError::FailedAfterPublish(error),
+        AuthorError::Failed(_) => PublishError::Step(StepError::Failed(error)),
+    }
+}
+
 fn marker_write_error(path: &Path, error: &StoreError) -> PublishError<String> {
     let cause = format!("marker {}: {error}", path.display());
     match error {
@@ -1066,9 +1074,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                         body,
                         issue: issue.clone(),
                     })
-                    .map_err(|error| {
-                        PublishError::Step(StepError::Failed(error))
-                    })
+                    .map_err(published_by_author)
             },
         )?;
         attempt.known_as(&authored.id);
@@ -1395,9 +1401,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request
                     .author
                     .link_external_id(request.file_path, key)
-                    .map_err(|error| {
-                        PublishError::Step(StepError::Failed(error))
-                    })
+                    .map_err(published_by_author)
             },
         )?;
         if !differs {
@@ -1473,9 +1477,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request
                     .author
                     .unlink_external_id(request.file_path)
-                    .map_err(|error| {
-                        PublishError::Step(StepError::Failed(error))
-                    })
+                    .map_err(published_by_author)
             })?;
         }
         self.create_marking_progress(request, attempt, digest)
@@ -1616,9 +1618,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request
                     .author
                     .link_external_id(request.file_path, external_id)
-                    .map_err(|error| {
-                        PublishError::Step(StepError::Failed(error))
-                    })
+                    .map_err(published_by_author)
             },
         )?;
 

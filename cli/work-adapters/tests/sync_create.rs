@@ -36,6 +36,7 @@ use work::tracker_key::TrackerKey;
 use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::create::AuthorError;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
@@ -205,6 +206,7 @@ enum AuthorFault {
     AuthorFails,
     AuthorsInvalidUtf8,
     LinkFails,
+    LinkNotDurable,
     LinkWritesInvalidUtf8,
 }
 
@@ -229,12 +231,12 @@ impl LocalAuthor for RecordingAuthor {
     fn author_from_remote(
         &self,
         issue: &DiscoveredIssue,
-    ) -> Result<AuthoredLocal, kernel::Error> {
+    ) -> Result<AuthoredLocal, work_adapters::sync::create::AuthorError> {
         self.authored.borrow_mut().push(issue.external_id.clone());
         if self.fault == AuthorFault::AuthorFails {
-            return Err(kernel::Error::Failed(
+            return Err(AuthorError::Failed(kernel::Error::Failed(
                 "injected author failure".to_owned(),
-            ));
+            )));
         }
         let mut next = self.next.borrow_mut();
         let id = format!("{next}");
@@ -260,12 +262,20 @@ impl LocalAuthor for RecordingAuthor {
         &self,
         path: &Path,
         external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         match self.fault {
             AuthorFault::LinkFails => {
-                return Err(kernel::Error::Failed(
+                return Err(AuthorError::Failed(kernel::Error::Failed(
                     "injected link failure".to_owned(),
-                ))
+                )))
+            }
+            AuthorFault::LinkNotDurable => {
+                self.linked
+                    .borrow_mut()
+                    .push((path.to_path_buf(), external_id.clone()));
+                return Err(AuthorError::NotDurable(kernel::Error::Failed(
+                    "injected fsync failure".to_owned(),
+                )));
             }
             AuthorFault::LinkWritesInvalidUtf8 => {
                 std::fs::write(path, [0xff, 0xfe]).map_err(|error| {
@@ -279,7 +289,10 @@ impl LocalAuthor for RecordingAuthor {
             .push((path.to_path_buf(), external_id.clone()));
         Ok(())
     }
-    fn unlink_external_id(&self, path: &Path) -> Result<(), kernel::Error> {
+    fn unlink_external_id(
+        &self,
+        path: &Path,
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         self.unlinked.borrow_mut().push(path.to_path_buf());
         Ok(())
     }
@@ -5199,6 +5212,24 @@ fn a_relink_adopt_is_refused_while_the_corpus_is_incomplete(
     assert_eq!(failure.class, FailureClass::Unparseable);
     assert_eq!(failure.operation, SyncOperation::Adopt);
     assert!(author.linked.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_link_written_but_not_durable_is_terminal() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    let tracker = two_issues();
+    let author = RecordingAuthor::faulty(
+        fixture.dir.path(),
+        AuthorFault::LinkNotDurable,
+    );
+
+    let report = relinking(&fixture, &tracker, &author, &item, adopt("ENG-8"))?;
+
+    let failure = failure_for(&report, "0001");
+    assert_eq!(failure.operation, SyncOperation::LinkExternalId);
+    assert_eq!(failure.class, FailureClass::Terminal);
     Ok(())
 }
 

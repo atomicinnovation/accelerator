@@ -143,7 +143,10 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
     fn author_from_remote(
         &self,
         _issue: &work_adapters::sync::create::DiscoveredIssue,
-    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
         panic!("the real-client scenarios never author from a discovery")
     }
 
@@ -151,7 +154,7 @@ impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
         &self,
         _path: &Path,
         _external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         panic!("the real-client scenarios never link an external id")
     }
 }
@@ -1333,7 +1336,10 @@ impl work_adapters::sync::create::LocalAuthor for RecordingAuthor {
     fn author_from_remote(
         &self,
         issue: &work_adapters::sync::create::DiscoveredIssue,
-    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
         self.bodies.borrow_mut().push(issue.body.clone());
         let path = self.dir.join("ENG-1.md");
         std::fs::write(&path, format!("{LOCAL_FRONTMATTER}\n{}", issue.body))
@@ -1348,7 +1354,7 @@ impl work_adapters::sync::create::LocalAuthor for RecordingAuthor {
         &self,
         _path: &Path,
         _external_id: &ExternalId,
-    ) -> Result<(), kernel::Error> {
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
         panic!("a pull-create never links an external id")
     }
 }
