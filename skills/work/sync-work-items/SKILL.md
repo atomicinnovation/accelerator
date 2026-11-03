@@ -426,8 +426,8 @@ the cause is fixed:
 | `parse-local` | The item's frontmatter does not parse; quote the cause and repair it, then sync again. |
 | `classify-local` | Quote the cause; if it names the file's frontmatter, repair it, otherwise sync again and report it if it persists. |
 | `lock-local` | Another process may hold the lock, or the directory is not writable; close it or fix permissions, then sync again. |
-| `write-local`, `keep-edits`, `author-local`, `marker-write`, `link-external-id` | Quote the cause, which names the path; fix its permissions or free space, then sync again. |
-| tracker operation (`show`, `update`, `retitle`, `create`) | Sync again once the tracker is reachable. |
+| `write-local`, `keep-edits`, `author-local`, `marker-write`, `link-external-id`, `adopt-record` | Quote the cause, which names the path; fix its permissions or free space, then sync again. |
+| tracker operation (`show`, `update`, `retitle`, `create`, `adopt`) | Sync again once the tracker is reachable. |
 | `baseline-set`, subject `-` | See the run-level entry above. |
 | any other | Show the line; sync again once the user says the cause is fixed. |
 

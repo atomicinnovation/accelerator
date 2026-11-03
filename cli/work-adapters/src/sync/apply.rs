@@ -71,6 +71,18 @@ pub enum FailureClass {
 }
 
 impl FailureClass {
+    pub const ALL: [Self; 9] = [
+        Self::Retryable,
+        Self::Terminal,
+        Self::Unconfigured,
+        Self::Rejected,
+        Self::Unrenderable,
+        Self::PullResidue,
+        Self::Unparseable,
+        Self::WriteRefused,
+        Self::OrderRefused,
+    ];
+
     /// How a failed row names this class.
     #[must_use]
     pub const fn keyword(self) -> &'static str {

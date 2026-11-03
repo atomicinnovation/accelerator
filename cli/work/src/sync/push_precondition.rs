@@ -51,6 +51,13 @@ pub enum RefusalReason {
 }
 
 impl RefusalReason {
+    pub const ALL: [Self; 4] = [
+        Self::MarkerUnreadable,
+        Self::PriorAttemptUnknownOutcome,
+        Self::FingerprintMismatch,
+        Self::AlreadyWritten,
+    ];
+
     /// The single spelling of this reason wherever a refusal is reported.
     #[must_use]
     pub const fn token(self) -> &'static str {

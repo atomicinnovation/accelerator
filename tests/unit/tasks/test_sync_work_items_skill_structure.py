@@ -24,48 +24,13 @@ RECOVERY_REFERENCE = (
 )
 READ_THE_OUTPUT = "## Read the run's output"
 
-FAILURE_CLASSES = [
-    "retryable",
-    "terminal",
-    "unconfigured",
-    "rejected",
-    "unrenderable",
-    "pull-residue",
-    "unparseable",
-    "local-write-refused",
-    "order-refused",
-]
-UNIDENTIFIED_KINDS = [
-    "unreadable",
-    "undecodable",
-    "malformed",
-    "no-frontmatter",
-    "no-id",
-]
 VCS_CONFLICT_MARKERS = ["<<<<<<<", "%%%%%%%", "+++++++", ">>>>>>>"]
 DETAIL_SOURCES = ["holder", "vcs", "recovery", "item"]
 KEPT_EDITS_KINDS = ["this-run", "earlier", "unrecorded"]
-REFUSAL_REASONS = [
-    "marker-unreadable",
-    "prior-attempt-unknown",
-    "fingerprint-mismatch",
-    "already-written",
-]
-RETRYABLE_OPERATIONS = [
-    "recheck-local",
-    "read-local",
-    "hash-local",
-    "identify-local",
-    "parse-local",
-    "classify-local",
-    "lock-local",
-    "write-local",
-    "keep-edits",
-    "author-local",
-    "marker-write",
-    "link-external-id",
-    "baseline-set",
-]
+VOCABULARY = (
+    REPO_ROOT / "cli/work-adapters/tests/fixtures/sync-vocabulary.golden"
+)
+RUN_LEVEL_OPERATIONS = ["discover", "configure"]
 MEMBERSHIP_GROUPS = [
     "needs-retry",
     "needs-attention",
@@ -82,6 +47,23 @@ SAFE_PATH_CHARACTERS = "[A-Za-z0-9._/-]"
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _vocabulary(family: str) -> list[str]:
+    """The keywords `work sync` reports for `family`, as the CLI's own
+    vocabulary golden lists them."""
+    rows = (line.split("\t") for line in _read(VOCABULARY).splitlines())
+    return [keyword for name, keyword in rows if name == family]
+
+
+FAILURE_CLASSES = _vocabulary("class")
+UNIDENTIFIED_KINDS = _vocabulary("unidentified")
+REFUSAL_REASONS = _vocabulary("refusal")
+ADVISED_OPERATIONS = [
+    operation
+    for operation in _vocabulary("operation")
+    if operation not in RUN_LEVEL_OPERATIONS
+]
 
 
 def _prose(text: str) -> str:
@@ -411,7 +393,7 @@ class TestRetryableAdvice:
         operations = " ".join(
             row[0] for row in _table_rows(output_section, "Operation")
         )
-        for operation in RETRYABLE_OPERATIONS:
+        for operation in ADVISED_OPERATIONS:
             assert f"`{operation}`" in operations, operation
 
     def test_a_mid_run_change_is_named_only_by_recheck_local(

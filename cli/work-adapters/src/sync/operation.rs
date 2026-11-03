@@ -28,6 +28,31 @@ pub enum SyncOperation {
 }
 
 impl SyncOperation {
+    pub const ALL: [Self; 22] = [
+        Self::LockLocal,
+        Self::ReadLocal,
+        Self::RecheckLocal,
+        Self::IdentifyLocal,
+        Self::ClassifyLocal,
+        Self::ParseLocal,
+        Self::KeepEdits,
+        Self::HashLocal,
+        Self::WriteLocal,
+        Self::AuthorLocal,
+        Self::MarkerWrite,
+        Self::LinkExternalId,
+        Self::BaselineSet,
+        Self::Discover,
+        Self::Configure,
+        Self::AdoptRecord,
+        Self::Pull,
+        Self::Show,
+        Self::Update,
+        Self::Retitle,
+        Self::Create,
+        Self::Adopt,
+    ];
+
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {

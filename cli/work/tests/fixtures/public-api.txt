@@ -1769,6 +1769,7 @@ pub work::sync::push_precondition::RefusalReason::FingerprintMismatch
 pub work::sync::push_precondition::RefusalReason::MarkerUnreadable
 pub work::sync::push_precondition::RefusalReason::PriorAttemptUnknownOutcome
 impl work::sync::push_precondition::RefusalReason
+pub const work::sync::push_precondition::RefusalReason::ALL: [Self; 4]
 pub const fn work::sync::push_precondition::RefusalReason::token(self) -> &'static str
 impl core::clone::Clone for work::sync::push_precondition::RefusalReason
 pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
@@ -2137,6 +2138,7 @@ pub work::sync::RefusalReason::FingerprintMismatch
 pub work::sync::RefusalReason::MarkerUnreadable
 pub work::sync::RefusalReason::PriorAttemptUnknownOutcome
 impl work::sync::push_precondition::RefusalReason
+pub const work::sync::push_precondition::RefusalReason::ALL: [Self; 4]
 pub const fn work::sync::push_precondition::RefusalReason::token(self) -> &'static str
 impl core::clone::Clone for work::sync::push_precondition::RefusalReason
 pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
