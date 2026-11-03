@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0371", "work-item:0302", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
-revision: "df0ab1200c71d6d951ddac64416bbcab42519cef"
+revision: "6743ab7edc6e3991374c37beb91c36ed72c45362"
 repository: "accelerator"
-last_updated: "2026-11-02T18:35:08+00:00"
+last_updated: "2026-11-03T18:05:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -114,16 +114,20 @@ of its own, listed under "Behaviour changes".
 - **Consumers**: `migrate` gains a `WorkItemIdentity` port, wired in
   `migrate-cli`; the visualiser, re-key, retirement and sync all resolve IDs
   through the scheme.
+- **Sync code from PR #169** moves onto the scheme with the rest:
+  `draft_id::is_token_safe`, kept edits and recovery labels take
+  `work::id_scheme::WorkItemIdScheme`, and `ConfiguredNames` names work-item
+  files through `id_in_filename` instead of compiling a scan regex, so it can
+  no longer fail.
 - **Guard**: `lint:corpus-identity:check` fails if a `corpus` source names a
   work-item identity item again.
 
 ### Housekeeping
 
-- **`pulldown-cmark`** moves to `=0.13.6` for RUSTSEC-2026-0433, as `main`
-  already has. The upstream change touches only wikilinks, which neither
-  `markdown` nor `document` enables.
 - **Work items**: 0146 gains a work-item ID model section; 0371
-  (`--dry-run` invocation validation) is added, blocked by this.
+  (`--dry-run` invocation validation) is added, blocked by this. It was filed
+  as 0351, but PR #169 filed a different 0351 and 0355 is taken on another
+  branch, so it was renumbered to 0371.
 - **Docs**: `docs-site` `work-items.md`, `tasks/README.md` and the skills
   name the `work id` verbs; `test_retired_id_verbs.py` keeps old names out.
 
@@ -171,10 +175,12 @@ notice:
 
 ## Testing
 
-- [x] `mise run check` exits 0 at the branch tip (re-run while writing this
-      description).
-- [x] `mise run` (the full default task) exits 0 end to end, per the
-      validation report at the branch tip; not re-run here.
+- [x] `mise run` (the full default task, `docs:check` included) exits 0 end
+      to end at the rebased tip.
+- [x] `cargo nextest run --workspace --no-fail-fast` passes 7492 of 7492 at
+      the rebased tip.
+- [x] `cargo clippy --workspace --tests` is clean at every commit that
+      touches `cli/`, checked after the rebase onto PR #169.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report), across `cli_create.rs`,
       `cli_id_check.rs`, `cli_id_next.rs`, `cli_id_canonicalise.rs`,
@@ -192,12 +198,15 @@ notice:
 
 ## Notes for Reviewers
 
-- **Review order**: the diff is 175 files, over a third of it the plan,
+- **First review**: `meta/reviews/prs/178-review-1.md` records verdict
+  `COMMENT`. None of its findings are addressed on this branch yet.
+- **Review order**: the diff is 229 files, over a third of it the plan,
   its reviews and eval benchmarks. Reading `cli/work/src/id_pattern.rs`,
   `id_scheme.rs` and `requested_id.rs`, then `cli/work-cli/src/create.rs`
   and `id/check.rs`, gives the core before the consumer moves.
-- **Trailing `main`**: the branch is 70 changes behind `main` but GitHub
-  reports it mergeable. The duplicated `pulldown-cmark` bump folds away.
+- **Rebased onto `main`** at PR #177. The rebase onto PR #169's sync work
+  conflicted in 14 places; the resolutions follow `main`'s structure and carry
+  this branch's changes into it.
 - **`identity_key` separator**: its `keyed_digits` fallback always joins with
   `-` (`cli/work/src/id_scheme.rs:292-294`), so under `{key}_{number:04d}` a
   reference written `PP-42` joins as `PP-0042`. Outside the work item's
@@ -208,4 +217,5 @@ notice:
   pending-push state feeds the collision check.
 - **Unchanged ordering**: under `{tracker}` without `--id`,
   `E_PATTERN_KEY_UNUSED` still follows `create_dir_all`, as before.
-- **`last-sync.json`** changes only because 0319 was synced to Linear.
+- **`last-sync.json`** changes only because 0319 and 0371 were synced to
+  Linear. Main's 0351 (PP-926) keeps its own entry.
