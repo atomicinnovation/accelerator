@@ -260,7 +260,7 @@ has no degraded mode. Two environment variables cover the awkward cases:
 
 | Variable                       | Effect                                          |
 |--------------------------------|-------------------------------------------------|
-| `ACCELERATOR_CACHE_DIR`        | Where the launcher is staged and executed from  |
+| `ACCELERATOR_CACHE_DIR`        | Where the launcher is staged and executed from; pruned automatically, see [A relocated cache root](#a-relocated-cache-root) |
 | `ACCELERATOR_RELEASE_BASE_URL` | Where release artifacts are fetched from        |
 
 Both are trust-root inputs rather than ordinary conveniences. The cache
@@ -311,6 +311,68 @@ point `ACCELERATOR_CACHE_DIR` at a writable, exec-capable directory instead.
 
 `ACCELERATOR_PLUGIN_ROOT` is **exported by** the bootstrap for the launcher it
 runs; it is never read as an input. Setting it has no effect.
+
+### A relocated cache root
+
+Without `ACCELERATOR_CACHE_DIR`, the cache directory is the installation's own
+`bin/`, which Claude Code removes along with the installation. A directory
+named by `ACCELERATOR_CACHE_DIR` outlives every installation that shares it,
+so the launcher bounds what it holds:
+
+- **Claims.** Every invocation, including built-in commands, records that its
+  version is in use as `claims/<version>.<launcher-id>` in the cache
+  directory, rewriting the claim at most once every ~1.4 days.
+- **Automatic prune.** Every cold dispatch and every runtime-tree
+  materialise prunes the directory before the dispatch runs. A part of the
+  directory another process is pruning or holding is skipped, never waited
+  for.
+- **Retention.** A version idle for 14 days, whose claim is that old, loses
+  its entries and re-fetches them on its next dispatch. A runtime tree stays
+  while a dispatch from the last 14 days claims it or a running crawl leases
+  it. Crash residue stays for an hour.
+- **`accelerator cache prune`** runs the same prune but waits for each lock.
+  It removes the launcher and sub-binary entries of unclaimed versions,
+  verifier copies the running plugin no longer stages, unclaimed trees of
+  any artifact or platform, stale claims, orphan sidecars and tree locks, and
+  crash residue. Names the plugin does not produce are never removed. It
+  prints `reclaimed <n> entries`, and exits non-zero when a lock cannot be
+  taken or a removal fails, after pruning everything else.
+- **`--older-than <seconds>`** replaces the 14-day window for both version
+  and tree claims. Below ~1.4 days (`120960`) it can evict versions other
+  sessions are using, because their claims are refreshed no more often than
+  that; they re-fetch on their next dispatch. The running version is never
+  evicted.
+
+A cache directory is pruned only when no other user can rename or remove
+names in it. It must be writable by its owner alone, or through the owner's
+private group, and every directory above it must be owned by the user, by
+root or by a uid listed in `ACCELERATOR_CACHE_TRUSTED_OWNERS`, and must not
+be writable by others without the sticky bit. CI workspaces and container
+bind mounts are often owned by another uid, so list it:
+
+```bash
+# GitHub Actions container job, whose /__w is owned by the runner's uid 1001
+export ACCELERATOR_CACHE_TRUSTED_OWNERS=1001
+export ACCELERATOR_CACHE_DIR=/__w/_tool/accelerator-cache
+```
+
+A shared location such as `/var/cache/accelerator` still works as a cache but
+is never pruned, and grows as every directory did before. On a shared host,
+give each user their own, with `ACCELERATOR_CACHE_DIR=<shared>/$USER`. A
+refused prune names the directory at fault and its fix: `chmod g-w`,
+`chmod 700`, a listed owner or a per-user directory.
+
+A warm dispatch in a relocated root still tolerates a read-only directory,
+because the claim write is best-effort: a directory that refuses it
+dispatches as before, unclaimed. One risk is accepted by name. A launcher
+from a pre-release that does not confirm its tree lock's inode can lock an
+unlinked inode after a prune removes an orphan lock file. While both hold a
+lock, a reap can remove that launcher's in-progress residue, or a concurrent
+materialise can corrupt a shared partial archive. Either records a sticky
+`UnexpectedDigest` or `Extraction` marker for that artifact, which stops a
+`--fail-safe` crawl. No cache directory
+can tell whether such a launcher shares it, so reload every session sharing
+one after upgrading.
 
 ### Removing it
 

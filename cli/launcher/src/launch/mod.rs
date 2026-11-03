@@ -6,6 +6,7 @@ pub mod core;
 pub mod help;
 pub mod inbound;
 pub mod outbound;
+pub mod start_up;
 
 use config::ConfigError;
 

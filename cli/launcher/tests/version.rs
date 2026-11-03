@@ -22,6 +22,7 @@ fn run(args: &[&str], env: &[(&str, &str)]) -> Result<Output, Box<dyn Error>> {
     command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    command.env_remove("ACCELERATOR_CACHE_TRUSTED_OWNERS");
     command.args(args);
     for (key, value) in env {
         command.env(key, value);
@@ -181,6 +182,74 @@ fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
     assert!(
         stderr.contains("no ACCELERATOR_CACHE_DIR override was given"),
         "stderr missing the named resolution step: {stderr:?}"
+    );
+    Ok(())
+}
+
+fn is_launcher_id(candidate: &str) -> bool {
+    candidate.len() == 16
+        && candidate
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+#[test]
+fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>>
+{
+    let cache = tempfile::Builder::new()
+        .prefix("version-claim-")
+        .tempdir()?;
+    let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+
+    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+
+    assert!(output.status.success(), "{output:?}");
+    let claims: Vec<String> = std::fs::read_dir(cache.path().join("claims"))?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|name| name.to_string_lossy().into_owned())
+        .collect();
+    let prefix = format!("{}.", env!("CARGO_PKG_VERSION"));
+    assert!(
+        matches!(
+            claims.as_slice(),
+            [claim] if claim
+                .strip_prefix(&prefix)
+                .is_some_and(is_launcher_id)
+        ),
+        "{claims:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_built_in_command_in_a_relocated_root_writes_nothing_to_stderr(
+) -> Result<(), Box<dyn Error>> {
+    let cache = tempfile::Builder::new()
+        .prefix("version-quiet-")
+        .tempdir()?;
+    let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+
+    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+    Ok(())
+}
+
+#[test]
+fn a_built_launcher_warns_on_a_malformed_trusted_owners_value(
+) -> Result<(), Box<dyn Error>> {
+    let output = run(
+        &["version"],
+        &[("ACCELERATOR_CACHE_TRUSTED_OWNERS", "1001,")],
+    )?;
+
+    assert!(output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ignoring ACCELERATOR_CACHE_TRUSTED_OWNERS"),
+        "{stderr}"
     );
     Ok(())
 }

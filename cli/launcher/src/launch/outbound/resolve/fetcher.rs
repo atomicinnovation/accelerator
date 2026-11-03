@@ -222,6 +222,23 @@ impl Fetcher {
         )
     }
 
+    /// Production limits, for a release served over `http` from loopback.
+    ///
+    /// # Errors
+    ///
+    /// If the underlying client cannot be constructed.
+    pub fn admitting_loopback_http() -> Result<Self, String> {
+        Self::build(
+            Limits {
+                connect: CONNECT_TIMEOUT,
+                total: TOTAL_TIMEOUT,
+                max_attempts: MAX_ATTEMPTS,
+                backoff: Duration::from_millis(250),
+            },
+            false,
+        )
+    }
+
     /// Build a test fetcher with a caller-chosen backoff, permitting `http` for
     /// a local mock server.
     ///

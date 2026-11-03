@@ -5,23 +5,29 @@
 //! deliberately not routed through `ResolveBinary::resolve`, whose per-exec
 //! re-verify is precisely what they are exempt from.
 
+pub mod after_materialise;
 pub mod attestation;
 pub mod claims;
 pub mod download;
 pub mod extract;
 pub mod layout;
 pub mod lease;
+pub mod locks;
 pub mod pins;
 pub mod reap;
 pub mod seal;
 pub mod table;
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
-mod testing;
+pub(crate) mod testing;
 pub mod tree_lock;
 
 #[cfg(unix)]
+mod prune;
+#[cfg(unix)]
 mod resolver;
+#[cfg(unix)]
+pub use prune::{TreePrune, TreePrunePorts, TreePruneRegime, TreePruneReport};
 #[cfg(unix)]
 pub use resolver::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,

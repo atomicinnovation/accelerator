@@ -49,6 +49,12 @@ jobs:
           # cli workspace.
           workspaces: cli
 
+      # The launcher's ACL test sets a POSIX ACL with setfacl, which the
+      # runner image does not promise to ship.
+      - name: Install acl
+        if: runner.os == 'Linux'
+        run: sudo apt-get install --yes acl
+
       - name: Run unit tests
         run: mise run test:unit
 
@@ -86,7 +92,11 @@ jobs:
           # build) and fetches its own locked closure through
           # deps:install:cargo-sources, since a restored registry misses any
           # crate the lockfile gained since the cache was saved.
-          workspaces: cli
+          # test:integration:release-guard builds into its own target dir, so
+          # only its loopback-seamed binaries relink on a warm run.
+          workspaces: |
+            cli
+            cli -> target/release-guard
 
       # test:integration:research runs the research guard's verdicts under
       # zsh as well as bash; macOS ships zsh, ubuntu does not.

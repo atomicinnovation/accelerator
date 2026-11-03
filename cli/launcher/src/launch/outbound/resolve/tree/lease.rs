@@ -5,11 +5,17 @@
 //! seconds after every bootstrap. The kernel is the liveness oracle: a crashed
 //! holder releases with no cleanup code and leaves no stale state.
 
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
 pub use lease::Liveness;
+
+use crate::launch::core::tree::AcquiredTree;
 
 #[cfg(unix)]
 pub use unix::{
-    probe_single_flight, take_single_flight, try_single_flight, SingleFlight,
+    probe_single_flight, take_single_flight, try_exclusive_lease,
+    try_single_flight, wait_existing, ExclusiveLease, SingleFlight,
 };
 
 pub enum SingleFlightProbe {
@@ -30,6 +36,63 @@ pub struct FlockProbe;
 impl LivenessProbe for FlockProbe {
     fn probe(&self, lease: &std::path::Path) -> Liveness {
         lease::probe_shared_lease(lease)
+    }
+}
+
+/// A lease this process holds is never probed: where `flock` is emulated
+/// with process-owned POSIX locks, probing it would release it.
+#[derive(Debug, Default)]
+pub struct HeldLeases {
+    generations: BTreeSet<PathBuf>,
+}
+
+impl HeldLeases {
+    #[must_use]
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    pub fn holding(generations: impl IntoIterator<Item = PathBuf>) -> Self {
+        Self {
+            generations: generations.into_iter().collect(),
+        }
+    }
+
+    #[must_use]
+    pub fn of(acquired: &[AcquiredTree]) -> Self {
+        Self::holding(
+            acquired.iter().map(|acquired| acquired.tree.path.clone()),
+        )
+    }
+
+    /// `probe`, asked only about leases this process does not hold.
+    #[must_use]
+    pub const fn before<'a>(
+        &'a self,
+        probe: &'a dyn LivenessProbe,
+    ) -> HeldLeasesFirst<'a> {
+        HeldLeasesFirst { held: self, probe }
+    }
+
+    fn holds_lease(&self, lease: &Path) -> bool {
+        self.generations
+            .iter()
+            .any(|generation| lease::lease_beside(generation) == lease)
+    }
+}
+
+pub struct HeldLeasesFirst<'a> {
+    held: &'a HeldLeases,
+    probe: &'a dyn LivenessProbe,
+}
+
+impl LivenessProbe for HeldLeasesFirst<'_> {
+    fn probe(&self, lease: &Path) -> Liveness {
+        if self.held.holds_lease(lease) {
+            Liveness::Held
+        } else {
+            self.probe.probe(lease)
+        }
     }
 }
 
@@ -124,6 +187,56 @@ mod unix {
             flock(fd, FlockOperation::NonBlockingLockExclusive)
         })
         .map(probe_outcome)
+    }
+
+    /// Take `LOCK_EX` on an existing lock file, blocking until it is
+    /// available, and never create one: `Ok(None)` when there is none.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lock file exists but cannot be opened or
+    /// locked, or keeps being replaced.
+    pub fn wait_existing(
+        path: &Path,
+    ) -> Result<Option<SingleFlight>, TreeError> {
+        lock_confirmed(path, open_existing, |fd| {
+            flock(fd, FlockOperation::LockExclusive)
+        })
+        .and_then(wait_existing_outcome)
+    }
+
+    /// An exclusive lock on a generation's lease, held across its removal so
+    /// no dispatch can lease the generation meanwhile.
+    pub struct ExclusiveLease {
+        _file: File,
+    }
+
+    /// Lock the lease exclusively without blocking, creating its file if
+    /// missing; `Ok(None)` when a live process holds it shared.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lease cannot be opened or `flock` fails
+    /// for a reason other than contention, as where it is unsupported.
+    pub fn try_exclusive_lease(
+        path: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError> {
+        let file = open_creating(path)
+            .map_err(|error| {
+                lease(&format!(
+                    "cannot open the lease {}: {error}",
+                    path.display()
+                ))
+            })?
+            .ok_or_else(no_lock_file)?;
+        match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive) {
+            Ok(()) => Ok(Some(ExclusiveLease { _file: file })),
+            Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
+            Err(error) => Err(lease(&format!(
+                "cannot lock the lease {}: {error}",
+                path.display()
+            ))),
+        }
     }
 
     const MAX_LOCK_ATTEMPTS: usize = 8;
@@ -252,6 +365,21 @@ mod unix {
         }
     }
 
+    /// A churning lock file is a fault here, not contention: a caller that
+    /// was willing to wait has no lock-free arm to fall back to.
+    fn wait_existing_outcome(
+        locked: Locked,
+    ) -> Result<Option<SingleFlight>, TreeError> {
+        match locked {
+            Locked::Taken(guard) => Ok(Some(guard)),
+            Locked::Absent => Ok(None),
+            Locked::Held => {
+                Err(lease("a blocking single-flight lock reported contention"))
+            }
+            Locked::KeptBeingReplaced => Err(kept_being_replaced()),
+        }
+    }
+
     fn no_lock_file() -> TreeError {
         lease("the single-flight lock file could not be created")
     }
@@ -271,7 +399,12 @@ mod unix {
     }
 
     fn open_existing(path: &Path) -> std::io::Result<Option<File>> {
-        match OpenOptions::new().read(true).write(true).open(path) {
+        match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(not_following_links())
+            .open(path)
+        {
             Ok(file) => Ok(Some(file)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok(None)
@@ -287,8 +420,13 @@ mod unix {
             .create(true)
             .truncate(false)
             .mode(0o600)
+            .custom_flags(not_following_links())
             .open(path)
             .map(Some)
+    }
+
+    const fn not_following_links() -> i32 {
+        rustix::fs::OFlags::NOFOLLOW.bits().cast_signed()
     }
 
     fn lease(detail: &str) -> TreeError {
@@ -317,8 +455,8 @@ mod unix {
         use super::{
             identity, is_displacement, lock_confirmed, open_creating,
             placement, probe_outcome, probe_single_flight, take_outcome,
-            take_single_flight, try_outcome, Locked, Placement,
-            MAX_LOCK_ATTEMPTS,
+            take_single_flight, try_outcome, wait_existing,
+            wait_existing_outcome, Locked, Placement, MAX_LOCK_ATTEMPTS,
         };
 
         #[test]
@@ -623,6 +761,63 @@ mod unix {
             ));
         }
 
+        #[test]
+        fn wait_existing_maps_a_churning_lock_to_an_error() {
+            assert!(is_lease(&wait_existing_outcome(
+                Locked::KeptBeingReplaced
+            )));
+        }
+
+        #[test]
+        fn wait_existing_treats_contention_on_a_blocking_lock_as_a_fault() {
+            assert!(is_lease(&wait_existing_outcome(Locked::Held)));
+        }
+
+        #[test]
+        fn waiting_on_an_absent_lock_finds_none_and_creates_nothing() {
+            let (_dir, path) = lock_path();
+            let waited = {
+                let path = path.clone();
+                within(BLOCKING_BOUND, "the wait", move || {
+                    wait_existing(&path).map(|guard| guard.is_some())
+                })
+            };
+            assert!(matches!(waited, Ok(false)));
+            assert!(!path.exists(), "the wait created the lock file");
+        }
+
+        #[test]
+        fn waiting_on_a_held_lock_takes_it_once_released() {
+            let (_dir, path) = lock_path();
+            let held = take_single_flight(&path).expect("held");
+            let (waiting, waits) = std::sync::mpsc::channel();
+            let waiter = std::thread::spawn(move || {
+                let _ = waiting.send(());
+                within(BLOCKING_BOUND, "the wait", move || {
+                    wait_existing(&path).map(|guard| guard.is_some())
+                })
+            });
+            waits.recv().expect("the waiter started");
+
+            drop(held);
+
+            assert!(matches!(waiter.join().expect("waiter"), Ok(true)));
+        }
+
+        #[test]
+        fn a_symlinked_lock_file_is_refused_and_its_target_untouched() {
+            let (dir, path) = lock_path();
+            let target = dir.path().join("target");
+            std::fs::write(&target, b"sentinel").expect("target");
+            std::os::unix::fs::symlink(&target, &path).expect("symlink");
+
+            assert!(is_lease(&take_single_flight(&path)));
+            assert!(is_lease(&probed(&path)));
+            assert!(is_lease(&wait_existing(&path)));
+            assert!(!is_locked_elsewhere(&target), "the target was locked");
+            assert_eq!(std::fs::read(&target).expect("target"), b"sentinel");
+        }
+
         fn probed(path: &Path) -> Result<SingleFlightProbe, TreeError> {
             let path = path.to_owned();
             within(BLOCKING_BOUND, "the probe", move || {
@@ -725,9 +920,16 @@ mod stubs {
     ) -> Result<super::SingleFlightProbe, TreeError> {
         unimplemented!("the single-flight lock is a Unix-only path")
     }
+
+    pub fn wait_existing(
+        _path: &Path,
+    ) -> Result<Option<SingleFlight>, TreeError> {
+        unimplemented!("the single-flight lock is a Unix-only path")
+    }
 }
 
 #[cfg(not(unix))]
 pub use stubs::{
-    probe_single_flight, take_single_flight, try_single_flight, SingleFlight,
+    probe_single_flight, take_single_flight, try_single_flight, wait_existing,
+    SingleFlight,
 };

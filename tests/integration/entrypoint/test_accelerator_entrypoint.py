@@ -1,16 +1,24 @@
 import concurrent.futures
 import contextlib
+import functools
 import hashlib
+import http.server
+import json
 import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
+import threading
+import time
+import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 
+from tasks.shared.paths import CLI_WORKSPACE_CARGO_TOML
 from tests.integration.support.installation import (
     BASH as _BASH,
 )
@@ -33,6 +41,7 @@ from tests.integration.support.installation import (
     Installation as Harness,
 )
 from tests.integration.support.installation import (
+    assert_hermetic,
     copy_bootstrap,
     download_log,
     dumped_env,
@@ -44,6 +53,9 @@ from tests.integration.support.installation import (
 )
 from tests.integration.support.installation import (
     host_platform as _resolve_host_platform,
+)
+from tests.integration.support.installation import (
+    sign as sign_with,
 )
 from tests.support.artefacts import build_launcher, build_shim
 
@@ -1611,3 +1623,307 @@ def test_stale_staged_shim_is_ignored_not_trusted_or_removed(
         before.st_mtime_ns,
     )
     assert stale.exists()
+
+
+def _verify_then(harness: Harness, host_platform: str, action: str) -> None:
+    """Replace the shim with one that passes, then does `action` to the
+    launcher it was asked about, as a prune or a remount would between the
+    bootstrap's verification and its `exec`."""
+    shim = harness.root / f"bin/accelerator-verify-{host_platform}"
+    shim.write_text(f'#!/bin/sh\n{action} "$3"\nexit 0\n')
+    shim.chmod(0o755)
+
+
+def test_a_launcher_removed_before_exec_honours_fail_safe(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "rm -f")
+
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("visualiser", "--fail-safe"),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vanished before it could run" in result.stderr, result.stderr
+
+
+def test_a_launcher_removed_before_exec_fails_with_the_diagnostic(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "rm -f")
+
+    result = _run_bootstrap(
+        harness.root, harness.server, downloader, args=("visualiser",)
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "vanished before it could run" in result.stderr, result.stderr
+
+
+def test_an_unexecutable_launcher_still_fails_under_fail_safe(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    _verify_then(harness, host_platform, "chmod -x")
+
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("visualiser", "--fail-safe"),
+    )
+
+    assert result.returncode == 126, result.stdout + result.stderr
+
+
+_DAYS = 24 * 60 * 60
+_BEYOND_THE_CLAIM_WINDOW = 30 * _DAYS
+_VISUALISER_MARKER = "C-VISUALISER-RAN"
+
+
+def _crate_version() -> str:
+    cargo = tomllib.loads(CLI_WORKSPACE_CARGO_TOML.read_text())
+    return cargo["workspace"]["package"]["version"]
+
+
+def _pinned_digest(artifact: str, alias: str) -> str:
+    pins = tomllib.loads((_REPO_ROOT / "pins.toml").read_text())
+    return pins["assembled_sha256"][artifact][alias]
+
+
+@contextlib.contextmanager
+def _release_server(directory: Path) -> Iterator[tuple[str, list[str]]]:
+    """Serve `directory` on loopback, yielding its base URL and the paths
+    requested of it."""
+    requests: list[str] = []
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self) -> None:
+            requests.append(self.path)
+            super().do_GET()
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            pass
+
+    server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", 0), functools.partial(Handler, directory=str(directory))
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", requests
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def _signature(path: Path) -> str:
+    return path.with_name(path.name + ".minisig").read_text()
+
+
+def _publish_visualiser(server: Path, keys: Path, alias: str) -> str:
+    """Serve a sub-binary and a manifest naming it, signed by the run's
+    release key; return the asset's digest."""
+    asset = server / f"accelerator-visualiser-{alias}"
+    asset.write_text(f"#!/bin/sh\necho {_VISUALISER_MARKER}\n")
+    asset.chmod(0o755)
+    sign_with(keys / "release.key", asset)
+    digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+    manifest = server / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": _crate_version(),
+                "binaries": {
+                    "visualiser": {
+                        "description": "Visualiser",
+                        "platforms": {
+                            alias: {
+                                "sha256": digest,
+                                "signature": _signature(asset),
+                            }
+                        },
+                    }
+                },
+            }
+        )
+    )
+    sign_with(keys / "release.key", manifest)
+    manifest.with_name("manifest.json.minisig").rename(
+        server / "manifest.minisig"
+    )
+    return digest
+
+
+class _Root:
+    """A relocated cache root, seeded file by file at chosen ages."""
+
+    def __init__(self, path: Path, now: float) -> None:
+        self.path = path
+        self.now = now
+
+    def file(self, name: str, age: float, body: str = "x") -> Path:
+        path = self.path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+        os.utime(path, (self.now - age, self.now - age))
+        return path
+
+    def directory(self, name: str, age: float) -> Path:
+        path = self.path / name
+        path.mkdir(parents=True, mode=0o700)
+        os.utime(path, (self.now - age, self.now - age))
+        return path
+
+    def signed(self, name: str, age: float) -> None:
+        self.file(name, age)
+        self.file(f"{name}.minisig", age)
+
+    def tree(
+        self, artifact: str, alias: str, digest: str, age: float
+    ) -> list[str]:
+        generation = f"{artifact}-{alias}-{digest}-1-0011223344556677"
+        names = [
+            f"trees/{artifact}-{alias}-{digest}.ref",
+            f"trees/{generation}",
+            *(
+                f"trees/{generation}{sidecar}"
+                for sidecar in (".sealed", ".sealed.sig", ".lease")
+            ),
+            f"trees/.tmp-{artifact}-{alias}.lock",
+            f"trees/claims/{digest}.fedcba9876543210",
+        ]
+        self.file(names[0], age, body=generation)
+        self.directory(names[1], age)
+        for name in names[2:]:
+            self.file(name, age, body="")
+        return names
+
+    def names(self) -> set[str]:
+        return {
+            str(path.relative_to(self.path)) for path in self.path.rglob("*")
+        }
+
+
+def _seed_a_superseded_version(
+    root: _Root, version: str, seed: str, retired_seed: str, alias: str
+) -> None:
+    """Leave what a dispatch and a materialise of `version` would, none of it
+    claimed within the window, plus a `driver` tree at a digest the current
+    version does not pin and a tree of an artifact it no longer ships."""
+    digest = seed * 64
+    old = _BEYOND_THE_CLAIM_WINDOW
+    for binary in ("visualiser", "vcs"):
+        root.signed(f"{binary}-{version}-{digest}", old)
+        root.file(f".tmp-{binary}-{digest}-1-2", old)
+    root.signed(f"accelerator-launcher-{version}-{alias}", old)
+    root.file(f"claims/{version}.fedcba987654321{seed}", old, body="")
+    root.file(f"accelerator-verify-{alias}-{digest}", old)
+    root.tree("driver", alias, digest, old)
+    root.tree(f"retired-{seed}", alias, retired_seed * 64, old)
+
+
+def test_a_relocated_root_keeps_only_the_current_versions_footprint(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    keys: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness(real_launcher=True)
+    visualiser_digest = _publish_visualiser(harness.server, keys, host_platform)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    cache.chmod(0o700)
+    assert stat.S_IMODE(cache.stat().st_mode) == 0o700
+    root = _Root(cache, time.time())
+    _seed_a_superseded_version(root, "0.1.0", "a", "e", host_platform)
+    _seed_a_superseded_version(root, "0.2.0", "b", "f", host_platform)
+    root.file(f".tmp-visualiser-{'c' * 64}-1-2", 2 * 60 * 60)
+    c_trees = [
+        name
+        for artifact in ("browser", "driver")
+        for name in root.tree(
+            artifact,
+            host_platform,
+            _pinned_digest(artifact, host_platform),
+            0,
+        )
+    ]
+
+    with _release_server(harness.server) as (base_url, requests):
+        result = _run_bootstrap(
+            harness.root,
+            harness.server,
+            downloader,
+            args=("visualiser",),
+            extra_env={
+                "ACCELERATOR_CACHE_DIR": str(cache),
+                "ACCELERATOR_RELEASE_BASE_URL": base_url,
+                "ACCELERATOR_TEST_RELEASE_PUBLIC_KEY": str(
+                    keys / "release.pub"
+                ),
+            },
+        )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _VISUALISER_MARKER in result.stdout, result.stdout + result.stderr
+    asset = f"/accelerator-visualiser-{host_platform}"
+    assert requests.count(asset) == 1, requests
+    crate = _crate_version()
+    shim = harness.root / f"bin/accelerator-verify-{host_platform}"
+    shim_digest = hashlib.sha256(shim.read_bytes()).hexdigest()
+    remaining = root.names() - {".accelerator-unverified.log"}
+    claims = {name for name in remaining if name.startswith("claims/")}
+    assert len(claims) == 1, claims
+    assert re.fullmatch(
+        rf"claims/{re.escape(crate)}\.[0-9a-f]{{16}}", next(iter(claims))
+    ), claims
+    assert remaining - claims == {
+        f"visualiser-{crate}-{visualiser_digest}",
+        f"visualiser-{crate}-{visualiser_digest}.minisig",
+        f"accelerator-launcher-{_VERSION}-{host_platform}",
+        f"accelerator-launcher-{_VERSION}-{host_platform}.minisig",
+        f"accelerator-verify-{host_platform}-{shim_digest}",
+        ".accelerator-prune.lock",
+        "claims",
+        "trees",
+        "trees/claims",
+        *c_trees,
+    }
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://github.com/atomicinnovation/accelerator/releases",
+        "https://127.0.0.1:8123",
+        "http://localhost:8123",
+        "http://127.0.0.1.example",
+    ],
+)
+def test_the_funnel_refuses_a_release_host_neither_invalid_nor_loopback(
+    tmp_path: Path, base_url: str
+) -> None:
+    env = {
+        "ACCELERATOR_BOOTSTRAP_DOWNLOADER": "downloader",
+        "ACCELERATOR_RELEASE_BASE_URL": base_url,
+    }
+
+    with pytest.raises(AssertionError, match="release base URL"):
+        assert_hermetic(env, tmp_path / "bin/accelerator")
