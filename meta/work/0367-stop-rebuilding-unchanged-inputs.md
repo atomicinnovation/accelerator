@@ -9,12 +9,12 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
+blocks: ["work-item:0370"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "frontend", "rust"]
-last_updated: "2026-10-30T13:45:16+00:00"
+last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-blocks: ["work-item:0370"]
 ---
 
 # 0367: Stop rebuilding unchanged inputs
@@ -97,11 +97,10 @@ today, and they were skipped correctly in warm runs.
   so this item may merge.
 - Blocks: 0370, which measures the macOS host settings once this item,
   0362 and 0363 have each landed or been abandoned.
-- Related: 0368, whose cold state deletes every `node_modules` and
-  relies on `deps:install:node` reinstalling. Keep the task's freshness
+- Related: 0368, whose cold state deletes `cli/visualiser/frontend/node_modules`
+  and relies on `deps:install:node` reinstalling. Keep the task's freshness
   output inside `node_modules`, for example npm's own
-  `node_modules/.package-lock.json`, so a deleted directory counts as
-  stale.
+  `node_modules/.package-lock.json`, so a deleted directory counts as stale.
 
 ## Assumptions
 

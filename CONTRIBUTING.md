@@ -43,8 +43,8 @@ Two host settings should shorten a full `mise run` on macOS:
    after a restart. macOS attributes each process to the app responsible for
    it, so the exemption covers everything a listed app launches. It should
    help because XProtect scans each newly linked or copied binary on its first
-   launch, serially, at about 100–300 ms each, and a coverage run relinks 369
-   test binaries.
+   launch, serially, at about 100–300 ms each, and a coverage run relinks
+   hundreds of test binaries.
 2. **IDE exclusions.** Mark `cli/target`,
    `cli/visualiser/frontend/node_modules` and `docs-site/node_modules` as
    Excluded in the IDE. RustRover excludes `target` automatically only for an

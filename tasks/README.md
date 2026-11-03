@@ -371,8 +371,9 @@ verifier::sha256_hex throughput (decimal MB/s) =
 
 #### Build timing
 
-`measure:build` times `mise run default`: one priming run, whose wall-clock is
-recorded and discarded, then `--runs` timed runs (default 3). Per task it
+`measure:build` times `mise run default`, or with `--isolate` each named task
+alone: one priming run, whose wall-clock is recorded and discarded (none under
+`--cache-state cold`), then `--runs` timed runs (default 3). Per task it
 records duration, queueing delay, cargo unit counts, lock wait and nextest
 phase; per run, CPU busy in 30-second buckets and the CPU-seconds of
 `syspolicyd`, `XprotectService`, the IDE and `fsnotifier`. It needs no quiet
@@ -412,19 +413,21 @@ is gone, until the launcher is rebuilt with the `cargo build` in
 `CONTRIBUTING.md`'s "Local development"; a cold session warns of this in the
 preflight, and again however it ends once it has deleted anything.
 
-**Comparing build records.** `measure:compare-builds <previous> <current>`
-applies the comparability rule, the host-settings label included: its first
-line names every condition that differs, with both values, or says
-`conditions match`, and the next two give both records' run ids, each
-introduced by its host-settings label when the labels differ. It exits 0
-whenever both records parse, so the reader decides what may differ; a
-baseline-to-final comparison must show none differing. Each change is given in
-seconds and as a ratio, and is within noise when the current median lies in
-the previous record's [min, max]. A figure absent or flagged on either side is
-named in words, and a process tracked by different patterns is named but not
-compared. `--task <name>` adds that task's duration and nextest-phase changes.
-The cargo unit totals, with their total, are compared when every run in each
-record agrees on them; otherwise the report names the record whose runs vary.
+**Comparing build records.** `measure:compare-builds <previous> <current>` takes
+two record files, each a run directory's `record.json` or a kept
+`meta/measurements/<run id>.json`, and applies the comparability rule, the
+host-settings label included: its first line names every condition that differs,
+with both values, or says `conditions match`, and the next two give both
+records' run ids, each introduced by its host-settings label when the labels
+differ. It exits 0 whenever both records parse, so the reader decides what may
+differ; a baseline-to-final comparison must show none differing. Each change is
+given in seconds and as a ratio, and is within noise when the current median
+lies in the previous record's [min, max]; it is not judged when the previous
+record has a single run. A figure absent or flagged on either side is named in
+words, and a process tracked by different patterns is named but not compared.
+`--task <name>` adds that task's duration and nextest-phase changes. The cargo
+unit totals, with their total, are compared when every run in each record agrees
+on them; otherwise the report names the record whose runs vary.
 
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs

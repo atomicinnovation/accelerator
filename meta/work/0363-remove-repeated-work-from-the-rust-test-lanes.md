@@ -9,12 +9,12 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
+blocks: ["work-item:0370"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
-last_updated: "2026-10-29T19:46:28+00:00"
+last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-blocks: ["work-item:0370"]
 ---
 
 # 0363: Remove repeated work from the Rust test lanes

@@ -12,7 +12,7 @@ parent: "work-item:0361"
 relates_to: ["work-item:0369", "codebase-research:2026-10-30-0368-build-performance-measurement-harness", "work-item:0370"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
-last_updated: "2026-11-01T22:25:37+00:00"
+last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---

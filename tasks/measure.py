@@ -1,7 +1,10 @@
-"""Warm-dispatch latency measurement (quiet host; outside `check`/`default`).
+"""The `measure` namespace: latency, size and build-timing measurements.
 
-Times the dispatched `vcs guard` (`G`) against the shell guard it replaced
-(`B`), recovered from history, and classifies the six cells C1-C6.
+`measure:warm-dispatch` times the dispatched `vcs guard` (`G`) against the
+shell guard it replaced (`B`), recovered from history, and classifies the six
+cells C1-C6. `measure:build` times the default build, or each isolated task,
+from a chosen cache state, and `measure:compare-builds` compares two of its
+records.
 
 Prerequisites and the reason the namespace sits outside the aggregate `check`
 are in `tasks/README.md`'s `### The measure namespace`.

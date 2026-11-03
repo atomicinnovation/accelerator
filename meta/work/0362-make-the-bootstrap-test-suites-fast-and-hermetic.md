@@ -13,7 +13,7 @@ blocks: ["work-item:0366", "work-item:0370"]
 relates_to: ["work-item:0165", "work-item:0182"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "ci"]
-last_updated: "2026-10-29T19:46:54+00:00"
+last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
