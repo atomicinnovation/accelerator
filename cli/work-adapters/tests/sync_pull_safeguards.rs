@@ -278,4 +278,27 @@ mod in_a_real_repository {
         assert_copied_but_still_pulled(&repo);
         Ok(())
     }
+
+    #[test]
+    fn an_ignored_file_reformatted_since_it_synced_is_copied_before_the_pull(
+    ) -> Result<(), TestError> {
+        vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+        let synced_body = "*Body* as last synced\n";
+        let (synced, recorded) =
+            (content(synced_body), projection(synced_body));
+        let repo = Repo::with_item(
+            Tracker::Linear,
+            1,
+            &content("_Body_ as last synced\n"),
+            remote_moved(),
+            &Recorded::split(&synced, &recorded),
+        )
+        .asking_the_repository();
+        let env = Hermetic::rooted_at(repo.root())?;
+        env.git(&["init", "--quiet"], repo.root())?;
+        std::fs::write(repo.root().join(".gitignore"), "*.md\n")?;
+
+        assert_copied_but_still_pulled(&repo);
+        Ok(())
+    }
 }

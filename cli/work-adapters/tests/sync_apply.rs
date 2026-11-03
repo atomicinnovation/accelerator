@@ -1334,8 +1334,11 @@ fn a_pull_over_a_clean_file_unchanged_since_the_last_sync_keeps_no_copy(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
     let item_path = real_item_file(&dir, CLASSIFIED);
-    for unchanged in [UnchangedSinceSync::RecipeOne, UnchangedSinceSync::Legacy]
-    {
+    for unchanged in [
+        UnchangedSinceSync::RecipeOne,
+        UnchangedSinceSync::BothRecipes,
+        UnchangedSinceSync::Legacy,
+    ] {
         let fake = Fake::default();
 
         let attempt = pull_with(
@@ -1484,7 +1487,13 @@ fn an_untracked_file_unchanged_since_the_last_sync_keeps_no_copy(
     fake.report_tracking(FileTracking::Untracked);
     fake.report_status(Dirtiness::Dirty);
 
-    let attempt = pull_with(&fake, &pull_request(&item_path));
+    let attempt = pull_with(
+        &fake,
+        &PullRequest {
+            unchanged_since_sync: UnchangedSinceSync::BothRecipes,
+            ..pull_request(&item_path)
+        },
+    );
 
     attempt.result?;
     assert_eq!(fake.recovery_calls(), Vec::<String>::new());
@@ -1492,26 +1501,31 @@ fn an_untracked_file_unchanged_since_the_last_sync_keeps_no_copy(
 }
 
 #[test]
-fn an_untracked_file_under_a_legacy_entry_keeps_a_copy() -> Result<(), TestError>
-{
+fn an_untracked_file_unchanged_under_only_one_recipe_keeps_a_copy(
+) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
     let item_path = real_item_file(&dir, CLASSIFIED);
-    let fake = Fake::default();
-    fake.report_tracking(FileTracking::Untracked);
+    for unchanged in [UnchangedSinceSync::RecipeOne, UnchangedSinceSync::Legacy]
+    {
+        let fake = Fake::default();
+        fake.report_tracking(FileTracking::Untracked);
 
-    let attempt = pull_with(
-        &fake,
-        &PullRequest {
-            unchanged_since_sync: UnchangedSinceSync::Legacy,
-            ..pull_request(&item_path)
-        },
-    );
+        let attempt = pull_with(
+            &fake,
+            &PullRequest {
+                unchanged_since_sync: unchanged,
+                ..pull_request(&item_path)
+            },
+        );
 
-    attempt.result?;
-    assert_eq!(
-        fake.recovery_calls(),
-        kept_a_copy_of(&item_path, CLASSIFIED)
-    );
+        attempt.result?;
+        assert_eq!(
+            fake.recovery_calls(),
+            kept_a_copy_of(&item_path, CLASSIFIED),
+            "{unchanged:?}"
+        );
+        std::fs::write(&item_path, CLASSIFIED)?;
+    }
     Ok(())
 }
 

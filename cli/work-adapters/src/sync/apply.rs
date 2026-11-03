@@ -687,7 +687,11 @@ pub struct PullRequest<'a> {
 /// recorded at the last sync, and under which recipe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnchangedSinceSync {
+    /// Recipe one ignores what the dialect drops on push and formatting,
+    /// so it cannot vouch alone for a file with no VCS history.
     RecipeOne,
+    /// Recipe one and the legacy digest its entry also keeps both match.
+    BothRecipes,
     Legacy,
     No,
 }
@@ -895,7 +899,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// A tracked file has history only once it is VCS-clean, so it is
     /// copied whenever it is not, even when the baseline matches. An
     /// untracked or ignored file reads as clean yet has no history, so only
-    /// a recipe-1 baseline can vouch for it; a legacy entry cannot.
+    /// a baseline it matches under both recipes can vouch for it.
     fn keep_edits_unless_synced(
         &self,
         request: &PullRequest<'_>,
@@ -935,9 +939,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         ) {
             (
                 FileTracking::Tracked,
-                UnchangedSinceSync::RecipeOne | UnchangedSinceSync::Legacy,
+                UnchangedSinceSync::RecipeOne
+                | UnchangedSinceSync::BothRecipes
+                | UnchangedSinceSync::Legacy,
             ) => self.status.is_dirty(path) == Dirtiness::Clean,
-            (FileTracking::Untracked, UnchangedSinceSync::RecipeOne) => true,
+            (FileTracking::Untracked, UnchangedSinceSync::BothRecipes) => true,
             _ => false,
         }
     }

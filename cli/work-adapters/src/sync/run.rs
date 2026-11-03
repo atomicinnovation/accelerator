@@ -657,7 +657,10 @@ impl EntryShapes {
 /// What an item's baseline entry recorded of its local file at the last
 /// sync, under the entry's own recipe.
 enum RecordedLocal {
-    RecipeOne(LocalFingerprints),
+    RecipeOne {
+        fingerprints: LocalFingerprints,
+        legacy: Option<String>,
+    },
     Legacy(String),
 }
 
@@ -675,8 +678,11 @@ impl RecordedLocals {
                 .iter()
                 .filter_map(|item| {
                     let recorded = match baseline.get(&item.id)? {
-                        Entry::Split { split, .. } => {
-                            RecordedLocal::RecipeOne(split.local.clone()?)
+                        Entry::Split { split, legacy, .. } => {
+                            RecordedLocal::RecipeOne {
+                                fingerprints: split.local.clone()?,
+                                legacy: legacy.local.clone(),
+                            }
                         }
                         Entry::Legacy { legacy, .. } => {
                             RecordedLocal::Legacy(legacy.local.clone()?)
@@ -695,10 +701,18 @@ impl RecordedLocals {
         snapshot: &ItemSnapshot<'_>,
     ) -> UnchangedSinceSync {
         match self.0.get(id) {
-            Some(RecordedLocal::RecipeOne(recorded))
-                if snapshot.local().is_ok_and(|now| now == *recorded) =>
-            {
-                UnchangedSinceSync::RecipeOne
+            Some(RecordedLocal::RecipeOne {
+                fingerprints,
+                legacy,
+            }) if snapshot.local().is_ok_and(|now| now == *fingerprints) => {
+                let legacy_matches = legacy.as_ref().is_some_and(|recorded| {
+                    snapshot.legacy_local().is_ok_and(|now| now == *recorded)
+                });
+                if legacy_matches {
+                    UnchangedSinceSync::BothRecipes
+                } else {
+                    UnchangedSinceSync::RecipeOne
+                }
             }
             Some(RecordedLocal::Legacy(recorded))
                 if snapshot
