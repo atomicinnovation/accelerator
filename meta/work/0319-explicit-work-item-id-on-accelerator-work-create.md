@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-blocks: ["work-item:0351"]
+blocks: ["work-item:0371"]
 relates_to: ["work-item:0228", "work-item:0230", "work-item:0302", "work-item:0343"]
 tags: ["work", "cli", "allocation"]
 last_updated: "2026-11-02T11:36:23+00:00"
@@ -349,12 +349,12 @@ None.
 - Blocked by: none. The `{key}` syntax (0228), and the `{tracker}`
   ownership, draft-ID form, `aliases` and identity set (0230) it builds on
   are done.
-- Blocks: 0351, which makes `--dry-run` run every invocation check the
+- Blocks: 0371, which makes `--dry-run` run every invocation check the
   real create runs, in the real create's order. It does so by moving the
   early return in `run_with` that today skips all validation, and it makes
   the `/create-work-item` dry-run call carry every other create flag. This
   story lands first so the skill's push gate catches a taken `--id`
-  straight away; 0351 keeps the five `--id` checks in its shared
+  straight away; 0371 keeps the five `--id` checks in its shared
   validation and the `--id` this story adds to the skill's dry-run call.
 - Coordinates with: 0302 (status ready), which converges every key onto
   `work.key`, keeping sequence numbers, and refuses when two items
@@ -444,4 +444,4 @@ None.
   `cli/work/src/id_pattern.rs`, `cli/work-cli/src/id/check.rs`,
   `cli/work-cli/src/id/next.rs`
 - `skills/work/create-work-item/SKILL.md`
-- Related: 0146, 0228, 0230, 0302, 0343, 0351
+- Related: 0146, 0228, 0230, 0302, 0343, 0371

@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0319"
 parent: "work-item:0319"
-relates_to: ["work-item:0146", "work-item:0351", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
+relates_to: ["work-item:0146", "work-item:0371", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
@@ -122,7 +122,7 @@ of its own, listed under "Behaviour changes".
 - **`pulldown-cmark`** moves to `=0.13.6` for RUSTSEC-2026-0433, as `main`
   already has. The upstream change touches only wikilinks, which neither
   `markdown` nor `document` enables.
-- **Work items**: 0146 gains a work-item ID model section; 0351
+- **Work items**: 0146 gains a work-item ID model section; 0371
   (`--dry-run` invocation validation) is added, blocked by this.
 - **Docs**: `docs-site` `work-items.md`, `tasks/README.md` and the skills
   name the `work id` verbs; `test_retired_id_verbs.py` keeps old names out.
@@ -166,7 +166,7 @@ notice:
   review in `meta/reviews/work/`.
 - Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
   (result `pass`).
-- Follow-up: 0351 makes `--dry-run` run every invocation check the real
+- Follow-up: 0371 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's five `--id` checks.
 
 ## Testing
