@@ -1081,8 +1081,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
     /// Replaces an unconfirmed link as a pending-push order says: adopt
     /// links another key under the same checks as a first adopt; create
-    /// clears the link and creates the item anew, the clear counting as
-    /// landed so a later failure is terminal.
+    /// settles the order before it clears the link and creates the item
+    /// anew.
     pub fn relink(
         &mut self,
         request: &CreateFromLocalRequest<'_>,
@@ -1132,18 +1132,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             }
             PendingPushOrder::Create => {
                 attempt.keeping_marker(request.marker_path);
-                attempt.land_local(
-                    SyncOperation::LinkExternalId,
-                    None,
-                    || {
-                        request
-                            .author
-                            .unlink_external_id(request.file_path)
-                            .map_err(|error| {
-                                PublishError::Step(StepError::Failed(error))
-                            })
-                    },
-                )?;
                 self.create_from_local_steps(request, attempt)
                     .map(|created| CreatedLocally {
                         notice: None,
@@ -1338,10 +1326,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 }
             }
             OrderPrecondition::Create => self
-                .create_marking_progress(request, attempt, digest)
+                .create_anew(request, attempt, digest)
                 .map(CreatedLocally::from),
             OrderPrecondition::CreateUnmarked => self
-                .create_marking_progress(request, attempt, digest)
+                .create_anew(request, attempt, digest)
                 .map(|leftover_marker| CreatedLocally {
                     notice: Some(CreateNotice::NothingToSettle),
                     ..CreatedLocally::from(leftover_marker)
@@ -1351,7 +1339,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     self.tracker.locate(&recorded)
                 })? {
                     Located::NotFound => self
-                        .create_marking_progress(request, attempt, digest)
+                        .create_anew(request, attempt, digest)
                         .map(CreatedLocally::from),
                     Located::Found(issue) => {
                         Err(refused(OrderRefusal::MarkerRecords {
@@ -1474,6 +1462,28 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             && BodyComparison::new(self.tracker, self.parser)
                 .equivalence(request.body, &issue.body)
                 == BodyEquivalence::Equivalent
+    }
+
+    /// Creates the item as a settled create order says, first clearing
+    /// any link it replaces; the clear counts as landed, so a failure
+    /// after it is terminal.
+    fn create_anew(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        attempt: &mut ItemAttempt,
+        digest: String,
+    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+        if request.linked.is_some() {
+            attempt.land_local(SyncOperation::LinkExternalId, None, || {
+                request
+                    .author
+                    .unlink_external_id(request.file_path)
+                    .map_err(|error| {
+                        PublishError::Step(StepError::Failed(error))
+                    })
+            })?;
+        }
+        self.create_marking_progress(request, attempt, digest)
     }
 
     fn create_marking_progress(

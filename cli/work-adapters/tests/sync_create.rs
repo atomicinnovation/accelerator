@@ -5029,6 +5029,33 @@ fn an_unconfirmed_adopt_can_be_cleared_by_create() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_refused_relink_create_leaves_the_link_in_place() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let (item, _) = unconfirmed_link(&fixture)?;
+    seed_created_marker(&fixture, &item, "ENG-5");
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-5", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = relinking(
+        &fixture,
+        &tracker,
+        &author,
+        &item,
+        PendingPushOrder::Create,
+    )?;
+
+    assert_order_refused(
+        &failure_for(&report, "0001"),
+        SyncOperation::Create,
+        "marker records ENG-5; run --resolve 0001=adopt:ENG-5",
+    );
+    assert!(author.unlinked.borrow().is_empty());
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[test]
 fn a_confirmed_link_cannot_be_replaced() -> Result<(), TestError> {
     let fixture = Fixture::new()?;
     let (item, _) = unconfirmed_link(&fixture)?;
