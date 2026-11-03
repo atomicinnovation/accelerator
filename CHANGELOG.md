@@ -152,9 +152,9 @@
   only that item (`<id>\tfailed\t-\tretryable`, exit `70`). A `meta/work`
   or integrations directory that is a symlink out of the repository refuses
   the run at the start with exit `74`, before anything is sent: move the
-  directory back inside the repository, or, for the integrations directory,
-  set `paths.integrations` to the absolute target in
-  `.accelerator/config.local.md`. An out-of-repository
+  directory back inside the repository, or set `paths.work` or
+  `paths.integrations` to the absolute target in
+  `.accelerator/config.local.md`. An out-of-repository `paths.work` or
   `paths.integrations`, absolute or `..`-relative, is honoured only from an
   untracked `.accelerator/config.local.md`; one in the team config or a
   tracked personal file now refuses the run with exit `74` naming that
@@ -850,8 +850,9 @@
 - **Run `/accelerator:migrate` (migration 0011) to ignore machine-local sync
   state.** Settle any tracked pending-push markers with
   `--resolve <id>=adopt:<KEY>` or `=create` before untracking what it names.
-  Move a team-config `paths.integrations` outside the repository into an
-  untracked `.accelerator/config.local.md`, or sync refuses with `74`.
+  Move a team-config `paths.work` or `paths.integrations` outside the
+  repository into an untracked `.accelerator/config.local.md`, or sync
+  refuses with `74`.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item
   file changed and nothing sent to the tracker; commit the result. A Jira file

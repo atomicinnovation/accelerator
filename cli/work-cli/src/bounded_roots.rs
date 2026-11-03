@@ -506,15 +506,12 @@ mod tests {
 
         fn bound(
             &self,
+            key: RootKey,
             path: PathBuf,
             source: PathSource,
         ) -> Result<BoundedRoot, RootRefusal> {
             BoundedRoot::for_configured(
-                &ConfiguredRoot {
-                    key: RootKey::Integrations,
-                    path,
-                    source,
-                },
+                &ConfiguredRoot { key, path, source },
                 self.repository(),
             )
         }
@@ -573,8 +570,11 @@ mod tests {
         ]
     }
 
-    fn shapes_outside(repository: &Path, outside: &Path) -> Vec<Shape> {
-        let key = RootKey::Integrations;
+    fn shapes_outside(
+        repository: &Path,
+        outside: &Path,
+        key: RootKey,
+    ) -> Vec<Shape> {
         let from = |source: PathSource, expected: Expected| -> Shape {
             ("", outside.to_path_buf(), source, expected)
         };
@@ -645,9 +645,18 @@ mod tests {
         let outside = layout.outside.path().join("integrations");
         let shapes = shapes_inside(&repository)
             .into_iter()
-            .chain(shapes_outside(&repository, &outside));
-        for (shape, path, source, expected) in shapes {
-            let bounded = layout.bound(path, source);
+            .map(|shape| (RootKey::Integrations, shape))
+            .chain(
+                [RootKey::Integrations, RootKey::Work].into_iter().flat_map(
+                    |key| {
+                        shapes_outside(&repository, &outside, key)
+                            .into_iter()
+                            .map(move |shape| (key, shape))
+                    },
+                ),
+            );
+        for (key, (shape, path, source, expected)) in shapes {
+            let bounded = layout.bound(key, path, source);
             match expected {
                 Expected::BoundedByTheRepository(root) => {
                     let bounded = bounded.expect(shape);
