@@ -19,14 +19,24 @@ SEVERITY_LINE = re.compile(
     r"\*\*Severity\*\*: (\w+) \| \*\*Confidence\*\*: (\w+) \| "
     r"\*\*Lens\*\*: ([^\n]+)"
 )
+SEVERITY = r"(critical|major|minor|suggestion)"
 LENS_COMMENT = re.compile(
-    r"^- `([^`]+)` \(RIGHT\), (\w+)/(\w+): (.*)$", re.MULTILINE
+    r"^- `(?P<location>[^`]+)`(?: \((?:RIGHT|LEFT)\))?"
+    rf"(?:, {SEVERITY}/(\w+): | \({SEVERITY}, (\w+)\) — "
+    rf"| — {SEVERITY}, (\w+) — )(?P<text>.*)$",
+    re.MULTILINE,
 )
 GENERAL_FINDING = re.compile(
-    r"^- (critical|major|minor|suggestion): (.*)$", re.MULTILINE
+    rf"^- (?:[^\w\s(`*]+\s+)?(?:\({SEVERITY}\)|{SEVERITY}(?::| —))\s+(.*)$",
+    re.MULTILINE,
 )
 MERGE_NOTE = re.compile(
     r"\*\((Merged inline|Inline|Merged into the ([\w -]+) inline)\.?\)\*"
+)
+POINTS_AT_INLINE = re.compile(
+    r"[\s;,]*\b(?:See (?:the )?inline comments?|Inline above"
+    r"|folded into the inline comment|Merged into the inline)\b.*$",
+    re.IGNORECASE | re.DOTALL,
 )
 ANY_NOTE = re.compile(r"\s*\*\([^)]*\)\*\.?")
 TRAILING_LENSES = re.compile(r"\s*\([a-z, -]+\)$")
@@ -89,6 +99,18 @@ def inline_comments(text: str, changed: list[str]) -> list[dict]:
     return comments
 
 
+def merged_lens(raw: str, lens: str) -> str | None:
+    """Return the lens whose inline comment `raw` belongs to, if any."""
+    note = MERGE_NOTE.search(raw)
+    if note:
+        return lens_key(note[2] or lens)
+    return lens if POINTS_AT_INLINE.search(raw) else None
+
+
+def without_merge_notes(raw: str) -> str:
+    return POINTS_AT_INLINE.sub("", ANY_NOTE.sub("", raw)).strip()
+
+
 def lens_findings(text: str, changed: list[str]) -> list[dict]:
     findings = []
     lenses = section(text, "## Per-Lens Results")
@@ -96,26 +118,28 @@ def lens_findings(text: str, changed: list[str]) -> list[dict]:
         name, _, body = block.partition("\n")
         lens = lens_key(name)
         comments = section(body, "**Comments**:", "**General Findings**")
-        for location, severity, confidence, raw in LENS_COMMENT.findall(
-            comments
-        ):
-            note = MERGE_NOTE.search(raw)
-            start, end = lines_of(location)
+        for comment in LENS_COMMENT.finditer(comments):
+            severity, confidence = [
+                group for group in comment.groups()[1:7] if group
+            ]
+            raw = comment["text"]
+            start, end = lines_of(comment["location"])
             findings.append(
                 {
-                    "file": expand(location, changed),
+                    "file": expand(comment["location"], changed),
                     "start": start,
                     "end": end,
                     "severity": severity,
                     "confidence": confidence,
                     "lenses": [lens],
-                    "summary": ANY_NOTE.sub("", raw).strip(),
+                    "summary": without_merge_notes(raw),
                     "kind": "comment",
-                    "merge_into": (lens_key(note[2] or lens) if note else None),
+                    "merge_into": merged_lens(raw, lens),
                 }
             )
         general = section(body, "**General Findings**:")
-        for severity, raw in GENERAL_FINDING.findall(general):
+        for paren, bare, raw in GENERAL_FINDING.findall(general):
+            severity = paren or bare
             if "*(Merged" in raw:
                 continue
             findings.append(

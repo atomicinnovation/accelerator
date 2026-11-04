@@ -74,3 +74,91 @@ def test_a_general_finding_has_no_location(script):
     general = findings[-1]
     assert general["kind"] == "general"
     assert general["file"] is None
+
+
+SEVERITY_FIRST_REVIEW = """## Inline Comments
+
+### `src/core/store.rs:10-14` — Store drops writes
+**Severity**: major | **Confidence**: high | **Lens**: Correctness
+
+The store drops a write when the queue is full.
+
+---
+
+## Per-Lens Results
+
+### Correctness
+
+**Strengths**:
+- `src/core/load.rs:1` is tidy.
+
+**Comments**:
+- `src/core/store.rs:10-14` (major, high) — Writes are dropped when full.\
+ See inline comment.
+- `core/load.rs:3` (minor, medium) — The loader retries forever; cap it.
+
+**General Findings**:
+- 🔵 (suggestion) Add a property test for the queue.
+
+### Code Quality
+
+**Comments**:
+- `src/core/store.rs:12` (RIGHT) — minor, high — The drop path is untested.\
+ Inline above.
+
+**General Findings**:
+- minor — The queue type has two names.
+"""
+
+
+def test_a_comment_written_severity_first_is_read(script):
+    findings = script("parse_review").parse(
+        SEVERITY_FIRST_REVIEW, CHANGED, prefix="R1"
+    )
+
+    loader = next(f for f in findings if f["file"] == "src/core/load.rs")
+    assert (loader["severity"], loader["start"], loader["kind"]) == (
+        "minor",
+        3,
+        "comment",
+    )
+    assert loader["summary"] == "The loader retries forever; cap it."
+
+
+def test_a_comment_that_points_at_its_inline_merges_into_it(script):
+    findings = script("parse_review").parse(
+        SEVERITY_FIRST_REVIEW, CHANGED, prefix="R1"
+    )
+
+    store = [f for f in findings if f["file"] == "src/core/store.rs"]
+    assert len(store) == 1
+    assert store[0]["lenses"] == ["correctness", "code-quality"]
+    assert store[0]["summary"] == "Writes are dropped when full."
+
+
+def test_a_general_finding_led_by_a_severity_marker_is_read(script):
+    findings = script("parse_review").parse(
+        SEVERITY_FIRST_REVIEW, CHANGED, prefix="R1"
+    )
+
+    general = [
+        (f["severity"], f["summary"])
+        for f in findings
+        if f["kind"] == "general"
+    ]
+    assert general == [
+        ("minor", "The queue type has two names."),
+        ("suggestion", "Add a property test for the queue."),
+    ]
+
+
+def test_a_pointer_to_the_inline_comments_in_the_plural_merges(script):
+    review = SEVERITY_FIRST_REVIEW.replace(
+        "See inline comment.", "See the inline comments."
+    )
+
+    findings = script("parse_review").parse(review, CHANGED, prefix="R1")
+
+    store = [f for f in findings if f["file"] == "src/core/store.rs"]
+    assert len(store) == 1
+    assert store[0]["summary"] == "Writes are dropped when full."
