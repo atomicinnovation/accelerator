@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-11-05-0338-linear-update-sends-only-given-fields-review-1"
 title: "Plan Review: Linear Update Sends Only the Fields It Is Given Implementation Plan"
 date: "2026-11-05T17:01:09+00:00"
 author: "Phil Helm"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-11-05-0338-linear-update-sends-only-given-fields"
 reviewer: "Phil Helm"
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, compatibility, standards, safety, documentation]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "compatibility", "standards", "safety", "documentation"]
 review_number: 1
 review_pass: 2
-tags: [linear, cli, update]
+tags: ["linear", "cli", "update"]
 last_updated: "2026-11-05T17:26:38+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
