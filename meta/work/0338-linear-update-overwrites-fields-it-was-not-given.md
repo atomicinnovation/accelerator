@@ -68,12 +68,22 @@ Expected: each command changes exactly the fields named, and no other.
 
 Changes:
 
-- `update` sends one `issueUpdate` whose input holds exactly the fields given:
-  `title`, `description`, `assigneeId`, `priority`, and `stateId` resolved
-  through the catalogue as today.
-- A `--state` combined with other flags applies them all, or refuses before
-  any write; it never applies only the state.
+- `update` sends one `issueUpdate` whose input holds exactly the fields given,
+  with each value as typed: `title`, `description`, `assigneeId`, `priority`,
+  and `stateId` resolved through the catalogue as today.
+- A `--state` combined with other flags joins the same `issueUpdate`; it never
+  applies only the state.
+- `update` reports success as `updated\t<KEY>` whether or not `--state` is
+  given. The JSON a `--state` update prints today came from routing it through
+  `transition`; once `--state` joins the single `issueUpdate`, that JSON goes
+  rather than being rebuilt, so every `update` reports the same way.
+- `skills/integrations/linear/update-linear-issue/SKILL.md` Step 4 drops the
+  JSON `outcome` case.
 - `CHANGELOG.md` `[Unreleased]`: `Fixed`, naming the erased-description case.
+
+Out of scope: error reporting stays `linear update failed`, `--priority` and
+`--assignee-id` are not validated locally, there is no way to unassign, and
+neither `linear transition` nor the input `work sync` sends changes.
 
 ## Acceptance Criteria
 
@@ -81,17 +91,20 @@ Changes:
       input is `{"description": "x"}` and it exits 0.
 - [ ] Given `update <KEY> --title "x"`, when it runs, then the request's input
       is `{"title": "x"}` and the description is untouched.
-- [ ] Given `--assignee-id` and `--priority`, when `update` runs, then both
-      appear in the request's input.
-- [ ] Given `--state` with `--title`, when `update` runs, then the remote ends
-      with both changed, or nothing is written and the command exits non-zero.
+- [ ] Given `update <KEY> --priority 1`, when it runs, then the request's
+      input is `{"priority": 1}` and it exits 0.
+- [ ] Given `update <KEY> --assignee-id <ID>`, when it runs, then the
+      request's input is `{"assigneeId": "<ID>"}` and it exits 0.
+- [ ] Given `--state` with `--title`, when `update` runs, then one request is
+      sent whose input carries both `stateId` and `title`.
+- [ ] Given an unknown or ambiguous `--state` name alongside other flags, when
+      `update` runs, then it refuses before any request.
+- [ ] Given `--description ""`, when `update` runs, then the request's input
+      is `{"description": ""}`.
+- [ ] Given any successful `update`, with or without `--state`, then stdout is
+      `updated\t<KEY>`.
 - [ ] Given no mutating flag, when `update` runs, then it still refuses with
       `E_UPDATE_NO_OPS` before any request.
-
-## Open Questions
-
-- Should `--state` with other flags fold into the one `issueUpdate`, or keep
-  the transition mutation and refuse the combination?
 
 ## Dependencies
 
@@ -100,16 +113,19 @@ Changes:
 
 ## Assumptions
 
-- Linear's `issueUpdate` accepts `assigneeId`, `priority` and `stateId`
-  alongside `title` and `description` in one input.
+- Linear's `issueUpdate` accepts `assigneeId` and `priority` alongside
+  `title`, `description` and `stateId` in one input.
 
 ## Technical Notes
 
+- `stateId` in `issueUpdate` is already proven: `transition`
+  (`cli/linear-client/src/transition.rs:52-62`) sends it through the same
+  mutation.
 - `run_update` (`cli/linear-cli/src/main.rs:299-341`) and `UpdateArgs`
   (`cli/linear-cli/src/cli.rs:59-73`).
-- `LinearClient::update_op` (`cli/linear-client/src/client.rs:721-735`) backs
-  the tracker port's `update` too, so a CLI-only input builder keeps sync's
-  behaviour unchanged.
+- `LinearClient::update_op` (`cli/linear-client/src/client.rs:721-735`) also
+  backs the tracker port's `update`, which `work sync` calls; the input sync
+  sends is pinned by `cli/linear-client/tests/port.rs:224-237`.
 - `cli/linear-cli/tests/flow_update.rs` covers only a title-and-description
   update and the no-flag refusal.
 
