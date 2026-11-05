@@ -39,6 +39,9 @@ the fields being set (`--title`/`--description`/`--state`/`--assignee-id`/
 
 > **Proposed Linear write — review before sending**
 
+A field given an empty value is cleared, not left alone. Show it as cleared,
+for example `description: (cleared — the existing description is erased)`.
+
 At least one mutating flag is required; with none the subcommand refuses before
 any write (`E_UPDATE_NO_OPS`). A `--state` change resolves through
 the catalogue and is refused before any write if the name is unknown or
@@ -60,10 +63,14 @@ ambiguous, abort with "Aborted — no Linear write was made."
 accelerator linear update <IDENTIFIER> [flags]
 ```
 
-The subcommand reports the `updated` keyword on success (the trailing
-`updated\t<identifier>` line, or the `outcome` field when a `--state` change
-renders JSON). Confirm the updated fields and suggest `/show-linear-issue
-<IDENTIFIER>` to verify. On any non-zero exit, report the error — no write was
-made.
+The subcommand reports the `updated` keyword on success: a trailing
+`updated\t<identifier>` line. Confirm the updated fields and suggest
+`/show-linear-issue <IDENTIFIER>` to verify.
+
+An `E_UPDATE_NO_OPS`, `E_TRANSITION_STATE_NOT_IN_CATALOGUE` or
+`E_TRANSITION_STATE_AMBIGUOUS` refusal comes before any request, so no write
+was made. On any other failure, report the error and suggest
+`/show-linear-issue <IDENTIFIER>` to check whether the update landed: a
+timeout or server failure can follow a write Linear applied.
 
 !`accelerator config instructions update-linear-issue --fail-safe`
