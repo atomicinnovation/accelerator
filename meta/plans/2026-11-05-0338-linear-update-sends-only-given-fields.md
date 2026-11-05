@@ -537,11 +537,16 @@ The subcommand reports the `updated` keyword on success: a trailing
 `updated\t<identifier>` line. Confirm the updated fields and suggest
 `/show-linear-issue <IDENTIFIER>` to verify.
 
-Exits 111, 122 and 123 are refusals before any request, so no write was made.
-On any other non-zero exit, report the error and suggest `/show-linear-issue
-<IDENTIFIER>` to check whether the update landed: a timeout or server failure
-can follow a write Linear applied.
+An `E_UPDATE_NO_OPS`, `E_TRANSITION_STATE_NOT_IN_CATALOGUE` or
+`E_TRANSITION_STATE_AMBIGUOUS` refusal comes before any request, so no write
+was made. On any other failure, report the error and suggest
+`/show-linear-issue <IDENTIFIER>` to check whether the update landed: a
+timeout or server failure can follow a write Linear applied.
 ```
+
+The refusals are named by keyword, not exit code, because
+`lint:integration-skills:check` refuses a skill that cites a bash exit
+integer.
 
 Steps 1 and 3 are unchanged.
 
@@ -575,14 +580,14 @@ Append to the end of `### Fixed`:
 
 #### Automated Verification:
 
-- [ ] The update flow passes:
+- [x] The update flow passes:
       `cargo test --manifest-path cli/Cargo.toml -p linear-cli --features test-loopback --test flow_update`
-- [ ] The surrounding linear-cli suites pass unedited (`flow_transition`,
+- [x] The surrounding linear-cli suites pass unedited (`flow_transition`,
       `flow_errors`, `stderr_diagnostics`, `keyword_surface`, `cli_surface`,
       `scenario_inventory`, `exit_codes_parity`):
       `cargo test --manifest-path cli/Cargo.toml -p linear-cli --features test-loopback`
-- [ ] Skill lints pass: `mise run test:unit:tasks`
-- [ ] Format, lint and types pass: `mise run check`
+- [x] Skill lints pass: `mise run test:unit:tasks`
+- [x] Format, lint and types pass: `mise run check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
