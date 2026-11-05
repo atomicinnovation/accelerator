@@ -47,7 +47,11 @@ level:
   and at what cost. The page draws the abstractions' collaborations as a
   diagram automatically. The build warns about a chapter with neither.
 - **Stops are evidence for the design**, chosen to show where a responsibility
-  lives or how a decision is enforced, not to walk every hunk.
+  lives or how a decision is enforced, not to walk every hunk. Every stop
+  says first how its code fits the bigger picture (`fit`), then what the code
+  does (`note`): a reviewer who reads only the `fit` lines of a chapter should
+  be able to trace how the change hangs together. The build warns about a
+  stop without one.
 - **Findings carry a level**: `design` (shape, boundaries, responsibilities,
   dependencies, decisions) or `implementation` (a line that is wrong). Design
   findings are the expensive ones to change later, so they come first.
@@ -89,7 +93,9 @@ first and written second:
 - Lead with the point; 2–5 sentences per note. Quantify. Name specifics
   (`store.rs:212`, not "the relevant code").
 - Use the PR's own domain terms, one term per concept, exactly as the code
-  names them. Define each in its chapter's `domain`.
+  names them. Define each in its chapter's `domain`. The page shows the
+  chapter's terms straight after its figures, before any of its prose, so
+  each meaning must stand on its own.
 - State only what was verified by reading the code. Mark the rest unverified,
   or make it a `question`.
 
@@ -198,6 +204,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "stops": [{                                 // the tour, in reading order; 6–12
     "id": "claims-s1", "file": "path", "side": "new", "start": 120, "end": 160,
     "title": "≤ 8 words",
+    "fit": "md, 1–3 sentences: where this code sits in the change as a whole: the abstraction or decision it carries, what reaches it and what it hands on to, and which other chapter or stop it connects to; shown before the note",
     "note": "md, 2–5 sentences: what it does, why it is shaped this way, what could go wrong",
     "check": "md, optional: the one thing to verify here",
     "figure": { /* optional, one figure shown beside the code; see Figures */ },

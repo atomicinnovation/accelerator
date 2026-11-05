@@ -360,6 +360,12 @@ def design_warnings(model: dict) -> list[str]:
         for chapter in model["chapters"]
         if not any(chapter.get(key) for key in DESIGN_KEYS)
     ]
+    warnings += [
+        f"stop {stop['id']}: no fit; say where it sits in the bigger picture"
+        for chapter in model["chapters"]
+        for stop in chapter.get("stops", [])
+        if not stop.get("fit")
+    ]
     chapters = {chapter["id"] for chapter in model["chapters"]}
     items = design_items(model)
     warnings += [

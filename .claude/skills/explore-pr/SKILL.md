@@ -76,15 +76,18 @@ without grasping the design has not reviewed the change.
   and where the next change would go. A dedicated design pass writes it.
 - Every chapter opens with **what it adds to the design** (its abstractions
   and decisions) before any line of code. Its stops are chosen as evidence
-  for that design, not as a walk through every hunk.
+  for that design, not as a walk through every hunk, and each stop says how
+  its code fits the bigger picture of the change before it says what the
+  code does.
 - Each design decision has its own control: agree, question or disagree. A
   design disagreement is the most expensive finding to act on later, so it
   is the first thing the notes report.
 - Findings carry a level, **design** or **implementation**, so design-level
   concerns can be triaged first.
 
-The build warns about a chapter that names no abstraction or decision, and
-about a page with no design summary. Treat those warnings as defects.
+The build warns about a chapter that names no abstraction or decision, about
+a stop that does not say how it fits the change, and about a page with no
+design summary. Treat those warnings as defects.
 
 ## Pictures first
 
@@ -125,7 +128,7 @@ content (the contract is `{skill dir}/reference/content-model.md`):
 | Design | The design summary and architecture figures; key abstractions with an automatic diagram of how they collaborate; design decisions (chosen over what, why, at what cost) with agree, question or disagree controls; fit with the existing architecture's principles; where the next change goes |
 | In pictures | Every figure on the page in reading order: the change, understood visually before it is read |
 | Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
-| Guided tour | Chapters by design concept in reading order, each opening with its figures and what it adds to the design; code at every stop as the evidence; invariants with the tests that pin them; a sign-off question per chapter |
+| Guided tour | Chapters by design concept in reading order, each opening with its figures, then the terms it uses, then what it adds to the design; code at every stop as the evidence, each placed in the change before it is explained; invariants with the tests that pin them; a sign-off question per chapter |
 | Ledger | Every call site of the PR's riskiest class of operation: what guards it, what is held, what races it, what pins it |
 | Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
 | Findings | Each prior finding with an independent verdict against the code, its level (design or implementation), and a triage control |
@@ -334,7 +337,8 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
 ```
 
 - Resolve every build warning, or know why it stands. A missing design
-  summary, a chapter with no abstraction or decision, a chapter or overview
+  summary, a chapter with no abstraction or decision, a stop with no `fit`,
+  a chapter or overview
   without a figure, or a figure naming a node or actor that does not exist
   is a defect to fix, not a warning to note. A stop or ledger line outside
   its file is a content error; a file without a summary renders as skim.
