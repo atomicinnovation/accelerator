@@ -360,13 +360,13 @@ Add `UpdateFields` to the existing `use linear_client::{…}` import.
 
 #### Automated Verification:
 
-- [ ] The new suite passes:
+- [x] The new suite passes:
       `cargo test --manifest-path cli/Cargo.toml -p linear-client --test update`
-- [ ] The port pins pass, with no existing test edited:
+- [x] The port pins pass, with no existing test edited:
       `cargo test --manifest-path cli/Cargo.toml -p linear-client --test contract_offline --test port`
-- [ ] The update flow passes unedited:
+- [x] The update flow passes unedited:
       `cargo test --manifest-path cli/Cargo.toml -p linear-cli --features test-loopback --test flow_update`
-- [ ] Format, lint and types pass: `mise run cli:check`
+- [x] Format, lint and types pass: `mise run cli:check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
