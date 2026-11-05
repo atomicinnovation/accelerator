@@ -52,7 +52,7 @@ pub enum Command {
         remote: PathBuf,
     },
     /// Atomically create a new work item under the configured pattern,
-    /// self-allocating its own ID.
+    /// allocating its own ID unless `--id` names it.
     Create(Box<CreateArgs>),
     /// Create every item a JSON manifest describes, parents first, each as
     /// `create` would, linking each child's `parent` to the ID its parent
@@ -82,27 +82,24 @@ pub enum Command {
         /// The remote identifier to record.
         external_id: String,
     },
-    /// Canonicalise a work-item ID under the configured pattern (zero-pads
-    /// a bare number, prepends the default project when the pattern needs
-    /// one).
-    CanonicaliseId {
-        /// The ID or bare number to canonicalise.
-        input: String,
+    /// Work-item IDs: canonicalise an existing item's ID, see the IDs
+    /// allocation would give next, or check an ID for a new item.
+    Id {
+        #[command(subcommand)]
+        action: IdAction,
     },
-    /// Print the next N sequential IDs the configured pattern would
-    /// allocate. Display-only: never writes a file or commits a number.
-    ///
-    /// Under `work.id_pattern: "{tracker}"` the IDs are provisional draft
-    /// IDs, for items written under `meta/work/drafts/`; `work create` places
-    /// a draft there itself.
-    NextNumber {
-        /// The project code, when the configured pattern needs one.
-        #[arg(long)]
-        project: Option<String>,
-        /// How many sequential IDs to print.
-        #[arg(long, default_value_t = 1)]
-        count: u32,
-    },
+    #[command(
+        hide = true,
+        about = RETIRED_NEXT_NUMBER,
+        long_about = RETIRED_NEXT_NUMBER
+    )]
+    NextNumber(RetiredArgs),
+    #[command(
+        hide = true,
+        about = RETIRED_CANONICALISE_ID,
+        long_about = RETIRED_CANONICALISE_ID
+    )]
+    CanonicaliseId(RetiredArgs),
     /// List work items from the configured directory, filtered and
     /// rendered as a table — or as a parent/child tree with `--hierarchy`.
     /// Carries a sync-status column when `work.integration` names a
@@ -202,6 +199,61 @@ pub enum Command {
     /// 70 the tracker could not be read (`E_REKEY_TRACKER_UNREACHABLE`);
     /// 72-74 the tracker cannot be selected or configured.
     Rekey(Box<RekeyArgs>),
+}
+
+pub const RETIRED_NEXT_NUMBER: &str =
+    "`work next-number` is now `work id next`";
+pub const RETIRED_CANONICALISE_ID: &str =
+    "`work canonicalise-id` is now `work id canonicalise`";
+
+#[derive(Subcommand)]
+pub enum IdAction {
+    /// Canonicalise an existing work item's ID under the configured pattern
+    /// (zero-pads a bare number, prepends the default project when the
+    /// pattern needs one), for referring to that item.
+    Canonicalise {
+        /// The ID or bare number to canonicalise.
+        input: String,
+    },
+    /// Print the next N sequential IDs the configured pattern would
+    /// allocate. Display-only: never writes a file or commits a number.
+    ///
+    /// Under `work.id_pattern: "{tracker}"` the IDs are provisional draft
+    /// IDs, for items written under `meta/work/drafts/`; `work create` places
+    /// a draft there itself.
+    Next {
+        /// The project code, when the configured pattern needs one.
+        #[arg(long)]
+        project: Option<String>,
+        /// How many sequential IDs to print.
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+    },
+    /// Check an ID for a new work item, writing nothing. Prints
+    /// `exact\t<id>` when the ID is in the pattern's exact shape,
+    /// `other-key\t<id>\t<key>` when it is but its key differs from the
+    /// configured key, or `corrected\t<id>` when padding its number or
+    /// adding `work.key` makes it so; on either of the last two, a third
+    /// field names the configured key when the ID's key differs from it.
+    /// Pass the printed ID to `work create --id`. A request with no
+    /// correction is refused as typed; a correctable one is checked, and
+    /// refused if need be, in its corrected form, with the `E_ID_*` code
+    /// `work create --id` gives that form (see `exit_codes`).
+    /// A pass reserves nothing. An ID an interrupted `--push` create wrote
+    /// reports `E_ID_TAKEN`: that item is saved unsynced, so check the
+    /// tracker and reconcile it with `/sync-work-items`.
+    Check {
+        /// The requested ID.
+        id: String,
+    },
+}
+
+/// A retired verb's arguments, taken whatever they are so the verb can name
+/// its replacement instead of failing to parse them.
+#[derive(Args)]
+pub struct RetiredArgs {
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true, hide = true)]
+    pub ignored: Vec<String>,
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -333,6 +385,16 @@ pub struct CreateArgs {
     /// The project code, when the configured pattern needs one.
     #[arg(long)]
     pub project: Option<String>,
+    /// The exact ID to write the item under, as `work.id_pattern` renders
+    /// it (e.g. `0400` or `PP-0400`), instead of the next allocated number;
+    /// automatic numbering continues above the highest number already used
+    /// (per key under a key pattern), so an ID above it moves the sequence
+    /// there. Refused, writing nothing, with `--project`, under
+    /// `{tracker}`, for a `draft-` ID, for an ID not in the pattern's exact
+    /// shape, and for an ID a work item already holds (see `exit_codes`).
+    /// Check one first with `work id check`.
+    #[arg(long)]
+    pub id: Option<String>,
     /// The author. Falls back to the current VCS identity when omitted.
     #[arg(long)]
     pub author: Option<String>,
@@ -359,7 +421,9 @@ pub struct CreateArgs {
     /// exits 70 when the tracker is unreachable (the preview could not be
     /// resolved), so the caller can distinguish an unreachable tracker from
     /// an unresolvable configured value (reported as an `unresolvable`
-    /// source on the line, exit 0).
+    /// source on the line, exit 0). With `--id`, an ID the real create
+    /// would refuse is refused first, as the real create refuses it, before
+    /// the tracker is contacted; an ID that passes is not reserved.
     #[arg(long)]
     pub dry_run: bool,
 }
@@ -503,6 +567,36 @@ mod tests {
     fn a_non_negative_integer_including_zero_parses_to_a_bound() {
         assert_eq!(parse_ceiling("25"), Ok(Ceiling::Bounded(25)));
         assert_eq!(parse_ceiling("0"), Ok(Ceiling::Bounded(0)));
+    }
+
+    #[test]
+    fn create_batch_rejects_an_id_argument() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "create-batch",
+            "--manifest",
+            "m.json",
+            "--id",
+            "0400",
+        ]);
+
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn a_dry_run_accepts_an_id() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "create",
+            "T",
+            "task",
+            "low",
+            "--dry-run",
+            "--id",
+            "0400",
+        ]);
+
+        assert!(parsed.is_ok());
     }
 
     #[test]

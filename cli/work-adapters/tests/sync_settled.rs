@@ -19,7 +19,6 @@ use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
-use corpus::IdOwnership;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -35,6 +34,7 @@ use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use work::dirtiness::Dirtiness;
 use work::draft_id::DraftId;
+use work::id_scheme::IdOwnership;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::promotion::IntendedBaseline;
@@ -87,6 +87,15 @@ use work_adapters::sync::settled_run::run_settled;
 use work_adapters::sync::settled_run::CorpusDiscovery;
 use work_adapters::sync::settled_run::DiscoveredCorpus;
 use work_adapters::sync::settled_run::SettledRunFailure;
+
+static TRACKER: std::sync::LazyLock<work::id_scheme::WorkItemIdScheme> =
+    std::sync::LazyLock::new(|| {
+        work::id_scheme::WorkItemIdScheme::new(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            None,
+        )
+    });
 
 const BASELINE: &str = ".accelerator/state/integrations/linear/last-sync.json";
 const STATE: &str = ".accelerator/state";
@@ -546,6 +555,15 @@ fn request<'a>(
     }
 }
 
+fn faulty_store(root: &Path, options: &Options) -> Faulty {
+    Faulty {
+        inner: FileCorpusStore::new(root),
+        count: Cell::new(0),
+        fail_at: options.fail_at,
+        keep_failing: options.keep_failing,
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let root = repo.root();
@@ -553,12 +571,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let state = repo.path(STATE);
     let roots = vec![repo.path("meta")];
     let plain = FileCorpusStore::new(root);
-    let faulty = Faulty {
-        inner: FileCorpusStore::new(root),
-        count: Cell::new(0),
-        fail_at: options.fail_at,
-        keep_failing: options.keep_failing,
-    };
+    let faulty = faulty_store(root, &options);
     let log = options.log.clone().unwrap_or_default();
     let locks = LoggingLock {
         inner: LockdirLock::with_options(&work_dir, FAST),
@@ -580,6 +593,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &status,

@@ -4,11 +4,10 @@
 //!
 //! Both sides of the comparison are derived through
 //! `corpus::linkage::resolve_path_target` — the same function that
-//! produces a reference's own target — rather than
-//! `corpus::work_item_id`/`corpus::slug` (display conventions that strip
-//! or project-prefix an id differently), so the comparison is correct by
-//! construction rather than by two independently-written conventions
-//! happening to agree.
+//! produces a reference's own target — rather than `corpus::slug` (a display
+//! convention that strips or project-prefixes an id differently), so the
+//! comparison is correct by construction rather than by two
+//! independently-written conventions happening to agree.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -16,6 +15,7 @@ use std::path::PathBuf;
 
 use corpus::doc_type::DocTypeKey;
 use corpus::scan::CorpusWalker;
+use corpus::LinkageIds;
 use migrate::ports::CorpusIndex;
 
 pub struct FileCorpusIndex {
@@ -27,15 +27,18 @@ impl FileCorpusIndex {
     pub fn build(
         table: &[(DocTypeKey, PathBuf)],
         walker: &dyn CorpusWalker,
+        ids: &dyn LinkageIds,
     ) -> Self {
         let roots: Vec<PathBuf> =
             table.iter().map(|(_, dir)| dir.clone()).collect();
         let files = walker.walk_markdown(&roots).unwrap_or_default();
         let mut targets = HashSet::new();
         for file in files {
-            if let Some((kind, id)) =
-                corpus::linkage::resolve_path_target(&path_str(&file), table)
-            {
+            if let Some((kind, id)) = corpus::linkage::resolve_path_target(
+                &path_str(&file),
+                table,
+                ids,
+            ) {
                 targets.insert((kind.to_owned(), id));
             }
         }
@@ -61,6 +64,7 @@ mod tests {
     use corpus_adapters::RealFs;
     use migrate::ports::CorpusIndex as _;
     use tempfile::TempDir;
+    use work::legacy_ids::LegacyNumericIds;
 
     #[test]
     fn a_work_item_resolves_by_its_filename_derived_id(
@@ -71,7 +75,7 @@ mod tests {
         std::fs::write(work.join("0042-foo.md"), "")?;
         let table = vec![(DocTypeKey::WorkItems, work)];
 
-        let index = FileCorpusIndex::build(&table, &RealFs);
+        let index = FileCorpusIndex::build(&table, &RealFs, &LegacyNumericIds);
         assert!(index.target_exists("work-item", "0042"));
         assert!(!index.target_exists("work-item", "0099"));
         Ok(())
@@ -89,7 +93,7 @@ mod tests {
         )?;
         let table = vec![(DocTypeKey::Plans, plans)];
 
-        let index = FileCorpusIndex::build(&table, &RealFs);
+        let index = FileCorpusIndex::build(&table, &RealFs, &LegacyNumericIds);
         assert!(index
             .target_exists("plan", "2026-05-13-0055-sidebar-activity-feed"));
         assert!(!index.target_exists("plan", "sidebar-activity-feed"));

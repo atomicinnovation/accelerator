@@ -69,6 +69,7 @@ dependencies = [
  "tempfile",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
 ]
 
 [[package]]
@@ -108,6 +109,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
  "work-adapters",
 ]
 
@@ -185,7 +187,6 @@ dependencies = [
  "notify",
  "predicates",
  "process",
- "regex",
  "reqwest",
  "rust-embed",
  "serde",
@@ -201,6 +202,8 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "work",
+ "work-adapters",
 ]
 
 [[package]]
@@ -896,7 +899,6 @@ dependencies = [
  "corpus",
  "document",
  "kernel",
- "regex",
  "serde_json",
  "store",
  "tempfile",
@@ -3313,6 +3315,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
 ]
 
 [[package]]
@@ -5169,7 +5172,6 @@ name = "tracker-support"
 version = "1.24.0-pre.91"
 dependencies = [
  "config",
- "corpus",
  "tracker",
 ]
 

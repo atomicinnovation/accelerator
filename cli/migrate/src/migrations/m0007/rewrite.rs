@@ -18,6 +18,7 @@ use corpus::doc_type::DocTypeKey;
 use corpus::frontmatter_validation::parse_entries;
 use corpus::frontmatter_validation::raw_value;
 use corpus::frontmatter_validation::schema as fm_schema;
+use corpus::LinkageIds;
 
 use crate::migrations::m0007::fence::body_text;
 use crate::migrations::m0007::fence::frontmatter_text;
@@ -156,6 +157,7 @@ pub struct RewriteInput<'a> {
     pub relpath: &'a str,
     pub repo_name: &'a str,
     pub table: &'a [(DocTypeKey, PathBuf)],
+    pub ids: &'a dyn LinkageIds,
 }
 
 /// Applies the single-pass rewrite, returning the rewritten content and
@@ -235,6 +237,7 @@ pub fn rewrite(content: &str, input: &RewriteInput) -> (String, Vec<String>) {
         repo_name: input.repo_name,
         backfill_extras: &backfill_extras,
         table: input.table,
+        ids: input.ids,
         has_type: presence(content, "type"),
         has_id: presence(content, "id"),
         has_title,
@@ -270,6 +273,7 @@ struct State<'a> {
     repo_name: &'a str,
     backfill_extras: &'a [(&'static str, String)],
     table: &'a [(DocTypeKey, PathBuf)],
+    ids: &'a dyn LinkageIds,
     has_type: bool,
     has_id: bool,
     has_title: bool,
@@ -465,6 +469,7 @@ fn apply_rules(content: &str, state: &State) -> (String, Vec<String>) {
                 state.linkage_type,
                 &key,
                 state.table,
+                state.ids,
             );
             out.push(format!("{key}: {}", outcome.value));
             if outcome.unmapped_path {
@@ -772,6 +777,7 @@ mod tests {
 
     use super::rewrite;
     use super::RewriteInput;
+    use crate::migrations::m0007::test_ids::LegacyDigits;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![(DocTypeKey::WorkItems, PathBuf::from("meta/work"))]
@@ -786,6 +792,7 @@ mod tests {
             relpath,
             repo_name: "repo",
             table,
+            ids: &LegacyDigits,
         }
     }
 

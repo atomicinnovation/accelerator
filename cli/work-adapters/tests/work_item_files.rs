@@ -111,3 +111,50 @@ fn a_missing_work_directory_yields_no_items() -> Result<(), TestError> {
     assert!(files.is_empty());
     Ok(())
 }
+
+#[test]
+fn an_upper_case_md_extension_is_listed() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let work_dir = dir.path();
+    write(&work_dir.join("0400-x.MD"), "upper")?;
+
+    let files = FilesystemWorkItemFiles::new(work_dir).files()?;
+
+    assert_eq!(
+        names(files.into_iter().map(|file| file.path), work_dir),
+        vec!["0400-x.MD"]
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_file_is_reported_beside_the_listing() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir()?;
+    let work_dir = dir.path();
+    write(&work_dir.join("0001-a.md"), "readable")?;
+    let forbidden = work_dir.join("0002-b.md");
+    write(&forbidden, "forbidden")?;
+    fs::set_permissions(&forbidden, fs::Permissions::from_mode(0o000))?;
+    let undecodable = drafts_dir(work_dir).join("draft-k7mq3x-c.md");
+    write(&undecodable, "")?;
+    fs::write(&undecodable, [0xff, 0xfe, 0xfd])?;
+
+    let listing = FilesystemWorkItemFiles::new(work_dir).listing()?;
+
+    assert_eq!(
+        names(listing.files.into_iter().map(|file| file.path), work_dir),
+        vec!["0001-a.md"]
+    );
+    assert_eq!(
+        names(
+            listing.unreadable.into_iter().map(|file| file.path),
+            work_dir
+        ),
+        vec!["0002-b.md", "drafts/draft-k7mq3x-c.md"]
+    );
+    Ok(())
+}

@@ -36,6 +36,7 @@ _CLI_CHECK_GATES = [
     "lint:vcs-settings:check",
     "lint:config-test-support:check",
     "lint:crate-dependencies:check",
+    "lint:corpus-identity:check",
 ]
 
 # The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES

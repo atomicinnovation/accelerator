@@ -3,10 +3,10 @@
 
 use std::cell::RefCell;
 
-use corpus::WorkItemIdScheme;
 use work::draft_id::is_token_safe;
 use work::draft_id::SuffixDraws;
 use work::draft_id::ALPHABET;
+use work::id_scheme::WorkItemIdScheme;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 use work_adapters::sync::recovery_label::RecoveryLabels;
 
@@ -44,8 +44,8 @@ impl<D: SuffixDraws> RecoveryLabels for DrawnRecoveryLabels<'_, D> {
 
 #[cfg(test)]
 mod tests {
-    use corpus::WorkItemIdScheme;
     use work::draft_id::SuffixDraws;
+    use work::id_scheme::WorkItemIdScheme;
     use work_adapters::draft_id::RandomSuffixDraws;
     use work_adapters::sync::recovery_label::RecoveryLabel;
     use work_adapters::sync::recovery_label::RecoveryLabels as _;

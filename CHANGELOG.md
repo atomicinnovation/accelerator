@@ -196,9 +196,49 @@
   `meta/prs/` description stay wrapped. A line that must render on
   its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
   spaces or `\`) or a list item.
+- **`work resolve` reads a missing work directory as empty.** In a
+  repository without one, it no longer exits 1 for every input: a topic gives
+  `E_RESOLVE_INVALID` (exit 1), an ID or number gives not found (exit 3), and
+  a path is judged against the configured directory. Scripts that read
+  `work resolve`'s exit codes there need updating.
+- **Allocation counts a key's sequence ignoring letter case.** `work create`,
+  `work create-batch` and `work id next` count `pp-0500-x.md` in `PP`'s
+  sequence. A repository holding mixed-case keys may see a higher next
+  number, and a caller that records or predicts allocated numbers should
+  expect it.
+- **Allocation counts a legacy bare-number item in the configured key's
+  sequence.** Under a `{key}` pattern, `work create`, `work create-batch` and
+  `work id next` read `0400-x.md` as `work.key`'s `0400`, so beside
+  `PP-0005` and `0400-x.md` the next ID is `PP-0401`. A caller that records
+  or predicts allocated numbers should expect the jump.
 
 ### Added
 
+- **`/create-work-item --id <ID>` names the new item's ID.** Given as the
+  argument's leading or trailing `--id`, or at the start of the reply to the
+  welcome text, the ID is settled with `work id check` before drafting: an
+  exact ID is used as given, a short or differently-keyed one is proposed in
+  full, and a refusal is relayed with a choice of another ID, automatic
+  allocation or cancelling. Both the push-gate preview and the create carry
+  the ID, and a refusal after drafting resumes where it stopped with the
+  approved draft unchanged.
+- **`work create --id <ID>` names the new item's ID.** The item is written
+  under exactly that ID, with `NNNN` in the body replaced by it, and pushed
+  as any other create when `--push` is given; automatic numbering continues
+  above the highest number used. It is refused, writing nothing and sending
+  nothing, with `E_ID_WITH_PROJECT` beside `--project`, `E_ID_TRACKER_OWNED`
+  under `{tracker}`, `E_ID_DRAFT_RESERVED` for a `draft-` ID,
+  `E_ID_PATTERN_MISMATCH` for an ID not in the exact shape
+  `work.id_pattern` renders, and `E_ID_TAKEN` naming the item that already
+  holds it. `--dry-run --id` runs the same checks in the same order,
+  without taking a lock, and refuses an ID as the real create would before
+  the tracker is contacted.
+- **`work id check <ID>` settles an ID for a new item, writing nothing.**
+  It prints `exact`, `other-key` or `corrected` with the ID to pass to
+  `work create --id`, the last two naming the configured key when the ID's
+  key differs from it, and refuses with the `E_ID_*` code `work create --id`
+  would give. A pass reserves nothing. An ID an interrupted `--push` create
+  wrote reports `E_ID_TAKEN`, where `work create` reports `E_PUSH_PENDING`.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a
@@ -378,7 +418,7 @@
 - **A new `accelerator work` command family replaces the bash work-item
   lifecycle scripts.** `work create`, `show`, `resolve`, `diff`, and `update`
   cover the full create/read/resolve/diff/update lifecycle for work items,
-  alongside the `template-hints`, `canonicalise-id`, and `next-number` utility
+  alongside the `template-hints`, `id canonicalise`, and `id next` utility
   subcommands the skills that orchestrate them rely on. These replace eight
   `skills/work/scripts/work-item-*.sh` scripts and the shared library they
   depended on.
@@ -411,7 +451,8 @@
   the item's `id`, filename and H1, so `meta/work/PP-760-search.md` carries
   `id: "PP-760"`. Until the tracker confirms an issue, the item is a draft at
   `meta/work/drafts/draft-xxxxxx-<slug>.md`. `{tracker}` must be the only
-  token in the pattern; `{{tracker}}` is a literal.
+  token in the pattern, and an escaped brace such as `{{tracker}}` is
+  refused, since literal text may not hold a brace.
 - **Drafts are promoted on sync.** `work sync` creates each draft's issue and
   retires the draft ID onto its key, renaming the file, recording the old ID
   in a new `aliases` field and rewriting references across `meta/`.
@@ -472,6 +513,14 @@
   push is unresolved), and `#\tdetail` keeps its meaning. Every record field
   of `work sync`, `work promote` and `work create`/`create-batch` output is
   now sanitised to one line.
+- **`work canonicalise-id` and `work next-number` are now
+  `work id canonicalise` and `work id next`.** Renamed during the prerelease,
+  with no alias: the old names run nothing, name their replacement on stderr
+  and exit 2.
+- **`E_PATTERN_OVERFLOW` names the item at the cap.** When `work create` or
+  `work id next` runs out of numbers because an item holds the cap, the
+  refusal names that item's file and, when a lower number is free, suggests
+  moving the item to it before archiving or widening the pattern.
 - **Jira pulls write Markdown.** `work sync` renders a Jira description to
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
@@ -493,10 +542,10 @@
   set.
 - **Commands that allocate or retire IDs serialise on one lock.**
   `work sync`, `work promote`, `work create`, `work create-batch`,
-  `work next-number` and `work update --push` wait for one another, saying on
-  stderr which command they are waiting for, and give up after 60 s with
-  `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
-  re-key is unfinished. `work next-number` now writes its lock under
+  `work id next`, `work id check` and `work update --push` wait for one
+  another, saying on stderr which command they are waiting for, and give up
+  after 60 s with `E_IDENTITY_RUN_BUSY`. Each refuses with `E_REKEY_IN_PROGRESS` while a
+  re-key is unfinished. `work id next` now writes its lock under
   `.accelerator/state/locks/`. Upgrade every session before re-keying: an
   older binary does not take this lock. A re-key holds the create and
   retirement locks for its whole run, so an older `work create`,
@@ -689,6 +738,46 @@
   `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
+- **A `.MD` file is a work item like a `.md` one.** `work list`, `sync`,
+  `promote` and `rekey` read it, as allocation and `work resolve` already
+  did, and `corpus frontmatter validate` and migrations walk it too. A
+  re-keyed `.MD` item is written back with a `.md` extension.
+- **Every `work` command that reads the ID scheme refuses a malformed one
+  at start, naming the setting.** `create`, `create-batch`, `id next`,
+  `resolve`, `list`, `promote`, `rekey` and `sync` refuse a malformed
+  `work.id_pattern`, or a malformed `work.key` under a `{key}` pattern, as
+  `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`, quoting the
+  value; an invalid `--project` gives `E_WORK_KEY_INVALID` too, an empty
+  `--project ""` included, where it gave `E_PATTERN_MISSING_KEY`.
+  `work id canonicalise` keeps its own codes. `work list` refuses where it
+  fell back to the default scheme.
+- **A short full ID is canonicalised through the pattern.** `work list`,
+  `work resolve` and `work sync` read `PROJ-42` as `PROJ-0042`, and
+  `work id canonicalise v1` gives `v001` under `v{number:03d}`. `work sync`
+  treats `X1-0400` and `xy-0400` as IDs.
+- **Re-key and retirement treat an ID held at another width as taken.**
+  `PP-0042` collides with an item holding or linked to `PP-42`, and under a
+  `{key}` pattern with an item holding the legacy `0042`. A re-key whose
+  target would read as another item's linked tracker key, because
+  `work.key` is the tracker's own key, is refused naming both items, the
+  cause and both remedies.
+- **The visualiser joins every spelling of a work item.** It matches a
+  work item's key ignoring letter case, including when it strips the
+  configured key from a dated filename's slug, clusters `PROJ-42`
+  references with `PROJ-0042`, and indexes `.MD` items. A `work-item:`
+  reference in `parent:` or `related:` now counts as an inbound link. It
+  still shows each ID as written, and now shows the ID of an item whose key
+  mixes letters and digits, such as `X1-0400`. An item under a pattern with
+  literal text, such as `v001`, joins a cluster by its ID. A cluster's
+  `clusterKey`, and so its "clustered via" label, is the canonical form
+  (`work-item:PP-0042` for an item written `PP-42`), and a work item under
+  another key, such as `XY-0400-foo.md`, now gets a slug.
+- **Under a bare `{number}` pattern, the visualiser counts only a
+  four-digit token as an ID inside a dated filename**, as the pattern's
+  width says.
+- **The visualiser's boot refusal of a malformed `work.id_pattern` or
+  `work.key` names the setting and value**, and it refuses the newly refused
+  pattern forms the `### Migrations` entry lists.
 
 ### Removed
 
@@ -701,6 +790,10 @@
 
 ### Fixed
 
+- **`/create-work-item` stops on a configuration error from `work resolve`.**
+  Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
+  `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than
+  drafting an item it cannot write.
 - **`migrate` sees uncommitted changes when `.accelerator/` sits below the
   repository root.** Its dirty-tree pre-flight read paths relative to the
   repository rather than the config root, found none under `meta/` or
@@ -783,9 +876,20 @@
 
 - **`describe-pr` lists an unreadable body file under exit 2**, matching what
   `update-body` returns, where it listed it under exit 1.
+- **Allocation keeps a pattern's literal text.** Under a pattern such as
+  `v{number:03d}`, `work create` writes `v001`, not `001`, and a pattern
+  such as `{key}v{number:03d}` continues its sequence as `PPv002`.
+- **`work rekey` reads IDs rendered with literal pattern text.** Under the
+  current pattern and when moving to another, a repository under
+  `v{number:03d}` or `{key}_{number:04d}` is re-keyed, and re-keyed once. An
+  ID with more than one digit run outside the current pattern's shape is
+  refused by name rather than guessed.
 
 ### Security
 
+- **`work rekey` validates every path and target in a run plan before
+  touching any file**, so a run plan cannot name a path outside the
+  repository or a target outside the work directory.
 - **`accelerator config dump` hides API-key leaves.** Keys named `api_key` or
   `api_key_cmd` are redacted alongside `token` and `token_cmd`.
 - **A version-tracked `config.local.md` is refused for plain credential
@@ -853,6 +957,16 @@
   Move a team-config `paths.work` or `paths.integrations` outside the
   repository into an untracked `.accelerator/config.local.md`, or sync
   refuses with `74`.
+- **A `work.id_pattern` the grammar now refuses must be edited.** Literal
+  text holding a character other than an ASCII letter, digit, `.`, `_` or
+  `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
+  a digit beside `{key}` or `{number}` (such as `v2{number:03d}`), a width
+  over 19 digits or a repeated token is refused by every `work` command that
+  reads the ID scheme and by the visualiser at boot, with
+  `E_WORK_ID_PATTERN_INVALID: work.id_pattern '<value>': <reason>`.
+  Migration 0002 reports the same for such a `{project}` pattern when legacy
+  items remain to rename. Edit the pattern as the reason directs, then run
+  `/rekey-work-items` if existing items should follow it.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item
   file changed and nothing sent to the tracker; commit the result. A Jira file

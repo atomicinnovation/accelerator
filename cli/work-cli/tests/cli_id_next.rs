@@ -1,4 +1,4 @@
-//! CLI-boundary tests for `work next-number`: a display-only allocation
+//! CLI-boundary tests for `work id next`: a display-only allocation
 //! preview.
 
 #![allow(clippy::literal_string_with_formatting_args)]
@@ -11,7 +11,7 @@ type TestError = Box<dyn std::error::Error>;
 
 fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
     let dir = tempfile::Builder::new()
-        .prefix("work-cli-next-number-")
+        .prefix("work-cli-id-next-")
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".git"))?;
     fs::create_dir_all(dir.path().join("meta/work"))?;
@@ -32,7 +32,7 @@ fn scratch_repo_with_work_config(
 
 fn run(dir: &Path, args: &[&str]) -> Result<std::process::Output, TestError> {
     Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
-        .args(["next-number"])
+        .args(["id", "next"])
         .args(args)
         .current_dir(dir)
         .output()?)
@@ -59,7 +59,7 @@ fn a_repeated_invocation_prints_the_same_starting_number(
     let entries: Vec<_> = fs::read_dir(repo.path().join("meta/work"))?
         .filter_map(Result::ok)
         .collect();
-    assert!(entries.is_empty(), "next-number must never write a file");
+    assert!(entries.is_empty(), "id next must never write a file");
     Ok(())
 }
 
@@ -127,5 +127,90 @@ fn overflow_prints_the_partial_ids_that_fit_then_exits_one(
     let stderr = String::from_utf8(output.stderr)?;
     assert!(stderr.contains("E_PATTERN_OVERFLOW"));
     assert!(stderr.contains("number space exhausted"));
+    Ok(())
+}
+
+#[test]
+fn a_hostile_project_is_refused_with_the_rule_five_reason(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    let output = run(repo.path(), &["--project", "a/b"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.starts_with(
+            "E_WORK_KEY_INVALID: --project 'a/b': key value 'a/b' must \
+             match [A-Za-z][A-Za-z0-9]* (rule 5)"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_pattern_is_refused_before_allocating() -> Result<(), TestError> {
+    let repo =
+        scratch_repo_with_work_config("  id_pattern: \"{number:4d}\"\n")?;
+    let output = run(repo.path(), &[])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_lower_case_key_counts_in_the_configured_keys_sequence(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    for (number, slug) in (1..=10).zip('a'..='j') {
+        fs::write(
+            repo.path()
+                .join(format!("meta/work/PP-{number:04}-{slug}.md")),
+            "",
+        )?;
+    }
+    fs::write(repo.path().join("meta/work/pp-0500-b.md"), "")?;
+    let output = run(repo.path(), &[])?;
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PP-0501");
+    Ok(())
+}
+
+#[test]
+fn the_flat_id_verbs_name_their_replacements() -> Result<(), TestError> {
+    let next = "`work next-number` is now `work id next`";
+    let canonicalise = "`work canonicalise-id` is now `work id canonicalise`";
+    let cases: [(&[&str], &str); 3] = [
+        (&["next-number"], next),
+        (&["next-number", "--count", "3", "--project", "PP"], next),
+        (&["canonicalise-id", "--", "42"], canonicalise),
+    ];
+    for (args, pointer) in cases {
+        let repo = scratch_repo()?;
+
+        let output = Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+            .args(args)
+            .current_dir(repo.path())
+            .output()?;
+
+        let stderr = String::from_utf8(output.stderr)?;
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(output.stdout.is_empty(), "{args:?}");
+        assert!(stderr.contains(pointer), "{args:?}: {stderr}");
+    }
+    let help = Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+        .args(["next-number", "--help"])
+        .output()?;
+    assert!(String::from_utf8(help.stdout)?.contains(next));
     Ok(())
 }

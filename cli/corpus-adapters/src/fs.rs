@@ -111,7 +111,10 @@ fn walk_markdown_into(
         if file_type.is_dir() {
             walk_markdown_into(&path, files)?;
         } else if file_type.is_file()
-            && path.extension().and_then(|ext| ext.to_str()) == Some("md")
+            && path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
         {
             files.push(path);
         }
@@ -233,6 +236,22 @@ mod tests {
         let mut found = RealFs.walk_markdown(&[dir.path().to_path_buf()])?;
         found.sort();
         assert_eq!(found, vec![dir.path().join("a.md"), nested.join("c.md")]);
+        Ok(())
+    }
+
+    #[test]
+    fn walk_markdown_matches_the_extension_ignoring_case(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("a.MD"), "")?;
+        std::fs::write(dir.path().join("b.Md"), "")?;
+
+        let mut found = RealFs.walk_markdown(&[dir.path().to_path_buf()])?;
+        found.sort();
+        assert_eq!(
+            found,
+            vec![dir.path().join("a.MD"), dir.path().join("b.Md")]
+        );
         Ok(())
     }
 

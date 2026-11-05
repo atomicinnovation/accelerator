@@ -1,6 +1,7 @@
 //! Pins every push outcome's keyword and exit code, every keyword a batch
-//! create reports, every reason a draft is not promoted, and every code a
-//! re-key stops under, against a frozen expectation.
+//! create reports, every reason a draft is not promoted, every code a
+//! re-key stops under, and every refusal of a requested ID, against a
+//! frozen expectation.
 //!
 //! The work skills branch on both the keyword `work create --push`,
 //! `work create-batch`, `work sync` and `work promote` print and the code
@@ -21,9 +22,14 @@ use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
 use work::rekey::fingerprint::Staleness;
 use work::rekey::outcome::NotRekeyed;
+use work::rekey::outcome::UnclassifiableCause;
 use work::rekey::run_plan::Unreadability;
 use work::rekey::run_plan::UnreadablePlan;
 use work::rekey::write_set::Unreverted;
+use work::requested_id::ExampleShape;
+use work::requested_id::Holding;
+use work::requested_id::ProjectRemedy;
+use work::requested_id::RequestedIdRefusal;
 use work::retirement::RetirementCause;
 use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
@@ -119,6 +125,7 @@ const FROZEN_NOT_PROMOTED: &[(&str, u8, u8)] = &[
     ("key-linked", 4, 4),
     ("target-exists", 4, 4),
     ("item-not-found", 4, 71),
+    ("id-not-one-path-component", 4, 4),
     ("adopted-issue-missing", 4, 4),
     ("adopt-conflicts-with-recorded-key", 4, 4),
     ("retirement-failed", 71, 71),
@@ -163,6 +170,9 @@ fn every_reason(issue_exists: bool) -> Vec<NotPromoted> {
         NotPromoted::Refused(RetirementRefusal::ItemNotFound(
             "draft-k7mq3x".to_owned(),
         )),
+        NotPromoted::Refused(RetirementRefusal::IdNotOnePathComponent {
+            id: "../x".to_owned(),
+        }),
         NotPromoted::AdoptedIssueMissing(key()),
         NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() },
         NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
@@ -254,8 +264,14 @@ fn every_not_rekeyed() -> Vec<NotRekeyed> {
             first: item.clone(),
             second: item.clone(),
             target: "ACC-0042".to_owned(),
+            linked: None,
         },
-        NotRekeyed::Unclassifiable(item.clone()),
+        NotRekeyed::Unclassifiable {
+            item: item.clone(),
+            cause: UnclassifiableCause::NoNumber {
+                id: "notes".to_owned(),
+            },
+        },
         NotRekeyed::FreshNumbersExhausted {
             needed: 2,
             remaining: 1,
@@ -313,4 +329,95 @@ fn every_rekey_outcome_maps_to_its_frozen_code() {
     }
     let codes: BTreeSet<&str> = outcomes.iter().map(NotRekeyed::code).collect();
     assert_eq!(codes.len(), FROZEN_NOT_REKEYED.len());
+}
+
+const FROZEN_ID_REFUSAL_CODES: &[&str] = &[
+    "E_ID_WITH_PROJECT",
+    "E_ID_TRACKER_OWNED",
+    "E_ID_DRAFT_RESERVED",
+    "E_ID_PATTERN_MISMATCH",
+    "E_ID_TAKEN",
+];
+
+const FROZEN_CREATE_CODES: &[&str] = &[
+    "E_WORK_ID_PATTERN_INVALID",
+    "E_WORK_KEY_INVALID",
+    "E_WORK_KEY_REQUIRED",
+    "E_PATTERN_KEY_UNUSED",
+    "E_PATTERN_OVERFLOW",
+    "E_PATTERN_MISSING_KEY",
+    "E_REKEY_IN_PROGRESS",
+    "E_REKEY_PLAN_UNREADABLE",
+    "E_IDENTITY_RUN_BUSY",
+    "E_PUSH_MARKER_UNREADABLE",
+    "E_PUSH_PENDING",
+    "E_PUSH_FINGERPRINT_MISMATCH",
+    "E_PUSH_ALREADY_WRITTEN",
+    "E_DRAFT_EXISTS",
+    "E_DRAFT_ID_EXHAUSTED",
+];
+
+const fn covered(refusal: &RequestedIdRefusal) {
+    match refusal {
+        RequestedIdRefusal::WithProject { .. }
+        | RequestedIdRefusal::TrackerOwned { .. }
+        | RequestedIdRefusal::DraftReserved { .. }
+        | RequestedIdRefusal::PatternMismatch { .. }
+        | RequestedIdRefusal::Taken { .. } => {}
+    }
+}
+
+fn every_id_refusal() -> Vec<RequestedIdRefusal> {
+    let shape = ExampleShape {
+        pattern: "{number:04d}".to_owned(),
+        description: String::new(),
+        first: None,
+    };
+    let refusals = vec![
+        RequestedIdRefusal::WithProject {
+            pattern: "{number:04d}".to_owned(),
+            remedy: ProjectRemedy::DropProject,
+        },
+        RequestedIdRefusal::TrackerOwned {
+            pattern: "{tracker}".to_owned(),
+        },
+        RequestedIdRefusal::DraftReserved {
+            requested: "draft-k7mq3x".to_owned(),
+            shape: shape.clone(),
+        },
+        RequestedIdRefusal::PatternMismatch {
+            requested: "400".to_owned(),
+            shape,
+            correction: None,
+        },
+        RequestedIdRefusal::Taken {
+            requested: "0400".to_owned(),
+            holder: PathBuf::from("meta/work/0400-x.md"),
+            holding: Holding::Field(IdentityField::Id),
+            held: "0400".to_owned(),
+        },
+    ];
+    refusals.iter().for_each(covered);
+    refusals
+}
+
+#[test]
+fn every_id_refusal_maps_to_its_frozen_code() {
+    let refusals = every_id_refusal();
+    assert_eq!(refusals.len(), FROZEN_ID_REFUSAL_CODES.len());
+    for (refusal, frozen) in refusals.iter().zip(FROZEN_ID_REFUSAL_CODES) {
+        assert_eq!(refusal.code(), *frozen);
+        assert!(refusal.to_string().starts_with(&format!("{frozen}: ")));
+    }
+}
+
+#[test]
+fn id_refusal_codes_are_distinct_from_every_other_work_create_code() {
+    let codes: BTreeSet<&str> = FROZEN_CREATE_CODES
+        .iter()
+        .copied()
+        .chain(every_id_refusal().iter().map(RequestedIdRefusal::code))
+        .collect();
+
+    assert_eq!(codes.len(), 20);
 }

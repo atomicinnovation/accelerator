@@ -19,157 +19,175 @@
   "runs": [
     {
       "eval_id": 1,
+      "eval_name": "bare-invocation",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
         "passed": 5,
         "failed": 0,
-        "total": 5
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
       },
       "expectations": [
         {
           "text": "Response offers to scan all configured directories as one option",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Option 2 'Scan everything': \"say 'scan all' and I'll list every document in the configured research (meta/research/codebase/) and plans (meta/plans/) directories\"."
         },
         {
           "text": "Response offers the option to specify files manually as an alternative",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Option 1 'Specific files': \"give me one or more paths, e.g. meta/plans/2026-04-19-feature.md ...\"."
         },
         {
           "text": "Response does not proceed to read or list any documents before user answers",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Response ends with 'Which documents would you like to start with?'; transcript confirms no documents read or listed and no agents spawned."
         },
         {
           "text": "Response does not include any candidate list, work item drafts, or extracted content",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Response describes the later process in the abstract only; no candidates, drafts or extracted content."
         },
         {
           "text": "Response includes examples or context about what kinds of sources can be provided (e.g. files, planning docs, meeting notes)",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Lists source kinds: codebase research, implementation plans, specs/PRDs/design docs, meeting notes, bug reports, each with examples."
         }
-      ]
+      ],
+      "notes": []
     },
     {
       "eval_id": 2,
+      "eval_name": "candidate-type-inference",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
         "passed": 12,
         "failed": 0,
-        "total": 12
+        "total": 12,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
       },
       "expectations": [
         {
-          "text": "The dashboard charts stale data item is assigned type 'bug' in its skeleton",
+          "text": "The dashboard charts stale data item is assigned kind 'bug' in its skeleton",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Candidate #1 skeleton: '**Kind**: Bug', 'Kind (proposed): bug'."
         },
         {
-          "text": "The CSV export item is assigned type 'story' in its skeleton",
+          "text": "The CSV export item is assigned kind 'story' in its skeleton",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Candidate #2 skeleton: '**Kind**: Story'."
         },
         {
-          "text": "The search options evaluation item is assigned type 'spike' in its skeleton",
+          "text": "The search options evaluation item is assigned kind 'spike' in its skeleton",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Candidate #3 skeleton: '**Kind**: Spike'."
         },
         {
-          "text": "The auth system modernisation item is assigned type 'epic' in its skeleton",
+          "text": "The auth system modernisation item is assigned kind 'epic' in its skeleton",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Candidate #4 skeleton: '**Kind**: Epic'."
         },
         {
-          "text": "Every skeleton uses XXXX as the work_item_id placeholder (work-item-next-number.sh not called)",
+          "text": "Every skeleton uses XXXX as the work item number placeholder (accelerator work id next not called)",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "All four headings are '# XXXX: ...'; transcript: 'Did not call `accelerator work id next`'. (Prompt forbids the call, so the second half is near-trivial.)"
         },
         {
           "text": "The bug skeleton's Requirements section contains reproduction steps and expected/actual behaviour",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Bug Requirements holds the four numbered 'Reproduction steps', 'Observed behaviour' and 'Expected behaviour', matching the fixture."
         },
         {
           "text": "The spike skeleton's Requirements section contains the research questions, time-box, and exit criterion",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Spike Requirements holds 'Time-box: 3 days', the three research questions and 'Exit criterion: A written comparison with a clear recommendation and estimated implementation effort.'"
         },
         {
           "text": "The epic skeleton's Requirements section contains the initial story decomposition as a list",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Epic Requirements: 'Initial story decomposition' as a five-item bullet list (JWT, TOTP/hardware MFA, SAML SSO, session migration, refresh token rotation)."
         },
         {
-          "text": "The Drafting Notes section does not contain routine type-choice documentation for obvious type assignments (bug and story are unambiguous here); a note explaining a non-obvious inference (e.g. spike vs story when it could be either) is acceptable",
+          "text": "The Drafting Notes section does not contain routine kind-choice documentation for obvious kind assignments (bug and story are unambiguous here); a note explaining a non-obvious inference (e.g. spike vs story when it could be either) is acceptable",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "No Drafting Notes bullet in any skeleton justifies a kind; epic note is about keeping workstreams as decomposition (a scope call)."
         },
         {
           "text": "The Drafting Notes section does not contain routine priority-mapping boilerplate; a priority note is only acceptable if it explains a genuine scope interpretation tied to urgency language in the source",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "No Drafting Notes bullet mentions priority; all four sit at Medium with no boilerplate."
         },
         {
           "text": "At least one skeleton's Drafting Notes section contains a substantive interpretation note beyond the verbatim thin-draft text",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "e.g. bug: 'Kept the refresh case as a separate acceptance criterion because ... a fix that only resets client-side state on navigation would not satisfy it.'"
         },
         {
           "text": "If an Assumptions section is present in any skeleton, it contains interpretations where the wrong call would change scope or what gets built \u2014 not routine field selections",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Each Assumptions entry states a scope consequence: 'latest available data' vs real-time (pipeline vs cache fix), visible vs all columns, 'real-time' meaning, hardware key = FIDO2/WebAuthn."
         }
-      ]
+      ],
+      "notes": []
     },
     {
       "eval_id": 3,
+      "eval_name": "thin-draft-verbatim-note",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
         "passed": 6,
         "failed": 0,
-        "total": 6
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
       },
       "expectations": [
         {
           "text": "Each thin draft contains the exact phrase 'Extracted from source documents without interactive enrichment'",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "thin-drafts.md Drafting Notes: 'Extracted from source documents without interactive enrichment.' (single draft)."
         },
         {
-          "text": "Each thin draft contains the exact phrase 'Acceptance criteria, dependencies, and type may need refinement before promoting from `draft` to `ready`'",
+          "text": "Each thin draft contains the exact phrase 'Acceptance criteria, dependencies, and kind may need refinement before promoting from `draft` to `ready`'",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Present as 'Acceptance criteria, dependencies, and kind may need refinement before\\npromoting from `draft` to `ready`.' \u2014 line-wrapped exactly as SKILL.md's own rendering, same paragraph; treated as the exact phrase."
         },
         {
-          "text": "work-item-next-number.sh was NOT called at any point during this process",
+          "text": "accelerator work id next was NOT called at any point during this process",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Transcript: 'No `accelerator work id next` call'; the prompt forbids it, so this is trivially satisfied."
         },
         {
-          "text": "Each thin draft uses XXXX as the work_item_id placeholder",
+          "text": "Each thin draft uses XXXX as the work item number placeholder",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Heading '# XXXX: Email Verification on Registration'."
         },
         {
           "text": "Each thin draft contains an Open Questions section",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "'## Open Questions' with four questions kept from the 3.1 skeleton."
         },
         {
           "text": "Each thin draft has a section headed 'Drafting Notes' (not 'Assumptions') that contains the verbatim non-enrichment note",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "The note sits under '## Drafting Notes' as a separate paragraph after four source-derived bullets; the Assumptions section holds only the two scope interpretations."
         }
-      ]
+      ],
+      "notes": []
     },
     {
       "eval_id": 4,
@@ -254,104 +272,116 @@
     },
     {
       "eval_id": 6,
+      "eval_name": "source-faithfulness-assumptions",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
         "passed": 7,
         "failed": 0,
-        "total": 7
+        "total": 7,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
       },
       "expectations": [
         {
           "text": "The skeleton's Summary reflects only what the source document actually states",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Summary: 'Make search better. Users complain that search is slow and that its results are not good enough.' \u2014 nothing beyond the source."
         },
         {
-          "text": "Any acceptance criteria or specific requirements NOT in the source are flagged via Assumptions, Drafting Notes, or Open Questions",
+          "text": "The skeleton invents no acceptance criteria or specific requirements absent from the source, and flags any it does add via Assumptions, Drafting Notes, or Open Questions",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Requirements only restate the two complaints; Acceptance Criteria is a single 'None stated in the source' placeholder; no targets invented."
         },
         {
           "text": "The Drafting Notes section captures broader drafting interpretations (scope boundaries, who stakeholders are, vague term meanings) rather than field-choice reasoning",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Drafting Notes: Q3 kept as timing context with no deadline added; requirements limited to the two named complaints (scope boundary). Stakeholder/vague-term readings went to Assumptions/Open Questions instead."
         },
         {
-          "text": "The Drafting Notes section does NOT explain why the work item type was chosen or why a priority level was selected",
+          "text": "The Drafting Notes section does NOT explain why the work item kind was chosen or why a priority level was selected",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Neither bullet justifies kind 'story' or priority 'high'. The Q3 bullet covers timing handling only, not the priority level (borderline but acceptable)."
         },
         {
           "text": "Open Questions contains at least one question about a genuine business unknown raised by the sparse source",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Five Open Questions, e.g. 'What does \"better results\" mean ...', 'How slow is search today, and what response time would count as fixed?'"
         },
         {
           "text": "The thin draft carries the verbatim non-enrichment note from Step 3.4 in the Drafting Notes section",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "thin-draft.md Drafting Notes ends with the verbatim note as a separate paragraph."
         },
         {
           "text": "If an Assumptions section is present, it contains interpretations where the wrong call would change what gets built \u2014 not routine field selections",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Assumptions: speed+quality as one item vs an epic of two stories; 'users' as end users \u2014 each states how scope changes."
         }
-      ]
+      ],
+      "notes": []
     },
     {
       "eval_id": 7,
+      "eval_name": "post-enrichment-approval-clarity",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
         "passed": 8,
         "failed": 0,
-        "total": 8
+        "total": 8,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
       },
       "expectations": [
         {
           "text": "Post-enrichment prompt explicitly names 'approve' (or 'approved') as a numbered option",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "post-enrichment-prompt.md option '1. **Approve** \u2014 accept this enriched draft and move on'."
         },
         {
           "text": "Post-enrichment prompt makes clear that the user can provide revision instructions to update the draft",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Option '2. **Revise** \u2014 update the draft with more instructions (I'll ask for them in plain text next)'."
         },
         {
           "text": "Post-enrichment prompt mentions 'skip' as a numbered option",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Option '3. **Skip** \u2014 drop this candidate entirely'."
         },
         {
           "text": "Post-enrichment prompt mentions 'accept as-is' as a numbered option",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Option '4. **Accept as-is** \u2014 throw away the enrichment and use the original source-only skeleton'."
         },
         {
           "text": "Enriched draft contains acceptance criteria that are specific and testable",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "AC include 'at least 5 representative queries ... each with a likely cause', 'baseline latency ... (p50 and p95 at minimum)', explicit go/no-go \u2014 each checkable against the report."
         },
         {
           "text": "Enriched draft reflects the Q&A answers (search team, 2 devs, go/no-go recommendation, 3-day time-box)",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Search team / 'whether the current Elasticsearch setup is worth keeping' (Summary), 'two developers who maintain Elasticsearch' and Product (Context), go/no-go report (AC), 'Time-box: **3 days**' (Requirements)."
         },
         {
-          "text": "The enriched draft's Drafting Notes section does not contain explanations of why the work item type or priority was chosen",
+          "text": "The enriched draft's Drafting Notes section does not contain explanations of why the work item kind or priority was chosen",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Drafting Notes cover stakeholders, scope boundary, time-box reach, meaning of 'worth keeping'; the kind change appears only in the header 'Kind (revised): spike'. No priority reasoning."
         },
         {
           "text": "If an Assumptions section is present in the enriched draft, it contains scope-changing interpretations (not the same content that is already reflected in Requirements or Acceptance Criteria)",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Four Assumptions, each with an if-wrong scope consequence (decide-first vs fixes, end users vs internal, two problems, alternatives limited to Typesense/Meilisearch). Some overlap: the decide-first assumption repeats Drafting Notes bullet 2, and the alternatives assumption is what Requirements Q4 enacts \u2014 but each states the interpretation rather than restating requirement text, so pass."
         }
-      ]
+      ],
+      "notes": []
     },
     {
       "eval_id": 8,
@@ -360,9 +390,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
+        "passed": 5,
         "failed": 0,
-        "total": 4,
+        "total": 5,
         "time_seconds": 0.0,
         "tokens": 0,
         "tool_calls": 0,
@@ -372,22 +402,27 @@
         {
           "text": "push-offer.md contains exactly one push offer covering all three items",
           "passed": true,
-          "evidence": "push-offer.md presents one AskUserQuestion covering all three items; \"The offer is not asked per item.\""
+          "evidence": "push-offer.md: one AskUserQuestion 'Push these 3 work items to Linear now?' with 'Yes, push all 3' / 'No, save as drafts'; 'No per-item push offer was made.'"
         },
         {
           "text": "manifest.json has three entries and both stories' parent is {\"ref\": \"<the epic's ref>\"}",
           "passed": true,
-          "evidence": "manifest.json has three entries; both stories carry \"parent\": {\"ref\": \"search-overhaul\"}."
+          "evidence": "manifest.json has three entries; both stories carry '\"parent\": {\"ref\": \"search-overhaul\"}', the epic's ref."
         },
         {
-          "text": "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work next-number call",
+          "text": "Every manifest.json entry carries derived_from [\"codebase-research:2026-09-01-search\"]",
           "passed": true,
-          "evidence": "commands.md: one accelerator work create-batch --manifest ... --producer extract-work-items --author \"Ada Lovelace\", no --push; no next-number call."
+          "evidence": "All three entries: '\"derived_from\": [\"codebase-research:2026-09-01-search\"]'."
+        },
+        {
+          "text": "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work id next call",
+          "passed": true,
+          "evidence": "commands.md: one 'accelerator work create-batch --manifest ... --producer extract-work-items --author \"Ada Lovelace\"' with no --push; 'Not run: accelerator work id next'. Followed by three frontmatter validate calls, as Step 4.8 requires."
         },
         {
           "text": "summary.md renders all three items with the outcome 'draft \u2014 push declined'",
           "passed": true,
-          "evidence": "summary.md renders all three rows as \"draft \u2014 push declined\"."
+          "evidence": "summary.md: all three rows 'draft \u2014 push declined'."
         }
       ],
       "notes": []
@@ -557,6 +592,9 @@
   "notes": [
     "Evals 8-10 ({tracker} batch creation through work create-batch) were run with_skill only on 2026-09-28, by claude-sonnet-5; the old skill has no {tracker} flow. Eval 10 first failed one expectation (it told the user to fix the rejected item and re-run the batch); a per-keyword recovery table was added to Step 4 under {tracker} and the rerun passed.",
     "Eval 11 (an unpushed {tracker} batch that fails partway reruns only the entries never written) was run with_skill only on 2026-10-09, by claude-sonnet-5, and passed first time.",
-    "Eval 12 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
+    "Eval 12 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
+    "Evals 1, 2, 3, 6, 7, 8 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call.",
+    "Eval 2 failed one expectation: its bug and epic skeletons justify a priority of high in Drafting Notes, a field choice rather than a scope interpretation. Eval 3 failed one expectation that quotes the Step 3.4 note with \"type\" where the skill's note now says \"kind\"; the run copied the current note verbatim. Superseded by the re-run of the corrected eval below.",
+    "Evals 2, 3, 6, 7, 8 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call."
   ]
 }

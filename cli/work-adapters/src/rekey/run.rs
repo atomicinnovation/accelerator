@@ -5,11 +5,11 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::IdOwnership;
-use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use vcs::RepositoryProbe;
 use work::draft_id::SuffixDraws;
+use work::id_scheme::IdOwnership;
+use work::id_scheme::WorkItemIdScheme;
 use work::identity::ItemIdentity;
 use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
@@ -324,6 +324,7 @@ fn computed(
                 .map(|key| ExternalId::new(key.as_str().to_owned()))
                 .collect();
             tracker_mapping(
+                scheme,
                 candidates,
                 &ports.refresh.refresh(&stored)?,
                 &mut *ports.draws.borrow_mut(),
@@ -344,7 +345,7 @@ fn still_current(
     {
         return Err(NotRekeyed::PreviewStale(staleness));
     }
-    refuse_collisions(plan.entries(), items)?;
+    refuse_collisions(plan.entries(), items, scheme)?;
     Ok(plan)
 }
 

@@ -151,10 +151,10 @@ fn tracker_owned_draft(
 ) -> Result<(DraftId, PathBuf), PromoteOutcome> {
     let internal = failed(exit_codes::ERROR);
     let draft = DraftId::parse(input).ok_or_else(|| not_a_draft(input))?;
-    let ownership = crate::config::resolve_scheme(config)
+    let ownership = crate::config::announced_scheme_with_key(config)
         .map_err(|error| internal(error.to_string()))?
         .ownership();
-    if ownership != corpus::IdOwnership::Tracker {
+    if ownership != work::id_scheme::IdOwnership::Tracker {
         return Err(not_tracker_owned());
     }
     let files = FilesystemWorkItemFiles::new(work_dir)
@@ -233,7 +233,7 @@ fn try_run(
         retirement: &retirement,
         records: &records,
         promotions: &promotions,
-        ownership: corpus::IdOwnership::Tracker,
+        ownership: work::id_scheme::IdOwnership::Tracker,
         state_dir: workspace.state_dir(),
         probe_status: &probe_status,
         remote: work_adapters::promotion::RemoteReading {

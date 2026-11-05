@@ -1,8 +1,8 @@
 //! The provisional identity of a work item no tracker has confirmed yet.
 
-use corpus::IdOwnership;
-use corpus::WorkItemIdScheme;
-
+use crate::id_scheme::is_tracker_owned_token;
+use crate::id_scheme::IdOwnership;
+use crate::id_scheme::WorkItemIdScheme;
 use crate::identity::holder_of;
 use crate::identity::ItemIdentity;
 
@@ -19,9 +19,16 @@ pub struct DraftId(String);
 impl DraftId {
     pub const PREFIX: &'static str = "draft-";
 
+    /// The lowercase form of `raw` when it is a draft ID: the prefix and six
+    /// Crockford base-32 characters, at least one a letter, in any case.
     #[must_use]
     pub fn parse(raw: &str) -> Option<Self> {
-        corpus::canonical_draft_id(raw).map(Self)
+        let canonical = raw.to_ascii_lowercase();
+        let suffix = canonical.strip_prefix(Self::PREFIX)?;
+        let well_formed = suffix.len() == SUFFIX_LENGTH
+            && suffix.bytes().all(|byte| ALPHABET.contains(&byte))
+            && suffix.bytes().any(|byte| byte.is_ascii_alphabetic());
+        well_formed.then_some(Self(canonical))
     }
 
     #[must_use]
@@ -33,9 +40,10 @@ impl DraftId {
 /// Whether `id` can name a file or directory as it stands.
 #[must_use]
 pub fn is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
-    scheme.is_canonical_id_token(id)
+    scheme.is_any_key_id_token(id)
         || (scheme.ownership() == IdOwnership::Tracker
-            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
+            && (is_tracker_owned_token(id)
+                || WorkItemIdScheme::is_legacy_id(id)))
 }
 
 /// A source of random draft suffixes.
@@ -114,11 +122,10 @@ pub fn mint_draft_ids(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 mod tests {
     use std::collections::VecDeque;
     use std::path::PathBuf;
-
-    use corpus::WorkItemIdScheme;
 
     use super::is_token_safe;
     use super::mint_draft_id;
@@ -127,6 +134,7 @@ mod tests {
     use super::DraftIdExhausted;
     use super::SuffixDraws;
     use super::ALPHABET;
+    use crate::id_scheme::WorkItemIdScheme;
     use crate::identity::ItemIdentity;
 
     struct ScriptedDraws {
@@ -295,6 +303,18 @@ mod tests {
         assert!(!is_token_safe(&scheme, "0001; rm -rf ~"));
         assert!(!is_token_safe(&scheme, "1"));
         assert!(!is_token_safe(&scheme, ""));
+
+        let keyed = WorkItemIdScheme::new(
+            crate::id_pattern::IdPattern::parse("{key}-{number:04d}")
+                .expect("a well-formed pattern"),
+            crate::id_pattern::IdKey::parse("PP").ok(),
+        );
+        for admitted in ["X1-0400", "xy-0400"] {
+            assert!(is_token_safe(&keyed, admitted), "{admitted}");
+        }
+        for refused in ["../PP-0001", "PP-0001/x", "PP-0001 "] {
+            assert!(!is_token_safe(&keyed, refused), "{refused}");
+        }
     }
 
     #[test]
@@ -306,10 +326,13 @@ mod tests {
 
     #[test]
     fn a_tracker_key_and_a_draft_are_token_safe_where_the_tracker_owns_ids() {
-        let scheme = WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        };
+        let scheme = WorkItemIdScheme::new(
+            crate::id_pattern::IdPattern::parse(
+                crate::id_scheme::TRACKER_TOKEN,
+            )
+            .expect("the tracker pattern"),
+            None,
+        );
         assert!(is_token_safe(&scheme, "ENG-42"));
         assert!(is_token_safe(&scheme, "draft-k7mq3x"));
         assert!(!is_token_safe(&scheme, "../ENG-1"));

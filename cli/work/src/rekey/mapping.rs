@@ -3,26 +3,23 @@
 
 use std::collections::BTreeMap;
 
-use corpus::WorkItemIdScheme;
-
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
+use crate::id_scheme::WorkItemIdScheme;
 use crate::identity::ItemIdentity;
-use crate::next_number::allocate_above;
-use crate::next_number::pattern_cap;
-use crate::next_number::AllocationError;
+use crate::path_component::is_one_path_component;
 use crate::rekey::classify::classify;
 use crate::rekey::classify::Classification;
+use crate::rekey::classify::Unclassified;
 use crate::rekey::collision::refuse_collisions;
 use crate::rekey::creation_date::CreationDate;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::entry::RekeyTarget;
 use crate::rekey::outcome::NotRekeyed;
+use crate::rekey::outcome::UnclassifiableCause;
+use crate::rekey::sequence::existing_id;
 use crate::rekey::sequence::is_in_target_shape;
-use crate::rekey::sequence::project_key_of;
-use crate::rekey::sequence::rendered;
-use crate::rekey::sequence::sequence_of;
 use crate::tracker_key::TrackerKey;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,12 +43,12 @@ pub fn numeric_mapping(
     scheme: &WorkItemIdScheme,
     candidates: &[RekeyCandidate],
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
-    let cap = pattern_cap(&scheme.id_pattern);
+    let cap = cap_of(scheme);
     let mut entries = Vec::new();
     let mut needing_fresh = Vec::new();
     for candidate in candidates {
         let identity = &candidate.identity;
-        match classify(identity) {
+        match classify(identity, scheme) {
             Classification::TrackerKey | Classification::Draft => {
                 needing_fresh.push(candidate);
             }
@@ -61,15 +58,18 @@ pub fn numeric_mapping(
                 return Err(NotRekeyed::KeptNumberAboveCap {
                     item: identity.path.clone(),
                     number,
-                    pattern: scheme.id_pattern.clone(),
+                    pattern: scheme.pattern().as_str().to_owned(),
                 });
             }
-            Classification::Sequenced(number) => entries.push(renumbered(
-                &identity.id,
-                rendered(scheme, default_key(scheme), number),
-            )),
-            Classification::Unclassifiable => {
-                return Err(NotRekeyed::Unclassifiable(identity.path.clone()));
+            Classification::Sequenced(number) => {
+                entries
+                    .push(renumbered(&identity.id, rendered(scheme, number)));
+            }
+            Classification::Unclassifiable(unclassified) => {
+                return Err(NotRekeyed::Unclassifiable {
+                    item: identity.path.clone(),
+                    cause: cause_of(unclassified, &identity.id, scheme),
+                });
             }
         }
     }
@@ -81,22 +81,56 @@ pub fn numeric_mapping(
         .iter()
         .map(|candidate| candidate.identity.clone())
         .collect();
-    refuse_collisions(&entries, &items)?;
+    refuse_collisions(&entries, &items, scheme)?;
     Ok(entries)
+}
+
+fn cap_of(scheme: &WorkItemIdScheme) -> u64 {
+    scheme.pattern().cap().unwrap_or(u64::MAX)
+}
+
+/// `number` as the pattern renders it under `work.key`, which a scheme a
+/// re-key runs under always holds when its pattern needs one.
+fn rendered(scheme: &WorkItemIdScheme, number: u64) -> String {
+    scheme
+        .pattern()
+        .render(scheme.key(), number)
+        .unwrap_or_else(|_| number.to_string())
+}
+
+fn cause_of(
+    unclassified: Unclassified,
+    id: &str,
+    scheme: &WorkItemIdScheme,
+) -> UnclassifiableCause {
+    let id = id.to_owned();
+    match unclassified {
+        Unclassified::AmbiguousDigitRuns => {
+            UnclassifiableCause::AmbiguousDigitRuns {
+                id,
+                example: scheme.pattern().render(scheme.key(), 1).ok(),
+            }
+        }
+        Unclassified::NoNumber => UnclassifiableCause::NoNumber { id },
+        Unclassified::NotOnePathComponent => {
+            UnclassifiableCause::NotOnePathComponent { id }
+        }
+    }
+}
+
+fn not_a_tracker_key(identity: &ItemIdentity, stored: &str) -> NotRekeyed {
+    NotRekeyed::Unclassifiable {
+        item: identity.path.clone(),
+        cause: UnclassifiableCause::ExternalIdNotATrackerKey {
+            external_id: stored.to_owned(),
+        },
+    }
 }
 
 fn renumbered(old: &str, new: String) -> RekeyEntry {
     RekeyEntry {
         old: old.to_owned(),
         target: RekeyTarget::Renumbered(new),
-    }
-}
-
-fn default_key(scheme: &WorkItemIdScheme) -> Option<&str> {
-    if corpus::references_key(&scheme.id_pattern) {
-        scheme.key.as_deref()
-    } else {
-        None
     }
 }
 
@@ -107,9 +141,11 @@ fn default_key_floor(
     candidates: &[RekeyCandidate],
     kept: &[RekeyEntry],
 ) -> u64 {
-    let under_default_key = |token: &&str| {
-        project_key_of(token).is_none_or(|key| {
-            default_key(scheme).is_some_and(|own| own.eq_ignore_ascii_case(key))
+    let under_default_key = |key: &Option<String>| {
+        key.as_deref().is_none_or(|key| {
+            scheme
+                .key()
+                .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))
         })
     };
     candidates
@@ -119,8 +155,9 @@ fn default_key_floor(
                 .chain(candidate.identity.aliases.iter().map(String::as_str))
         })
         .chain(kept.iter().map(|entry| entry.target.id()))
-        .filter(under_default_key)
-        .filter_map(sequence_of)
+        .filter_map(|token| existing_id(token, scheme))
+        .filter(|existing| under_default_key(&existing.key))
+        .map(|existing| existing.number)
         .max()
         .unwrap_or(0)
 }
@@ -138,20 +175,16 @@ fn fresh_entries(
             .cmp(&right.created)
             .then_with(|| left.identity.id.cmp(&right.identity.id))
     });
-    let needed = u32::try_from(needing_fresh.len()).unwrap_or(u32::MAX);
-    let numbers =
-        allocate_above(scheme, floor, needed).map_err(|error| match error {
-            AllocationError::Overflow { highest, cap, .. } => {
-                NotRekeyed::FreshNumbersExhausted {
-                    needed: u64::from(needed),
-                    remaining: cap.saturating_sub(highest),
-                    pattern: scheme.id_pattern.clone(),
-                }
-            }
-            AllocationError::MissingKey | AllocationError::ProjectUnused => {
-                unreachable!("allocate_above checks no key")
-            }
-        })?;
+    let needed = u64::try_from(needing_fresh.len()).unwrap_or(u64::MAX);
+    let cap = cap_of(scheme);
+    if floor.saturating_add(needed) > cap {
+        return Err(NotRekeyed::FreshNumbersExhausted {
+            needed,
+            remaining: cap.saturating_sub(floor),
+            pattern: scheme.pattern().as_str().to_owned(),
+        });
+    }
+    let numbers = (1..=needed).map(|offset| rendered(scheme, floor + offset));
     Ok(needing_fresh
         .into_iter()
         .zip(numbers)
@@ -201,9 +234,8 @@ pub fn keys_to_refresh(
         .filter(|identity| DraftId::parse(&identity.id).is_none())
         .filter_map(|identity| {
             identity.external_id.as_deref().map(|stored| {
-                TrackerKey::parse(stored).ok_or_else(|| {
-                    NotRekeyed::Unclassifiable(identity.path.clone())
-                })
+                TrackerKey::parse(stored)
+                    .ok_or_else(|| not_a_tracker_key(identity, stored))
             })
         })
         .collect()
@@ -219,6 +251,7 @@ pub fn keys_to_refresh(
 /// [`NotRekeyed`] when an `external_id` is not shaped like a tracker key,
 /// no free draft ID can be drawn, or a target collides.
 pub fn tracker_mapping(
+    scheme: &WorkItemIdScheme,
     candidates: &[RekeyCandidate],
     refreshed: &RefreshedKeys,
     draws: &mut dyn SuffixDraws,
@@ -234,11 +267,21 @@ pub fn tracker_mapping(
         .filter(|identity| DraftId::parse(&identity.id).is_none())
     {
         let Some(stored) = identity.external_id.as_deref() else {
+            if !is_one_path_component(&identity.id)
+                || identity.id.chars().any(char::is_control)
+            {
+                return Err(NotRekeyed::Unclassifiable {
+                    item: identity.path.clone(),
+                    cause: UnclassifiableCause::NotOnePathComponent {
+                        id: identity.id.clone(),
+                    },
+                });
+            }
             unsynced.push(identity.id.clone());
             continue;
         };
         let stored = TrackerKey::parse(stored)
-            .ok_or_else(|| NotRekeyed::Unclassifiable(identity.path.clone()))?;
+            .ok_or_else(|| not_a_tracker_key(identity, stored))?;
         let current = refreshed.current_key_for(&stored);
         if !current.as_str().eq_ignore_ascii_case(&identity.id) {
             entries.push(RekeyEntry {
@@ -256,7 +299,7 @@ pub fn tracker_mapping(
         }
     }));
     entries.sort_by(|left, right| left.old.cmp(&right.old));
-    refuse_collisions(&entries, &items)?;
+    refuse_collisions(&entries, &items, scheme)?;
     Ok(entries)
 }
 
@@ -268,22 +311,29 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use corpus::WorkItemIdScheme;
-
     use super::numeric_mapping;
     use super::RekeyCandidate;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::WorkItemIdScheme;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
     use crate::rekey::outcome::NotRekeyed;
+    use crate::rekey::outcome::UnclassifiableCause;
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
+    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
+        WorkItemIdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.and_then(|key| IdKey::parse(key).ok()),
+        )
+    }
+
     fn keyed(key: &str) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some(key.to_owned()),
-        }
+        scheme("{key}-{number:04d}", Some(key))
     }
 
     fn acc() -> WorkItemIdScheme {
@@ -603,7 +653,54 @@ mod tests {
     fn an_unclassifiable_id_is_refused_naming_the_item() {
         assert_eq!(
             numeric_mapping(&acc(), &[local("notes")]),
-            Err(NotRekeyed::Unclassifiable(path_of("notes")))
+            Err(NotRekeyed::Unclassifiable {
+                item: path_of("notes"),
+                cause: UnclassifiableCause::NoNumber {
+                    id: "notes".to_owned()
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn an_ambiguous_id_is_refused_with_an_example_of_the_pattern() {
+        assert_eq!(
+            numeric_mapping(&acc(), &[local("PP2_0001")]),
+            Err(NotRekeyed::Unclassifiable {
+                item: path_of("PP2_0001"),
+                cause: UnclassifiableCause::AmbiguousDigitRuns {
+                    id: "PP2_0001".to_owned(),
+                    example: Some("ACC-0001".to_owned()),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn a_literal_text_item_moves_to_the_new_pattern() {
+        let pp = keyed("PP");
+        assert_eq!(
+            mapped(&pp, &[local("v001")]),
+            pairs(&[("v001", "PP-0001")])
+        );
+        assert_eq!(
+            mapped(&pp, &[local("v001"), draft("draft-k3x9mq", "2026-01-01")]),
+            pairs(&[("draft-k3x9mq", "PP-0002"), ("v001", "PP-0001")])
+        );
+    }
+
+    #[test]
+    fn a_draft_id_never_sets_the_fresh_number_floor() {
+        let corpus = [
+            draft("draft-ab1234", "2026-01-01"),
+            candidate(
+                "id: \"PP-760\"\nexternal_id: \"PP-760\"\n\
+                 aliases: [\"draft-a12345\"]\ndate: \"2026-02-01\"",
+            ),
+        ];
+        assert_eq!(
+            mapped(&acc(), &corpus),
+            pairs(&[("PP-760", "ACC-0002"), ("draft-ab1234", "ACC-0001")])
         );
     }
 
@@ -624,12 +721,17 @@ mod tests {
         use crate::draft_id::DraftId;
         use crate::draft_id::SuffixDraws;
         use crate::draft_id::ALPHABET;
+        use crate::id_pattern::IdPattern;
+        use crate::id_scheme::WorkItemIdScheme;
+        use crate::id_scheme::TRACKER_TOKEN;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
         use crate::rekey::mapping::keys_to_refresh;
         use crate::rekey::mapping::tracker_mapping;
         use crate::rekey::mapping::RefreshedKeys;
+        use crate::rekey::outcome::LinkedClash;
         use crate::rekey::outcome::NotRekeyed;
+        use crate::rekey::outcome::UnclassifiableCause;
         use crate::tracker_key::TrackerKey;
 
         struct Scripted(VecDeque<String>);
@@ -683,7 +785,20 @@ mod tests {
             candidates: &[RekeyCandidate],
             refreshed: &RefreshedKeys,
         ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
-            tracker_mapping(candidates, refreshed, &mut drawing(&["k3x9mq"]))
+            tracker_mapping(
+                &tracker_scheme(),
+                candidates,
+                refreshed,
+                &mut drawing(&["k3x9mq"]),
+            )
+        }
+
+        fn tracker_scheme() -> WorkItemIdScheme {
+            WorkItemIdScheme::new(
+                IdPattern::parse(TRACKER_TOKEN)
+                    .unwrap_or_else(|error| unreachable!("{error}")),
+                None,
+            )
         }
 
         fn collision(first: &str, second: &str, target: &str) -> NotRekeyed {
@@ -691,6 +806,7 @@ mod tests {
                 first: path_of(first),
                 second: path_of(second),
                 target: target.to_owned(),
+                linked: None,
             }
         }
 
@@ -787,7 +903,15 @@ mod tests {
             let corpus = [linked("0041", "PP-760"), linked("0042", "PP-760")];
             assert_eq!(
                 mapped(&corpus, &RefreshedKeys::default()),
-                Err(collision("0041", "0042", "PP-760"))
+                Err(NotRekeyed::Collision {
+                    first: path_of("0041"),
+                    second: path_of("0042"),
+                    target: "PP-760".to_owned(),
+                    linked: Some(LinkedClash {
+                        external_id: "PP-760".to_owned(),
+                        shared_key: None,
+                    }),
+                })
             );
         }
 
@@ -813,6 +937,15 @@ mod tests {
             );
         }
 
+        fn not_a_tracker_key(id: &str, external_id: &str) -> NotRekeyed {
+            NotRekeyed::Unclassifiable {
+                item: path_of(id),
+                cause: UnclassifiableCause::ExternalIdNotATrackerKey {
+                    external_id: external_id.to_owned(),
+                },
+            }
+        }
+
         #[test]
         fn an_external_id_of_no_tracker_shape_is_unclassifiable() {
             assert_eq!(
@@ -820,7 +953,22 @@ mod tests {
                     &[linked("0042", "not a key")],
                     &RefreshedKeys::default()
                 ),
-                Err(NotRekeyed::Unclassifiable(path_of("0042")))
+                Err(not_a_tracker_key("0042", "not a key"))
+            );
+        }
+
+        #[test]
+        fn an_unsynced_id_that_is_not_one_path_component_is_unclassifiable() {
+            let mut escaping = unlinked("0042");
+            escaping.identity.id = "../0042".to_owned();
+            assert_eq!(
+                mapped(&[escaping], &RefreshedKeys::default()),
+                Err(NotRekeyed::Unclassifiable {
+                    item: path_of("0042"),
+                    cause: UnclassifiableCause::NotOnePathComponent {
+                        id: "../0042".to_owned()
+                    },
+                })
             );
         }
 
@@ -840,7 +988,7 @@ mod tests {
         fn a_key_to_refresh_of_no_tracker_shape_is_unclassifiable() {
             assert_eq!(
                 keys_to_refresh(&[linked("0042", "not a key")]),
-                Err(NotRekeyed::Unclassifiable(path_of("0042")))
+                Err(not_a_tracker_key("0042", "not a key"))
             );
         }
 
@@ -849,6 +997,7 @@ mod tests {
             let corpus = [unlinked("draft-k3x9mq"), unlinked("0042")];
             assert!(matches!(
                 tracker_mapping(
+                    &tracker_scheme(),
                     &corpus,
                     &RefreshedKeys::default(),
                     &mut drawing(&["k3x9mq"; 16]),
