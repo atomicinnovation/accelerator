@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-11-05-0338-linear-update-sends-only-given-fields"
 title: "Linear Update Sends Only the Fields It Is Given Implementation Plan"
 date: "2026-11-05T16:51:32+00:00"
 author: "Phil Helm"
-producer: create-plan
-status: draft
+producer: "create-plan"
+status: "draft"
 work_item_id: "work-item:0338"
 parent: "work-item:0338"
 derived_from: ["codebase-research:2026-11-05-0338-linear-update-overwrites-unspecified-fields"]
-tags: [linear, cli, update]
+tags: ["linear", "cli", "update"]
 revision: "9a3f77a1c7a3b3d1db560d7848c8cb49ca6f19f2"
 repository: "accelerator-git"
 last_updated: "2026-11-05T17:17:17+00:00"

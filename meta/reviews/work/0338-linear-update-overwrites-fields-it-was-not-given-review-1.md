@@ -1,16 +1,16 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0338-linear-update-overwrites-fields-it-was-not-given-review-1"
 title: "Work Item Review: Linear Update Overwrites Fields It Was Not Given"
 date: "2026-11-05T16:12:31+00:00"
 author: "Phil Helm"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0338"
 work_item_id: "0338"
 reviewer: "Phil Helm"
-verdict: REVISE
-lenses: [clarity, completeness, dependency, scope, testability]
+verdict: "REVISE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 1
 tags: []

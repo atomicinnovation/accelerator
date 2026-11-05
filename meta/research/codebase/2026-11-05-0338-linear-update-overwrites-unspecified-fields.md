@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-11-05-0338-linear-update-overwrites-unspecified-fields"
 title: "Research: Linear Update Overwrites Fields It Was Not Given"
 date: "2026-11-05T16:35:14+00:00"
 author: "Phil Helm"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0338"
 parent: "work-item:0338"
 relates_to: ["codebase-research:2026-10-03-cli-surface-inventory", "codebase-research:2026-10-10-0296-sync-round-trip-defects", "codebase-research:2026-06-14-0048-linear-integration-apis"]
 topic: "Linear Update Overwrites Fields It Was Not Given"
-tags: [research, codebase, linear, linear-cli, linear-client, tracker-port, update]
+tags: ["research", "codebase", "linear", "linear-cli", "linear-client", "tracker-port", "update"]
 revision: "9a3f77a1c7a3b3d1db560d7848c8cb49ca6f19f2"
 repository: "accelerator-git"
 last_updated: "2026-11-05T16:35:14+00:00"
