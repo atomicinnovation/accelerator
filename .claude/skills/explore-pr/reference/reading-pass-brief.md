@@ -30,6 +30,14 @@ the chapter's `abstractions` and `decisions`. Then choose stops as evidence
 for that design: where a responsibility lives, where a decision is enforced,
 where a boundary is crossed. Do not walk every hunk.
 
+**Place every stop in the change.** Each stop's `fit` says, before anything
+about the lines themselves, how this code fits the change as a whole: which of
+the chapter's abstractions or decisions it carries, what calls or feeds it and
+what it hands on to, and which other chapter or stop it connects to. The
+`note` then explains what the code does. Write the `fit` lines of a chapter
+together, in order, and read them back: they should tell the chapter's story
+on their own. A `fit` that only restates the `note` has missed the point.
+
 **Draw first, write second.** A reviewer understands a diagram at a glance
 and needs three readings of the paragraph that says the same thing, so
 figures are the most valuable part of what you produce. For each chapter,

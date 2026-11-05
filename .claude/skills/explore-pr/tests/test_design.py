@@ -131,3 +131,39 @@ def test_an_abstraction_or_decision_id_used_twice_is_reported(tmp_path, script):
     _, warnings = assemble(tmp_path, script, chapters)
 
     assert any("duplicate design id a-store" in w for w in warnings)
+
+
+STOP = {
+    "id": "c-s1",
+    "file": "src/a.rs",
+    "start": 1,
+    "end": 1,
+    "title": "The store",
+    "note": "Writes one record.",
+}
+
+
+def test_a_stop_that_does_not_place_itself_in_the_change_is_reported(
+    tmp_path, script
+):
+    _, warnings = assemble(
+        tmp_path,
+        script,
+        [chapter("c", abstractions=[ABSTRACTION], stops=[STOP])],
+    )
+
+    assert any("stop c-s1" in w and "bigger picture" in w for w in warnings)
+
+
+def test_a_stop_that_places_itself_in_the_change_raises_nothing(
+    tmp_path, script
+):
+    stop = dict(STOP, fit="Carries the port decision for every writer.")
+
+    _, warnings = assemble(
+        tmp_path,
+        script,
+        [chapter("c", abstractions=[ABSTRACTION], stops=[stop])],
+    )
+
+    assert not [w for w in warnings if "bigger picture" in w]

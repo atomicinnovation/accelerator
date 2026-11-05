@@ -229,6 +229,7 @@ table.data tr:last-child td { border-bottom: 0; }
 .chapter-card .meta { display: grid; gap: 4px; justify-items: end; text-align: right; }
 .stop { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; padding-block: 18px; border-top: 1px solid var(--rule); }
 .stop-note { display: grid; gap: 10px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); min-width: 0; }
+.fit { display: grid; gap: 4px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; }
 .stop-num { font-family: var(--f-mono); font-size: 12px; color: var(--accent); font-weight: 600; }
 .check { border-left: 3px solid var(--warn); padding: 2px 0 2px 10px; font-size: 14px; }
 .check .eyebrow { color: var(--warn); }
@@ -1256,7 +1257,7 @@ function vOverview() {
   const forkBlocks = C.findings.filter(f => (C.findingCheck[f.id] || {}).triage === 'block' && !Store.get('finding:' + f.id).status);
   const breaking = (C.breaking || []).map(b => `<div class="ba-aspect">${md(b.title, true)} <span class="muted small" style="font-weight:400">· ${esc(b.affects || '')}</span></div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div><div class="small" style="margin-top:6px">${whereBtn(b.where)} ${b.changelog ? '· ' + whereBtn(b.changelog) : ''}</div></div>`).join('');
   const ci = ((C.ci || {}).checks || []);
-  const ciRows = ci.filter(c => c.status !== 'skipped').map(c => `<tr><td><span class="chip c-${c.status === 'pass' ? 'pass' : c.status}">${c.status}</span></td><td>${esc(c.name)}</td><td class="md small">${md(c.cause || '', true)}${c.fix ? `<div><b>Fix:</b> ${md(c.fix, true)}</div>` : ''}</td></tr>`).join('');
+  const ciRows = ci.filter(c => c.status !== 'skipped').map(c => `<tr><td><span class="chip c-${c.status === 'pass' ? 'pass' : c.status}">${c.status}</span></td><td>${esc(c.name)}</td><td class="small">${md(c.cause || '', true)}${c.fix ? `<div><b>Fix:</b> ${md(c.fix, true)}</div>` : ''}</td></tr>`).join('');
   const passN = ci.filter(c => c.status === 'pass').length;
   const chRows = C.chapters.map((c, i) => {
     const s = Store.get('chapter:' + c.id).status;
@@ -1459,7 +1460,7 @@ function vTour() {
     <p class="lede">${C.tourMeta && C.tourMeta.lede ? md(C.tourMeta.lede, true) + ' ' : ''}${C.chapters.length} chapters and ${C.chapters.reduce((n, c) => n + (c.stops || []).length, 0)} stops, ordered so each builds on the last. Every stop puts the explanation beside the code. Each chapter ends with the question you need to answer to sign it off.</p></div>
     <div class="chapter-list">${C.chapters.map((c, i) => {
       const s = Store.get('chapter:' + c.id).status;
-      return `<a class="chapter-card" href="#tour-${c.id}"><span class="ch-num">${i + 1}</span><div class="stack" style="gap:4px"><h3>${esc(c.title)}</h3><div class="small muted md">${md(c.oneLiner, true)}</div></div>
+      return `<a class="chapter-card" href="#tour-${c.id}"><span class="ch-num">${i + 1}</span><div class="stack" style="gap:4px"><h3>${esc(c.title)}</h3><div class="small muted">${md(c.oneLiner, true)}</div></div>
       <div class="meta small"><span class="muted tnum">${(c.stops || []).length} stops · ${fmt(linesOf(c))} lines</span>${s ? `<span class="chip c-${s}">${KINDS.chapter.opts.find(x => x[0] === s)[1]}</span>` : ''}</div></a>`;
     }).join('')}</div>`;
 }
@@ -1471,6 +1472,7 @@ function vChapter(ch) {
       <div class="stop-note">
         <div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>
         ${s.figure ? figureHtml(s.figure, { compact: true }) : ''}
+        ${s.fit ? `<div class="fit"><div class="eyebrow">In the bigger picture</div><div class="md">${md(s.fit)}</div></div>` : ''}
         <div class="md">${md(s.note)}</div>
         ${s.check ? `<div class="check"><div class="eyebrow">Check</div><div class="md">${md(s.check)}</div></div>` : ''}
         ${(s.findings || []).length ? `<div class="row small">${s.findings.map(id => F[id] ? `<a href="#findings" data-jump-finding="${id}" title="${esc(F[id].summary)}">${id}</a> ${sevChip(F[id].severity)}` : '').join(' ')}</div>` : ''}
@@ -1488,13 +1490,13 @@ function vChapter(ch) {
   const own = (ch.ownNotes || []).map((n, k) => `<div class="finding"><div class="finding-head">${sevChip(n.level)}<span class="finding-id">N-${esc(ch.id)}-${k + 1}</span>${whereBtn(n.where)}</div><div class="md">${md(n.text)}</div>${ctl(`own:${ch.id}-${k + 1}`, 'finding', { label: `New observation in ${ch.title}`, where: n.where, text: n.text })}</div>`).join('');
   const tests = (ch.tests || []).map(t => `<tr><td>${testRef(t)}</td><td class="small">${md(t.proves, true)}</td></tr>`).join('');
   const terms = (ch.domain || []).map(d => `<div class="term"><b>${esc(d.term)}</b><div class="small">${md(d.meaning, true)}</div>${d.code ? `<code class="small">${esc(d.code)}</code>` : ''}</div>`).join('');
-  return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede md">${md(ch.oneLiner, true)}</p></div>
+  return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede">${md(ch.oneLiner, true)}</p></div>
     ${(ch.figures || []).length ? `<div class="figs">${ch.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
+    ${terms ? `<section class="section"><h2>Terms this chapter introduces</h2><div class="glossary">${terms}</div></section>` : ''}
     ${designSection((ch.abstractions || []).map(item => ({ item, chapter: null })), (ch.decisions || []).map(item => ({ item, chapter: null })), 'What it adds to the design')}
     <div class="grid-2"><section class="stack"><div class="eyebrow">Why it exists</div><div class="md prose">${md(ch.purpose)}</div></section>
     <section class="stack"><div class="eyebrow">How it works</div><div class="md prose">${md(ch.mechanism)}</div></section></div>
     ${ba}
-    ${terms ? `<section class="section"><h2>Terms this chapter introduces</h2><div class="glossary">${terms}</div></section>` : ''}
     <section class="section"><h2>Where it lives in the code</h2><p class="small muted">The stops below are the evidence for the design above: read them to check it, not to learn it.</p><div>${stops}</div></section>
     ${inv ? `<section class="section"><h2>Invariants</h2><p class="small muted">What must always hold. The reading pass's view is shown; record your own.</p><div class="panel" style="padding-block:4px">${inv}</div></section>` : ''}
     ${risks ? `<section class="section"><h2>Risks</h2><div class="table-wrap"><table class="data"><tbody>${risks}</tbody></table></div></section>` : ''}
