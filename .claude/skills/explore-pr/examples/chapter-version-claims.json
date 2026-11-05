@@ -1,0 +1,449 @@
+{
+  "id": "claims",
+  "title": "Version claims",
+  "oneLiner": "Every launcher start in a relocated root marks its version as in use, so a later prune can tell which versions' entries are still wanted.",
+  "figures": [
+    {
+      "id": "claims-f1",
+      "kind": "timeline",
+      "title": "How long a claim protects its version",
+      "scale": "log",
+      "from": 60,
+      "to": 5184000,
+      "ticks": [
+        {
+          "at": 60,
+          "label": "1 min"
+        },
+        {
+          "at": 3600,
+          "label": "1 h"
+        },
+        {
+          "at": 120960,
+          "label": "1.4 d"
+        },
+        {
+          "at": 1209600,
+          "label": "14 d"
+        },
+        {
+          "at": 5184000,
+          "label": "60 d"
+        }
+      ],
+      "spans": [
+        {
+          "from": 60,
+          "to": 120960,
+          "label": "young: start-up leaves it alone",
+          "tone": "info"
+        },
+        {
+          "from": 120960,
+          "to": 1209600,
+          "label": "fresh: protects",
+          "tone": "ok"
+        },
+        {
+          "from": 1209600,
+          "to": 5184000,
+          "label": "stale: entries can go",
+          "tone": "bad"
+        }
+      ],
+      "marks": [
+        {
+          "at": 3600,
+          "label": "1.26.0, running",
+          "tone": "ok"
+        },
+        {
+          "at": 172800,
+          "label": "1.25.0",
+          "tone": "ok"
+        },
+        {
+          "at": 1728000,
+          "label": "1.24.0",
+          "tone": "bad"
+        }
+      ],
+      "caption": "Claim ages on a log scale. Start-up skips a claim younger than 1.4 d, so a version stops being protected 12.6 to 14 days after its last use, not exactly 14."
+    },
+    {
+      "id": "claims-f2",
+      "kind": "sequence",
+      "title": "Start-up claims the version before any lookup",
+      "actors": [
+        {
+          "id": "launcher",
+          "label": "launcher start-up"
+        },
+        {
+          "id": "claims",
+          "label": "<root>/claims/"
+        },
+        {
+          "id": "root",
+          "label": "cache root"
+        }
+      ],
+      "steps": [
+        {
+          "from": "launcher",
+          "to": "claims",
+          "label": "lstat 1.26.0.c0ffee00c0ffee00",
+          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45"
+        },
+        {
+          "over": [
+            "launcher",
+            "claims"
+          ],
+          "note": "Valid and younger than 1.4 d: stop here. Nothing else is written."
+        },
+        {
+          "from": "launcher",
+          "to": "claims",
+          "label": "mkdir with mode 0700; EEXIST is fine",
+          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:71"
+        },
+        {
+          "from": "launcher",
+          "to": "claims",
+          "label": "refuse unless only this user can write to it",
+          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:77",
+          "tone": "risk"
+        },
+        {
+          "from": "launcher",
+          "to": "claims",
+          "label": "create with O_NOFOLLOW, mtime = now",
+          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:83"
+        },
+        {
+          "over": [
+            "launcher",
+            "claims",
+            "root"
+          ],
+          "note": "Any failure is logged at debug level only; the command carries on."
+        },
+        {
+          "from": "launcher",
+          "to": "root",
+          "label": "find the sub-binary (warm dispatch)",
+          "where": "cli/launcher/src/launch/start_up.rs:78"
+        }
+      ],
+      "caption": "Step 4 checks the directory by path and then writes through the path; review-1 raised that as a time-of-check gap (R1-30)."
+    },
+    {
+      "id": "claims-f3",
+      "kind": "tree",
+      "title": "What a prune reads in claims/",
+      "root": "<root>/claims/",
+      "items": [
+        {
+          "path": "1.26.0.c0ffee00c0ffee00",
+          "state": "kept",
+          "note": "the running version: protected whatever its age"
+        },
+        {
+          "path": "1.25.0.fedcba9876543210",
+          "state": "kept",
+          "note": "2 d old: fresh, so 1.25.0's entries stay"
+        },
+        {
+          "path": "1.24.0.0123456789abcdef",
+          "state": "removed",
+          "note": "20 d old: goes after the last 1.24.0 entry",
+          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
+        },
+        {
+          "path": "1.24.0.9c4b1e0f2a7d5e83",
+          "state": "removed",
+          "note": "stale twin from another install: goes as well"
+        },
+        {
+          "path": "notes.txt",
+          "note": "not `<version>.<16 hex>`: ignored, never removed"
+        }
+      ],
+      "caption": "A claim is an empty file whose name is the version and whose mtime is the last use. Only regular files you own count."
+    }
+  ],
+  "abstractions": [
+    {
+      "id": "a-version-claim",
+      "name": "VersionClaim",
+      "kind": "type",
+      "status": "new",
+      "responsibility": "A claim's identity, `<version>.<launcher-id>`, and the one rule that parses and validates its name.",
+      "collaborators": [
+        "FreshVersions"
+      ],
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:18"
+    },
+    {
+      "id": "a-fresh-versions",
+      "name": "FreshVersions",
+      "kind": "type",
+      "status": "new",
+      "responsibility": "The versions a prune must keep: every valid claim inside the window, plus the running version.",
+      "collaborators": [
+        "Clock"
+      ],
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
+    },
+    {
+      "id": "a-claim-running",
+      "name": "RootRetention::claim_running_version",
+      "kind": "trait method",
+      "status": "new",
+      "responsibility": "Writes the running version's claim at start-up in a relocated root; does nothing in the plugin's own `bin/`.",
+      "collaborators": [
+        "VersionClaim",
+        "CacheFilesystem",
+        "Ownership"
+      ],
+      "where": "cli/launcher/src/launch/start_up.rs:78"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "d-claim-heartbeat",
+      "decision": "Record use as a claim file's mtime, refreshed at most every 1.4 days",
+      "alternatives": [
+        "a registry file listing installed versions, rewritten under a lock",
+        "rewrite the claim on every invocation"
+      ],
+      "rationale": "An empty file per install needs no lock and no parsing, a read-only root still dispatches, and the throttle keeps a warm start to one `lstat` almost every time.",
+      "consequences": "Protection ends 12.6 to 14 days after last use, not exactly 14, and launchers from before claims write none, so their entries are evicted (an accepted risk).",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45",
+      "adr": "meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md",
+      "assessment": "sound",
+      "note": "The right trade for the warm path. The fail-open `lstat` at `version_claims.rs:138` is a defect in the reader, not in this decision."
+    },
+    {
+      "id": "d-claim-per-install",
+      "decision": "Claim per install, not per version",
+      "alternatives": [
+        "one claim per version, shared by every install of it"
+      ],
+      "rationale": "Two installs of one version refresh independently, so one going idle cannot expire the other's protection, and a stale twin can go without touching the live one.",
+      "consequences": "The `<version>.<launcher-id>` name becomes a contract between releases; changing it strands every existing claim.",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/mod.rs:16",
+      "assessment": "sound"
+    }
+  ],
+  "purpose": "A relocated root outlives every plugin version that shares it, and several versions use it at once: a session started before an upgrade keeps its version until it reloads. \"Keep the newest N versions\" would evict a version a live session still dispatches. A claim gives each install a heartbeat, so a prune keeps what is still in use and treats everything else as unclaimed.",
+  "mechanism": "A claim is an empty file, `claims/<version>.<launcher-id>`; only its mtime carries meaning. Start-up refreshes it, in a relocated root only, at most every 1.4 days, and swallows any failure (the sequence above). A prune reads `claims/` into a `ClaimsListing` that is either `Read(claims)` or `Unreadable(kind)`, so \"no claims\" is never confused with \"could not look\". `FreshVersions` keeps every version with a valid claim inside the window, plus the running version. An unknown or future mtime counts as fresh, so clock skew can only keep entries, never remove them.",
+  "beforeAfter": [
+    {
+      "aspect": "What keeps an old version's single-file entries in a relocated root",
+      "before": "Nothing ever removed them, so they stayed for ever.",
+      "after": "A valid claim refreshed inside the window, or being the running version; otherwise they go once 1 h old."
+    },
+    {
+      "aspect": "Start-up filesystem work in a relocated root",
+      "before": "None beyond the lookup.",
+      "after": "One `lstat` of the claim; `mkdir`, a trust check, a write and `set_modified` at most once per 1.4 days."
+    }
+  ],
+  "domain": [
+    {
+      "term": "version claim",
+      "meaning": "Empty file `claims/<version>.<launcher-id>` whose mtime records when that install last refreshed it.",
+      "code": "VersionClaim"
+    },
+    {
+      "term": "launcher id",
+      "meaning": "16 lowercase hex: the first 8 bytes of SHA-256 over the launcher's `current_exe()` path.",
+      "code": "launcher_id"
+    },
+    {
+      "term": "claim window",
+      "meaning": "How long a claim protects: `CLAIM_WINDOW` (14 days), or `--older-than` seconds for the verb.",
+      "code": "CLAIM_WINDOW"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "claims-i1",
+      "text": "In a relocated root the running version's claim is refreshed before any lookup can store an entry.",
+      "where": "cli/launcher/src/launch/start_up.rs:72",
+      "pinnedBy": [
+        "cli/launcher/tests/resolution.rs::an_override_root_dispatch_writes_its_claim_before_find"
+      ],
+      "holds": "yes"
+    },
+    {
+      "id": "claims-i2",
+      "text": "A valid claim younger than the refresh interval is not rewritten.",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45",
+      "pinnedBy": [
+        "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs::a_younger_claim_is_not_rewritten",
+        "cli/launcher/tests/resolution.rs::an_override_root_dispatch_with_a_young_claim_does_not_rewrite_it",
+        "cli/launcher/tests/resolution.rs::a_fresh_claim_costs_one_metadata_read_beyond_the_fixed_list"
+      ],
+      "holds": "yes"
+    },
+    {
+      "id": "claims-i3",
+      "text": "A failed claim refresh never fails a dispatch.",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:54",
+      "pinnedBy": [
+        "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs::a_read_only_root_never_fails_the_refresh",
+        "cli/launcher/tests/resolution.rs::a_read_only_override_root_still_dispatches_warm"
+      ],
+      "holds": "yes"
+    }
+  ],
+  "risks": [
+    {
+      "level": "medium",
+      "text": "A claim whose `lstat` fails for any reason is silently dropped while the listing stays `Read`, so that version reads as unclaimed and its aged entries go. It needs `claims/` to lose its search bit while staying readable, or I/O errors; the cost is a re-fetch, not data loss.",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:138",
+      "refs": [
+        "R1-06",
+        "R1-05"
+      ]
+    },
+    {
+      "level": "medium",
+      "text": "Launchers built before this change write no claims, so every claim-aware prune evicts their entries once they are 1 h old, and they cannot re-resolve a vanished entry. Only 1.24.0 pre-releases ship a launcher (v1.23.0 has no `cli/` or `bin/accelerator`), so the exposure is pre-release users with `ACCELERATOR_CACHE_DIR` set.",
+      "where": "CHANGELOG.md:920",
+      "refs": [
+        "R1-12",
+        "R1-17"
+      ]
+    }
+  ],
+  "stops": [
+    {
+      "id": "claims-s1",
+      "file": "cli/launcher/src/launch/outbound/resolve/retention_windows.rs",
+      "side": "new",
+      "start": 1,
+      "end": 27,
+      "title": "The windows every prune shares",
+      "fit": "The clock the whole retention design runs on: claims are written against `CLAIM_WINDOW`, `FreshVersions` keeps what falls inside it, and both single-file and tree prune age their entries by `AGE_BACKSTOP`. Every later stop either writes a claim or reads one against these windows.",
+      "note": "`AGE_BACKSTOP` (1 h), `CLAIM_WINDOW` (14 days) and `REFRESH_FRACTION` (10) sit in a leaf module so single-file and tree prune share them without importing each other. `is_aged` is `>=` the backstop, false for an unknown mtime and age zero for a future one, so clock trouble can only keep. Claims use the opposite edge: a claim exactly at the window is stale, because `FreshVersions::within` tests `<`.",
+      "check": "`is_aged` is the age test for entries and residue at `single_file.rs:391`, `residue.rs:78` and `residue.rs:122`; confirm no other duration is hard-coded in `retention/`.",
+      "findings": []
+    },
+    {
+      "id": "claims-s2",
+      "file": "cli/launcher/src/launch/outbound/resolve/retention/mod.rs",
+      "side": "new",
+      "start": 13,
+      "end": 29,
+      "title": "Launcher id: one claim per install",
+      "fit": "Carries the decision to claim per install rather than per version: the id becomes the `<launcher-id>` half of every `VersionClaim` name, so a prune sees one claim per install of a version and can tell a live install from a removed one.",
+      "note": "The id hashes the launcher's own path, which is content-addressed, so two installs of one version write distinct claims and one's refresh never masks the other's absence. If `current_exe()` fails, the seed falls back to the version string and such installs share a claim. Only the claim name's shape crosses versions; each launcher only ever writes its own id.",
+      "findings": [],
+      "figure": {
+        "id": "claims-s2-f",
+        "kind": "flow",
+        "title": "One claim per install, not per version",
+        "nodes": [
+          {
+            "id": "exe",
+            "label": "current_exe()",
+            "sub": "the launcher's own path"
+          },
+          {
+            "id": "sha",
+            "label": "SHA-256",
+            "sub": "first 8 bytes"
+          },
+          {
+            "id": "id",
+            "label": "c0ffee00c0ffee00",
+            "sub": "launcher id",
+            "tone": "new"
+          },
+          {
+            "id": "claim",
+            "label": "1.26.0.c0ffee00c0ffee00",
+            "sub": "claim file name",
+            "tone": "new"
+          }
+        ],
+        "edges": [
+          {
+            "from": "exe",
+            "to": "sha"
+          },
+          {
+            "from": "sha",
+            "to": "id",
+            "label": "hex"
+          },
+          {
+            "from": "id",
+            "to": "claim"
+          }
+        ]
+      }
+    },
+    {
+      "id": "claims-s3",
+      "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
+      "side": "new",
+      "start": 18,
+      "end": 31,
+      "title": "Claim path and the version it names",
+      "fit": "Where a claim's name meets the rest of the root: `claim_running_version` writes this path at start-up, and `FreshVersions` reads the `<version>` half back to decide which launcher entries a prune keeps. It is the seam between writing claims and honouring them.",
+      "note": "`<version>` is `CARGO_PKG_VERSION`, but `bin/accelerator` names launcher entries from `plugin.json`'s version (`bin/accelerator:141`). Launcher-entry protection therefore assumes the two strings match. `tasks/version.py:75-88` writes both together, and the entrypoint A/B/C test fails if the running launcher entry is pruned.",
+      "check": "Is lockstep between `plugin.json` and the `cli/` workspace version enforced anywhere besides `tasks/version.py`?",
+      "findings": []
+    }
+  ],
+  "tests": [
+    {
+      "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
+      "name": "a_missing_claim_is_written",
+      "line": 346,
+      "proves": "A refresh writes `claims/<version>.<id>` with mtime now."
+    },
+    {
+      "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
+      "name": "a_younger_claim_is_not_rewritten",
+      "line": 379,
+      "proves": "Below a tenth of the window neither bytes nor mtime change."
+    },
+    {
+      "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
+      "name": "a_claim_exactly_a_tenth_of_the_window_old_is_rewritten",
+      "line": 368,
+      "proves": "At exactly the refresh interval the claim is rewritten."
+    }
+  ],
+  "findingChecks": [
+    {
+      "id": "R1-06",
+      "verdict": "confirmed",
+      "note": "`filesystem.entry(&path).ok()?` at `version_claims.rs:138` drops any claim whose `lstat` fails, and `list` still returns `Read`. With `claims/` at 0600 (owner-only, so trusted; readable but not searchable) every `lstat` fails with `EACCES`, every other version reads as unclaimed and its aged entries go, with no warning. The cost is re-fetching; the running version stays protected.",
+      "triage": "fix-now",
+      "level": "implementation"
+    },
+    {
+      "id": "R1-05",
+      "verdict": "confirmed",
+      "note": "`version_claims::list` and `tree::claims::list` share their shape but diverge: an untrusted version-claims directory becomes `Unreadable(PermissionDenied)` and prints as \"claims unreadable (permission denied)\", where tree claims report `Untrusted`; a `readdir` `NotFound` is empty here but `Unreadable` there. Both carry the same per-claim `lstat` gap, so one shared reader would fix R1-06 and R1-08 together.",
+      "triage": "follow-up",
+      "level": "design"
+    }
+  ],
+  "ownNotes": [
+    {
+      "level": "minor",
+      "text": "A version stops being fresh 12.6 to 14 days after its last use, not 14: the throttle lets a claim be up to 1.4 days old at the version's last start. `internals.md:329` (\"a version idle for 14 days, whose claim is that old\") states a sufficient condition, not the actual one.",
+      "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:48"
+    }
+  ],
+  "signOff": "Do you accept that a version's protection is a heartbeat fresh for 12.6 to 14 days after its last use, and that until R1-06 is fixed a per-claim `lstat` failure fails open?"
+}

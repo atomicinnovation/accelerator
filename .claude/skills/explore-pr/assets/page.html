@@ -1,0 +1,1803 @@
+<title>__EXPLORE_PR_TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a review console. Left rail is the review's own directory tree; the main column reads like an annotated listing, prose beside code. */
+:root {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --panel-2: #edf0f4;
+  --ink: #121722;
+  --ink-2: #465063;
+  --ink-3: #6b7588;
+  --rule: #d8dde5;
+  --accent: #2545c4;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4e9fb;
+  --add-bg: #e2f3e7;
+  --add-mark: #17733a;
+  --del-bg: #fbe8e7;
+  --del-mark: #b42318;
+  --hl-row: #fff5d1;
+  --ok: #17733a;
+  --warn: #946200;
+  --bad: #b42318;
+  --info: #2545c4;
+  --none: #7d8696;
+  --sev-major: #b5361a;
+  --sev-minor: #8f6400;
+  --sev-sugg: #5b6474;
+  --risk-high: #0d366b;
+  --risk-med: #1c5cab;
+  --risk-low: #3987e5;
+  --risk-skim: #86b6ef;
+  --risk-high-ink: #ffffff;
+  --risk-med-ink: #ffffff;
+  --risk-low-ink: #0b1a2e;
+  --risk-skim-ink: #0b1a2e;
+  --tok-kw: #a1214c;
+  --tok-title: #1d5aa6;
+  --tok-str: #2c7339;
+  --tok-com: #77808f;
+  --tok-num: #925400;
+  --tok-meta: #6646b8;
+  --tok-built: #0a6870;
+  --shadow: 0 1px 2px rgba(18, 23, 34, .06), 0 4px 16px rgba(18, 23, 34, .05);
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --rail-w: 248px;
+  --top-h: 56px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1015; --panel: #151a22; --panel-2: #1b212b; --ink: #e4e8ef; --ink-2: #a8b2c2; --ink-3: #7d889b;
+    --rule: #283041; --accent: #8ba5ff; --accent-ink: #0d1015; --accent-soft: #1d2747;
+    --add-bg: #0f2a19; --add-mark: #4cc27a; --del-bg: #351719; --del-mark: #ff7f76; --hl-row: #3a3215;
+    --ok: #4cc27a; --warn: #e2b23f; --bad: #ff7f76; --info: #8ba5ff; --none: #8a94a6;
+    --sev-major: #ff8c6b; --sev-minor: #e2b23f; --sev-sugg: #9aa4b6;
+    --risk-high: #b7d3f6; --risk-med: #6da7ec; --risk-low: #2a78d6; --risk-skim: #184f95;
+    --risk-high-ink: #0b1a2e; --risk-med-ink: #0b1a2e; --risk-low-ink: #ffffff; --risk-skim-ink: #e4e8ef;
+    --tok-kw: #ff8fb0; --tok-title: #8cc3ff; --tok-str: #8fd19e; --tok-com: #7d889b; --tok-num: #f0b65a; --tok-meta: #c5a8ff; --tok-built: #6fd2db;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1015; --panel: #151a22; --panel-2: #1b212b; --ink: #e4e8ef; --ink-2: #a8b2c2; --ink-3: #7d889b;
+  --rule: #283041; --accent: #8ba5ff; --accent-ink: #0d1015; --accent-soft: #1d2747;
+  --add-bg: #0f2a19; --add-mark: #4cc27a; --del-bg: #351719; --del-mark: #ff7f76; --hl-row: #3a3215;
+  --ok: #4cc27a; --warn: #e2b23f; --bad: #ff7f76; --info: #8ba5ff; --none: #8a94a6;
+  --sev-major: #ff8c6b; --sev-minor: #e2b23f; --sev-sugg: #9aa4b6;
+  --risk-high: #b7d3f6; --risk-med: #6da7ec; --risk-low: #2a78d6; --risk-skim: #184f95;
+  --risk-high-ink: #0b1a2e; --risk-med-ink: #0b1a2e; --risk-low-ink: #ffffff; --risk-skim-ink: #e4e8ef;
+  --tok-kw: #ff8fb0; --tok-title: #8cc3ff; --tok-str: #8fd19e; --tok-com: #7d889b; --tok-num: #f0b65a; --tok-meta: #c5a8ff; --tok-built: #6fd2db;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--panel); }
+a { color: var(--accent); text-underline-offset: 2px; }
+code, kbd, .mono { font-family: var(--f-mono); font-size: .86em; }
+:not(pre) > code { background: var(--panel-2); border-radius: 4px; padding: .05em .32em; overflow-wrap: anywhere; }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; letter-spacing: -.01em; margin: 0; line-height: 1.2; }
+h1 { font-size: 1.85rem; font-weight: 700; }
+h2 { font-size: 1.35rem; font-weight: 700; }
+h3 { font-size: 1.08rem; font-weight: 600; }
+p { margin: 0; }
+.prose { max-width: 72ch; display: grid; gap: .7em; align-content: start; }
+.prose ul, .prose ol { margin: 0; padding-left: 1.25em; display: grid; gap: .3em; }
+.prose pre, .md pre { background: var(--panel-2); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0; font-size: 13px; line-height: 1.45; }
+.prose pre code, .md pre code { background: none; padding: 0; font-size: inherit; }
+.md { display: grid; gap: .55em; min-width: 0; align-content: start; }
+.md > * { margin: 0; }
+.md ul, .md ol { padding-left: 1.2em; display: grid; gap: .25em; }
+.eyebrow { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.muted { color: var(--ink-3); }
+.small { font-size: 13px; }
+.tnum { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Top bar */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--panel); border-bottom: 1px solid var(--rule);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.topbar-inner { min-height: var(--top-h); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 8px; }
+.pr-id { font-family: var(--f-mono); font-weight: 600; font-size: 13px; background: var(--ink); color: var(--panel); border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
+.pr-title { font-family: var(--f-display); font-weight: 600; font-size: 15.5px; min-width: 0; flex: 1 1 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.meter { display: grid; gap: 3px; min-width: 92px; }
+.meter-label { font-size: 11px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.meter-bar { height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
+.meter-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.decision-chip { font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 4px 10px; border: 1px solid var(--rule); white-space: nowrap; }
+
+/* Shell */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: calc(100vh - var(--top-h)); }
+.rail { border-right: 1px solid var(--rule); padding: 18px 10px 40px max(10px, env(safe-area-inset-left, 0px)); position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h)); align-self: start; max-height: calc(100vh - var(--top-h)); overflow-y: auto; }
+.rail-group { display: grid; gap: 1px; margin-bottom: 14px; }
+.rail-head { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 0 10px 6px; }
+.rail a { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink-2); padding: 6px 10px; border-radius: 6px; font-size: 14px; min-width: 0; }
+.rail a:hover { background: var(--panel-2); color: var(--ink); }
+.rail a[aria-current="page"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+.rail a .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail a .num { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); }
+.rail a.sub { padding-left: 22px; font-size: 13.5px; }
+.rail-path { font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); padding: 0 10px 10px; overflow-wrap: anywhere; }
+main { min-width: 0; padding-block: 28px 80px; padding-left: max(16px, 3vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 3vw); }
+.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; max-width: 1280px; }
+.view > *, .section > *, .stack > *, .grid-2 > *, .grid-3 > * { min-width: 0; }
+.view-head { display: grid; gap: 8px; }
+.lede { font-size: 16.5px; color: var(--ink-2); max-width: 70ch; }
+
+/* Generic blocks */
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; min-width: 0; }
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+.section > h2, .section > .sec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th { text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.data td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.data tr:last-child td { border-bottom: 0; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+.loc { font-family: var(--f-mono); font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.loc:hover { text-decoration: underline; }
+
+/* Chips */
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; border-radius: 999px; padding: 2px 8px; border: 1px solid currentColor; white-space: nowrap; line-height: 1.5; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.plain::before { display: none; }
+.c-major, .c-high, .c-bad, .c-block, .c-blocking, .c-issue, .c-disputed, .c-fail { color: var(--bad); }
+.c-major { color: var(--sev-major); }
+.c-minor, .c-medium, .c-warn, .c-fix-now, .c-concerns, .c-question, .c-partly, .c-cancelled { color: var(--warn); }
+.c-minor { color: var(--sev-minor); }
+.c-suggestion, .c-low, .c-none, .c-reject, .c-drop, .c-skip, .c-unverified, .c-skipped { color: var(--sev-sugg); }
+.c-ok, .c-confirmed, .c-understood, .c-approve, .c-pass, .c-yes { color: var(--ok); }
+.c-info, .c-follow-up { color: var(--info); }
+.lens { font-size: 11.5px; color: var(--ink-3); font-family: var(--f-mono); }
+
+/* Review controls */
+.ctl { display: grid; gap: 8px; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { border: 1px solid var(--rule); background: var(--panel); border-radius: 6px; padding: 4px 10px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--ink-2); }
+.seg button:hover { border-color: var(--ink-3); color: var(--ink); }
+.seg button[aria-pressed="true"] { color: var(--panel); border-color: transparent; font-weight: 600; }
+.seg button[aria-pressed="true"].t-ok { background: var(--ok); }
+.seg button[aria-pressed="true"].t-warn { background: var(--warn); }
+.seg button[aria-pressed="true"].t-bad { background: var(--bad); }
+.seg button[aria-pressed="true"].t-info { background: var(--info); }
+.seg button[aria-pressed="true"].t-none { background: var(--none); }
+.seg .note-toggle { border-style: dashed; }
+.ctl textarea { width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.ctl .saved { font-size: 11.5px; color: var(--ink-3); }
+.ro .seg button, .ro textarea { pointer-events: none; opacity: .75; }
+
+/* Banners */
+.banner { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; color: var(--ink-2); }
+.banner strong { color: var(--ink); }
+
+/* Code */
+.code { border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); overflow: auto; max-height: 560px; min-width: 0; }
+.code.tall { max-height: none; overflow-x: auto; }
+.code-head { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-bottom: 1px solid var(--rule); background: var(--panel-2); font-family: var(--f-mono); font-size: 12px; position: sticky; top: 0; z-index: 1; flex-wrap: wrap; }
+.code-head .path { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.code-head a { margin-left: auto; font-family: var(--f-body); font-size: 12px; }
+.code table { border-collapse: collapse; width: 100%; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.5; }
+.code td { padding: 0 8px; vertical-align: top; }
+.code td.ln { width: 1%; min-width: 38px; white-space: nowrap; text-align: right; color: var(--ink-3); user-select: none; font-variant-numeric: tabular-nums; padding: 0 6px; }
+.code td.mk { width: 1%; padding: 0 4px; user-select: none; color: var(--ink-3); }
+.code td.src { white-space: pre; padding-right: 16px; }
+.code tr.add { background: var(--add-bg); }
+.code tr.add td.mk { color: var(--add-mark); font-weight: 600; }
+.code tr.del { background: var(--del-bg); }
+.code tr.del td.mk { color: var(--del-mark); font-weight: 600; }
+.code tr.focus td.ln { color: var(--ink); font-weight: 600; }
+.code tr.flash { background: var(--hl-row) !important; }
+.code tr.gap td { background: var(--panel-2); color: var(--ink-3); font-family: var(--f-body); font-size: 12px; padding: 3px 10px; }
+.code tr.gap button { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
+.code tr.anno td { padding: 8px 12px 10px 60px; background: var(--panel); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); white-space: normal; font-family: var(--f-body); font-size: 13.5px; }
+.anno-list { display: grid; gap: 8px; max-width: 90ch; }
+.anno-item { display: grid; gap: 4px; border-left: 3px solid var(--accent); padding-left: 10px; }
+.anno-item.k-ledger { border-color: var(--bad); }
+.anno-item.k-finding { border-color: var(--warn); }
+.gut { display: inline-block; font-size: 10px; font-weight: 700; font-family: var(--f-body); border-radius: 3px; padding: 0 4px; margin-left: 4px; color: var(--panel); background: var(--accent); vertical-align: 1px; }
+.gut.k-ledger { background: var(--bad); }
+.gut.k-finding { background: var(--warn); }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--tok-kw); }
+.hljs-title, .hljs-type, .hljs-title.class_, .hljs-title.function_ { color: var(--tok-title); }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-char { color: var(--tok-str); }
+.hljs-comment, .hljs-quote, .hljs-doctag { color: var(--tok-com); font-style: italic; }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--tok-num); }
+.hljs-meta, .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable { color: var(--tok-meta); }
+.hljs-built_in, .hljs-selector-class, .hljs-name { color: var(--tok-built); }
+.hljs-emphasis { font-style: italic; } .hljs-strong { font-weight: 600; }
+
+/* Tour */
+.chapter-list { display: grid; gap: 10px; counter-reset: ch; }
+.chapter-card { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: start; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+.chapter-card:hover { border-color: var(--accent); }
+.ch-num { font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.chapter-card .meta { display: grid; gap: 4px; justify-items: end; text-align: right; }
+.stop { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; padding-block: 18px; border-top: 1px solid var(--rule); }
+.stop-note { display: grid; gap: 10px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); min-width: 0; }
+.fit { display: grid; gap: 4px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; }
+.stop-num { font-family: var(--f-mono); font-size: 12px; color: var(--accent); font-weight: 600; }
+.check { border-left: 3px solid var(--warn); padding: 2px 0 2px 10px; font-size: 14px; }
+.check .eyebrow { color: var(--warn); }
+.ba { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.ba > div { padding: 12px 14px; border-bottom: 1px solid var(--rule); min-width: 0; }
+.ba > div:nth-child(odd) { border-right: 1px solid var(--rule); }
+.ba .ba-aspect { grid-column: 1 / -1; background: var(--panel-2); font-weight: 600; font-size: 13.5px; padding: 7px 14px; }
+.ba .eyebrow { margin-bottom: 4px; }
+.inv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; padding: 14px 0; border-top: 1px solid var(--rule); }
+.inv:first-child { border-top: 0; }
+.glossary { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.term { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
+.term b { font-family: var(--f-display); font-weight: 600; }
+.pager { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pager a { text-decoration: none; border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 10px 14px; display: grid; gap: 2px; min-width: 0; max-width: 48%; }
+.pager a:hover { border-color: var(--accent); }
+
+/* Findings */
+.finding { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
+.finding-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.finding-id { font-family: var(--f-mono); font-weight: 600; font-size: 13px; }
+.verdict-box { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; font-size: 14px; }
+details > summary { cursor: pointer; color: var(--accent); font-size: 13.5px; }
+details[open] > summary { margin-bottom: 8px; }
+.filters { display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 8px); z-index: 5; }
+.filters label { font-size: 12.5px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
+.filters select, .filters input[type="search"] { font: inherit; font-size: 13.5px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.count-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Map */
+.tm-wrap { position: relative; width: 100%; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; touch-action: manipulation; }
+.tm-group { position: absolute; }
+.tm-group-label { position: absolute; left: 6px; top: 3px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-tile { position: absolute; border-radius: 3px; overflow: hidden; cursor: pointer; padding: 3px 5px; font-size: 11px; line-height: 1.25; border: 0; text-align: left; font-family: var(--f-mono); }
+.tm-tile:hover, .tm-tile:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; z-index: 2; }
+.tm-tile span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-high { background: var(--risk-high); color: var(--risk-high-ink); }
+.r-medium { background: var(--risk-med); color: var(--risk-med-ink); }
+.r-low { background: var(--risk-low); color: var(--risk-low-ink); }
+.r-skim { background: var(--risk-skim); color: var(--risk-skim-ink); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); align-items: center; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 12px; font-size: 13px; max-width: 340px; display: grid; gap: 4px; }
+.budget { display: flex; height: 30px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--panel); }
+.budget > div { display: flex; align-items: center; padding: 0 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; }
+
+/* Files */
+.files-layout { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.file-list { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 8px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); max-height: calc(100vh - var(--top-h) - 32px); overflow-y: auto; display: grid; gap: 2px; }
+.file-list input { font: inherit; font-size: 13.5px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); margin-bottom: 6px; width: 100%; }
+.fl-group { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 10px 6px 4px; }
+.fl-item { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; background: none; text-align: left; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-family: var(--f-mono); }
+.fl-item:hover { background: var(--panel-2); }
+.fl-item[aria-current="true"] { background: var(--accent-soft); }
+.fl-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.fl-item .ct { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.s-ok { background: var(--ok); } .dot.s-issue { background: var(--bad); } .dot.s-skip { background: var(--none); }
+.dot.s-none { background: transparent; border: 1px solid var(--ink-3); }
+
+/* Simulator */
+.sim-layout { display: grid; grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.listing td:nth-child(3) { white-space: nowrap; }
+.listing .nm { overflow-wrap: anywhere; }
+.sim-controls { display: grid; gap: 14px; }
+.field { display: grid; gap: 5px; }
+.field > label, .field > .flabel { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.field select, .field input[type="number"], .field input[type="text"] { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); width: 100%; min-width: 0; }
+.btn { border: 1px solid var(--rule); background: var(--panel); border-radius: 7px; padding: 6px 12px; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.presets .btn { font-size: 12.5px; padding: 4px 10px; }
+.presets .btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.listing { font-family: var(--f-mono); font-size: 12.5px; width: 100%; border-collapse: collapse; }
+.listing td, .listing th { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; text-align: left; }
+.listing th { font-family: var(--f-body); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.listing tr.gone .nm { text-decoration: line-through; color: var(--bad); }
+.listing tr.gone { background: var(--del-bg); }
+.listing .why { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); }
+.listing .dir { color: var(--ink-3); }
+.ruler { position: relative; height: 64px; margin: 14px 12px 0; }
+.ruler .axis { position: absolute; left: 0; right: 0; top: 36px; height: 2px; background: var(--rule); }
+.ruler .tick { position: absolute; top: 30px; width: 1px; height: 14px; background: var(--ink-3); }
+.ruler .tlabel { position: absolute; top: 46px; font-size: 10.5px; color: var(--ink-3); transform: translateX(-50%); white-space: nowrap; font-family: var(--f-mono); }
+.ruler .mark { position: absolute; top: 6px; transform: translateX(-50%); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.ruler .pin { position: absolute; top: 31px; width: 10px; height: 14px; transform: translateX(-50%); border-radius: 3px; }
+.report { font-family: var(--f-mono); font-size: 12.5px; background: var(--panel-2); border-radius: 8px; padding: 12px 14px; white-space: pre-wrap; overflow-x: auto; }
+
+/* Module map */
+.modmap { width: 100%; height: auto; display: block; }
+.modmap text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
+.modmap .lay { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.modmap .sub { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); }
+.modmap rect.box { fill: var(--panel); stroke: var(--rule); stroke-width: 1.2; }
+.modmap rect.box.new { stroke: var(--accent); stroke-width: 1.6; }
+.modmap .edge { stroke: var(--ink-3); stroke-width: 1.2; fill: none; }
+.modmap .arrow { fill: var(--ink-3); }
+.modmap .band { fill: var(--panel-2); }
+.modmap a:hover rect.box { stroke: var(--accent); stroke-width: 2; }
+
+.tok { color: var(--ink-3); }
+.empty { padding: 28px; text-align: center; color: var(--ink-3); border: 1px dashed var(--rule); border-radius: 10px; }
+.loading { padding: 40px 0; color: var(--ink-3); }
+.copy-area { width: 100%; min-height: 320px; font-family: var(--f-mono); font-size: 12.5px; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--ink); }
+
+/* Figures */
+.figs { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); align-items: start; }
+.fig { margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.fig.compact { padding: 10px 12px; background: var(--bg); }
+.fig-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.3; }
+.fig-caption { color: var(--ink-2); }
+.fig-from { color: var(--ink-3); }
+.fig-error { color: var(--bad); font-size: 13px; }
+.fig > *, .fside > *, .figs > * { min-width: 0; }
+.fig-body { min-width: 0; overflow-x: auto; }
+.fig-scroll { overflow-x: auto; min-width: 0; }
+.fig-scroll svg { display: block; margin: 0 auto; height: auto; }
+.fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
+.fd text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
+.fd .fs, .fd .fs-msg, .fd .fs-note, .fd .lay, .fd .tl, .fd .ml, .fd .sl, .fd .elabel text { font-family: var(--f-body); }
+.fd .fs { font-size: 11px; fill: var(--ink-3); }
+.fd .fs-msg, .fd .fs-note { font-size: 12px; fill: var(--ink-2); }
+.fd .lay { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
+.fd .band { fill: var(--panel-2); opacity: .6; }
+.fd .fnode rect, .fd .actor rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.fd .t-new rect { stroke: var(--accent); stroke-width: 1.9; }
+.fd .t-changed rect { stroke: var(--warn); stroke-width: 1.9; }
+.fd .t-ok rect { stroke: var(--ok); stroke-width: 1.9; }
+.fd .t-removed rect { stroke: var(--bad); stroke-dasharray: 4 3; }
+.fd .t-removed text { text-decoration: line-through; fill: var(--ink-3); }
+.fd .t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.fd .link { cursor: pointer; }
+.fd .link:hover rect { stroke: var(--accent); stroke-width: 2.2; }
+.fd .step.link:hover .fs-msg { fill: var(--accent); }
+.fd .edge, .fd .msg { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
+.fd .edge.t-new, .fd .msg.t-new { stroke: var(--accent); }
+.fd .edge.t-risk, .fd .msg.t-risk, .fd .edge.t-removed, .fd .msg.t-removed { stroke: var(--bad); }
+.fd .edge.t-changed, .fd .msg.t-changed { stroke: var(--warn); }
+.fd .edge.t-ok, .fd .msg.t-ok { stroke: var(--ok); }
+.fd .dashed { stroke-dasharray: 5 4; }
+.fd .arrow { fill: var(--ink-3); }
+.fd .elabel rect { fill: var(--panel); stroke: var(--rule); }
+.fd .elabel text { font-size: 11px; fill: var(--ink-2); }
+.fd .life { stroke: var(--rule); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.fd .snote rect { fill: color-mix(in srgb, var(--warn) 9%, var(--panel)); stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
+.fd .snote.t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); }
+.fd .snum circle { fill: var(--accent-soft); }
+.fd .snum text { font-family: var(--f-body); font-size: 10px; font-weight: 600; fill: var(--accent); text-anchor: middle; }
+.fd .axis { stroke: var(--ink-3); stroke-width: 1.2; }
+.fd .tick { stroke: var(--ink-3); }
+.fd .tl { font-size: 10.5px; fill: var(--ink-3); }
+.fd .ml { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
+.fd .mark line { stroke: var(--ink-3); stroke-width: 1; }
+.fd .mark circle { fill: var(--ink-2); }
+.fd .mark.t-ok circle { fill: var(--ok); } .fd .mark.t-ok .ml { fill: var(--ok); }
+.fd .mark.t-bad circle, .fd .mark.t-risk circle { fill: var(--bad); } .fd .mark.t-bad .ml, .fd .mark.t-risk .ml { fill: var(--bad); }
+.fd .mark.t-warn circle { fill: var(--warn); } .fd .mark.t-warn .ml { fill: var(--warn); }
+.fd .span rect { fill: color-mix(in srgb, var(--info) 22%, var(--panel)); }
+.fd .span.t-ok rect { fill: color-mix(in srgb, var(--ok) 26%, var(--panel)); }
+.fd .span.t-warn rect { fill: color-mix(in srgb, var(--warn) 26%, var(--panel)); }
+.fd .span.t-bad rect, .fd .span.t-risk rect { fill: color-mix(in srgb, var(--bad) 22%, var(--panel)); }
+.fd .span.t-none rect { fill: var(--panel-2); }
+.fd .sl { font-size: 11px; fill: var(--ink); }
+.fig-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+.lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
+.lg.t-new { border-color: var(--accent); } .lg.t-changed { border-color: var(--warn); } .lg.t-ok { border-color: var(--ok); }
+.lg.t-removed { border-color: var(--bad); border-style: dashed; } .lg.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+.ftree { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; }
+.ftree .tr { display: flex; align-items: baseline; white-space: pre; }
+.ftree .tp { color: var(--ink-3); }
+.ftree .tn.dir { font-weight: 600; }
+.ftree .tn.link { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.ftree .ts-added .tn { color: var(--ok); }
+.ftree .ts-removed .tn { color: var(--bad); text-decoration: line-through; }
+.ftree .ts-changed .tn { color: var(--warn); }
+.ftree .tnote { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); margin-left: 14px; white-space: normal; }
+.fig.wide { grid-column: 1 / -1; }
+.fmatrix table.data th { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--ink-2); white-space: normal; }
+.fmatrix table.data th[scope="row"] { color: var(--ink); font-weight: 600; font-size: 13px; }
+.fmatrix td.mc { font-size: 13px; }
+.mt-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.mt-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
+.mt-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
+.mt-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
+.mt-none { color: var(--ink-3); }
+.abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.abs.t-new { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.abs.t-changed { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
+.abs.t-removed { border-style: dashed; border-color: var(--bad); }
+.dec-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.fcompare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+.fside { display: grid; gap: 8px; min-width: 0; align-content: start; border: 1px dashed var(--rule); border-radius: 8px; padding: 10px; }
+
+@media (max-width: 980px) {
+  .stop, .sim-layout, .files-layout { grid-template-columns: minmax(0, 1fr); }
+  .stop-note, .file-list { position: static; max-height: none; }
+  .file-list { max-height: 320px; }
+}
+@media (max-width: 760px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--rule); display: flex; gap: 4px; overflow-x: auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .rail-group { display: flex; margin: 0; gap: 4px; }
+  .rail-head, .rail a.sub, .rail-path { display: none; }
+  .rail a { white-space: nowrap; }
+  .meters { display: none; }
+  .ba { grid-template-columns: minmax(0, 1fr); }
+  .ba > div:nth-child(odd) { border-right: 0; }
+  .chapter-card { grid-template-columns: 34px minmax(0, 1fr); }
+  .chapter-card .meta { grid-column: 2; justify-items: start; text-align: left; }
+  h1 { font-size: 1.5rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .code tr.flash { transition: background 1.2s ease; }
+}
+</style>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="pr-id" id="pr-id"></span>
+    <span class="pr-title" id="pr-title"></span>
+    <div class="meters" id="meters"></div>
+    <span class="decision-chip" id="decision-chip">Undecided</span>
+  </div>
+</header>
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Review sections"></nav>
+  <main id="main"><div class="loading">Loading the pull request…</div></main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- explore-pr:data -->
+<script>
+(() => {
+'use strict';
+
+let GH = '';
+let C = null;
+let D = null;
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, w, p) => `${n.toLocaleString('en-GB')} ${n === 1 ? w : (p || w + 's')}`;
+const fmt = n => Number(n || 0).toLocaleString('en-GB');
+const short = p => {
+  const path = p || '';
+  const alias = ((C && C.pathAliases) || []).find(([from]) => path.startsWith(from));
+  return alias ? alias[1] + path.slice(alias[0].length) : path;
+};
+const base = p => (p || '').split('/').pop();
+
+function md(s, inline) {
+  if (!s) return '';
+  if (window.marked) {
+    try { return inline ? marked.parseInline(String(s)) : marked.parse(String(s)); } catch (e) { /* fall through */ }
+  }
+  const t = esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return inline ? t : t.split(/\n{2,}/).map(p => `<p>${p}</p>`).join('');
+}
+
+/* ---------- Review state ---------- */
+const KINDS = {
+  decision: { label: 'Verdict', opts: [['approve', 'Approve', 'ok'], ['request-changes', 'Request changes', 'bad'], ['comment', 'Comment', 'warn']] },
+  design: { label: 'Design decision', opts: [['agree', 'Agree', 'ok'], ['question', 'Question', 'warn'], ['disagree', 'Disagree', 'bad']] },
+  chapter: { label: 'Sign-off', opts: [['understood', 'Signed off', 'ok'], ['concerns', 'Concerns', 'warn'], ['blocking', 'Blocking', 'bad']] },
+  stop: { label: 'Stop', opts: [['ok', 'Read', 'ok'], ['question', 'Question', 'warn'], ['issue', 'Issue', 'bad']] },
+  invariant: { label: 'Invariant', opts: [['ok', 'Holds', 'ok'], ['question', 'Unsure', 'warn'], ['issue', 'Broken', 'bad']] },
+  ledger: { label: 'Removal site', opts: [['ok', 'Safe', 'ok'], ['question', 'Unsure', 'warn'], ['issue', 'Unsafe', 'bad']] },
+  finding: { label: 'Triage', opts: [['block', 'Block merge', 'bad'], ['fix-now', 'Fix in PR', 'warn'], ['follow-up', 'Follow-up', 'info'], ['reject', 'Reject', 'none']] },
+  file: { label: 'File', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
+};
+const Store = {
+  mode: 'none', canWrite: true, docs: new Map(), db: null, pending: new Map(), inflight: new Set(), reachable: true,
+  key: 'explore-pr',
+  enc: t => t.replace(/[^A-Za-z0-9_.~:@+-]/g, c => '~' + c.charCodeAt(0).toString(16).padStart(2, '0')),
+  get(t) { return this.docs.get(t) || {}; },
+  async init() {
+    this.key = `explore-pr:${C.pr.repo || ''}#${C.pr.number}`;
+    let db = null, user = null;
+    try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
+    if (db) {
+      this.mode = 'db'; this.db = db;
+      try { user = await window.claude.use('user'); } catch (e) { user = null; }
+      if (user) {
+        try { const w = await user.can('data.write'); if (w === false) this.canWrite = false; } catch (e) { /* keep inputs */ }
+      }
+      const timer = setTimeout(() => { this.reachable = false; renderBanner(); }, 10000);
+      db.collection('reviews').onSnapshot(snap => {
+        if (!snap.metadata.fromCache) { clearTimeout(timer); this.reachable = true; }
+        const next = new Map();
+        snap.docs.forEach(d => { const v = d.data(); if (v && v.target) next.set(v.target, v); });
+        for (const [t, v] of this.pending) next.set(t, { ...(next.get(t) || {}), ...v });
+        this.docs = next;
+        onStateChange();
+      }, err => { clearTimeout(timer); this.reachable = false; renderBanner(); });
+    } else {
+      this.mode = 'local';
+      try { const raw = localStorage.getItem(this.key); if (raw) this.docs = new Map(Object.entries(JSON.parse(raw))); } catch (e) { /* storage unavailable */ }
+    }
+    renderBanner();
+    onStateChange();
+  },
+  put(target, kind, patch, meta) {
+    if (!this.canWrite) return;
+    const cur = this.get(target);
+    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, updatedAt: new Date().toISOString() };
+    this.docs.set(target, doc);
+    if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
+    else { try { localStorage.setItem(this.key, JSON.stringify(Object.fromEntries(this.docs))); } catch (e) { /* storage unavailable */ } }
+    onStateChange();
+  },
+  async flush(target) {
+    if (this.inflight.has(target)) return;
+    this.inflight.add(target);
+    try {
+      while (this.pending.has(target)) {
+        const doc = this.pending.get(target);
+        let ok = false;
+        for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+          try { await this.db.collection('reviews').doc(this.enc(target)).set(doc); ok = true; }
+          catch (e) {
+            if (e && e.code === 'unavailable' && attempt === 0) { await new Promise(r => setTimeout(r, 600 + Math.random() * 600)); continue; }
+            if (e && e.code === 'invalid_argument') { this.canWrite = false; renderBanner(); refreshControls(); }
+            break;
+          }
+        }
+        if (this.pending.get(target) === doc) this.pending.delete(target);
+        if (!ok) break;
+      }
+    } finally { this.inflight.delete(target); }
+  },
+};
+
+function ctl(target, kind, meta, opts = {}) {
+  const k = KINDS[kind];
+  const cur = Store.get(target);
+  const m = esc(JSON.stringify(meta || {}));
+  const noteOpen = !!cur.note || opts.noteOpen;
+  return `<div class="ctl ${Store.canWrite ? '' : 'ro'}" data-ctl="${esc(target)}" data-kind="${kind}" data-meta="${m}">
+    <div class="seg" role="group" aria-label="${esc(k.label)}">
+      ${k.opts.map(([v, l, tone]) => `<button type="button" class="t-${tone}" data-v="${v}" aria-pressed="${cur.status === v}">${esc(l)}</button>`).join('')}
+      <button type="button" class="note-toggle" data-note-toggle aria-expanded="${noteOpen}">${noteOpen ? 'Note' : '+ Note'}</button>
+    </div>
+    <textarea data-note placeholder="Your note: what to change, what to ask, what you checked" ${noteOpen ? '' : 'hidden'} aria-label="Note">${esc(cur.note || '')}</textarea>
+  </div>`;
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('.ctl .seg button');
+  if (!b) return;
+  const box = b.closest('.ctl');
+  const target = box.dataset.ctl, kind = box.dataset.kind, meta = JSON.parse(box.dataset.meta || '{}');
+  if (b.hasAttribute('data-note-toggle')) {
+    const ta = $('textarea', box); ta.hidden = !ta.hidden; b.setAttribute('aria-expanded', String(!ta.hidden)); b.textContent = ta.hidden ? '+ Note' : 'Note';
+    if (!ta.hidden) ta.focus();
+    return;
+  }
+  const v = b.dataset.v;
+  const cur = Store.get(target).status;
+  Store.put(target, kind, { status: cur === v ? '' : v }, meta);
+});
+const noteTimers = new Map();
+document.addEventListener('input', e => {
+  const ta = e.target.closest('.ctl textarea[data-note]');
+  if (!ta) return;
+  const box = ta.closest('.ctl');
+  const target = box.dataset.ctl;
+  clearTimeout(noteTimers.get(target));
+  noteTimers.set(target, setTimeout(() => Store.put(target, box.dataset.kind, { note: ta.value }, JSON.parse(box.dataset.meta || '{}')), 700));
+});
+document.addEventListener('focusout', e => {
+  const ta = e.target.closest && e.target.closest('.ctl textarea[data-note]');
+  if (!ta) return;
+  const box = ta.closest('.ctl');
+  const target = box.dataset.ctl;
+  if (noteTimers.has(target)) { clearTimeout(noteTimers.get(target)); noteTimers.delete(target); }
+  if ((Store.get(target).note || '') !== ta.value) Store.put(target, box.dataset.kind, { note: ta.value }, JSON.parse(box.dataset.meta || '{}'));
+});
+
+function refreshControls() {
+  $$('.ctl[data-ctl]').forEach(box => {
+    const cur = Store.get(box.dataset.ctl);
+    $$('.seg button[data-v]', box).forEach(b => b.setAttribute('aria-pressed', String(cur.status === b.dataset.v)));
+    const ta = $('textarea', box);
+    if (ta && document.activeElement !== ta && ta.value !== (cur.note || '')) { ta.value = cur.note || ''; if (cur.note) { ta.hidden = false; } }
+    box.classList.toggle('ro', !Store.canWrite);
+  });
+  $$('[data-status-of]').forEach(el => {
+    const s = Store.get(el.dataset.statusOf).status || 'none';
+    el.className = el.className.replace(/\bs-[a-z-]+/g, '').trim() + ' s-' + s;
+  });
+}
+
+function onStateChange() {
+  if (!C) return;
+  refreshControls();
+  renderMeters();
+  renderRail();
+  if (currentRoute === 'notes') render();
+}
+
+function renderBanner() {
+  const el = $('#store-banner');
+  if (!el) return;
+  let html = '';
+  if (Store.mode === 'local') html = `<strong>Notes are saved in this browser only.</strong> To share them, open <a href="#notes">Your notes</a> and copy them as Markdown.`;
+  else if (Store.mode === 'db' && !Store.canWrite) html = `<strong>Read-only.</strong> You can read the review but only the artifact's owner records verdicts and notes.`;
+  else if (Store.mode === 'db' && !Store.reachable) html = `<strong>Saved notes can't be reached yet.</strong> What you see may be out of date; new notes are kept and sent when the store answers.`;
+  el.innerHTML = html;
+  el.hidden = !html;
+}
+
+/* ---------- Diff rows & highlighting ---------- */
+const LANGUAGES = [
+  [/\.rs$/, 'rust'], [/\.py$/, 'python'], [/\.(ts|tsx|mts|cts)$/, 'typescript'], [/\.(js|jsx|mjs|cjs)$/, 'javascript'],
+  [/\.go$/, 'go'], [/\.java$/, 'java'], [/\.(kt|kts)$/, 'kotlin'], [/\.rb$/, 'ruby'], [/\.swift$/, 'swift'], [/\.cs$/, 'csharp'],
+  [/\.(c|h)$/, 'c'], [/\.(cc|cpp|cxx|hpp|hh)$/, 'cpp'], [/\.php$/, 'php'], [/\.(sh|bash|zsh)$/, 'bash'], [/\.sql$/, 'sql'],
+  [/\.(css|scss|less)$/, 'css'], [/\.(html|xml|svg|vue)$/, 'xml'], [/\.ya?ml$/, 'yaml'], [/\.json$/, 'json'],
+  [/\.(md|mdx)$/, 'markdown'], [/(\.(toml|ini|cfg)|(^|\/)Cargo\.lock)$/, 'ini'], [/(^|\/)(Makefile|.*\.mk)$/, 'makefile'], [/\.diff$/, 'diff'],
+];
+function langOf(p) {
+  const hit = LANGUAGES.find(([re]) => re.test(p));
+  if (hit) return hit[1];
+  return /^#!.*\b(ba|z)?sh\b/.test(firstLine(p)) ? 'bash' : 'plaintext';
+}
+function firstLine(p) {
+  const f = D && D[p];
+  const l = f && f.hunks[0] && f.hunks[0].l[0];
+  return l ? l.slice(1) : '';
+}
+function splitHtmlLines(html) {
+  const out = []; let cur = ''; const stack = [];
+  const re = /(<span[^>]*>)|(<\/span>)|(\n)|([^<\n]+)|(<)/g; let m;
+  while ((m = re.exec(html))) {
+    if (m[1]) { stack.push(m[1]); cur += m[1]; }
+    else if (m[2]) { stack.pop(); cur += m[2]; }
+    else if (m[3]) { cur += '</span>'.repeat(stack.length); out.push(cur); cur = stack.join(''); }
+    else cur += m[0];
+  }
+  out.push(cur);
+  return out;
+}
+function hlLines(lines, lang) {
+  const text = lines.join('\n');
+  if (!window.hljs || lang === 'plaintext' || text.length > 400000) return lines.map(esc);
+  try { const out = splitHtmlLines(hljs.highlight(text, { language: lang, ignoreIllegals: true }).value); return out.length === lines.length ? out : lines.map(esc); }
+  catch (e) { return lines.map(esc); }
+}
+function rowsOf(path) {
+  if (!D || !D[path]) return null;
+  const f = D[path];
+  if (f._rows) return f._rows;
+  const rows = [];
+  const lang = langOf(path);
+  f.hunks.forEach((h, hi) => {
+    let o = h.o, n = h.n;
+    const nt = [], ot = [], hr = [];
+    for (const l of h.l) {
+      const t = l[0], text = l.slice(1);
+      if (t === '+') { hr.push({ t: 1, o: 0, n: n++, ni: nt.length }); nt.push(text); }
+      else if (t === '-') { hr.push({ t: -1, o: o++, n: 0, oi: ot.length }); ot.push(text); }
+      else { hr.push({ t: 0, o: o++, n: n++, ni: nt.length, oi: ot.length }); nt.push(text); ot.push(text); }
+    }
+    const nh = hlLines(nt, lang), oh = hlLines(ot, lang);
+    if (hi > 0) rows.push({ gap: true });
+    hr.forEach(r => { r.html = r.t === -1 ? oh[r.oi] : nh[r.ni]; rows.push(r); });
+  });
+  f._rows = rows;
+  return rows;
+}
+function sliceRows(path, start, end, side) {
+  const rows = rowsOf(path);
+  if (!rows) return null;
+  const key = side === 'old' ? 'o' : 'n';
+  let first = -1, last = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const v = rows[i][key];
+    if (!v) continue;
+    if (v >= start && first < 0) first = i;
+    if (v <= end) last = i;
+    if (v > end) break;
+  }
+  if (first < 0 || last < first) return [];
+  return rows.slice(first, last + 1);
+}
+const ghAnchor = (path, start, end, side) => GH ? `<a href="${ghLink(path, start, end, side)}" target="_blank" rel="noopener">on GitHub ↗</a>` : '';
+const ghLink = (path, start, end, side) => side === 'old'
+  ? `${GH}/blob/${C.pr.base}/${path}${start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''}`
+  : `${GH}/blob/${C.pr.head}/${path}${start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''}`;
+function rowHtml(r, focus) {
+  if (r.gap) return `<tr class="gap"><td colspan="4">⋯</td></tr>`;
+  const cls = r.t === 1 ? 'add' : r.t === -1 ? 'del' : 'ctx';
+  return `<tr class="${cls}${focus ? ' focus' : ''}" data-n="${r.n || ''}" data-o="${r.o || ''}"><td class="ln">${r.o || ''}</td><td class="ln">${r.n || ''}</td><td class="mk">${r.t === 1 ? '+' : r.t === -1 ? '−' : ''}</td><td class="src">${r.html || ''}</td></tr>`;
+}
+function codeSlice(path, start, end, side = 'new', opts = {}) {
+  const head = `<div class="code-head"><span class="path">${esc(short(path))}</span><span class="muted">${side === 'old' ? 'base ' : ''}${start}${end && end !== start ? '–' + end : ''}</span>
+    <button class="loc" data-open="${esc(path)}" data-line="${start}" data-side="${side}">in file</button>${ghAnchor(path, start, end, side)}</div>`;
+  if (!D) return `<div class="code" data-pending-slice="${esc(JSON.stringify([path, start, end, side]))}">${head}<div class="loading" style="padding:14px">Loading code…</div></div>`;
+  const rows = sliceRows(path, start - (opts.pad || 0), end + (opts.pad || 0), side);
+  if (rows === null) return `<div class="code">${head}<div style="padding:12px 14px" class="muted small">This file is unchanged in the PR.</div></div>`;
+  if (!rows.length) return `<div class="code">${head}<div style="padding:12px 14px" class="muted small">Lines ${start}–${end} are outside the diff context for this file.</div></div>`;
+  const key = side === 'old' ? 'o' : 'n';
+  return `<div class="code${opts.tall ? ' tall' : ''}">${head}<table>${rows.map(r => rowHtml(r, r[key] >= start && r[key] <= end && opts.pad)).join('')}</table></div>`;
+}
+function fillPendingSlices() {
+  $$('[data-pending-slice]').forEach(el => {
+    const [p, s, e, side] = JSON.parse(el.dataset.pendingSlice);
+    const tmp = document.createElement('div'); tmp.innerHTML = codeSlice(p, s, e, side);
+    el.replaceWith(tmp.firstElementChild);
+  });
+}
+
+/* ---------- Lookups ---------- */
+let F = {}, CH = {}, FILE = {}, LEDGER = {};
+function index() {
+  for (const [k, v] of Object.entries({ chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
+  F = Object.fromEntries(C.findings.map(f => [f.id, f]));
+  CH = Object.fromEntries(C.chapters.map(c => [c.id, c]));
+  FILE = Object.fromEntries(C.files.map(f => [f.path, f]));
+  LEDGER = Object.fromEntries(C.ledger.map(l => [l.id, l]));
+  C.findingCheck = {};
+  C.findingChapter = {};
+  C.chapters.forEach(ch => (ch.findingChecks || []).forEach(fc => { C.findingCheck[fc.id] = fc; C.findingChapter[fc.id] = ch.id; }));
+  C.arByFinding = {};
+  (C.acceptedRisks || []).forEach(a => (a.findings || []).forEach(id => { C.arByFinding[id] = a; }));
+}
+const sevChip = s => `<span class="chip c-${esc(s)}">${esc(s)}</span>`;
+const locBtn = (path, line, side) => path ? `<button class="loc" data-open="${esc(path)}" data-line="${line || ''}" data-side="${side || 'new'}">${esc(short(path))}${line ? ':' + line : ''}</button>` : '';
+function parseWhere(w) {
+  if (!w) return null;
+  const m = String(w).match(/^([^:\s]+):(\d+)(?:-(\d+))?/);
+  if (!m) return null;
+  let p = m[1];
+  if (!D || !D[p]) { const hit = C.files.find(f => f.path === p || f.path.endsWith('/' + p)); if (hit) p = hit.path; }
+  return { path: p, line: +m[2], end: m[3] ? +m[3] : +m[2] };
+}
+const whereBtn = w => { const p = parseWhere(w); return p ? locBtn(p.path, p.line) : (w ? `<code>${esc(w)}</code>` : ''); };
+function testRef(t) {
+  const s = typeof t === 'string' ? t : `${t.file}::${t.name}`;
+  const [file, name] = s.split('::');
+  const p = C.files.find(f => f.path === file || f.path.endsWith('/' + file));
+  const line = typeof t === 'object' && t.line ? t.line : (p && name ? findFnLine(p.path, name) : null);
+  return p ? `<button class="loc" data-open="${esc(p.path)}" data-line="${line || ''}">${esc(name || base(file))}</button>` : `<code>${esc(name || s)}</code>`;
+}
+const fnLineCache = {};
+function findFnLine(path, name) {
+  const k = path + '::' + name;
+  if (k in fnLineCache) return fnLineCache[k];
+  const rows = rowsOf(path);
+  let line = null;
+  if (rows) {
+    const n = name.replace(/[^A-Za-z0-9_]/g, '');
+    const text = r => (r.html || '').replace(/<[^>]+>/g, '');
+    const decl = new RegExp(`\\b(fn|def|func|function|fun|sub)\\s+${n}\\b`), use = new RegExp(`\\b${n}\\s*[(<]`);
+    const r = rows.find(r => r.n && decl.test(text(r))) || rows.find(r => r.n && use.test(text(r)));
+    if (r) line = r.n;
+  }
+  fnLineCache[k] = line;
+  return line;
+}
+
+/* ---------- Progress ---------- */
+function totals() {
+  const stops = C.chapters.flatMap(c => (c.stops || []).map(s => 'stop:' + s.id));
+  const inv = C.chapters.flatMap(c => (c.invariants || []).map(i => 'inv:' + i.id));
+  const t = {
+    chapters: C.chapters.map(c => 'chapter:' + c.id),
+    design: designItems('decisions').map(x => decisionTarget(x.item)),
+    findings: C.findings.map(f => 'finding:' + f.id),
+    ledger: C.ledger.map(l => 'ledger:' + l.id),
+    files: C.files.map(f => 'file:' + f.path),
+    stops, inv,
+  };
+  const done = ks => ks.filter(k => Store.get(k).status).length;
+  return Object.fromEntries(Object.entries(t).map(([k, ks]) => [k, { n: ks.length, done: done(ks) }]));
+}
+function renderMeters() {
+  const t = totals();
+  const items = [['Design', t.design], ['Chapters', t.chapters], ['Findings', t.findings], [(C.ledgerMeta || {}).short || 'Ledger', t.ledger], ['Files', t.files]].filter(([, v]) => v.n);
+  $('#meters').innerHTML = items.map(([l, v]) => `<div class="meter" title="${l}: ${v.done} of ${v.n} reviewed"><div class="meter-label"><span>${l}</span><span>${v.done}/${v.n}</span></div><div class="meter-bar"><i style="width:${v.n ? (100 * v.done / v.n) : 0}%"></i></div></div>`).join('');
+  const d = Store.get('decision').status;
+  const chip = $('#decision-chip');
+  const label = { approve: 'Approve', 'request-changes': 'Request changes', comment: 'Comment' }[d] || 'Undecided';
+  chip.textContent = label;
+  chip.className = 'decision-chip' + (d ? ' c-' + (d === 'approve' ? 'ok' : d === 'comment' ? 'warn' : 'bad') : '');
+}
+
+/* ---------- Rail & routing ---------- */
+const customViews = [];
+function routes() {
+  const r = [['overview', 'Overview', 'Start']];
+  if (hasDesign()) r.push(['design', 'Design', 'Start']);
+  if (allFigures().length) r.push(['pictures', 'In pictures', 'Start']);
+  r.push(['map', 'Attention map', 'Start']);
+  if (C.chapters.length) r.push(['tour', 'Guided tour', 'Read']);
+  if (C.ledger.length) r.push(['ledger', (C.ledgerMeta || {}).title || 'Risk ledger', 'Read']);
+  customViews.forEach(v => r.push([v.id, v.title, v.group || 'Read']));
+  if (C.findings.length) r.push(['findings', 'Findings', 'Decide']);
+  if (C.acs.length) r.push(['criteria', 'Criteria → tests', 'Decide']);
+  r.push(['files', 'All files', 'Reference']);
+  if (C.chapters.some(c => (c.domain || []).length)) r.push(['terms', 'Domain terms', 'Reference']);
+  r.push(['notes', 'Your notes', 'Reference']);
+  const order = ['Start', 'Read', 'Decide', 'Reference'];
+  return r.map((x, i) => [x, i]).sort((a, b) => (order.indexOf(a[0][2]) - order.indexOf(b[0][2])) || (a[1] - b[1])).map(x => x[0]);
+}
+let currentRoute = 'overview', currentSub = null;
+function renderRail() {
+  const groups = {};
+  routes().forEach(r => (groups[r[2]] = groups[r[2]] || []).push(r));
+  const t = totals();
+  const counts = { findings: `${t.findings.done}/${t.findings.n}`, ledger: `${t.ledger.done}/${t.ledger.n}`, files: `${t.files.done}/${t.files.n}`, tour: `${t.chapters.done}/${t.chapters.n}` };
+  let html = `<div class="rail-path">${esc(C.pr.branch || '')}<br>${esc((C.pr.head || '').slice(0, 8))} ← ${esc((C.pr.base || '').slice(0, 8))}</div>`;
+  for (const [g, rs] of Object.entries(groups)) {
+    html += `<div class="rail-group"><div class="rail-head">${g}</div>`;
+    for (const [id, label] of rs) {
+      const cur = currentRoute === id && !(id === 'tour' && currentSub);
+      html += `<a href="#${id}" ${cur ? 'aria-current="page"' : ''}><span class="lbl">${label}</span>${counts[id] ? `<span class="num">${counts[id]}</span>` : ''}</a>`;
+      if (id === 'tour') C.chapters.forEach((c, i) => {
+        const s = Store.get('chapter:' + c.id).status || 'none';
+        html += `<a class="sub" href="#tour-${c.id}" ${currentRoute === 'tour' && currentSub === c.id ? 'aria-current="page"' : ''}><span class="num">${i + 1}</span><span class="lbl">${esc(c.title)}</span><span class="dot s-${s === 'understood' ? 'ok' : s === 'blocking' ? 'issue' : s === 'concerns' ? 'skip' : 'none'}"></span></a>`;
+      });
+    }
+    html += `</div>`;
+  }
+  $('#rail').innerHTML = html;
+}
+function parseHash() {
+  const h = (location.hash || '#overview').slice(1);
+  if (h.startsWith('tour-')) return ['tour', h.slice(5)];
+  return [routes().some(r => r[0] === h) ? h : 'overview', null];
+}
+let pendingOpen = null;
+function render() {
+  [currentRoute, currentSub] = parseHash();
+  renderRail();
+  const main = $('#main');
+  const views = { overview: vOverview, design: vDesign, pictures: vPictures, map: vMap, tour: vTour, ledger: vLedger, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
+  customViews.forEach(v => { views[v.id] = () => v.render(api()); after[v.id] = () => v.mount && v.mount($('#main'), api()); });
+  main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
+  renderBanner();
+  after[currentRoute] && after[currentRoute]();
+  refreshControls();
+  if (!pendingOpen) window.scrollTo(0, 0);
+}
+const after = {};
+window.addEventListener('hashchange', render);
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-open]');
+  if (!o) return;
+  e.preventDefault();
+  openFile(o.dataset.open, +o.dataset.line || null, o.dataset.side || 'new');
+});
+function openFile(path, line, side) {
+  pendingOpen = { path, line, side };
+  if (location.hash !== '#files') location.hash = 'files'; else render();
+}
+
+/* ---------- Figures ---------- */
+const MONO = '12px "JetBrains Mono", ui-monospace, Menlo, monospace';
+const SANS = '12px "IBM Plex Sans", system-ui, sans-serif';
+const SANS_SMALL = '11px "IBM Plex Sans", system-ui, sans-serif';
+let measurer = null;
+function textWidth(text, font) {
+  try {
+    measurer = measurer || document.createElement('canvas').getContext('2d');
+    measurer.font = font || MONO;
+    return measurer.measureText(String(text)).width;
+  } catch (e) { return String(text).length * 7.3; }
+}
+function wrapText(text, maxWidth, font) {
+  const lines = [];
+  let line = '';
+  for (const word of String(text || '').split(/\s+/).filter(Boolean)) {
+    const next = line ? line + ' ' + word : word;
+    if (line && textWidth(next, font) > maxWidth) { lines.push(line); line = word; } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+function fit(text, maxWidth, font) {
+  let s = String(text || '');
+  if (textWidth(s, font) <= maxWidth) return s;
+  while (s.length > 1 && textWidth(s + '…', font) > maxWidth) s = s.slice(0, -1);
+  return s + '…';
+}
+const plain = s => String(s == null ? '' : s).replace(/`/g, '');
+const toneOf = t => (t ? ' t-' + String(t).replace(/[^a-z-]/g, '') : '');
+const svgLines = (x, y, lines, cls, anchor = 'middle', lineHeight = 15) =>
+  `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? lineHeight : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+function openAttrs(item) {
+  const w = item && item.where ? parseWhere(item.where) : null;
+  return w ? { cls: ' link', attrs: ` data-open="${esc(w.path)}" data-line="${w.line}"`, title: `<title>${esc(item.where)}</title>` } : { cls: '', attrs: '', title: '' };
+}
+function svgFrame(width, height, body, label, uid) {
+  return `<div class="fig-scroll"><svg class="fd" width="${Math.ceil(width)}" height="${Math.ceil(height)}" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" style="width:${Math.ceil(width)}px;max-width:100%;min-width:${Math.min(Math.ceil(width), Math.round(width * 0.62))}px" role="img" aria-label="${esc(plain(label))}">
+    <defs><marker id="ah-${uid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>${body}</svg></div>`;
+}
+const bezierMid = (x1, y1, cx1, cy1, cx2, cy2, x2, y2) => [(x1 + 3 * cx1 + 3 * cx2 + x2) / 8, (y1 + 3 * cy1 + 3 * cy2 + y2) / 8];
+function edgeLabel(x, y, text) {
+  if (!text) return '';
+  const w = textWidth(plain(text), SANS_SMALL) + 12;
+  return `<g class="elabel"><rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="9"/><text x="${x}" y="${y + 4}" text-anchor="middle">${esc(plain(text))}</text></g>`;
+}
+function legend(tones) {
+  const names = { new: 'new in this PR', changed: 'changed', removed: 'removed', risk: 'risk', ok: 'safe' };
+  const used = [...new Set(tones.filter(t => names[t]))];
+  return used.length ? `<div class="fig-legend">${used.map(t => `<span><span class="lg t-${t}"></span>${names[t]}</span>`).join('')}</div>` : '';
+}
+
+function figFlow(f, uid) {
+  const nodes = (f.nodes || []).map(n => ({ ...n }));
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const edges = (f.edges || []).filter(e => byId[e.from] && byId[e.to]);
+  const layerIds = (f.layers || []).map(l => l.id);
+  if (layerIds.length) nodes.forEach(n => { n.rank = Math.max(0, layerIds.indexOf(n.layer)); });
+  else {
+    const rank = {}, visiting = new Set();
+    const rankOf = id => {
+      if (id in rank) return rank[id];
+      visiting.add(id);
+      const preds = edges.filter(e => e.to === id && !visiting.has(e.from)).map(e => e.from);
+      const r = preds.length ? Math.max(...preds.map(rankOf)) + 1 : 0;
+      visiting.delete(id);
+      return (rank[id] = r);
+    };
+    nodes.forEach(n => { n.rank = rankOf(n.id); });
+  }
+  const rows = [];
+  nodes.forEach(n => {
+    (rows[n.rank] = rows[n.rank] || []).push(n);
+    n.w = Math.max(96, Math.min(250, Math.max(textWidth(plain(n.label)), n.sub ? textWidth(plain(n.sub), SANS_SMALL) : 0) + 28));
+    n.h = n.sub ? 46 : 32;
+  });
+  const labelCol = layerIds.length ? 128 : 0, gap = 22, rowGap = 62;
+  const rowW = rows.map(r => (r || []).reduce((s, n) => s + n.w, 0) + Math.max(0, (r || []).length - 1) * gap);
+  const rowH = rows.map(r => Math.max(32, ...(r || []).map(n => n.h)));
+  const inner = Math.max(220, ...rowW);
+  const width = labelCol + inner + 80;
+  const rowY = [];
+  let y = 18;
+  rows.forEach((r, i) => {
+    rowY[i] = y;
+    let x = labelCol + 40 + (inner - rowW[i]) / 2;
+    (r || []).forEach(n => { n.x = x; n.y = y + (rowH[i] - n.h) / 2; x += n.w + gap; });
+    y += rowH[i] + rowGap;
+  });
+  const height = y - rowGap + 30;
+  let svg = '';
+  if (layerIds.length) (f.layers || []).forEach((l, i) => {
+    if (rowY[i] == null) return;
+    svg += `<rect class="band" x="0" y="${rowY[i] - 9}" width="${width}" height="${rowH[i] + 18}" rx="8"/>${svgLines(12, rowY[i] + rowH[i] / 2 + 4, [fit(plain(l.label).toUpperCase(), labelCol - 18, SANS_SMALL)], 'lay', 'start')}`;
+  });
+  edges.forEach(e => {
+    const a = byId[e.from], b = byId[e.to];
+    let d, mid;
+    if (b.rank > a.rank) {
+      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2, c = (y2 - y1) / 2;
+      d = `M${x1} ${y1} C ${x1} ${y1 + c}, ${x2} ${y2 - c}, ${x2} ${y2}`;
+      mid = bezierMid(x1, y1, x1, y1 + c, x2, y2 - c, x2, y2);
+    } else if (b.rank === a.rank) {
+      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y + b.h + 2;
+      d = `M${x1} ${y1} C ${x1} ${y1 + 34}, ${x2} ${y2 + 34}, ${x2} ${y2}`;
+      mid = bezierMid(x1, y1, x1, y1 + 34, x2, y2 + 34, x2, y2);
+    } else {
+      const x1 = a.x, y1 = a.y + a.h / 2, x2 = b.x - 2, y2 = b.y + b.h / 2, out = 34 + Math.abs(a.x - b.x) / 6;
+      d = `M${x1} ${y1} C ${x1 - out} ${y1}, ${x2 - out} ${y2}, ${x2} ${y2}`;
+      mid = bezierMid(x1, y1, x1 - out, y1, x2 - out, y2, x2, y2);
+    }
+    svg += `<path class="edge${toneOf(e.tone)}${e.dashed ? ' dashed' : ''}" d="${d}" marker-end="url(#ah-${uid})"/>`;
+    svg += edgeLabel(mid[0], mid[1], e.label);
+  });
+  nodes.forEach(n => {
+    const o = openAttrs(n);
+    const box = `<g class="fnode${toneOf(n.tone)}${o.cls}"${o.attrs}>${o.title}<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="7"/>${svgLines(n.x + n.w / 2, n.y + (n.sub ? 19 : 20), [fit(plain(n.label), n.w - 16)], 'fl')}${n.sub ? svgLines(n.x + n.w / 2, n.y + 35, [fit(plain(n.sub), n.w - 16, SANS_SMALL)], 'fs') : ''}</g>`;
+    svg += n.chapter ? `<a href="#tour-${esc(n.chapter)}">${box}</a>` : box;
+  });
+  return svgFrame(width, height, svg, f.title, uid) + legend(nodes.map(n => n.tone).concat(edges.map(e => e.tone)));
+}
+
+function figSequence(f, uid) {
+  const actors = f.actors || [];
+  const index = Object.fromEntries(actors.map((a, i) => [a.id, i]));
+  const spans = (f.steps || []).filter(s => !s.over && index[s.from] != null && index[s.to] != null).map(s => (Math.min(320, textWidth(plain(s.label), SANS) + 32)) / Math.max(1, Math.abs(index[s.to] - index[s.from])));
+  const colW = Math.max(150, ...actors.map(a => textWidth(plain(a.label)) + 44), ...spans);
+  const left = 36;
+  const width = left + actors.length * colW + 16;
+  const cx = i => left + i * colW + colW / 2;
+  const top = 12, headH = 34;
+  let y = top + headH + 22, body = '', n = 0;
+  for (const s of f.steps || []) {
+    if (s.over) {
+      const cols = s.over.map(a => index[a]).filter(i => i != null);
+      if (!cols.length) continue;
+      const x1 = cx(Math.min(...cols)) - colW / 2 + 12, x2 = cx(Math.max(...cols)) + colW / 2 - 12;
+      const lines = wrapText(plain(s.note), x2 - x1 - 20, SANS);
+      const h = lines.length * 15 + 14;
+      body += `<g class="snote${toneOf(s.tone)}"><rect x="${x1}" y="${y}" width="${x2 - x1}" height="${h}" rx="6"/>${svgLines((x1 + x2) / 2, y + 19, lines, 'fs-note')}</g>`;
+      y += h + 14;
+      continue;
+    }
+    const a = index[s.from], b = index[s.to];
+    if (a == null || b == null) continue;
+    n++;
+    const o = openAttrs(s);
+    if (a === b) {
+      const x = cx(a), lines = wrapText(plain(s.label), colW - 28, SANS);
+      const top2 = y, loopY = y + lines.length * 15 + 2;
+      body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines(x + 10, top2 + 11, lines, 'fs-msg', 'start')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="M${x} ${loopY} C ${x + 46} ${loopY}, ${x + 46} ${loopY + 20}, ${x + 3} ${loopY + 20}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${loopY + 10}" r="9"/><text x="18" y="${loopY + 14}">${n}</text></g></g>`;
+      y = loopY + 36;
+      continue;
+    }
+    const x1 = cx(a), x2 = cx(b);
+    const lines = wrapText(plain(s.label), Math.abs(x2 - x1) - 24, SANS);
+    const arrowY = y + lines.length * 15 + 4;
+    body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines((x1 + x2) / 2, y + 11, lines, 'fs-msg')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="M${x1} ${arrowY} L${x2 + (x2 > x1 ? -2 : 2)} ${arrowY}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${arrowY}" r="9"/><text x="18" y="${arrowY + 4}">${n}</text></g></g>`;
+    y = arrowY + 20;
+  }
+  const height = y + 6;
+  const lifelines = actors.map((a, i) => `<line class="life" x1="${cx(i)}" y1="${top + headH}" x2="${cx(i)}" y2="${height - 6}"/>`).join('');
+  const heads = actors.map((a, i) => `<g class="actor${toneOf(a.tone)}"><rect x="${cx(i) - (colW - 24) / 2}" y="${top}" width="${colW - 24}" height="${headH}" rx="7"/>${svgLines(cx(i), top + 21, [fit(plain(a.label), colW - 36)], 'fl')}</g>`).join('');
+  return svgFrame(width, height, lifelines + heads + body, f.title, uid);
+}
+
+function figTree(f) {
+  const root = { children: new Map() };
+  for (const item of f.items || []) {
+    const parts = String(item.path || '').split('/').filter(Boolean);
+    let node = root;
+    parts.forEach((part, i) => {
+      if (!node.children.has(part)) node.children.set(part, { name: part, children: new Map(), dir: i < parts.length - 1 });
+      node = node.children.get(part);
+    });
+    node.item = item;
+    if (String(item.path).endsWith('/')) node.dir = true;
+  }
+  const rows = [];
+  const walk = (node, prefix) => {
+    const kids = [...node.children.values()];
+    kids.forEach((k, i) => {
+      const last = i === kids.length - 1;
+      rows.push({ guide: prefix + (last ? '└── ' : '├── '), node: k });
+      walk(k, prefix + (last ? '    ' : '│   '));
+    });
+  };
+  walk(root, '');
+  const mark = { added: '+ ', removed: '− ', changed: '~ ' };
+  return `<div class="ftree">${f.root ? `<div class="tr"><span class="tn dir">${esc(f.root)}</span></div>` : ''}${rows.map(({ guide, node }) => {
+    const item = node.item || {}, state = item.state || 'neutral', o = openAttrs(item);
+    return `<div class="tr ts-${esc(state)}"><span class="tp">${esc(guide)}</span><span class="tn${node.dir ? ' dir' : ''}${o.cls}"${o.attrs}>${mark[state] || ''}${esc(node.name)}${node.dir ? '/' : ''}</span>${item.note ? `<span class="tnote">${md(item.note, true)}</span>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+
+function figMatrix(f) {
+  const cell = c => (c && typeof c === 'object' ? c : { text: c });
+  const corner = [f.rowLabel, f.colLabel].filter(Boolean).map(esc).join(' <span class="muted">×</span> ');
+  return `<div class="table-wrap fmatrix"><table class="data"><thead><tr><th>${corner}</th>${(f.cols || []).map(c => `<th>${md(String(c), true)}</th>`).join('')}</tr></thead><tbody>${(f.rows || []).map((r, i) => `<tr><th scope="row">${md(String(r), true)}</th>${((f.cells || [])[i] || []).map(c => { const x = cell(c); return `<td class="mc${x.tone ? ' mt-' + esc(x.tone) : ''}">${md(String(x.text == null ? '' : x.text), true)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function figTimeline(f, uid) {
+  const log = f.scale === 'log';
+  const values = [...(f.spans || []).flatMap(s => [s.from, s.to]), ...(f.marks || []).map(m => m.at), ...(f.ticks || []).map(t => t.at)].filter(v => typeof v === 'number');
+  const lo = f.from != null ? f.from : Math.min(...values), hi = f.to != null ? f.to : Math.max(...values);
+  const width = 760, left = 24, plotW = width - left * 2;
+  const scale = v => {
+    const t = log ? (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / ((hi - lo) || 1);
+    return left + Math.max(0, Math.min(1, t)) * plotW;
+  };
+  const axisY = 58;
+  let svg = `<line class="axis" x1="${left}" y1="${axisY}" x2="${width - left}" y2="${axisY}"/>`;
+  (f.ticks || []).forEach(t => { const x = scale(t.at); svg += `<line class="tick" x1="${x}" y1="${axisY - 5}" x2="${x}" y2="${axisY + 5}"/>${svgLines(x, axisY + 19, [plain(t.label)], 'tl')}`; });
+  (f.marks || []).forEach((m, i) => {
+    const x = scale(m.at), ly = i % 2 ? 14 : 30;
+    svg += `<g class="mark${toneOf(m.tone)}"><line x1="${x}" y1="${ly + 4}" x2="${x}" y2="${axisY}"/><circle cx="${x}" cy="${axisY}" r="5"/>${svgLines(Math.min(Math.max(x, 60), width - 60), ly, [plain(m.label)], 'ml')}</g>`;
+  });
+  const lanes = [];
+  const spans = (f.spans || []).map(s => ({ ...s, x1: scale(s.from), x2: scale(s.to) })).sort((a, b) => a.x1 - b.x1);
+  spans.forEach(s => {
+    let lane = lanes.findIndex(end => end <= s.x1 + 1);
+    if (lane < 0) { lane = lanes.length; lanes.push(0); }
+    lanes[lane] = s.x2;
+    s.lane = lane;
+  });
+  const below = [];
+  spans.forEach(s => {
+    s.label = plain(s.label);
+    s.inside = textWidth(s.label, SANS_SMALL) + 12 <= Math.max(3, s.x2 - s.x1);
+    if (s.label && !s.inside) below[s.lane] = true;
+  });
+  const laneTop = [];
+  let laneY = axisY + 34;
+  lanes.forEach((_, i) => { laneTop[i] = laneY; laneY += 26 + (below[i] ? 16 : 0); });
+  spans.forEach(s => {
+    const y = laneTop[s.lane], w = Math.max(3, s.x2 - s.x1);
+    const outsideX = Math.max(left, Math.min(s.x1, width - left - textWidth(s.label, SANS_SMALL)));
+    svg += `<g class="span${toneOf(s.tone)}"><rect x="${s.x1}" y="${y}" width="${w}" height="18" rx="4"/>${s.label ? (s.inside ? svgLines(s.x1 + w / 2, y + 13, [s.label], 'sl') : svgLines(outsideX, y + 32, [s.label], 'sl', 'start')) : ''}</g>`;
+  });
+  const height = laneY + 8;
+  return svgFrame(width, height, svg, f.title, uid);
+}
+
+function figSvg(f) {
+  const safe = String(f.svg || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  return `<div class="fig-scroll fsvg">${safe}</div>`;
+}
+
+function figCompare(f) {
+  const side = (label, sub) => `<div class="fside"><div class="eyebrow">${label}${sub && sub.title && plain(sub.title).toLowerCase() !== label.toLowerCase() ? ' · ' + md(sub.title, true) : ''}</div>${sub ? figureBody(sub) : '<div class="muted small">Nothing.</div>'}${sub && sub.caption ? `<div class="fig-caption md small">${md(sub.caption)}</div>` : ''}</div>`;
+  return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
+}
+
+const FIGURES = { flow: figFlow, sequence: figSequence, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
+let figureSeq = 0;
+function figureBody(f) {
+  const draw = FIGURES[f && f.kind];
+  if (!draw) return `<div class="fig-error">No renderer for a figure of kind “${esc(f && f.kind)}”.</div>`;
+  try { return draw(f, ++figureSeq); } catch (e) { return `<div class="fig-error">This figure could not be drawn: ${esc(e.message)}</div>`; }
+}
+function figureHtml(f, opts = {}) {
+  if (!f) return '';
+  const wide = f.wide || ['compare', 'sequence', 'timeline'].includes(f.kind);
+  return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${figureBody(f)}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}${opts.from ? `<div class="fig-from small">${opts.from}</div>` : ''}</figure>`;
+}
+function allFigures() {
+  const out = [];
+  ((C.overview || {}).figures || []).forEach(f => out.push({ f, from: 'Overview', href: '#overview' }));
+  C.chapters.forEach((ch, i) => {
+    (ch.figures || []).forEach(f => out.push({ f, from: `Chapter ${i + 1}: ${ch.title}`, href: '#tour-' + ch.id }));
+    (ch.stops || []).forEach((s, j) => { if (s.figure) out.push({ f: s.figure, from: `Stop ${i + 1}.${j + 1}: ${s.title}`, href: '#tour-' + ch.id, stop: s.id }); });
+  });
+  return out;
+}
+function vPictures() {
+  const figs = allFigures();
+  return `<div class="view-head"><div class="eyebrow">In pictures</div><h1>The change, drawn</h1>
+    <p class="lede">${plural(figs.length, 'figure')} in reading order. Skim these first: each one links to the chapter that explains it, and every box or step marked as a link opens its code.</p></div>
+    <div class="figs">${figs.map(x => figureHtml(x.f, { from: `<a href="${x.href}"${x.stop ? ` data-scroll-stop="${esc(x.stop)}"` : ''}>${esc(x.from)}</a>` })).join('')}</div>`;
+}
+
+/* ---------- Design ---------- */
+const STATUS_CHIP = { new: 'c-info', changed: 'c-warn', removed: 'c-bad', existing: 'c-none' };
+const ASSESS_CHIP = { sound: 'c-ok', questionable: 'c-warn', unsound: 'c-bad' };
+const VERDICT_CHIP = { holds: 'c-ok', strained: 'c-warn', broken: 'c-bad' };
+function designItems(key) {
+  const out = ((C.design || {})[key] || []).map(item => ({ item, chapter: item.chapter ? CH[item.chapter] : null }));
+  C.chapters.forEach(ch => (ch[key] || []).forEach(item => out.push({ item, chapter: ch })));
+  return out;
+}
+const decisionTarget = d => 'design:' + (d.id || plain(d.decision));
+function hasDesign() {
+  const d = C.design || {};
+  return !!(d.summary || (d.figures || []).length || designItems('abstractions').length || designItems('decisions').length);
+}
+function abstractionCard({ item: a, chapter }) {
+  return `<article class="abs t-${esc(a.status || 'existing')}" id="abs-${esc(a.id || '')}">
+    <div class="row"><b class="mono">${esc(plain(a.name))}</b>${a.kind ? `<span class="chip plain c-none">${esc(a.kind)}</span>` : ''}${a.status ? `<span class="chip ${STATUS_CHIP[a.status] || 'c-none'}">${esc(a.status)}</span>` : ''}</div>
+    <div class="small">${md(a.responsibility, true)}</div>
+    ${(a.collaborators || []).length ? `<div class="small muted">Works with ${a.collaborators.map(c => `<code>${esc(plain(c))}</code>`).join(', ')}</div>` : ''}
+    <div class="row small">${whereBtn(a.where)}${chapter ? `<a href="#tour-${chapter.id}">${esc(chapter.title)}</a>` : ''}</div>
+  </article>`;
+}
+function relationsFigure(items) {
+  const nodes = new Map();
+  items.forEach(({ item, chapter }) => nodes.set(plain(item.name), { id: plain(item.name), label: plain(item.name), sub: item.kind, tone: { new: 'new', changed: 'changed', removed: 'removed' }[item.status], where: item.where, chapter: chapter && chapter.id }));
+  if (nodes.size < 2 || nodes.size > 16) return '';
+  const edges = [];
+  let extra = 0;
+  items.forEach(({ item }) => (item.collaborators || []).forEach(c => {
+    const name = plain(c);
+    if (!nodes.has(name)) { if (extra >= 6) return; extra++; nodes.set(name, { id: name, label: name, sub: 'existing' }); }
+    edges.push({ from: plain(item.name), to: name });
+  }));
+  if (!edges.length) return '';
+  return figureHtml({ id: 'design-relations', kind: 'flow', title: 'How the abstractions work together', nodes: [...nodes.values()], edges, wide: true,
+    caption: 'Drawn from each abstraction\'s collaborators: an arrow points from an abstraction to one it uses. Outlined boxes are new in this PR; select one to open its code.' });
+}
+function decisionCard({ item: d, chapter }) {
+  const chip = d.assessment ? `<span class="chip ${ASSESS_CHIP[d.assessment] || 'c-none'}">${esc(d.assessment)}</span>` : '';
+  return `<article class="finding decision" id="dec-${esc(d.id || '')}">
+    <div class="finding-head"><b style="flex:1;min-width:0">${md(d.decision, true)}</b>${chip}</div>
+    <div class="dec-grid">
+      ${(d.alternatives || []).length ? `<div><div class="eyebrow">Chosen over</div><ul class="prose small" style="margin:0">${d.alternatives.map(a => `<li>${md(a, true)}</li>`).join('')}</ul></div>` : ''}
+      ${d.rationale ? `<div><div class="eyebrow">Because</div><div class="md small">${md(d.rationale)}</div></div>` : ''}
+      ${d.consequences ? `<div><div class="eyebrow">At the cost of</div><div class="md small">${md(d.consequences)}</div></div>` : ''}
+    </div>
+    ${d.note ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Reading pass</span>${chip}</div><div class="md small">${md(d.note)}</div></div>` : ''}
+    <div class="row small">${whereBtn(d.where)}${d.adr ? `<span class="muted">Recorded in</span> <code>${esc(d.adr)}</code>` : ''}${chapter ? `<a href="#tour-${chapter.id}">${esc(chapter.title)}</a>` : ''}</div>
+    ${ctl(decisionTarget(d), 'design', { label: `Design decision: ${plain(d.decision)}`, where: d.where || null })}
+  </article>`;
+}
+function principlesTable(rows) {
+  return `<div class="table-wrap"><table class="data"><thead><tr><th>Principle</th><th>In this PR</th><th>Evidence</th></tr></thead><tbody>${rows.map(p => `<tr><td style="min-width:200px"><b>${md(p.principle, true)}</b></td><td><span class="chip ${VERDICT_CHIP[p.verdict] || 'c-none'}">${esc(p.verdict || 'unknown')}</span></td><td class="small"><div class="md">${md(p.evidence || '')}</div>${p.where ? `<div>${whereBtn(p.where)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function extensionTable(rows) {
+  return `<div class="table-wrap"><table class="data"><thead><tr><th>To</th><th>Where</th><th>How</th></tr></thead><tbody>${rows.map(x => `<tr><td style="min-width:200px"><b>${md(x.change, true)}</b></td><td class="small">${whereBtn(x.where)}</td><td class="small md">${md(x.how || '')}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function designSection(abstractions, decisions, heading) {
+  if (!abstractions.length && !decisions.length) return '';
+  return `<section class="section"><h2>${heading}</h2>${abstractions.length ? `<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div>` : ''}${decisions.length ? `<div class="stack">${decisions.map(decisionCard).join('')}</div>` : ''}</section>`;
+}
+function vDesign() {
+  const d = C.design || {};
+  const abstractions = designItems('abstractions'), decisions = designItems('decisions');
+  const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
+  return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
+    ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
+    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${relationsFigure(abstractions)}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
+    ${decisions.length ? `<section class="section"><h2>Design decisions ${count(decisions.length)}</h2><p class="small muted">What was chosen, over what, why, and at what cost. Whether you agree with these matters more than any single line.</p><div class="stack">${decisions.map(decisionCard).join('')}</div></section>` : ''}
+    ${(d.principles || []).length ? `<section class="section"><h2>Fit with the existing architecture</h2>${principlesTable(d.principles)}</section>` : ''}
+    ${(d.extension || []).length ? `<section class="section"><h2>Where the next change goes</h2>${extensionTable(d.extension)}</section>` : ''}
+    ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div></section>` : ''}
+    <section class="panel stack"><div class="eyebrow">Your view of the design</div><div class="md" style="font-size:16px">${md(d.signOff || 'Is this the right shape for the problem, and would you be content to own and extend it?')}</div>${ctl('design-overall', 'chapter', { label: 'The design as a whole' }, { noteOpen: true })}</section>`;
+}
+
+/* ---------- Views ---------- */
+function vOverview() {
+  const pr = C.pr, o = C.overview || {};
+  const t = totals();
+  const blocks = [];
+  ((C.ci || {}).checks || []).filter(c => c.status === 'fail').forEach(c => blocks.push(`<li><span class="chip c-fail">CI</span> ${esc(c.name)}: ${md(c.cause, true)}</li>`));
+  C.findings.filter(f => Store.get('finding:' + f.id).status === 'block').forEach(f => blocks.push(`<li><span class="chip c-block">you</span> <b>${f.id}</b> ${md(f.summary, true)}</li>`));
+  C.chapters.filter(c => Store.get('chapter:' + c.id).status === 'blocking').forEach(c => blocks.push(`<li><span class="chip c-blocking">chapter</span> ${esc(c.title)}</li>`));
+  const forkBlocks = C.findings.filter(f => (C.findingCheck[f.id] || {}).triage === 'block' && !Store.get('finding:' + f.id).status);
+  const breaking = (C.breaking || []).map(b => `<div class="ba-aspect">${md(b.title, true)} <span class="muted small" style="font-weight:400">· ${esc(b.affects || '')}</span></div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div><div class="small" style="margin-top:6px">${whereBtn(b.where)} ${b.changelog ? '· ' + whereBtn(b.changelog) : ''}</div></div>`).join('');
+  const ci = ((C.ci || {}).checks || []);
+  const ciRows = ci.filter(c => c.status !== 'skipped').map(c => `<tr><td><span class="chip c-${c.status === 'pass' ? 'pass' : c.status}">${c.status}</span></td><td>${esc(c.name)}</td><td class="small">${md(c.cause || '', true)}${c.fix ? `<div><b>Fix:</b> ${md(c.fix, true)}</div>` : ''}</td></tr>`).join('');
+  const passN = ci.filter(c => c.status === 'pass').length;
+  const chRows = C.chapters.map((c, i) => {
+    const s = Store.get('chapter:' + c.id).status;
+    const fc = (c.findingChecks || []);
+    const own = (c.ownNotes || []).filter(n => n.level === 'major').length;
+    return `<tr><td class="tnum">${i + 1}</td><td><a href="#tour-${c.id}">${esc(c.title)}</a><div class="small muted">${md(c.oneLiner, true)}</div></td><td class="tnum">${(c.stops || []).length}</td><td class="tnum">${fc.length}</td><td class="tnum">${own || ''}</td><td>${s ? `<span class="chip c-${s}">${KINDS.chapter.opts.find(x => x[0] === s)[1]}</span>` : '<span class="muted small">not yet</span>'}</td></tr>`;
+  }).join('');
+  const ar = (C.acceptedRisks || []);
+  const arOverlap = ar.filter(a => a.findings.length);
+  return `
+  <div class="view-head">
+    <div class="eyebrow">Pull request #${esc(pr.number)}${pr.author ? ' · ' + esc(pr.author) : ''}${pr.commits ? ' · ' + plural(pr.commits, 'commit') : ''} · ${plural(pr.files, 'file')} · <span class="tnum">+${fmt(pr.additions)} −${fmt(pr.deletions)}</span></div>
+    <h1>${esc(pr.title)}</h1>
+    <div class="lede md">${md(o.lede)}</div>
+    <div class="row small">${pr.url ? `<a href="${esc(pr.url)}" target="_blank" rel="noopener">Open the pull request ↗</a><span class="muted">·</span>` : ''}<a href="#map">See where the risk is</a>${C.chapters.length ? `<span class="muted">·</span><a href="#tour-${C.chapters[0].id}">Start the tour</a>` : ''}</div>
+  </div>
+
+  ${(o.figures || []).length ? `<section class="section"><h2>The change at a glance</h2><div class="figs">${o.figures.map(f => figureHtml(f)).join('')}</div></section>` : ''}
+
+  ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}${designItems('decisions').length ? `<div class="eyebrow">Decisions to agree with</div><ul class="prose small" style="margin:0">${designItems('decisions').slice(0, 8).map(({ item }) => `<li>${md(item.decision, true)}${item.assessment ? ` <span class="chip ${ASSESS_CHIP[item.assessment] || 'c-none'}">${esc(item.assessment)}</span>` : ''}</li>`).join('')}</ul>` : ''}<div class="small"><a href="#design">Open the design: abstractions, decisions, fit with the architecture →</a></div></div></section>` : ''}
+
+  <div class="grid-2">
+    <section class="panel stack">
+      <div class="eyebrow">Your verdict</div>
+      ${ctl('decision', 'decision', { label: `Overall verdict on PR ${pr.number}` }, { noteOpen: true })}
+      <div class="stack small">
+        <div class="eyebrow">What stands in the way</div>
+        ${blocks.length ? `<ul class="prose" style="margin:0">${blocks.join('')}</ul>` : '<span class="muted">Nothing marked blocking yet.</span>'}
+        ${forkBlocks.length ? `<div class="muted">The code-reading pass recommends blocking on ${forkBlocks.map(f => `<a href="#findings" data-jump-finding="${f.id}">${f.id}</a>`).join(', ')}. You have not triaged ${forkBlocks.length === 1 ? 'it' : 'them'} yet.</div>` : ''}
+      </div>
+    </section>
+    <section class="panel stack">
+      <div class="eyebrow">Where you are</div>
+      <table class="data small"><tbody>
+        ${t.design.n ? `<tr><td>Design decisions assessed</td><td class="tnum">${t.design.done} / ${t.design.n}</td></tr>` : ''}
+        <tr><td>Chapters signed off</td><td class="tnum">${t.chapters.done} / ${t.chapters.n}</td></tr>
+        <tr><td>Tour stops read</td><td class="tnum">${t.stops.done} / ${t.stops.n}</td></tr>
+        <tr><td>Invariants checked</td><td class="tnum">${t.inv.done} / ${t.inv.n}</td></tr>
+        <tr><td>Findings triaged</td><td class="tnum">${t.findings.done} / ${t.findings.n}</td></tr>
+        ${t.ledger.n ? `<tr><td>${esc((C.ledgerMeta || {}).title || 'Ledger')} rows checked</td><td class="tnum">${t.ledger.done} / ${t.ledger.n}</td></tr>` : ''}
+        <tr><td>Files reviewed</td><td class="tnum">${t.files.done} / ${t.files.n}</td></tr>
+      </tbody></table>
+    </section>
+  </div>
+
+  ${(o.paths || []).length ? `<section class="section"><h2>Ways through it</h2><div class="grid-3">${o.paths.map(p => `<div class="panel stack"><div class="row"><h3>${esc(p.title)}</h3><span class="spacer"></span><span class="chip plain c-info">${esc(p.time)}</span></div><div class="md small">${md(p.body)}</div></div>`).join('')}</div></section>` : ''}
+
+  ${o.whatChanges ? `<section class="section"><h2>What changes</h2><div class="md prose">${md(o.whatChanges)}</div></section>` : ''}
+
+  ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div><p class="small muted">${esc(C.moduleMap.caption || 'Arrows point from caller to dependency. Outlined boxes are new in this PR. Select a box to open its chapter.')}</p></section>` : ''}
+
+  ${(C.breaking || []).length ? `<section class="section"><h2>Breaking changes <span class="muted small" style="font-family:var(--f-body);font-weight:400">${C.breaking.length}</span></h2><div class="ba">${breaking}</div></section>` : ''}
+
+  ${C.chapters.length ? `<section class="section"><h2>Chapters</h2><div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Chapter</th><th>Stops</th><th>Findings checked</th><th>New major</th><th>Your sign-off</th></tr></thead><tbody>${chRows}</tbody></table></div></section>` : ''}
+
+  ${ar.length ? `<section class="section"><h2>Accepted risks</h2>
+    <p class="lede small">The plan accepts ${ar.length} risks by name. ${arOverlap.reduce((s, a) => s + a.findings.length, 0)} ${esc(source())} findings re-raise ${arOverlap.length} of them; triaging those is a question of whether the acceptance still holds, not whether the code matches the plan.</p>
+    <div class="table-wrap"><table class="data"><thead><tr><th>Risk</th><th>What the plan accepts</th><th>Re-raised by</th></tr></thead><tbody>
+    ${ar.map(a => `<tr><td style="min-width:200px"><b>${esc(a.title)}</b></td><td class="small">${md(a.gist, true)}</td><td>${(a.findings || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ') || '<span class="muted small">—</span>'}</td></tr>`).join('')}
+    </tbody></table></div></section>` : ''}
+
+  ${ci.length ? `<section class="section"><h2>CI at head <span class="muted small" style="font-family:var(--f-body);font-weight:400">${passN} passing</span></h2><div class="table-wrap"><table class="data"><tbody>${ciRows}</tbody></table></div></section>` : ''}`;
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-jump-finding]');
+  if (!a) return;
+  e.preventDefault();
+  findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: a.dataset.jumpFinding };
+  if (location.hash !== '#findings') location.hash = 'findings'; else render();
+});
+
+function moduleMap() {
+  const nodes = C.moduleMap.nodes, edges = C.moduleMap.edges, layers = C.moduleMap.layers;
+  const W = 940, rowH = 92, top = 16, boxH = 46;
+  const H = top + layers.length * rowH;
+  const pos = {};
+  layers.forEach((L, li) => {
+    const ns = nodes.filter(n => n.layer === L.id);
+    const gap = 16, avail = W - 150 - 10;
+    const bw = Math.min(200, (avail - gap * (ns.length - 1)) / ns.length);
+    const totalW = ns.length * bw + (ns.length - 1) * gap;
+    let x = 150 + (avail - totalW) / 2;
+    ns.forEach(n => { pos[n.id] = { x, y: top + li * rowH + 18, w: bw, h: boxH }; x += bw + gap; });
+  });
+  let svg = `<svg class="modmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="Module dependency map"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>`;
+  layers.forEach((L, li) => { const y = top + li * rowH; svg += `<rect class="band" x="0" y="${y + 6}" width="${W}" height="${rowH - 12}" rx="8" opacity=".55"/><text class="lay" x="14" y="${y + 30}">${esc(L.label)}</text><text class="sub" x="14" y="${y + 46}">${esc(L.sub || '')}</text>`; });
+  edges.forEach(([a, b]) => {
+    const p = pos[a], q = pos[b]; if (!p || !q) return;
+    const x1 = p.x + p.w / 2, y1 = p.y + p.h, x2 = q.x + q.w / 2, y2 = q.y;
+    if (y2 <= y1) return;
+    const my = (y1 + y2) / 2;
+    svg += `<path class="edge" d="M${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2 - 2}" marker-end="url(#ah)"/>`;
+  });
+  nodes.forEach(n => {
+    const p = pos[n.id];
+    const inner = `<rect class="box${n.isNew ? ' new' : ''}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="7"/><text x="${p.x + 10}" y="${p.y + 19}">${esc(n.label)}</text><text class="sub" x="${p.x + 10}" y="${p.y + 35}">${esc(n.sub || '')}</text>`;
+    svg += n.chapter ? `<a href="#tour-${n.chapter}">${inner}</a>` : inner;
+  });
+  return `<div style="overflow-x:auto">${svg}</svg></div>`;
+}
+
+/* Attention map */
+let mapSize = 'all';
+function riskOf(f) { return f.risk || 'skim'; }
+const RISKS = [['high', 'High: destroys or rewrites data, decides trust or access, or sits on a hot path'], ['medium', 'Medium: wiring or logic a bug could hide in'], ['low', 'Low: tests and support code'], ['skim', 'Skim: docs, lockfiles, records']];
+function vMap() {
+  const tiers = {};
+  RISKS.forEach(([r]) => (tiers[r] = { lines: 0, files: 0 }));
+  C.files.forEach(f => {
+    const r = riskOf(f), total = f.add + f.del;
+    const inlineTests = f.layer === 'prod' ? Math.min(total, f.testLines || 0) : 0;
+    tiers[r].lines += total - inlineTests;
+    tiers.low.lines += inlineTests;
+    tiers[r].files++;
+  });
+  const all = C.files.reduce((s, f) => s + f.add + f.del, 0);
+  const rate = { high: 200, medium: 400, low: 1000, skim: 5000 };
+  const hours = Object.fromEntries(RISKS.map(([r]) => [r, tiers[r].lines / rate[r]]));
+  const totalH = Object.values(hours).reduce((a, b) => a + b, 0);
+  return `<div class="view-head"><div class="eyebrow">Attention map</div><h1>Where the review time should go</h1>
+    <p class="lede">Area is changed lines; shade is review risk, set per file by the code-reading pass. ${fmt(tiers.high.lines)} of ${fmt(all)} changed lines are high-risk production code, in ${plural(tiers.high.files, 'file')}. Inline <code>#[cfg(test)]</code> modules count as tests in the bar below.</p></div>
+    <section class="section">
+      <div class="budget" role="img" aria-label="Changed lines by risk tier">${RISKS.map(([r]) => tiers[r].lines ? `<div class="r-${r}" style="flex:${tiers[r].lines}" title="${r}: ${fmt(tiers[r].lines)} lines">${r} ${fmt(tiers[r].lines)}</div>` : '').join('')}</div>
+      <div class="legend">${RISKS.map(([r, l]) => `<span><span class="sw r-${r}"></span>${esc(l)}</span>`).join('')}</div>
+      <p class="small muted">At ${rate.high} lines an hour for high-risk code, ${rate.medium} for medium, ${rate.low} for low and ${fmt(rate.skim)} for skimming, a full pass is about ${totalH.toFixed(1)} hours, ${(100 * (hours.high + hours.medium) / totalH).toFixed(0)}% of it on high and medium files. The rates are a planning device, not a measurement.</p>
+    </section>
+    <section class="section">
+      <div class="row"><div class="seg" role="group" aria-label="Tile size"><button type="button" class="t-info" data-size="all" aria-pressed="${mapSize === 'all'}">All changed lines</button><button type="button" class="t-info" data-size="prod" aria-pressed="${mapSize === 'prod'}">Production lines only</button></div><span class="small muted">Select a tile to open the file.</span></div>
+      <div class="tm-wrap" id="tm"></div>
+    </section>
+    <section class="section"><h2>As a table</h2><div class="table-wrap"><table class="data small"><thead><tr><th>Risk</th><th>File</th><th>Added</th><th>Removed</th><th>Chapter</th><th>What changed</th></tr></thead><tbody>
+      ${[...C.files].sort((a, b) => RISKS.findIndex(r => r[0] === riskOf(a)) - RISKS.findIndex(r => r[0] === riskOf(b)) || (b.add + b.del) - (a.add + a.del)).map(f => `<tr><td><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span></td><td>${locBtn(f.path)}</td><td class="tnum">+${fmt(f.add)}</td><td class="tnum">−${fmt(f.del)}</td><td>${CH[f.chapter] ? `<a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : '<span class="muted">context</span>'}</td><td>${md(f.summary, true)}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+}
+after.map = () => {
+  drawTreemap();
+  $$('[data-size]').forEach(b => b.addEventListener('click', () => { mapSize = b.dataset.size; $$('[data-size]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.size === mapSize))); drawTreemap(); }));
+};
+function squarify(items, r) {
+  const out = [];
+  const total = items.reduce((s, i) => s + i.v, 0);
+  if (!total || r.w <= 0 || r.h <= 0) return out;
+  const scale = (r.w * r.h) / total;
+  const vals = items.map(i => ({ ...i, a: i.v * scale }));
+  const worst = (row, len) => { const s = row.reduce((a, b) => a + b.a, 0); let mx = 0, mn = Infinity; row.forEach(x => { mx = Math.max(mx, x.a); mn = Math.min(mn, x.a); }); return Math.max(len * len * mx / (s * s), (s * s) / (len * len * mn)); };
+  const lay = (row, rc) => {
+    const s = row.reduce((a, b) => a + b.a, 0);
+    if (rc.w >= rc.h) { const cw = s / rc.h; let y = rc.y; row.forEach(it => { const h = it.a / cw; out.push({ ...it, x: rc.x, y, w: cw, h }); y += h; }); return { x: rc.x + cw, y: rc.y, w: rc.w - cw, h: rc.h }; }
+    const rh = s / rc.w; let x = rc.x; row.forEach(it => { const w = it.a / rh; out.push({ ...it, x, y: rc.y, w, h: rh }); x += w; }); return { x: rc.x, y: rc.y + rh, w: rc.w, h: rc.h - rh };
+  };
+  let rc = { ...r }, row = [], i = 0;
+  while (i < vals.length) {
+    const len = Math.min(rc.w, rc.h);
+    if (!row.length || worst([...row, vals[i]], len) <= worst(row, len)) { row.push(vals[i]); i++; }
+    else { rc = lay(row, rc); row = []; }
+  }
+  if (row.length) lay(row, rc);
+  return out;
+}
+const layersList = () => (C.layers || []).map(l => [l.id, l.label]);
+function drawTreemap() {
+  const el = $('#tm'); if (!el) return;
+  const W = el.clientWidth || 900, H = Math.max(380, Math.min(680, W * 0.62));
+  el.style.height = H + 'px';
+  const val = f => mapSize === 'prod' ? (f.layer === 'prod' ? Math.max(1, f.prodLines || f.add) : 0) : f.add + f.del;
+  const groups = layersList().map(([id, label]) => ({ id, label, files: C.files.filter(f => f.layer === id && val(f) > 0).sort((a, b) => val(b) - val(a)) })).map(g => ({ ...g, v: g.files.reduce((s, f) => s + val(f), 0) })).filter(g => g.v > 0);
+  const gr = squarify(groups, { x: 0, y: 0, w: W, h: H });
+  let html = '';
+  gr.forEach(g => {
+    const pad = 2, head = g.h > 60 && g.w > 90 ? 20 : 4;
+    html += `<div class="tm-group" style="left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px">${head > 4 ? `<div class="tm-group-label">${esc(g.label)} · ${fmt(g.v)}</div>` : ''}</div>`;
+    const tiles = squarify(g.files.map(f => ({ f, v: val(f) })), { x: g.x + pad, y: g.y + head, w: g.w - pad * 2, h: g.h - head - pad });
+    tiles.forEach(t => {
+      const f = t.f, w = Math.max(0, t.w - 2), h = Math.max(0, t.h - 2);
+      const lbl = w > 46 && h > 16 ? `<span>${esc(base(f.path))}</span>${h > 32 ? `<span style="opacity:.8">${fmt(val(f))}</span>` : ''}` : '';
+      html += `<button type="button" class="tm-tile r-${riskOf(f)}" style="left:${t.x + 1}px;top:${t.y + 1}px;width:${w}px;height:${h}px" data-open="${esc(f.path)}" data-tip="${esc(f.path)}" aria-label="${esc(f.path)}, ${riskOf(f)} risk, ${val(f)} lines">${lbl}</button>`;
+    });
+  });
+  el.innerHTML = html;
+}
+let resizeT;
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (currentRoute === 'map') drawTreemap(); }, 150); });
+document.addEventListener('pointermove', e => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  const tip = $('#tip');
+  if (!t) { tip.hidden = true; return; }
+  const f = FILE[t.dataset.tip];
+  if (!f) { tip.hidden = true; return; }
+  tip.innerHTML = `<div class="mono small" style="font-weight:600;overflow-wrap:anywhere">${esc(f.path)}</div><div class="row small"><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span><span class="tnum">+${fmt(f.add)} −${fmt(f.del)}</span>${f.layer === 'prod' && f.testLines ? `<span class="muted tnum">${fmt(f.prodLines)} prod · ${fmt(f.testLines)} inline tests</span>` : ''}</div><div class="small">${md(f.summary, true)}</div>${CH[f.chapter] ? `<div class="small muted">Chapter: ${esc(CH[f.chapter].title)}</div>` : ''}`;
+  tip.hidden = false;
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 12), y = Math.min(e.clientY + 14, window.innerHeight - tip.offsetHeight - 12);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+
+/* Tour */
+const linesOf = ch => (ch.stops || []).reduce((s, st) => s + (st.end - st.start + 1), 0);
+function vTour() {
+  if (currentSub && CH[currentSub]) return vChapter(CH[currentSub]);
+  return `<div class="view-head"><div class="eyebrow">Guided tour</div><h1>The change in reading order</h1>
+    <p class="lede">${C.tourMeta && C.tourMeta.lede ? md(C.tourMeta.lede, true) + ' ' : ''}${C.chapters.length} chapters and ${C.chapters.reduce((n, c) => n + (c.stops || []).length, 0)} stops, ordered so each builds on the last. Every stop puts the explanation beside the code. Each chapter ends with the question you need to answer to sign it off.</p></div>
+    <div class="chapter-list">${C.chapters.map((c, i) => {
+      const s = Store.get('chapter:' + c.id).status;
+      return `<a class="chapter-card" href="#tour-${c.id}"><span class="ch-num">${i + 1}</span><div class="stack" style="gap:4px"><h3>${esc(c.title)}</h3><div class="small muted">${md(c.oneLiner, true)}</div></div>
+      <div class="meta small"><span class="muted tnum">${(c.stops || []).length} stops · ${fmt(linesOf(c))} lines</span>${s ? `<span class="chip c-${s}">${KINDS.chapter.opts.find(x => x[0] === s)[1]}</span>` : ''}</div></a>`;
+    }).join('')}</div>`;
+}
+function vChapter(ch) {
+  const i = C.chapters.indexOf(ch);
+  const prev = C.chapters[i - 1], next = C.chapters[i + 1];
+  const stops = (ch.stops || []).map((s, j) => `
+    <div class="stop" id="stop-${esc(s.id)}">
+      <div class="stop-note">
+        <div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>
+        ${s.figure ? figureHtml(s.figure, { compact: true }) : ''}
+        ${s.fit ? `<div class="fit"><div class="eyebrow">In the bigger picture</div><div class="md">${md(s.fit)}</div></div>` : ''}
+        <div class="md">${md(s.note)}</div>
+        ${s.check ? `<div class="check"><div class="eyebrow">Check</div><div class="md">${md(s.check)}</div></div>` : ''}
+        ${(s.findings || []).length ? `<div class="row small">${s.findings.map(id => F[id] ? `<a href="#findings" data-jump-finding="${id}" title="${esc(F[id].summary)}">${id}</a> ${sevChip(F[id].severity)}` : '').join(' ')}</div>` : ''}
+        ${ctl('stop:' + s.id, 'stop', { label: `${ch.title} ${i + 1}.${j + 1}: ${s.title}`, where: `${s.file}:${s.start}-${s.end}` })}
+      </div>
+      ${codeSlice(s.file, s.start, s.end, s.side || 'new', { pad: 0 })}
+    </div>`).join('');
+  const ba = (ch.beforeAfter || []).length ? `<section class="section"><h2>Before and after</h2><div class="ba">${ch.beforeAfter.map(b => `<div class="ba-aspect">${md(b.aspect, true)}</div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div></div>`).join('')}</div></section>` : '';
+  const inv = (ch.invariants || []).map(v => `<div class="inv"><div class="stack" style="gap:6px"><div class="md">${md(v.text)}</div>
+      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}</div>
+      ${v.why ? `<div class="small md muted">${md(v.why)}</div>` : ''}</div>
+      <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`).join('');
+  const risks = (ch.risks || []).map(r => `<tr><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ')}</td></tr>`).join('');
+  const fcs = (ch.findingChecks || []).map(fc => findingRow(F[fc.id], fc)).join('');
+  const own = (ch.ownNotes || []).map((n, k) => `<div class="finding"><div class="finding-head">${sevChip(n.level)}<span class="finding-id">N-${esc(ch.id)}-${k + 1}</span>${whereBtn(n.where)}</div><div class="md">${md(n.text)}</div>${ctl(`own:${ch.id}-${k + 1}`, 'finding', { label: `New observation in ${ch.title}`, where: n.where, text: n.text })}</div>`).join('');
+  const tests = (ch.tests || []).map(t => `<tr><td>${testRef(t)}</td><td class="small">${md(t.proves, true)}</td></tr>`).join('');
+  const terms = (ch.domain || []).map(d => `<div class="term"><b>${esc(d.term)}</b><div class="small">${md(d.meaning, true)}</div>${d.code ? `<code class="small">${esc(d.code)}</code>` : ''}</div>`).join('');
+  return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede">${md(ch.oneLiner, true)}</p></div>
+    ${(ch.figures || []).length ? `<div class="figs">${ch.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
+    ${terms ? `<section class="section"><h2>Terms this chapter introduces</h2><div class="glossary">${terms}</div></section>` : ''}
+    ${designSection((ch.abstractions || []).map(item => ({ item, chapter: null })), (ch.decisions || []).map(item => ({ item, chapter: null })), 'What it adds to the design')}
+    <div class="grid-2"><section class="stack"><div class="eyebrow">Why it exists</div><div class="md prose">${md(ch.purpose)}</div></section>
+    <section class="stack"><div class="eyebrow">How it works</div><div class="md prose">${md(ch.mechanism)}</div></section></div>
+    ${ba}
+    <section class="section"><h2>Where it lives in the code</h2><p class="small muted">The stops below are the evidence for the design above: read them to check it, not to learn it.</p><div>${stops}</div></section>
+    ${inv ? `<section class="section"><h2>Invariants</h2><p class="small muted">What must always hold. The reading pass's view is shown; record your own.</p><div class="panel" style="padding-block:4px">${inv}</div></section>` : ''}
+    ${risks ? `<section class="section"><h2>Risks</h2><div class="table-wrap"><table class="data"><tbody>${risks}</tbody></table></div></section>` : ''}
+    ${own ? `<section class="section"><h2>New observations</h2><p class="small muted">Found by the code-reading pass; not in ${esc(source())}.</p><div class="stack">${own}</div></section>` : ''}
+    ${fcs ? `<section class="section"><h2>Prior findings here</h2><div class="stack">${fcs}</div></section>` : ''}
+    ${tests ? `<section class="section"><h2>Tests that pin it</h2><div class="table-wrap"><table class="data"><tbody>${tests}</tbody></table></div></section>` : ''}
+    <section class="panel stack"><div class="eyebrow">Sign off this chapter</div><div class="md" style="font-size:16px">${md(ch.signOff)}</div>${ctl('chapter:' + ch.id, 'chapter', { label: `Chapter: ${ch.title}` }, { noteOpen: true })}</section>
+    <div class="pager">${prev ? `<a href="#tour-${prev.id}"><span class="eyebrow">← Chapter ${i}</span><span>${esc(prev.title)}</span></a>` : '<span></span>'}${next ? `<a href="#tour-${next.id}" style="text-align:right"><span class="eyebrow">Chapter ${i + 2} →</span><span>${esc(next.title)}</span></a>` : '<span></span>'}</div>`;
+}
+after.tour = () => { if (D) fillPendingSlices(); };
+
+function findingRow(f, fc) {
+  if (!f) return '';
+  fc = fc || C.findingCheck[f.id];
+  const ar = C.arByFinding[f.id];
+  const ch = C.findingChapter[f.id];
+  return `<article class="finding" id="f-${f.id}">
+    <div class="finding-head"><span class="finding-id">${f.id}</span>${sevChip(f.severity)}${fc && fc.level ? `<span class="chip plain ${fc.level === 'design' ? 'c-info' : 'c-none'}">${esc(fc.level)}</span>` : ''}<span class="lens">${esc((f.lenses || []).join(' · '))}</span><span class="spacer"></span>${f.file ? locBtn(f.file, f.start) : '<span class="muted small">general</span>'}</div>
+    <div class="md">${md(f.title && f.kind === 'inline' ? `**${f.title}.** ${f.summary !== f.title ? f.summary : ''}` : f.summary)}</div>
+    ${ar ? `<div class="small"><span class="chip c-info">accepted risk</span> The plan accepts this by name: <b>${esc(ar.title)}</b>.</div>` : ''}
+    ${fc ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Code-reading pass</span><span class="chip c-${esc(fc.verdict)}">${esc(fc.verdict)}</span>${fc.triage ? `<span class="small muted">recommends</span><span class="chip c-${esc(fc.triage)}">${esc(KINDS.finding.opts.find(o => o[0] === fc.triage)?.[1] || fc.triage)}</span>` : ''}${ch && currentSub !== ch ? `<span class="spacer"></span><a class="small" href="#tour-${ch}">${esc(CH[ch].title)}</a>` : ''}</div><div class="md small">${md(fc.note)}</div></div>` : ''}
+    ${f.body ? `<details><summary>The original comment</summary><div class="md small">${md(f.body)}</div></details>` : ''}
+    ${f.file && f.start ? `<details><summary>Show the code</summary>${codeSlice(f.file, f.start, f.end || f.start, 'new', { pad: 6 })}</details>` : ''}
+    ${ctl('finding:' + f.id, 'finding', { label: `${f.id} (${f.severity}) ${f.summary}`, where: f.file ? `${f.file}:${f.start}` : null })}
+  </article>`;
+}
+
+/* Ledger */
+let ledgerFilter = { facets: {}, concern: '', status: '' };
+const facetDefs = () => ((C.ledgerMeta || {}).facets || []);
+const facetValues = (row, key) => ((row.facets || {})[key] || []);
+function vLedger() {
+  const M = C.ledgerMeta || {}, L = C.ledger;
+  const ops = {};
+  L.forEach(l => { ops[l.op] = (ops[l.op] || 0) + 1; });
+  const rows = L.filter(l => facetDefs().every(f => { const want = ledgerFilter.facets[f.key]; const have = facetValues(l, f.key); return !want || have.includes(want) || have.includes('any'); })
+    && (!ledgerFilter.concern || (ledgerFilter.concern === 'yes' ? !!l.concern : !l.concern))
+    && (!ledgerFilter.status || (ledgerFilter.status === 'none' ? !Store.get('ledger:' + l.id).status : Store.get('ledger:' + l.id).status === ledgerFilter.status)));
+  const concernN = L.filter(l => l.concern).length;
+  const sel = (attr, value, opts) => `<select ${attr}>${opts.map(([v, l]) => `<option value="${esc(v)}" ${value === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  return `<div class="view-head"><div class="eyebrow">${esc(M.title || 'Risk ledger')}</div><h1>${esc(M.heading || 'Every place the change does something it cannot take back')}</h1>
+    <p class="lede">${M.lede ? md(M.lede, true) + ' ' : ''}${plural(L.length, M.noun || 'call site')}: ${Object.entries(ops).map(([k, v]) => `${v} <code>${esc(k)}</code>`).join(', ')}. Each row names what must hold to reach the call, what is held at that moment, and the concurrent actor it has to survive.${concernN ? ` The reading pass raised a concern on ${concernN}.` : ''}</p></div>
+    <div class="filters">
+      ${facetDefs().map(f => `<label>${esc(f.label)} ${sel(`data-lfacet="${esc(f.key)}"`, ledgerFilter.facets[f.key] || '', [['', 'any'], ...[...new Set(L.flatMap(l => facetValues(l, f.key)))].sort().map(v => [v, v])])}</label>`).join('')}
+      <label>Concern ${sel('data-lf="concern"', ledgerFilter.concern, [['', 'any'], ['yes', 'raised'], ['no', 'none']])}</label>
+      <label>Your check ${sel('data-lf="status"', ledgerFilter.status, [['', 'any'], ['none', 'not yet'], ['ok', 'safe'], ['question', 'unsure'], ['issue', 'unsafe']])}</label>
+      <span class="small muted">${rows.length} shown</span>
+    </div>
+    <div class="stack">${rows.map(ledgerCard).join('') || '<div class="empty">No rows match these filters.</div>'}</div>`;
+}
+function ledgerCard(l) {
+  const lab = (C.ledgerMeta || {}).labels || {};
+  const chips = facetDefs().flatMap(f => facetValues(l, f.key).map(v => `<span class="chip plain c-info" title="${esc(f.label)}">${esc(v)}</span>`)).join('');
+  return `<article class="finding" id="l-${esc(l.id)}">
+    <div class="finding-head"><span class="finding-id">${esc(l.id)}</span><span class="chip plain c-bad">${esc(l.op)}</span>${chips}${l.concern ? sevChip(l.concern.level) : ''}<span class="spacer"></span>${locBtn(l.file, l.line)}</div>
+    <div style="font-weight:600">${md(l.subject, true)}</div>
+    <div class="grid-2" style="gap:12px">
+      <div class="stack small" style="gap:6px"><div class="eyebrow">${esc(lab.guards || 'Guards')}</div><ul class="prose" style="margin:0">${(l.guards || []).map(g => `<li>${md(g, true)}</li>`).join('')}</ul></div>
+      <div class="stack small" style="gap:6px">
+        ${l.context ? `<div><span class="eyebrow">${esc(lab.context || 'Held at the call')}</span><div>${md(l.context, true)}</div></div>` : ''}
+        ${l.onFailure ? `<div><span class="eyebrow">${esc(lab.onFailure || 'On failure')}</span><div>${md(l.onFailure, true)}</div></div>` : ''}
+      </div>
+    </div>
+    ${l.concurrency ? `<div class="small"><span class="eyebrow">${esc(lab.concurrency || 'Concurrency')}</span><div class="md">${md(l.concurrency)}</div></div>` : ''}
+    ${l.concern ? `<div class="check"><div class="eyebrow">Concern</div><div class="md small">${md(l.concern.text)}</div></div>` : ''}
+    <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ')}</div>
+    <details><summary>Show the code</summary>${codeSlice(l.file, Math.max(1, l.line - 8), l.line + 8, 'new')}</details>
+    ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: `${l.file}:${l.line}` })}
+  </article>`;
+}
+after.ledger = () => {
+  $$('[data-lf]').forEach(s => s.addEventListener('change', () => { ledgerFilter[s.dataset.lf] = s.value; render(); }));
+  $$('[data-lfacet]').forEach(s => s.addEventListener('change', () => { ledgerFilter.facets[s.dataset.lfacet] = s.value; render(); }));
+};
+
+/* Findings */
+let findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: '' };
+function vFindings() {
+  const lenses = [...new Set(C.findings.flatMap(f => f.lenses || []))].sort();
+  const ff = findingFilter;
+  const rows = C.findings.filter(f => {
+    const fc = C.findingCheck[f.id] || {};
+    const st = Store.get('finding:' + f.id).status || '';
+    if (ff.q && !(`${f.id} ${f.summary} ${f.file || ''}`.toLowerCase().includes(ff.q.toLowerCase()))) return false;
+    if (ff.sev && f.severity !== ff.sev) return false;
+    if (ff.lens && !(f.lenses || []).includes(ff.lens)) return false;
+    if (ff.verdict && (fc.verdict || 'unchecked') !== ff.verdict) return false;
+    if (ff.triage && (ff.triage === 'none' ? st : st !== ff.triage)) return false;
+    if (ff.chapter && C.findingChapter[f.id] !== ff.chapter) return false;
+    if (ff.level && (fc.level || 'unclassified') !== ff.level) return false;
+    return true;
+  });
+  const count = (fn) => C.findings.filter(fn).length;
+  const verdicts = ['confirmed', 'partly', 'disputed', 'unverified'];
+  const sel = (k, opts) => `<select data-ff="${k}">${opts.map(([v, l]) => `<option value="${v}" ${ff[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  return `<div class="view-head"><div class="eyebrow">Findings</div><h1>${esc((C.findingsMeta || {}).title || 'Prior findings, re-checked against the code')}</h1>
+    <p class="lede">${C.findings.length} findings from ${esc(source())}: ${count(f => f.severity === 'critical') ? count(f => f.severity === 'critical') + ' critical, ' : ''}${count(f => f.severity === 'major')} major, ${count(f => f.severity === 'minor')} minor, ${count(f => f.severity === 'suggestion')} suggestions. The code-reading pass for this page tried to refute each one; its verdict and recommended triage sit under the finding. The triage is yours.</p>
+    <div class="count-row">${verdicts.map(v => `<span class="chip c-${v}">${count(f => (C.findingCheck[f.id] || {}).verdict === v)} ${v}</span>`).join('')}<span class="chip c-info">${count(f => C.arByFinding[f.id])} accepted risks</span></div></div>
+    <div class="filters">
+      <label>Search <input type="search" data-ff="q" value="${esc(ff.q)}" placeholder="R1-06, lstat…"></label>
+      <label>Severity ${sel('sev', [['', 'any'], ['critical', 'critical'], ['major', 'major'], ['minor', 'minor'], ['suggestion', 'suggestion']])}</label>
+      <label>Lens ${sel('lens', [['', 'any'], ...lenses.map(l => [l, l])])}</label>
+      <label>Reading pass ${sel('verdict', [['', 'any'], ...verdicts.map(v => [v, v]), ['unchecked', 'unchecked']])}</label>
+      <label>Your triage ${sel('triage', [['', 'any'], ['none', 'not yet'], ...KINDS.finding.opts.map(o => [o[0], o[1]])])}</label>
+      <label>Chapter ${sel('chapter', [['', 'any'], ...C.chapters.map(c => [c.id, c.title])])}</label>
+      ${Object.values(C.findingCheck).some(fc => fc.level) ? `<label>Level ${sel('level', [['', 'any'], ['design', 'design'], ['implementation', 'implementation'], ['unclassified', 'unclassified']])}</label>` : ''}
+      <span class="small muted">${rows.length} shown</span>
+    </div>
+    <div class="stack">${rows.map(f => findingRow(f)).join('') || '<div class="empty">No findings match these filters.</div>'}</div>`;
+}
+after.findings = () => {
+  $$('[data-ff]').forEach(s => s.addEventListener(s.tagName === 'INPUT' ? 'input' : 'change', () => {
+    findingFilter[s.dataset.ff] = s.value;
+    if (s.tagName === 'INPUT') { clearTimeout(s._t); s._t = setTimeout(() => { const pos = s.selectionStart; render(); const n = $('[data-ff="q"]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 250); }
+    else render();
+  }));
+};
+
+/* Criteria */
+function vCriteria() {
+  const rows = C.acs.map(r => `<tr><td class="tnum muted">${r.n}</td><td>${md(r.label, true)}</td><td>${r.tests.map(t => t.hits.length ? t.hits.slice(0, 4).map(h => `<button class="loc" data-open="${esc(h.file)}" data-line="${h.line}">${esc(h.name)}</button>`).join('<br>') + (t.hits.length > 4 ? `<span class="muted small"> +${t.hits.length - 4} more</span>` : '') : `<code class="small">${esc(t.ref)}</code>`).join('<br>')}${r.note ? `<div class="small muted">${md(r.note, true)}</div>` : ''}</td><td class="tnum small">${esc(r.phase)}</td></tr>`).join('');
+  const resolved = C.acs.reduce((s, r) => s + r.tests.filter(t => t.hits.length).length, 0), total = C.acs.reduce((s, r) => s + r.tests.length, 0);
+  return `<div class="view-head"><div class="eyebrow">Acceptance criteria</div><h1>Criteria mapped to the tests that pin them</h1>
+    <p class="lede">Each acceptance criterion with the tests that pin it, every test name resolved to its declaration at head (${resolved} of ${total} resolved). Select a test to open it.</p></div>
+    <div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Criterion</th><th>Tests</th><th>Phase</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* Files */
+let fileQuery = '';
+let selectedFile = null;
+function vFiles() {
+  if (pendingOpen) selectedFile = pendingOpen.path;
+  if (!selectedFile || !FILE[selectedFile]) selectedFile = (C.files.find(f => f.risk === 'high') || C.files[0]).path;
+  const list = layersList().map(([id, label]) => {
+    const fs = C.files.filter(f => f.layer === id && (!fileQuery || f.path.toLowerCase().includes(fileQuery.toLowerCase())));
+    if (!fs.length) return '';
+    return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="dot" data-status-of="file:${esc(f.path)}"></span><span class="nm">${esc(short(f.path))}</span><span class="ct">+${fmt(f.add)}</span></button>`).join('');
+  }).join('');
+  return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
+    <p class="lede">Badges in the code mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files">${list}</div>
+    <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
+}
+function annotationsFor(path) {
+  const a = {};
+  const add = (line, item) => { if (!line) return; (a[line] = a[line] || []).push(item); };
+  C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => { if (s.file === path && (s.side || 'new') === 'new') add(s.end, { k: 'stop', html: `<b>${i + 1}.${j + 1} ${esc(s.title)}</b> <a href="#tour-${ch.id}" data-scroll-stop="${esc(s.id)}">in tour</a><div class="md">${md(s.note)}</div>`, at: s.start }); }));
+  C.ledger.forEach(l => { if (l.file === path) add(l.line, { k: 'ledger', html: `<b>${esc(l.id)} · ${esc(l.op)}</b> ${md(l.subject, true)} <a href="#ledger" data-scroll-ledger="${esc(l.id)}">in ledger</a>`, at: l.line }); });
+  C.findings.forEach(f => { if (f.file === path && f.start) add(f.end || f.start, { k: 'finding', html: `<b>${f.id}</b> ${sevChip(f.severity)} ${md(f.summary, true)} <a href="#findings" data-jump-finding="${f.id}">in findings</a>`, at: f.start }); });
+  return a;
+}
+function filePane(path) {
+  const f = FILE[path];
+  if (!f) return '';
+  const rows = rowsOf(path);
+  const ann = annotationsFor(path);
+  const marks = {};
+  Object.values(ann).flat().forEach(it => { (marks[it.at] = marks[it.at] || new Set()).add(it.k); });
+  let body = '';
+  if (!rows) body = `<div class="loading" style="padding:14px">Loading code…</div>`;
+  else {
+    const keep = new Set();
+    const CTX = 4;
+    rows.forEach((r, i) => { if (r.gap || r.t !== 0 || (r.n && (ann[r.n] || marks[r.n]))) for (let k = i - CTX; k <= i + CTX; k++) keep.add(k); });
+    if (pendingOpen && pendingOpen.line) { const key = pendingOpen.side === 'old' ? 'o' : 'n'; rows.forEach((r, i) => { if (r[key] && Math.abs(r[key] - pendingOpen.line) <= 12) keep.add(i); }); }
+    let out = '', i = 0;
+    const allNew = f.status === 'added';
+    while (i < rows.length) {
+      if (!allNew && !keep.has(i) && !rows[i].gap) {
+        let j = i; while (j < rows.length && !keep.has(j) && !rows[j].gap) j++;
+        if (j - i > 3) { out += `<tr class="gap"><td colspan="4"><button type="button" data-unfold="${i}-${j}">Show ${j - i} unchanged lines</button></td></tr>`; i = j; continue; }
+      }
+      const r = rows[i];
+      let h = rowHtml(r);
+      if (r.n && marks[r.n]) h = h.replace('</td><td class="mk">', `${[...marks[r.n]].map(k => `<span class="gut k-${k}">${k === 'stop' ? 'S' : k === 'ledger' ? 'L' : 'F'}</span>`).join('')}</td><td class="mk">`);
+      out += h;
+      if (r.n && ann[r.n]) out += `<tr class="anno"><td colspan="4"><div class="anno-list">${ann[r.n].map(it => `<div class="anno-item k-${it.k}">${it.html}</div>`).join('')}</div></td></tr>`;
+      i++;
+    }
+    body = `<table>${out}</table>`;
+  }
+  return `<div class="panel stack"><div class="row"><span class="mono" style="font-weight:600;overflow-wrap:anywhere;min-width:0">${esc(path)}</span><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span><span class="tnum small">+${fmt(f.add)} −${fmt(f.del)}</span>${f.status === 'added' ? '<span class="chip plain c-info">new file</span>' : ''}</div>
+    <div class="md">${md(f.summary)}</div>
+    <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
+    ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
+    <div class="code tall" id="file-code"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
+}
+after.files = () => {
+  const fq = $('#fq');
+  fq.addEventListener('input', () => { fileQuery = fq.value; clearTimeout(fq._t); fq._t = setTimeout(() => { const pos = fq.selectionStart; render(); const n = $('#fq'); n.focus(); n.setSelectionRange(pos, pos); }, 200); });
+  $$('.fl-item').forEach(b => b.addEventListener('click', () => { selectedFile = b.dataset.file; pendingOpen = null; $$('.fl-item').forEach(x => x.setAttribute('aria-current', String(x === b))); $('#file-pane').innerHTML = filePane(selectedFile); refreshControls(); $('#file-pane').scrollIntoView({ block: 'start' }); }));
+  bindUnfold();
+  if (pendingOpen && pendingOpen.line) {
+    const key = pendingOpen.side === 'old' ? 'o' : 'n';
+    const tr = $(`#file-code tr[data-${key}="${pendingOpen.line}"]`);
+    if (tr) { tr.scrollIntoView({ block: 'center' }); tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 1600); }
+  } else if (pendingOpen) $('#file-pane').scrollIntoView({ block: 'start' });
+  const cur = $('.fl-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+  pendingOpen = null;
+};
+function bindUnfold() {
+  $$('[data-unfold]').forEach(b => b.addEventListener('click', () => {
+    const [i, j] = b.dataset.unfold.split('-').map(Number);
+    const rows = rowsOf(selectedFile);
+    const tr = b.closest('tr');
+    const tmp = document.createElement('tbody');
+    tmp.innerHTML = rows.slice(i, j).map(r => rowHtml(r)).join('');
+    tr.replaceWith(...tmp.children);
+  }));
+}
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-scroll-stop],[data-scroll-ledger]');
+  if (!s) return;
+  const id = s.dataset.scrollStop ? 'stop-' + s.dataset.scrollStop : 'l-' + s.dataset.scrollLedger;
+  setTimeout(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start' }); }, 60);
+});
+
+/* Terms */
+function vTerms() {
+  const all = C.chapters.flatMap(ch => (ch.domain || []).map(d => ({ ...d, ch })));
+  const seen = new Map();
+  all.forEach(t => { const k = t.term.toLowerCase(); if (!seen.has(k)) seen.set(k, t); });
+  const terms = [...seen.values()].sort((a, b) => a.term.localeCompare(b.term, 'en-GB'));
+  return `<div class="view-head"><div class="eyebrow">Domain terms</div><h1>The language of the change</h1><p class="lede">${terms.length} terms the PR introduces or leans on, as the code names them. One term per concept; the tour uses them verbatim.</p></div>
+    <div class="glossary">${terms.map(t => `<div class="term"><b>${esc(t.term)}</b><div class="small">${md(t.meaning, true)}</div><div class="row small">${t.code ? `<code>${esc(t.code)}</code>` : ''}<span class="spacer"></span><a href="#tour-${t.ch.id}">${esc(t.ch.title)}</a></div></div>`).join('')}</div>`;
+}
+
+/* Notes */
+function notesMarkdown() {
+  const docs = [...Store.docs.values()].filter(d => d.status || d.note);
+  const label = (kind, s) => (KINDS[kind]?.opts.find(o => o[0] === s) || [s, s])[1];
+  const dec = Store.get('decision');
+  let out = `# PR ${C.pr.number} review notes\n\nVerdict: ${dec.status ? label('decision', dec.status) : 'undecided'}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
+  const section = (title, kinds, order) => {
+    const ds = docs.filter(d => kinds.includes(d.kind) && d.target !== 'decision');
+    if (!ds.length) return;
+    out += `\n## ${title}\n\n`;
+    const sorted = ds.sort((a, b) => (order ? order.indexOf(a.status) - order.indexOf(b.status) : 0) || String(a.target).localeCompare(String(b.target)));
+    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
+  };
+  section('Design decisions', ['design'], ['disagree', 'question', 'agree', '']);
+  section('Findings', ['finding'], ['block', 'fix-now', 'follow-up', 'reject', '']);
+  section('Chapters', ['chapter'], ['blocking', 'concerns', 'understood', '']);
+  section('Invariants', ['invariant'], ['issue', 'question', 'ok', '']);
+  section('Removal sites', ['ledger'], ['issue', 'question', 'ok', '']);
+  section('Tour stops', ['stop'], ['issue', 'question', 'ok', '']);
+  section('Files', ['file'], ['issue', 'ok', 'skip', '']);
+  return out;
+}
+function vNotes() {
+  const n = [...Store.docs.values()].filter(d => d.status || d.note).length;
+  return `<div class="view-head"><div class="eyebrow">Your notes</div><h1>Everything you've recorded</h1>
+    <p class="lede">${plural(n, 'item')} with a verdict or a note. ${Store.mode === 'db' ? 'They are saved with this artifact, so Claude Code can read them back: ask it to turn them into PR comments, or to start a respond-to-pr pass from them.' : 'They are saved in this browser only.'}</p></div>
+    <div class="row"><button class="btn primary" id="copy-notes" type="button">Copy as Markdown</button><span class="small muted" id="copy-status" aria-live="polite"></span></div>
+    <textarea class="copy-area" id="notes-md" readonly aria-label="Notes as Markdown">${esc(notesMarkdown())}</textarea>`;
+}
+after.notes = () => {
+  $('#copy-notes').addEventListener('click', async () => {
+    const ta = $('#notes-md');
+    try { await navigator.clipboard.writeText(ta.value); $('#copy-status').textContent = 'Copied.'; }
+    catch (e) { ta.focus(); ta.select(); $('#copy-status').textContent = 'Selected. Press Ctrl+C or ⌘C to copy.'; }
+  });
+};
+
+/* ---------- Extension API ---------- */
+const source = () => (C.findingsMeta || {}).source || 'the earlier review';
+const api = () => ({ content: C, diff: D, md, esc, fmt, plural, figure: figureHtml, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+window.ExplorePR = {
+  registerView(view) {
+    if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);
+    customViews.push(view);
+    if (C) { renderRail(); if (location.hash === '#' + view.id) render(); }
+  },
+  registerKind(name, spec) { KINDS[name] = spec; },
+  routes: () => (C ? routes().map(r => r[0]) : []),
+  get api() { return api(); },
+};
+
+/* ---------- Boot ---------- */
+async function boot() {
+  try {
+    C = window.__EXPLORE_CONTENT || await (await fetch('content.json')).json();
+  } catch (e) {
+    $('#main').innerHTML = `<div class="empty">The content could not be loaded. Reload the page to try again.</div>`;
+    return;
+  }
+  index();
+  GH = C.pr.repoUrl || '';
+  $('#pr-id').textContent = '#' + C.pr.number;
+  $('#pr-title').textContent = C.pr.title || '';
+  render();
+  Store.init();
+  try {
+    D = window.__EXPLORE_DIFF || await (await fetch('diff.json')).json();
+    if (currentRoute === 'files') render(); else fillPendingSlices();
+  } catch (e) {
+    $$('[data-pending-slice]').forEach(el => { el.innerHTML = '<div class="muted small" style="padding:12px">The code could not be loaded. Reload to try again.</div>'; });
+  }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else setTimeout(boot);
+})();
+</script>
+<!-- explore-pr:views -->
