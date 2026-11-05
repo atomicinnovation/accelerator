@@ -217,6 +217,15 @@
   a directory owned by another uid, as in a container's bind mount or a CI
   workspace, until `ACCELERATOR_CACHE_TRUSTED_OWNERS` lists that uid.
 
+- **`linear update --state` reports and fails like every other
+  `linear update`.** It prints `updated\t<KEY>` instead of the issue as JSON,
+  so the resulting state name is no longer echoed; read it with `linear show`.
+  A failed `--state` update prints `linear update failed` and exits with the
+  code a plain `linear update` would, which differs from before for some
+  failures, such as a 401 without a JSON body. An identifier the shared rule
+  refuses is now refused before sending. Scripts that parse
+  `linear update --state` output or exit codes need updating.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -825,6 +834,12 @@
   follows a pointer outside `trees/`, keeps malformed and newer-layout
   pointers, reclaims a retired layout's unclaimed trees, and reclaims nothing
   when `trees/claims/` cannot be read, where it reclaimed claimed trees.
+
+- **`linear update` changes only the fields it is given.** Without `--title`
+  it sent an empty title, which Linear refused; without `--description` it
+  sent an empty description, which erased the issue's body. `--assignee-id`
+  and `--priority` are now sent, and `--state` joins the same update instead
+  of discarding the other flags.
 
 ### Security
 
