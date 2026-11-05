@@ -11,7 +11,7 @@ use std::path::Path;
 use std::process::Output;
 
 use cli_test_support::Scenario;
-use http_test_support::{MockHTTPServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::{json, Value};
 
 fn install(server: &MockHTTPServer, scenario: &str) {
@@ -193,6 +193,47 @@ fn a_failed_state_change_reports_like_any_failed_update() {
     assert_refused(&output, 34, "linear update failed");
     assert!(output.stdout.is_empty(), "stdout: {:?}", output.stdout);
     assert_eq!(server.hits(&graphql()), 1);
+}
+
+#[test]
+fn a_state_change_to_a_refused_identifier_is_refused_before_sending() {
+    let server = MockHTTPServer::start();
+    install(&server, "issue-update-200");
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["update", "#BLA-1", "--state", "In Progress"],
+    );
+
+    assert_refused(&output, 34, "linear update failed");
+    assert_eq!(server.hits(&graphql()), 0);
+}
+
+fn exit_code_against_a_bare_401(args: &[&str]) -> Option<i32> {
+    let server = MockHTTPServer::start();
+    server.route(graphql(), Route::Status(401));
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+    support::run(dir.path(), &server, &[&["update", "BLA-1"], args].concat())
+        .status
+        .code()
+}
+
+#[test]
+fn a_failed_state_change_exits_as_a_plain_update_would() {
+    let plain = exit_code_against_a_bare_401(&["--title", "x"]);
+    let with_state = exit_code_against_a_bare_401(&[
+        "--state",
+        "In Progress",
+        "--title",
+        "x",
+    ]);
+
+    assert_ne!(plain, Some(0));
+    assert_eq!(with_state, plain);
 }
 
 #[test]
