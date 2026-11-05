@@ -627,21 +627,33 @@ as `<KEY>` for every check below.
 
 #### Manual Verification:
 
-- [ ] `accelerator linear update <KEY> --description "x"` exits 0, and
+- [x] `accelerator linear update <KEY> --description "x"` exits 0, and
       `linear show <KEY>` shows the title unchanged and the description `x`
-- [ ] `accelerator linear update <KEY> --title "y"` exits 0, and the
+- [x] `accelerator linear update <KEY> --title "y"` exits 0, and the
       description is still `x`
-- [ ] `accelerator linear update <KEY> --priority 1` exits 0, and the
+- [x] `accelerator linear update <KEY> --priority 1` exits 0, and the
       priority is Urgent with title and description unchanged
-- [ ] `accelerator linear update <KEY> --state "<a catalogued state>"
+- [x] `accelerator linear update <KEY> --state "<a catalogued state>"
       --priority 2 --assignee-id <your member id from the catalogue>` exits 0,
       and the state, priority and assignee all change in one update
-- [ ] `accelerator linear update <KEY> --state "No Such State" --title "z"`
+- [x] `accelerator linear update <KEY> --state "No Such State" --title "z"`
       exits 122, and the issue is unchanged
-- [ ] `accelerator linear update <KEY> --assignee-id ""` behaves as recorded:
+- [x] `accelerator linear update <KEY> --assignee-id ""` behaves as recorded:
       note its exit code and whether the assignee changed, in the PR
       description
-- [ ] The scratch issue is archived in Linear once the checks are done
+- [x] The scratch issue is archived in Linear once the checks are done
+
+Run on 2026-11-05 against scratch issue PP-938 with the release binary built
+from `91d7fa12`, over the committed catalogue rather than a refreshed one, so
+that no tracked file changed. Every check above passed. Also recorded:
+
+- `--assignee-id ""` exits 34 with `linear update failed`; Linear refuses it
+  and the assignee is unchanged.
+- `--description ""` exits 0 and clears the description.
+- `--title ""` exits 34; Linear refuses it and the title is unchanged.
+- `--state Doing` exits 122, not 123: both catalogued `Doing` states are
+  archived, and resolution skips archived states. The live catalogue has no
+  ambiguous name, so the 123 refusal is proven offline only.
 
 ---
 
