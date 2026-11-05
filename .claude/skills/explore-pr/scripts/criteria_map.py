@@ -2,9 +2,11 @@
 
 Usage: criteria_map.py PLAN_MD REPO_ROOT OUT_JSON
 
-Reads the plan's "Acceptance Criterion Map" table (criterion, tests, phase)
-and resolves every backticked test name to the function that declares it
-under REPO_ROOT. A name containing an ellipsis matches by its prefix and
+Reads the first table under the plan's acceptance-criteria map or
+traceability heading, finding its criterion, tests and phase columns by their
+header names, and resolves every backticked test name to the function that
+declares it under REPO_ROOT. A tests cell saying "as above" takes the tests of
+the row before. A name containing an ellipsis matches by its prefix and
 suffix; a name ending in a source extension matches a file.
 """
 
@@ -14,7 +16,19 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-MAP_HEADING = "### Acceptance Criterion Map:"
+MAP_HEADING = re.compile(
+    r"^#{2,6} [^\n]*acceptance[- ]criteri(?:on|a)\b[^\n]*(?:map|traceab)",
+    re.IGNORECASE | re.MULTILINE,
+)
+NEXT_HEADING = re.compile(r"^#{1,6} ", re.MULTILINE)
+SEPARATOR_ROW = re.compile(r"^\|[\s:|-]+$")
+LABEL_HEADERS = (
+    re.compile(r"criteri|behaviou?r", re.IGNORECASE),
+    re.compile(r"\bAC\b", re.IGNORECASE),
+)
+TESTS_HEADER = re.compile(r"test|proven by|covered by", re.IGNORECASE)
+PHASE_HEADER = re.compile(r"phase", re.IGNORECASE)
+AS_ABOVE = re.compile(r"\bas above\b", re.IGNORECASE)
 SOURCE_SUFFIXES = {
     ".rs",
     ".py",
@@ -36,19 +50,57 @@ SKIPPED_DIRECTORIES = {".git", ".jj", "node_modules", "target", ".venv"}
 MAX_HITS = 6
 
 
-def table_rows(plan: str) -> Iterator[list[str]]:
-    if MAP_HEADING not in plan:
+def map_table(plan: str) -> list[list[str]]:
+    """Return the first table under the map heading, header row first."""
+    heading = MAP_HEADING.search(plan)
+    if not heading:
+        return []
+    section = plan[heading.end() :]
+    following = NEXT_HEADING.search(section)
+    section = section[: following.start()] if following else section
+    table: list[list[str]] = []
+    for line in section.splitlines():
+        if not line.startswith("|"):
+            if table:
+                break
+            continue
+        if not SEPARATOR_ROW.match(line.strip()):
+            table.append([text.strip() for text in line.strip("|").split("|")])
+    return table
+
+
+def column(
+    headers: list[str],
+    patterns: tuple[re.Pattern, ...],
+    excluding: int | None,
+) -> int | None:
+    for pattern in patterns:
+        for index, header in enumerate(headers):
+            if index != excluding and pattern.search(header):
+                return index
+    return None
+
+
+def cell(row: list[str], index: int | None) -> str:
+    return row[index] if index is not None and index < len(row) else ""
+
+
+def table_rows(plan: str) -> Iterator[tuple[str, str, str]]:
+    """Yield each row's label, tests and phase, "as above" resolved."""
+    table = map_table(plan)
+    if len(table) < 2:
         return
-    table = plan.split(MAP_HEADING, 1)[1].strip().split("\n\n", 1)[0]
-    lines = [
-        line
-        for line in table.splitlines()
-        if line.startswith("|") and not line.startswith("|---")
-    ]
-    for line in lines[1:]:
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) >= 3:
-            yield cells
+    headers, *rows = table
+    label = column(headers, LABEL_HEADERS, None) or 0
+    tests = column(headers, (TESTS_HEADER,), label)
+    phase = column(headers, (PHASE_HEADER,), label)
+    if tests is None:
+        return
+    previous = ""
+    for row in rows:
+        tested = AS_ABOVE.sub(lambda _, above=previous: above, cell(row, tests))
+        previous = tested
+        yield cell(row, label), tested, cell(row, phase)
 
 
 def source_files(repo: Path) -> Iterator[Path]:
@@ -100,13 +152,13 @@ def criteria(plan: str, repo: Path) -> list[dict]:
     rows = list(table_rows(plan))
     index = declarations(repo) if rows else []
     result = []
-    for number, (label, tests, phase, *_) in enumerate(rows, 1):
+    for number, (label, tests, phase) in enumerate(rows, 1):
         references = [
             ref
             for ref in re.findall(r"`([^`]+)`", tests)
             if "." not in ref or Path(ref).suffix in SOURCE_SUFFIXES
         ]
-        note = re.sub(r"`[^`]+`", "", tests).strip(" ,()") or None
+        note = re.sub(r"`[^`]+`", "", tests).strip(" ,;()") or None
         result.append(
             {
                 "n": number,
