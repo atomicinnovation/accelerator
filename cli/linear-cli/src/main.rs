@@ -295,13 +295,8 @@ fn run_attach(args: &AttachArgs) -> ExitCode {
     }
 }
 
-fn run_update(args: UpdateArgs) -> ExitCode {
-    if args.title.is_none()
-        && args.description.is_none()
-        && args.state.is_none()
-        && args.assignee_id.is_none()
-        && args.priority.is_none()
-    {
+fn run_update(args: &UpdateArgs) -> ExitCode {
+    if args.names_no_field() {
         eprintln!("E_UPDATE_NO_OPS: at least one field to update is required");
         return ExitCode::from(exit_codes::UPDATE_NO_OPS);
     }
@@ -309,29 +304,17 @@ fn run_update(args: UpdateArgs) -> ExitCode {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    // A state change routes through the transition mutation; a plain field
-    // update through the port's whole-item update.
-    if let Some(state) = args.state.as_deref() {
-        match client.transition(&args.id, state) {
-            Ok(response) => {
-                print_json(&keywords::with_outcome(
-                    response,
-                    keywords::Update::Updated.keyword(),
-                ));
-                return ExitCode::SUCCESS;
-            }
-            Err(error) => {
-                eprintln!("{error}");
-                return ExitCode::from(exit_codes::for_surface(&error));
-            }
-        }
-    }
-    let title = args.title.unwrap_or_default();
-    let body = args.description.unwrap_or_default();
+    let state_id = match resolve_requested_state(&client, args.state.as_deref())
+    {
+        Ok(state_id) => state_id,
+        Err(code) => return code,
+    };
     let fields = UpdateFields {
-        title: Some(title.as_str()),
-        description: Some(body.as_str()),
-        ..UpdateFields::default()
+        title: args.title.as_deref(),
+        description: args.description.as_deref(),
+        state_id: state_id.as_deref(),
+        assignee_id: args.assignee_id.as_deref(),
+        priority: args.priority,
     };
     match client.update_op(&id_of(&args.id), &fields) {
         Ok(()) => {
@@ -343,6 +326,18 @@ fn run_update(args: UpdateArgs) -> ExitCode {
             ExitCode::from(exit_codes::for_failure(&failure))
         }
     }
+}
+
+fn resolve_requested_state(
+    client: &LinearClient,
+    name: Option<&str>,
+) -> Result<Option<String>, ExitCode> {
+    name.map(|name| client.resolve_state(name))
+        .transpose()
+        .map_err(|error| {
+            eprintln!("{error}");
+            ExitCode::from(exit_codes::for_surface(&error))
+        })
 }
 
 fn run_create(args: &CreateArgs) -> ExitCode {
@@ -605,7 +600,7 @@ fn main() -> ExitCode {
         Command::Comment { action } => run_comment(action),
         Command::Transition(args) => run_transition(args),
         Command::Attach(args) => run_attach(&args),
-        Command::Update(args) => run_update(args),
+        Command::Update(args) => run_update(&args),
         Command::Create(args) => run_create(&args),
         Command::Init { action } => run_init(action),
     }
