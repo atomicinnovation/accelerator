@@ -592,9 +592,9 @@ Append to the end of `### Fixed`:
 
 #### Manual Verification:
 
-- [ ] `/update-linear-issue` previews and confirms a title-only change, and
+- [x] `/update-linear-issue` previews and confirms a title-only change, and
       the skill's text no longer mentions a JSON `outcome`
-- [ ] `/update-linear-issue <KEY> --description ""` previews the description
+- [x] `/update-linear-issue <KEY> --description ""` previews the description
       as cleared
 - [x] The generated reference page for `update-linear-issue` reflects the new
       Steps 2 and 4 (`mise run docs:check`)

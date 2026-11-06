@@ -96,11 +96,12 @@ Neither touches a file this branch changes. Both were found with
 
 ### Manual Testing Required:
 
-1. Skill, end to end against a scratch Linear issue:
-   - [ ] `/update-linear-issue <KEY> --title "…"` previews and confirms a
+1. Skill, end to end against a scratch Linear issue, run on 2026-11-06 from
+   this checkout with `claude --plugin-dir` and the branch's local builds:
+   - [x] `/update-linear-issue <KEY> --title "…"` previews and confirms a
          title-only change, then `/show-linear-issue <KEY>` shows the
          description survived
-   - [ ] `/update-linear-issue <KEY> --description ""` previews the
+   - [x] `/update-linear-issue <KEY> --description ""` previews the
          description as cleared
 
 2. Done here:
@@ -114,4 +115,4 @@ Neither touches a file this branch changes. Both were found with
 - Re-check `GHSA-ch52-4w7c-c8xp`, `RUSTSEC-2026-0118` and `RUSTSEC-2026-0119`
   upstream and remove or re-date each ignore, in a change separate from this
   branch, so that bare `mise run` exits 0 again.
-- Run the two skill checks above before merging, then mark the plan done.
+- Mark the plan done once bare `mise run` exits 0 again.
