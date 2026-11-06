@@ -130,10 +130,11 @@ caller in the repo is `update-linear-issue`, which this PR updates.
     and the assignee is unchanged.
   - `--title ""` exits 34 in the same way. `--description ""` exits 0 and
     clears the description.
-- [ ] `/update-linear-issue <KEY> --title "…"` end to end: the preview
-  confirms a title-only change, and `/show-linear-issue` shows the description
-  survived.
-- [ ] `/update-linear-issue <KEY> --description ""` previews the description
+- [x] `/update-linear-issue <KEY> --title "…"` end to end, run on 2026-11-06
+  from this checkout with `claude --plugin-dir` and the branch's local builds:
+  the preview confirms a title-only change, and `/show-linear-issue` shows the
+  description survived.
+- [x] `/update-linear-issue <KEY> --description ""` previews the description
   as cleared.
 
 ## Notes for Reviewers
