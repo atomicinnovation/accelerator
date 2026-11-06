@@ -5,17 +5,27 @@
 
 mod support;
 
+use std::collections::BTreeMap;
+
 use http_test_support::{MockHTTPServer, RequestKey, Route};
+use linear_client::catalogue::TeamEntries;
 use linear_client::classify::{GraphQlError, Outcome};
-use linear_client::{LinearClient, LinearFailure, UpdateFields};
+use linear_client::resolution::{FixedNames, ResolverSet};
+use linear_client::{LinearClient, LinearFailure, StateId, UpdateFields};
 use serde_json::{json, Value};
-use support::client::{brief, client_with, TEAM_KEY};
+use support::client::{
+    brief, client_with, client_with_resolvers, TEAM_ID, TEAM_KEY,
+};
 use tracker::ExternalId;
 
 const GRAPHQL: &str = "/graphql";
 const IDENTIFIER: &str = "ENG-1";
+const UPDATED: &str = "{\"data\":{\"issueUpdate\":{\"success\":true,\
+     \"issue\":{\"id\":\"u\",\"identifier\":\"ENG-1\"}}}}";
+const IN_PROGRESS: &str = "In Progress";
+const IN_PROGRESS_ID: &str = "state-ip-uuid";
 
-fn answering(status: u16, body: &str) -> (MockHTTPServer, LinearClient) {
+fn scripted(status: u16, body: &str) -> MockHTTPServer {
     let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
@@ -24,17 +34,32 @@ fn answering(status: u16, body: &str) -> (MockHTTPServer, LinearClient) {
             body: body.to_owned(),
         }]),
     );
+    server
+}
+
+fn answering(status: u16, body: &str) -> (MockHTTPServer, LinearClient) {
+    let server = scripted(status, body);
     let client =
         client_with(&server.base_url(), brief(), Some(TEAM_KEY.to_owned()));
     (server, client)
 }
 
 fn scripted_update() -> (MockHTTPServer, LinearClient) {
-    answering(
-        200,
-        "{\"data\":{\"issueUpdate\":{\"success\":true,\
-         \"issue\":{\"id\":\"u\",\"identifier\":\"ENG-1\"}}}}",
-    )
+    answering(200, UPDATED)
+}
+
+fn scripted_update_knowing_in_progress() -> (MockHTTPServer, LinearClient) {
+    let server = scripted(200, UPDATED);
+    let states = FixedNames(BTreeMap::from([(
+        IN_PROGRESS.to_owned(),
+        IN_PROGRESS_ID.to_owned(),
+    )]));
+    let resolvers = ResolverSet::new(
+        Box::new(states),
+        TeamEntries::keyed(&[(TEAM_KEY, TEAM_ID)]),
+    );
+    let client = client_with_resolvers(&server, resolvers);
+    (server, client)
 }
 
 fn issue() -> ExternalId {
@@ -101,13 +126,21 @@ fn an_empty_description_is_sent_to_clear_it() {
 }
 
 #[test]
-fn a_state_alone_is_the_whole_input() {
+fn a_resolved_state_alone_is_the_whole_input() {
+    let (server, client) = scripted_update_knowing_in_progress();
+    let in_progress: StateId = client
+        .resolve_state(IN_PROGRESS)
+        .expect("a catalogued state");
     let fields = UpdateFields {
-        state_id: Some("state-ip-uuid"),
+        state_id: Some(&in_progress),
         ..UpdateFields::default()
     };
 
-    assert_eq!(input_sent_for(&fields), json!({"stateId": "state-ip-uuid"}));
+    client
+        .update_op(&issue(), &fields)
+        .expect("the update succeeds");
+
+    assert_eq!(sent_input(&server), json!({"stateId": IN_PROGRESS_ID}));
 }
 
 #[test]
@@ -135,20 +168,28 @@ fn a_priority_alone_is_sent_as_a_number() {
 
 #[test]
 fn every_field_together_is_the_whole_input() {
+    let (server, client) = scripted_update_knowing_in_progress();
+    let in_progress: StateId = client
+        .resolve_state(IN_PROGRESS)
+        .expect("a catalogued state");
     let fields = UpdateFields {
         title: Some("Renamed"),
         description: Some("Body"),
-        state_id: Some("state-ip-uuid"),
+        state_id: Some(&in_progress),
         assignee_id: Some("user-alice-uuid"),
         priority: Some(2),
     };
 
+    client
+        .update_op(&issue(), &fields)
+        .expect("the update succeeds");
+
     assert_eq!(
-        input_sent_for(&fields),
+        sent_input(&server),
         json!({
             "title": "Renamed",
             "description": "Body",
-            "stateId": "state-ip-uuid",
+            "stateId": IN_PROGRESS_ID,
             "assigneeId": "user-alice-uuid",
             "priority": 2,
         })
