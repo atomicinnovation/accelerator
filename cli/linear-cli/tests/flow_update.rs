@@ -232,7 +232,7 @@ fn a_failed_state_change_exits_as_a_plain_update_would() {
         "x",
     ]);
 
-    assert_ne!(plain, Some(0));
+    assert_eq!(plain, Some(20));
     assert_eq!(with_state, plain);
 }
 
