@@ -35,6 +35,7 @@ pub use crate::client::LinearClient;
 pub use crate::error::ClientError;
 pub use crate::failure::LinearFailure;
 pub use crate::surface::SurfaceError;
+pub use crate::transition::StateId;
 pub use crate::transport::Received;
 pub use crate::transport::Transport;
 pub use crate::update::UpdateFields;

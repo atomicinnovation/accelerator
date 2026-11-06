@@ -11,6 +11,7 @@ use crate::classify::Outcome;
 use crate::client::refuse_identifier_op;
 use crate::client::LinearClient;
 use crate::failure::LinearFailure;
+use crate::transition::StateId;
 
 const UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
     issueUpdate(id: $id, input: $input) { success issue { id identifier } }
@@ -20,8 +21,7 @@ const UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
 pub struct UpdateFields<'a> {
     pub title: Option<&'a str>,
     pub description: Option<&'a str>,
-    /// A UUID from [`LinearClient::resolve_state`], never a state name.
-    pub state_id: Option<&'a str>,
+    pub state_id: Option<&'a StateId>,
     pub assignee_id: Option<&'a str>,
     pub priority: Option<i64>,
 }
@@ -31,7 +31,7 @@ impl UpdateFields<'_> {
         let named = [
             ("title", self.title.map(Value::from)),
             ("description", self.description.map(Value::from)),
-            ("stateId", self.state_id.map(Value::from)),
+            ("stateId", self.state_id.map(|id| Value::from(id.as_str()))),
             ("assigneeId", self.assignee_id.map(Value::from)),
             ("priority", self.priority.map(Value::from)),
         ];

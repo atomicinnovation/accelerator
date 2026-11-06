@@ -18,7 +18,9 @@ use linear_client::cache::{LinearCache, SystemFilesystem};
 use linear_client::catalogue::{CatalogueUpdate, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
 use linear_client::filter::ConfiguredSearch;
-use linear_client::{ClientError, LinearClient, SurfaceError, UpdateFields};
+use linear_client::{
+    ClientError, LinearClient, StateId, SurfaceError, UpdateFields,
+};
 use serde_json::{json, Value};
 use tracker::Completeness;
 use tracker::ExternalId;
@@ -313,7 +315,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
     let fields = UpdateFields {
         title: args.title.as_deref(),
         description: args.description.as_deref(),
-        state_id: state_id.as_deref(),
+        state_id: state_id.as_ref(),
         assignee_id: args.assignee_id.as_deref(),
         priority: args.priority,
     };
@@ -332,7 +334,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
 fn resolve_requested_state(
     client: &LinearClient,
     name: Option<&str>,
-) -> Result<Option<String>, ExitCode> {
+) -> Result<Option<StateId>, ExitCode> {
     name.map(|name| client.resolve_state(name))
         .transpose()
         .map_err(|error| {
