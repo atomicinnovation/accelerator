@@ -56,9 +56,7 @@ impl UpdateFields<'_> {
 }
 
 impl LinearClient {
-    /// `update`, sending only the fields `fields` names, surfacing the
-    /// structured discriminant. The port's `update` and `retitle` delegate
-    /// here.
+    /// `update`, surfacing the structured discriminant.
     ///
     /// # Errors
     ///
