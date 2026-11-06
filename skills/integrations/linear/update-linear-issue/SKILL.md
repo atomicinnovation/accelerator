@@ -39,8 +39,10 @@ the fields being set (`--title`/`--description`/`--state`/`--assignee-id`/
 
 > **Proposed Linear write — review before sending**
 
-A field given an empty value is cleared, not left alone. Show it as cleared,
-for example `description: (cleared — the existing description is erased)`.
+A `--description` that is empty or only whitespace erases the existing
+description; show it as `description: (cleared — the existing description is
+erased)`. Linear refuses an empty `--title` or `--assignee-id`, so warn in the
+preview that the update will fail.
 
 At least one mutating flag is required; with none the subcommand refuses before
 any write (`E_UPDATE_NO_OPS`). A `--state` change resolves through
