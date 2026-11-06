@@ -27,16 +27,7 @@ pub struct UpdateFields<'a> {
 }
 
 impl UpdateFields<'_> {
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.title.is_none()
-            && self.description.is_none()
-            && self.state_id.is_none()
-            && self.assignee_id.is_none()
-            && self.priority.is_none()
-    }
-
-    fn input(&self) -> Value {
+    fn input(&self) -> Map<String, Value> {
         let named = [
             ("title", self.title.map(Value::from)),
             ("description", self.description.map(Value::from)),
@@ -44,14 +35,12 @@ impl UpdateFields<'_> {
             ("assigneeId", self.assignee_id.map(Value::from)),
             ("priority", self.priority.map(Value::from)),
         ];
-        Value::Object(
-            named
-                .into_iter()
-                .filter_map(|(key, value)| {
-                    value.map(|value| (key.to_owned(), value))
-                })
-                .collect::<Map<_, _>>(),
-        )
+        named
+            .into_iter()
+            .filter_map(|(key, value)| {
+                value.map(|value| (key.to_owned(), value))
+            })
+            .collect()
     }
 }
 
@@ -68,14 +57,15 @@ impl LinearClient {
         fields: &UpdateFields<'_>,
     ) -> Result<(), LinearFailure> {
         refuse_identifier_op(id, Operation::Update)?;
-        if fields.is_empty() {
+        let input = fields.input();
+        if input.is_empty() {
             return Err(LinearFailure::wire(
                 Outcome::RequestInvalid,
                 Operation::Update,
                 "an update must name at least one field".to_owned(),
             ));
         }
-        let variables = json!({"id": id.as_str(), "input": fields.input()});
+        let variables = json!({"id": id.as_str(), "input": input});
         self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
         Ok(())
     }
