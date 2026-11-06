@@ -19,6 +19,15 @@ const ISSUE_UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
     }
   }";
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateId(String);
+
+impl StateId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl LinearClient {
     /// Resolves a state name to its UUID among the base team's states,
     /// refusing a name that matches no state or more than one.
@@ -26,9 +35,9 @@ impl LinearClient {
     /// # Errors
     ///
     /// [`SurfaceError::UnknownState`] or [`SurfaceError::AmbiguousState`].
-    pub fn resolve_state(&self, name: &str) -> Result<String, SurfaceError> {
+    pub fn resolve_state(&self, name: &str) -> Result<StateId, SurfaceError> {
         match self.resolvers().team_states().resolve(name) {
-            SingleResolution::Resolved(id) => Ok(id),
+            SingleResolution::Resolved(id) => Ok(StateId(id)),
             SingleResolution::Unresolved(
                 NameUnresolved::NotFound | NameUnresolved::NotCatalogued(_),
             ) => Err(SurfaceError::UnknownState {
@@ -57,7 +66,7 @@ impl LinearClient {
         let state_id = self.resolve_state(state_name)?;
         let variables = json!({
             "id": identifier,
-            "input": { "stateId": state_id },
+            "input": { "stateId": state_id.as_str() },
         });
         let received = self.transport().send(ISSUE_UPDATE, &variables)?;
         interpret(&received, "transition")
