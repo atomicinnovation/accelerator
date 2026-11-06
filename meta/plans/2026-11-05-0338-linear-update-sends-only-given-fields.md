@@ -371,7 +371,7 @@ Add `UpdateFields` to the existing `use linear_client::{…}` import.
 
 #### Manual Verification:
 
-- [ ] `UpdateFields`'s field names read as the domain speaks of an update, and
+- [x] `UpdateFields`'s field names read as the domain speaks of an update, and
       `update.rs` carries no comment beyond its module doc, the `state_id`
       field doc and `update_op`'s rustdoc
 
@@ -596,7 +596,7 @@ Append to the end of `### Fixed`:
       the skill's text no longer mentions a JSON `outcome`
 - [ ] `/update-linear-issue <KEY> --description ""` previews the description
       as cleared
-- [ ] The generated reference page for `update-linear-issue` reflects the new
+- [x] The generated reference page for `update-linear-issue` reflects the new
       Steps 2 and 4 (`mise run docs:check`)
 
 ---
