@@ -219,12 +219,14 @@
 
 - **`linear update --state` reports and fails like every other
   `linear update`.** It prints `updated\t<KEY>` instead of the issue as JSON,
-  so the resulting state name is no longer echoed; read it with `linear show`.
+  so the resulting state name is no longer echoed; read it with `linear show`,
+  or use `linear transition <KEY> <STATE>`, whose JSON output is unchanged.
   A failed `--state` update prints `linear update failed` and exits with the
   code a plain `linear update` would, which differs from before for some
-  failures, such as a 401 without a JSON body. An identifier the shared rule
-  refuses is now refused before sending. Scripts that parse
-  `linear update --state` output or exit codes need updating.
+  failures: a 401 without a JSON body exits 20 where it exited 11. A malformed
+  identifier, such as `#BLA-1`, is refused with exit 34 before anything is
+  sent. Scripts that parse `linear update --state` output or exit codes need
+  updating.
 
 ### Added
 
@@ -839,7 +841,9 @@
   it sent an empty title, which Linear refused; without `--description` it
   sent an empty description, which erased the issue's body. `--assignee-id`
   and `--priority` are now sent, and `--state` joins the same update instead
-  of discarding the other flags.
+  of discarding the other flags. Because those flags now reach Linear, an
+  update Linear refuses for one of them, such as `--assignee-id ""`, exits 34
+  where it used to succeed.
 
 ### Security
 
