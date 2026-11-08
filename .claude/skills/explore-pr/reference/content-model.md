@@ -312,6 +312,7 @@ external side effects — whatever this PR can do that is hard to undo.
 {
   "id": "L-tree-01",
   "file": "path", "line": 561,                // head line of the call
+  "start": 548, "end": 563,                   // optional: the call and the guards read with it; defaults to line
   "op": "unlink",                             // short operation name; counted in the lede
   "subject": "≤ 15 words: what is affected",
   "facets": { "root": ["relocated"], "trigger": ["verb", "cold-store"] },  // "any" matches every filter
@@ -384,3 +385,16 @@ overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 the artifact's `reviews` collection, with `/` in a target written as `~2f`.
 Opened as a file, they live in the browser's local storage under
 `explore-pr:<repo>#<number>`.
+
+### Lines read
+
+Which changed lines the reviewer has read is derived from those records, never
+stored. A verdict of any kind on a stop claims its `start`–`end` on its
+`side`; on a ledger row, its `start`–`end`, or its `line` alone; on a file,
+the whole file. A file's changed lines are its added head lines and removed
+base lines; context never needs reading. **All files** shows each file read in
+full, in part or not at all, marks every line read and by what, and the Files
+meter counts files read in full. In the other direction, a stop, ledger row or
+file whose lines other verdicts have already read shows as *read via* them,
+without a verdict of its own. `assets/review-coverage.js` is the model; **Your
+notes** ends with the lines still to read.

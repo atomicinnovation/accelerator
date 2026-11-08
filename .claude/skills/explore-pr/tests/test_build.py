@@ -7,6 +7,7 @@ PAGE = """<title>__EXPLORE_PR_TITLE__</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- explore-pr:data -->
+<!-- explore-pr:coverage -->
 <script>window.APP = true;</script>
 <!-- explore-pr:views -->
 """
@@ -28,7 +29,7 @@ DIFF = {
 }
 
 
-def workspace(root, manifest=None, chapters=None, findings=None):
+def workspace(root, manifest=None, chapters=None, findings=None, ledger=None):
     (root / "content").mkdir(parents=True)
     (root / "data").mkdir()
     (root / "views").mkdir()
@@ -47,6 +48,7 @@ def workspace(root, manifest=None, chapters=None, findings=None):
             json.dumps(chapter)
         )
     (root / "content/findings.json").write_text(json.dumps(findings or []))
+    (root / "content/ledger.json").write_text(json.dumps(ledger or []))
     (root / "content/files.json").write_text(
         json.dumps(
             [
@@ -124,6 +126,33 @@ def test_a_stop_outside_its_file_is_reported(tmp_path, script):
     assert any("s1" in w and "outside 1-3" in w for w in warnings)
 
 
+def test_a_ledger_range_outside_its_file_is_reported(tmp_path, script):
+    build = script("build")
+    row = {"id": "L1", "file": "src/core.rs", "line": 2, "start": 1, "end": 9}
+
+    _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
+
+    assert any("L1" in w and "lines 1-9 outside 1-3" in w for w in warnings)
+
+
+def test_a_ledger_range_must_contain_its_call(tmp_path, script):
+    build = script("build")
+    row = {"id": "L1", "file": "src/core.rs", "line": 3, "start": 1, "end": 2}
+
+    _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
+
+    assert any("L1" in w and "do not contain line 3" in w for w in warnings)
+
+
+def test_a_ledger_range_inside_its_file_is_accepted(tmp_path, script):
+    build = script("build")
+    row = {"id": "L1", "file": "src/core.rs", "line": 2, "start": 1, "end": 3}
+
+    _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
+
+    assert not any("L1" in w for w in warnings)
+
+
 def test_an_unknown_finding_reference_is_reported(tmp_path, script):
     build = script("build")
     chapter = {
@@ -157,6 +186,17 @@ def test_the_standalone_page_inlines_libraries_data_and_views(script):
     assert "<\\/script><b>" in html
     assert html.index("__EXPLORE_CONTENT") < html.index("window.APP")
     assert html.index("window.APP") < html.index("window.VIEW")
+
+
+def test_both_layouts_carry_the_review_coverage_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert "explore-pr:coverage" not in html
+        assert html.index("ReviewCoverage") < html.index("window.APP")
 
 
 def test_the_standalone_page_is_a_complete_document(script):

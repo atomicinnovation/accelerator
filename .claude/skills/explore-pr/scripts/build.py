@@ -21,6 +21,8 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 DATA_MARKER = "<!-- explore-pr:data -->"
 VIEWS_MARKER = "<!-- explore-pr:views -->"
+COVERAGE_MARKER = "<!-- explore-pr:coverage -->"
+COVERAGE_MODEL = ASSETS / "review-coverage.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -197,6 +199,21 @@ def stop_warnings(chapter: dict, diff: dict) -> list[str]:
                 f"outside 1-{last} of {stop['file']}"
             )
     return warnings
+
+
+def ledger_warnings(row: dict, diff: dict) -> list[str]:
+    name, path, call = f"ledger {row['id']}", row["file"], row["line"]
+    if path not in diff:
+        return [f"{name}: {path} not in diff"]
+    last = last_line(diff[path], "new")
+    start, end = row.get("start", call), row.get("end", call)
+    if not 1 <= call <= last:
+        return [f"{name}: line {call} outside"]
+    if not 1 <= start <= end <= last:
+        return [f"{name}: lines {start}-{end} outside 1-{last} of {path}"]
+    if not start <= call <= end:
+        return [f"{name}: lines {start}-{end} do not contain line {call}"]
+    return []
 
 
 def finding_references(model: dict) -> list[tuple[str, str]]:
@@ -395,10 +412,7 @@ def check(model: dict, diff: dict) -> list[str]:
         if ref not in known
     ]
     for row in model["ledger"]:
-        if row["file"] not in diff:
-            warnings.append(f"ledger {row['id']}: {row['file']} not in diff")
-        elif not 1 <= row["line"] <= last_line(diff[row["file"]], "new"):
-            warnings.append(f"ledger {row['id']}: line {row['line']} outside")
+        warnings += ledger_warnings(row, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
     stop_ids = [s["id"] for c in model["chapters"] for s in c.get("stops", [])]
@@ -427,6 +441,11 @@ def with_views(page: str, views: list[str]) -> str:
     return page.replace(VIEWS_MARKER, "".join(map(inline_script, views)))
 
 
+def with_review_coverage(page: str) -> str:
+    model = inline_script(COVERAGE_MODEL.read_text())
+    return page.replace(COVERAGE_MARKER, model)
+
+
 def standalone(
     page: str,
     content: dict,
@@ -443,6 +462,7 @@ def standalone(
     data = inline_json("__EXPLORE_CONTENT", content)
     data += inline_json("__EXPLORE_DIFF", diff)
     page = with_views(page.replace(DATA_MARKER, data), views)
+    page = with_review_coverage(page)
     head, separator, body = page.partition("</style>")
     if not separator:
         head, body = "", page
@@ -461,6 +481,7 @@ def hosted(
     out_dir.mkdir(parents=True, exist_ok=True)
     page = page.replace(TITLE_PLACEHOLDER, html.escape(title))
     page = with_views(page.replace(DATA_MARKER, ""), views)
+    page = with_review_coverage(page)
     (out_dir / "index.html").write_text(page)
     (out_dir / "content.json").write_text(
         json.dumps(content, separators=(",", ":"))

@@ -133,20 +133,21 @@ content (the contract is `{skill dir}/reference/content-model.md`):
 | Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
 | Findings | Each prior finding with an independent verdict against the code, its level (design or implementation), and a triage control |
 | Criteria → tests | Acceptance criteria resolved to the tests that pin them |
-| All files, Domain terms, Your notes | Annotated diffs, the change's vocabulary, and everything recorded, copyable as Markdown |
+| All files, Domain terms, Your notes | Annotated diffs showing which changed lines the tour, the ledger and file verdicts have read, the change's vocabulary, and everything recorded, copyable as Markdown |
 
 Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 
 | Path | Purpose |
 |---|---|
 | `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, sequence, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
+| `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, inlined into every build |
 | `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
 | `scripts/export_trees.py` | Base and head copies of every changed file, through the GitHub API |
 | `scripts/extract_diff.py` | `data/diff.json` from those trees |
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, screenshots |
+| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
 
@@ -341,7 +342,8 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   a chapter or overview
   without a figure, or a figure naming a node or actor that does not exist
   is a defect to fix, not a warning to note. A stop or ledger line outside
-  its file is a content error; a file without a summary renders as skim.
+  its file, or a ledger range that misses its call, is a content error; a
+  file without a summary renders as skim.
 - The smoke check must report `"ok": true`. It needs Chrome or Chromium and
   Node 22; if neither is available, say the page was not rendered.
 - Read the **Design** screenshot as the reviewer will: could someone who

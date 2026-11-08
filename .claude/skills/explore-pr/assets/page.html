@@ -180,6 +180,8 @@ table.data tr:last-child td { border-bottom: 0; }
 .ctl textarea { width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .ctl .saved { font-size: 11.5px; color: var(--ink-3); }
 .ro .seg button, .ro textarea { pointer-events: none; opacity: .75; }
+.ctl.via .seg button.t-ok[aria-pressed="false"] { border-style: dashed; border-color: var(--ok); color: var(--ok); }
+.via-note { font-size: 11.5px; color: var(--ink-3); }
 
 /* Banners */
 .banner { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; color: var(--ink-2); }
@@ -202,6 +204,7 @@ table.data tr:last-child td { border-bottom: 0; }
 .code tr.del td.mk { color: var(--del-mark); font-weight: 600; }
 .code tr.focus td.ln { color: var(--ink); font-weight: 600; }
 .code tr.flash { background: var(--hl-row) !important; }
+.code tr.read td.ln:first-child { box-shadow: inset 3px 0 0 var(--ok); }
 .code tr.gap td { background: var(--panel-2); color: var(--ink-3); font-family: var(--f-body); font-size: 12px; padding: 3px 10px; }
 .code tr.gap button { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
 .code tr.anno td { padding: 8px 12px 10px 60px; background: var(--panel); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); white-space: normal; font-family: var(--f-body); font-size: 13.5px; }
@@ -281,11 +284,16 @@ details[open] > summary { margin-bottom: 8px; }
 .file-list { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 8px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); max-height: calc(100vh - var(--top-h) - 32px); overflow-y: auto; display: grid; gap: 2px; }
 .file-list input { font: inherit; font-size: 13.5px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); margin-bottom: 6px; width: 100%; }
 .fl-group { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 10px 6px 4px; }
-.fl-item { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; background: none; text-align: left; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-family: var(--f-mono); }
+.fl-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; background: none; text-align: left; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-family: var(--f-mono); }
 .fl-item:hover { background: var(--panel-2); }
 .fl-item[aria-current="true"] { background: var(--accent-soft); }
 .fl-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
 .fl-item .ct { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cov { width: 28px; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; display: block; }
+.cov i { display: block; height: 100%; width: 0; background: var(--ok); }
+.cov.s-issue i { background: var(--bad); }
+.file-list .unread-only { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--ink-2); margin: 0 2px 6px; }
+.file-list .unread-only input { width: auto; margin: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.s-ok { background: var(--ok); } .dot.s-issue { background: var(--bad); } .dot.s-skip { background: var(--none); }
 .dot.s-none { background: transparent; border: 1px solid var(--ink-3); }
@@ -465,6 +473,7 @@ details[open] > summary { margin-bottom: 8px; }
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- explore-pr:data -->
+<!-- explore-pr:coverage -->
 <script>
 (() => {
 'use strict';
@@ -576,6 +585,7 @@ function ctl(target, kind, meta, opts = {}) {
       ${k.opts.map(([v, l, tone]) => `<button type="button" class="t-${tone}" data-v="${v}" aria-pressed="${cur.status === v}">${esc(l)}</button>`).join('')}
       <button type="button" class="note-toggle" data-note-toggle aria-expanded="${noteOpen}">${noteOpen ? 'Note' : '+ Note'}</button>
     </div>
+    <span class="via-note" data-via-note hidden></span>
     <textarea data-note placeholder="Your note: what to change, what to ask, what you checked" ${noteOpen ? '' : 'hidden'} aria-label="Note">${esc(cur.note || '')}</textarea>
   </div>`;
 }
@@ -613,8 +623,13 @@ document.addEventListener('focusout', e => {
 });
 
 function refreshControls() {
+  const recorded = recordedClaims();
   $$('.ctl[data-ctl]').forEach(box => {
     const cur = Store.get(box.dataset.ctl);
+    const via = readVia(box.dataset.ctl, recorded);
+    box.classList.toggle('via', via.length > 0);
+    const viaNote = $('[data-via-note]', box);
+    if (viaNote) { viaNote.hidden = !via.length; viaNote.textContent = via.length ? `Read via ${via.join(', ')}` : ''; }
     $$('.seg button[data-v]', box).forEach(b => b.setAttribute('aria-pressed', String(cur.status === b.dataset.v)));
     const ta = $('textarea', box);
     if (ta && document.activeElement !== ta && ta.value !== (cur.note || '')) { ta.value = cur.note || ''; if (cur.note) { ta.hidden = false; } }
@@ -624,6 +639,7 @@ function refreshControls() {
     const s = Store.get(el.dataset.statusOf).status || 'none';
     el.className = el.className.replace(/\bs-[a-z-]+/g, '').trim() + ' s-' + s;
   });
+  refreshCoverage(recorded);
 }
 
 function onStateChange() {
@@ -758,6 +774,54 @@ function index() {
   C.chapters.forEach(ch => (ch.findingChecks || []).forEach(fc => { C.findingCheck[fc.id] = fc; C.findingChapter[fc.id] = ch.id; }));
   C.arByFinding = {};
   (C.acceptedRisks || []).forEach(a => (a.findings || []).forEach(id => { C.arByFinding[id] = a; }));
+  READING_CLAIMS = window.ReviewCoverage ? ReviewCoverage.readingClaimsIn(C) : [];
+  READING_CLAIM = Object.fromEntries(READING_CLAIMS.map(c => [c.by.target, c]));
+}
+
+/* ---------- Review coverage ---------- */
+let READING_CLAIMS = [], READING_CLAIM = {};
+const recordedClaims = () => READING_CLAIMS.filter(c => Store.get(c.by.target).status);
+function coverageOf(path, recorded = recordedClaims()) {
+  return window.ReviewCoverage && D && D[path] ? ReviewCoverage.fileCoverage(path, D[path], recorded) : null;
+}
+function readVia(target, recorded = recordedClaims()) {
+  const claim = READING_CLAIM[target];
+  if (!claim || Store.get(target).status || !D || !D[claim.path]) return [];
+  return ReviewCoverage.coveredElsewhere(claim, recorded, D[claim.path]);
+}
+const shareRead = cov => cov.changed ? cov.read / cov.changed : (cov.state === 'read' ? 1 : 0);
+const sideName = side => side === 'old' ? 'base' : 'head';
+const rangeText = r => `${sideName(r.side)} ${r.start}${r.end !== r.start ? '–' + r.end : ''}`;
+function coverageSummary(cov) {
+  if (!cov.changed) return cov.state === 'read' ? 'Reviewed. No line-level changes to read.' : 'No line-level changes; mark the file to record it.';
+  const readers = [...new Set(Object.values(cov.readBy).flat())];
+  return `Read ${fmt(cov.read)} of ${plural(cov.changed, 'changed line')}${readers.length ? ` via ${readers.join(', ')}` : ''}.`;
+}
+function refreshCoverage(recorded) {
+  $$('[data-coverage-of]').forEach(el => {
+    const cov = coverageOf(el.dataset.coverageOf, recorded);
+    if (!cov) return;
+    el.dataset.read = cov.read;
+    el.dataset.changed = cov.changed;
+    el.title = coverageSummary(cov);
+    $('i', el).style.width = `${100 * shareRead(cov)}%`;
+  });
+  $$('[data-coverage-count-of]').forEach(el => {
+    const cov = coverageOf(el.dataset.coverageCountOf, recorded);
+    if (cov && cov.changed) el.textContent = `${fmt(cov.read)}/${fmt(cov.changed)}`;
+  });
+  $$('[data-coverage-summary]').forEach(el => {
+    const cov = coverageOf(el.dataset.coverageSummary, recorded);
+    if (cov) el.textContent = coverageSummary(cov);
+  });
+  const code = $('#file-code');
+  const cov = code && coverageOf(code.dataset.path, recorded);
+  if (!cov) return;
+  $$('tr.add, tr.del', code).forEach(tr => {
+    const readers = cov.readBy[tr.classList.contains('add') ? 'new:' + tr.dataset.n : 'old:' + tr.dataset.o];
+    tr.classList.toggle('read', !!readers);
+    tr.title = readers ? `Read via ${readers.join(', ')}` : '';
+  });
 }
 const sevChip = s => `<span class="chip c-${esc(s)}">${esc(s)}</span>`;
 const locBtn = (path, line, side) => path ? `<button class="loc" data-open="${esc(path)}" data-line="${line || ''}" data-side="${side || 'new'}">${esc(short(path))}${line ? ':' + line : ''}</button>` : '';
@@ -806,13 +870,20 @@ function totals() {
     files: C.files.map(f => 'file:' + f.path),
     stops, inv,
   };
-  const done = ks => ks.filter(k => Store.get(k).status).length;
-  return Object.fromEntries(Object.entries(t).map(([k, ks]) => [k, { n: ks.length, done: done(ks) }]));
+  const recorded = recordedClaims();
+  const done = ks => ks.filter(k => Store.get(k).status || (k.startsWith('stop:') && readVia(k, recorded).length)).length;
+  const out = Object.fromEntries(Object.entries(t).map(([k, ks]) => [k, { n: ks.length, done: done(ks) }]));
+  const covs = C.files.map(f => coverageOf(f.path, recorded));
+  if (covs.every(Boolean)) {
+    out.files.done = covs.filter(cov => cov.state === 'read').length;
+    out.files.lines = { read: covs.reduce((n, cov) => n + cov.read, 0), changed: covs.reduce((n, cov) => n + cov.changed, 0) };
+  }
+  return out;
 }
 function renderMeters() {
   const t = totals();
   const items = [['Design', t.design], ['Chapters', t.chapters], ['Findings', t.findings], [(C.ledgerMeta || {}).short || 'Ledger', t.ledger], ['Files', t.files]].filter(([, v]) => v.n);
-  $('#meters').innerHTML = items.map(([l, v]) => `<div class="meter" title="${l}: ${v.done} of ${v.n} reviewed"><div class="meter-label"><span>${l}</span><span>${v.done}/${v.n}</span></div><div class="meter-bar"><i style="width:${v.n ? (100 * v.done / v.n) : 0}%"></i></div></div>`).join('');
+  $('#meters').innerHTML = items.map(([l, v]) => `<div class="meter" title="${l}: ${v.done} of ${v.n} ${v.lines ? `read in full; ${fmt(v.lines.read)} of ${fmt(v.lines.changed)} changed lines read` : 'reviewed'}"><div class="meter-label"><span>${l}</span><span>${v.done}/${v.n}</span></div><div class="meter-bar"><i style="width:${v.n ? (100 * v.done / v.n) : 0}%"></i></div></div>`).join('');
   const d = Store.get('decision').status;
   const chip = $('#decision-chip');
   const label = { approve: 'Approve', 'request-changes': 'Request changes', comment: 'Comment' }[d] || 'Undecided';
@@ -1563,8 +1634,8 @@ function ledgerCard(l) {
     ${l.concurrency ? `<div class="small"><span class="eyebrow">${esc(lab.concurrency || 'Concurrency')}</span><div class="md">${md(l.concurrency)}</div></div>` : ''}
     ${l.concern ? `<div class="check"><div class="eyebrow">Concern</div><div class="md small">${md(l.concern.text)}</div></div>` : ''}
     <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ')}</div>
-    <details><summary>Show the code</summary>${codeSlice(l.file, Math.max(1, l.line - 8), l.line + 8, 'new')}</details>
-    ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: `${l.file}:${l.line}` })}
+    <details><summary>Show the code</summary>${codeSlice(l.file, l.start ?? l.line, l.end ?? l.line, 'new', { pad: 6 })}</details>
+    ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: l.start ? `${l.file}:${l.start}-${l.end}` : `${l.file}:${l.line}` })}
   </article>`;
 }
 after.ledger = () => {
@@ -1626,18 +1697,21 @@ function vCriteria() {
 
 /* Files */
 let fileQuery = '';
+let unreadOnly = false;
 let selectedFile = null;
 function vFiles() {
   if (pendingOpen) selectedFile = pendingOpen.path;
   if (!selectedFile || !FILE[selectedFile]) selectedFile = (C.files.find(f => f.risk === 'high') || C.files[0]).path;
+  const recorded = recordedClaims();
+  const stillToRead = f => { const cov = coverageOf(f.path, recorded); return !cov || cov.state !== 'read'; };
   const list = layersList().map(([id, label]) => {
-    const fs = C.files.filter(f => f.layer === id && (!fileQuery || f.path.toLowerCase().includes(fileQuery.toLowerCase())));
+    const fs = C.files.filter(f => f.layer === id && (!fileQuery || f.path.toLowerCase().includes(fileQuery.toLowerCase())) && (!unreadOnly || stillToRead(f)));
     if (!fs.length) return '';
-    return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="dot" data-status-of="file:${esc(f.path)}"></span><span class="nm">${esc(short(f.path))}</span><span class="ct">+${fmt(f.add)}</span></button>`).join('');
+    return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${esc(short(f.path))}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`).join('');
   }).join('');
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">Badges in the code mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
-    <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files">${list}</div>
+    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and a green edge marks each read line in the code. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files"><label class="unread-only"><input type="checkbox" id="unread-only" ${unreadOnly ? 'checked' : ''}> Still to read</label>${list}</div>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
 function annotationsFor(path) {
@@ -1681,12 +1755,14 @@ function filePane(path) {
   return `<div class="panel stack"><div class="row"><span class="mono" style="font-weight:600;overflow-wrap:anywhere;min-width:0">${esc(path)}</span><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span><span class="tnum small">+${fmt(f.add)} −${fmt(f.del)}</span>${f.status === 'added' ? '<span class="chip plain c-info">new file</span>' : ''}</div>
     <div class="md">${md(f.summary)}</div>
     <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
+    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread>Next unread</button></div>
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
-    <div class="code tall" id="file-code"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
+    <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
 }
 after.files = () => {
   const fq = $('#fq');
   fq.addEventListener('input', () => { fileQuery = fq.value; clearTimeout(fq._t); fq._t = setTimeout(() => { const pos = fq.selectionStart; render(); const n = $('#fq'); n.focus(); n.setSelectionRange(pos, pos); }, 200); });
+  $('#unread-only').addEventListener('change', e => { unreadOnly = e.target.checked; render(); });
   $$('.fl-item').forEach(b => b.addEventListener('click', () => { selectedFile = b.dataset.file; pendingOpen = null; $$('.fl-item').forEach(x => x.setAttribute('aria-current', String(x === b))); $('#file-pane').innerHTML = filePane(selectedFile); refreshControls(); $('#file-pane').scrollIntoView({ block: 'start' }); }));
   bindUnfold();
   if (pendingOpen && pendingOpen.line) {
@@ -1705,8 +1781,18 @@ function bindUnfold() {
     const tmp = document.createElement('tbody');
     tmp.innerHTML = rows.slice(i, j).map(r => rowHtml(r)).join('');
     tr.replaceWith(...tmp.children);
+    refreshCoverage(recordedClaims());
   }));
 }
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-next-unread]')) return;
+  const unread = $$('#file-code tr.add:not(.read), #file-code tr.del:not(.read)');
+  if (!unread.length) return;
+  const next = unread.find(tr => tr.getBoundingClientRect().top > window.innerHeight / 2 + 4) || unread[0];
+  next.scrollIntoView({ block: 'center' });
+  next.classList.add('flash');
+  setTimeout(() => next.classList.remove('flash'), 1600);
+});
 document.addEventListener('click', e => {
   const s = e.target.closest('[data-scroll-stop],[data-scroll-ledger]');
   if (!s) return;
@@ -1744,6 +1830,17 @@ function notesMarkdown() {
   section('Removal sites', ['ledger'], ['issue', 'question', 'ok', '']);
   section('Tour stops', ['stop'], ['issue', 'question', 'ok', '']);
   section('Files', ['file'], ['issue', 'ok', 'skip', '']);
+  out += linesReadMarkdown();
+  return out;
+}
+function linesReadMarkdown() {
+  const recorded = recordedClaims();
+  const covs = C.files.map(f => [f.path, coverageOf(f.path, recorded)]);
+  if (!covs.every(([, cov]) => cov)) return '';
+  const read = covs.reduce((n, [, cov]) => n + cov.read, 0), changed = covs.reduce((n, [, cov]) => n + cov.changed, 0);
+  let out = `\n## Lines read\n\n${fmt(read)} of ${plural(changed, 'changed line')} read.\n`;
+  const outstanding = covs.filter(([, cov]) => cov.state !== 'read');
+  if (outstanding.length) out += '\nStill to read:\n\n' + outstanding.map(([path, cov]) => `- ${path}: ${cov.changed ? `${fmt(cov.read)} of ${fmt(cov.changed)} read; unread ${cov.unread.map(rangeText).join(', ')}` : 'not reviewed'}\n`).join('');
   return out;
 }
 function vNotes() {
@@ -1792,6 +1889,7 @@ async function boot() {
   try {
     D = window.__EXPLORE_DIFF || await (await fetch('diff.json')).json();
     if (currentRoute === 'files') render(); else fillPendingSlices();
+    onStateChange();
   } catch (e) {
     $$('[data-pending-slice]').forEach(el => { el.innerHTML = '<div class="muted small" style="padding:12px">The code could not be loaded. Reload to try again.</div>'; });
   }

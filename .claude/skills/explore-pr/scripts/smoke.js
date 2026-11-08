@@ -2,7 +2,9 @@
 //
 // Opens a built explore-pr page from file:// in headless Chrome, visits every
 // route the page registers, and fails on any uncaught error, unresolved code
-// slice, or sideways scroll at phone width. Needs Node 22+ (global WebSocket).
+// slice, or sideways scroll at phone width. It then reads a tour stop and checks
+// that All files counts its lines as read, and marks that stop's file reviewed
+// and checks the stop shows as already read. Needs Node 22+ (global WebSocket).
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -69,6 +71,32 @@ async function devtools(chrome) {
   return { send, evaluate, errors, close };
 }
 
+const COVERAGE_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = () => new Promise(r => setTimeout(r, 500));
+  const changed = (file, stop) => (api.diff[file]?.hunks || []).some(h => {
+    let o = h.o, n = h.n;
+    return h.l.some(l => { const hit = l[0] === '+' ? stop.side !== 'old' && n >= stop.start && n <= stop.end : l[0] === '-' ? stop.side === 'old' && o >= stop.start && o <= stop.end : false; if (l[0] !== '+') o++; if (l[0] !== '-') n++; return hit; });
+  });
+  const chapter = api.content.chapters.find(c => (c.stops || []).some(s => changed(s.file, s)));
+  if (!chapter) return { skipped: 'no stop spans a changed line' };
+  const stop = chapter.stops.find(s => changed(s.file, s));
+  const forget = target => api.store.put(target, target.split(':')[0], { status: '' }, {});
+  api.store.put('stop:' + stop.id, 'stop', { status: 'ok' }, {});
+  api.openFile(stop.file, stop.start, stop.side || 'new');
+  await settle();
+  const bar = document.querySelector('[data-coverage-of="' + CSS.escape(stop.file) + '"]');
+  const stopReachesFiles = !!bar && +bar.dataset.read > 0;
+  forget('stop:' + stop.id);
+  api.store.put('file:' + stop.file, 'file', { status: 'ok' }, {});
+  location.hash = 'tour-' + chapter.id;
+  await settle();
+  const control = document.querySelector('.ctl[data-ctl="' + CSS.escape('stop:' + stop.id) + '"]');
+  const fileReachesStops = !!control && control.classList.contains('via');
+  forget('file:' + stop.file);
+  return { stop: stop.id, stopReachesFiles, fileReachesStops };
+})()`;
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -93,6 +121,7 @@ async function main() {
         fs.writeFileSync(path.join(options.shots, `${route}.png`), Buffer.from(shot.result.data, 'base64'));
       }
     }
+    report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -110,7 +139,9 @@ async function main() {
     await cdp.close();
   }
   const missing = Object.entries(report.routes).filter(([, r]) => !r.heading || r.unresolvedSlices).map(([route]) => route);
-  report.ok = !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0;
+  const coverage = report.coverage || {};
+  const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.fileReachesStops);
+  report.ok = !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

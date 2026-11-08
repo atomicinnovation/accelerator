@@ -74,8 +74,10 @@ answered, such as whether a claimed invariant really holds}
 
 - `content/ledger-{pass id}.json`: one row for every production call site in
   your files that {ledger subject, e.g. "removes, replaces or truncates
-  something on disk"}. Use the facets {facet keys and allowed values}. An
-  empty array is a valid answer.
+  something on disk"}. Use the facets {facet keys and allowed values}. Give
+  each row a `start`/`end` spanning the call and the guards a reviewer must
+  read to judge it: the page shows that range and counts it as read when the
+  row gets a verdict. An empty array is a valid answer.
 - `content/files-{pass id}.json`: one entry for each of these files:
   {file list}.
 {optional: `content/specs/<name>.md`, a precise, implementable specification
@@ -105,8 +107,8 @@ reusing the code's own names: {domain terms already established}. Record
 anything you could not verify as unverified rather than guessing.
 
 **Before you finish**, run `python3 -m json.tool <file> > /dev/null` on every
-JSON file you wrote. Check at least five `start`/`end` and ledger `line`
-values, and three figure `where` values, against the `head/` copies, and
+JSON file you wrote. Check at least five `start`/`end` and ledger `line`,
+`start` and `end` values, and three figure `where` values, against the `head/` copies, and
 confirm that every chapter you wrote has a figure and at least one
 abstraction or decision.
 
