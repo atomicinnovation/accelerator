@@ -171,24 +171,27 @@ pub fn list(
         Ok(names) => names,
         Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
     };
-    let claims = names
-        .iter()
-        .filter_map(|name| name.to_str())
-        .filter_map(|name| {
-            let (digest, launcher_id) = name.split_once('.')?;
-            if !is_wellformed_digest(digest) || launcher_id.is_empty() {
-                return None;
-            }
-            let path = directory.join(name);
-            let entry = filesystem.entry(&path).ok()?;
-            Some(ListedTreeClaim {
-                digest: digest.to_owned(),
-                sweepable: is_launcher_id(launcher_id),
-                entry,
-                path,
-            })
-        })
-        .collect();
+    let mut claims = Vec::new();
+    for name in names.iter().filter_map(|name| name.to_str()) {
+        let Some((digest, launcher_id)) = name.split_once('.') else {
+            continue;
+        };
+        if !is_wellformed_digest(digest) || launcher_id.is_empty() {
+            continue;
+        }
+        let path = directory.join(name);
+        let entry = match filesystem.entry(&path) {
+            Ok(entry) => entry,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => return TreeClaimsListing::Unreadable(error.kind()),
+        };
+        claims.push(ListedTreeClaim {
+            digest: digest.to_owned(),
+            sweepable: is_launcher_id(launcher_id),
+            entry,
+            path,
+        });
+    }
     TreeClaimsListing::Read(TreeClaimIndex { claims })
 }
 
@@ -249,6 +252,7 @@ mod tests {
 
     use crate::launch::core::tree::Clock;
 
+    use super::super::super::filesystem::testing::ReportingFilesystem;
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::{Ownership as _, ProcessOwnership};
     use super::super::layout::TreePaths;
@@ -360,6 +364,81 @@ mod tests {
         )
         .expect("symlink");
         assert!(!protected(&paths, Duration::from_secs(60), &AtClock(now())));
+    }
+
+    fn claim_on_digest(paths: &TreePaths) -> std::path::PathBuf {
+        refresh(paths, DIGEST, "install-a", &AtClock(now()));
+        paths.claims().join(format!("{DIGEST}.install-a"))
+    }
+
+    #[test]
+    fn a_tree_claim_that_cannot_be_examined_makes_the_listing_unreadable() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let filesystem = ReportingFilesystem::over_system().failing_entry(
+            &claim_on_digest(&paths),
+            std::io::ErrorKind::PermissionDenied,
+        );
+
+        let listing = list(&paths, &filesystem, &ProcessOwnership::default());
+
+        assert!(
+            matches!(
+                listing,
+                TreeClaimsListing::Unreadable(
+                    std::io::ErrorKind::PermissionDenied
+                )
+            ),
+            "{listing:?}"
+        );
+    }
+
+    #[test]
+    fn a_tree_claim_gone_before_it_is_examined_is_left_out_of_the_listing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let filesystem = ReportingFilesystem::over_system().failing_entry(
+            &claim_on_digest(&paths),
+            std::io::ErrorKind::NotFound,
+        );
+
+        let TreeClaimsListing::Read(claims) =
+            list(&paths, &filesystem, &ProcessOwnership::default())
+        else {
+            panic!("the claims were not read");
+        };
+        assert!(claims.claims().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_tree_claims_directory_that_can_be_read_but_not_searched_is_unreadable()
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        if rustix::process::geteuid().is_root() {
+            return;
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        claim_on_digest(&paths);
+        std::fs::set_permissions(
+            paths.claims(),
+            std::fs::Permissions::from_mode(0o400),
+        )
+        .expect("read-only claims");
+
+        let listing =
+            list(&paths, &SystemFilesystem, &ProcessOwnership::default());
+
+        std::fs::set_permissions(
+            paths.claims(),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .expect("searchable claims");
+        assert!(
+            matches!(listing, TreeClaimsListing::Unreadable(_)),
+            "{listing:?}"
+        );
     }
 
     fn back_date(path: &std::path::Path, seconds: u64) {

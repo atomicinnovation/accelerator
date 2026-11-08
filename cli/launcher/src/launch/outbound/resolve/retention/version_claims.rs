@@ -129,22 +129,25 @@ pub fn list(
         Err(error) => return ClaimsListing::Unreadable(error.kind()),
     };
     let uid = ownership.effective_uid();
-    let listed = names
-        .iter()
-        .filter_map(|name| name.to_str())
-        .filter_map(|name| {
-            let (version, launcher_id) = parse_claim_name(name)?;
-            let path = claims.join(name);
-            let entry = filesystem.entry(&path).ok()?;
-            Some(ListedClaim {
-                version: version.to_owned(),
-                launcher_id: launcher_id.to_owned(),
-                valid: is_valid(&entry, uid),
-                modified_seconds: entry.modified_seconds,
-                path,
-            })
-        })
-        .collect();
+    let mut listed = Vec::new();
+    for name in names.iter().filter_map(|name| name.to_str()) {
+        let Some((version, launcher_id)) = parse_claim_name(name) else {
+            continue;
+        };
+        let path = claims.join(name);
+        let entry = match filesystem.entry(&path) {
+            Ok(entry) => entry,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => return ClaimsListing::Unreadable(error.kind()),
+        };
+        listed.push(ListedClaim {
+            version: version.to_owned(),
+            launcher_id: launcher_id.to_owned(),
+            valid: is_valid(&entry, uid),
+            modified_seconds: entry.modified_seconds,
+            path,
+        });
+    }
     ClaimsListing::Read(listed)
 }
 
@@ -440,6 +443,64 @@ mod tests {
         assert!(
             !FreshVersions::within(&claims, CLAIM_WINDOW, &AtClock(now()))
                 .contains(VERSION)
+        );
+    }
+
+    #[test]
+    fn a_claim_that_cannot_be_examined_makes_the_listing_unreadable() {
+        let root = Root::new();
+        root.seed_claim(b"", now());
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_entry(&root.claim(), std::io::ErrorKind::PermissionDenied);
+
+        let listing =
+            list(root.path(), &filesystem, &ProcessOwnership::default());
+
+        assert!(
+            matches!(
+                listing,
+                ClaimsListing::Unreadable(std::io::ErrorKind::PermissionDenied)
+            ),
+            "{listing:?}"
+        );
+    }
+
+    #[test]
+    fn a_claim_gone_before_it_is_examined_is_left_out_of_the_listing() {
+        let root = Root::new();
+        root.seed_claim(b"", now());
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_entry(&root.claim(), std::io::ErrorKind::NotFound);
+
+        assert!(listed(&root, &filesystem).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_claims_directory_that_can_be_read_but_not_searched_is_unreadable() {
+        use std::os::unix::fs::PermissionsExt as _;
+        if rustix::process::geteuid().is_root() {
+            return;
+        }
+        let root = Root::new();
+        root.seed_claim(b"", now());
+        std::fs::set_permissions(
+            root.claims(),
+            std::fs::Permissions::from_mode(0o400),
+        )
+        .expect("read-only claims");
+
+        let listing =
+            list(root.path(), &SystemFilesystem, &ProcessOwnership::default());
+
+        std::fs::set_permissions(
+            root.claims(),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .expect("searchable claims");
+        assert!(
+            matches!(listing, ClaimsListing::Unreadable(_)),
+            "{listing:?}"
         );
     }
 

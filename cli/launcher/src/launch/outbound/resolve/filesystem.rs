@@ -477,6 +477,7 @@ pub mod testing {
     #[derive(Default)]
     struct Overlay {
         entries: BTreeMap<PathBuf, EntryMetadata>,
+        failing_entries: BTreeMap<PathBuf, io::ErrorKind>,
         resolutions: BTreeMap<PathBuf, ResolvedDirectory>,
         acls: BTreeMap<PathBuf, AccessAcl>,
         ownership_ignored: BTreeMap<PathBuf, bool>,
@@ -501,6 +502,14 @@ pub mod testing {
         #[must_use]
         pub fn reporting(self, path: &Path, metadata: EntryMetadata) -> Self {
             self.overlay().entries.insert(path.to_path_buf(), metadata);
+            self
+        }
+
+        #[must_use]
+        pub fn failing_entry(self, path: &Path, kind: io::ErrorKind) -> Self {
+            self.overlay()
+                .failing_entries
+                .insert(path.to_path_buf(), kind);
             self
         }
 
@@ -595,7 +604,16 @@ pub mod testing {
         }
 
         fn entry(&self, path: &Path) -> io::Result<EntryMetadata> {
-            let reported = self.overlay().entries.get(path).copied();
+            let (failure, reported) = {
+                let overlay = self.overlay();
+                (
+                    overlay.failing_entries.get(path).copied(),
+                    overlay.entries.get(path).copied(),
+                )
+            };
+            if let Some(kind) = failure {
+                return Err(io::Error::from(kind));
+            }
             reported.map_or_else(|| self.inner.entry(path), Ok)
         }
 
