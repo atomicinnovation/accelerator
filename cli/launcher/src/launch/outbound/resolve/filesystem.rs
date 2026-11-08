@@ -281,6 +281,7 @@ fn ignores_ownership_of(path: &Path) -> io::Result<bool> {
 }
 
 #[cfg(not(target_os = "macos"))]
+#[allow(clippy::unnecessary_wraps)]
 const fn ignores_ownership_of(_path: &Path) -> io::Result<bool> {
     Ok(false)
 }
@@ -685,10 +686,15 @@ mod tests {
                     assert!(status.success(), "setfacl");
                     assert_eq!(acl_of(granted.path()), AccessAcl::Posix);
                 }
-                Err(_) if std::env::var_os("CI").is_some() => {
-                    panic!("setfacl is required under CI and was not on PATH")
+                Err(error) if std::env::var_os("CI").is_some() => {
+                    panic!(
+                        "setfacl is required under CI and was not on PATH: \
+                         {error}"
+                    )
                 }
-                Err(_) => eprintln!("skipping: setfacl not on PATH"),
+                Err(error) => {
+                    eprintln!("skipping: setfacl not on PATH ({error})");
+                }
             }
         }
     }
