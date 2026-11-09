@@ -3,7 +3,8 @@
 // Opens a built explore-pr page from file:// in headless Chrome, visits every
 // route the page registers, and fails on any uncaught error, unresolved code
 // slice, or sideways scroll at phone width. It then reads a tour stop and checks
-// that All files counts its lines as read, and marks that stop's file reviewed
+// that All files counts and marks its lines as read and the rest as unread, and
+// marks that stop's file reviewed
 // and checks the stop shows as already read. Needs Node 22+ (global WebSocket).
 
 const { spawn, execFileSync } = require('node:child_process');
@@ -87,6 +88,10 @@ const COVERAGE_PROBE = `(async () => {
   await settle();
   const bar = document.querySelector('[data-coverage-of="' + CSS.escape(stop.file) + '"]');
   const stopReachesFiles = !!bar && +bar.dataset.read > 0;
+  const changedRows = document.querySelectorAll('#file-code tr.add, #file-code tr.del').length;
+  const readRows = document.querySelectorAll('#file-code tr.add.read, #file-code tr.del.read').length;
+  const unreadRows = document.querySelectorAll('#file-code tr.add.unread, #file-code tr.del.unread').length;
+  const linesMarked = readRows > 0 && readRows + unreadRows === changedRows;
   forget('stop:' + stop.id);
   api.store.put('file:' + stop.file, 'file', { status: 'ok' }, {});
   location.hash = 'tour-' + chapter.id;
@@ -94,7 +99,7 @@ const COVERAGE_PROBE = `(async () => {
   const control = document.querySelector('.ctl[data-ctl="' + CSS.escape('stop:' + stop.id) + '"]');
   const fileReachesStops = !!control && control.classList.contains('via');
   forget('file:' + stop.file);
-  return { stop: stop.id, stopReachesFiles, fileReachesStops };
+  return { stop: stop.id, stopReachesFiles, linesMarked, fileReachesStops };
 })()`;
 
 async function main() {
@@ -140,7 +145,7 @@ async function main() {
   }
   const missing = Object.entries(report.routes).filter(([, r]) => !r.heading || r.unresolvedSlices).map(([route]) => route);
   const coverage = report.coverage || {};
-  const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.fileReachesStops);
+  const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
   report.ok = !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));

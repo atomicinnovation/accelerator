@@ -393,8 +393,9 @@ stored. A verdict of any kind on a stop claims its `start`–`end` on its
 `side`; on a ledger row, its `start`–`end`, or its `line` alone; on a file,
 the whole file. A file's changed lines are its added head lines and removed
 base lines; context never needs reading. **All files** shows each file read in
-full, in part or not at all, marks every line read and by what, and the Files
-meter counts files read in full. In the other direction, a stop, ledger row or
+full, in part or not at all, marks each changed line in the code as read (a
+green edge, a tick, faded text, and what read it) or still to read (an amber
+edge), and the Files meter counts files read in full. In the other direction, a stop, ledger row or
 file whose lines other verdicts have already read shows as *read via* them,
 without a verdict of its own. `assets/review-coverage.js` is the model; **Your
 notes** ends with the lines still to read.

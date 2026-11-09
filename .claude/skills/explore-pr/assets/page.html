@@ -204,7 +204,16 @@ table.data tr:last-child td { border-bottom: 0; }
 .code tr.del td.mk { color: var(--del-mark); font-weight: 600; }
 .code tr.focus td.ln { color: var(--ink); font-weight: 600; }
 .code tr.flash { background: var(--hl-row) !important; }
-.code tr.read td.ln:first-child { box-shadow: inset 3px 0 0 var(--ok); }
+.code tr.unread td.ln:first-child { box-shadow: inset 4px 0 0 var(--warn); }
+.code tr.read td.ln:first-child { box-shadow: inset 4px 0 0 var(--ok); }
+.code tr.read td.ln:first-child::before { content: "✓"; float: left; padding-left: 6px; color: var(--ok); font-weight: 700; }
+.code tr.add.read { background: color-mix(in srgb, var(--add-bg) 40%, var(--panel)); }
+.code tr.del.read { background: color-mix(in srgb, var(--del-bg) 40%, var(--panel)); }
+.code tr.read td.src, .code tr.read td.mk { opacity: .6; }
+.read-key { display: inline-flex; gap: 12px; align-items: center; color: var(--ink-3); }
+.read-key i { display: inline-block; width: 4px; height: 12px; border-radius: 1px; margin-right: 5px; vertical-align: -1px; }
+.read-key .k-unread { background: var(--warn); }
+.read-key .k-read { background: var(--ok); }
 .code tr.gap td { background: var(--panel-2); color: var(--ink-3); font-family: var(--f-body); font-size: 12px; padding: 3px 10px; }
 .code tr.gap button { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
 .code tr.anno td { padding: 8px 12px 10px 60px; background: var(--panel); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); white-space: normal; font-family: var(--f-body); font-size: 13.5px; }
@@ -820,6 +829,7 @@ function refreshCoverage(recorded) {
   $$('tr.add, tr.del', code).forEach(tr => {
     const readers = cov.readBy[tr.classList.contains('add') ? 'new:' + tr.dataset.n : 'old:' + tr.dataset.o];
     tr.classList.toggle('read', !!readers);
+    tr.classList.toggle('unread', !readers);
     tr.title = readers ? `Read via ${readers.join(', ')}` : '';
   });
 }
@@ -1710,7 +1720,7 @@ function vFiles() {
     return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${esc(short(f.path))}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`).join('');
   }).join('');
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and a green edge marks each read line in the code. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
     <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files"><label class="unread-only"><input type="checkbox" id="unread-only" ${unreadOnly ? 'checked' : ''}> Still to read</label>${list}</div>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
@@ -1755,7 +1765,7 @@ function filePane(path) {
   return `<div class="panel stack"><div class="row"><span class="mono" style="font-weight:600;overflow-wrap:anywhere;min-width:0">${esc(path)}</span><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span><span class="tnum small">+${fmt(f.add)} −${fmt(f.del)}</span>${f.status === 'added' ? '<span class="chip plain c-info">new file</span>' : ''}</div>
     <div class="md">${md(f.summary)}</div>
     <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
-    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread>Next unread</button></div>
+    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread>Next unread</button><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
     <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
 }
