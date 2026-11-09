@@ -90,4 +90,6 @@ def build_launcher() -> Path:
     therefore *not* also gain a `build:cli:dev` dependency: the two would
     contend on cargo's target lock and the asserted edge would be inert.
     """
-    return _cargo_build("--bin accelerator", "accelerator")
+    return _cargo_build(
+        "--bin accelerator --features accelerator/test-loopback", "accelerator"
+    )

@@ -45,7 +45,7 @@ def _subbinary(token: str) -> DevBinary:
     )
 
 
-LAUNCHER = DevBinary("accelerator", package="accelerator")
+LAUNCHER = DevBinary("accelerator", package="accelerator", loopback_seam=True)
 
 _SUBBINARY_TOKENS = tuple(
     token for token in DISPATCHED_SUBBINARIES if token != _SERVER

@@ -197,6 +197,26 @@
   its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
   spaces or `\`) or a list item.
 
+- **`cache prune` reports every failure instead of stopping at the first.**
+  A lock it cannot take no longer ends the prune: it prunes every other
+  artifact, prints the count, and then exits non-zero. A removal that fails,
+  which was silently ignored, now also exits non-zero.
+- **`cache prune --older-than` also sets the version-claim window**, as well
+  as the tree-claim window it set before.
+- **`bin/accelerator` fetches a launcher that vanishes before it can run once
+  more, and exits 1, or 0 under `--fail-safe`, only when that fails too**,
+  where it exited 126 or 127, depending on the bash version. Every other
+  `exec` failure exits as before.
+- **`cache prune` refuses a relocated root other users can write to.** In
+  such a root, or one under a directory they can write to, it removes
+  nothing and exits non-zero, printing the directory at fault and the fix,
+  where it pruned the pinned trees and exited 0. In such a root a materialise
+  no longer reaps orphan residue or a superseded generation either. A root
+  writable only through a private group that no lookup can resolve is
+  refused the same way, with the `chmod g-w` remedy, and so is a root under
+  a directory owned by another uid, as in a container's bind mount or a CI
+  workspace, until `ACCELERATOR_CACHE_TRUSTED_OWNERS` lists that uid.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -690,6 +710,21 @@
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
 
+- **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
+  paths**, keeping what a version or tree claim from the last 14 days
+  protects, and every version's entries for 14 days after the root's first
+  claim. A root is pruned only when it is writable by its owner alone, or
+  through the owner's private group, and no directory above it is writable
+  by others without the sticky bit. A root shared by several users, sticky or
+  not, works as a cache but is not pruned; give each user their own, such as
+  `/var/cache/accelerator/$USER`. In a relocated root, `cache prune` also
+  removes single-file entries, other artifacts' and platforms' trees, stale
+  claims, orphan sidecars and locks, and crash residue.
+- **A dispatch whose sub-binary vanishes between lookup and `exec` re-fetches
+  it once**, in every cache root.
+- **A plugin `bin/trees/` that is a symlink or owned by another user is no
+  longer pruned or reaped.**
+
 ### Removed
 
 - **`ACCELERATOR_ALLOW_INSECURE_LOCAL` and the
@@ -784,6 +819,13 @@
 - **`describe-pr` lists an unreadable body file under exit 2**, matching what
   `update-body` returns, where it listed it under exit 1.
 
+- **The default-root `cache prune` no longer creates tree locks for artifacts
+  it never materialised**, except to reap an interrupted materialise's
+  residue, and no longer errors when `trees/` is missing. Tree prune never
+  follows a pointer outside `trees/`, keeps malformed and newer-layout
+  pointers, reclaims a retired layout's unclaimed trees, and reclaims nothing
+  when `trees/claims/` cannot be read, where it reclaimed claimed trees.
+
 ### Security
 
 - **`accelerator config dump` hides API-key leaves.** Keys named `api_key` or
@@ -877,6 +919,15 @@
   `search_budget` line after `depth`.** Web level notes record their search
   budget there; the field is optional, so an override without it still
   writes valid notes, but they do not record the budget.
+
+- **Reload every session sharing a relocated root within 14 days of
+  upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
+  once a root has seen its first claim for 14 days, a newer launcher's prune
+  evicts their entries on every cold path. They cannot re-resolve an entry
+  that vanishes: a dispatch that races the prune fails, exiting 126 or 127
+  even under `--fail-safe`, and offline the re-fetch fails and records an
+  unverified launcher in `.accelerator-unverified.log`. Reloading the plugin
+  ends this.
 
 ## [1.23.0] - 2026-06-23
 

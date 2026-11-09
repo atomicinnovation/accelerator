@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use accelerator::launch::outbound::resolve::{
-    cache, keys::TrustedKeys, verifier,
+    cache, filesystem::SystemFilesystem, keys::TrustedKeys, verifier,
 };
 
 type TestError = Box<dyn std::error::Error>;
@@ -108,13 +108,16 @@ fn warm_terms_are_reported() -> Result<(), TestError> {
     let version = version()?;
 
     let scans: Vec<f64> = (0..SAMPLES)
-        .map(|_| time(|| cache::find(&root, &name, &version)))
+        .map(|_| {
+            time(|| cache::find(&SystemFilesystem, &root, &name, &version))
+        })
         .collect();
     report("cache::find", scans);
 
-    let cached = cache::find(&root, &name, &version).ok_or_else(|| {
-        format!("no cached {name} {version} under {}", root.display())
-    })?;
+    let cached = cache::find(&SystemFilesystem, &root, &name, &version)
+        .ok_or_else(|| {
+            format!("no cached {name} {version} under {}", root.display())
+        })?;
     let keys = TrustedKeys::embedded()?;
 
     let reverifications: Vec<f64> = (0..SAMPLES)
