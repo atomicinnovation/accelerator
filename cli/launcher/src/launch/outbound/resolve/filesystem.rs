@@ -505,6 +505,7 @@ pub mod testing {
         ownership_ignored: BTreeMap<PathBuf, bool>,
         failing_ownership_checks: BTreeMap<PathBuf, io::ErrorKind>,
         failing_removals: BTreeMap<PathBuf, io::ErrorKind>,
+        listings: BTreeMap<PathBuf, Vec<OsString>>,
         resolved: Vec<PathBuf>,
     }
 
@@ -586,6 +587,12 @@ pub mod testing {
         }
 
         #[must_use]
+        pub fn listing(self, dir: &Path, names: Vec<OsString>) -> Self {
+            self.overlay().listings.insert(dir.to_path_buf(), names);
+            self
+        }
+
+        #[must_use]
         pub fn failing_removal(self, path: &Path, kind: io::ErrorKind) -> Self {
             self.overlay()
                 .failing_removals
@@ -606,7 +613,8 @@ pub mod testing {
 
     impl<F: CacheFilesystem> CacheFilesystem for ReportingFilesystem<F> {
         fn list(&self, dir: &Path) -> io::Result<Vec<OsString>> {
-            self.inner.list(dir)
+            let listed = self.overlay().listings.get(dir).cloned();
+            listed.map_or_else(|| self.inner.list(dir), Ok)
         }
 
         fn exists(&self, path: &Path) -> bool {

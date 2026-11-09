@@ -58,7 +58,9 @@ pub fn find(
     let prefix = format!("{name}-{version}-");
     let names = filesystem.list(root).ok()?;
     for file_name in names {
-        let file = file_name.to_str()?;
+        let Some(file) = file_name.to_str() else {
+            continue;
+        };
         let Some(sha) = file.strip_prefix(&prefix) else {
             continue;
         };
@@ -152,6 +154,7 @@ mod tests {
 
     use tempfile::TempDir;
 
+    use super::super::filesystem::testing::ReportingFilesystem;
     use super::super::filesystem::SystemFilesystem;
     use super::{find, store, temp_name, TEMP_PREFIX};
 
@@ -187,6 +190,37 @@ mod tests {
         assert_eq!(found.sha256, SHA);
         assert_eq!(std::fs::read(&found.path)?, b"binary");
         assert!(found.signature_path.exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_name_that_is_not_utf8_hides_no_entry_listed_after_it(
+    ) -> Result<(), Box<dyn Error>> {
+        use std::os::unix::ffi::OsStrExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        store(
+            &SystemFilesystem,
+            &root,
+            "foo",
+            "1.0.0",
+            SHA,
+            b"binary",
+            "sig",
+        )?;
+        let filesystem = ReportingFilesystem::over_system().listing(
+            &root,
+            vec![
+                std::ffi::OsStr::from_bytes(b"foreign-\xff").to_owned(),
+                format!("foo-1.0.0-{SHA}").into(),
+            ],
+        );
+
+        let found =
+            find(&filesystem, &root, "foo", "1.0.0").ok_or("not found")?;
+
+        assert_eq!(found.sha256, SHA);
         Ok(())
     }
 
