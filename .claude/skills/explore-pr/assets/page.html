@@ -1911,7 +1911,6 @@ after.files = () => {
   fq.addEventListener('input', () => { fileQuery = fq.value; clearTimeout(fq._t); fq._t = setTimeout(() => { const pos = fq.selectionStart; render(); const n = $('#fq'); n.focus(); n.setSelectionRange(pos, pos); }, 200); });
   $('#unread-only').addEventListener('change', e => { unreadOnly = e.target.checked; render(); });
   $$('.fl-item').forEach(b => b.addEventListener('click', () => { selectedFile = b.dataset.file; pendingOpen = null; $$('.fl-item').forEach(x => x.setAttribute('aria-current', String(x === b))); $('#file-pane').innerHTML = filePane(selectedFile); refreshControls(); $('#file-pane').scrollIntoView({ block: 'start' }); }));
-  bindUnfold();
   if (pendingOpen && pendingOpen.line) {
     const key = pendingOpen.side === 'old' ? 'o' : 'n';
     const tr = $(`#file-code tr[data-${key}="${pendingOpen.line}"]`);
@@ -1920,17 +1919,15 @@ after.files = () => {
   const cur = $('.fl-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
   pendingOpen = null;
 };
-function bindUnfold() {
-  $$('[data-unfold]').forEach(b => b.addEventListener('click', () => {
-    const [i, j] = b.dataset.unfold.split('-').map(Number);
-    const rows = rowsOf(selectedFile);
-    const tr = b.closest('tr');
-    const tmp = document.createElement('tbody');
-    tmp.innerHTML = rows.slice(i, j).map(r => rowHtml(r)).join('');
-    tr.replaceWith(...tmp.children);
-    refreshCoverage(recordedClaims());
-  }));
-}
+document.addEventListener('click', e => {
+  const button = e.target.closest('#file-code [data-unfold]');
+  if (!button) return;
+  const [i, j] = button.dataset.unfold.split('-').map(Number);
+  const unchanged = document.createElement('tbody');
+  unchanged.innerHTML = rowsOf(button.closest('#file-code').dataset.path).slice(i, j).map(r => rowHtml(r)).join('');
+  button.closest('tr').replaceWith(...unchanged.children);
+  refreshCoverage(recordedClaims());
+});
 document.addEventListener('click', e => {
   if (e.target.closest('[data-next-unread]')) nextUnread();
 });

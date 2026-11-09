@@ -9,7 +9,8 @@
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
 // unread lines and that the n key jumps to the next unread line. Needs Node
-// 22+ (global WebSocket).
+// 22+ (global WebSocket). Last, it unfolds a run of unchanged lines in a file
+// opened by link and in one picked from the file list.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -149,6 +150,27 @@ const COMMITS_PROBE = `(async () => {
   return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne, linkAboveEachUnreadRun, nextUnreadKey };
 })()`;
 
+const UNFOLD_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = () => new Promise(r => setTimeout(r, 500));
+  const folded = api.content.files.find(f => f.status !== 'added' && window.ReviewCoverage && api.diff[f.path] && (api.diff[f.path].hunks[0]?.l.length || 0) > 30);
+  if (!folded) return { skipped: 'no file long enough to fold' };
+  const unfolds = async () => {
+    const button = document.querySelector('#file-code [data-unfold]');
+    if (!button) return null;
+    const before = document.querySelectorAll('#file-code tr').length;
+    button.click(); await settle();
+    return document.querySelectorAll('#file-code tr').length > before;
+  };
+  api.openFile(folded.path, null, 'new'); await settle();
+  const afterOpening = await unfolds();
+  const other = api.content.files.find(f => f.path !== folded.path);
+  if (other) { document.querySelector('.fl-item[data-file="' + CSS.escape(other.path) + '"]').click(); await settle(); }
+  document.querySelector('.fl-item[data-file="' + CSS.escape(folded.path) + '"]').click(); await settle();
+  const afterPicking = await unfolds();
+  return { file: folded.path, afterOpening, afterPicking };
+})()`;
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -175,6 +197,7 @@ async function main() {
     }
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
+    report.unfold = await cdp.evaluate(UNFOLD_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -196,7 +219,9 @@ async function main() {
   const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
   const commits = report.commits || {};
   const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
-  report.ok = commitsHold && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const unfold = report.unfold || {};
+  const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
+  report.ok = commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
