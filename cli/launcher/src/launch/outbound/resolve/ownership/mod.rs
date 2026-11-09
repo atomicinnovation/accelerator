@@ -145,24 +145,27 @@ pub fn is_trusted_directory(
     })
 }
 
-/// A private group is admitted only with no access ACL: on Linux the group
-/// mode bits of a directory with a POSIX ACL are its mask, so another user's
-/// entry would read as group-writable.
+/// An ACL whose grants the mode bits do not mask refuses any directory.
+///
+/// A POSIX ACL is harmless under an owner-only mode, whose group bits are its
+/// mask, but not under a private group's: another user's entry would read as
+/// group-writable.
 pub fn is_trusted_directory_entry(
     path: &Path,
     entry: &EntryMetadata,
     filesystem: &dyn CacheFilesystem,
     ownership: &dyn Ownership,
 ) -> bool {
+    let Ok(acl) = filesystem.access_acl(path) else {
+        return false;
+    };
     let uid = ownership.effective_uid();
-    if is_trusted_entry(entry, uid, None) {
+    if acl != AccessAcl::Other && is_trusted_entry(entry, uid, None) {
         return true;
     }
     let gid = ownership.effective_gid();
     entry.group == gid
-        && filesystem
-            .access_acl(path)
-            .is_ok_and(|acl| acl == AccessAcl::None)
+        && acl == AccessAcl::None
         && ownership.primary_group_is_private()
         && is_trusted_entry(entry, uid, Some(gid))
 }
@@ -454,6 +457,29 @@ mod tests {
                 "{acl:?}"
             );
         }
+    }
+
+    #[test]
+    fn an_acl_that_may_grant_write_refuses_even_an_owner_only_directory() {
+        let filesystem = reported(directory(0o040_700), AccessAcl::Other);
+        assert!(!trusted(&filesystem, &Fixed::new(PrimaryGroup::Private)));
+    }
+
+    #[test]
+    fn a_posix_acl_masked_by_an_owner_only_mode_is_trusted() {
+        let filesystem = reported(directory(0o040_700), AccessAcl::Posix);
+        assert!(trusted(&filesystem, &Fixed::new(PrimaryGroup::Private)));
+    }
+
+    #[test]
+    fn an_acl_that_cannot_be_read_refuses_an_owner_only_directory() {
+        let filesystem = ReportingFilesystem::over_system()
+            .reporting(Path::new("/cache/dir"), directory(0o040_700))
+            .failing_acl(
+                Path::new("/cache/dir"),
+                std::io::ErrorKind::PermissionDenied,
+            );
+        assert!(!trusted(&filesystem, &Fixed::new(PrimaryGroup::Private)));
     }
 
     #[test]

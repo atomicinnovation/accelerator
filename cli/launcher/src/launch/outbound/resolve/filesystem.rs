@@ -487,6 +487,7 @@ pub mod testing {
         failing_entries: BTreeMap<PathBuf, io::ErrorKind>,
         resolutions: BTreeMap<PathBuf, ResolvedDirectory>,
         acls: BTreeMap<PathBuf, AccessAcl>,
+        failing_acls: BTreeMap<PathBuf, io::ErrorKind>,
         ownership_ignored: BTreeMap<PathBuf, bool>,
         resolved: Vec<PathBuf>,
     }
@@ -535,6 +536,12 @@ pub mod testing {
         #[must_use]
         pub fn reporting_acl(self, path: &Path, acl: AccessAcl) -> Self {
             self.overlay().acls.insert(path.to_path_buf(), acl);
+            self
+        }
+
+        #[must_use]
+        pub fn failing_acl(self, path: &Path, kind: io::ErrorKind) -> Self {
+            self.overlay().failing_acls.insert(path.to_path_buf(), kind);
             self
         }
 
@@ -642,7 +649,16 @@ pub mod testing {
         }
 
         fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
-            let reported = self.overlay().acls.get(path).copied();
+            let (failure, reported) = {
+                let overlay = self.overlay();
+                (
+                    overlay.failing_acls.get(path).copied(),
+                    overlay.acls.get(path).copied(),
+                )
+            };
+            if let Some(kind) = failure {
+                return Err(io::Error::from(kind));
+            }
             reported.map_or_else(|| self.inner.access_acl(path), Ok)
         }
 
