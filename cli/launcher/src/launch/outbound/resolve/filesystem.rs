@@ -504,6 +504,7 @@ pub mod testing {
         failing_acls: BTreeMap<PathBuf, io::ErrorKind>,
         ownership_ignored: BTreeMap<PathBuf, bool>,
         failing_ownership_checks: BTreeMap<PathBuf, io::ErrorKind>,
+        failing_removals: BTreeMap<PathBuf, io::ErrorKind>,
         resolved: Vec<PathBuf>,
     }
 
@@ -584,6 +585,14 @@ pub mod testing {
             self
         }
 
+        #[must_use]
+        pub fn failing_removal(self, path: &Path, kind: io::ErrorKind) -> Self {
+            self.overlay()
+                .failing_removals
+                .insert(path.to_path_buf(), kind);
+            self
+        }
+
         pub fn resolved_paths(&self) -> Vec<PathBuf> {
             self.overlay().resolved.clone()
         }
@@ -633,7 +642,11 @@ pub mod testing {
         }
 
         fn remove_file(&self, path: &Path) -> io::Result<()> {
-            self.inner.remove_file(path)
+            let failure = self.overlay().failing_removals.get(path).copied();
+            failure.map_or_else(
+                || self.inner.remove_file(path),
+                |kind| Err(io::Error::from(kind)),
+            )
         }
 
         fn remove_dir(&self, path: &Path) -> io::Result<()> {

@@ -299,12 +299,16 @@ mod tests {
     use super::super::super::cache_root::{
         identify, CacheRoot, CacheRootConfig, NoCacheRoot, Unconfirmed,
     };
+    use super::super::super::filesystem::testing::ReportingFilesystem;
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::safe_root::TrustedOwners;
+    use super::super::super::retention_windows::{AGE_BACKSTOP, CLAIM_WINDOW};
+    use super::super::super::tree::lease::HeldLeases;
+    use super::super::super::tree::testing::logged;
     use super::super::launcher_id;
     use super::super::ports::CachePorts;
     use super::super::root_prune::PruneOutcome;
-    use super::super::testing::{now, Ports};
+    use super::super::testing::{now, set_mtime, Ports};
     use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
     use super::{for_root, PluginBinRetention, RootRetention as _};
 
@@ -420,6 +424,73 @@ mod tests {
                 root: root.path().to_path_buf(),
                 reason: Unconfirmed::NoPluginBinToCompare,
             }
+        );
+    }
+
+    fn world_writable(root: &CacheRoot) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(
+            root.path(),
+            std::fs::Permissions::from_mode(0o777),
+        )
+        .expect("world-writable");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cold_path_logs_an_unsafe_root_once_per_process() {
+        let (_temp, root) = relocated();
+        world_writable(&root);
+        let retention = retention_for(Ok(&root));
+
+        let log = logged(|| {
+            retention.after_store(&HeldLeases::none());
+            retention.after_store(&HeldLeases::none());
+        });
+
+        assert_eq!(
+            log.matches("not pruning the cache root").count(),
+            1,
+            "{log}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cold_path_logs_what_its_prune_could_not_do() {
+        let (_temp, root) = relocated();
+        let at = now();
+        std::fs::create_dir(claims(&root)).expect("claims");
+        let marker = claims(&root).join(CLAIM_AWARE_SINCE);
+        std::fs::write(&marker, b"").expect("marker");
+        set_mtime(&marker, at - 2 * CLAIM_WINDOW.as_secs());
+        let stem = format!("vcs-1.0.0-{}", "0".repeat(64));
+        for name in [stem.clone(), format!("{stem}.minisig")] {
+            let path = root.path().join(name);
+            std::fs::write(&path, b"x").expect("entry");
+            set_mtime(&path, at - 2 * AGE_BACKSTOP.as_secs());
+        }
+        let signature = root.path().join(format!("{stem}.minisig"));
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_removal(&signature, std::io::ErrorKind::PermissionDenied);
+        let retention = for_root(
+            Ok(&root),
+            None,
+            TrustedOwners::none(),
+            Arc::new(
+                Ports {
+                    filesystem: Arc::new(filesystem),
+                    ..Ports::at(now())
+                }
+                .build(),
+            ),
+        );
+
+        let log = logged(|| retention.after_store(&HeldLeases::none()));
+
+        assert!(
+            log.contains(&format!("could not remove {}", signature.display())),
+            "{log}"
         );
     }
 
