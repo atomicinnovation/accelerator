@@ -70,6 +70,7 @@ impl UploadTransport {
     ) -> Result<Self, ClientError> {
         install_crypto_provider();
         let client = Client::builder()
+            .tls_certs_only(crate::transport::bundled_trust_roots())
             .timeout(UPLOAD_TIMEOUT)
             // The PUT must never follow a redirect: an unfollowed 30x has to
             // surface rather than move file bytes to a host the server did not

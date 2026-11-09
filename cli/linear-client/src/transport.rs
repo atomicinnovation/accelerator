@@ -107,6 +107,7 @@ impl Transport {
     ) -> Result<Self, ClientError> {
         install_crypto_provider();
         let client = Client::builder()
+            .tls_certs_only(bundled_trust_roots())
             .timeout(config.timeout)
             // Linear's API never legitimately redirects, and an unfollowed 30x
             // must surface rather than move an authenticated request.
@@ -303,12 +304,21 @@ fn is_rate_limited(status: u16, body: &str) -> bool {
         })
 }
 
-/// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, and the
-/// offline harness is cleartext, so nothing but this call stands between an
-/// https request and a handshake failure. Omitting it is likelier here than in
-/// Jira's transport, this being a copy of it.
+/// `rustls-no-provider` installs no crypto provider, and the offline harness
+/// is cleartext, so nothing but this call stands between an https request and
+/// a handshake failure. Omitting it is likelier here than in Jira's transport,
+/// this being a copy of it.
 fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// The Mozilla roots webpki-root-certs bundles, so a client trusts the same
+/// roots on every host rather than whatever certificate store it finds there.
+pub(crate) fn bundled_trust_roots() -> impl Iterator<Item = reqwest::Certificate>
+{
+    webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .filter_map(|root| reqwest::Certificate::from_der(root).ok())
 }
 
 fn retry_after(response: &reqwest::blocking::Response) -> Option<Duration> {

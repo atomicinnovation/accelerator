@@ -13,6 +13,8 @@ use std::time::Duration;
 
 use accelerator_visualiser::watcher::{DirectoryWatcher, EventSink};
 use notify::EventHandler as _;
+
+mod common;
 use sha2::Digest;
 
 #[tokio::test]
@@ -122,7 +124,9 @@ impl StartedServer {
     /// so every change injected from here on is observed.
     async fn events(&mut self) -> reqwest::Response {
         let url = format!("http://127.0.0.1:{}/api/events", self.port);
-        let response = reqwest::Client::new()
+        let response = common::http_client()
+            .build()
+            .expect("an http client")
             .get(&url)
             .send()
             .await

@@ -23,10 +23,6 @@ version = 2
 # security-vulnerability advisory fails it (deny) rather than warning.
 unmaintained = "all"
 yanked = "deny"
-# hickory-proto 0.25 DNS-parsing DoS advisories with no upgrade path yet
-# (reqwest 0.12 pins hickory-resolver 0.25, and research-adapters pins the
-# same version directly). Remove once both have moved to 0.26.
-#
 # Every entry carries a `review-by: YYYY-MM-DD` in its reason, asserted by
 # tests/integration/deny/test_advisory_ignores.py — cargo-deny enforces no
 # expiry of its own, so an ignore added under release pressure would otherwise
@@ -37,10 +33,7 @@ yanked = "deny"
 # advisories only. A vulnerability-class advisory takes the escalation path —
 # upgrade, patch or vendor — never an ignore, because this closure reaches the
 # publicly distributed signed accelerator-visualiser binary.
-ignore = [
-    { id = "RUSTSEC-2026-0118", reason = "hickory-proto 0.25 DNS-parsing DoS; reqwest and research-adapters both use hickory-resolver 0.25 directly, so remove only once both have moved to 0.26. review-by: 2026-11-03" },
-    { id = "RUSTSEC-2026-0119", reason = "hickory-proto 0.25 DNS-parsing DoS; reqwest and research-adapters both use hickory-resolver 0.25 directly, so remove only once both have moved to 0.26. review-by: 2026-11-03" },
-]
+ignore = []
 
 [licenses]
 version = 2
@@ -157,6 +150,8 @@ skip = [
     { crate = "mio@0.8.11", reason = "mio 0.8/1.0 straddle" },
     { crate = "tower-http@0.5.2", reason = "tower-http 0.5/0.6 straddle" },
     { crate = "untrusted@0.7.1", reason = "untrusted 0.7/0.9 straddle (ring)" },
+    { crate = "base64@0.22.1", reason = "base64 0.22/0.23 straddle (reqwest 0.13 vs hyper-util, jsonwebtoken)" },
+    { crate = "core-foundation@0.9.4", reason = "core-foundation 0.9/0.10 straddle on macOS (hickory's system-configuration vs security-framework)" },
 ]
 # rustls only — no transitive dep may re-enable default-tls and break the
 # musl-static build. This covers the TLS vector only. serde-saphyr and

@@ -31,6 +31,7 @@ use crate::bounded::read_capped;
 use crate::bounded::within;
 use crate::host_form::admitted_host_matches;
 use crate::host_form::ascii_host;
+use crate::transport::bundled_trust_roots;
 use crate::transport::install_crypto_provider;
 
 pub struct HttpPageTransport;
@@ -51,6 +52,7 @@ impl PageTransport for HttpPageTransport {
         // The resolver is pinned to this request's addresses, so neither the
         // client nor the runtime it binds to can outlive the request.
         let client = Client::builder()
+            .tls_certs_only(bundled_trust_roots())
             .redirect(redirect::Policy::none())
             .pool_max_idle_per_host(0)
             .no_proxy()

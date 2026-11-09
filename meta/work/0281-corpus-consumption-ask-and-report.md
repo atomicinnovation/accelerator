@@ -5,7 +5,7 @@ title: "Corpus Consumption: Ask and Report"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "in-progress"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
@@ -22,7 +22,7 @@ external_id: "PP-865"
 # 0281: Corpus Consumption: Ask and Report
 
 **Kind**: Story
-**Status**: Ready
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 

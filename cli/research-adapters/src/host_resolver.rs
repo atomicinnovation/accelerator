@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use hickory_resolver::config::ResolverOpts;
-use hickory_resolver::Name;
+use hickory_resolver::proto::rr::Name;
 use hickory_resolver::TokioResolver;
 use network::Host;
 use research::sources::web::fetch::HostResolver;
@@ -31,7 +31,8 @@ impl HostResolver for DnsHostResolver {
             let resolver = TokioResolver::builder_tokio()
                 .map_err(|_| ResolveFailure::Unresolved)?
                 .with_options(resolver_opts(within))
-                .build();
+                .build()
+                .map_err(|_| ResolveFailure::Unresolved)?;
             let found = resolver
                 .lookup_ip(name)
                 .await

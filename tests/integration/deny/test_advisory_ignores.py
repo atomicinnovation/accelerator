@@ -42,12 +42,27 @@ def test_every_ignore_entry_is_a_table_with_a_reason() -> None:
     assert not missing, f"advisory ignores with no reason: {missing}"
 
 
-def test_every_ignore_entry_carries_a_review_by_date() -> None:
-    undated = [
+def _undated(entries: list[dict]) -> list[str]:
+    return [
         entry["id"]
-        for entry in _ignores()
+        for entry in entries
         if not _REVIEW_BY.search(entry.get("reason", ""))
     ]
+
+
+def _lapsed(entries: list[dict], today: dt.date) -> list[tuple[str, str]]:
+    lapsed = []
+    for entry in entries:
+        match = _REVIEW_BY.search(entry.get("reason", ""))
+        if match is None:
+            continue
+        if dt.date.fromisoformat(match.group(1)) < today:
+            lapsed.append((entry["id"], match.group(1)))
+    return lapsed
+
+
+def test_every_ignore_entry_carries_a_review_by_date() -> None:
+    undated = _undated(_ignores())
     assert not undated, (
         "advisory ignores with no machine-readable `review-by: YYYY-MM-DD` in "
         f"their reason: {undated}"
@@ -55,15 +70,7 @@ def test_every_ignore_entry_carries_a_review_by_date() -> None:
 
 
 def test_no_ignore_entry_is_past_its_review_by_date() -> None:
-    today = dt.datetime.now(tz=dt.UTC).date()
-    lapsed = []
-    for entry in _ignores():
-        match = _REVIEW_BY.search(entry.get("reason", ""))
-        if match is None:
-            continue
-        review_by = dt.date.fromisoformat(match.group(1))
-        if review_by < today:
-            lapsed.append((entry["id"], match.group(1)))
+    lapsed = _lapsed(_ignores(), dt.datetime.now(tz=dt.UTC).date())
     assert not lapsed, (
         "advisory suppressions past their review-by date — re-check whether "
         "upstream now offers a fix, then remove the entry or re-date it with "
@@ -72,6 +79,17 @@ def test_no_ignore_entry_is_past_its_review_by_date() -> None:
 
 
 def test_the_review_by_assertion_is_not_vacuous() -> None:
-    # An empty ignore list would pass all three checks above while proving
-    # nothing about the mechanism.
-    assert _ignores(), "no advisory ignores to check — has the list moved?"
+    # An empty ignore list is the goal, and passes the checks above while
+    # proving nothing, so the checks are proved against entries of their own.
+    lapsed = {"id": "RUSTSEC-0000-0001", "reason": "x. review-by: 2026-01-01"}
+    undated = {"id": "RUSTSEC-0000-0002", "reason": "no date"}
+
+    assert _lapsed([lapsed, undated], dt.date(2026, 1, 2)) == [
+        ("RUSTSEC-0000-0001", "2026-01-01")
+    ]
+    assert _lapsed([lapsed], dt.date(2026, 1, 1)) == []
+    assert _undated([lapsed, undated]) == ["RUSTSEC-0000-0002"]
+
+
+def test_the_ignore_list_is_where_the_checks_read_it() -> None:
+    assert isinstance(_ignores(), list), "has [advisories].ignore moved?"

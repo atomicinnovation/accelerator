@@ -40,6 +40,7 @@ clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
+webpki-root-certs = { workspace = true }
 minisign-verify = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true }

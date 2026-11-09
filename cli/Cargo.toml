@@ -72,15 +72,18 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 time = { version = "0.3", features = ["parsing", "formatting"] }
 # default-features = false keeps native-tls/openssl out of the graph; rustls
-# uses ring (not aws-lc-rs) with bundled webpki-roots (no host cert store), and
-# hickory-dns bypasses getaddrinfo so DNS resolves under musl. Exact-pinned so a
-# patch cannot re-scope the DNS feature back onto getaddrinfo.
-reqwest = { version = "=0.12.28", default-features = false, features = [
+# uses ring (not aws-lc-rs), and hickory-dns bypasses getaddrinfo so DNS
+# resolves under musl. Exact-pinned so a patch cannot re-scope the DNS feature
+# back onto getaddrinfo. From 0.13 reqwest trusts the host's certificate store
+# unless a client is given its roots, so every client is built with
+# `tls_certs_only` over webpki-root-certs' bundled roots.
+reqwest = { version = "=0.13.5", default-features = false, features = [
     "blocking",
-    "rustls-tls-webpki-roots-no-provider",
+    "rustls-no-provider",
     "hickory-dns",
 ] }
 rustls = { version = "=0.23.46", default-features = false, features = ["ring"] }
+webpki-root-certs = "=1.0.11"
 # The URL parser reqwest itself uses, so the web page transport reads a host,
 # and converts a Unicode one to its ASCII form, exactly as reqwest will. Keep
 # it on the version reqwest resolves so no second copy enters the graph.
@@ -88,8 +91,8 @@ url = "2.5"
 # The DNS resolver behind the web page transport's bounded lookups, which
 # std's getaddrinfo cannot bound short of abandoning a thread. Exact-pinned to
 # the version reqwest's hickory-dns feature resolves so one copy enters the
-# graph; it moves to 0.26 in the same change as reqwest.
-hickory-resolver = { version = "=0.25.2", features = [
+# graph; it moves in the same change as reqwest.
+hickory-resolver = { version = "=0.26.3", features = [
     "tokio",
     "system-config",
 ] }
