@@ -928,9 +928,18 @@ mod tests {
         }
     }
 
-    fn production_start_up() -> StartUp {
+    fn serially() -> std::sync::MutexGuard<'static, ()> {
+        ENVIRONMENT
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn production_start_up(cache_dir: &Path) -> StartUp {
         start_up(
-            &CacheRootConfig::from_env(config_adapters::plugin_root_from_env()),
+            &CacheRootConfig {
+                cache_dir_override: Some(cache_dir.to_path_buf()),
+                plugin_root: None,
+            },
             TrustedOwners::none(),
             super::production_ports(),
         )
@@ -944,12 +953,14 @@ mod tests {
     }
 
     #[test]
-    fn an_override_path_is_never_re_resolved() {
-        let _serial = ENVIRONMENT.lock();
+    fn an_override_path_is_never_re_resolved(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let _serial = serially();
+        let cache = tempfile::Builder::new().prefix("re-resolve-").tempdir()?;
         let _override =
             ScopedVariable::set("ACCELERATOR_FROBNICATE_BIN", "/absent/tool");
 
-        let start = production_start_up();
+        let start = production_start_up(cache.path());
         let outcome = super::LazyProductionResolver {
             start: &start,
             consumed: &[],
@@ -957,6 +968,7 @@ mod tests {
         .re_resolve(&frobnicate(), Path::new("/absent/tool"));
 
         assert!(matches!(outcome, ReResolution::Declined), "{outcome:?}");
+        Ok(())
     }
 
     #[cfg(unix)]
@@ -965,7 +977,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         use std::os::unix::fs::PermissionsExt as _;
 
-        let _serial = ENVIRONMENT.lock();
+        let _serial = serially();
         let root = tempfile::Builder::new().prefix("re-resolve-").tempdir()?;
         let read_only = root.path().join("cache");
         std::fs::create_dir(&read_only)?;
@@ -974,9 +986,8 @@ mod tests {
             std::fs::Permissions::from_mode(0o555),
         )?;
         let _no_override = ScopedVariable::unset("ACCELERATOR_FROBNICATE_BIN");
-        let _cache = ScopedVariable::set("ACCELERATOR_CACHE_DIR", &read_only);
 
-        let start = production_start_up();
+        let start = production_start_up(&read_only);
         let outcome = super::LazyProductionResolver {
             start: &start,
             consumed: &[],
