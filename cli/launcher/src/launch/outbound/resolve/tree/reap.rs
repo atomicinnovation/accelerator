@@ -35,7 +35,7 @@ use crate::launch::core::tree::{Clock, TreeError};
 
 use super::super::filesystem::{CacheFilesystem, FileKind};
 use super::super::prune_report::{Count, PruneBudget, Removals};
-use super::super::retention_windows::AGE_BACKSTOP;
+use super::super::retention_windows::{Age, AGE_BACKSTOP};
 use super::after_materialise::ReapPermit;
 use super::layout::{
     parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
@@ -354,7 +354,7 @@ fn is_reclaimable_generation(
     }
     orphan_is_reclaimable(
         liveness.probe(&paths.lease(name)),
-        generation_is_aged(filesystem, paths, name, clock),
+        Age::of(generation_is_aged(filesystem, paths, name, clock)),
     )
 }
 
@@ -362,12 +362,12 @@ fn is_reclaimable_generation(
 /// has lapsed.
 pub(super) const fn unclaimed_is_reclaimable(
     liveness: Liveness,
-    aged: bool,
+    age: Age,
 ) -> bool {
     match liveness {
         Liveness::Held => false,
         Liveness::Free => true,
-        Liveness::Unknown => aged,
+        Liveness::Unknown => matches!(age, Age::Aged),
     }
 }
 
@@ -395,9 +395,9 @@ pub(super) const fn superseded_disposition(
 /// pointer write.
 pub(super) const fn orphan_is_reclaimable(
     liveness: Liveness,
-    aged: bool,
+    age: Age,
 ) -> bool {
-    !matches!(liveness, Liveness::Held) && aged
+    !matches!(liveness, Liveness::Held) && matches!(age, Age::Aged)
 }
 
 pub(super) fn generation_is_aged(
@@ -495,6 +495,7 @@ mod tests {
 
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::prune_report::Removals;
+    use super::super::super::retention_windows::Age;
 
     use super::super::after_materialise::ReapPermit;
     use super::super::layout::{
@@ -1135,32 +1136,32 @@ mod tests {
 
     #[test]
     fn an_unclaimed_held_generation_is_kept_while_young() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Held, false));
+        assert!(!unclaimed_is_reclaimable(Liveness::Held, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_held_generation_is_kept_once_aged() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Held, true));
+        assert!(!unclaimed_is_reclaimable(Liveness::Held, Age::Aged));
     }
 
     #[test]
     fn an_unclaimed_free_generation_is_reclaimed_while_young() {
-        assert!(unclaimed_is_reclaimable(Liveness::Free, false));
+        assert!(unclaimed_is_reclaimable(Liveness::Free, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_free_generation_is_reclaimed_once_aged() {
-        assert!(unclaimed_is_reclaimable(Liveness::Free, true));
+        assert!(unclaimed_is_reclaimable(Liveness::Free, Age::Aged));
     }
 
     #[test]
     fn an_unclaimed_unknown_generation_is_kept_while_young() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Unknown, false));
+        assert!(!unclaimed_is_reclaimable(Liveness::Unknown, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_unknown_generation_is_reclaimed_once_aged() {
-        assert!(unclaimed_is_reclaimable(Liveness::Unknown, true));
+        assert!(unclaimed_is_reclaimable(Liveness::Unknown, Age::Aged));
     }
 
     #[test]
@@ -1189,32 +1190,32 @@ mod tests {
 
     #[test]
     fn a_held_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Held, false));
+        assert!(!orphan_is_reclaimable(Liveness::Held, Age::Young));
     }
 
     #[test]
     fn a_held_orphan_is_kept_once_aged() {
-        assert!(!orphan_is_reclaimable(Liveness::Held, true));
+        assert!(!orphan_is_reclaimable(Liveness::Held, Age::Aged));
     }
 
     #[test]
     fn a_free_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Free, false));
+        assert!(!orphan_is_reclaimable(Liveness::Free, Age::Young));
     }
 
     #[test]
     fn a_free_orphan_is_reclaimed_once_aged() {
-        assert!(orphan_is_reclaimable(Liveness::Free, true));
+        assert!(orphan_is_reclaimable(Liveness::Free, Age::Aged));
     }
 
     #[test]
     fn an_unknown_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Unknown, false));
+        assert!(!orphan_is_reclaimable(Liveness::Unknown, Age::Young));
     }
 
     #[test]
     fn an_unknown_orphan_is_reclaimed_once_aged() {
-        assert!(orphan_is_reclaimable(Liveness::Unknown, true));
+        assert!(orphan_is_reclaimable(Liveness::Unknown, Age::Aged));
     }
 
     fn planted(paths: &TreePaths) -> String {

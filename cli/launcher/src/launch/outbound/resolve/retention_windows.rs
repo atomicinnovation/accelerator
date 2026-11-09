@@ -17,6 +17,23 @@ pub const CLAIM_WINDOW: Duration = Duration::from_secs(14 * 24 * 60 * 60);
 /// than one each.
 pub const REFRESH_FRACTION: u64 = 10;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Age {
+    Aged,
+    Young,
+}
+
+impl Age {
+    #[must_use]
+    pub const fn of(aged: bool) -> Self {
+        if aged {
+            Self::Aged
+        } else {
+            Self::Young
+        }
+    }
+}
+
 /// An unknown mtime is never aged and a future one is age zero, so an
 /// unreadable or skewed clock can only keep.
 #[must_use]

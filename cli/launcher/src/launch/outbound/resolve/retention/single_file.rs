@@ -6,7 +6,7 @@ use super::super::filesystem::FileKind;
 use super::super::prune_report::{
     Count, PruneBudget, Removals, UnreadableClaims,
 };
-use super::super::retention_windows::is_aged;
+use super::super::retention_windows::{is_aged, Age};
 use super::super::verifier::sha256_hex;
 use super::ports::CachePorts;
 use super::root_entries::{Half, RootEntry, RootListing};
@@ -27,12 +27,6 @@ pub enum Disposition {
 pub enum Protection {
     Protected,
     Unprotected,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Age {
-    Aged,
-    Young,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -203,16 +197,40 @@ pub const fn disposition(
     }
 }
 
+/// Whether another launcher still claims a stale claim's version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VersionElsewhere {
+    Fresh,
+    Unclaimed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntriesOfVersion {
+    AllRemoved,
+    SomeRemain,
+}
+
 #[must_use]
 pub const fn stale_claim_disposition(
-    has_other_fresh_claim: bool,
-    every_entry_removed: bool,
+    elsewhere: VersionElsewhere,
+    entries: EntriesOfVersion,
 ) -> Disposition {
-    if has_other_fresh_claim || every_entry_removed {
-        Disposition::Remove
-    } else {
-        Disposition::Keep
+    match (elsewhere, entries) {
+        (VersionElsewhere::Fresh, _) | (_, EntriesOfVersion::AllRemoved) => {
+            Disposition::Remove
+        }
+        (VersionElsewhere::Unclaimed, EntriesOfVersion::SomeRemain) => {
+            Disposition::Keep
+        }
     }
+}
+
+/// Unreadable claims, or a root still in its grace, keep every versioned
+/// entry from being judged at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VersionedEntries {
+    Judged,
+    Kept,
 }
 
 /// Safe beside a concurrent `store`.
@@ -247,8 +265,9 @@ struct VersionedRemovals {
 }
 
 impl VersionedRemovals {
-    fn every_entry_removed(&self, version: &str) -> bool {
-        self.stems
+    fn entries_of(&self, version: &str) -> EntriesOfVersion {
+        let all_removed = self
+            .stems
             .iter()
             .filter(|attempt| is_stem_of_version(&attempt.of, version))
             .chain(
@@ -256,7 +275,12 @@ impl VersionedRemovals {
                     .iter()
                     .filter(|attempt| attempt.of == version),
             )
-            .all(|attempt| attempt.removed)
+            .all(|attempt| attempt.removed);
+        if all_removed {
+            EntriesOfVersion::AllRemoved
+        } else {
+            EntriesOfVersion::SomeRemain
+        }
     }
 }
 
@@ -328,12 +352,13 @@ impl SingleFilePrune<'_> {
             running_shims,
             live_bootstraps,
         };
-        let versioned = self.remove_entries(
-            &entries,
-            &context,
-            claims.is_some() && grace == Grace::Over,
-            &mut outcome,
-        );
+        let judged = if claims.is_some() && grace == Grace::Over {
+            VersionedEntries::Judged
+        } else {
+            VersionedEntries::Kept
+        };
+        let versioned =
+            self.remove_entries(&entries, &context, judged, &mut outcome);
         if let (Some(claims), Some(claimed)) = (claims, claimed) {
             self.remove_stale_claims(
                 &claims,
@@ -394,7 +419,7 @@ impl SingleFilePrune<'_> {
         &self,
         entries: &[(&str, RootEntry<'_>)],
         context: &ProtectionContext,
-        claims_read: bool,
+        versioned_entries: VersionedEntries,
         outcome: &mut SingleFileOutcome,
     ) -> VersionedRemovals {
         let mut versioned = VersionedRemovals::default();
@@ -406,7 +431,7 @@ impl SingleFilePrune<'_> {
                 entry,
                 RootEntry::SubBinary { .. } | RootEntry::LauncherEntry { .. }
             );
-            if is_versioned && !claims_read {
+            if is_versioned && versioned_entries == VersionedEntries::Kept {
                 continue;
             }
             let removed =
@@ -496,9 +521,14 @@ impl SingleFilePrune<'_> {
             if !self.has_budget() {
                 return;
             }
+            let elsewhere = if claimed.contains(&claim.version) {
+                VersionElsewhere::Fresh
+            } else {
+                VersionElsewhere::Unclaimed
+            };
             if stale_claim_disposition(
-                claimed.contains(&claim.version),
-                versioned.every_entry_removed(&claim.version),
+                elsewhere,
+                versioned.entries_of(&claim.version),
             ) == Disposition::Keep
             {
                 continue;
@@ -570,8 +600,8 @@ mod tests {
     use super::super::version_claims::FreshVersions;
     use super::{
         disposition, protection, stale_claim_disposition, Age, ClaimedVersions,
-        Disposition, LiveBootstraps, Protection, ProtectionContext,
-        RunningShims, ShimSource,
+        Disposition, EntriesOfVersion, LiveBootstraps, Protection,
+        ProtectionContext, RunningShims, ShimSource, VersionElsewhere,
     };
 
     const DIGEST: &str =
@@ -713,16 +743,32 @@ mod tests {
     #[test]
     fn a_stale_claim_goes_beside_a_fresh_one_or_after_all_its_entries() {
         let cases = [
-            (true, true, Disposition::Remove),
-            (true, false, Disposition::Remove),
-            (false, true, Disposition::Remove),
-            (false, false, Disposition::Keep),
+            (
+                VersionElsewhere::Fresh,
+                EntriesOfVersion::AllRemoved,
+                Disposition::Remove,
+            ),
+            (
+                VersionElsewhere::Fresh,
+                EntriesOfVersion::SomeRemain,
+                Disposition::Remove,
+            ),
+            (
+                VersionElsewhere::Unclaimed,
+                EntriesOfVersion::AllRemoved,
+                Disposition::Remove,
+            ),
+            (
+                VersionElsewhere::Unclaimed,
+                EntriesOfVersion::SomeRemain,
+                Disposition::Keep,
+            ),
         ];
-        for (other_fresh, all_removed, expected) in cases {
+        for (elsewhere, entries, expected) in cases {
             assert_eq!(
-                stale_claim_disposition(other_fresh, all_removed),
+                stale_claim_disposition(elsewhere, entries),
                 expected,
-                "other fresh: {other_fresh}, all removed: {all_removed}"
+                "{elsewhere:?}, {entries:?}"
             );
         }
     }

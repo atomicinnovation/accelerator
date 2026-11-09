@@ -26,7 +26,7 @@ use super::super::prune_report::{
     Removal, Removals, UnlistableDirectory, UnreadableClaims,
     UntrustedDirectory,
 };
-use super::super::retention_windows::is_aged;
+use super::super::retention_windows::{is_aged, Age};
 use super::super::single_flight::LockPatience;
 use super::super::HOST_PLATFORM;
 use super::after_materialise::{ReapPermit, RootTrust};
@@ -441,7 +441,7 @@ impl TreePrune<'_> {
                 || self.is_protected(claims, digest)
                 || !reap::unclaimed_is_reclaimable(
                     self.liveness().probe(&paths.lease(&generation)),
-                    self.is_aged(&paths.generation(&generation)),
+                    Age::of(self.is_aged(&paths.generation(&generation))),
                 )
             {
                 continue;
@@ -486,7 +486,7 @@ impl TreePrune<'_> {
             let sidecar = paths.root().join(&name);
             if reap::orphan_is_reclaimable(
                 self.liveness().probe(&paths.lease(&generation)),
-                self.is_aged(&sidecar),
+                Age::of(self.is_aged(&sidecar)),
             ) && self
                 .unlink_file(
                     &mut report.removals,
