@@ -272,6 +272,11 @@ A binary whose package declares `test-loopback` (the launcher, `jira`,
 would otherwise run whichever ran last. The feature's compile guard refuses a
 release build that carries it.
 
+A debug launcher therefore trusts the test release key for a plain `http`
+release URL on `127.0.0.1`. Never point one at a cache root an installed
+release also uses, such as a shared `ACCELERATOR_CACHE_DIR`, so test-signed
+entries and the releases' own never meet in one root.
+
 ### The measure namespace
 
 `measure:*` and `test:integration:measure` drive two harnesses in
