@@ -30,6 +30,8 @@ pub struct GetentLookup {
 const PRODUCTION_GETENT: [&str; 2] = ["/usr/bin/getent", "/bin/getent"];
 const GETENT_TIMEOUT: Duration = Duration::from_secs(2);
 const ANSWER_LIMIT: usize = 64 * 1024;
+const FIRST_POLL: Duration = Duration::from_millis(1);
+const LAST_POLL: Duration = Duration::from_millis(50);
 
 impl GetentLookup {
     #[must_use]
@@ -53,12 +55,14 @@ impl GetentLookup {
         &self.executables
     }
 
-    fn answer(&self, getent: &Path, database: &str, id: u32) -> Option<String> {
-        let bytes = supervised_output(
-            getent,
-            &[database, &id.to_string()],
-            self.timeout,
-        )?;
+    fn answer(
+        getent: &Path,
+        database: &str,
+        id: u32,
+        deadline: Instant,
+    ) -> Option<String> {
+        let bytes =
+            supervised_output(getent, &[database, &id.to_string()], deadline)?;
         let answer = String::from_utf8(bytes).ok()?;
         let line = answer.strip_suffix('\n').unwrap_or(&answer);
         (!line.is_empty() && !line.contains('\n')).then(|| line.to_owned())
@@ -66,12 +70,19 @@ impl GetentLookup {
 }
 
 impl AccountLookup for GetentLookup {
+    /// Both queries share one deadline, so a slow directory service holds a
+    /// start for at most the timeout.
     fn accounts(&self, uid: u32, gid: u32) -> Option<Accounts> {
         let getent = self.executables.iter().find(|path| path.is_file())?;
-        let login =
-            parse_passwd_line(&self.answer(getent, "passwd", uid)?, uid)?;
-        let (group_name, members) =
-            parse_group_line(&self.answer(getent, "group", gid)?, gid)?;
+        let deadline = Instant::now() + self.timeout;
+        let login = parse_passwd_line(
+            &Self::answer(getent, "passwd", uid, deadline)?,
+            uid,
+        )?;
+        let (group_name, members) = parse_group_line(
+            &Self::answer(getent, "group", gid, deadline)?,
+            gid,
+        )?;
         Some(Accounts {
             login,
             group_name,
@@ -116,7 +127,7 @@ fn is_id(field: &str, expected: u32) -> bool {
 fn supervised_output(
     program: &Path,
     args: &[&str],
-    timeout: Duration,
+    deadline: Instant,
 ) -> Option<Vec<u8>> {
     use std::io::Read as _;
     use std::os::unix::process::CommandExt as _;
@@ -138,14 +149,19 @@ fn supervised_output(
         let limit = u64::try_from(ANSWER_LIMIT).unwrap_or(u64::MAX) + 1;
         stdout.take(limit).read_to_end(&mut bytes).map(|_| bytes)
     });
-    let deadline = Instant::now() + timeout;
+    let mut pause = FIRST_POLL;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break Some(status),
-            Ok(None) if Instant::now() < deadline => {
-                std::thread::sleep(Duration::from_millis(10));
+            Ok(None) => {
+                let left = deadline.saturating_duration_since(Instant::now());
+                if left.is_zero() {
+                    break None;
+                }
+                std::thread::sleep(pause.min(left));
+                pause = (pause * 2).min(LAST_POLL);
             }
-            Ok(None) | Err(_) => break None,
+            Err(_) => break None,
         }
     };
     kill_group(&child);
@@ -169,7 +185,7 @@ fn kill_group(child: &std::process::Child) {
 const fn supervised_output(
     _program: &Path,
     _args: &[&str],
-    _timeout: Duration,
+    _deadline: Instant,
 ) -> Option<Vec<u8>> {
     None
 }
@@ -464,8 +480,7 @@ esac"#;
         let stub = Stub::new("exec sleep 30");
         let started = Instant::now();
 
-        let accounts =
-            stub.lookup(Duration::from_millis(200)).accounts(UID, GID);
+        let accounts = stub.lookup(Duration::from_secs(3)).accounts(UID, GID);
 
         assert_eq!(accounts, None);
         assert!(started.elapsed() < Duration::from_secs(10), "it waited");
@@ -477,6 +492,16 @@ esac"#;
                 "the stub is still alive"
             );
         }
+    }
+
+    #[test]
+    fn both_getent_queries_share_one_deadline() {
+        let stub = Stub::new(&format!("sleep 1.5\n{ANSWERING}"));
+
+        let accounts =
+            stub.lookup(Duration::from_millis(2500)).accounts(UID, GID);
+
+        assert_eq!(accounts, None);
     }
 
     #[test]
