@@ -120,6 +120,8 @@ impl StartUp {
             keys: config.keys,
             fetcher: config.fetcher,
             clock: self.ports.clock.as_ref(),
+            filesystem: self.ports.filesystem.as_ref(),
+            ownership: self.ports.ownership.as_ref(),
             liveness: self.ports.lease_liveness.as_ref(),
             locks: TreeLocks::over(self.ports.locks.as_ref()),
             launcher_id: launcher_id(),

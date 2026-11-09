@@ -27,7 +27,10 @@ use accelerator::launch::outbound::resolve::cache_root::{
     identify, probe_attempts, CacheRootConfig, PluginBinRoot,
 };
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
-use accelerator::launch::outbound::resolve::filesystem::SystemFilesystem;
+use accelerator::launch::outbound::resolve::filesystem::testing::ReportingFilesystem;
+use accelerator::launch::outbound::resolve::filesystem::{
+    CacheFilesystem as _, EntryMetadata, SystemFilesystem,
+};
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::ownership::{
     Ownership as _, ProcessOwnership,
@@ -460,6 +463,8 @@ impl Harness {
                     .expect("fetcher"),
             )),
             clock,
+            filesystem: &SystemFilesystem,
+            ownership: Box::leak(Box::new(ProcessOwnership::default())),
             liveness,
             locks: TreeLocks::over(&FlockLocks),
             launcher_id: launcher_id.to_owned(),
@@ -1351,7 +1356,16 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+    claims::refresh(
+        &paths,
+        &claims::TreeClaim {
+            digest: &sibling,
+            launcher_id: "sibling-install",
+        },
+        &SystemFilesystem,
+        &ProcessOwnership::default(),
+        &FixedClock(present),
+    );
 
     let sibling_pointer = harness
         .cache
@@ -1400,7 +1414,16 @@ fn prune_older_than_overrides_the_window() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+    claims::refresh(
+        &paths,
+        &claims::TreeClaim {
+            digest: &sibling,
+            launcher_id: "sibling-install",
+        },
+        &SystemFilesystem,
+        &ProcessOwnership::default(),
+        &FixedClock(present),
+    );
 
     let sibling_pointer = harness
         .cache
@@ -2569,6 +2592,8 @@ fn two_launchers_with_the_same_digest_share_one_generation_offline() {
         keys: &keys,
         fetcher: &fetcher,
         clock: &StoppedClock,
+        filesystem: &SystemFilesystem,
+        ownership: &ProcessOwnership::default(),
         launcher_id: "launcher-b".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
@@ -2617,6 +2642,8 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         keys: &keys,
         fetcher: &fetcher,
         clock: &StoppedClock,
+        filesystem: &SystemFilesystem,
+        ownership: &ProcessOwnership::default(),
         launcher_id: "test-install".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
@@ -2920,6 +2947,8 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
             keys: &keys,
             fetcher: &fetcher,
             clock: &StoppedClock,
+            filesystem: &SystemFilesystem,
+            ownership: &ProcessOwnership::default(),
             launcher_id: format!("install-{platform}"),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
@@ -3202,6 +3231,34 @@ fn the_plugin_bin_verb_still_reclaims_an_unclaimed_superseded_tree() {
 
     superseded.assert_reclaimed();
     assert!(sealed.path.exists(), "the current tree was reclaimed");
+}
+
+#[test]
+fn a_tree_claim_is_refreshed_through_the_resolvers_filesystem() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.claims()).unwrap();
+    let real = SystemFilesystem.entry(&paths.claims()).unwrap();
+    let filesystem = ReportingFilesystem::over_system().reporting(
+        &paths.claims(),
+        EntryMetadata {
+            owner: real.owner + 1,
+            ..real
+        },
+    );
+    let resolver = TreeResolver {
+        filesystem: &filesystem,
+        ..harness.resolver()
+    };
+
+    resolver.materialise(ARTIFACT).expect("materialise");
+
+    assert_eq!(
+        std::fs::read_dir(paths.claims()).unwrap().count(),
+        0,
+        "a claim was written into a directory the port reports untrusted"
+    );
 }
 
 #[test]

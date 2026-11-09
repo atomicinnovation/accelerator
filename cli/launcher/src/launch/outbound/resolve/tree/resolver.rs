@@ -17,8 +17,10 @@ use crate::launch::core::tree_entry::{EntryKind, ExtractionLimits};
 
 use super::super::cache_root;
 use super::super::fetcher::Fetcher;
+use super::super::filesystem::CacheFilesystem;
 use super::super::keys::TrustedKeys;
 use super::super::manifest::Manifest;
+use super::super::ownership::Ownership;
 use super::after_materialise::{AfterMaterialise, ReapPermit};
 use super::attestation::Attestation;
 use super::download::Resumption;
@@ -109,6 +111,8 @@ pub struct TreeResolver<'a> {
     pub keys: &'a TrustedKeys,
     pub fetcher: &'a Fetcher,
     pub clock: &'a dyn Clock,
+    pub filesystem: &'a dyn CacheFilesystem,
+    pub ownership: &'a dyn Ownership,
     pub liveness: &'a dyn LivenessProbe,
     pub locks: TreeLocks<'a>,
     /// A per-install identity for the retention claim, so two installs sharing
@@ -499,7 +503,16 @@ impl TreeResolver<'_> {
     }
 
     fn write_claim(&self, paths: &TreePaths, digest: &str) {
-        claims::refresh(paths, digest, &self.launcher_id, self.clock);
+        claims::refresh(
+            paths,
+            &claims::TreeClaim {
+                digest,
+                launcher_id: &self.launcher_id,
+            },
+            self.filesystem,
+            self.ownership,
+            self.clock,
+        );
     }
 
     fn check_free_space(
