@@ -47,6 +47,30 @@ impl CacheRootConfig {
     }
 }
 
+/// Neither an override nor a plugin root names a cache root, and there is no
+/// XDG fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoCacheRoot;
+
+impl std::fmt::Display for NoCacheRoot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(
+            "ACCELERATOR_PLUGIN_ROOT is not set and no ACCELERATOR_CACHE_DIR \
+             override was given",
+        )
+    }
+}
+
+impl std::error::Error for NoCacheRoot {}
+
+impl From<NoCacheRoot> for ResolutionError {
+    fn from(error: NoCacheRoot) -> Self {
+        Self::CacheRootUnavailable {
+            detail: error.to_string(),
+        }
+    }
+}
+
 /// The cache root candidate: the `ACCELERATOR_CACHE_DIR` override, else
 /// `${ACCELERATOR_PLUGIN_ROOT}/bin`.
 ///
@@ -55,20 +79,13 @@ impl CacheRootConfig {
 ///
 /// # Errors
 ///
-/// [`ResolutionError::CacheRootUnavailable`] when neither
-/// `ACCELERATOR_CACHE_DIR` nor `ACCELERATOR_PLUGIN_ROOT` is set (no XDG
-/// fallback).
-pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
+/// [`NoCacheRoot`] when neither `ACCELERATOR_CACHE_DIR` nor
+/// `ACCELERATOR_PLUGIN_ROOT` is set.
+pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, NoCacheRoot> {
     if let Some(override_dir) = &config.cache_dir_override {
         return Ok(override_dir.clone());
     }
-    let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
-        ResolutionError::CacheRootUnavailable {
-            detail: "ACCELERATOR_PLUGIN_ROOT is not set and no \
-                     ACCELERATOR_CACHE_DIR override was given"
-                .to_owned(),
-        }
-    })?;
+    let plugin_root = config.plugin_root.as_ref().ok_or(NoCacheRoot)?;
     Ok(plugin_root.join("bin"))
 }
 
@@ -152,7 +169,7 @@ impl PluginBinRoot {
 pub fn identify(
     config: &CacheRootConfig,
     filesystem: &dyn CacheFilesystem,
-) -> Result<CacheRoot, ResolutionError> {
+) -> Result<CacheRoot, NoCacheRoot> {
     let path = candidate(config)?;
     if config.cache_dir_override.is_none() {
         return Ok(CacheRoot {

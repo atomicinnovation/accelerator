@@ -9,7 +9,7 @@ use std::time::Duration;
 use crate::launch::core::tree::AcquiredTree;
 use crate::launch::core::ResolutionError;
 use crate::launch::outbound::resolve::cache_root::{
-    identify, CacheRoot, CacheRootConfig,
+    identify, CacheRoot, CacheRootConfig, NoCacheRoot,
 };
 use crate::launch::outbound::resolve::fetcher::Fetcher;
 use crate::launch::outbound::resolve::keys::TrustedKeys;
@@ -31,7 +31,7 @@ use crate::launch::outbound::resolve::{
 pub struct StartUp {
     /// An identification error is carried rather than raised, so a built-in
     /// that never touches the cache behaves as if the root were never read.
-    cache_root: Result<CacheRoot, String>,
+    cache_root: Result<CacheRoot, NoCacheRoot>,
     overridden: bool,
     retention: Arc<dyn RootRetention + Send + Sync>,
     ports: Arc<CachePorts>,
@@ -63,14 +63,9 @@ pub fn start_up(
     trusted_owners: TrustedOwners,
     ports: Arc<CachePorts>,
 ) -> StartUp {
-    let cache_root = identify(config, ports.filesystem.as_ref()).map_err(
-        |error| match error {
-            ResolutionError::CacheRootUnavailable { detail } => detail,
-            other => other.to_string(),
-        },
-    );
+    let cache_root = identify(config, ports.filesystem.as_ref());
     let retention = for_root(
-        cache_root.as_ref().map_err(String::as_str),
+        cache_root.as_ref(),
         config.plugin_root.as_deref(),
         trusted_owners,
         Arc::clone(&ports),
@@ -143,11 +138,10 @@ impl StartUp {
     /// Logged here rather than at identification, so a built-in that never
     /// needs the root stays silent.
     fn cache_root(&self) -> Result<PathBuf, ResolutionError> {
-        let root = self.cache_root.as_ref().map_err(|detail| {
-            ResolutionError::CacheRootUnavailable {
-                detail: detail.clone(),
-            }
-        })?;
+        let root = self
+            .cache_root
+            .as_ref()
+            .map_err(|error| ResolutionError::from(error.clone()))?;
         if self.overridden {
             tracing::info!(
                 path = %root.path().display(),

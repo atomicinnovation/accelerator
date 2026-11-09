@@ -3,7 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::super::cache_root::{CacheRoot, PluginBinRoot, Unconfirmed};
+use super::super::cache_root::{
+    CacheRoot, NoCacheRoot, PluginBinRoot, Unconfirmed,
+};
 use super::super::ownership::safe_root::{
     SafePruneRoot, TrustedOwners, UnsafeRoot,
 };
@@ -197,7 +199,7 @@ impl RootRetention for RelocatedRetention {
 }
 
 pub struct UnidentifiedRetention {
-    detail: String,
+    error: NoCacheRoot,
 }
 
 impl AfterStore for UnidentifiedRetention {
@@ -218,9 +220,7 @@ impl RootRetention for UnidentifiedRetention {
     fn claim_running_version(&self) {}
 
     fn prune(&self, _older_than: Option<Duration>) -> PruneOutcome {
-        PruneOutcome::Unidentified {
-            detail: self.detail.clone(),
-        }
+        PruneOutcome::Unidentified(self.error.clone())
     }
 }
 
@@ -256,16 +256,16 @@ impl RootRetention for UnconfirmedRetention {
 
 #[must_use]
 pub fn for_root(
-    root: Result<&CacheRoot, &str>,
+    root: Result<&CacheRoot, &NoCacheRoot>,
     plugin_root: Option<&Path>,
     trusted_owners: TrustedOwners,
     ports: Arc<CachePorts>,
 ) -> Arc<dyn RootRetention + Send + Sync> {
     let root = match root {
         Ok(root) => root,
-        Err(detail) => {
+        Err(error) => {
             return Arc::new(UnidentifiedRetention {
-                detail: detail.to_owned(),
+                error: error.clone(),
             })
         }
     };
@@ -297,7 +297,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::super::super::cache_root::{
-        identify, CacheRoot, CacheRootConfig, Unconfirmed,
+        identify, CacheRoot, CacheRootConfig, NoCacheRoot, Unconfirmed,
     };
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::safe_root::TrustedOwners;
@@ -361,7 +361,7 @@ mod tests {
     }
 
     fn retention_for(
-        root: Result<&CacheRoot, &str>,
+        root: Result<&CacheRoot, &NoCacheRoot>,
     ) -> Arc<dyn super::RootRetention + Send + Sync> {
         for_root(root, None, TrustedOwners::none(), ports())
     }
@@ -383,7 +383,7 @@ mod tests {
     fn an_unidentifiable_root_is_never_claimed() {
         let (_temp, relocated) = relocated();
 
-        retention_for(Err("unidentified")).claim_running_version();
+        retention_for(Err(&NoCacheRoot)).claim_running_version();
         retention_for(Ok(&relocated)).claim_running_version();
 
         assert_eq!(
@@ -400,10 +400,8 @@ mod tests {
     #[test]
     fn an_unidentifiable_root_is_never_pruned() {
         assert_eq!(
-            retention_for(Err("unidentified")).prune(None),
-            PruneOutcome::Unidentified {
-                detail: "unidentified".to_owned()
-            }
+            retention_for(Err(&NoCacheRoot)).prune(None),
+            PruneOutcome::Unidentified(NoCacheRoot)
         );
     }
 

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use super::super::cache_root::Unconfirmed;
+use super::super::cache_root::{NoCacheRoot, Unconfirmed};
 use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
 use super::super::prune_report::{
     LockFailure, ReapFailure, RemovalFailure, Removals, UnlistableDirectory,
@@ -121,7 +121,7 @@ impl PruneReport {
 pub enum PruneOutcome {
     Refused(UnsafeRoot),
     Ran(PruneReport),
-    Unidentified { detail: String },
+    Unidentified(NoCacheRoot),
     Unconfirmed { root: PathBuf, reason: Unconfirmed },
 }
 
