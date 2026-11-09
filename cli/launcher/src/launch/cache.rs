@@ -13,10 +13,32 @@ use crate::launch::core::tree::{
 };
 use crate::launch::core::ResolutionError;
 use crate::launch::inbound::cli::CacheAction;
+use std::path::PathBuf;
+
+use crate::launch::outbound::resolve::cache_root::{NoCacheRoot, Unconfirmed};
+use crate::launch::outbound::resolve::ownership::safe_root::UnsafeRoot;
 use crate::launch::outbound::resolve::prune_report::PruneReport;
-use crate::launch::outbound::resolve::retention::root_prune::PruneOutcome;
-use crate::launch::outbound::resolve::retention::root_retention::RootRetention;
+use crate::launch::outbound::resolve::tree::after_materialise::AfterMaterialise;
 use crate::launch::outbound::resolve::tree::{pins, TreeResolver};
+use crate::launch::outbound::resolve::AfterStore;
+
+/// What `cache prune` asks of a cache root, and what each root kind does
+/// around a store and a materialise.
+pub trait RootRetention: AfterStore + AfterMaterialise {
+    fn claim_running_version(&self);
+
+    /// Waits for the root's locks; `older_than` replaces the claim window for
+    /// version and tree claims alike.
+    fn prune(&self, older_than: Option<Duration>) -> PruneOutcome;
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum PruneOutcome {
+    Refused(UnsafeRoot),
+    Ran(PruneReport),
+    Unidentified(NoCacheRoot),
+    Unconfirmed { root: PathBuf, reason: Unconfirmed },
+}
 
 /// Run one `cache` verb against `resolver`, or `retention` for `prune`,
 /// writing results to `out` and what a prune failed to do to `err`.

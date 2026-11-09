@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::launch::cache::RootRetention;
 use crate::launch::core::tree::AcquiredTree;
 use crate::launch::core::ResolutionError;
 use crate::launch::outbound::resolve::cache_root::{
@@ -16,9 +17,7 @@ use crate::launch::outbound::resolve::keys::TrustedKeys;
 use crate::launch::outbound::resolve::ownership::safe_root::TrustedOwners;
 use crate::launch::outbound::resolve::retention::launcher_id;
 use crate::launch::outbound::resolve::retention::ports::CachePorts;
-use crate::launch::outbound::resolve::retention::root_retention::{
-    for_root, RootRetention,
-};
+use crate::launch::outbound::resolve::retention::root_retention::for_root;
 use crate::launch::outbound::resolve::tree::lease::HeldLeases;
 use crate::launch::outbound::resolve::tree::locks::TreeLocks;
 use crate::launch::outbound::resolve::tree::{

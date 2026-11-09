@@ -21,16 +21,9 @@ use super::super::tree::{TreePrune, TreePruneRegime};
 use super::super::AfterStore;
 use super::launcher_id;
 use super::ports::CachePorts;
-use super::root_prune::{PruneOutcome, RootPrune};
+use super::root_prune::RootPrune;
 use super::version_claims::{self, VersionClaim};
-
-pub trait RootRetention: AfterStore + AfterMaterialise {
-    fn claim_running_version(&self);
-
-    /// Waits for the root's locks; `older_than` replaces the claim window for
-    /// version and tree claims alike.
-    fn prune(&self, older_than: Option<Duration>) -> PruneOutcome;
-}
+use crate::launch::cache::{PruneOutcome, RootRetention};
 
 pub struct PluginBinRetention {
     root: PluginBinRoot,
@@ -325,10 +318,10 @@ mod tests {
     use super::super::super::tree::testing::logged;
     use super::super::launcher_id;
     use super::super::ports::CachePorts;
-    use super::super::root_prune::PruneOutcome;
     use super::super::testing::{now, set_mtime, Ports};
     use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
     use super::{for_root, PluginBinRetention, RootRetention as _};
+    use crate::launch::cache::PruneOutcome;
 
     fn ports() -> Arc<CachePorts> {
         Arc::new(Ports::at(now()).build())

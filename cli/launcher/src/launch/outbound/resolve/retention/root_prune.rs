@@ -1,8 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
-use super::super::cache_root::{NoCacheRoot, Unconfirmed};
-use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
+use super::super::ownership::safe_root::SafePruneRoot;
 use super::super::prune_report::{
     LockFailure, PruneBudget, PruneReport, UnlistableDirectory,
 };
@@ -23,14 +22,6 @@ pub struct RootPrune<'a> {
     pub claim_window: Duration,
     pub budget: PruneBudget,
     pub ports: &'a CachePorts,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum PruneOutcome {
-    Refused(UnsafeRoot),
-    Ran(PruneReport),
-    Unidentified(NoCacheRoot),
-    Unconfirmed { root: PathBuf, reason: Unconfirmed },
 }
 
 impl RootPrune<'_> {
