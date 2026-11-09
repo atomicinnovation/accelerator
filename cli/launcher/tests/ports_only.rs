@@ -27,6 +27,7 @@ fn guarded_sources() -> Vec<PathBuf> {
     sources.extend(
         [
             "launch/start_up.rs",
+            "launch/outbound/resolve/claims_directory.rs",
             "launch/outbound/resolve/tree/claims.rs",
             "launch/outbound/resolve/tree/reap.rs",
             "launch/outbound/resolve/tree/prune.rs",

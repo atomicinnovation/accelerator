@@ -194,6 +194,9 @@ impl RootPrune<'_> {
         report
             .unreadable_claims
             .extend(single_files.unreadable_claims);
+        report
+            .untrusted_directories
+            .extend(single_files.untrusted_directories);
         report.absorb(
             ResidueSweep::new(root, self.ports)
                 .within(self.budget)

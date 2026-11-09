@@ -9,18 +9,17 @@ use std::time::Duration;
 
 use crate::launch::core::tree::Clock;
 
-use super::super::filesystem::{CacheFilesystem, EntryMetadata, FileKind};
-use super::super::ownership::{
-    is_trusted_directory, is_trusted_directory_entry, Ownership,
+use super::super::claims_directory::{
+    self, is_launcher_id, is_valid_claim, ClaimsDirectoryListing,
 };
+use super::super::filesystem::CacheFilesystem;
+use super::super::ownership::{is_trusted_directory, Ownership};
 use super::super::retention_windows::{CLAIM_WINDOW, REFRESH_FRACTION};
 
 pub const VERSION_CLAIMS_DIR: &str = "claims";
 
 /// Outside the claim name grammar, so every claim reader passes over it.
 pub const CLAIM_AWARE_SINCE: &str = ".since";
-
-const LAUNCHER_ID_LENGTH: usize = 16;
 
 pub struct VersionClaim<'a> {
     pub version: &'a str,
@@ -62,7 +61,7 @@ pub fn is_due(
     let now = clock.now_seconds();
     let refresh = CLAIM_WINDOW.as_secs() / REFRESH_FRACTION;
     !filesystem.entry(&path).is_ok_and(|entry| {
-        is_valid(&entry, ownership.effective_uid())
+        is_valid_claim(&entry, ownership.effective_uid())
             && entry.modified_seconds.is_some_and(|modified| {
                 now.saturating_sub(modified) < refresh
                     && modified.saturating_sub(now) < refresh
@@ -155,7 +154,7 @@ pub fn grace(
 ) -> Grace {
     let marker = root.join(VERSION_CLAIMS_DIR).join(CLAIM_AWARE_SINCE);
     let over = filesystem.entry(&marker).is_ok_and(|entry| {
-        is_valid(&entry, ownership.effective_uid())
+        is_valid_claim(&entry, ownership.effective_uid())
             && entry.modified_seconds.is_some_and(|modified| {
                 clock.now_seconds().checked_sub(modified)
                     >= Some(window.as_secs())
@@ -189,67 +188,43 @@ impl ListedClaim {
     ) -> Option<Self> {
         let entry = filesystem.entry(&self.path).ok()?;
         Some(Self {
-            valid: is_valid(&entry, ownership.effective_uid()),
+            valid: is_valid_claim(&entry, ownership.effective_uid()),
             modified_seconds: entry.modified_seconds,
             ..self.clone()
         })
     }
 }
 
-#[derive(Debug)]
-pub enum ClaimsListing {
-    Read(Vec<ListedClaim>),
-    /// Distinct from an empty listing, so a prune never reads "no claims"
-    /// into a directory it could not read.
-    Unreadable(io::ErrorKind),
-}
+pub type ClaimsListing = ClaimsDirectoryListing<Vec<ListedClaim>>;
 
 pub fn list(
     root: &Path,
     filesystem: &dyn CacheFilesystem,
     ownership: &dyn Ownership,
 ) -> ClaimsListing {
-    let claims = root.join(VERSION_CLAIMS_DIR);
-    match filesystem.entry(&claims) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            return ClaimsListing::Read(Vec::new());
-        }
-        Err(error) => return ClaimsListing::Unreadable(error.kind()),
-        Ok(entry)
-            if !is_trusted_directory_entry(
-                &claims, &entry, filesystem, ownership,
-            ) =>
-        {
-            return ClaimsListing::Unreadable(io::ErrorKind::PermissionDenied);
-        }
-        Ok(_) => {}
-    }
-    let names = match filesystem.list(&claims) {
-        Ok(names) => names,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Vec::new(),
-        Err(error) => return ClaimsListing::Unreadable(error.kind()),
-    };
     let uid = ownership.effective_uid();
-    let mut listed = Vec::new();
-    for name in names.iter().filter_map(|name| name.to_str()) {
-        let Some((version, launcher_id)) = parse_claim_name(name) else {
-            continue;
-        };
-        let path = claims.join(name);
-        let entry = match filesystem.entry(&path) {
-            Ok(entry) => entry,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-            Err(error) => return ClaimsListing::Unreadable(error.kind()),
-        };
-        listed.push(ListedClaim {
-            version: version.to_owned(),
-            launcher_id: launcher_id.to_owned(),
-            valid: is_valid(&entry, uid),
-            modified_seconds: entry.modified_seconds,
-            path,
-        });
-    }
-    ClaimsListing::Read(listed)
+    claims_directory::list(
+        &root.join(VERSION_CLAIMS_DIR),
+        filesystem,
+        ownership,
+        |name| {
+            parse_claim_name(name).map(|(version, launcher_id)| {
+                (version.to_owned(), launcher_id.to_owned())
+            })
+        },
+    )
+    .map(|listed| {
+        listed
+            .into_iter()
+            .map(|listed| ListedClaim {
+                version: listed.name.0,
+                launcher_id: listed.name.1,
+                valid: is_valid_claim(&listed.entry, uid),
+                modified_seconds: listed.entry.modified_seconds,
+                path: listed.path,
+            })
+            .collect()
+    })
 }
 
 #[derive(Debug, Clone, Default)]
@@ -305,15 +280,8 @@ impl FreshVersions {
 #[must_use]
 pub fn parse_claim_name(name: &str) -> Option<(&str, &str)> {
     let (version, launcher_id) = name.rsplit_once('.')?;
-    let is_launcher_id = launcher_id.len() == LAUNCHER_ID_LENGTH
-        && launcher_id
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    (is_launcher_id && !version.is_empty()).then_some((version, launcher_id))
-}
-
-const fn is_valid(entry: &EntryMetadata, uid: u32) -> bool {
-    matches!(entry.kind, FileKind::File) && entry.owner == uid
+    (is_launcher_id(launcher_id) && !version.is_empty())
+        .then_some((version, launcher_id))
 }
 
 #[cfg(test)]
@@ -442,6 +410,7 @@ mod tests {
         match list(root.path(), filesystem, &ProcessOwnership::default()) {
             ClaimsListing::Read(claims) => claims,
             ClaimsListing::Unreadable(kind) => panic!("unreadable: {kind:?}"),
+            ClaimsListing::Untrusted => panic!("untrusted"),
         }
     }
 
@@ -819,7 +788,7 @@ mod tests {
     }
 
     #[test]
-    fn a_claims_directory_owned_by_another_uid_is_unreadable() {
+    fn a_claims_directory_owned_by_another_uid_is_untrusted() {
         let root = Root::new();
         root.seed_claim(b"", now());
         let filesystem = ReportingFilesystem::over_system()
@@ -828,13 +797,7 @@ mod tests {
         let listing =
             list(root.path(), &filesystem, &ProcessOwnership::default());
 
-        assert!(
-            matches!(
-                listing,
-                ClaimsListing::Unreadable(std::io::ErrorKind::PermissionDenied)
-            ),
-            "{listing:?}"
-        );
+        assert!(matches!(listing, ClaimsListing::Untrusted), "{listing:?}");
     }
 
     #[test]

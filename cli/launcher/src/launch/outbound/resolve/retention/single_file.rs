@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::super::filesystem::FileKind;
 use super::super::prune_report::{
-    Count, PruneBudget, Removals, UnreadableClaims,
+    Count, PruneBudget, Removals, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::retention_windows::{is_aged, Age};
 use super::super::verifier::sha256_hex;
@@ -251,6 +251,7 @@ pub struct SingleFilePrune<'a> {
 pub struct SingleFileOutcome {
     pub removals: Removals,
     pub unreadable_claims: Option<UnreadableClaims>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
 }
 
 struct RemovalAttempt {
@@ -307,6 +308,12 @@ impl SingleFilePrune<'_> {
                 outcome.unreadable_claims = Some(UnreadableClaims {
                     directory: self.root.join(VERSION_CLAIMS_DIR),
                     kind,
+                });
+                None
+            }
+            ClaimsListing::Untrusted => {
+                outcome.untrusted_directories.push(UntrustedDirectory {
+                    path: self.root.join(VERSION_CLAIMS_DIR),
                 });
                 None
             }
@@ -1476,7 +1483,7 @@ mod run_tests {
     }
 
     #[test]
-    fn an_unreadable_claims_directory_removes_no_entries() {
+    fn an_untrusted_claims_directory_removes_no_entries() {
         let root = Seeded::new();
         let entry = root.sub_binary("1.0.0", aged(root.now));
         let staging = format!(".tmp-vcs-1.0.0-{DIGEST}-11-0");
@@ -1502,9 +1509,15 @@ mod run_tests {
 
         assert!(root.has_entry(&entry));
         assert!(!root.has(&staging));
-        let unreadable = outcome.unreadable_claims.expect("reported");
-        assert_eq!(unreadable.directory, claims);
-        assert_eq!(unreadable.kind, std::io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            outcome
+                .untrusted_directories
+                .iter()
+                .map(|untrusted| untrusted.path.clone())
+                .collect::<Vec<_>>(),
+            [claims]
+        );
+        assert_eq!(outcome.unreadable_claims, None);
     }
 
     #[test]

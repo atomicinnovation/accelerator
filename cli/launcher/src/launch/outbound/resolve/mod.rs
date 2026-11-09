@@ -3,6 +3,7 @@
 
 pub mod cache;
 pub mod cache_root;
+pub mod claims_directory;
 pub mod fetcher;
 pub mod filesystem;
 pub mod keys;
