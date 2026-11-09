@@ -7,7 +7,9 @@
 // marks that stop's file reviewed and checks the stop shows as already read.
 // With commits, it marks a line in By commit and finds it read in All files,
 // gives a file a verdict and finds its lines read in By commit, and marks one
-// line at a time in All files. Needs Node 22+ (global WebSocket).
+// line at a time in All files, checking a mark link sits above each run of
+// unread lines and that the n key jumps to the next unread line. Needs Node
+// 22+ (global WebSocket).
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -131,8 +133,20 @@ const COMMITS_PROBE = `(async () => {
   if (unread) unread.click();
   await settle();
   const linesMarkOneByOne = document.querySelectorAll('#file-code tr.read').length === before + 1;
+  const marked = [...document.querySelectorAll('#file-code tr[data-lk]')];
+  const middle = marked.find((tr, i) => tr.classList.contains('unread') && marked[i - 1]?.classList.contains('unread') && marked[i + 1]?.classList.contains('unread') && tr.previousElementSibling === marked[i - 1] && tr.nextElementSibling === marked[i + 1]);
+  if (middle) { middle.querySelector('td.ln').click(); await settle(); }
+  const rows = [...document.querySelectorAll('#file-code tr')];
+  const unreadRun = i => rows[i].matches('tr.unread[data-lk]');
+  const runStarts = rows.map((_, i) => i).filter(i => unreadRun(i) && !(i > 0 && (unreadRun(i - 1) || rows[i - 1].matches('tr.anno') && i > 1 && unreadRun(i - 2))));
+  const linkAboveEachUnreadRun = !!middle && runStarts.every(i => rows[i - 1] && rows[i - 1].matches('tr.blk'))
+    && document.querySelectorAll('#file-code tr.blk').length === runStarts.length;
+  document.querySelectorAll('tr.flash').forEach(tr => tr.classList.remove('flash'));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', bubbles: true }));
+  await new Promise(r => setTimeout(r, 50));
+  const nextUnreadKey = !!document.querySelector('#file-code tr.unread.flash');
   forget('lines:' + row.path);
-  return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne };
+  return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne, linkAboveEachUnreadRun, nextUnreadKey };
 })()`;
 
 async function main() {
@@ -181,7 +195,7 @@ async function main() {
   const coverage = report.coverage || {};
   const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
   const commits = report.commits || {};
-  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne);
+  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
   report.ok = commitsHold && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));

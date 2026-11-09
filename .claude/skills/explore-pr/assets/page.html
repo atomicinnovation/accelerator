@@ -860,7 +860,7 @@ function refreshCoverage(recorded) {
 }
 
 /* ---------- Line marks ---------- */
-const BLOCK_ROW = `<tr class="blk"><td colspan="4"><button type="button" data-mark-block="read" hidden></button></td></tr>`;
+const unreadRunLink = count => `<tr class="blk"><td colspan="4"><button type="button" data-mark-run>Mark ${plural(count, 'line')} below read</button></td></tr>`;
 const lineAttrs = (path, r) => ` data-lp="${esc(path)}" data-lk="${r.t === 1 ? 'new:' + r.n : 'old:' + r.o}"`;
 function claimsByPath(recorded) {
   const byPath = new Map();
@@ -879,10 +879,15 @@ function fateText(fate) {
   if (fate === '=') return 'Superseded: restored later, so unchanged in the whole diff';
   return '';
 }
-function blockRows(blk) {
+function unreadRunFrom(first) {
   const rows = [];
-  for (let n = blk.nextElementSibling; n && (n.matches('tr[data-lk]') || n.matches('tr.anno')); n = n.nextElementSibling) if (n.matches('tr[data-lk]')) rows.push(n);
+  for (let n = first; n && (n.matches('tr.unread[data-lk]') || n.matches('tr.anno')); n = n.nextElementSibling) if (n.matches('tr[data-lk]')) rows.push(n);
   return rows;
+}
+function startsUnreadRun(tr) {
+  let before = tr.previousElementSibling;
+  while (before && before.matches('tr.anno')) before = before.previousElementSibling;
+  return !(before && before.matches('tr.unread[data-lk]'));
 }
 function refreshLineMarks(recorded) {
   const byPath = claimsByPath(recorded);
@@ -896,15 +901,9 @@ function refreshLineMarks(recorded) {
       : `Read via ${readers.join(', ')}`;
     tr.title = [fateText(tr.dataset.fate), origin ? `${tr.dataset.lk.startsWith('new') ? 'Added' : 'Removed'} in ${shortSha(origin)}` : '', hint].filter(Boolean).join(' · ');
   });
-  $$('tr.blk').forEach(blk => {
-    const rows = blockRows(blk);
-    const unread = rows.filter(tr => tr.classList.contains('unread'));
-    const mine = rows.filter(tr => readersOfRow(tr, byPath).includes(MARKED));
-    const button = $('button', blk);
-    button.hidden = !Store.canWrite || (!unread.length && !mine.length);
-    button.dataset.markBlock = unread.length ? 'read' : 'unread';
-    button.textContent = unread.length ? `Mark ${plural(unread.length, 'line')} below read` : `Unmark the ${plural(mine.length, 'line')} you marked below`;
-  });
+  $$('tr.blk').forEach(link => link.remove());
+  if (!Store.canWrite) return;
+  $$('tr.unread[data-lk]').filter(startsUnreadRun).forEach(first => first.insertAdjacentHTML('beforebegin', unreadRunLink(unreadRunFrom(first).length)));
 }
 function markRows(rows, marked) {
   const byPath = claimsByPath(recordedClaims());
@@ -940,11 +939,8 @@ document.addEventListener('click', e => {
   markRows(marking ? rows.filter(r => r.classList.contains('unread')) : rows, marking);
 });
 document.addEventListener('click', e => {
-  const button = e.target.closest('[data-mark-block]');
-  if (!button) return;
-  const rows = blockRows(button.closest('tr'));
-  const marking = button.dataset.markBlock === 'read';
-  markRows(marking ? rows.filter(r => r.classList.contains('unread')) : rows, marking);
+  const button = e.target.closest('[data-mark-run]');
+  if (button) markRows(unreadRunFrom(button.closest('tr').nextElementSibling), true);
 });
 
 /* ---------- Commit coverage ---------- */
@@ -1860,7 +1856,7 @@ function vFiles() {
     return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${esc(short(f.path))}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`).join('');
   }).join('');
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a whole block from the link above it. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it; press <kbd>n</kbd> to jump to the next line still to read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
     <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files"><label class="unread-only"><input type="checkbox" id="unread-only" ${unreadOnly ? 'checked' : ''}> Still to read</label>${list}</div>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
@@ -1894,7 +1890,6 @@ function filePane(path) {
         if (j - i > 3) { out += `<tr class="gap"><td colspan="4"><button type="button" data-unfold="${i}-${j}">Show ${j - i} unchanged lines</button></td></tr>`; i = j; continue; }
       }
       const r = rows[i];
-      if (r.t && !(rows[i - 1] && rows[i - 1].t)) out += BLOCK_ROW;
       let h = rowHtml(r, false, r.t ? lineAttrs(path, r) : '');
       if (r.n && marks[r.n]) h = h.replace('</td><td class="mk">', `${[...marks[r.n]].map(k => `<span class="gut k-${k}">${k === 'stop' ? 'S' : k === 'ledger' ? 'L' : 'F'}</span>`).join('')}</td><td class="mk">`);
       out += h;
@@ -1907,7 +1902,7 @@ function filePane(path) {
     <div class="md">${md(f.summary)}</div>
     <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
     ${commitsTouching(path)}
-    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread>Next unread</button><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
+    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
     <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
 }
@@ -1937,14 +1932,21 @@ function bindUnfold() {
   }));
 }
 document.addEventListener('click', e => {
-  if (!e.target.closest('[data-next-unread]')) return;
+  if (e.target.closest('[data-next-unread]')) nextUnread();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'n' || e.metaKey || e.ctrlKey || e.altKey || !['files', 'commits'].includes(currentRoute)) return;
+  if (e.target.closest && e.target.closest('input, textarea, select')) return;
+  nextUnread();
+});
+function nextUnread() {
   const unread = $$('#main tr.unread[data-lk]:not(.superseded)');
   if (!unread.length) return;
   const next = unread.find(tr => tr.getBoundingClientRect().top > window.innerHeight / 2 + 4) || unread[0];
   next.scrollIntoView({ block: 'center' });
   next.classList.add('flash');
   setTimeout(() => next.classList.remove('flash'), 1600);
-});
+}
 document.addEventListener('click', e => {
   const s = e.target.closest('[data-scroll-stop],[data-scroll-ledger]');
   if (!s) return;
@@ -1964,7 +1966,7 @@ function vCommits() {
   if (!selectedCommit || commitIndex(selectedCommit) < 0) selectedCommit = (C.commits.find(c => !c.merge) || C.commits[0]).sha;
   const list = C.commits.map((c, i) => `<button type="button" class="fl-item cm-item" data-commit="${esc(c.sha)}" aria-current="${c.sha === selectedCommit}" title="${esc(c.subject)}"><span class="cov" data-commit-coverage="${esc(c.sha)}" data-status-of="commit:${esc(c.sha)}"><i></i></span><span class="nm">${i + 1}. ${esc(c.subject)}</span><span class="ct" data-commit-count="${esc(c.sha)}">${c.merge ? 'merge' : `+${fmt(c.add)} −${fmt(c.del)}`}</span></button>`).join('');
   return `<div class="view-head"><div class="eyebrow">By commit</div><h1>The change, one commit at a time</h1>
-    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a block from the link above it, or give the whole commit a verdict. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
+    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a run of unread lines from the link above it, or give the whole commit a verdict; press <kbd>n</kbd> for the next line still to read and <kbd>j</kbd> and <kbd>k</kbd> for the next and previous commit. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
     <div class="files-layout"><div class="file-list">${list}</div><div class="stack" id="commit-pane">${commitPane(selectedCommit)}</div></div>`;
 }
 function commitRowsHtml(commit, file) {
@@ -1986,7 +1988,6 @@ function commitRowsHtml(commit, file) {
       r.html = r.t === -1 ? oh[r.i] : nh[r.i];
       if (!r.t) { out += rowHtml(r); return; }
       const line = lines[k++];
-      if (!(rows[ri - 1] && rows[ri - 1].t)) out += BLOCK_ROW;
       out += rowHtml(r, false, ` data-lp="${esc(line.path)}" data-lk="${esc(line.key)}" data-fate="${esc(line.fate)}"`, line.counted ? '' : ' superseded');
     });
   });
@@ -2003,7 +2004,7 @@ function commitPane(sha) {
     <h2>${esc(c.subject)}</h2>
     ${body ? `<div class="commit-msg">${esc(body)}</div>` : ''}
     <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>k</kbd> and <kbd>j</kbd></span></div>
-    ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread>Next unread</button><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
+    ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
     ${ctl('commit:' + sha, 'commit', { label: `Commit ${shortSha(sha)}: ${c.subject}`, where: shortSha(sha) })}`}</div>`;
   if (c.merge) return head + `<div class="empty">A merge commit: it brings in changes from elsewhere, so it is not reviewed here.</div>`;
   if (!d || !window.ReviewCoverage) return head + `<div class="loading">Loading the commit…</div>`;
