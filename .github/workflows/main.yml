@@ -53,7 +53,9 @@ jobs:
       # runner image does not promise to ship.
       - name: Install acl
         if: runner.os == 'Linux'
-        run: sudo apt-get install --yes acl
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes acl
 
       - name: Run unit tests
         run: mise run test:unit
