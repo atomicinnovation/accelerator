@@ -12,9 +12,9 @@ relates_to: ["work-item:0334", "work-item:0339", "work-item:0340", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/170"
 pr_number: 170
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
-revision: "72ce477a5fd7cb9edaacf4c80d10e9eec40240ff"
+revision: "c2bac5a4db53e138f72dcf35371299a05b5eace3"
 repository: "accelerator"
-last_updated: "2026-10-25T08:07:18+00:00"
+last_updated: "2026-11-09T13:25:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,24 +38,32 @@ made before, pinned by a test.
 **Breaking**
 
 - `cache prune` reports every failure instead of stopping at the first: a
-  lock it cannot take or a removal that fails exits non-zero after pruning
-  everything else. A failed removal was silently ignored before.
+  lock it cannot take, a removal that fails, a directory it cannot list or a
+  reap that cannot start exits non-zero after pruning everything else. A
+  failed removal was silently ignored before.
+- `cache prune --older-than` also sets the version-claim window, as well as
+  the tree-claim window it set before.
 - `cache prune` refuses a relocated root other users can write to, removing
   nothing and naming the directory at fault and its fix; it pruned the pinned
   trees and exited 0 before. A materialise in such a root no longer reaps.
-- `bin/accelerator` exits 1 (0 under `--fail-safe`) when the launcher vanishes
-  before its final `exec`, where it exited 126 or 127 depending on the bash
-  version.
+- `bin/accelerator` fetches a launcher that vanishes before its final `exec`
+  once more, and exits 1 (0 under `--fail-safe`) only when that fails too,
+  where it exited 126 or 127 depending on the bash version.
 
 **Root identity and version claims (`resolve/cache_root.rs`, `retention/`)**
 
 - `identify` canonicalises the override and the plugin `bin` and reports a
-  `CacheRootKind` of `PluginBin` or `Relocated`. `retention::for_root` is the
-  only code that matches on it, choosing a `RootRetention` once at start-up.
-- In a relocated root, every invocation, built-ins included, writes
-  `claims/<version>.<launcher-id>` before any `find`, at most once per
-  `CLAIM_WINDOW/10` (~1.4 days). The write is best-effort, so a read-only
-  root still dispatches warm.
+  `CacheRootKind` of `PluginBin`, `Relocated` or `Unconfirmed`: an override
+  that does not resolve yet, or that has no plugin `bin` to compare it with,
+  is neither claimed, pruned nor reaped. `retention::for_root` is the only
+  code that matches on the kind.
+- In a relocated root that passes the safety walk, every invocation, built-ins
+  included, writes `claims/<version>.<launcher-id>` before any `find`, at most
+  once per `CLAIM_WINDOW/10` (~1.4 days). The write is best-effort, so a
+  read-only root still dispatches warm.
+- The first claim writes `claims/.since`; until it is one `CLAIM_WINDOW` old
+  no version's entries are removed, so a launcher from an earlier 1.24.0
+  pre-release sharing the root keeps working through the upgrade.
 
 **Root prune (`retention/root_prune.rs`, `single_file.rs`, `residue.rs`)**
 
@@ -64,61 +72,78 @@ made before, pinned by a test.
   version's. It removes a version's last claim only after all of its entries,
   and re-checks a claim's age immediately before unlinking it. A name grammar
   keeps everything the plugin does not produce.
+- Every staged verifier copy is kept while another version holds a fresh
+  claim. An aged half of an entry and its signature is swept while its
+  version is claimed, so a one-sided failure no longer leaks a file for good.
 - The residue sweep removes aged probes, plugin `.tmp-` staging and bootstrap
-  lock directories whose `pid` is empty or dead.
-- The root lock is released before any tree lock is taken.
+  lock directories whose `pid` is empty or dead; one holding anything else is
+  kept and logged.
+- A claim whose `lstat` fails for any reason but its being gone makes the
+  whole listing unreadable, in both claim readers, which now share one
+  `claims_directory` listing.
 
-**Tree prune (`tree/prune.rs`, `tree/locks.rs`)**
+**Tree prune (`tree/prune.rs`, `tree/reap.rs`, `tree/locks.rs`)**
 
 - `TreePrune` is the one implementation of tree reclamation in both roots:
   `PinnedOnHost` for the default root, `WholeTree` for a relocated one, which
-  also covers retired artifacts, other platforms, stale tree claims, orphan
-  sidecars and orphan lock files.
+  also covers retired artifacts, other platforms, retired tree layouts, stale
+  tree claims, orphan sidecars and orphan lock files.
 - A pointer is validated against the generation grammar before the generation
   it names is removed, so an absolute path, `..` or another artifact's
   generation is never followed. The pointer goes before its generation, under
-  an exclusive lock on its `.lease`, after the digest's claims are re-read.
-- The verb no longer creates tree locks for artifacts it never materialised,
-  and an unreadable `trees/claims/` now reclaims nothing.
+  an exclusive lock on its `.lease`, after the digest's claims are re-read;
+  only claims the launcher may sweep are unlinked with it.
+- The reaper removes through the filesystem port and reports every removal
+  that fails.
 
-**Root safety (`ownership/safe_root.rs`, `ownership/accounts.rs`)**
+**Root safety (`ownership/safe_root.rs`, `ownership/accounts.rs`, ADR-0074)**
 
 - A root is pruned only when it is writable by its owner alone, or through
   the owner's private group, and every ancestor is owned by the user, by root
   or by a uid in `ACCELERATOR_CACHE_TRUSTED_OWNERS` and is not writable by
-  others without the sticky bit. macOS ACLs and "Ignore ownership" volumes
-  are checked; private-group membership is resolved through `getent` with a
-  2 s bound.
+  others without the sticky bit. Any macOS ACL grant beyond reading refuses,
+  every directory's volume is asked whether it ignores ownership, and both
+  `getent` queries share one 2 s deadline.
+- `claims/`, `trees/` and `trees/claims/` are judged by the walk's own root
+  verdict.
 
 **Cold-path triggers and recovery (`resolve/mod.rs`, `core.rs`, `main.rs`)**
 
 - A successful `store` and a successful tree materialise each run a root
   prune with `LockPatience::Try`, so a held lock is skipped, never waited for,
-  and a prune problem is logged, never surfaced as a dispatch failure.
+  and a prune problem is logged, never surfaced as a dispatch failure. A cold
+  path stops starting removals after about two seconds and leaves the rest to
+  later cold paths.
 - A dispatch whose entry vanishes between `find` and `exec` re-resolves once
   through the cold path, in every root. `store` replaces a corrupt entry by
   renaming over it, with no unlink first.
 
-**Test seams and the release guard**
+**Ports, test seams and the release guard**
 
-- A `CacheFilesystem` port, plus a recording filesystem, scripted filesystem
-  and recording locks for tests.
+- A `CacheFilesystem` port, with trust inspection split into its own
+  `TrustInspection` port, reaches every call that retention, start-up, tree
+  claims, the reaper and a materialise's bookkeeping make; a `ports_only` test
+  bans direct `std::fs` in those modules. Collaborators take narrow port views,
+  every prune returns one `PruneReport`, and the `cache prune` use case owns
+  the `RootRetention` port.
+- The filesystem port's test doubles compile only into debug builds, so no
+  release build carries them.
 - The `test-loopback` markers in `jira`, `linear` and `research` are now string
   literals read at start-up, so they survive the release profile's strip and
   LTO. The launcher gains the same feature, with a `compile_error!` on release.
-  `test:integration:release-guard` builds each one and checks it is rejected.
+  `test:integration:release-guard` proves each guard refuses to compile and
+  that a forced build is rejected.
 
 **Docs, measurement and housekeeping**
 
 - `internals.md` gains "A relocated cache root". The `design.md` rows for
   `cache prune` and `ACCELERATOR_CACHE_DIR` are updated. `CHANGELOG.md` has
-  seven entries.
+  nine entries. ADR-0074 (proposed) records the multi-user safety model that
+  ADR-0072 left open.
 - `meta/measurements/warm-dispatch-8.json` records a warm-dispatch run after
   the change.
-- `tokio` 1.53.1 → 1.53.3 for RUSTSEC-2026-0386, changing only its lock
-  entry. The docs site takes npm's non-breaking `dompurify` and `undici`
-  fixes, and carries a dated ignore for `zod` GHSA-mrhx-c7xc-m3w5, whose only
-  path requires `zod` ^3, which has no patched release.
+- The launcher adds `exacl` (macOS ACLs) and `libc`; the docs site bumps three
+  `@babel` packages.
 - Work items 0340–0342 capture pruning a group-shared root, which this PR
   deliberately leaves unpruned.
 
@@ -134,51 +159,34 @@ made before, pinned by a test.
 
 ## Testing
 
-- [x] `mise run` exits 0 end to end: 6,318 CLI tests, every integration lane
-      including `entrypoint` and `release-guard`, every check and
-      `docs:check`.
+- [x] `mise run check` exits 0 across every component, and the launcher's
+      whole suite passes; `mise run` end to end is re-run before this lands.
 - [x] Each of the 50 acceptance criteria maps to a test that seeds and asserts
       every clause; the map is in the plan's Testing Strategy.
-- [x] Mutation checks: making the default root prune as a relocated root
-      does, creating a lock for a sidecar-only artifact, and running the
-      residue sweep without the root lock each fail the tightened tests. The
-      tests these replaced passed under the first two.
+- [x] Mutation checks: each fail-closed branch of the safety walk, the
+      cold-path log-once refusal and warnings, an early stop after a removal
+      failure, a disabled cold-path budget, the claim and lease ports and each
+      `compile_error!` guard fail the tests written for them.
 - [x] The A/B/C scenario runs through `bin/accelerator` against a loopback
       release and asserts the exact set of names left in the root.
-- [x] A cold dispatch against a relocated root seeded with two unclaimed
-      `browser` trees (2,000 files and 256 MiB each, debug builds,
-      Apple-silicon Mac) removed both: `visualiser` took 1.62 s against
-      1.31 s with no trees, and
-      `vcs detect --format=hook --fail-safe --descriptive` took 1.48 s
-      against 1.29 s.
-- [x] Manual relocated-root checks from the plan, run during implementation:
-      a first dispatch leaves one claim; an old version's back-dated entries
-      are gone before a cold dispatch runs; the plugin `bin/` is never claimed
-      or pruned.
+- [x] Clippy is clean for `x86_64-unknown-linux-musl` as well as the host.
+- [x] The stripped release launcher is 16,909,904 bytes against 16,718,752
+      for `main` at `8ffa9822` (+1.1 %), both before the latest rebase.
 
 ## Notes for Reviewers
 
-- ⚠️ The first cold path after an upgrade removes every unclaimed tree
-  synchronously before `exec`, roughly 0.2–1 s per `browser` or `driver` tree
-  on local disk. It usually lands on the first SessionStart hook of a new
-  version. The work item accepts this, because its A/B/C criterion needs
-  every unclaimed tree gone after one dispatch.
-- ⚠️ Launchers older than this change write no claims. While one shares a
-  relocated root, its entries are evicted after each claim-aware prune and
-  its session re-fetches until the plugin is reloaded. Launchers older than
-  0339 also carry the orphan-lock risk `internals.md` names.
-- `warm-dispatch-8.json`'s `closure_verdict` is `false` (raw ratio 1.84). The
-  work item asks for the JSON whatever its gating result. The default-root
-  warm path is unchanged and pinned by
+- ⚠️ `warm-dispatch-8.json` shows a ~5.8 ms rise in median G-fast, almost all
+  in the shim's minisign check of the launcher, which a 1.1 % larger binary
+  does not explain. Base and head have not yet been re-timed on one quiet
+  host; until they are, the end-to-end warm path is not claimed unchanged.
+  The default-root launcher path is unchanged and pinned by
   `an_unset_override_performs_exactly_the_fixed_calls`.
-- Residual issues from validation, none against an acceptance criterion:
-  - `tree/claims.rs:183` drops a claim whose `lstat` fails for any reason
-    other than `NotFound`, so a readable but unsearchable `trees/claims/`
-    still fails open per claim.
-  - A bootstrap lock directory holding more than `pid` makes the residue
-    sweep report a removal failure on every prune.
-  - `design-adapters::spawn_properties::the_child_s_streams_are_redirected_to_the_bootstrap_log`
-    can flake under load. It is unrelated to this change, which leaves
-    `design-adapters` untouched.
+- ⚠️ Launchers from earlier 1.24.0 pre-releases write no claims. Once a root
+  has been claim-aware for 14 days, their entries are evicted on every
+  claim-aware prune, and they cannot re-resolve. Launchers older than 0339
+  also carry the orphan-lock risk `internals.md` names.
+- Residual from validation, unrelated to this change:
+  `design-adapters::spawn_properties::the_child_s_streams_are_redirected_to_the_bootstrap_log`
+  can flake under load.
 
 https://claude.ai/code/session_01CvXx6QsUHQGsrfswrYE3s3
