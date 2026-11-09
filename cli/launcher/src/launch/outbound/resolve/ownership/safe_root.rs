@@ -199,10 +199,10 @@ impl SafePruneRoot {
             path: path.to_path_buf(),
             reason,
         };
-        if filesystem.ignores_ownership(root).unwrap_or(true) {
-            return Err(refuse(root, UnsafeReason::OwnershipIgnored));
-        }
         for (path, position) in root.ancestors().zip(positions()) {
+            if filesystem.ignores_ownership(path).unwrap_or(true) {
+                return Err(refuse(path, UnsafeReason::OwnershipIgnored));
+            }
             let entry = filesystem.entry(path).map_err(|error| {
                 refuse(path, UnsafeReason::Unexaminable(error.kind()))
             })?;
@@ -432,12 +432,12 @@ mod tests {
                 ("/srv/cache", self.cache),
                 (ROOT, self.root),
             ];
-            let mut filesystem = ReportingFilesystem::over_system()
-                .reporting_ownership_ignored(
-                    Path::new(ROOT),
-                    self.ownership_ignored,
-                );
+            let mut filesystem = ReportingFilesystem::over_system();
             for (path, entry) in entries {
+                filesystem = filesystem.reporting_ownership_ignored(
+                    Path::new(path),
+                    path == ROOT && self.ownership_ignored,
+                );
                 let acl = self
                     .acls
                     .iter()
@@ -521,6 +521,24 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn an_ancestor_on_a_volume_that_ignores_ownership_is_refused() {
+        let filesystem = Tree::new()
+            .filesystem()
+            .reporting_ownership_ignored(Path::new("/srv/cache"), true);
+
+        refused(
+            SafePruneRoot::check(
+                Path::new(ROOT),
+                &filesystem,
+                &private(),
+                &TrustedOwners::none(),
+            ),
+            "/srv/cache",
+            &UnsafeReason::OwnershipIgnored,
+        );
     }
 
     #[test]
