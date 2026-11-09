@@ -7,11 +7,13 @@ import pytest
 
 from tasks.shared.vendor.browsers import (
     HEADLESS_SHELL,
+    PACKED_MANIFEST,
     BrowserBuild,
     BrowsersManifest,
     BrowsersManifestError,
     UnpinnedRevisionError,
 )
+from tests.unit.tasks.shared.doubles import playwright_tarball
 
 RECORDED = (
     Path(__file__).resolve().parent
@@ -94,28 +96,43 @@ def test_reading_an_unparseable_file_is_malformed(tmp_path):
         BrowsersManifest.read(path)
 
 
-def _packed(tmp_path, members):
+def _written(tmp_path, tarball_bytes):
     tarball = tmp_path / "playwright-core.tgz"
-    with tarfile.open(tarball, "w:gz") as archive:
-        for name, payload in members.items():
-            info = tarfile.TarInfo(name)
-            info.size = len(payload)
-            archive.addfile(info, io.BytesIO(payload))
+    tarball.write_bytes(tarball_bytes)
     return tarball
 
 
+def _packed_manifest_directory():
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        directory = tarfile.TarInfo(PACKED_MANIFEST)
+        directory.type = tarfile.DIRTYPE
+        archive.addfile(directory)
+    return packed.getvalue()
+
+
 def test_a_packed_playwright_core_yields_its_manifest(tmp_path):
-    tarball = _packed(
-        tmp_path, {"package/browsers.json": RECORDED.read_bytes()}
-    )
+    tarball = _written(tmp_path, playwright_tarball(RECORDED.read_bytes()))
     assert BrowsersManifest.read_packed(tarball) == BrowsersManifest.read(
         RECORDED
     )
 
 
 def test_a_packed_playwright_core_without_a_manifest_is_malformed(tmp_path):
-    tarball = _packed(tmp_path, {"package/index.js": b""})
+    tarball = _written(tmp_path, playwright_tarball(member="package/index.js"))
     with pytest.raises(BrowsersManifestError, match=r"browsers\.json"):
+        BrowsersManifest.read_packed(tarball)
+
+
+def test_a_packed_manifest_that_is_not_a_regular_file_is_malformed(tmp_path):
+    tarball = _written(tmp_path, _packed_manifest_directory())
+    with pytest.raises(BrowsersManifestError, match="not a regular file"):
+        BrowsersManifest.read_packed(tarball)
+
+
+def test_an_unparseable_packed_manifest_is_malformed(tmp_path):
+    tarball = _written(tmp_path, playwright_tarball("{not json"))
+    with pytest.raises(BrowsersManifestError, match=str(tarball)):
         BrowsersManifest.read_packed(tarball)
 
 

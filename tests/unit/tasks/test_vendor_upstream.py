@@ -8,14 +8,13 @@ documented formats.
 
 import base64
 import hashlib
-import io
-import json
 import re
-import tarfile
 
 import pytest
 
 from tasks.shared.vendor import upstream
+from tasks.shared.vendor.browsers import UnpinnedRevisionError
+from tests.unit.tasks.shared.doubles import playwright_tarball
 
 
 def test_the_npm_packument_url_names_the_package():
@@ -69,24 +68,38 @@ def test_the_chromium_url_names_the_chrome_for_testing_build(platform, build):
             "publish_release.yml@refs/tags/v1.64.1",
             False,
         ),
+        (
+            "https://example.com/https://github.com/microsoft/playwright/"
+            ".github/workflows/publish_release.yml@refs/tags/v1.64.1",
+            False,
+        ),
+        (
+            "https://github.com/microsoft/playwright/.github/workflows/"
+            "publish_release_npm.yml@refs/tags/v1.55.1",
+            False,
+        ),
+        (
+            "https://github.com/microsoft/playwright/.github/workflows/"
+            "publish_release.yml@refs/heads/main",
+            False,
+        ),
     ],
-    ids=["publishing-workflow", "other-workflow", "other-repository"],
+    ids=[
+        "publishing-workflow",
+        "other-workflow",
+        "other-repository",
+        "embedded-after-a-prefix",
+        "retired-npm-workflow",
+        "branch-ref",
+    ],
 )
-def test_only_playwrights_publishing_workflow_may_sign_provenance(
-    identity, accepted
-):
-    matched = re.match(upstream.PLAYWRIGHT_PROVENANCE_IDENTITY, identity)
+def test_only_playwrights_release_tags_may_sign_provenance(identity, accepted):
+    matched = re.search(upstream.PLAYWRIGHT_PROVENANCE_IDENTITY, identity)
     assert (matched is not None) == accepted
 
 
 def _playwright_core_tarball(*builds):
-    manifest = json.dumps({"browsers": list(builds)}).encode()
-    packed = io.BytesIO()
-    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
-        info = tarfile.TarInfo("package/browsers.json")
-        info.size = len(manifest)
-        archive.addfile(info, io.BytesIO(manifest))
-    return packed.getvalue()
+    return playwright_tarball({"browsers": list(builds)})
 
 
 def _inputs(tmp_path, tarball_bytes, *, revision="1181"):
@@ -215,6 +228,23 @@ def test_a_headless_shell_without_a_browser_version_is_refused(
     verify, fetched, _, _ = _inputs(tmp_path, tarball_bytes)
 
     with pytest.raises(ValueError, match="browserVersion"):
+        verify()
+    assert not any("cft" in url for url in fetched)
+
+
+def test_a_pinned_revision_playwright_does_not_declare_is_refused(
+    tmp_path, stubbed_verifiers
+):
+    tarball_bytes = _playwright_core_tarball(
+        {
+            "name": "chromium-headless-shell",
+            "revision": "1181",
+            "browserVersion": "156.0.8078.4",
+        }
+    )
+    verify, fetched, _, _ = _inputs(tmp_path, tarball_bytes, revision="1182")
+
+    with pytest.raises(UnpinnedRevisionError, match="1182"):
         verify()
     assert not any("cft" in url for url in fetched)
 

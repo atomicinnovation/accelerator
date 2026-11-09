@@ -33,12 +33,13 @@ PLAYWRIGHT_PACKAGE = "playwright-core"
 
 # The signing-certificate identity the SLSA provenance must carry: the GitHub
 # Actions OIDC issuer, and a SAN anchored to microsoft/playwright's release
-# publishing workflow (the tag ref varies per release, so it is matched by
-# prefix).
+# publishing workflow run from a release tag (the tag varies per release, so
+# it is matched by prefix). cosign searches the SAN unanchored, so the leading
+# `^` is load-bearing.
 GITHUB_ACTIONS_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 PLAYWRIGHT_PROVENANCE_IDENTITY = (
     r"^https://github\.com/microsoft/playwright/\.github/workflows/"
-    r"publish_release\.yml@"
+    r"publish_release\.yml@refs/tags/v"
 )
 
 CHROME_FOR_TESTING_CDN = "https://cdn.playwright.dev/builds/cft"
