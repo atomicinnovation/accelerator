@@ -4,7 +4,7 @@
 use std::io;
 use std::path::Path;
 
-use super::super::filesystem::FileKind;
+use super::super::filesystem::{CacheFilesystem, FileKind};
 use super::super::ownership::is_trusted_directory_entry;
 use super::super::prune_report::{Count, Removals};
 use super::super::retention_windows::is_aged;
@@ -93,6 +93,14 @@ impl<'a> ResidueSweep<'a> {
             return;
         }
         let filesystem = self.ports.filesystem.as_ref();
+        if !holds_only_its_pid(filesystem, &lock) {
+            tracing::warn!(
+                lock = %lock.display(),
+                "kept an abandoned bootstrap lock holding files the plugin \
+                 never writes; remove it by hand"
+            );
+            return;
+        }
         if removals
             .remove_file(
                 filesystem,
@@ -152,6 +160,12 @@ impl<'a> ResidueSweep<'a> {
     fn now(&self) -> u64 {
         self.ports.clock.now_seconds()
     }
+}
+
+fn holds_only_its_pid(filesystem: &dyn CacheFilesystem, lock: &Path) -> bool {
+    filesystem
+        .list(lock)
+        .is_ok_and(|names| names.iter().all(|name| name == PID_FILE))
 }
 
 /// The pid a bootstrap wrote, as `printf '%s\n' "$$"` writes it.
@@ -249,6 +263,21 @@ mod tests {
         assert!(!lock_exists(&root, "darwin-x64"));
         assert!(!lock_exists(&root, "linux-arm64"));
         assert!(lock_exists(&root, "linux-x64"));
+    }
+
+    #[test]
+    fn an_abandoned_lock_holding_anything_but_its_pid_is_kept_whole() {
+        let root = Root::new();
+        let now = now();
+        let name = ".accelerator-lock-linux-x64";
+        let lock = root.dir(name, 0o755);
+        std::fs::write(lock.join("pid"), format!("{DEAD}\n")).expect("pid");
+        std::fs::write(lock.join(".DS_Store"), b"").expect("stray");
+        set_mtime(&lock, aged(now));
+
+        assert_eq!(sweep(&root, holding(now)), 0);
+        assert!(lock.join("pid").exists());
+        assert!(lock.join(".DS_Store").exists());
     }
 
     #[test]
