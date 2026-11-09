@@ -3224,6 +3224,17 @@ fn a_residue_only_default_root_is_still_reaped() {
         !residue.exists(),
         "the unpinned artifact's residue survived"
     );
+    let created: Vec<&str> =
+        accelerator::launch::outbound::resolve::tree::pins::artifact_names()
+            .into_iter()
+            .filter(|name| paths.single_flight_lock(&on_host(name)).exists())
+            .collect();
+    assert_eq!(
+        created,
+        accelerator::launch::outbound::resolve::tree::pins::artifact_names()
+            [..1],
+        "only the first pinned artifact's lock is taken to reap the residue"
+    );
 }
 
 #[test]
