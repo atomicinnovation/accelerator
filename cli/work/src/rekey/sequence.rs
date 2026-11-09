@@ -5,7 +5,7 @@
 //! pattern that wrote an `id`, so a reading never assumes it.
 
 use crate::draft_id::DraftId;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::path_component::is_one_path_component;
 
 /// The key an existing `id` counts under, when it names one, and its number.
@@ -32,7 +32,7 @@ pub enum Unclassified {
 /// a draft ID, which never carries one.
 pub fn read_existing_id(
     id: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<ExistingId, Unclassified> {
     if DraftId::parse(id).is_some() {
         return Err(Unclassified::NoNumber);
@@ -62,7 +62,7 @@ pub fn read_existing_id(
 
 /// [`read_existing_id`]'s reading, when it gives a number.
 #[must_use]
-pub fn existing_id(id: &str, scheme: &WorkItemIdScheme) -> Option<ExistingId> {
+pub fn existing_id(id: &str, scheme: &IdScheme) -> Option<ExistingId> {
     read_existing_id(id, scheme).ok()
 }
 
@@ -89,7 +89,7 @@ fn number(digits: &str) -> Result<u64, Unclassified> {
 /// Whether the pattern, rendering `id`'s own number under `work.key`, gives
 /// back `id`, ignoring case; an `id` under any other key is not in shape.
 #[must_use]
-pub fn is_in_target_shape(id: &str, scheme: &WorkItemIdScheme) -> bool {
+pub fn is_in_target_shape(id: &str, scheme: &IdScheme) -> bool {
     existing_id(id, scheme).is_some_and(|existing| {
         scheme
             .pattern()
@@ -112,17 +112,17 @@ mod tests {
     use super::ExistingId;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),
         )
     }
 
-    fn keyed(key: &str) -> WorkItemIdScheme {
+    fn keyed(key: &str) -> IdScheme {
         scheme("{key}-{number:04d}", Some(key))
     }
 
@@ -165,7 +165,7 @@ mod tests {
     fn an_id_is_in_target_shape_only_when_it_renders_back_to_itself_ignoring_case(
     ) {
         let scheme = keyed("ACC");
-        let numeric = WorkItemIdScheme::numeric();
+        let numeric = IdScheme::numeric();
         assert!(is_in_target_shape("ACC-0042", &scheme));
         assert!(is_in_target_shape("acc-0042", &scheme));
         assert!(!is_in_target_shape("ACC-042", &scheme));
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn a_zero_item_stays_in_target_shape() {
-        assert!(is_in_target_shape("0000", &WorkItemIdScheme::numeric()));
+        assert!(is_in_target_shape("0000", &IdScheme::numeric()));
     }
 
     #[test]

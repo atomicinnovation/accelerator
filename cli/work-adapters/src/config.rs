@@ -10,8 +10,8 @@ use work::id_pattern::IdPattern;
 use work::id_pattern::KeyError;
 use work::id_pattern::PatternError;
 use work::id_scheme::check_tracker_integration;
+use work::id_scheme::IdScheme;
 use work::id_scheme::TrackerIntegrationError;
-use work::id_scheme::WorkItemIdScheme;
 
 const PATTERN_SETTING: &str = "work.id_pattern";
 
@@ -20,7 +20,7 @@ const KEY_SETTING: &str = "work.key";
 pub const LEGACY_KEY_SETTING: &str = "work.default_project_code";
 
 pub struct SchemeReading {
-    pub scheme: WorkItemIdScheme,
+    pub scheme: IdScheme,
     pub deprecation: Option<String>,
 }
 
@@ -125,7 +125,7 @@ pub fn read_scheme(
         })?;
     if !pattern.references_key() {
         return Ok(SchemeReading {
-            scheme: WorkItemIdScheme::new(pattern, None),
+            scheme: IdScheme::new(pattern, None),
             deprecation: None,
         });
     }
@@ -151,7 +151,7 @@ pub fn read_scheme(
         None => None,
     };
     Ok(SchemeReading {
-        scheme: WorkItemIdScheme::new(pattern, key),
+        scheme: IdScheme::new(pattern, key),
         deprecation: aliased.deprecation,
     })
 }
@@ -160,7 +160,7 @@ pub fn read_scheme(
 ///
 /// [`SchemeError::KeyRequired`] when the pattern has a key token and no key
 /// is configured.
-pub fn require_key(scheme: &WorkItemIdScheme) -> Result<(), SchemeError> {
+pub fn require_key(scheme: &IdScheme) -> Result<(), SchemeError> {
     if scheme.pattern().references_key() && scheme.key().is_none() {
         Err(SchemeError::KeyRequired {
             pattern: scheme.pattern().as_str().to_owned(),
@@ -215,8 +215,8 @@ mod tests {
     use work::id_pattern::KeyError;
     use work::id_pattern::PatternError;
     use work::id_scheme::IdOwnership;
+    use work::id_scheme::IdScheme;
     use work::id_scheme::TrackerIntegrationError;
-    use work::id_scheme::WorkItemIdScheme;
 
     use super::read_scheme;
     use super::require_key;
@@ -264,7 +264,7 @@ mod tests {
         }
     }
 
-    fn key_of(scheme: &WorkItemIdScheme) -> Option<&str> {
+    fn key_of(scheme: &IdScheme) -> Option<&str> {
         scheme.key().map(IdKey::as_str)
     }
 
@@ -494,7 +494,7 @@ mod tests {
             Err(SchemeError::KeyRequired { ref pattern })
                 if pattern == "{key}-{number:04d}"
         ));
-        assert!(require_key(&WorkItemIdScheme::numeric()).is_ok());
+        assert!(require_key(&IdScheme::numeric()).is_ok());
     }
 
     #[test]

@@ -32,7 +32,7 @@ use work::create::TypedLinkage;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
 use work::id_scheme::IdOwnership;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity_run::IdentityRunGuard;
 use work::next_number::allocate;
 use work::next_number::allocation_key;
@@ -179,7 +179,7 @@ fn template_frontmatter_keys(content: &str) -> Result<Vec<String>, String> {
 /// The next ID under `scheme`, rendered under `project` when given and
 /// `scheme`'s own key otherwise.
 pub fn allocate_id(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     root: &Path,
     work_dir: &Path,
     project: Option<&str>,

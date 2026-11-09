@@ -20,10 +20,15 @@ def test_a_corpus_file_naming_the_scheme_is_flagged(tmp_path: Path) -> None:
     ]
 
 
+def test_a_corpus_file_naming_the_scheme_by_its_work_name_is_flagged(
+    tmp_path: Path,
+) -> None:
+    _write(tmp_path, "cli/corpus/src/cluster.rs", "use work::IdScheme;\n")
+    assert corpus_identity.violations(tmp_path) == ["cli/corpus/src/cluster.rs"]
+
+
 def test_a_work_file_naming_the_scheme_is_not_flagged(tmp_path: Path) -> None:
-    _write(
-        tmp_path, "cli/work/src/id_scheme.rs", "pub struct WorkItemIdScheme;\n"
-    )
+    _write(tmp_path, "cli/work/src/id_scheme.rs", "pub struct IdScheme;\n")
     assert corpus_identity.violations(tmp_path) == []
 
 

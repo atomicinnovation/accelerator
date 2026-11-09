@@ -2,7 +2,7 @@
 //! its number or hands it a fresh one.
 
 use crate::draft_id::DraftId;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
 use crate::rekey::sequence::read_existing_id;
 pub use crate::rekey::sequence::Unclassified;
@@ -18,10 +18,7 @@ pub enum Classification {
 /// An `id` equal to its `external_id`, ignoring case, is a tracker key; a
 /// draft ID is a draft; any other `id` carrying a number keeps it.
 #[must_use]
-pub fn classify(
-    identity: &ItemIdentity,
-    scheme: &WorkItemIdScheme,
-) -> Classification {
+pub fn classify(identity: &ItemIdentity, scheme: &IdScheme) -> Classification {
     let is_tracker_key = identity
         .external_id
         .as_deref()
@@ -50,7 +47,7 @@ mod tests {
     use super::Unclassified;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::identity::ItemIdentity;
 
     fn item(id: &str, external_id: Option<&str>) -> ItemIdentity {
@@ -62,8 +59,8 @@ mod tests {
         }
     }
 
-    fn keyed() -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn keyed() -> IdScheme {
+        IdScheme::new(
             IdPattern::parse("{key}-{number:04d}")
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse("PP").ok(),

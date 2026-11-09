@@ -6,17 +6,17 @@ use std::cell::RefCell;
 use work::draft_id::is_token_safe;
 use work::draft_id::SuffixDraws;
 use work::draft_id::ALPHABET;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 use work_adapters::sync::recovery_label::RecoveryLabels;
 
 pub struct DrawnRecoveryLabels<'a, D> {
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     draws: RefCell<D>,
 }
 
 impl<'a, D: SuffixDraws> DrawnRecoveryLabels<'a, D> {
-    pub const fn new(scheme: &'a WorkItemIdScheme, draws: D) -> Self {
+    pub const fn new(scheme: &'a IdScheme, draws: D) -> Self {
         Self {
             scheme,
             draws: RefCell::new(draws),
@@ -45,7 +45,7 @@ impl<D: SuffixDraws> RecoveryLabels for DrawnRecoveryLabels<'_, D> {
 #[cfg(test)]
 mod tests {
     use work::draft_id::SuffixDraws;
-    use work::id_scheme::WorkItemIdScheme;
+    use work::id_scheme::IdScheme;
     use work_adapters::draft_id::RandomSuffixDraws;
     use work_adapters::sync::recovery_label::RecoveryLabel;
     use work_adapters::sync::recovery_label::RecoveryLabels as _;
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn an_id_unsafe_for_a_directory_gets_no_label() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         let labels = DrawnRecoveryLabels::new(&scheme, RandomSuffixDraws);
 
         assert_eq!(labels.label_for("../0001", 1_700_000_000), None);
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn a_label_carries_a_suffix_drawn_over_the_draft_id_alphabet() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         let labels =
             DrawnRecoveryLabels::new(&scheme, Fixed([20, 7, 21, 31, 3, 32]));
 

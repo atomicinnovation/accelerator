@@ -12,7 +12,7 @@ use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RetirementFiles;
@@ -36,7 +36,7 @@ struct Directories<'a> {
 /// The corpus a retirement rewrites and the state it keeps beside it,
 /// whether or not an integration is configured.
 pub struct CorpusWorkspace {
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     work_dir: PathBuf,
     state_dir: PathBuf,
     roots: Vec<PathBuf>,

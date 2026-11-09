@@ -11,7 +11,7 @@ use config::{
     ConfigAccess, ConfigError, Key, Level, ReadTemplate, Resolved, Source,
 };
 use config_adapters::{FileConfigStore, LegacyPolicy};
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work_adapters::config::{read_scheme, require_key, SchemeError};
 
 use crate::config::{Config, TemplateTiers};
@@ -197,7 +197,7 @@ fn resolve_templates(
 /// check a writer makes, and it has no terminal to show a deprecation on.
 fn resolve_work_item(
     service: &impl ConfigAccess,
-) -> Result<WorkItemIdScheme, ComposeError> {
+) -> Result<IdScheme, ComposeError> {
     let scheme = read_scheme(service)?.scheme;
     require_key(&scheme)?;
     Ok(scheme)

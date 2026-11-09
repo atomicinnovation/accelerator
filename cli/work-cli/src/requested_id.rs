@@ -1,6 +1,6 @@
 //! The ID `work create --id` asks for, admitted before anything is written.
 
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::requested_id::RequestedId;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
@@ -13,7 +13,7 @@ use crate::create::CreateArgs;
 /// The admission refusal's message, which never names a holder.
 pub fn admit_requested_id(
     args: &CreateArgs,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<Option<RequestedId>, String> {
     args.id
         .as_deref()

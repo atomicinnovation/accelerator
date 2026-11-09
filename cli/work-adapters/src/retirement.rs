@@ -17,7 +17,7 @@ use corpus::store::FileRemove;
 use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
 use corpus::StoreError;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::identity_run::IdentityRunGuard;
 use work::retirement::plan_retirement;
@@ -52,7 +52,7 @@ pub struct RetirementFiles<'a> {
 pub struct CorpusLayout<'a> {
     pub roots: &'a [PathBuf],
     pub work_dir: &'a Path,
-    pub scheme: &'a WorkItemIdScheme,
+    pub scheme: &'a IdScheme,
 }
 
 #[derive(Clone, Copy)]

@@ -5,7 +5,7 @@ use crate::id_pattern::DigitWidth;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::LiteralCase;
 use crate::id_pattern::Walk;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +63,7 @@ fn match_full_id<'a>(
 /// Classifies a raw user input into the shape the search cascade dispatches
 /// on.
 #[must_use]
-pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
+pub fn classify_input(input: &str, scheme: &IdScheme) -> InputClass {
     if input.is_empty() {
         return InputClass::Invalid;
     }
@@ -120,7 +120,7 @@ fn add_candidate(
 
 fn resolve_full_id(
     input: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     let canonical = scheme.canonicalise(input).ok();
@@ -156,7 +156,7 @@ fn resolve_full_id(
 
 fn resolve_bare_number(
     input: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     let filenames = lister.filenames();
@@ -179,8 +179,7 @@ fn resolve_bare_number(
     }
 
     if input.len() <= 4 {
-        if let Some(legacy_padded) = WorkItemIdScheme::pad_legacy_number(input)
-        {
+        if let Some(legacy_padded) = IdScheme::pad_legacy_number(input) {
             let prefix = format!("{legacy_padded}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -247,7 +246,7 @@ fn resolve_bare_number(
 pub fn resolve(
     input: &str,
     class: SearchClass,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     match class {
@@ -266,7 +265,7 @@ mod tests {
     };
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::id_scheme::TRACKER_TOKEN;
 
     struct FakeLister(Vec<&'static str>);
@@ -277,8 +276,8 @@ mod tests {
         }
     }
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.map(|key| {
@@ -288,11 +287,11 @@ mod tests {
         )
     }
 
-    fn numeric() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn numeric() -> IdScheme {
+        IdScheme::numeric()
     }
 
-    fn project_scheme(default_project: Option<&str>) -> WorkItemIdScheme {
+    fn project_scheme(default_project: Option<&str>) -> IdScheme {
         scheme("{project}-{number:04d}", default_project)
     }
 

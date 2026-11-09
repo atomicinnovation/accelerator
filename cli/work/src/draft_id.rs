@@ -2,7 +2,7 @@
 
 use crate::id_scheme::is_tracker_owned_token;
 use crate::id_scheme::IdOwnership;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::holder_of;
 use crate::identity::ItemIdentity;
 
@@ -39,11 +39,10 @@ impl DraftId {
 
 /// Whether `id` can name a file or directory as it stands.
 #[must_use]
-pub fn is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
+pub fn is_token_safe(scheme: &IdScheme, id: &str) -> bool {
     scheme.is_any_key_id_token(id)
         || (scheme.ownership() == IdOwnership::Tracker
-            && (is_tracker_owned_token(id)
-                || WorkItemIdScheme::is_legacy_id(id)))
+            && (is_tracker_owned_token(id) || IdScheme::is_legacy_id(id)))
 }
 
 /// A source of random draft suffixes.
@@ -134,7 +133,7 @@ mod tests {
     use super::DraftIdExhausted;
     use super::SuffixDraws;
     use super::ALPHABET;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::identity::ItemIdentity;
 
     struct ScriptedDraws {
@@ -296,7 +295,7 @@ mod tests {
 
     #[test]
     fn only_canonical_ids_are_token_safe() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         assert!(is_token_safe(&scheme, "0001"));
         assert!(!is_token_safe(&scheme, "../foo"));
         assert!(!is_token_safe(&scheme, "a/b"));
@@ -304,7 +303,7 @@ mod tests {
         assert!(!is_token_safe(&scheme, "1"));
         assert!(!is_token_safe(&scheme, ""));
 
-        let keyed = WorkItemIdScheme::new(
+        let keyed = IdScheme::new(
             crate::id_pattern::IdPattern::parse("{key}-{number:04d}")
                 .expect("a well-formed pattern"),
             crate::id_pattern::IdKey::parse("PP").ok(),
@@ -319,14 +318,14 @@ mod tests {
 
     #[test]
     fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         assert!(!is_token_safe(&scheme, "ENG-42"));
         assert!(!is_token_safe(&scheme, "draft-k7mq3x"));
     }
 
     #[test]
     fn a_tracker_key_and_a_draft_are_token_safe_where_the_tracker_owns_ids() {
-        let scheme = WorkItemIdScheme::new(
+        let scheme = IdScheme::new(
             crate::id_pattern::IdPattern::parse(
                 crate::id_scheme::TRACKER_TOKEN,
             )

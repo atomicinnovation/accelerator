@@ -54,9 +54,9 @@ use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 
-static TRACKER: std::sync::LazyLock<work::id_scheme::WorkItemIdScheme> =
+static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
     std::sync::LazyLock::new(|| {
-        work::id_scheme::WorkItemIdScheme::new(
+        work::id_scheme::IdScheme::new(
             work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             None,

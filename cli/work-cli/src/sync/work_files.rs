@@ -13,7 +13,7 @@ use vcs::RepositoryProbe;
 use vcs::VcsKind;
 use vcs::VcsReporter;
 use work::draft_id::DraftId;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::inventory::identify;
 use work::inventory::ConflictedPaths;
 use work::inventory::CorpusInventory;
@@ -29,12 +29,12 @@ use work_adapters::sync::report::RunFailure;
 /// Names work items from filenames as the configured id scheme lays them
 /// out, drafts included.
 pub struct ConfiguredNames {
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
 }
 
 impl ConfiguredNames {
     #[must_use]
-    pub fn for_scheme(scheme: &WorkItemIdScheme) -> Self {
+    pub fn for_scheme(scheme: &IdScheme) -> Self {
         Self {
             scheme: scheme.clone(),
         }
@@ -184,7 +184,7 @@ mod tests {
     use vcs_adapters::library::InProcessProbe;
     use work::id_pattern::IdKey;
     use work::id_pattern::IdPattern;
-    use work::id_scheme::WorkItemIdScheme;
+    use work::id_scheme::IdScheme;
     use work::inventory::ConflictedPaths;
     use work::inventory::NamesWorkItem;
 
@@ -192,7 +192,7 @@ mod tests {
     use super::VcsConflicts;
 
     fn names(id_pattern: &str, key: Option<&str>) -> ConfiguredNames {
-        ConfiguredNames::for_scheme(&WorkItemIdScheme::new(
+        ConfiguredNames::for_scheme(&IdScheme::new(
             IdPattern::parse(id_pattern).expect("the pattern parses"),
             key.map(|key| IdKey::parse(key).expect("the key parses")),
         ))

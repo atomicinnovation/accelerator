@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemIdentity {
@@ -132,7 +132,7 @@ pub fn linker_of<'a>(
 /// any other candidate is compared whole, ignoring case.
 #[must_use]
 pub fn holder_of_under<'a>(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidate: &str,
     items: &'a [ItemIdentity],
 ) -> Option<IdentityMatch<'a>> {
@@ -150,7 +150,7 @@ pub fn holder_of_under<'a>(
 /// [`linker_of`] under the taken rule [`holder_of_under`] applies.
 #[must_use]
 pub fn linker_of_under<'a>(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidate: &str,
     items: &'a [ItemIdentity],
 ) -> Option<&'a ItemIdentity> {
@@ -178,11 +178,11 @@ mod tests {
     use super::ItemIdentity;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
 
     #[allow(clippy::literal_string_with_formatting_args)]
-    fn keyed() -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn keyed() -> IdScheme {
+        IdScheme::new(
             IdPattern::parse("{key}-{number:04d}")
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse("PP").ok(),

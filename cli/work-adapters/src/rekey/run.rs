@@ -9,7 +9,7 @@ use tracker::ExternalId;
 use vcs::RepositoryProbe;
 use work::draft_id::SuffixDraws;
 use work::id_scheme::IdOwnership;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
@@ -70,7 +70,7 @@ pub enum Forcing {
 pub struct RekeyRequest {
     pub action: RekeyAction,
     pub forcing: Forcing,
-    pub scheme: WorkItemIdScheme,
+    pub scheme: IdScheme,
 }
 
 /// What a person sees while a run proceeds, before its report.
@@ -312,7 +312,7 @@ fn preflight(
 }
 
 fn computed(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidates: &[RekeyCandidate],
     ports: &RekeyPorts<'_>,
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
@@ -337,7 +337,7 @@ fn computed(
 /// and none of its targets has since been claimed.
 fn still_current(
     plan: ProposedPlan,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     items: &[ItemIdentity],
 ) -> Result<ProposedPlan, NotRekeyed> {
     if let Some(staleness) = IdentityFingerprint::of(scheme, items)

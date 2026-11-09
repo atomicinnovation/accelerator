@@ -167,7 +167,7 @@ mod tests {
     use super::ProposedPlan;
     use super::Unreadability;
     use super::RUN_PLAN_SCHEMA;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
     use crate::rekey::fingerprint::IdentityFingerprint;
@@ -185,7 +185,7 @@ mod tests {
 
     fn proposed() -> ProposedPlan {
         ProposedPlan::new(
-            IdentityFingerprint::of(&WorkItemIdScheme::numeric(), &[]),
+            IdentityFingerprint::of(&IdScheme::numeric(), &[]),
             vec![
                 renumbered("draft-k3x9mq", "ACC-0042"),
                 renumbered("0041", "ACC-0041"),
