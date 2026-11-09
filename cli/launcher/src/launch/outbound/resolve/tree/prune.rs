@@ -35,9 +35,7 @@ use super::layout::{
     classify_trees_entry, read_pointer, validated_generation, Artifact,
     TreePaths, TreesEntry, LAYOUT_VERSION,
 };
-use super::lease::{
-    try_exclusive_lease, HeldLeases, HeldLeasesFirst, LivenessProbe,
-};
+use super::lease::{HeldLeases, HeldLeasesFirst, LivenessProbe};
 use super::locks::{TreeLockProbe, TreeLocks};
 use super::pins;
 use super::reap::{self, PinnedDigests, Reaper, RemovalObserver};
@@ -557,12 +555,14 @@ impl TreePrune<'_> {
             return;
         }
         index.forget(&tree.pointer);
-        let exclusive =
-            match try_exclusive_lease(&paths.lease(&tree.generation)) {
-                Ok(Some(exclusive)) => Some(exclusive),
-                Ok(None) => return,
-                Err(_) => None,
-            };
+        let exclusive = match self
+            .liveness()
+            .take_exclusive(&paths.lease(&tree.generation))
+        {
+            Ok(Some(exclusive)) => Some(exclusive),
+            Ok(None) => return,
+            Err(_) => None,
+        };
         self.unlink_tree(
             removals,
             &paths.generation(&tree.generation),

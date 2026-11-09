@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 pub use lease::Liveness;
 
-use crate::launch::core::tree::AcquiredTree;
+use crate::launch::core::tree::{AcquiredTree, TreeError};
 
 #[cfg(unix)]
 pub use unix::{
@@ -28,12 +28,30 @@ pub enum SingleFlightProbe {
 /// so `Unknown` can be exercised without a filesystem that lacks `flock`.
 pub trait LivenessProbe {
     fn probe(&self, lease: &std::path::Path) -> Liveness;
+
+    /// Held across a generation's removal, so no dispatch can lease it
+    /// meanwhile; `Ok(None)` when a live process already holds the lease.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lease cannot be opened or locked.
+    fn take_exclusive(
+        &self,
+        lease: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError>;
 }
 
 /// The production probe: the kernel's own view of who holds the lease.
 pub struct FlockProbe;
 
 impl LivenessProbe for FlockProbe {
+    fn take_exclusive(
+        &self,
+        lease: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError> {
+        try_exclusive_lease(lease)
+    }
+
     fn probe(&self, lease: &std::path::Path) -> Liveness {
         lease::probe_shared_lease(lease)
     }
@@ -93,6 +111,16 @@ impl LivenessProbe for HeldLeasesFirst<'_> {
         } else {
             self.probe.probe(lease)
         }
+    }
+
+    fn take_exclusive(
+        &self,
+        lease: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError> {
+        if self.held.holds_lease(lease) {
+            return Ok(None);
+        }
+        self.probe.take_exclusive(lease)
     }
 }
 

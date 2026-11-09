@@ -1587,6 +1587,19 @@ impl LivenessProbe for FixedLiveness {
     fn probe(&self, _lease: &std::path::Path) -> Liveness {
         self.0
     }
+    fn take_exclusive(
+        &self,
+        lease: &std::path::Path,
+    ) -> Result<
+        Option<
+            accelerator::launch::outbound::resolve::tree::lease::ExclusiveLease,
+        >,
+        accelerator::launch::core::tree::TreeError,
+    > {
+        accelerator::launch::outbound::resolve::tree::lease::try_exclusive_lease(
+            lease,
+        )
+    }
 }
 
 const BACKSTOP_SECONDS: u64 = retention_windows::AGE_BACKSTOP.as_secs();

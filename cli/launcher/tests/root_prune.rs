@@ -57,7 +57,7 @@ use accelerator::launch::outbound::resolve::tree::layout::{
     Artifact, TreePaths,
 };
 use accelerator::launch::outbound::resolve::tree::lease::{
-    HeldLeases, Liveness, LivenessProbe,
+    ExclusiveLease, HeldLeases, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::locks::{
     FlockLocks, TreeLocks,
@@ -2122,6 +2122,41 @@ fn removing_a_tree_unlinks_only_the_claims_the_launcher_may_sweep() {
     assert!(exists(&directory));
 }
 
+/// Free when probed, then taken by another process before the exclusive hold.
+struct LeasedAfterTheProbe;
+
+impl LivenessProbe for LeasedAfterTheProbe {
+    fn probe(&self, _lease: &Path) -> Liveness {
+        Liveness::Free
+    }
+
+    fn take_exclusive(
+        &self,
+        _lease: &Path,
+    ) -> Result<Option<ExclusiveLease>, TreeError> {
+        Ok(None)
+    }
+}
+
+#[test]
+fn a_tree_leased_after_its_probe_keeps_its_generation() {
+    let harness = RootHarness::new();
+    let tree = harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+
+    harness
+        .prune(Ports {
+            lease_liveness: Arc::new(LeasedAfterTheProbe),
+            ..harness.ports()
+        })
+        .succeeded();
+
+    assert!(exists(&tree.generation));
+}
+
 #[test]
 fn a_tree_removal_failure_is_reported() {
     let harness = RootHarness::new();
@@ -2983,6 +3018,19 @@ impl LivenessProbe for ProbedLeases {
     fn probe(&self, lease: &Path) -> Liveness {
         self.0.lock().expect("probed").push(lease.to_path_buf());
         Liveness::Free
+    }
+    fn take_exclusive(
+        &self,
+        lease: &std::path::Path,
+    ) -> Result<
+        Option<
+            accelerator::launch::outbound::resolve::tree::lease::ExclusiveLease,
+        >,
+        accelerator::launch::core::tree::TreeError,
+    > {
+        accelerator::launch::outbound::resolve::tree::lease::try_exclusive_lease(
+            lease,
+        )
     }
 }
 
