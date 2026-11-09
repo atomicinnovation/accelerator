@@ -37,6 +37,7 @@ use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention_windows::{
     CLAIM_WINDOW, REFRESH_FRACTION,
 };
+use accelerator::launch::outbound::resolve::single_flight::SingleFlightLocks;
 use accelerator::launch::outbound::resolve::tree::lease::{
     FlockProbe, HeldLeases,
 };
@@ -54,6 +55,7 @@ use accelerator::launch::start_up::{start_up, DispatchConfig, StartUp};
 use common::recording_filesystem::{
     in_root, outside, FilesystemCall, RecordingFilesystem,
 };
+use common::recording_locks::RecordingLocks;
 use common::signed_release::{
     asset_path, generate_keypair, manifest_json, sign, SignedRelease, BINARY,
     VERSION,
@@ -257,6 +259,14 @@ fn start_up_over(
     config: &CacheRootConfig,
     filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
 ) -> StartUp {
+    start_up_locking(config, filesystem, Arc::new(FlockLocks))
+}
+
+fn start_up_locking(
+    config: &CacheRootConfig,
+    filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    locks: Arc<dyn SingleFlightLocks + Send + Sync>,
+) -> StartUp {
     start_up(
         config,
         TrustedOwners::none(),
@@ -264,7 +274,7 @@ fn start_up_over(
             filesystem,
             ownership: Arc::new(ProcessOwnership::default()),
             clock: Arc::new(SystemClock),
-            locks: Arc::new(FlockLocks),
+            locks,
             steps: Arc::new(NoPruneSteps),
             bootstrap_holders: Arc::new(KillZeroProbe),
             lease_liveness: Arc::new(FlockProbe),
@@ -976,13 +986,20 @@ fn an_unset_override_performs_exactly_the_fixed_calls(
     let harness = skip_if_no_minisign!(happy_harness());
     harness.seed_cache()?;
     let recorder = harness.recorder();
+    let locks = RecordingLocks::default();
 
-    harness.dispatch_recorded(&harness.plugin_bin_root(), &recorder)?;
+    let start = start_up_locking(
+        &harness.plugin_bin_root(),
+        Arc::new(recorder.clone()),
+        Arc::new(locks.clone()),
+    );
+    harness.dispatch_resolver(&start).resolve(&visualiser())?;
 
     assert_eq!(
         recorder.calls(),
         default_root_warm_dispatch_calls(&harness.sha)
     );
+    assert_eq!(locks.calls(), []);
     Ok(())
 }
 
