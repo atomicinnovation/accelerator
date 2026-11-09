@@ -561,7 +561,11 @@ impl TreePrune<'_> {
                 Count::WithItsEntry,
             );
         }
-        for claim in claims.on(tree.digest) {
+        let uid = self.ports.ownership.effective_uid();
+        for claim in claims
+            .on(tree.digest)
+            .filter(|claim| claim.may_be_swept_by(uid))
+        {
             self.unlink_file(
                 removals,
                 &claim.path,

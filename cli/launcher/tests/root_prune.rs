@@ -2016,6 +2016,28 @@ fn a_tree_leased_during_removal_is_kept() {
 }
 
 #[test]
+fn removing_a_tree_unlinks_only_the_claims_the_launcher_may_sweep() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let tree =
+        trees.plant_tree(&on_host("retired"), &digest('a'), harness.aged());
+    let stale = harness.now - 2 * CLAIM_WINDOW.as_secs();
+    let foreign_id = trees.plant_claim(&digest('a'), "planted-id", stale);
+    let directory = trees
+        .paths()
+        .claims()
+        .join(format!("{}.{OTHER_ID}", digest('a')));
+    std::fs::create_dir(&directory).expect("claim-shaped directory");
+
+    let verb = harness.prune(harness.ports());
+
+    verb.succeeded();
+    assert!(!exists(&tree.generation));
+    assert!(exists(&foreign_id));
+    assert!(exists(&directory));
+}
+
+#[test]
 fn a_tree_removal_failure_is_reported() {
     let harness = RootHarness::new();
     let tree = harness.trees().plant_tree(

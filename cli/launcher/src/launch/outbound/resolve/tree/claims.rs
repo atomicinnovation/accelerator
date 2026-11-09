@@ -71,6 +71,13 @@ pub struct ListedTreeClaim {
 }
 
 impl ListedTreeClaim {
+    /// Only this user's own regular file, named with a launcher id, is ever
+    /// unlinked.
+    #[must_use]
+    pub const fn may_be_swept_by(&self, uid: u32) -> bool {
+        self.sweepable && is_valid_claim_entry(&self.entry, uid)
+    }
+
     /// An unreadable or future mtime counts as fresh, so it can only protect.
     #[must_use]
     pub fn protects_within(
