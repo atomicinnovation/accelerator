@@ -113,6 +113,14 @@ pub struct TreePruneReport {
     pub unlistable_directories: Vec<UnlistableDirectory>,
 }
 
+/// The orphan reap runs once a prune, under whichever tree lock it takes
+/// first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OrphanReap {
+    Pending,
+    Done,
+}
+
 enum ArtifactLock {
     Taken(HeldTreeLock),
     LockFree,
@@ -131,36 +139,20 @@ impl TreePrune<'_> {
         let Some((claims, index)) = self.survey(&paths, &mut report) else {
             return report;
         };
-        let mut reaped = false;
+        let mut orphan_reap = OrphanReap::Pending;
         for artifact in self.regime.artifacts(&index) {
             if !self.has_budget() {
                 break;
             }
             match self.lock(&paths, &artifact, &index, patience) {
-                ArtifactLock::Taken(held) => {
-                    self.ports.steps.reached(PruneStep::TreeLockHeld);
-                    if !reaped {
-                        self.reap_orphans_under(&held, &index, &mut report);
-                        reaped = true;
-                    }
-                    if let Some(claims) = &claims {
-                        self.reclaim_unclaimed_trees(
-                            &held,
-                            &index,
-                            claims,
-                            &mut report,
-                        );
-                    }
-                    if self.regime.sweeps_bookkeeping() {
-                        self.reclaim_orphan_sidecars(
-                            &paths,
-                            &artifact,
-                            &index,
-                            &mut report,
-                        );
-                        self.reclaim_orphan_lock(held, &index, &mut report);
-                    }
-                }
+                ArtifactLock::Taken(held) => self.prune_artifact_under(
+                    held,
+                    &paths,
+                    &index,
+                    claims.as_ref(),
+                    &mut orphan_reap,
+                    &mut report,
+                ),
                 ArtifactLock::LockFree => self.reclaim_orphan_sidecars(
                     &paths,
                     &artifact,
@@ -173,7 +165,9 @@ impl TreePrune<'_> {
                 }
             }
         }
-        if !reaped && index.holds_orphan_residue(self.ports.filesystem) {
+        if orphan_reap == OrphanReap::Pending
+            && index.holds_orphan_residue(self.ports.filesystem)
+        {
             self.reap_under_the_first_pinned_artifact(
                 &paths,
                 &index,
@@ -187,6 +181,30 @@ impl TreePrune<'_> {
             self.sweep_stale_tree_claims(&claims, &mut report);
         }
         report
+    }
+
+    fn prune_artifact_under(
+        &self,
+        held: HeldTreeLock,
+        paths: &TreePaths,
+        index: &TreesIndex,
+        claims: Option<&TreeClaimIndex>,
+        orphan_reap: &mut OrphanReap,
+        report: &mut TreePruneReport,
+    ) {
+        self.ports.steps.reached(PruneStep::TreeLockHeld);
+        if *orphan_reap == OrphanReap::Pending {
+            self.reap_orphans_under(&held, index, report);
+            *orphan_reap = OrphanReap::Done;
+        }
+        if let Some(claims) = claims {
+            self.reclaim_unclaimed_trees(&held, index, claims, report);
+        }
+        if self.regime.sweeps_bookkeeping() {
+            let artifact = held.artifact().clone();
+            self.reclaim_orphan_sidecars(paths, &artifact, index, report);
+            self.reclaim_orphan_lock(held, index, report);
+        }
     }
 
     /// No artifact's own lock reached the residue, as when it belongs only to
