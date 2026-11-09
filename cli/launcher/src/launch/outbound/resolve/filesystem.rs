@@ -489,6 +489,7 @@ pub mod testing {
         acls: BTreeMap<PathBuf, AccessAcl>,
         failing_acls: BTreeMap<PathBuf, io::ErrorKind>,
         ownership_ignored: BTreeMap<PathBuf, bool>,
+        failing_ownership_checks: BTreeMap<PathBuf, io::ErrorKind>,
         resolved: Vec<PathBuf>,
     }
 
@@ -554,6 +555,18 @@ pub mod testing {
             self.overlay()
                 .ownership_ignored
                 .insert(path.to_path_buf(), ignored);
+            self
+        }
+
+        #[must_use]
+        pub fn failing_ownership_check(
+            self,
+            path: &Path,
+            kind: io::ErrorKind,
+        ) -> Self {
+            self.overlay()
+                .failing_ownership_checks
+                .insert(path.to_path_buf(), kind);
             self
         }
 
@@ -663,7 +676,16 @@ pub mod testing {
         }
 
         fn ignores_ownership(&self, path: &Path) -> io::Result<bool> {
-            let reported = self.overlay().ownership_ignored.get(path).copied();
+            let (failure, reported) = {
+                let overlay = self.overlay();
+                (
+                    overlay.failing_ownership_checks.get(path).copied(),
+                    overlay.ownership_ignored.get(path).copied(),
+                )
+            };
+            if let Some(kind) = failure {
+                return Err(io::Error::from(kind));
+            }
             reported.map_or_else(|| self.inner.ignores_ownership(path), Ok)
         }
     }

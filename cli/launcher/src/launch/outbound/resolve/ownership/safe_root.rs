@@ -480,6 +480,68 @@ mod tests {
         unsafe_root
     }
 
+    #[derive(Debug, Clone, Copy)]
+    enum Examination {
+        Entry,
+        Acl,
+    }
+
+    impl Examination {
+        fn failing_at(
+            self,
+            filesystem: ReportingFilesystem,
+            path: &Path,
+        ) -> ReportingFilesystem {
+            let denied = std::io::ErrorKind::PermissionDenied;
+            match self {
+                Self::Entry => filesystem.failing_entry(path, denied),
+                Self::Acl => filesystem.failing_acl(path, denied),
+            }
+        }
+    }
+
+    #[test]
+    fn a_directory_that_cannot_be_examined_refuses_the_root() {
+        for path in [ROOT, "/srv/cache"] {
+            for examination in [Examination::Entry, Examination::Acl] {
+                let filesystem = examination
+                    .failing_at(Tree::new().filesystem(), Path::new(path));
+
+                refused(
+                    SafePruneRoot::check(
+                        Path::new(ROOT),
+                        &filesystem,
+                        &private(),
+                        &TrustedOwners::none(),
+                    ),
+                    path,
+                    &UnsafeReason::Unexaminable(
+                        std::io::ErrorKind::PermissionDenied,
+                    ),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_volume_that_cannot_say_whether_it_ignores_ownership_is_refused() {
+        let filesystem = Tree::new().filesystem().failing_ownership_check(
+            Path::new(ROOT),
+            std::io::ErrorKind::PermissionDenied,
+        );
+
+        refused(
+            SafePruneRoot::check(
+                Path::new(ROOT),
+                &filesystem,
+                &private(),
+                &TrustedOwners::none(),
+            ),
+            ROOT,
+            &UnsafeReason::OwnershipIgnored,
+        );
+    }
+
     #[test]
     fn a_root_and_ancestors_only_its_owner_and_root_can_write_are_safe() {
         let safe = Tree::new().check().expect("safe");

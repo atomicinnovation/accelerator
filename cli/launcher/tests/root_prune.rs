@@ -1009,6 +1009,55 @@ fn the_verb_reports_a_failed_removal_and_exits_non_zero() {
     );
 }
 
+/// Each version fails in turn, so whichever the listing reaches first, a
+/// failure is followed by more pruning.
+#[test]
+fn the_verb_prunes_everything_else_after_a_failed_removal() {
+    for (failing, pruned) in [(OLD, "2.0.0"), ("2.0.0", OLD)] {
+        let harness = RootHarness::new();
+        let kept = harness.entry(failing, harness.aged());
+        let reclaimed = harness.entry(pruned, harness.aged());
+        let tree = harness.trees().plant_tree(
+            &on_host("retired"),
+            &digest('a'),
+            harness.aged(),
+        );
+        let signature = harness.join(&format!("{kept}.minisig"));
+        let filesystem = ScriptedFilesystem::over(harness.recorder())
+            .failing(
+                FilesystemCall::RemoveFile(in_root("")).kind(),
+                &signature,
+                1,
+                std::io::ErrorKind::PermissionDenied,
+            )
+            .failing(
+                FilesystemCall::RemoveTree(in_root("")).kind(),
+                &tree.generation,
+                1,
+                std::io::ErrorKind::PermissionDenied,
+            );
+
+        let verb = harness.prune(Ports {
+            filesystem: Arc::new(filesystem),
+            ..harness.ports()
+        });
+
+        verb.failed();
+        assert!(harness.has(&kept), "{failing}");
+        assert!(!harness.has(&reclaimed), "{failing}");
+        for failed in [&signature, &tree.generation] {
+            assert!(
+                verb.err.contains(&format!(
+                    "could not remove {}: permission denied",
+                    failed.display()
+                )),
+                "{failing}: {}",
+                verb.err
+            );
+        }
+    }
+}
+
 #[test]
 fn a_claim_refreshed_before_unlink_is_kept() {
     let harness = RootHarness::new();
