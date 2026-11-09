@@ -182,8 +182,8 @@ mise run vendor:check-trust-anchors
 ### Refreshing the anchors
 
 Do this on initial setup and whenever the pinned Playwright version bumps (which
-can change the Chromium revision and the paired Node version). The publisher keys
-change only when their publishers rotate them.
+can change the Chromium revision and the Node versions it accepts). The
+publisher keys change only when their publishers rotate them.
 
 1. **Provision the publisher keys**, verifying each is genuine out-of-band before
    committing it — a key fetched over the same channel it is meant to authenticate
@@ -192,11 +192,14 @@ change only when their publishers rotate them.
      against the fingerprints Node publishes in its release documentation.
    - `keys/npm-registry.pem`: the registry's current signing key from
      `https://registry.npmjs.org/-/npm/v1/keys`, in PEM form.
-2. **Set the Chromium and Node pins** to match the pinned `playwright-core`. The
-   revision comes from that package's `browsers.json`; the assembly cross-checks
-   `pins.toml`'s value against it, so a mismatch fails loudly. The per-platform
-   Chromium sha256 and the Node version are the byte digest and pairing the
-   verification steps in `tasks/shared/vendor/{chromium,nodejs}.py` expect.
+2. **Set the Chromium and Node pins.** The Chromium revision comes from the
+   pinned `playwright-core`'s `browsers.json`; the fetch and the assembly both
+   cross-check `pins.toml`'s value against it, so a mismatch fails loudly. The
+   per-platform Chromium sha256 is the byte digest the verification step in
+   `tasks/shared/vendor/chromium.py` expects. The Node version is the latest
+   release of a maintained Node LTS line that `playwright-core`'s `engines`
+   range accepts. It need not follow the Node major Playwright's own images use;
+   when you hold it on an older line, say why in the PR.
 3. **Assemble once locally to obtain the digests.** With the keys and Chromium/Node
    pins in place, run the assembly and read the sha256 of each produced archive
    under `dist/release/`:

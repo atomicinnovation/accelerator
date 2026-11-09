@@ -26,7 +26,9 @@ bumped = 2026-11-09
 
 # chromium.revision mirrors the pinned playwright-core's browsers.json and is
 # cross-checked against it at assembly; the per-platform sha256 makes the
-# CDN-served bytes reviewable. node.version mirrors the pairing upstream ships.
+# CDN-served bytes reviewable. node.version is the latest release of a
+# maintained Node LTS line the pinned playwright-core's engines range accepts;
+# it need not follow the Node major Playwright's own images use.
 # The revision, digests and Node version follow a Playwright pin bump under the
 # trust-anchor procedure. Each `bumped` date moves only with its own subject,
 # under the bump-date rule in RELEASING.md's "Vendored-runtime pin guard"
