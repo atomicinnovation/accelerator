@@ -228,6 +228,22 @@ impl SafePruneRoot {
     }
 }
 
+/// The verdict the walk gives a cache root, for a bookkeeping directory
+/// inside one.
+pub(super) fn admits_as_root(
+    entry: EntryMetadata,
+    acl: AccessAcl,
+    ownership: &dyn Ownership,
+) -> bool {
+    Directory {
+        entry,
+        acl,
+        position: Position::Root,
+    }
+    .verdict(ownership, &TrustedOwners::none())
+    .is_ok()
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Position {
     Root,

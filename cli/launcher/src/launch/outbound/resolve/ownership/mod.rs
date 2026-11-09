@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use self::accounts::{AccountLookup, LibcLookup};
-use super::filesystem::{AccessAcl, CacheFilesystem, EntryMetadata, FileKind};
+use super::filesystem::{CacheFilesystem, EntryMetadata};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrimaryGroup {
@@ -120,21 +120,6 @@ pub fn is_private_group(
     group_name == login && members.iter().all(|member| *member == login)
 }
 
-#[must_use]
-pub const fn is_trusted_entry(
-    entry: &EntryMetadata,
-    uid: u32,
-    private_gid: Option<u32>,
-) -> bool {
-    let writable_only_by_its_owner = entry.mode & 0o022 == 0;
-    let writable_only_through_the_private_group = entry.mode & 0o002 == 0
-        && matches!(private_gid, Some(gid) if gid == entry.group);
-    matches!(entry.kind, FileKind::Directory)
-        && entry.owner == uid
-        && (writable_only_by_its_owner
-            || writable_only_through_the_private_group)
-}
-
 pub fn is_trusted_directory(
     path: &Path,
     filesystem: &dyn CacheFilesystem,
@@ -145,29 +130,17 @@ pub fn is_trusted_directory(
     })
 }
 
-/// An ACL whose grants the mode bits do not mask refuses any directory.
-///
-/// A POSIX ACL is harmless under an owner-only mode, whose group bits are its
-/// mask, but not under a private group's: another user's entry would read as
-/// group-writable.
+/// The rule the safety walk applies to a cache root, applied to a
+/// bookkeeping directory inside one.
 pub fn is_trusted_directory_entry(
     path: &Path,
     entry: &EntryMetadata,
     filesystem: &dyn CacheFilesystem,
     ownership: &dyn Ownership,
 ) -> bool {
-    let Ok(acl) = filesystem.access_acl(path) else {
-        return false;
-    };
-    let uid = ownership.effective_uid();
-    if acl != AccessAcl::Other && is_trusted_entry(entry, uid, None) {
-        return true;
-    }
-    let gid = ownership.effective_gid();
-    entry.group == gid
-        && acl == AccessAcl::None
-        && ownership.primary_group_is_private()
-        && is_trusted_entry(entry, uid, Some(gid))
+    filesystem
+        .access_acl(path)
+        .is_ok_and(|acl| safe_root::admits_as_root(*entry, acl, ownership))
 }
 
 #[cfg(test)]
@@ -182,8 +155,8 @@ mod tests {
     use super::super::filesystem::{AccessAcl, EntryMetadata, FileKind};
     use super::accounts::{AccountLookup, Accounts};
     use super::{
-        is_private_group, is_trusted_directory, is_trusted_entry, Ownership,
-        PrimaryGroup, ProcessOwnership,
+        is_private_group, is_trusted_directory, Ownership, PrimaryGroup,
+        ProcessOwnership,
     };
 
     const UID: u32 = 501;
@@ -228,10 +201,13 @@ mod tests {
                 false,
             ),
         ];
-        for (entry, trusted) in cases {
+        for (entry, expected) in cases {
             assert_eq!(
-                is_trusted_entry(&entry, UID, None),
-                trusted,
+                trusted(
+                    &reported(entry, AccessAcl::None),
+                    &Fixed::new(PrimaryGroup::Private)
+                ),
+                expected,
                 "{entry:?}"
             );
         }
@@ -239,21 +215,23 @@ mod tests {
 
     #[test]
     fn a_directory_writable_only_through_the_private_group_is_trusted() {
-        let private = EntryMetadata {
-            group: GID,
-            ..directory(0o040_775)
+        let private = Fixed::new(PrimaryGroup::Private);
+        let shared = Fixed::new(PrimaryGroup::Shared {
+            name: "staff".to_owned(),
+        });
+        let group_writable = |group, mode| {
+            reported(
+                EntryMetadata {
+                    group,
+                    ..directory(mode)
+                },
+                AccessAcl::None,
+            )
         };
-        assert!(is_trusted_entry(&private, UID, Some(GID)));
-        assert!(!is_trusted_entry(&private, UID, Some(GID + 1)));
-        assert!(!is_trusted_entry(&private, UID, None));
-        assert!(!is_trusted_entry(
-            &EntryMetadata {
-                group: GID,
-                ..directory(0o040_777)
-            },
-            UID,
-            Some(GID)
-        ));
+        assert!(trusted(&group_writable(GID, 0o040_775), &private));
+        assert!(!trusted(&group_writable(GID + 1, 0o040_775), &private));
+        assert!(!trusted(&group_writable(GID, 0o040_775), &shared));
+        assert!(!trusted(&group_writable(GID, 0o040_777), &private));
     }
 
     #[test]
