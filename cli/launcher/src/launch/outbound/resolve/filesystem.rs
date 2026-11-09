@@ -485,9 +485,9 @@ const fn set_executable(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Compiled always because the launcher's integration tests link the library
-/// without `cfg(test)`.
-#[doc(hidden)]
+/// Debug builds only, so the launcher's integration tests can link it and no
+/// release build carries it.
+#[cfg(any(test, debug_assertions))]
 pub mod testing {
     use std::collections::BTreeMap;
     use std::ffi::OsString;
