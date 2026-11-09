@@ -286,18 +286,25 @@ const fn ignores_ownership_of(_path: &Path) -> io::Result<bool> {
     Ok(false)
 }
 
-/// An allow entry granting any of these lets its principal create, rename or
-/// remove names in the directory. Owner entries are counted too: matching the
-/// owner would need a uid lookup, and refusing one only refuses more.
+/// Beyond reading, a grant may let its principal rename names in the directory
+/// or the directory itself, or take the ACL or the ownership needed to. An
+/// entry naming the directory's own owner is counted as well, because telling
+/// it apart would mean resolving its principal to a uid, and counting it can
+/// only refuse more.
 #[cfg(target_os = "macos")]
 fn access_acl_of(path: &Path) -> io::Result<AccessAcl> {
     use exacl::{AclOption, Perm};
-    let writes = Perm::WRITE | Perm::APPEND | Perm::DELETE_CHILD;
+    let reading = Perm::READ
+        | Perm::EXECUTE
+        | Perm::READATTR
+        | Perm::READEXTATTR
+        | Perm::READSECURITY
+        | Perm::SYNC;
     let entries = exacl::getfacl(path, AclOption::SYMLINK_ACL)?;
     Ok(
         if entries
             .iter()
-            .any(|entry| entry.allow && entry.perms.intersects(writes))
+            .any(|entry| entry.allow && !reading.contains(entry.perms))
         {
             AccessAcl::Other
         } else {
@@ -666,6 +673,36 @@ mod tests {
             .status()
             .expect("chmod +a");
         assert!(status.success(), "chmod +a {ace}");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn only_read_only_grants_leave_a_directory_free_of_an_access_acl() {
+        let read_only =
+            ["list", "search", "readattr", "readextattr", "readsecurity"];
+        let beyond_reading = [
+            "add_file",
+            "add_subdirectory",
+            "delete_child",
+            "delete",
+            "writesecurity",
+            "chown",
+            "writeattr",
+            "writeextattr",
+        ];
+        for (permissions, expected) in [
+            (&read_only[..], AccessAcl::None),
+            (&beyond_reading[..], AccessAcl::Other),
+        ] {
+            for permission in permissions {
+                let granted = tempfile::tempdir().expect("tempdir");
+                add_ace(
+                    granted.path(),
+                    &format!("everyone allow {permission}"),
+                );
+                assert_eq!(acl_of(granted.path()), expected, "{permission}");
+            }
+        }
     }
 
     #[test]
