@@ -6,11 +6,13 @@ upstream Chromium bump cannot slip in under an unchanged Playwright pin.
 """
 
 import json
+import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
 HEADLESS_SHELL = "chromium-headless-shell"
+PACKED_MANIFEST = "package/browsers.json"
 
 
 class BrowsersManifestError(ValueError):
@@ -68,6 +70,26 @@ class BrowsersManifest:
             document = json.loads(path.read_text())
         except json.JSONDecodeError as error:
             raise BrowsersManifestError(f"{path}: {error}") from error
+        return cls.parse(document)
+
+    @classmethod
+    def read_packed(cls, tarball: Path) -> Self:
+        """Read the manifest packed inside a ``playwright-core`` npm tarball."""
+        with tarfile.open(tarball, "r:gz") as archive:
+            try:
+                member = archive.extractfile(PACKED_MANIFEST)
+            except KeyError as error:
+                raise BrowsersManifestError(
+                    f"{tarball} packs no {PACKED_MANIFEST}"
+                ) from error
+            if member is None:
+                raise BrowsersManifestError(
+                    f"{PACKED_MANIFEST} in {tarball} is not a regular file"
+                )
+            try:
+                document = json.loads(member.read())
+            except json.JSONDecodeError as error:
+                raise BrowsersManifestError(f"{tarball}: {error}") from error
         return cls.parse(document)
 
     def pinned_headless_shell(self, revision: str) -> BrowserBuild:

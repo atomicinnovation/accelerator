@@ -1,4 +1,6 @@
+import io
 import json
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -90,6 +92,31 @@ def test_reading_an_unparseable_file_is_malformed(tmp_path):
     path.write_text("{not json")
     with pytest.raises(BrowsersManifestError, match=str(path)):
         BrowsersManifest.read(path)
+
+
+def _packed(tmp_path, members):
+    tarball = tmp_path / "playwright-core.tgz"
+    with tarfile.open(tarball, "w:gz") as archive:
+        for name, payload in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(payload)
+            archive.addfile(info, io.BytesIO(payload))
+    return tarball
+
+
+def test_a_packed_playwright_core_yields_its_manifest(tmp_path):
+    tarball = _packed(
+        tmp_path, {"package/browsers.json": RECORDED.read_bytes()}
+    )
+    assert BrowsersManifest.read_packed(tarball) == BrowsersManifest.read(
+        RECORDED
+    )
+
+
+def test_a_packed_playwright_core_without_a_manifest_is_malformed(tmp_path):
+    tarball = _packed(tmp_path, {"package/index.js": b""})
+    with pytest.raises(BrowsersManifestError, match=r"browsers\.json"):
+        BrowsersManifest.read_packed(tarball)
 
 
 def test_reading_round_trips_a_written_manifest(tmp_path):

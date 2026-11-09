@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from tasks.shared.vendor.browsers import (
     HEADLESS_SHELL,
+    PACKED_MANIFEST,
     BrowserBuild,
     BrowsersManifest,
     BrowsersManifestError,
@@ -36,7 +37,6 @@ from tasks.shared.vendor.pin_guard.local_inputs import Pin
 NPM_REGISTRY_HOST = "registry.npmjs.org"
 MAXIMUM_TARBALL_BYTES = 32 * 1024 * 1024
 MAXIMUM_MANIFEST_BYTES = 1024 * 1024
-BROWSERS_MEMBER = "package/browsers.json"
 _CHECK = CheckName.CHROMIUM_ADVISORIES
 
 
@@ -130,21 +130,21 @@ def pinned_browser_build(
 def _browsers_member(payload: bytes) -> bytes:
     try:
         with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
-            member = archive.getmember(BROWSERS_MEMBER)
+            member = archive.getmember(PACKED_MANIFEST)
             if not member.isfile():
                 raise FeedDocumentError(
-                    f"{BROWSERS_MEMBER} is not a regular file"
+                    f"{PACKED_MANIFEST} is not a regular file"
                 )
             if member.size > MAXIMUM_MANIFEST_BYTES:
                 raise FeedDocumentError(
-                    f"{BROWSERS_MEMBER} over {MAXIMUM_MANIFEST_BYTES} bytes"
+                    f"{PACKED_MANIFEST} over {MAXIMUM_MANIFEST_BYTES} bytes"
                 )
             handle = archive.extractfile(member)
             if handle is None:
-                raise FeedDocumentError(f"missing member {BROWSERS_MEMBER}")
+                raise FeedDocumentError(f"missing member {PACKED_MANIFEST}")
             return handle.read()
     except KeyError as error:
-        raise FeedDocumentError(f"missing member {BROWSERS_MEMBER}") from error
+        raise FeedDocumentError(f"missing member {PACKED_MANIFEST}") from error
     except (tarfile.TarError, OSError, EOFError) as error:
         raise FeedDocumentError("unreadable tarball") from error
 
