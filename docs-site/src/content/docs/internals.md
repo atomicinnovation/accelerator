@@ -321,7 +321,8 @@ so the launcher bounds what it holds:
 
 - **Claims.** Every invocation, including built-in commands, records that its
   version is in use as `claims/<version>.<launcher-id>` in the cache
-  directory, rewriting the claim at most once every ~1.4 days.
+  directory, rewriting the claim at most once every ~1.4 days. A directory
+  that is not safe to prune, as described below, is not claimed either.
 - **Automatic prune.** Every cold dispatch and every runtime-tree
   materialise prunes the directory before the dispatch runs, starting
   removals for at most about two seconds and leaving the rest to later cold

@@ -33,9 +33,40 @@ impl VersionClaim<'_> {
     }
 }
 
-/// A young valid claim is left alone, so a crawl writes at most once. A failed
-/// write is only logged at debug, because a read-only root is a supported case.
 pub fn refresh(
+    root: &Path,
+    claim: &VersionClaim<'_>,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+    clock: &dyn Clock,
+) {
+    if is_due(root, claim, filesystem, ownership, clock) {
+        write(root, claim, filesystem, ownership, clock);
+    }
+}
+
+/// A young valid claim is left alone, so a crawl writes at most once.
+#[must_use]
+pub fn is_due(
+    root: &Path,
+    claim: &VersionClaim<'_>,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+    clock: &dyn Clock,
+) -> bool {
+    let path = root.join(VERSION_CLAIMS_DIR).join(claim.name());
+    let now = clock.now_seconds();
+    !filesystem.entry(&path).is_ok_and(|entry| {
+        is_valid(&entry, ownership.effective_uid())
+            && age(&entry, now).is_some_and(|age| {
+                age < CLAIM_WINDOW.as_secs() / REFRESH_FRACTION
+            })
+    })
+}
+
+/// A failed write is only logged at debug, because a read-only root is a
+/// supported case.
+pub fn write(
     root: &Path,
     claim: &VersionClaim<'_>,
     filesystem: &dyn CacheFilesystem,
@@ -45,15 +76,6 @@ pub fn refresh(
     let claims = root.join(VERSION_CLAIMS_DIR);
     let path = claims.join(claim.name());
     let now = clock.now_seconds();
-    let young = filesystem.entry(&path).is_ok_and(|entry| {
-        is_valid(&entry, ownership.effective_uid())
-            && age(&entry, now).is_some_and(|age| {
-                age < CLAIM_WINDOW.as_secs() / REFRESH_FRACTION
-            })
-    });
-    if young {
-        return;
-    }
     if let Err(error) = write_claim(&claims, &path, filesystem, ownership, now)
     {
         tracing::debug!(

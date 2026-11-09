@@ -850,8 +850,23 @@ fn the_verb_refuses_an_unsafe_root_and_exits_non_zero() {
     );
 }
 
+fn running_claims(harness: &RootHarness) -> usize {
+    std::fs::read_dir(harness.claims())
+        .expect("claims")
+        .flatten()
+        .filter(|claim| {
+            claim
+                .file_name()
+                .to_string_lossy()
+                .starts_with(&format!("{RUNNING}."))
+        })
+        .count()
+}
+
+/// Another user could swap `claims/` for a symlink between the trust check
+/// and the write, so nothing is written where they can.
 #[test]
-fn claims_are_still_written_in_an_unsafe_root() {
+fn an_unsafe_root_is_never_claimed() {
     let harness = RootHarness::new();
     let filesystem = ReportingFilesystem::over_system()
         .reporting(&harness.root, shared_group_writable(&harness.root));
@@ -861,17 +876,16 @@ fn claims_are_still_written_in_an_unsafe_root() {
         ..harness.ports()
     });
 
-    let claims = std::fs::read_dir(harness.claims())
-        .expect("claims written")
-        .flatten()
-        .filter(|claim| {
-            claim
-                .file_name()
-                .to_string_lossy()
-                .starts_with(&format!("{RUNNING}."))
-        })
-        .count();
-    assert_eq!(claims, 1);
+    assert_eq!(running_claims(&harness), 0);
+}
+
+#[test]
+fn a_safe_root_is_claimed_at_start_up() {
+    let harness = RootHarness::new();
+
+    harness.prune(harness.ports());
+
+    assert_eq!(running_claims(&harness), 1);
 }
 
 #[test]

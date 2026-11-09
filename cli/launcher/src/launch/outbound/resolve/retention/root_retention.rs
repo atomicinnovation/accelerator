@@ -180,20 +180,26 @@ impl AfterMaterialise for RelocatedRetention {
 }
 
 impl RootRetention for RelocatedRetention {
-    /// Written even in an unsafe root, so a root made safe later keeps its
-    /// protection.
+    /// Written only where no other user could redirect the write, and
+    /// walked only once a claim is due. A root made safe later begins its
+    /// grace with its first claim.
     fn claim_running_version(&self) {
         let launcher_id = launcher_id();
-        version_claims::refresh(
-            &self.root,
-            &VersionClaim {
-                version: &self.running_version,
-                launcher_id: &launcher_id,
-            },
-            self.ports.filesystem.as_ref(),
-            self.ports.ownership.as_ref(),
-            self.ports.clock.as_ref(),
-        );
+        let claim = VersionClaim {
+            version: &self.running_version,
+            launcher_id: &launcher_id,
+        };
+        let filesystem = self.ports.filesystem.as_ref();
+        let ownership = self.ports.ownership.as_ref();
+        let clock = self.ports.clock.as_ref();
+        if version_claims::is_due(
+            &self.root, &claim, filesystem, ownership, clock,
+        ) && self.safe_root().is_ok()
+        {
+            version_claims::write(
+                &self.root, &claim, filesystem, ownership, clock,
+            );
+        }
     }
 
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome {
