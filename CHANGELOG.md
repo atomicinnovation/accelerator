@@ -200,11 +200,12 @@
 - **`cache prune` reports every failure instead of stopping at the first.**
   A lock it cannot take no longer ends the prune: it prunes every other
   artifact, prints the count, and then exits non-zero. A removal that fails,
-  which was silently ignored, now also exits non-zero. `--older-than` also
-  sets the version-claim window. When the launcher vanishes before it can
-  run, `bin/accelerator` now exits 1, or 0 under `--fail-safe`, where it
-  exited 126 or 127, depending on the bash version. Every other `exec`
-  failure exits as before.
+  which was silently ignored, now also exits non-zero.
+- **`cache prune --older-than` also sets the version-claim window**, as well
+  as the tree-claim window it set before.
+- **`bin/accelerator` exits 1, or 0 under `--fail-safe`, when the launcher
+  vanishes before it can run**, where it exited 126 or 127, depending on the
+  bash version. Every other `exec` failure exits as before.
 - **`cache prune` refuses a relocated root other users can write to.** In
   such a root, or one under a directory they can write to, it removes
   nothing and exits non-zero, printing the directory at fault and the fix,
@@ -710,7 +711,8 @@
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
-  protects. A root is pruned only when it is writable by its owner alone, or
+  protects, and every version's entries for 14 days after the root's first
+  claim. A root is pruned only when it is writable by its owner alone, or
   through the owner's private group, and no directory above it is writable
   by others without the sticky bit. A root shared by several users, sticky or
   not, works as a cache but is not pruned; give each user their own, such as
@@ -917,9 +919,14 @@
   budget there; the field is optional, so an override without it still
   writes valid notes, but they do not record the budget.
 
-- **Sessions of older launchers sharing a relocated root re-fetch after each
-  prune.** A newer launcher's prune evicts their entries, because they write
-  no claims. Reloading the plugin ends this.
+- **Reload every session sharing a relocated root within 14 days of
+  upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
+  once a root has seen its first claim for 14 days, a newer launcher's prune
+  evicts their entries on every cold path. They cannot re-resolve an entry
+  that vanishes: a dispatch that races the prune fails, exiting 126 or 127
+  even under `--fail-safe`, and offline the re-fetch fails and records an
+  unverified launcher in `.accelerator-unverified.log`. Reloading the plugin
+  ends this.
 
 ## [1.23.0] - 2026-06-23
 
