@@ -453,7 +453,7 @@ impl SingleFilePrune<'_> {
             {
                 continue;
             }
-            if !self.is_still_stale(&claim.path) {
+            if !self.is_still_stale(claim) {
                 continue;
             }
             outcome.removals.remove_file(
@@ -477,25 +477,13 @@ impl SingleFilePrune<'_> {
 
     /// Re-read immediately before the unlink, so a refresh landing between
     /// the listing and here keeps its claim.
-    fn is_still_stale(&self, path: &Path) -> bool {
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            return false;
-        };
-        let Some((version, launcher_id)) =
-            version_claims::parse_claim_name(name)
-        else {
-            return false;
-        };
-        self.ports.filesystem.entry(path).is_ok_and(|entry| {
-            self.is_stale(&ListedClaim {
-                version: version.to_owned(),
-                launcher_id: launcher_id.to_owned(),
-                path: path.to_path_buf(),
-                valid: entry.kind == FileKind::File
-                    && entry.owner == self.ports.ownership.effective_uid(),
-                modified_seconds: entry.modified_seconds,
-            })
-        })
+    fn is_still_stale(&self, claim: &ListedClaim) -> bool {
+        claim
+            .reread(
+                self.ports.filesystem.as_ref(),
+                self.ports.ownership.as_ref(),
+            )
+            .is_some_and(|now| self.is_stale(&now))
     }
 }
 

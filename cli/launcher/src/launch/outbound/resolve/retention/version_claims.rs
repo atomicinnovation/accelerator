@@ -151,6 +151,23 @@ pub struct ListedClaim {
     pub modified_seconds: Option<u64>,
 }
 
+impl ListedClaim {
+    /// The same claim as it stands now, or `None` once it cannot be read.
+    #[must_use]
+    pub fn reread(
+        &self,
+        filesystem: &dyn CacheFilesystem,
+        ownership: &dyn Ownership,
+    ) -> Option<Self> {
+        let entry = filesystem.entry(&self.path).ok()?;
+        Some(Self {
+            valid: is_valid(&entry, ownership.effective_uid()),
+            modified_seconds: entry.modified_seconds,
+            ..self.clone()
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum ClaimsListing {
     Read(Vec<ListedClaim>),
