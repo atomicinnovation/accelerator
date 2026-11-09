@@ -193,6 +193,14 @@ fn is_launcher_id(candidate: &str) -> bool {
             .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+fn plugin_root() -> Result<tempfile::TempDir, Box<dyn Error>> {
+    let plugin = tempfile::Builder::new()
+        .prefix("version-plugin-")
+        .tempdir()?;
+    std::fs::create_dir(plugin.path().join("bin"))?;
+    Ok(plugin)
+}
+
 #[test]
 fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>>
 {
@@ -200,8 +208,16 @@ fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>
         .prefix("version-claim-")
         .tempdir()?;
     let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+    let plugin = plugin_root()?;
+    let plugin_dir = plugin.path().to_str().ok_or("non-UTF-8 temp path")?;
 
-    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+    let output = run(
+        &["version"],
+        &[
+            ("ACCELERATOR_CACHE_DIR", cache_dir),
+            ("ACCELERATOR_PLUGIN_ROOT", plugin_dir),
+        ],
+    )?;
 
     assert!(output.status.success(), "{output:?}");
     let claims: Vec<String> = std::fs::read_dir(cache.path().join("claims"))?
@@ -220,6 +236,21 @@ fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>
         ),
         "{claims:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn an_override_with_no_plugin_root_is_never_claimed(
+) -> Result<(), Box<dyn Error>> {
+    let cache = tempfile::Builder::new()
+        .prefix("version-unconfirmed-")
+        .tempdir()?;
+    let cache_dir = cache.path().to_str().ok_or("non-UTF-8 temp path")?;
+
+    let output = run(&["version"], &[("ACCELERATOR_CACHE_DIR", cache_dir)])?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert!(!cache.path().join("claims").exists());
     Ok(())
 }
 

@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::super::cache_root::{CacheRoot, PluginBinRoot};
+use super::super::cache_root::{CacheRoot, PluginBinRoot, Unconfirmed};
 use super::super::ownership::safe_root::{
     SafePruneRoot, TrustedOwners, UnsafeRoot,
 };
@@ -224,6 +224,36 @@ impl RootRetention for UnidentifiedRetention {
     }
 }
 
+pub struct UnconfirmedRetention {
+    root: PathBuf,
+    reason: Unconfirmed,
+}
+
+impl AfterStore for UnconfirmedRetention {
+    fn after_store(&self, _held_leases: &HeldLeases) {}
+}
+
+impl AfterMaterialise for UnconfirmedRetention {
+    fn reap_permit(&self) -> Option<ReapPermit> {
+        None
+    }
+
+    fn after_materialise(&self, held: HeldTreeLock) {
+        drop(held);
+    }
+}
+
+impl RootRetention for UnconfirmedRetention {
+    fn claim_running_version(&self) {}
+
+    fn prune(&self, _older_than: Option<Duration>) -> PruneOutcome {
+        PruneOutcome::Unconfirmed {
+            root: self.root.clone(),
+            reason: self.reason,
+        }
+    }
+}
+
 #[must_use]
 pub fn for_root(
     root: Result<&CacheRoot, &str>,
@@ -239,6 +269,12 @@ pub fn for_root(
             })
         }
     };
+    if let Some(reason) = root.unconfirmed() {
+        return Arc::new(UnconfirmedRetention {
+            root: root.path().to_path_buf(),
+            reason,
+        });
+    }
     match root.plugin_bin() {
         Some(plugin_bin) => {
             Arc::new(PluginBinRetention::new(plugin_bin, ports))
@@ -261,7 +297,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::super::super::cache_root::{
-        identify, CacheRoot, CacheRootConfig,
+        identify, CacheRoot, CacheRootConfig, Unconfirmed,
     };
     use super::super::super::filesystem::SystemFilesystem;
     use super::super::super::ownership::safe_root::TrustedOwners;
@@ -290,16 +326,33 @@ mod tests {
         (plugin, root)
     }
 
-    fn relocated() -> (tempfile::TempDir, CacheRoot) {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = identify(
+    fn overriding(
+        cache_dir: PathBuf,
+        plugin_root: Option<PathBuf>,
+    ) -> CacheRoot {
+        identify(
             &CacheRootConfig {
-                cache_dir_override: Some(temp.path().to_path_buf()),
-                plugin_root: None,
+                cache_dir_override: Some(cache_dir),
+                plugin_root,
             },
             &SystemFilesystem,
         )
-        .expect("identified");
+        .expect("identified")
+    }
+
+    fn relocated() -> (tempfile::TempDir, CacheRoot) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let plugin = temp.path().join("plugin");
+        std::fs::create_dir_all(plugin.join("bin")).expect("plugin bin");
+        let cache = temp.path().join("cache");
+        std::fs::create_dir(&cache).expect("cache");
+        let root = overriding(cache, Some(plugin));
+        (temp, root)
+    }
+
+    fn unconfirmed() -> (tempfile::TempDir, CacheRoot) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = overriding(temp.path().to_path_buf(), None);
         (temp, root)
     }
 
@@ -348,6 +401,24 @@ mod tests {
             retention_for(Err("unidentified")).prune(None),
             PruneOutcome::Unidentified {
                 detail: "unidentified".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn an_unconfirmed_root_is_never_claimed_pruned_or_reaped() {
+        let (_temp, root) = unconfirmed();
+        let retention = retention_for(Ok(&root));
+
+        retention.claim_running_version();
+
+        assert!(!claims(&root).exists());
+        assert!(retention.reap_permit().is_none());
+        assert_eq!(
+            retention.prune(None),
+            PruneOutcome::Unconfirmed {
+                root: root.path().to_path_buf(),
+                reason: Unconfirmed::NoPluginBinToCompare,
             }
         );
     }

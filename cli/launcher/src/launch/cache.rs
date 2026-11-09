@@ -166,6 +166,12 @@ fn prune(
         PruneOutcome::Unidentified { detail } => {
             Err(ResolutionError::CacheRootUnavailable { detail }.into())
         }
+        PruneOutcome::Unconfirmed { root, reason } => {
+            Err(kernel::Error::Failed(format!(
+                "not pruning {}: {reason}",
+                root.display()
+            )))
+        }
     }
 }
 

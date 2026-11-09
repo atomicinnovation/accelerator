@@ -76,6 +76,27 @@ pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
 pub enum CacheRootKind {
     PluginBin,
     Relocated,
+    Unconfirmed(Unconfirmed),
+}
+
+/// Why an override cannot yet be told apart from the plugin `bin`, so that
+/// nothing may be claimed or removed in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unconfirmed {
+    Unresolved,
+    NoPluginBinToCompare,
+}
+
+impl std::fmt::Display for Unconfirmed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Unresolved => "it does not resolve to a directory yet",
+            Self::NoPluginBinToCompare => {
+                "no plugin bin resolves to tell it apart from; \
+                 ACCELERATOR_PLUGIN_ROOT is unset or has no bin"
+            }
+        })
+    }
 }
 
 /// A cache root as only [`identify`] names one.
@@ -89,6 +110,14 @@ impl CacheRoot {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    #[must_use]
+    pub const fn unconfirmed(&self) -> Option<Unconfirmed> {
+        match self.kind {
+            CacheRootKind::Unconfirmed(reason) => Some(reason),
+            CacheRootKind::PluginBin | CacheRootKind::Relocated => None,
+        }
     }
 
     #[must_use]
@@ -131,22 +160,21 @@ pub fn identify(
             kind: CacheRootKind::PluginBin,
         });
     }
-    // Claiming and pruning wait until the cold path's `create_dir_all` makes
-    // the override resolvable.
     let Ok(resolved) = filesystem.resolve(&path) else {
         return Ok(CacheRoot {
             path,
-            kind: CacheRootKind::PluginBin,
+            kind: CacheRootKind::Unconfirmed(Unconfirmed::Unresolved),
         });
     };
     let plugin_bin = config.plugin_root.as_ref().and_then(|plugin_root| {
         filesystem.resolve(&plugin_root.join("bin")).ok()
     });
     let kind = match plugin_bin {
+        None => CacheRootKind::Unconfirmed(Unconfirmed::NoPluginBinToCompare),
         Some(plugin_bin) if plugin_bin.identity == resolved.identity => {
             CacheRootKind::PluginBin
         }
-        _ => CacheRootKind::Relocated,
+        Some(_) => CacheRootKind::Relocated,
     };
     Ok(CacheRoot {
         path: resolved.canonical,
@@ -266,7 +294,7 @@ mod tests {
     };
     use super::{
         candidate, identify, probe_attempts, run_probe, verify_writable,
-        CacheRoot, CacheRootConfig, CacheRootKind,
+        CacheRoot, CacheRootConfig, CacheRootKind, Unconfirmed,
     };
 
     fn config() -> CacheRootConfig {
@@ -502,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn an_override_that_does_not_resolve_is_treated_as_the_plugin_bin(
+    fn an_override_that_does_not_resolve_yet_is_unconfirmed(
     ) -> Result<(), Box<dyn Error>> {
         let layout = layout()?;
         let missing = layout.elsewhere.join("not-yet-created");
@@ -513,13 +541,18 @@ mod tests {
             &filesystem,
         )?;
 
-        assert_eq!(root.kind, CacheRootKind::PluginBin);
+        assert_eq!(
+            root.kind,
+            CacheRootKind::Unconfirmed(Unconfirmed::Unresolved)
+        );
+        assert_eq!(root.plugin_bin(), None);
+        assert_eq!(root.path(), missing);
         assert_eq!(filesystem.resolved_paths(), [missing]);
         Ok(())
     }
 
     #[test]
-    fn an_override_with_an_unresolvable_plugin_bin_is_relocated(
+    fn an_override_with_an_unresolvable_plugin_bin_is_unconfirmed(
     ) -> Result<(), Box<dyn Error>> {
         let layout = layout()?;
         std::fs::remove_dir(&layout.plugin_bin)?;
@@ -533,21 +566,27 @@ mod tests {
             root,
             CacheRoot {
                 path: layout.elsewhere.canonicalize()?,
-                kind: CacheRootKind::Relocated,
+                kind: CacheRootKind::Unconfirmed(
+                    Unconfirmed::NoPluginBinToCompare
+                ),
             }
         );
         Ok(())
     }
 
     #[test]
-    fn an_override_with_no_plugin_root_is_relocated(
+    fn an_override_with_no_plugin_root_is_unconfirmed(
     ) -> Result<(), Box<dyn Error>> {
         let layout = layout()?;
 
         let root =
-            identify(&overriding(&layout.elsewhere, None), &SystemFilesystem)?;
+            identify(&overriding(&layout.plugin_bin, None), &SystemFilesystem)?;
 
-        assert_eq!(root.kind, CacheRootKind::Relocated);
+        assert_eq!(
+            root.kind,
+            CacheRootKind::Unconfirmed(Unconfirmed::NoPluginBinToCompare)
+        );
+        assert_eq!(root.plugin_bin(), None);
         Ok(())
     }
 
