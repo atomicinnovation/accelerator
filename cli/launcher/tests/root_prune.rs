@@ -39,7 +39,8 @@ use accelerator::launch::outbound::resolve::ownership::{
     Ownership, PrimaryGroup, ProcessOwnership,
 };
 use accelerator::launch::outbound::resolve::prune_report::{
-    NoPruneSteps, PruneBudget, PruneStep, PruneSteps, UntrustedDirectory,
+    NoPruneSteps, PruneBudget, PruneReport, PruneStep, PruneSteps,
+    UntrustedDirectory,
 };
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::BootstrapHolderLiveness;
@@ -67,7 +68,6 @@ use accelerator::launch::outbound::resolve::tree::reap::{
 };
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, NoSteps, TreePrune, TreePrunePorts, TreePruneRegime,
-    TreePruneReport,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use accelerator::launch::start_up::{
@@ -2416,10 +2416,7 @@ fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
     assert!(locks.is_empty(), "{locks:?}");
 }
 
-fn prune_held_tree(
-    harness: &RootHarness,
-    artifact: &Artifact,
-) -> TreePruneReport {
+fn prune_held_tree(harness: &RootHarness, artifact: &Artifact) -> PruneReport {
     let ports = harness.ports().build();
     let safe = SafePruneRoot::check(
         &harness.root,

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::super::filesystem::FileKind;
 use super::super::prune_report::{
-    Count, PruneBudget, Removals, UnreadableClaims, UntrustedDirectory,
+    Count, PruneBudget, PruneReport, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::retention_windows::{is_aged, Age};
 use super::super::verifier::sha256_hex;
@@ -247,13 +247,6 @@ pub struct SingleFilePrune<'a> {
     pub ports: &'a CachePorts,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct SingleFileOutcome {
-    pub removals: Removals,
-    pub unreadable_claims: Option<UnreadableClaims>,
-    pub untrusted_directories: Vec<UntrustedDirectory>,
-}
-
 struct RemovalAttempt {
     of: String,
     removed: bool,
@@ -290,10 +283,10 @@ impl SingleFilePrune<'_> {
         &self,
         listing: &RootListing,
         _held: &HeldRootLock,
-    ) -> SingleFileOutcome {
+    ) -> PruneReport {
         let entries = listing.classified();
         let live_bootstraps = self.live_bootstraps(&entries);
-        let mut outcome = SingleFileOutcome::default();
+        let mut outcome = PruneReport::default();
         let claims = match version_claims::list(
             self.root,
             self.ports.filesystem.as_ref(),
@@ -305,7 +298,7 @@ impl SingleFilePrune<'_> {
                     ?kind,
                     "claims unreadable; kept every versioned entry"
                 );
-                outcome.unreadable_claims = Some(UnreadableClaims {
+                outcome.unreadable_claims.push(UnreadableClaims {
                     directory: self.root.join(VERSION_CLAIMS_DIR),
                     kind,
                 });
@@ -427,7 +420,7 @@ impl SingleFilePrune<'_> {
         entries: &[(&str, RootEntry<'_>)],
         context: &ProtectionContext,
         versioned_entries: VersionedEntries,
-        outcome: &mut SingleFileOutcome,
+        outcome: &mut PruneReport,
     ) -> VersionedRemovals {
         let mut versioned = VersionedRemovals::default();
         for (name, entry) in entries {
@@ -473,7 +466,7 @@ impl SingleFilePrune<'_> {
         name: &str,
         entry: &RootEntry<'_>,
         context: &ProtectionContext,
-        outcome: &mut SingleFileOutcome,
+        outcome: &mut PruneReport,
     ) -> bool {
         let protection = protection(entry, context);
         if protection == Protection::Protected {
@@ -522,7 +515,7 @@ impl SingleFilePrune<'_> {
         claims: &[ListedClaim],
         claimed: &FreshVersions,
         versioned: &VersionedRemovals,
-        outcome: &mut SingleFileOutcome,
+        outcome: &mut PruneReport,
     ) {
         for claim in claims.iter().filter(|claim| self.is_stale(claim)) {
             if !self.has_budget() {
@@ -801,7 +794,7 @@ mod run_tests {
     use super::super::root_lock::HeldRootLock;
     use super::super::testing::{aged, now, young, LiveHolders, Ports, Root};
     use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
-    use super::{PruneBudget, SingleFileOutcome, SingleFilePrune};
+    use super::{PruneBudget, PruneReport, SingleFilePrune};
 
     const RUNNING: &str = "9.9.9";
     const DIGEST: &str =
@@ -908,7 +901,7 @@ mod run_tests {
             Ports::at(self.now)
         }
 
-        fn prune(&self) -> SingleFileOutcome {
+        fn prune(&self) -> PruneReport {
             self.prune_with(self.ports(), None, CLAIM_WINDOW)
         }
 
@@ -917,7 +910,7 @@ mod run_tests {
             ports: Ports,
             plugin_root: Option<&Path>,
             claim_window: Duration,
-        ) -> SingleFileOutcome {
+        ) -> PruneReport {
             let ports = ports.build();
             let held = HeldRootLock::acquire(
                 self.root.path(),
@@ -1517,7 +1510,7 @@ mod run_tests {
                 .collect::<Vec<_>>(),
             [claims]
         );
-        assert_eq!(outcome.unreadable_claims, None);
+        assert!(outcome.unreadable_claims.is_empty());
     }
 
     #[test]

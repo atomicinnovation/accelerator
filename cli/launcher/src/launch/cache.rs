@@ -13,9 +13,8 @@ use crate::launch::core::tree::{
 };
 use crate::launch::core::ResolutionError;
 use crate::launch::inbound::cli::CacheAction;
-use crate::launch::outbound::resolve::retention::root_prune::{
-    PruneOutcome, PruneReport,
-};
+use crate::launch::outbound::resolve::prune_report::PruneReport;
+use crate::launch::outbound::resolve::retention::root_prune::PruneOutcome;
 use crate::launch::outbound::resolve::retention::root_retention::RootRetention;
 use crate::launch::outbound::resolve::tree::{pins, TreeResolver};
 
@@ -182,7 +181,7 @@ fn render_prune_report(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<(), kernel::Error> {
-    let _ = writeln!(out, "reclaimed {} entries", report.reclaimed);
+    let _ = writeln!(out, "reclaimed {} entries", report.removals.reclaimed);
     for problem in report.problems() {
         let _ = writeln!(err, "{problem}");
     }

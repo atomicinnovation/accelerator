@@ -27,7 +27,7 @@ mod prune;
 #[cfg(unix)]
 mod resolver;
 #[cfg(unix)]
-pub use prune::{TreePrune, TreePrunePorts, TreePruneRegime, TreePruneReport};
+pub use prune::{TreePrune, TreePrunePorts, TreePruneRegime};
 #[cfg(unix)]
 pub use resolver::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,

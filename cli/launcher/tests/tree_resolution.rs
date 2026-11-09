@@ -37,7 +37,7 @@ use accelerator::launch::outbound::resolve::ownership::{
     Ownership as _, ProcessOwnership,
 };
 use accelerator::launch::outbound::resolve::prune_report::{
-    NoPruneSteps, PruneBudget,
+    NoPruneSteps, PruneBudget, PruneReport,
 };
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
@@ -61,7 +61,7 @@ use accelerator::launch::outbound::resolve::tree::reap::{
 use accelerator::launch::outbound::resolve::tree::tree_lock::HeldTreeLock;
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreePrune,
-    TreePrunePorts, TreePruneRegime, TreePruneReport, TreeResolver,
+    TreePrunePorts, TreePruneRegime, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use lease::probe_shared_lease;
@@ -537,7 +537,7 @@ fn prune_plugin_bin(
     harness: &Harness,
     seams: PluginBinSeams,
     older_than: Option<std::time::Duration>,
-) -> TreePruneReport {
+) -> PruneReport {
     let PluginBinSeams {
         clock,
         lease_liveness,
@@ -1306,11 +1306,7 @@ fn another_artifacts_materialise_survives_this_ones_prune() {
     });
 
     assert_in_progress_residue_survives(&bystander);
-    assert_eq!(
-        report,
-        TreePruneReport::default(),
-        "the bystander was pruned"
-    );
+    assert_eq!(report, PruneReport::default(), "the bystander was pruned");
 }
 
 use accelerator::launch::outbound::resolve::tree::claims;

@@ -9,7 +9,7 @@ use super::super::cache_root::{
 use super::super::ownership::safe_root::{
     SafePruneRoot, TrustedOwners, UnsafeRoot,
 };
-use super::super::prune_report::PruneBudget;
+use super::super::prune_report::{PruneBudget, PruneReport};
 use super::super::retention_windows::{CLAIM_WINDOW, COLD_PATH_BUDGET};
 use super::super::single_flight::LockPatience;
 use super::super::tree::after_materialise::{
@@ -21,7 +21,7 @@ use super::super::tree::{TreePrune, TreePruneRegime};
 use super::super::AfterStore;
 use super::launcher_id;
 use super::ports::CachePorts;
-use super::root_prune::{PruneOutcome, PruneReport, RootPrune};
+use super::root_prune::{PruneOutcome, RootPrune};
 use super::version_claims::{self, VersionClaim};
 
 pub trait RootRetention: AfterStore + AfterMaterialise {
@@ -68,8 +68,7 @@ impl RootRetention for PluginBinRetention {
     fn claim_running_version(&self) {}
 
     fn prune(&self, older_than: Option<Duration>) -> PruneOutcome {
-        let mut report = PruneReport::default();
-        report.absorb_trees(
+        PruneOutcome::Ran(
             TreePrune {
                 regime: TreePruneRegime::PinnedOnHost(&self.root),
                 claim_window: older_than.unwrap_or(CLAIM_WINDOW),
@@ -77,8 +76,7 @@ impl RootRetention for PluginBinRetention {
                 ports: self.ports.tree_prune_ports(&HeldLeases::none()),
             }
             .run(LockPatience::Wait),
-        );
-        PruneOutcome::Ran(report)
+        )
     }
 }
 

@@ -4,13 +4,12 @@ use std::time::Duration;
 use super::super::cache_root::{NoCacheRoot, Unconfirmed};
 use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
 use super::super::prune_report::{
-    LockFailure, PruneBudget, ReapFailure, RemovalFailure, Removals,
-    UnlistableDirectory, UnreadableClaims, UntrustedDirectory,
+    LockFailure, PruneBudget, PruneReport, UnlistableDirectory,
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
 use super::super::tree::tree_lock::HeldTreeLock;
-use super::super::tree::{TreePrune, TreePruneRegime, TreePruneReport};
+use super::super::tree::{TreePrune, TreePruneRegime};
 use super::ports::CachePorts;
 use super::residue::ResidueSweep;
 use super::root_entries::RootListing;
@@ -24,98 +23,6 @@ pub struct RootPrune<'a> {
     pub claim_window: Duration,
     pub budget: PruneBudget,
     pub ports: &'a CachePorts,
-}
-
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct PruneReport {
-    pub reclaimed: u64,
-    pub lock_failures: Vec<LockFailure>,
-    pub unreadable_claims: Vec<UnreadableClaims>,
-    pub removal_failures: Vec<RemovalFailure>,
-    pub untrusted_directories: Vec<UntrustedDirectory>,
-    pub reap_failures: Vec<ReapFailure>,
-    pub unlistable_directories: Vec<UnlistableDirectory>,
-}
-
-impl PruneReport {
-    fn absorb(&mut self, removals: Removals) {
-        self.reclaimed += removals.reclaimed;
-        self.removal_failures.extend(removals.failures);
-    }
-
-    /// An unreadable or untrusted directory only kept entries, so it leaves
-    /// the prune finished.
-    #[must_use]
-    pub const fn finished(&self) -> bool {
-        self.lock_failures.is_empty()
-            && self.removal_failures.is_empty()
-            && self.reap_failures.is_empty()
-            && self.unlistable_directories.is_empty()
-    }
-
-    #[must_use]
-    pub fn problems(&self) -> Vec<String> {
-        let locks = self.lock_failures.iter().map(|failure| {
-            format!(
-                "could not lock {}: {}",
-                failure.lock.display(),
-                failure.detail
-            )
-        });
-        let claims = self.unreadable_claims.iter().map(|unreadable| {
-            format!(
-                "claims unreadable ({}) in {}; kept everything they could \
-                 protect",
-                unreadable.kind,
-                unreadable.directory.display()
-            )
-        });
-        let untrusted = self.untrusted_directories.iter().map(|untrusted| {
-            format!(
-                "not pruning through {}: another user could write to it",
-                untrusted.path.display()
-            )
-        });
-        let removals = self.removal_failures.iter().map(|failure| {
-            format!(
-                "could not remove {}: {}",
-                failure.path.display(),
-                failure.kind
-            )
-        });
-        let unlistable = self.unlistable_directories.iter().map(|directory| {
-            format!(
-                "could not list {}: {}",
-                directory.path.display(),
-                directory.kind
-            )
-        });
-        let reaps = self.reap_failures.iter().map(|failure| {
-            format!(
-                "could not reap orphans under {}: {}",
-                failure.root.display(),
-                failure.detail
-            )
-        });
-        locks
-            .chain(claims)
-            .chain(untrusted)
-            .chain(unlistable)
-            .chain(removals)
-            .chain(reaps)
-            .collect()
-    }
-
-    pub fn absorb_trees(&mut self, trees: TreePruneReport) {
-        self.absorb(trees.removals);
-        self.lock_failures.extend(trees.lock_failures);
-        self.unreadable_claims.extend(trees.unreadable_claims);
-        self.untrusted_directories
-            .extend(trees.untrusted_directories);
-        self.reap_failures.extend(trees.reap_failures);
-        self.unlistable_directories
-            .extend(trees.unlistable_directories);
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -145,7 +52,7 @@ impl RootPrune<'_> {
         report: &mut PruneReport,
     ) {
         self.prune_single_files(patience, report);
-        report.absorb_trees(self.prune_trees(patience, held_leases));
+        report.absorb(self.prune_trees(patience, held_leases));
     }
 
     /// The root lock is released when this returns, before any tree lock is
@@ -181,23 +88,18 @@ impl RootPrune<'_> {
                 return;
             }
         };
-        let single_files = SingleFilePrune {
-            root,
-            running_version: self.running_version,
-            plugin_root: self.plugin_root,
-            claim_window: self.claim_window,
-            budget: self.budget,
-            ports: self.ports,
-        }
-        .run(&listing, &held);
-        report.absorb(single_files.removals);
-        report
-            .unreadable_claims
-            .extend(single_files.unreadable_claims);
-        report
-            .untrusted_directories
-            .extend(single_files.untrusted_directories);
         report.absorb(
+            SingleFilePrune {
+                root,
+                running_version: self.running_version,
+                plugin_root: self.plugin_root,
+                claim_window: self.claim_window,
+                budget: self.budget,
+                ports: self.ports,
+            }
+            .run(&listing, &held),
+        );
+        report.removals.absorb(
             ResidueSweep::new(root, self.ports)
                 .within(self.budget)
                 .run(&listing),
@@ -208,7 +110,7 @@ impl RootPrune<'_> {
         &self,
         patience: LockPatience,
         held_leases: &HeldLeases,
-    ) -> TreePruneReport {
+    ) -> PruneReport {
         self.whole_tree(held_leases).run(patience)
     }
 
@@ -227,7 +129,7 @@ impl RootPrune<'_> {
     pub fn after_materialise(&self, held: HeldTreeLock) -> PruneReport {
         let none = HeldLeases::none();
         let mut report = PruneReport::default();
-        report.absorb_trees(self.whole_tree(&none).prune_held(&held));
+        report.absorb(self.whole_tree(&none).prune_held(&held));
         drop(held);
         self.prune_into(LockPatience::Try, &none, &mut report);
         report

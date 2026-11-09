@@ -189,3 +189,90 @@ impl Removals {
         }
     }
 }
+
+/// Everything a prune did and could not do, gathered from each part of it.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PruneReport {
+    pub removals: Removals,
+    pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Vec<UnreadableClaims>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
+    pub reap_failures: Vec<ReapFailure>,
+    pub unlistable_directories: Vec<UnlistableDirectory>,
+}
+
+impl PruneReport {
+    pub fn absorb(&mut self, other: Self) {
+        self.removals.absorb(other.removals);
+        self.lock_failures.extend(other.lock_failures);
+        self.unreadable_claims.extend(other.unreadable_claims);
+        self.untrusted_directories
+            .extend(other.untrusted_directories);
+        self.reap_failures.extend(other.reap_failures);
+        self.unlistable_directories
+            .extend(other.unlistable_directories);
+    }
+
+    /// An unreadable or untrusted directory only kept entries, so it leaves
+    /// the prune finished.
+    #[must_use]
+    pub const fn finished(&self) -> bool {
+        self.lock_failures.is_empty()
+            && self.removals.failures.is_empty()
+            && self.reap_failures.is_empty()
+            && self.unlistable_directories.is_empty()
+    }
+
+    #[must_use]
+    pub fn problems(&self) -> Vec<String> {
+        let locks = self.lock_failures.iter().map(|failure| {
+            format!(
+                "could not lock {}: {}",
+                failure.lock.display(),
+                failure.detail
+            )
+        });
+        let claims = self.unreadable_claims.iter().map(|unreadable| {
+            format!(
+                "claims unreadable ({}) in {}; kept everything they could \
+                 protect",
+                unreadable.kind,
+                unreadable.directory.display()
+            )
+        });
+        let untrusted = self.untrusted_directories.iter().map(|untrusted| {
+            format!(
+                "not pruning through {}: another user could write to it",
+                untrusted.path.display()
+            )
+        });
+        let removals = self.removals.failures.iter().map(|failure| {
+            format!(
+                "could not remove {}: {}",
+                failure.path.display(),
+                failure.kind
+            )
+        });
+        let unlistable = self.unlistable_directories.iter().map(|directory| {
+            format!(
+                "could not list {}: {}",
+                directory.path.display(),
+                directory.kind
+            )
+        });
+        let reaps = self.reap_failures.iter().map(|failure| {
+            format!(
+                "could not reap orphans under {}: {}",
+                failure.root.display(),
+                failure.detail
+            )
+        });
+        locks
+            .chain(claims)
+            .chain(untrusted)
+            .chain(unlistable)
+            .chain(removals)
+            .chain(reaps)
+            .collect()
+    }
+}

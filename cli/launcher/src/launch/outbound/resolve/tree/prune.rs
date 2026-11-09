@@ -22,8 +22,8 @@ use super::super::filesystem::{CacheFilesystem, EntryMetadata};
 use super::super::ownership::safe_root::SafePruneRoot;
 use super::super::ownership::{is_trusted_directory, Ownership};
 use super::super::prune_report::{
-    Count, LockFailure, PruneBudget, PruneStep, PruneSteps, ReapFailure,
-    Removal, Removals, UnlistableDirectory, UnreadableClaims,
+    Count, LockFailure, PruneBudget, PruneReport, PruneStep, PruneSteps,
+    ReapFailure, Removal, Removals, UnlistableDirectory, UnreadableClaims,
     UntrustedDirectory,
 };
 use super::super::retention_windows::{is_aged, Age};
@@ -103,16 +103,6 @@ pub struct TreePrune<'a> {
     pub ports: TreePrunePorts<'a>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct TreePruneReport {
-    pub removals: Removals,
-    pub lock_failures: Vec<LockFailure>,
-    pub unreadable_claims: Option<UnreadableClaims>,
-    pub untrusted_directories: Vec<UntrustedDirectory>,
-    pub reap_failures: Vec<ReapFailure>,
-    pub unlistable_directories: Vec<UnlistableDirectory>,
-}
-
 /// The orphan reap runs once a prune, under whichever tree lock it takes
 /// first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,8 +123,8 @@ impl TreePrune<'_> {
         self.budget.allows_more(self.ports.clock)
     }
 
-    pub fn run(&self, patience: LockPatience) -> TreePruneReport {
-        let mut report = TreePruneReport::default();
+    pub fn run(&self, patience: LockPatience) -> PruneReport {
+        let mut report = PruneReport::default();
         let paths = self.regime.paths();
         let Some((claims, index)) = self.survey(&paths, &mut report) else {
             return report;
@@ -190,7 +180,7 @@ impl TreePrune<'_> {
         index: &TreesIndex,
         claims: Option<&TreeClaimIndex>,
         orphan_reap: &mut OrphanReap,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         self.ports.steps.reached(PruneStep::TreeLockHeld);
         if *orphan_reap == OrphanReap::Pending {
@@ -214,7 +204,7 @@ impl TreePrune<'_> {
         paths: &TreePaths,
         index: &TreesIndex,
         patience: LockPatience,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let Some(first) = pinned_on_host().next() else {
             return;
@@ -231,8 +221,8 @@ impl TreePrune<'_> {
 
     /// Called after the caller reaped under `held`; no other tree lock is
     /// taken, since a process must never probe or retake one it holds.
-    pub fn prune_held(&self, held: &HeldTreeLock) -> TreePruneReport {
-        let mut report = TreePruneReport::default();
+    pub fn prune_held(&self, held: &HeldTreeLock) -> PruneReport {
+        let mut report = PruneReport::default();
         let paths = self.regime.paths();
         if held.paths().root() != paths.root() {
             return report;
@@ -257,7 +247,7 @@ impl TreePrune<'_> {
     fn survey(
         &self,
         paths: &TreePaths,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) -> Option<(Option<TreeClaimIndex>, TreesIndex)> {
         if self
             .ports
@@ -295,12 +285,12 @@ impl TreePrune<'_> {
     fn read_claims(
         &self,
         paths: &TreePaths,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) -> Option<TreeClaimIndex> {
         match claims::list(paths, self.ports.filesystem, self.ports.ownership) {
             claims::TreeClaimsListing::Read(claims) => Some(claims),
             claims::TreeClaimsListing::Unreadable(kind) => {
-                report.unreadable_claims = Some(UnreadableClaims {
+                report.unreadable_claims.push(UnreadableClaims {
                     directory: paths.claims(),
                     kind,
                 });
@@ -396,7 +386,7 @@ impl TreePrune<'_> {
         &self,
         held: &HeldTreeLock,
         index: &TreesIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let Some(permit) = ReapPermit::for_root(
             self.regime.trust(),
@@ -436,7 +426,7 @@ impl TreePrune<'_> {
         held: &HeldTreeLock,
         index: &TreesIndex,
         claims: &TreeClaimIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let paths = held.paths();
         let artifact = held.artifact();
@@ -495,7 +485,7 @@ impl TreePrune<'_> {
         paths: &TreePaths,
         artifact: &Artifact,
         index: &TreesIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         for (name, generation) in index.sidecars_of(artifact) {
             if index.holds(&generation) {
@@ -523,7 +513,7 @@ impl TreePrune<'_> {
         &self,
         held: HeldTreeLock,
         index: &TreesIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let paths = held.paths();
         let artifact = held.artifact();
@@ -559,7 +549,7 @@ impl TreePrune<'_> {
         tree: &UnclaimedTree<'_>,
         claims: &TreeClaimIndex,
         index: &TreesIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let removals = &mut report.removals;
         let paths = tree.paths;
@@ -616,7 +606,7 @@ impl TreePrune<'_> {
     fn sweep_stale_tree_claims(
         &self,
         claims: &TreeClaimIndex,
-        report: &mut TreePruneReport,
+        report: &mut PruneReport,
     ) {
         let now = self.ports.clock.now_seconds();
         let uid = self.ports.ownership.effective_uid();
