@@ -203,14 +203,27 @@ impl ResolveBinary for LazyProductionResolver<'_> {
     }
 }
 
+/// What reaching the release server takes, once TLS is set up.
+struct ReleaseAccess {
+    keys: TrustedKeys,
+    fetcher: Fetcher,
+}
+
+fn release_access() -> Result<ReleaseAccess, ResolutionError> {
+    let _ = install_crypto_provider();
+    Ok(ReleaseAccess {
+        keys: release_keys()?,
+        fetcher: release_fetcher().map_err(|detail| {
+            ResolutionError::CacheRootUnavailable { detail }
+        })?,
+    })
+}
+
 fn production_resolver(
     start: &StartUp,
     consumed: &[AcquiredTree],
 ) -> Result<FetchVerifyCacheResolver, ResolutionError> {
-    let _ = install_crypto_provider();
-    let keys = release_keys()?;
-    let fetcher = release_fetcher()
-        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
+    let ReleaseAccess { keys, fetcher } = release_access()?;
     start.dispatch_resolver(
         DispatchConfig {
             base_url: release_base_url(),
@@ -474,25 +487,18 @@ fn run_cache(
     action: &CacheAction,
     start: &StartUp,
 ) -> Result<(), kernel::Error> {
-    let _ = install_crypto_provider();
-    let keys = release_keys()?;
-    let fetcher = release_fetcher()
-        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
-    let resolver =
-        start.tree_resolver(production_tree_config(&keys, &fetcher))?;
+    let access = release_access()?;
+    let resolver = start.tree_resolver(production_tree_config(&access))?;
     let mut out = std::io::stdout().lock();
     let mut err = std::io::stderr().lock();
     cache::run(action, &resolver, start.retention(), &mut out, &mut err)
 }
 
-fn production_tree_config<'a>(
-    keys: &'a TrustedKeys,
-    fetcher: &'a Fetcher,
-) -> TreeConfig<'a> {
+fn production_tree_config(access: &ReleaseAccess) -> TreeConfig<'_> {
     TreeConfig {
         base_url: release_base_url(),
-        keys,
-        fetcher,
+        keys: &access.keys,
+        fetcher: &access.fetcher,
         expected_digests: ExpectedDigests::Compiled,
         waiter_bound: WAITER_BOUND,
         steps: &NoSteps,
@@ -550,12 +556,8 @@ fn export_consumed_trees(
 /// only, no network, no cache-root write probe) and is dropped before the
 /// caller mutates the environment, so the mutation is single-threaded.
 fn acquire_consumed_trees(start: &StartUp) -> Option<Vec<AcquiredTree>> {
-    let _ = install_crypto_provider();
-    let keys = release_keys().ok()?;
-    let fetcher = release_fetcher().ok()?;
-    let resolver = start
-        .tree_resolver(production_tree_config(&keys, &fetcher))
-        .ok()?;
+    let access = release_access().ok()?;
+    let resolver = start.tree_resolver(production_tree_config(&access)).ok()?;
     let names: Vec<&str> = pins::artifact_names();
     acquire_trees(&resolver, &names).ok()
 }
