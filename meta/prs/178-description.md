@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0371", "work-item:0302", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
-revision: "6743ab7edc6e3991374c37beb91c36ed72c45362"
+revision: "a2ab614f809cf07657f421feff3d490929f6aae1"
 repository: "accelerator"
-last_updated: "2026-11-03T18:05:13+00:00"
+last_updated: "2026-11-09T21:35:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -75,9 +75,9 @@ of its own, listed under "Behaviour changes".
   no alias. The old names run nothing, name their replacement and exit 2.
 - **`work id check <ID>`** prints `exact`, `other-key` (naming `work.key`) or
   `corrected` (left-padded, or `work.key` added under a `{key}` pattern) with
-  the ID to pass to `--id`, or refuses with the `E_ID_*` code `work create
-  --id` would give. It writes and reserves nothing, and joins the identity
-  run lock beside `work id next` and `work update --push`.
+  the ID to pass to `--id`, or refuses with the `E_ID_*` code
+  `work create --id` would give. It writes and reserves nothing, and joins
+  the identity run lock beside `work id next` and `work update --push`.
 
 ### `/create-work-item --id`
 
@@ -105,7 +105,7 @@ of its own, listed under "Behaviour changes".
 - **`work::id_pattern`** is the one ID-pattern grammar, replacing the
   regex-built scanners: a 255-byte bound, a width cap of 19 and a restricted
   literal alphabet.
-- **`work::id_scheme`** (`WorkItemIdScheme`) implements `IdConvention`;
+- **`work::id_scheme`** (`IdScheme`) implements `IdConvention`;
   `legacy_ids` (`LegacyNumericIds`) implements `LinkageIds`;
   `requested_id` models an `--id` and its settlement.
 - **`work_adapters::config`** reads the scheme once for every command
@@ -116,7 +116,7 @@ of its own, listed under "Behaviour changes".
   through the scheme.
 - **Sync code from PR #169** moves onto the scheme with the rest:
   `draft_id::is_token_safe`, kept edits and recovery labels take
-  `work::id_scheme::WorkItemIdScheme`, and `ConfiguredNames` names work-item
+  `work::id_scheme::IdScheme`, and `ConfiguredNames` names work-item
   files through `id_in_filename` instead of compiling a scan regex, so it can
   no longer fail.
 - **Guard**: `lint:corpus-identity:check` fails if a `corpus` source names a
