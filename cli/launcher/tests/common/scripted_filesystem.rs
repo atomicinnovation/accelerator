@@ -9,6 +9,7 @@ use std::sync::Mutex;
 
 use accelerator::launch::outbound::resolve::filesystem::{
     AccessAcl, CacheFilesystem, EntryMetadata, ResolvedDirectory,
+    TrustInspection,
 };
 
 use super::recording_filesystem::{
@@ -273,7 +274,9 @@ impl CacheFilesystem for ScriptedFilesystem {
             || self.recorder.set_modified(path, seconds),
         )
     }
+}
 
+impl TrustInspection for ScriptedFilesystem {
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
         self.intercepted(
             &FilesystemCall::AccessAcl(self.recorded(path)),

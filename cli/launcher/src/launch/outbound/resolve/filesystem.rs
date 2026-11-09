@@ -55,7 +55,26 @@ pub enum AccessAcl {
     Other,
 }
 
-pub trait CacheFilesystem {
+/// What a safety check asks of the filesystem beyond a path's metadata: who
+/// else an ACL may let write, and whether a volume enforces ownership at all.
+pub trait TrustInspection {
+    /// Never follows a symlink at `path`.
+    ///
+    /// # Errors
+    ///
+    /// If the ACL cannot be read for a reason other than there being none.
+    fn access_acl(&self, path: &Path) -> io::Result<AccessAcl>;
+
+    /// Whether the volume holding `path` ignores file ownership, so its
+    /// permission bits are not enforced.
+    ///
+    /// # Errors
+    ///
+    /// If the volume cannot be examined.
+    fn ignores_ownership(&self, path: &Path) -> io::Result<bool>;
+}
+
+pub trait CacheFilesystem: TrustInspection {
     /// An entry the directory stream fails on is skipped.
     ///
     /// # Errors
@@ -148,21 +167,6 @@ pub trait CacheFilesystem {
     ///
     /// If the file cannot be opened or its time set.
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()>;
-
-    /// Never follows a symlink at `path`.
-    ///
-    /// # Errors
-    ///
-    /// If the ACL cannot be read for a reason other than there being none.
-    fn access_acl(&self, path: &Path) -> io::Result<AccessAcl>;
-
-    /// Whether the volume holding `path` ignores file ownership, so its
-    /// permission bits are not enforced.
-    ///
-    /// # Errors
-    ///
-    /// If the volume cannot be examined.
-    fn ignores_ownership(&self, path: &Path) -> io::Result<bool>;
 }
 
 pub struct SystemFilesystem;
@@ -268,7 +272,9 @@ impl CacheFilesystem for SystemFilesystem {
                 std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds),
             )
     }
+}
 
+impl TrustInspection for SystemFilesystem {
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
         access_acl_of(path)
     }
@@ -491,7 +497,7 @@ pub mod testing {
 
     use super::{
         AccessAcl, CacheFilesystem, EntryMetadata, ResolvedDirectory,
-        SystemFilesystem,
+        SystemFilesystem, TrustInspection,
     };
 
     pub struct ReportingFilesystem<F = SystemFilesystem> {
@@ -699,7 +705,9 @@ pub mod testing {
         fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()> {
             self.inner.set_modified(path, seconds)
         }
+    }
 
+    impl<F: CacheFilesystem> TrustInspection for ReportingFilesystem<F> {
         fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
             let (failure, reported) = {
                 let overlay = self.overlay();
@@ -736,7 +744,7 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    use super::{AccessAcl, CacheFilesystem as _, SystemFilesystem};
+    use super::{AccessAcl, SystemFilesystem, TrustInspection as _};
 
     fn acl_of(path: &Path) -> AccessAcl {
         SystemFilesystem.access_acl(path).expect("access ACL")

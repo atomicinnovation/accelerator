@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use accelerator::launch::outbound::resolve::filesystem::{
     AccessAcl, CacheFilesystem, EntryMetadata, ResolvedDirectory,
-    SystemFilesystem,
+    SystemFilesystem, TrustInspection,
 };
 
 /// A path relative to the cache root, or else to the test's outer anchor, so
@@ -310,7 +310,9 @@ impl CacheFilesystem for RecordingFilesystem {
         self.record(FilesystemCall::SetModified(self.recorded(path)));
         SystemFilesystem.set_modified(path, seconds)
     }
+}
 
+impl TrustInspection for RecordingFilesystem {
     fn access_acl(&self, path: &Path) -> io::Result<AccessAcl> {
         self.record(FilesystemCall::AccessAcl(self.recorded(path)));
         SystemFilesystem.access_acl(path)
