@@ -28,23 +28,22 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
-use super::layout::{Artifact, TreePaths, LAYOUT_VERSION};
-use super::lease::{
-    probe_single_flight, Liveness, LivenessProbe, SingleFlight,
-    SingleFlightProbe,
+use super::super::filesystem::{CacheFilesystem, FileKind};
+use super::super::prune_report::{Count, PruneBudget, Removals};
+use super::super::retention_windows::{Age, AGE_BACKSTOP};
+use super::after_materialise::ReapPermit;
+use super::layout::{
+    parse_generation_name, read_pointer_reference, Artifact, PointerReference,
+    TreePaths, LAYOUT_VERSION,
 };
+use super::lease::{Liveness, LivenessProbe};
+use super::locks::{TreeLockProbe, TreeLocks};
 use super::tree_lock::HeldTreeLock;
-
-/// Generations younger than this with no live lease are spared, so a generation
-/// briefly between its rename and its pointer write is never mistaken for
-/// crash residue. Sized well beyond a fetch-plus-extract.
-const AGE_BACKSTOP: Duration = Duration::from_secs(60 * 60);
 
 /// Which digest each artifact pins, so a partial archive is judged against
 /// its own artifact's pin rather than the reaping caller's.
@@ -66,7 +65,7 @@ impl RemovalObserver for UnobservedRemovals {
 
 enum OwnerLock {
     HeldByCaller,
-    Taken { _guard: SingleFlight },
+    Taken { _held: HeldTreeLock },
     Absent,
     HeldElsewhere,
     Unprobeable(TreeError),
@@ -90,26 +89,34 @@ impl OwnerLock {
 /// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
     held: &'a HeldTreeLock,
+    filesystem: &'a dyn CacheFilesystem,
+    locks: TreeLocks<'a>,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
     observer: &'a dyn RemovalObserver,
+    budget: PruneBudget,
 }
 
 impl<'a> Reaper<'a> {
     #[must_use]
     pub const fn new(
         held: &'a HeldTreeLock,
+        filesystem: &'a dyn CacheFilesystem,
+        locks: TreeLocks<'a>,
         clock: &'a dyn Clock,
         liveness: &'a dyn LivenessProbe,
         pins: &'a dyn PinnedDigests,
     ) -> Self {
         Self {
             held,
+            filesystem,
+            locks,
             clock,
             liveness,
             pins,
             observer: &UnobservedRemovals,
+            budget: PruneBudget::Unbounded,
         }
     }
 
@@ -118,8 +125,13 @@ impl<'a> Reaper<'a> {
         Self { observer, ..self }
     }
 
+    #[must_use]
+    pub const fn within(self, budget: PruneBudget) -> Self {
+        Self { budget, ..self }
+    }
+
     /// Reclaim orphan temp residue and unreferenced generations under
-    /// `trees/`.
+    /// `trees/`, when `permit` was granted for this root.
     ///
     /// A partial archive whose digest is pinned for its own artifact is
     /// spared, so a resumable download is not reclaimed before the next run
@@ -128,28 +140,38 @@ impl<'a> Reaper<'a> {
     /// artifact's temp residue goes only under that artifact's tree lock,
     /// taken without blocking, or, all but its partial archives, when it has
     /// no lock file; otherwise it is kept. A fully-materialised generation
-    /// goes only when no pointer names it, no live lease is held on it, and it
-    /// is older than the backstop.
+    /// goes only when no pointer names it or, being unreadable, may name it,
+    /// no live lease is held on it, and it is older than the backstop.
     ///
     /// # Errors
     ///
     /// [`TreeError::Pointer`] if `trees/` cannot be read.
-    pub fn reap_orphans(&self) -> Result<Reclaimed, TreeError> {
-        let names = entry_names(self.paths().root())?;
-        let referenced = referenced_generations(self.paths().root());
-        let mut reclaimed = Reclaimed::default();
-        for (owner, entries) in temp_entries_by_owner(&names) {
-            self.reap_temp_entries_of(&owner, &entries, &mut reclaimed);
+    pub fn reap_orphans(
+        &self,
+        permit: &ReapPermit,
+    ) -> Result<Removals, TreeError> {
+        if permit.paths().root() != self.paths().root() {
+            return Ok(Removals::default());
         }
-        self.reap_generations(&names, &referenced, &mut reclaimed);
-        Ok(reclaimed)
+        let names = entry_names(self.filesystem, self.paths().root())?;
+        let referenced =
+            PointerReferences::read(self.filesystem, self.paths(), &names);
+        let mut removals = Removals::default();
+        for (owner, entries) in temp_entries_by_owner(&names) {
+            if !self.budget.allows_more(self.clock) {
+                return Ok(removals);
+            }
+            self.reap_temp_entries_of(&owner, &entries, &mut removals);
+        }
+        self.reap_generations(&names, &referenced, &mut removals);
+        Ok(removals)
     }
 
     fn reap_temp_entries_of(
         &self,
         owner: &Artifact,
         entries: &[&str],
-        reclaimed: &mut Reclaimed,
+        removals: &mut Removals,
     ) {
         let lock = self.lock_of(owner);
         if let OwnerLock::Unprobeable(error) = &lock {
@@ -163,7 +185,7 @@ impl<'a> Reaper<'a> {
         lock.while_reclaimable(|lock| {
             for entry in entries {
                 if !is_spared(entry, owner, lock, self.pins) {
-                    self.remove(&self.paths().root().join(entry), reclaimed);
+                    self.remove(&self.paths().root().join(entry), removals);
                 }
             }
         });
@@ -173,12 +195,10 @@ impl<'a> Reaper<'a> {
         if owner == self.held.artifact() {
             return OwnerLock::HeldByCaller;
         }
-        match probe_single_flight(&self.paths().single_flight_lock(owner)) {
-            Ok(SingleFlightProbe::Taken(guard)) => {
-                OwnerLock::Taken { _guard: guard }
-            }
-            Ok(SingleFlightProbe::Absent) => OwnerLock::Absent,
-            Ok(SingleFlightProbe::Held) => OwnerLock::HeldElsewhere,
+        match self.locks.probe_tree(self.paths(), owner) {
+            Ok(TreeLockProbe::Taken(held)) => OwnerLock::Taken { _held: held },
+            Ok(TreeLockProbe::Absent) => OwnerLock::Absent,
+            Ok(TreeLockProbe::Held) => OwnerLock::HeldElsewhere,
             Err(error) => OwnerLock::Unprobeable(error),
         }
     }
@@ -190,49 +210,66 @@ impl<'a> Reaper<'a> {
     fn reap_generations(
         &self,
         names: &[String],
-        referenced: &BTreeSet<String>,
-        reclaimed: &mut Reclaimed,
+        referenced: &PointerReferences,
+        removals: &mut Removals,
     ) {
         for name in names.iter().filter(|name| is_generation(name)) {
+            if !self.budget.allows_more(self.clock) {
+                return;
+            }
             if is_reclaimable_generation(
+                self.filesystem,
                 self.paths(),
                 name,
                 referenced,
                 self.clock,
                 self.liveness,
             ) {
-                self.remove(&self.paths().generation(name), reclaimed);
+                self.remove(&self.paths().generation(name), removals);
                 for sidecar in sidecars_of(self.paths(), name) {
-                    let _ = std::fs::remove_file(sidecar);
+                    removals.remove_file(
+                        self.filesystem,
+                        &sidecar,
+                        "orphan generation",
+                        Count::WithItsEntry,
+                    );
                 }
             }
         }
     }
 
-    fn remove(&self, path: &Path, reclaimed: &mut Reclaimed) {
+    fn remove(&self, path: &Path, removals: &mut Removals) {
         self.observer.removing(path);
-        let outcome = if path.is_dir() {
-            std::fs::remove_dir_all(path)
+        let is_directory = self
+            .filesystem
+            .entry(path)
+            .is_ok_and(|entry| entry.kind == FileKind::Directory);
+        if is_directory {
+            removals.remove_tree(
+                self.filesystem,
+                path,
+                "orphan residue",
+                Count::Once,
+            );
         } else {
-            std::fs::remove_file(path)
-        };
-        if outcome.is_ok() {
-            reclaimed.entries += 1;
+            removals.remove_file(
+                self.filesystem,
+                path,
+                "orphan residue",
+                Count::Once,
+            );
         }
     }
 }
 
-/// How much a reap reclaimed, for the caller to report.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct Reclaimed {
-    pub entries: u64,
-}
-
-fn entry_names(root: &Path) -> Result<Vec<String>, TreeError> {
-    match std::fs::read_dir(root) {
+fn entry_names(
+    filesystem: &dyn CacheFilesystem,
+    root: &Path,
+) -> Result<Vec<String>, TreeError> {
+    match filesystem.list(root) {
         Ok(entries) => Ok(entries
-            .flatten()
-            .filter_map(|entry| entry.file_name().into_string().ok())
+            .into_iter()
+            .filter_map(|name| name.into_string().ok())
             .collect()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             Ok(Vec::new())
@@ -276,52 +313,78 @@ fn is_resumable(
     })
 }
 
-/// A generation directory: the fixed grammar, no sidecar suffix, and never a
+/// A generation directory of this layout: the full name grammar, and never a
 /// temp entry, which only the temp arm may judge.
 fn is_generation(name: &str) -> bool {
     !name.starts_with(TEMP_PREFIX)
-        && name.contains(&format!("-{LAYOUT_VERSION}-"))
-        && !has_sidecar_suffix(name)
+        && parse_generation_name(name)
+            .is_some_and(|generation| generation.layout == LAYOUT_VERSION)
 }
 
-fn has_sidecar_suffix(name: &str) -> bool {
-    [".ref", ".sealed", ".sealed.sig", lease::LEASE_SUFFIX]
-        .iter()
-        .any(|suffix| name.ends_with(suffix))
+/// The generations the pointers in one listing of `trees/` may name. A
+/// pointer that is listed but cannot be read may name any generation its own
+/// name stands for, so it protects all of them; one that vanished before it
+/// was read names nothing.
+struct PointerReferences {
+    named: BTreeSet<String>,
+    unreadable_stems: Vec<String>,
 }
 
-/// The generation directory names any pointer currently references.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
-fn referenced_generations(root: &Path) -> BTreeSet<String> {
-    let mut referenced = BTreeSet::new();
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return referenced;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if name.ends_with(".ref") {
-            if let Ok(contents) = std::fs::read_to_string(entry.path()) {
-                referenced.insert(contents.trim().to_owned());
+impl PointerReferences {
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
+    fn read(
+        filesystem: &dyn CacheFilesystem,
+        paths: &TreePaths,
+        names: &[String],
+    ) -> Self {
+        let mut references = Self {
+            named: BTreeSet::new(),
+            unreadable_stems: Vec::new(),
+        };
+        for name in names.iter().filter(|name| name.ends_with(".ref")) {
+            match read_pointer_reference(&paths.root().join(name), filesystem) {
+                PointerReference::Names(contents) => {
+                    references.named.insert(contents.trim().to_owned());
+                }
+                PointerReference::Nothing => {}
+                PointerReference::Unknown => {
+                    references.unreadable_stems.push(pointer_stem(name));
+                }
             }
         }
+        references
     }
-    referenced
+
+    fn protects(&self, generation: &str) -> bool {
+        self.named.contains(generation)
+            || self
+                .unreadable_stems
+                .iter()
+                .any(|stem| generation.starts_with(stem.as_str()))
+    }
+}
+
+/// A live pointer's name is its generations' common prefix; a temp pointer's
+/// name holds its generation's whole name.
+fn pointer_stem(pointer: &str) -> String {
+    let stem = pointer.strip_suffix(".ref").unwrap_or(pointer);
+    stem.strip_prefix(TEMP_PREFIX).unwrap_or(stem).to_owned()
 }
 
 fn is_reclaimable_generation(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     name: &str,
-    referenced: &BTreeSet<String>,
+    referenced: &PointerReferences,
     clock: &dyn Clock,
     liveness: &dyn LivenessProbe,
 ) -> bool {
-    if referenced.contains(name) {
+    if referenced.protects(name) {
         return false;
     }
     orphan_is_reclaimable(
         liveness.probe(&paths.lease(name)),
-        generation_is_aged(paths, name, clock),
+        Age::of(generation_is_aged(filesystem, paths, name, clock)),
     )
 }
 
@@ -329,12 +392,12 @@ fn is_reclaimable_generation(
 /// has lapsed.
 pub(super) const fn unclaimed_is_reclaimable(
     liveness: Liveness,
-    aged: bool,
+    age: Age,
 ) -> bool {
     match liveness {
         Liveness::Held => false,
         Liveness::Free => true,
-        Liveness::Unknown => aged,
+        Liveness::Unknown => matches!(age, Age::Aged),
     }
 }
 
@@ -360,55 +423,39 @@ pub(super) const fn superseded_disposition(
 /// Unlike an unclaimed generation, an unreferenced one is reclaimed only once
 /// aged even when free, since a young one may sit between its rename and its
 /// pointer write.
-const fn orphan_is_reclaimable(liveness: Liveness, aged: bool) -> bool {
-    !matches!(liveness, Liveness::Held) && aged
+pub(super) const fn orphan_is_reclaimable(
+    liveness: Liveness,
+    age: Age,
+) -> bool {
+    !matches!(liveness, Liveness::Held) && matches!(age, Age::Aged)
 }
 
 pub(super) fn generation_is_aged(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     generation: &str,
     clock: &dyn Clock,
 ) -> bool {
-    older_than_backstop(&paths.generation(generation), clock)
+    older_than_backstop(filesystem, &paths.generation(generation), clock)
 }
 
 /// Sets the generation's mtime to the clock's now, so the backstop counts from
 /// this moment rather than from extraction. Best-effort: where the filesystem
 /// rejects it, the generation keeps its extraction mtime and a warning says so.
 pub(super) fn restart_backstop(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     generation: &str,
     clock: &dyn Clock,
 ) {
-    #[cfg(unix)]
-    {
-        use rustix::fs::{AtFlags, Timespec, Timestamps, CWD, UTIME_OMIT};
-
-        let timestamps = Timestamps {
-            last_access: Timespec {
-                tv_sec: 0,
-                tv_nsec: UTIME_OMIT,
-            },
-            last_modification: Timespec {
-                tv_sec: i64::try_from(clock.now_seconds()).unwrap_or(i64::MAX),
-                tv_nsec: 0,
-            },
-        };
-        let path = paths.generation(generation);
-        if let Err(error) =
-            rustix::fs::utimensat(CWD, &path, &timestamps, AtFlags::empty())
-        {
-            tracing::warn!(
-                generation = %path.display(),
-                %error,
-                "cannot restart the age backstop; the generation keeps its \
-                 extraction age"
-            );
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (paths, generation, clock);
+    let path = paths.generation(generation);
+    if let Err(error) = filesystem.set_modified(&path, clock.now_seconds()) {
+        tracing::warn!(
+            generation = %path.display(),
+            %error,
+            "cannot restart the age backstop; the generation keeps its \
+             extraction age"
+        );
     }
 }
 
@@ -416,22 +463,22 @@ pub(super) fn restart_backstop(
 /// so a test advances time by advancing the clock rather than by back-dating an
 /// mtime — which is the discipline the repository's lock-timing flake history
 /// demands.
-fn older_than_backstop(path: &Path, clock: &dyn Clock) -> bool {
-    let Some(modified) = modified_unix_seconds(path) else {
+fn older_than_backstop(
+    filesystem: &dyn CacheFilesystem,
+    path: &Path,
+    clock: &dyn Clock,
+) -> bool {
+    let Some(modified) = filesystem
+        .entry(path)
+        .ok()
+        .and_then(|entry| entry.modified_seconds)
+    else {
         return false;
     };
     clock
         .now_seconds()
         .checked_sub(modified)
         .is_some_and(|age| age >= AGE_BACKSTOP.as_secs())
-}
-
-fn modified_unix_seconds(path: &Path) -> Option<u64> {
-    let modified = std::fs::symlink_metadata(path).ok()?.modified().ok()?;
-    modified
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|since| since.as_secs())
 }
 
 /// The sidecars belonging to a reclaimed generation, removed alongside it.
@@ -456,6 +503,12 @@ mod tests {
 
     use crate::launch::core::tree::{Clock, TreeError};
 
+    use super::super::super::filesystem::testing::ReportingFilesystem;
+    use super::super::super::filesystem::{CacheFilesystem, SystemFilesystem};
+    use super::super::super::prune_report::Removals;
+    use super::super::super::retention_windows::Age;
+
+    use super::super::after_materialise::ReapPermit;
     use super::super::layout::{
         generation_name, Artifact, TreePaths, LAYOUT_VERSION,
     };
@@ -463,13 +516,13 @@ mod tests {
         probe_single_flight, take_single_flight, FlockProbe, Liveness,
         SingleFlight, SingleFlightProbe,
     };
+    use super::super::locks::{FlockLocks, TreeLocks};
     use super::super::testing::{logged, within, BLOCKING_BOUND};
-    use super::super::tree_lock::HeldTreeLock;
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
         sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
-        PinnedDigests, Reaper, Reclaimed, RemovalObserver,
-        SupersededDisposition, UnobservedRemovals, AGE_BACKSTOP,
+        PinnedDigests, Reaper, RemovalObserver, SupersededDisposition,
+        UnobservedRemovals, AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -549,20 +602,39 @@ mod tests {
         clock: impl Clock + Send + 'static,
         pins: Pins,
         observer: impl RemovalObserver + Send + 'static,
-    ) -> Result<Reclaimed, TreeError> {
+    ) -> Result<Removals, TreeError> {
+        reap_for_y_through(root, clock, pins, observer, SystemFilesystem)
+    }
+
+    fn reap_for_y_through(
+        root: &Path,
+        clock: impl Clock + Send + 'static,
+        pins: Pins,
+        observer: impl RemovalObserver + Send + 'static,
+        filesystem: impl CacheFilesystem + Send + 'static,
+    ) -> Result<Removals, TreeError> {
         let paths = TreePaths::under(root);
-        let caller_holds = HeldTreeLock::take(&paths, y()).expect("Y's lock");
+        let locks = TreeLocks::over(&FlockLocks);
+        let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
         let locks_before = lock_files(&paths);
+        let permit = ReapPermit::trusting(paths.clone());
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
-            Reaper::new(&caller_holds, &clock, &FlockProbe, &pins)
-                .observed_by(&observer)
-                .reap_orphans()
+            Reaper::new(
+                &caller_holds,
+                &filesystem,
+                TreeLocks::over(&FlockLocks),
+                &clock,
+                &FlockProbe,
+                &pins,
+            )
+            .observed_by(&observer)
+            .reap_orphans(&permit)
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome
     }
 
-    fn reap_for_y(root: &Path, pins: Pins) -> Result<Reclaimed, TreeError> {
+    fn reap_for_y(root: &Path, pins: Pins) -> Result<Removals, TreeError> {
         reap_for_y_at(root, present(), pins, UnobservedRemovals)
     }
 
@@ -650,7 +722,7 @@ mod tests {
         fs::create_dir(&temp_tree).expect("temp tree");
 
         let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
-        assert_eq!(reclaimed.entries, 2);
+        assert_eq!(reclaimed.reclaimed, 2);
         assert!(!archive.exists());
         assert!(!temp_tree.exists());
     }
@@ -663,7 +735,7 @@ mod tests {
 
         let reclaimed = reap_for_y(dir.path(), Pins::pinning(&[(y(), DIGEST)]))
             .expect("reap");
-        assert_eq!(reclaimed.entries, 0);
+        assert_eq!(reclaimed.reclaimed, 0);
         assert!(archive.exists(), "a resumable partial was reclaimed");
     }
 
@@ -997,7 +1069,7 @@ mod tests {
         removed.push(paths.generation(&generation));
         removed.sort();
         assert_eq!(observer.sorted(), removed);
-        assert_eq!(reclaimed.entries, 4);
+        assert_eq!(reclaimed.reclaimed, 4);
     }
 
     #[test]
@@ -1062,6 +1134,107 @@ mod tests {
         );
     }
 
+    /// An aged generation that a `driver` pointer names, so only that
+    /// pointer keeps it from the reap.
+    fn referenced_by_a_pointer(paths: &TreePaths) -> (PathBuf, PathBuf) {
+        let generation = generation_name(
+            "driver",
+            PLATFORM,
+            DIGEST,
+            LAYOUT_VERSION,
+            "fedcba9876543210",
+        );
+        let generation_dir = paths.generation(&generation);
+        fs::create_dir(&generation_dir).expect("generation");
+        let pointer = paths.pointer("driver", PLATFORM, DIGEST);
+        fs::write(&pointer, &generation).expect("pointer");
+        (generation_dir, pointer)
+    }
+
+    #[test]
+    fn a_generation_whose_pointer_cannot_be_read_is_kept() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_read(&pointer, std::io::ErrorKind::PermissionDenied);
+
+        reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        )
+        .expect("reap");
+
+        assert!(generation.exists(), "a possibly referenced generation went");
+    }
+
+    #[test]
+    fn a_generation_whose_pointer_vanished_before_it_was_read_is_reclaimed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_read(&pointer, std::io::ErrorKind::NotFound);
+
+        reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        )
+        .expect("reap");
+
+        assert!(!generation.exists(), "an unreferenced generation survived");
+    }
+
+    #[test]
+    fn a_planted_symlink_pointer_protects_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let elsewhere = dir.path().join("elsewhere");
+        fs::copy(&pointer, &elsewhere).expect("the pointer's contents");
+        fs::remove_file(&pointer).expect("the pointer");
+        std::os::unix::fs::symlink(&elsewhere, &pointer).expect("symlink");
+
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
+
+        assert!(!generation.exists(), "a symlinked pointer protected it");
+    }
+
+    #[test]
+    fn a_referenced_generation_survives_trees_failing_to_list_mid_reap() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, _) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_listing_from(
+                paths.root(),
+                2,
+                std::io::ErrorKind::PermissionDenied,
+            );
+
+        let _ = reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        );
+
+        assert!(generation.exists(), "a referenced generation went");
+    }
+
     #[test]
     fn a_young_unreferenced_generation_is_spared_by_the_backstop() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -1076,7 +1249,7 @@ mod tests {
         // The clock reads the present, so a just-renamed generation — between
         // its rename and its pointer write — is inside the backstop window.
         let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
-        assert_eq!(reclaimed.entries, 0);
+        assert_eq!(reclaimed.reclaimed, 0);
         assert!(fresh.exists(), "a freshly renamed generation was reaped");
         for sidecar in &sidecars {
             assert!(sidecar.exists(), "{} was removed", sidecar.display());
@@ -1085,32 +1258,32 @@ mod tests {
 
     #[test]
     fn an_unclaimed_held_generation_is_kept_while_young() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Held, false));
+        assert!(!unclaimed_is_reclaimable(Liveness::Held, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_held_generation_is_kept_once_aged() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Held, true));
+        assert!(!unclaimed_is_reclaimable(Liveness::Held, Age::Aged));
     }
 
     #[test]
     fn an_unclaimed_free_generation_is_reclaimed_while_young() {
-        assert!(unclaimed_is_reclaimable(Liveness::Free, false));
+        assert!(unclaimed_is_reclaimable(Liveness::Free, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_free_generation_is_reclaimed_once_aged() {
-        assert!(unclaimed_is_reclaimable(Liveness::Free, true));
+        assert!(unclaimed_is_reclaimable(Liveness::Free, Age::Aged));
     }
 
     #[test]
     fn an_unclaimed_unknown_generation_is_kept_while_young() {
-        assert!(!unclaimed_is_reclaimable(Liveness::Unknown, false));
+        assert!(!unclaimed_is_reclaimable(Liveness::Unknown, Age::Young));
     }
 
     #[test]
     fn an_unclaimed_unknown_generation_is_reclaimed_once_aged() {
-        assert!(unclaimed_is_reclaimable(Liveness::Unknown, true));
+        assert!(unclaimed_is_reclaimable(Liveness::Unknown, Age::Aged));
     }
 
     #[test]
@@ -1139,32 +1312,32 @@ mod tests {
 
     #[test]
     fn a_held_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Held, false));
+        assert!(!orphan_is_reclaimable(Liveness::Held, Age::Young));
     }
 
     #[test]
     fn a_held_orphan_is_kept_once_aged() {
-        assert!(!orphan_is_reclaimable(Liveness::Held, true));
+        assert!(!orphan_is_reclaimable(Liveness::Held, Age::Aged));
     }
 
     #[test]
     fn a_free_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Free, false));
+        assert!(!orphan_is_reclaimable(Liveness::Free, Age::Young));
     }
 
     #[test]
     fn a_free_orphan_is_reclaimed_once_aged() {
-        assert!(orphan_is_reclaimable(Liveness::Free, true));
+        assert!(orphan_is_reclaimable(Liveness::Free, Age::Aged));
     }
 
     #[test]
     fn an_unknown_orphan_is_kept_while_young() {
-        assert!(!orphan_is_reclaimable(Liveness::Unknown, false));
+        assert!(!orphan_is_reclaimable(Liveness::Unknown, Age::Young));
     }
 
     #[test]
     fn an_unknown_orphan_is_reclaimed_once_aged() {
-        assert!(orphan_is_reclaimable(Liveness::Unknown, true));
+        assert!(orphan_is_reclaimable(Liveness::Unknown, Age::Aged));
     }
 
     fn planted(paths: &TreePaths) -> String {
@@ -1200,7 +1373,12 @@ mod tests {
         let mtime = mtime_of(&paths.generation(&name));
 
         let clock = AtClock(mtime + AGE_BACKSTOP.as_secs() - 1);
-        assert!(!generation_is_aged(&paths, &name, &clock));
+        assert!(!generation_is_aged(
+            &SystemFilesystem,
+            &paths,
+            &name,
+            &clock
+        ));
     }
 
     #[test]
@@ -1211,7 +1389,7 @@ mod tests {
         let mtime = mtime_of(&paths.generation(&name));
 
         let clock = AtClock(mtime + AGE_BACKSTOP.as_secs());
-        assert!(generation_is_aged(&paths, &name, &clock));
+        assert!(generation_is_aged(&SystemFilesystem, &paths, &name, &clock));
     }
 
     #[test]
@@ -1222,10 +1400,16 @@ mod tests {
         back_date(&paths.generation(&name), 2 * 86_400);
         let later = now() + 86_400;
 
-        restart_backstop(&paths, &name, &AtClock(later));
+        restart_backstop(&SystemFilesystem, &paths, &name, &AtClock(later));
 
-        assert!(!generation_is_aged(&paths, &name, &AtClock(later + 60)));
+        assert!(!generation_is_aged(
+            &SystemFilesystem,
+            &paths,
+            &name,
+            &AtClock(later + 60)
+        ));
         assert!(generation_is_aged(
+            &SystemFilesystem,
             &paths,
             &name,
             &AtClock(later + AGE_BACKSTOP.as_secs())
@@ -1238,7 +1422,9 @@ mod tests {
         let paths = trees(dir.path());
         let absent = gen_name();
 
-        let log = logged(|| restart_backstop(&paths, &absent, &present()));
+        let log = logged(|| {
+            restart_backstop(&SystemFilesystem, &paths, &absent, &present());
+        });
 
         assert!(log.contains("WARN"), "no warning: {log}");
         assert!(log.contains(&absent), "warning names no generation: {log}");
@@ -1250,7 +1436,9 @@ mod tests {
         let paths = trees(dir.path());
         let name = planted(&paths);
 
-        let log = logged(|| restart_backstop(&paths, &name, &present()));
+        let log = logged(|| {
+            restart_backstop(&SystemFilesystem, &paths, &name, &present());
+        });
 
         assert!(log.is_empty(), "unexpected log: {log}");
     }

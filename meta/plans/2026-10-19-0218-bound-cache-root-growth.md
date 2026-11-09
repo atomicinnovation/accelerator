@@ -1,0 +1,3462 @@
+---
+type: "plan"
+id: "2026-10-19-0218-bound-cache-root-growth"
+title: "Bound a Relocated Cache Root's Growth Implementation Plan"
+date: "2026-10-19T18:27:59+00:00"
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
+work_item_id: "work-item:0218"
+parent: "work-item:0218"
+derived_from: ["codebase-research:2026-10-18-0218-bound-cache-root-growth"]
+relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness", "adr:ADR-0072", "adr:ADR-0063", "adr:ADR-0064"]
+tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
+revision: "871d47e55744db989bd17a2addc1cad3ded4f553"
+repository: "accelerator"
+last_updated: "2026-10-24T12:00:00+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+---
+
+# Bound a Relocated Cache Root's Growth Implementation Plan
+
+## Overview
+
+A cache root relocated with `ACCELERATOR_CACHE_DIR` and shared across plugin
+upgrades grows without bound: every version leaves single-file entries,
+staged verifier copies, trees and crash residue, and almost nothing reclaims
+them. This plan implements ADR-0072 for such a root:
+
+- every dispatch refreshes a **version claim**;
+- every cold path runs a claim-gated **root prune** under single-flight locks
+  tried without blocking;
+- `accelerator cache prune` runs the same prune, waiting for its locks.
+
+The default root (`${ACCELERATOR_PLUGIN_ROOT}/bin`) keeps ADR-0063's
+behaviour. Four changes apply in every root because they only make existing
+paths safer: a bounded `ENOENT` re-resolve, a recorded test of `store`'s
+rename-over replacement, tree prune validating a pointer before removing the
+generation it names, and the verb no longer creating tree locks for artifacts
+it never materialised.
+
+## Current State Analysis
+
+- **No root identity.** `cache_root::candidate` returns the override verbatim
+  or `plugin_root.join("bin")` as an untagged `PathBuf`
+  (`cli/launcher/src/launch/outbound/resolve/cache_root.rs:58-74`). Nothing
+  canonicalises; the shell passes the override through unresolved
+  (`bin/accelerator:198-207`).
+- **No filesystem seam.** `cache.rs` (`find` `:51-73`, `store` `:81-133`),
+  `reverify` (`resolve/mod.rs:100-119`) and `tree/claims.rs` call `std::fs`
+  and `geteuid()` directly, so no test can record a dispatch's calls.
+- **Single attempt at `exec`.** `run_external` (`core.rs:313-322`) resolves
+  once and execs once; `ResolveBinary` (`core.rs:294-302`) has no way to
+  force the cold path.
+- **No single-file eviction.** `cache.rs`'s module doc says the cache "needs
+  no eviction". Launcher entries, shim copies, `.tmp-` residue, probes and
+  bootstrap lock directories are never removed by Rust code.
+- **Narrow tree prune.** The verb loops over `pins::artifact_names()` on
+  `HOST_PLATFORM` (`launch/cache.rs:143-155`), takes each tree lock with
+  `O_CREAT` (`tree_lock.rs:20-26` → `lease.rs:85-90,283-292`), removes claims
+  only with their digest (`claims.rs:86-97`), and never reaps orphan
+  sidecars or lock files.
+- **Unvalidated pointer joins.** `artifact_pointers` (`resolver.rs:824-852`)
+  only trims a pointer's contents, and `reclaim_unclaimed`
+  (`resolver.rs:786-820`) passes them to `remove_dir_all(root.join(…))`
+  (`layout.rs:153`). A pointer holding an absolute path or `../` names a
+  directory outside `trees/`. `locate` uses the strict `validated_generation`
+  (`layout.rs:262`); prune does not, and has no layout-version check.
+- **Reusable precedent.** Tree claims (`claims.rs`), `AGE_BACKSTOP`
+  (`reap.rs:47`, private), the decision tables (`reap.rs:330-365`), the
+  non-creating `probe_single_flight` and inode confirmation from 0339
+  (`lease.rs:120-232`), the `HeldTreeLock` proof (`tree_lock.rs`), and
+  trait-object seams (`Clock`, `LivenessProbe`, `StepObserver`).
+- **No end-to-end trust path.** The real launcher trusts only
+  `TrustedKeys::embedded()` (`keys.rs:55-57`) and builds https-only fetchers
+  (`fetcher.rs:194-223`), so no test can have it fetch a locally signed
+  sub-binary.
+
+## Desired End State
+
+In an override root, every launcher start writes
+`claims/<version>.<launcher-id>` before any `find`, throttled to once per
+`CLAIM_WINDOW/10`, and a successful
+`store` or tree materialise runs a root prune. After every launcher sharing
+the root runs this change, the root holds only what a version or digest
+claimed within `CLAIM_WINDOW` (14 days) protects, what a held lease protects,
+residue younger than `AGE_BACKSTOP` (1 hour), and the kept names the work
+item lists. In the default root, a warm dispatch performs exactly the
+filesystem calls it performs today.
+
+Verification: every acceptance criterion in
+`meta/work/0218-bound-cache-root-growth.md` maps to a named test (see Testing
+Strategy), and `mise run` exits 0.
+
+### Key Discoveries:
+
+- `materialise` reaps under the tree lock it already holds
+  (`resolver.rs:617-651`, reaping at `:639`). The cold-path prune of its own
+  artifact runs there, as `OwnerLock::HeldByCaller` does (`reap.rs:172-184`);
+  the rest of the root is pruned after that lock is released, because `reap.rs`
+  forbids a process from probing a tree lock it holds.
+- `fetch_verify_store` ends with `cache::store` (`resolve/mod.rs:178-186`);
+  the cold-path prune goes immediately after it, before the path returns to
+  `exec`.
+- `try_single_flight` already separates contention (`Ok(None)`) from failure
+  (`Err`) (`lease.rs:103-110,247-253`). "Skip on the cold path, report from
+  the verb" needs no new error type.
+- `launcher_id()` (`main.rs:353-366`) is passed only to `TreeResolver`; the
+  dispatch resolver needs it too. The bootstrap execs
+  `${cache_dir}/accelerator-launcher-<version>-<platform>`, so the id already
+  embeds cache directory, version and platform.
+- `_assert_no_test_loopback` (`tasks/build.py:354-371`) byte-scans every
+  binary in `_CLI_RELEASE_BINARIES`, which includes `accelerator`, for
+  `TEST_LOOPBACK_MARKER`. The markers were `#[no_mangle]` statics, which
+  the release profile's `strip` and thin LTO removed, so Phase 6 moved
+  them to string literals read at start-up. `tasks/shared/dev_builds.py:31`
+  already shows how the feature reaches debug builds.
+- The entrypoint harness's downloader stub resolves every URL by basename
+  from `SERVER_DIR` (`tests/integration/support/installation.py:78-92`), and
+  `assert_hermetic` (`:252-265`) insists on a `.invalid` release host.
+- The shipped Linux launchers are static musl builds
+  (`tasks/shared/targets.py:11-12`). musl's `getpwuid_r` and `getgrgid_r`
+  read only `/etc/passwd`, `/etc/group` and `nscd`, and load no NSS modules,
+  so directory-service accounts are invisible to them; the macOS launchers
+  use the system libc, which consults Open Directory.
+- Every `cargo test`/clippy run passes `--all-features`
+  (`tasks/test/cli.py:11-14`, `tasks/lint/cli.py:7`), so seams are trait
+  objects, not features. The only feature this plan adds is the end-to-end
+  trust feature, which is inert unless its environment variable is set.
+
+## What We're NOT Doing
+
+- No claims or prune in the default root or a development checkout's `bin/`.
+  ADR-0063 still governs those; the verb's tree prune there stays pinned
+  artifacts on the host platform.
+- No compatibility gating for launchers predating version claims or 0339's
+  inode check (see Accepted Risks).
+- No re-resolve for a path from an `ACCELERATOR_<SUB>_BIN` override.
+- No claim refresh on a `materialise` hit (`resolver.rs:618-637`). Dispatch's
+  `acquire` refreshes the claim before the executor calls `cache ensure`.
+- No root prune from `cache repair`. It is a user-invoked verb, not a cold
+  path the item names. 0222's `cache ensure --from` must opt in or out when
+  it lands.
+- No change to `bin/accelerator`'s writes. Its only change is the `execfail`
+  handling of a missing launcher at the final `exec`. The `AGE_BACKSTOP`
+  grace covers its pre-claim launcher entry.
+- No pruning of `.accelerator-unverified.log` or of names the plugin does not
+  produce.
+- No fix for two shas under one version after a corrupt-entry refetch with a
+  different manifest sha (research Open Questions). Both stay protected by the
+  version's claim.
+
+## Accepted Risks
+
+These are recorded here; Phase 8 states the first in `internals.md`:
+
+- **Pre-0339 launchers and orphan-lock removal.** A launcher that does not
+  confirm its lock's inode can lock an unlinked inode after tree prune
+  removes an orphan lock file. While both hold a lock, a reap can remove the
+  older launcher's in-progress residue, and a concurrent materialise of the
+  same artifact can corrupt a shared partial archive. Each consequence
+  records a sticky `UnexpectedDigest` or `Extraction` marker for that
+  artifact, which is Refusal-class and stops a `--fail-safe` crawl. We
+  accept this risk by name: no root can tell whether such a launcher shares
+  it.
+- **A stale claim refreshed between read and unlink.** Prune re-checks a
+  claim's age immediately before unlinking it. A refresh landing inside that
+  window loses the claim, and the version's next prune may evict its entries.
+  The cost is one re-fetch.
+- **Pre-claim launchers sharing the root.** A pre-claim launcher never
+  writes a claim, so its entries are evicted again after each claim-aware
+  prune once they are older than `AGE_BACKSTOP`. Its session re-fetches each
+  time, cannot dispatch offline until it is reloaded, and fails a dispatch
+  caught between `find` and `exec` rather than re-resolving.
+- **Another release's shim copy.** Prune keeps the running plugin's shim
+  copy for every platform, and any other copy younger than `AGE_BACKSTOP`. A
+  live session of another release whose vendored shim differs, reusing a
+  copy staged more than an hour earlier, can lose it between its staging
+  check and use. That bootstrap
+  fails with `fail_integrity`, and the SessionStart hook reports the recorded
+  unverified launcher until the user clears `.accelerator-unverified.log`.
+  This happens only across releases that change the vendored shim.
+- **A tree claimed after the re-read.** Tree prune re-reads a digest's
+  claims immediately before removing its tree, and holds an exclusive lock
+  on its `.lease` across the removal. Where `flock` works, a dispatch that
+  leased the tree makes that lock fail and the tree is kept. On a filesystem
+  whose lease probe reports `Unknown`, an acquire between the re-read and the
+  pointer unlink loses its tree, and that dispatch fails. The window is
+  microseconds.
+- **A bootstrap lock reclaimed after the re-check.** The residue sweep
+  re-checks a lock directory immediately before unlinking it. A bootstrap
+  that reclaims and recreates it inside that window loses its lock, and two
+  bootstraps fetch the launcher concurrently. Both rename identical verified
+  bytes into place.
+- **A crash between the two unlinks of an entry.** Single-file prune removes
+  a `.minisig` and then its entry. A crash or failed unlink between them
+  leaves an unpaired entry or a lone `.minisig`, which the grammar cannot
+  tell from a foreign name and so keeps for good. The residue is one small
+  file per occurrence.
+- **A launcher entry stamped with the server's time.** On wget-only hosts
+  `fetch` may keep the server's `Last-Modified`, so a just-fetched launcher
+  entry can look older than `AGE_BACKSTOP`. Its staging files are protected by
+  their writer's pid, which `kill(pid, 0)` can answer only on the pruning host:
+  in a root shared across hosts, another host's in-flight staging can still be
+  swept, and that bootstrap records an unverified launcher. The finished entry
+  is protected by the start-up claim from its first run, and the gap between the
+  bootstrap's verification and `exec` is already accepted by the work item.
+- **Hosts whose metadata fails the rule.** An ancestor owned by another uid,
+  such as a container's host-owned bind mount or GitHub Actions' `/__w`, is
+  refused until that uid is listed in `ACCELERATOR_CACHE_TRUSTED_OWNERS`, which
+  the refusal names; listing it trusts that account to redirect prune's removals
+  within the user's privileges. A rootless container's overflow uid 65534 and a
+  macOS volume with "Ignore ownership" (uid 99) are refused even when listed,
+  since they stand for many accounts or for none. WSL2 `drvfs` mounts report
+  `0777` and NFS with `all_squash` reports `nobody` writable bits no listing
+  fixes, so a relocated root there is never pruned; the refusal suggests a
+  per-user `ACCELERATOR_CACHE_DIR` on a native filesystem.
+- **Accounts no lookup can resolve.** On a Linux host without `getent` at
+  `/usr/bin` or `/bin`, such as NixOS or Guix, or an arbitrary-uid container
+  no lookup knows, whose accounts are not in `/etc/passwd` and `/etc/group`,
+  a root writable through the user's private group is refused until the
+  user runs `chmod g-w <root>`, which the refusal names.
+- **A user-private group shared by misconfiguration.** A group-writable
+  root counts as safe when its group is the user's private group with no
+  listed members. Another account whose own primary group is that group,
+  which only an administrator can arrange, could still swap entries. We do
+  not scan the password database to rule it out.
+- **An ACL entry for the owner refuses a macOS root.** The macOS ACL check
+  cannot tell the owner's allow-write entry from anyone else's without a uid
+  lookup, so it refuses both. Such entries are rare on the path to a cache
+  root, and the refusal names the per-user `ACCELERATOR_CACHE_DIR` remedy.
+- **Shared roots are not pruned.** A root other users can create names in
+  works as a cache but grows as it does today. Sharing trees across users
+  does not work today either: `ensure_trees_dir` refuses a `trees/` that is
+  not the user's own (`resolver.rs:949-965`). A pruned, deduplicated shared
+  cache needs a group trust model, which is work item 0340 and its stories
+  0341 and 0342.
+- **A directory swapped between check and removal by the same user.** Prune
+  checks that `claims/`, `trees/`, `trees/claims/` and a bootstrap lock
+  directory are owned, non-symlink directories, then removes by path. Prune
+  runs only in a root no other user can rename entries in (Phase 4 §7), so
+  only a process running as the same user can swap one for a symlink inside
+  that window. That is not a privilege boundary, and we accept it rather
+  than move every removal onto directory descriptors.
+- The remaining assumptions in the work item stand as written.
+
+## Implementation Approach
+
+The phases follow the work item's ordering. A phase that changes behaviour
+does so only behind something already in place: the recorder and the fixed
+list come first, and the recovery and claims land before any prune. Single-file
+and tree prune then run only behind the verb, and the cold-path triggers come
+last. Phase 6 sits before them as standalone hardening: it fixes the
+`test-loopback` release guard for `jira`, `linear` and `research`, which the
+launcher's own seam in Phase 7 then relies on. Each phase is one mergeable
+change that leaves `mise run` green.
+
+Every test seam arrives in the first phase whose test needs it. Each one is a
+trait object with a no-op or real production implementation, following
+`StepObserver`'s precedent.
+
+Domain vocabulary, used verbatim in names:
+
+| Term | Type or module | Meaning |
+|---|---|---|
+| cache root kind | `CacheRootKind::{PluginBin, Relocated}` | what `identify` reports about the root |
+| root retention | `retention::RootRetention` | the regime governing a root, chosen once from its kind |
+| version claim | `retention::version_claims` | `claims/<version>.<launcher-id>` |
+| root prune | `retention::RootPrune` | single-file prune + residue sweep + tree prune |
+| tree prune | `tree::TreePrune` | the one implementation of tree reclamation, in every root |
+| tree prune regime | `TreePruneRegime::{PinnedOnHost, WholeTree}` | which artifacts a tree prune visits and whether it sweeps bookkeeping |
+| lock patience | `LockPatience::{Wait, Try}` | the verb waits, a cold path tries |
+
+`retention` is a new module beside `tree/` at
+`cli/launcher/src/launch/outbound/resolve/retention/`. The layering is one
+way:
+
+```text
+main.rs ──start_up──► retention::for_root ──► RootRetention   (retention/)
+                                               ├─ PluginBinRetention
+                                               └─ RelocatedRetention
+retention/ ──depends on──► tree/                (never the reverse)
+tree/ defines AfterMaterialise, TreeLocks, TreePrune and HeldTreeLock
+both import ──► filesystem, ownership, single_flight, prune_report,
+                retention_windows                 (leaf modules)
+```
+
+Five leaf modules sit under `resolve/` and import nothing from `tree/` or
+`retention/`:
+
+| Module | Holds |
+|---|---|
+| `filesystem` | the `CacheFilesystem` port and `EntryMetadata` |
+| `ownership` | the `Ownership` seam and `is_trusted_entry` / `is_trusted_directory` |
+| `single_flight` | the `SingleFlightLocks` trait, `LockGuard`, `LockProbe`, `LockPatience` |
+| `prune_report` | `PruneStep`/`PruneSteps` and the failure types |
+| `retention_windows` | the shared constants |
+
+`tree/` holds only tree concepts; vocabulary that single-file and tree prune
+share lives in the leaves.
+
+`retention::for_root` is the only code that matches on `CacheRootKind`, and
+`main.rs` calls it once, through `start_up`. `ResolverConfig` carries the
+cache root's path, not its kind. Every collaborator is a required
+constructor argument. `main.rs` builds one `CachePorts`; `StartUp` builds
+both resolvers and the retention from it, so one recorder sees `find`,
+single-file prune and tree prune alike. No retention holds a resolver.
+
+```text
+                     RootPrune::run(patience)
+                 /                               \
+     root lock (.accelerator-prune.lock)     each (artifact, platform)
+        |                                        under its tree lock
+   SingleFilePrune ──► ResidueSweep              |
+                                             TreePrune
+```
+
+---
+
+## Phase 1: Filesystem Port and the Fixed Warm-Path List
+
+### Overview
+
+Route the single-file cache's filesystem calls through a port so a test can
+record them, then pin today's default-root warm-dispatch sequence as a fixed
+list. This is two commits. The first changes launcher source and is
+behaviour-preserving. The second adds only the test and touches no launcher
+source.
+
+### Changes Required:
+
+#### 1. The filesystem port (commit 1)
+
+**File**: `cli/launcher/src/launch/outbound/resolve/filesystem.rs` (new)
+**Changes**: A port covering the calls `find`, `store` and `reverify` make,
+plus the production adapter. Later phases add the methods their tests first
+need. Adding a method never changes the calls `find` and `reverify` make, so
+the fixed list stays stable.
+
+```rust
+pub trait CacheFilesystem {
+    fn list(&self, dir: &Path) -> io::Result<Vec<OsString>>;
+    fn exists(&self, path: &Path) -> bool;
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+    fn read_to_string(&self, path: &Path) -> io::Result<String>;
+    fn create_dir_all(&self, path: &Path) -> io::Result<()>;
+    fn write_private(&self, path: &Path, bytes: &[u8]) -> io::Result<()>;
+    fn make_executable(&self, path: &Path) -> io::Result<()>;
+    fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+    fn remove_file(&self, path: &Path) -> io::Result<()>;
+}
+
+pub struct SystemFilesystem;
+```
+
+`write_private` opens with `O_CREAT|O_TRUNC|O_NOFOLLOW` and mode `0600`.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/cache.rs`
+**Changes**: `find` and `store` take `filesystem: &dyn CacheFilesystem` as
+their first parameter.
+
+- `find` lists once, keeps today's "first non-UTF-8 name aborts" rule, and
+  checks the sidecar with `exists`.
+- `store` uses `create_dir_all`, `write_private`, `make_executable`, `rename`,
+  and `remove_file` only on a failed rename, exactly as today.
+- The module doc's "needs no eviction" sentence is deleted.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/mod.rs`
+**Changes**: `FetchVerifyCacheResolver::new` and `with_fetcher`, which
+production uses, take an `Arc<dyn CacheFilesystem + Send + Sync>` as a
+required argument, and `main.rs` passes `SystemFilesystem`. It is an `Arc`
+because later phases share the same instance with the retention. `reverify`
+reads through it.
+
+**File**: `tasks/lint/store_duplication.py`
+**Changes**: `filesystem.rs` joins `cache.rs` in `ALLOWLIST`: the raw
+`rename` that `cache.rs`'s publish composes now lives in the port's adapter.
+
+#### 2. The recording filesystem (commit 1)
+
+**File**: `cli/launcher/tests/common/recording_filesystem.rs` (new), declared
+from `tests/common/mod.rs`
+**Changes**: A `RecordingFilesystem` decorator over `SystemFilesystem`. It
+appends a `FilesystemCall` per call to an `Arc<Mutex<Vec<_>>>` and exposes
+`calls()` and `calls_touching(&Path)`. Mutating calls are distinguished by
+`FilesystemCall::is_mutation()`.
+
+```rust
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordedPath {
+    InRoot(PathBuf),
+    Outside(PathBuf),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FilesystemCall {
+    List(RecordedPath),
+    Exists(RecordedPath),
+    Read(RecordedPath),
+    ReadToString(RecordedPath),
+    CreateDirAll(RecordedPath),
+    WritePrivate(RecordedPath),
+    MakeExecutable(RecordedPath),
+    Rename { from: RecordedPath, to: RecordedPath },
+    RemoveFile(RecordedPath),
+}
+```
+
+Each later method on `CacheFilesystem` arrives with its variant here.
+
+The recorder is built with the cache root and an outer anchor, the test's
+temp directory, and canonicalises both at construction. A path under the
+cache root, given or canonical, is recorded `InRoot`, relative to it; any
+other path under the anchor, given or canonical, is recorded `Outside`,
+relative to it; a path under neither is recorded `Outside` with its absolute
+path. A recorder self-test records one path under each spelling of the root
+and of the anchor, built through a symlinked anchor so both spellings differ
+on every host. On macOS a
+`tempfile` directory is `/var/folders/…` while its canonical form is
+`/private/var/folders/…`, and from Phase 3 the launcher works on the
+canonical form, so matching both spellings keeps the lists identical on the
+ubuntu and macos legs. The
+expected list is therefore independent of the temp directory, and a read of
+the plugin `bin` or the shim source is visible as `Outside`.
+
+#### 3. The fixed warm-path list (commit 2: tests only)
+
+**File**: `cli/launcher/tests/resolution.rs`
+**Changes**: The constant and a test that passes against today's resolver.
+The harness keeps its cache in its own temp directory, so the recorder's
+anchor is the harness's work directory. `resolution.rs` now declares
+`mod common`.
+
+
+```rust
+fn default_root_warm_dispatch_calls(sha: &str) -> Vec<FilesystemCall> {
+    let entry = in_root(format!("{BINARY}-{VERSION}-{sha}"));
+    let signature = in_root(format!("{BINARY}-{VERSION}-{sha}.minisig"));
+    vec![
+        FilesystemCall::List(in_root("")),
+        FilesystemCall::Exists(signature.clone()),
+        FilesystemCall::Read(entry),
+        FilesystemCall::ReadToString(signature),
+    ]
+}
+
+#[test]
+fn a_default_root_warm_dispatch_performs_exactly_the_fixed_calls() { … }
+```
+
+Later commits must not modify `default_root_warm_dispatch_calls`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] Commit 1 changes no behaviour; existing suites pass:
+      `mise run test:unit:cli`
+- [x] Commit 2's diff touches only `cli/launcher/tests/`:
+      `jj diff -r <commit> --summary`
+- [x] `a_default_root_warm_dispatch_performs_exactly_the_fixed_calls` passes
+- [x] `mise run cli:check` exits 0
+
+#### Manual Verification:
+
+- [x] The fixed list matches the calls `find` and `reverify` make, read
+      against `cache.rs` and `resolve/mod.rs`
+
+---
+
+## Phase 2: `ENOENT` Re-Resolve, Pointer Containment, Replacement
+
+### Overview
+
+In every root, a dispatch whose `exec` fails with `ENOENT` re-resolves once
+through the cold path. Tree prune removes only a generation a validated
+pointer names, and the orphan reap recognises a generation only by its full
+name grammar. `store`'s rename-over replacement gets a recorded test.
+
+### Changes Required:
+
+#### 1. The port
+
+**File**: `cli/launcher/src/launch/core.rs`
+**Changes**: `ResolveBinary` gains a required method, so every adapter
+states its own re-resolve behaviour and production wiring cannot silently
+inherit a no-op. The test fakes each gain one line returning
+`ReResolution::Declined`:
+
+```rust
+pub trait ResolveBinary {
+    fn resolve(&self, command: &ExternalCommand)
+        -> Result<PathBuf, ResolutionError>;
+
+    fn re_resolve(&self, command: &ExternalCommand, missing: &Path)
+        -> ReResolution;
+}
+
+pub enum ReResolution {
+    Declined,
+    Resolved(PathBuf),
+    Failed(ResolutionError),
+}
+
+pub fn run_external(
+    resolver: &impl ResolveBinary,
+    executor: &impl ExecBinary,
+    command: &ExternalCommand,
+) -> ResolutionError {
+    let program = match resolver.resolve(command) {
+        Ok(program) => program,
+        Err(error) => return error,
+    };
+    let failure = executor.exec(&program, &command.args);
+    if !failure.is_missing_program() {
+        return failure;
+    }
+    match resolver.re_resolve(command, &program) {
+        ReResolution::Resolved(program) => {
+            executor.exec(&program, &command.args)
+        }
+        ReResolution::Failed(error) => error,
+        ReResolution::Declined => failure,
+    }
+}
+```
+
+`ResolutionError::is_missing_program` matches `Exec` with
+`source.kind() == NotFound`. The doc comment on `re_resolve` records why it
+skips `find`: a second `find` could return another entry a prune is about to
+remove. It also notes why the retry is bounded to one: an entry a prune
+removes again between the re-fetch and the second `exec` must not loop.
+
+#### 2. The adapters
+
+**File**: `cli/launcher/src/launch/outbound/resolve/mod.rs`
+**Changes**: `FetchVerifyCacheResolver::re_resolve` returns `Declined` when
+`filesystem.exists(missing)`: the binary is there but cannot run, as with a
+missing ELF interpreter, and a re-fetch would not help. Otherwise it returns
+`Resolved` or `Failed` from `self.fetch_verify_store(name)`. The check costs
+nothing on a successful `exec`. `resolve` and `re_resolve` share
+`dispatched_name(command)`, so a non-UTF-8 name is `Failed(Unresolved)` in
+both.
+
+**File**: `cli/launcher/src/main.rs`
+**Changes**: `LazyProductionResolver::re_resolve` returns `Declined` when
+`override_path` yields a path, and `Failed` when it errs. Otherwise it builds
+the resolver as `resolve` does and delegates. The construction is extracted into
+`fn production_resolver() -> Result<FetchVerifyCacheResolver, ResolutionError>`
+so both methods share it.
+
+#### 3. Pointer containment
+
+**File**: `cli/launcher/src/launch/outbound/resolve/tree/resolver.rs`
+**Changes**: `artifact_pointers` reads each pointer through `read_pointer`
+with `&SystemFilesystem` and classifies its contents through
+`PointerTarget::of`, which calls `validated_generation(contents, name,
+platform, digest, LAYOUT_VERSION)` with the digest taken from the pointer's
+own name:
+
+```rust
+enum PointerTarget {
+    Current(String),
+    OtherLayout,
+    Malformed,
+}
+```
+
+| `validated_generation` | `PointerTarget` | Prune action |
+|---|---|---|
+| `Ok(generation)` | `Current` | reclaim candidate, subject to the existing claim, pin and lease checks |
+| `Err(LayoutUnsupported)` | `OtherLayout` | keep pointer and generation |
+| any other `Err` | `Malformed` | keep the pointer, remove nothing it names |
+
+`reclaim_unclaimed` acts only on `Current`. This is the only route from a
+pointer's contents to a generation path in any prune.
+
+A pointer `read_pointer` refuses — a symlink, FIFO, device or oversized file —
+references nothing, so a generation only it names counts as unreferenced to
+the orphan reap and goes once aged and free. The pointer itself is kept.
+
+**File**: `tree/layout.rs`
+**Changes**: `read_pointer(path, filesystem) -> Option<String>` is the only
+way any prune reads a pointer, including `reap.rs`'s referenced-generations
+scan, which passes `&SystemFilesystem`. It calls a new port method,
+`CacheFilesystem::read_bounded(path, limit)`, with a `ReadBounded`
+`FilesystemCall` variant. `read_bounded` opens with `O_NOFOLLOW|O_NONBLOCK`,
+`fstat`s the open file and requires a regular file, and reads at most `limit`
+bytes, here 256; a valid generation name is under 128. Anything else is `None`,
+which classifies as `Malformed`, so a planted FIFO, device symlink or oversized
+file can neither block nor exhaust a prune.
+
+#### 4. Generation name grammar
+
+**File**: `cli/launcher/src/launch/outbound/resolve/tree/layout.rs`
+**Changes**:
+
+```rust
+pub struct GenerationName<'a> {
+    pub artifact: Artifact,
+    pub digest: &'a str,
+    pub layout: u32,
+}
+
+pub fn parse_generation_name(name: &str) -> Option<GenerationName<'_>>
+```
+
+It accepts exactly `<n>-<p>-<64hex>-<u32>-<16hex>` with `n` non-empty and `p`
+in `KNOWN_PLATFORMS`. It parses from the right, where every field has a fixed
+shape, so hyphens in `n` never shift the split; the layout must be ASCII
+digits, so `+1` is refused. The suffix and digest checks share
+`is_lowercase_hex_of_length` with `validated_generation` and
+`is_wellformed_digest`.
+
+**File**: `tree/reap.rs`
+**Changes**: `is_generation` becomes `parse_generation_name(name)` with
+`layout == LAYOUT_VERSION`, replacing the `-{LAYOUT_VERSION}-` substring
+test. It still excludes `.tmp-` entries; the separate sidecar-suffix check
+and `reap.rs`'s `has_sidecar_suffix` are gone, because the grammar already rejects a
+sidecar's name. A stricter grammar only keeps more, so this is safe in every
+root.
+
+#### 5. Tests (red first)
+
+**File**: `cli/launcher/src/launch/core.rs` (unit tests, using new
+`ReResolvingResolver` and `FailingExec` fakes; `FixedResolver` and
+`FailingResolver` gain `re_resolve` returning `Declined`, as do the fakes in
+`main.rs` and `tests/crypto_provider.rs`)
+
+- `a_missing_program_is_re_resolved_once_and_execed_again`
+- `a_second_missing_program_surfaces_as_exec`
+- `a_failure_other_than_enoent_is_not_re_resolved`
+- `a_resolver_that_cannot_re_resolve_surfaces_the_first_failure`
+- `a_failed_re_resolution_surfaces_its_own_error`
+
+**File**: `cli/launcher/tests/resolution.rs`
+
+- `an_entry_removed_between_find_and_exec_is_refetched_once`: the named test
+  the item requires. It runs in the default root here; Phase 3
+  parameterises it by root kind and Phase 7 re-runs it with the post-store
+  prune active. A `RemovingAfterResolve` decorator
+  removes the resolved entry, and an `ExecUnlessMissing` fake returns
+  `ENOENT` for a missing path and records the program otherwise. The test
+  asserts one successful exec of the refetched path and one asset hit.
+- `an_existing_but_unrunnable_entry_is_not_refetched`: an
+  `ExecMissingInterpreter` fake returns `ENOENT` for a path that exists; no
+  asset is fetched and the first failure surfaces
+- `a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it`: seed,
+  poison, resolve with the recorder. `calls_touching(entry)` filtered to
+  mutations is exactly one `Rename` whose `to` is the entry, and the entry
+  then holds the verified bytes. Parameterised by kind in Phase 3 and re-run
+  in Phase 7, as above; the mutation filter on the entry path keeps prune's
+  own calls out of the assertion. It records existing behaviour, so it
+  passes before the change; an unlink inserted before `store`'s rename makes
+  it fail.
+
+**File**: `cli/launcher/src/main.rs` (unit test)
+
+- `an_override_path_is_never_re_resolved`
+- `an_unwritable_cache_root_is_re_resolved_through_the_cold_path`: with no
+  `ACCELERATOR_<SUB>_BIN` override and an unwritable `ACCELERATOR_CACHE_DIR`,
+  `re_resolve` returns `Failed(CacheRootUnavailable)`. The env-mutating
+  `main.rs` tests serialise on a test-local `ENVIRONMENT` mutex, and a
+  `ScopedVariable` guard restores each variable on drop.
+
+**File**: `cli/launcher/tests/tree_resolution.rs`
+
+Each test plants an aged, lease-free victim directory and an unclaimed
+pointer, plus a `ReclaimableControl`: a valid, unclaimed tree of this layout.
+It runs the verb with a clock two backstops ahead and `FlockProbe`, and
+asserts the victim survives and the control is removed in the same run:
+
+- `a_pointer_naming_an_absolute_path_deletes_nothing_outside_the_root`
+- `a_pointer_escaping_with_dot_dot_deletes_nothing`
+- `a_pointer_naming_another_artifacts_generation_is_kept`
+- `a_malformed_pointer_is_kept`
+- `a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept`: the prune
+  must finish within 10s; all three pointers and the symlink's target
+  survive. It plants no generation for them, since one named only by a
+  refused pointer is unreferenced and may be reaped.
+- `another_layouts_tree_is_kept_and_this_layouts_twin_is_removed`
+- `an_aged_foreign_directory_resembling_a_generation_survives_the_reap`:
+  `backup-2021-1-final` and `<n>-<unknown platform>-<64hex>-1-<16hex>`
+
+**File**: `tree/layout.rs` (unit tests): `parse_generation_name` accepts
+every known platform, including hyphenated names and one containing a
+platform, and rejects an unknown or extended platform, a short or uppercase
+digest, a non-numeric, signed or empty layout, a short, long or uppercase
+suffix, a sidecar name, a missing artifact name and `backup-2021-1-final`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] The new tests fail before the change and pass after:
+      `mise run test:unit:cli`
+- [x] The fixed list is unchanged and its test still passes
+- [x] `mise run cli:check` exits 0
+
+#### Manual Verification:
+
+- [x] Deleting a cached sub-binary between two dispatches in a scratch
+      `ACCELERATOR_CACHE_DIR` re-fetches it once with no user-visible error.
+      This covers the next dispatch's cache miss; the window between `find`
+      and `exec` is covered only by
+      `an_entry_removed_between_find_and_exec_is_refetched_once`.
+
+---
+
+## Phase 3: Cache Root Identity and Version Claims
+
+### Overview
+
+Tag the cache root with its kind, decided by comparing device and inode, and
+have every dispatch in a relocated root refresh its version claim before `find`.
+Lift the shared retention constants. Nothing is pruned yet.
+
+### Changes Required:
+
+#### 1. Retention constants
+
+**File**: `cli/launcher/src/launch/outbound/resolve/retention_windows.rs`
+(new, a leaf module)
+**Changes**: `pub const AGE_BACKSTOP` (1 hour), `pub const CLAIM_WINDOW`
+(14 days) and `pub const REFRESH_FRACTION: u64 = 10`, each with its existing
+doc text. `tree/reap.rs`, `tree/claims.rs` and `retention/` import them, and
+`claims::CLAIM_WINDOW` is re-exported so callers are unchanged. The
+integration tests' `BACKSTOP_SECONDS` (`tests/tree_resolution.rs:1391`)
+becomes `retention_windows::AGE_BACKSTOP.as_secs()`.
+
+#### 2. Cache root identity
+
+**File**: `cli/launcher/src/launch/outbound/resolve/filesystem.rs`
+**Changes**: the port gains what identity and claims need:
+
+```rust
+fn entry(&self, path: &Path) -> io::Result<EntryMetadata>;
+fn resolve(&self, path: &Path) -> io::Result<ResolvedDirectory>;
+fn create_private_dir(&self, path: &Path) -> io::Result<()>;
+fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()>;
+
+pub struct EntryMetadata {
+    pub kind: FileKind,
+    pub owner: u32,
+    pub group: u32,
+    pub mode: u32,
+    pub modified_seconds: Option<u64>,
+}
+
+pub enum FileKind { File, Directory, Symlink, Other }
+
+#[derive(PartialEq, Eq)]
+pub struct DirectoryIdentity { pub device: u64, pub inode: u64 }
+
+pub struct ResolvedDirectory {
+    pub canonical: PathBuf,
+    pub identity: DirectoryIdentity,
+}
+```
+
+`entry` is `symlink_metadata`. `resolve` is one `realpath` followed by a
+`stat` of the result: it returns the canonical path, every symlink in it
+resolved, and `(st_dev, st_ino)`. Two paths name the same directory exactly
+when their identities are equal, which also holds across a bind mount or a
+macOS firmlink alias, where canonical path strings differ. `FileKind` is
+named apart from `launch/core/tree_entry.rs`'s archive `EntryKind`.
+`create_private_dir` is a `mkdir` with mode
+`0700` that returns `AlreadyExists` unchanged. `set_modified` opens the file
+for writing with `O_NOFOLLOW|O_NONBLOCK` and sets its mtime with
+`File::set_modified`. `EntryMetadata::mode` is the full `st_mode`. Every rule that reads
+`modified_seconds` treats `None` as not aged for a removal and as fresh for
+protection, and treats a future mtime as age zero, so an unreadable or skewed
+mtime can only keep. `FilesystemCall` gains
+`Entry`, `Resolve`, `CreatePrivateDir` and `SetModified`.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/cache_root.rs`
+**Changes**:
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheRootKind {
+    PluginBin,
+    Relocated,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheRoot {
+    pub path: PathBuf,
+    pub kind: CacheRootKind,
+}
+
+pub fn identify(
+    config: &CacheRootConfig,
+    filesystem: &dyn CacheFilesystem,
+) -> Result<CacheRoot, ResolutionError>
+```
+
+`identify` calls `candidate`, then:
+
+| Override | Override `resolve` | Plugin `bin` `resolve` | Kind |
+|---|---|---|---|
+| unset | not called | not called | `PluginBin` |
+| set | fails | not called | `PluginBin` |
+| set | resolves | fails or plugin root unset | `Relocated` |
+| set | resolves | resolves, equal | `PluginBin` |
+| set | resolves | resolves, different | `Relocated` |
+
+The second row's comment is one sentence of why: claiming and pruning
+are skipped until the cold path's `create_dir_all` makes the override
+resolvable. In the first two rows the root is `candidate`'s path verbatim; in
+the last three it is the override's canonical path, whatever the kind.
+
+`identify` runs once per process, through `start_up`, before `dispatch`, and
+its result replaces the three `candidate` calls in `main.rs`
+(`production_resolver`, `run_cache`, `acquire_consumed_trees`). An
+identification error is carried, not raised, and is surfaced only by a path
+that needs the root, so built-ins that never touch the cache behave as today.
+
+`candidate` no longer logs the override. `StartUp` logs
+"using ACCELERATOR_CACHE_DIR override for the cache root" when a resolver
+asks for the root, so the line fires where it did before and a built-in's
+stderr stays empty.
+
+#### 3. Version claims
+
+**File**: `cli/launcher/src/launch/outbound/resolve/ownership.rs` (new, a
+leaf module)
+
+```rust
+pub trait Ownership {
+    fn effective_uid(&self) -> u32;
+}
+
+pub struct ProcessOwnership;
+
+pub const fn is_trusted_entry(entry: &EntryMetadata, uid: u32) -> bool
+
+pub fn is_trusted_directory(
+    path: &Path,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+) -> bool
+```
+
+`is_trusted_entry` is the pure rule: `FileKind::Directory`, not a symlink, owned
+by `uid`, and not group- or world-writable. It is the same write rule as the
+existing `layout::is_privately_owned` (`mode & 0o022 == 0`); Phase 4 widens it
+for a user-private group, when the inputs for that arrive. So `trees/`,
+`trees/claims/`, `claims/` and lock directories cannot be renamed into by
+another user even inside a safe root. `is_trusted_directory` reads `entry` and
+applies it. `trees/claims/` is now created with `create_private_dir`. Version
+claims, tree claims, tree prune and the residue sweep all use it.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs`
+(new)
+
+```rust
+pub const VERSION_CLAIMS_DIR: &str = "claims";
+
+pub struct VersionClaim<'a> {
+    pub version: &'a str,
+    pub launcher_id: &'a str,
+}
+
+pub fn refresh(
+    root: &Path,
+    claim: &VersionClaim<'_>,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+    clock: &dyn Clock,
+)
+
+pub struct FreshVersions { … }
+
+pub enum ClaimsListing {
+    Read(Vec<ListedClaim>),
+    Unreadable(io::ErrorKind),
+}
+
+pub fn list(
+    root: &Path,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+) -> ClaimsListing
+```
+
+- **`refresh`.** It makes one `entry` call on the claim and returns if the
+  claim is valid (see Validity) and younger than
+  `CLAIM_WINDOW / REFRESH_FRACTION`. A young claim that is not valid falls
+  through to the write. A failed write is logged with `tracing::debug!`, not
+  `warn!`, because a read-only root is a supported case.
+  Otherwise it calls `create_private_dir(claims)` and checks with `entry`
+  that `claims/` is a directory, not a symlink, owned by
+  `ownership.effective_uid()`. Only then does it call `write_private`, then
+  `set_modified(claim, clock.now_seconds())`, so the refresh never relies on
+  `O_TRUNC` of an empty file advancing its mtime. Every error is ignored.
+- **Trusted directory.** `refresh` and `list` check `claims/` with
+  `ownership::is_trusted_directory`.
+- **`list`.** A `NotFound` listing is `Read(vec![])`. Any other listing error
+  is `Unreadable`, so single-file prune can refuse to treat it as "no claims".
+  A `claims/` directory that is not trusted is `Unreadable(PermissionDenied)`.
+- **Parsing.** A claim name splits at its last `.` when what follows is
+  exactly 16 lowercase hex characters, so a version's own dots survive.
+- **Validity.** A claim counts as valid only when it is a regular file owned
+  by the effective uid. `FreshVersions::within(window, clock)` is computed
+  from the valid claims.
+
+`list` reads `claims/` with `entry` before listing it, so a missing directory
+is `Read(vec![])`, an `entry` error other than `NotFound` is `Unreadable` with
+its kind, and an untrusted directory is `Unreadable(PermissionDenied)`; a
+listing error after that is `Unreadable` too. Each name that parses becomes a
+`ListedClaim`, and one whose `entry` fails is skipped:
+
+```rust
+pub struct ListedClaim {
+    pub version: String,
+    pub launcher_id: String,
+    pub path: PathBuf,
+    pub valid: bool,
+    pub modified_seconds: Option<u64>,
+}
+
+impl FreshVersions {
+    pub fn within(claims: &[ListedClaim], window: Duration, clock: &dyn Clock)
+        -> Self;
+    pub fn contains(&self, version: &str) -> bool;
+}
+
+pub fn parse_claim_name(name: &str) -> Option<(&str, &str)>
+```
+
+`FreshVersions::within` counts a valid claim with an unknown or future mtime
+as fresh. `refresh` treats an unknown mtime as not young and rewrites the
+claim, since the rewrite only sets a readable mtime.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/tree/claims.rs`
+**Changes**: in every root, `write_private` adds `custom_flags(O_NOFOLLOW)`, and
+`refresh` creates `trees/claims/` with `SystemFilesystem.create_private_dir`,
+accepting `AlreadyExists`, then writes only when it passes
+`ownership::is_trusted_directory(dir, &SystemFilesystem, &ProcessOwnership)`,
+the same predicate every other trust check uses. Tree-claim refresh stays off
+the recorded port: it is on the dispatch path, and nothing records it. After
+the write, `refresh` sets the claim's mtime to `clock.now_seconds()` with
+`File::set_modified`.
+
+**File**: `retention/root_retention.rs` (new)
+**Changes**: the regime port, holding only what this phase's tests demand.
+`CachePorts` is defined in `retention/ports.rs`:
+
+```rust
+pub trait RootRetention {
+    fn claim_running_version(&self);
+}
+
+pub struct CachePorts {
+    pub filesystem: Arc<dyn CacheFilesystem + Send + Sync>,
+    pub ownership: Arc<dyn Ownership + Send + Sync>,
+    pub clock: Arc<dyn Clock + Send + Sync>,
+}
+
+pub struct PluginBinRetention;
+
+pub struct RelocatedRetention {
+    root: PathBuf,
+    running_version: String,
+    ports: Arc<CachePorts>,
+}
+
+pub fn for_root(root: Option<&CacheRoot>, ports: Arc<CachePorts>)
+    -> Arc<dyn RootRetention + Send + Sync>
+```
+
+`CachePorts` is the one bundle of ports `main.rs` builds, in
+`production_ports()`; the resolvers and both retentions borrow from it. It
+holds only what this phase needs; Phases 4, 5 and 7 add fields as their tests
+demand. The retentions likewise hold only what this phase reads:
+`PluginBinRetention` gains its root and ports, and `RelocatedRetention` its
+`plugin_root`, in the phase whose prune first reads them.
+`running_version` is `env!("CARGO_PKG_VERSION")`. An identification error selects
+`PluginBinRetention`, so a root that cannot be identified is never claimed
+or pruned; Phase 4 gives that case its own `UnidentifiedRetention`. `PluginBinRetention::claim_running_version` makes no call.
+`RelocatedRetention` computes the launcher id with `retention::launcher_id()`
+(in `retention/mod.rs`) and calls `refresh`. Computing
+the id only there keeps its `current_exe` and hash off the default root's
+path. Later phases add `prune`, `after_store` and `after_materialise`.
+
+**File**: `cli/launcher/src/launch/start_up.rs` (new)
+
+```rust
+pub struct StartUp {
+    cache_root: Result<CacheRoot, String>,
+    overridden: bool,
+    retention: Arc<dyn RootRetention + Send + Sync>,
+    ports: Arc<CachePorts>,
+}
+
+pub struct DispatchConfig {
+    pub base_url: String,
+    pub keys: TrustedKeys,
+    pub fetcher: Fetcher,
+}
+
+pub struct TreeConfig<'a> {
+    pub base_url: String,
+    pub keys: &'a TrustedKeys,
+    pub fetcher: &'a Fetcher,
+    pub liveness: &'a dyn LivenessProbe,
+    pub expected_digests: ExpectedDigests,
+    pub waiter_bound: Duration,
+    pub steps: &'a dyn StepObserver,
+}
+
+pub fn start_up(config: &CacheRootConfig, ports: Arc<CachePorts>)
+    -> StartUp
+
+impl StartUp {
+    pub fn dispatch_resolver(&self, config: DispatchConfig)
+        -> Result<FetchVerifyCacheResolver, ResolutionError>;
+    pub fn tree_resolver<'a>(&'a self, config: TreeConfig<'a>)
+        -> Result<TreeResolver<'a>, ResolutionError>;
+    pub fn retention(&self) -> &dyn RootRetention;
+}
+```
+
+`ResolutionError` is not `Clone`, so `StartUp` keeps an identification
+error's detail and rebuilds `CacheRootUnavailable` from it for each caller.
+`dispatch_resolver` gains its `consumed: &[AcquiredTree]` argument in Phase
+7, which first needs it. `TreeConfig<'a>` borrows the keys, fetcher, liveness probe and step
+observer the caller builds lazily, as `run_cache` and `acquire_consumed_trees`
+do; `main.rs` builds it in `production_tree_config`. The tree resolver's
+clock comes from `CachePorts`, and lease liveness moves there in Phase 4,
+which drops `TreeConfig::liveness`. Phase 4 also gives `start_up` a
+`TrustedOwners` argument.
+
+`start_up` calls `identify`, which resolves both roots once; a relocated
+root is then carried as its canonical path, so every later step, the safety
+walk included, uses a path with no symlink in it. It then calls `for_root`,
+then `claim_running_version`,
+all through `ports.filesystem`. It builds nothing else: the resolvers are
+still built lazily, when a command first needs one, but only through
+`StartUp`'s constructors. `run`, `LazyProductionResolver<'a>` (which holds
+`&'a StartUp`, and from Phase 7 the trees `run` acquired),
+`run_cache(action, &start)` and `acquire_consumed_trees(&start)` all use them,
+and so do the recorded tests, so the recorded sequence is production's
+sequence. `load_help_manifest` still builds its resolver directly: it reads
+only the manifest, never the cache root.
+
+**File**: `cli/launcher/src/main.rs`
+**Changes**: `run` calls `start_up` before `dispatch`, for every command,
+built-ins included, so a version used only
+through `config` or `cache` still claims its launcher entry. Claim-before-
+`find` holds because `run` precedes any resolution. `launcher_id()` moves to
+`retention::launcher_id()`.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/mod.rs`
+**Changes**: `ResolverConfig` keeps the cache root as a `PathBuf`, now taken
+from `StartUp::cache_root`. The kind never reaches resolver logic.
+
+#### 4. Tests (red first)
+
+**File**: `cli/launcher/src/launch/outbound/resolve/cache_root.rs`
+(unit tests): one test per row of the identity table, with the third row
+split in two:
+
+- `an_unset_override_is_the_plugin_bin_and_resolves_nothing`
+- `an_override_that_does_not_resolve_is_treated_as_the_plugin_bin`
+- `an_override_with_an_unresolvable_plugin_bin_is_relocated`
+- `an_override_with_no_plugin_root_is_relocated`
+- `an_override_naming_the_plugin_bin_is_the_plugin_bin`
+- `an_override_naming_another_directory_is_relocated`
+
+Two more, `a_symlink_naming_the_plugin_bin_is_the_plugin_bin` and
+`a_trailing_slash_naming_the_plugin_bin_is_the_plugin_bin`, expect
+`PluginBin`. `two_spellings_with_one_directory_identity_are_the_plugin_bin`
+gives the two paths equal `DirectoryIdentity` through `ReportingFilesystem`,
+standing in for a bind mount. `no_override_and_no_plugin_root_cannot_be_identified`
+keeps `candidate`'s error.
+
+**File**: `cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs`
+(unit tests):
+
+- `a_missing_claim_is_written`
+- `a_claim_older_than_a_tenth_of_the_window_is_rewritten`
+- `an_unknown_or_future_mtime_never_removes_or_unprotects`
+- `refreshing_an_empty_back_dated_claim_moves_its_mtime_to_now`, on the real
+  filesystem, so it runs on both the ubuntu and macos CI legs
+- `a_younger_claim_is_not_rewritten` (sentinel bytes survive, as
+  `claims.rs:208-235`)
+- `a_read_only_root_never_fails_the_refresh`
+- `a_symlink_or_foreign_owned_claim_is_not_valid`
+- `a_young_foreign_owned_claim_does_not_suppress_the_refresh`: the claim's
+  sentinel bytes are truncated, which only the write does; a unit test cannot
+  reach the integration tests' recorder
+- `a_claim_outside_the_window_does_not_make_its_version_fresh`
+- `a_missing_claims_directory_lists_no_claims`
+
+- `only_an_owned_directory_nobody_else_can_write_is_trusted`, the
+  `is_trusted_entry` table (unit, `ownership.rs`): `0700` and `0755` pass;
+  `0775` and `0777` fail; a foreign owner, a symlink and a non-directory
+  fail
+
+Both foreign-owned tests keep `claims/` owned by the effective uid and make
+only the one claim file foreign. They use `ReportingFilesystem`, a
+`CacheFilesystem` decorator in `resolve::filesystem::testing`, an
+always-compiled `#[doc(hidden)] pub mod`, since integration tests link the
+library without `cfg(test)` and features are not used as seams. It is inert
+unless a test constructs it, and the launcher is outside `public-api:check`.
+It is generic over its inner filesystem, built with `over(inner)` or
+`over_system()`. Its builder `reporting(path, EntryMetadata)` reports
+synthetic metadata for one path, `resolving(path, ResolvedDirectory)` a
+synthetic resolution, and `resolved_paths()` lists every path `resolve` was
+given; from Phase 4 `reporting_acl(path, AccessAcl)` scripts the ACL
+answer. Being always compiled, it is held to the workspace's production
+lints: it recovers a poisoned lock with `into_inner` rather than
+`unwrap`, documents its errors, and carries no blanket `#[allow]`. Phase
+4's `ScriptedFilesystem` builds on
+it, so unit and integration tests share one overlay; neither changes the
+process's effective uid.
+- `the_plugin_bin_retention_claims_nothing` (in `root_retention.rs`)
+- `an_unidentifiable_root_selects_the_plugin_bin_retention`
+- `a_symlinked_or_foreign_version_claims_directory_is_not_written_through`
+- `a_claim_exactly_a_tenth_of_the_window_old_is_rewritten` (the boundary:
+  `age >= CLAIM_WINDOW / REFRESH_FRACTION` rewrites, as `claims.rs:99-104`)
+- `for_root_chooses_the_retention_from_the_root_kind` (in
+  `root_retention.rs`)
+- `claim_names_keep_the_versions_own_dots`
+- `malformed_launcher_id_suffixes_do_not_parse`: 15 hex, uppercase hex, no
+  dot
+- `an_unreadable_claims_directory_is_reported_as_unreadable`
+- `a_claims_directory_owned_by_another_uid_is_unreadable`
+
+**File**: `tree/claims.rs` (unit tests):
+
+- `a_symlinked_tree_claim_leaves_its_target_unmodified`
+- `refreshing_an_empty_back_dated_tree_claim_moves_its_mtime_to_now`
+- `a_symlinked_tree_claims_directory_is_not_written_through`
+
+**File**: `cli/launcher/tests/resolution.rs` (recorded). Each test calls
+`start_up` with a recorder, then `StartUp::dispatch_resolver`, the same
+constructor `run` uses. The harness cache moves to `<tempdir>/bin`, so an
+unset override with plugin root `<tempdir>` names it; a relocated root is the
+same cache with plugin root `<workdir>/plugin`, whose `bin/` exists. The
+Phase 1 test stays as it was, beside its `identify`-composed twin:
+
+- `an_override_root_dispatch_writes_its_claim_before_find`: covers a missing
+  claim and one older than `CLAIM_WINDOW/10`. The `WritePrivate(claims/…)`
+  call precedes `List(root)`.
+- `an_override_root_dispatch_with_a_young_claim_does_not_rewrite_it`
+- `a_fresh_claim_costs_one_metadata_read_beyond_the_fixed_list`: the calls
+  equal `[Resolve(InRoot("")), Resolve(Outside("plugin/bin")),
+  Entry(InRoot("claims/…"))]` followed by `default_root_warm_dispatch_calls`.
+  The young-claim path makes no trusted-directory read of `claims/`; that
+  check runs only before a write.
+- `naming_the_plugin_bin_adds_only_the_canonical_resolution`: the calls equal
+  `[Resolve, Resolve]` followed by the fixed list, with no claim read or
+  write.
+- `an_unset_override_performs_exactly_the_fixed_calls`: the Phase 1 test,
+  now composed with `identify`.
+- `a_read_only_override_root_still_dispatches_warm`
+- `an_entry_removed_between_find_and_exec_is_refetched_once` and
+  `a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it` become
+  parameterised over both root kinds.
+- `a_development_checkout_relocated_elsewhere_claims_its_version`: the plugin
+  root is a temp "checkout" whose `bin/` differs from the override.
+
+**File**: `cli/launcher/tests/version.rs` (built-launcher tests):
+
+- `a_built_in_command_refreshes_the_version_claim`: `accelerator version`
+  with a scratch `ACCELERATOR_CACHE_DIR` leaves `claims/<version>.<16hex>`.
+- `a_built_in_command_in_a_relocated_root_writes_nothing_to_stderr`: pins the
+  override log's move out of `candidate`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] All Phase 3 tests pass and the fixed list is untouched:
+      `mise run test:unit:cli`
+- [x] `mise run cli:check` exits 0
+
+#### Manual Verification:
+
+- [x] A dispatch with `ACCELERATOR_CACHE_DIR` set in a scratch directory
+      leaves `claims/<version>.<16hex>` and nothing else new. Run with Phase
+      7's manual checks: a first `visualiser` dispatch through a
+      `test-loopback` launcher left its claim beside the launcher entry, the
+      staged shim, the sub-binary entry and Phase 7's root lock.
+
+---
+
+## Phase 4: Single-File Prune and Residue Sweep Behind the Verb
+
+### Overview
+
+Add the root lock, the allowlist grammar for top-level shapes, single-file
+prune and the residue sweep. In a relocated root, `accelerator cache prune`
+checks the root is safe, then runs them under the root lock, waiting, and then
+today's pinned tree prune. No dispatch prunes yet.
+
+### Changes Required:
+
+#### 1. Top-level name grammar
+
+**File**: `cli/launcher/src/launch/outbound/resolve/retention/root_entries.rs`
+(new)
+**Changes**: A pure classifier over one listing:
+
+```rust
+pub enum RootEntry<'a> {
+    SubBinary { stem: &'a str },
+    LauncherEntry { version: &'a str },
+    ShimCopy { platform: &'a str, digest: &'a str },
+    ShimStaging { pid: i32 },
+    StoreStaging,
+    LauncherStaging { pid: i32 },
+    Probe,
+    BootstrapLock,
+    Unrecognised,
+}
+
+pub fn classify<'a>(name: &'a str, listed: &BTreeSet<&str>) -> RootEntry<'a>
+
+pub struct RootListing { names: Vec<String> }
+
+impl RootListing {
+    pub fn read(root: &Path, filesystem: &dyn CacheFilesystem,
+        steps: &dyn PruneSteps) -> io::Result<RootListing>;
+    pub fn classified(&self) -> Vec<(&str, RootEntry<'_>)>;
+}
+```
+
+| Shape | Variant |
+|---|---|
+| `<x>-<64hex>`, `<x>` non-empty and not starting `.`, with `<x>-<64hex>.minisig` listed | `SubBinary` |
+| `accelerator-launcher-<v>-<p>`, `p` in `KNOWN_PLATFORMS`, with `.minisig` listed | `LauncherEntry` |
+| `accelerator-verify-<p>-<64hex>`, `p` known | `ShimCopy` |
+| `accelerator-verify-<p>-<64hex>.staging.<pid>`, `p` known | `ShimStaging { pid }` |
+| `.tmp-<x>-<64hex>-<digits>-<digits>[.minisig]` | `StoreStaging` |
+| `.tmp-launcher-<pid>[.minisig]` | `LauncherStaging { pid }` |
+| `.accelerator-probe-<digits>[-<digits>]` | `Probe` |
+| `.accelerator-lock-<p>`, `p` known | `BootstrapLock` |
+| anything else, including `.minisig` files, `claims`, `trees` | `Unrecognised` |
+
+Hex is lowercase only, so an uppercase digest is `Unrecognised` and kept. The
+sub-binary's `.minisig` and the launcher entry's `.minisig` are removed
+with their entry and never classified alone. A staging name's `<pid>` must be
+ASCII digits and pass Phase 4 §4's `parse_pid`; anything else makes the name
+`Unrecognised`, so it is kept. A `.tmp-launcher-` name whose pid does not parse
+is still tried as store staging, so a sub-binary named `launcher` keeps its
+shape. `top_level_names_are_fixed_across_launcher_versions` pins every shape,
+as `temp_entry_names_are_fixed_across_launcher_versions` does for `trees/`.
+
+`RootListing::read` reports `PruneStep::AboutToList`, lists the root once
+through the port, then reports `PruneStep::Listed`. A name that is not UTF-8
+is no name the plugin writes, so it is left out and kept. `RootPrune` reads
+the listing once and hands it to single-file prune and the residue sweep.
+
+Four shapes are written by `bin/accelerator`, not by Rust:
+`.tmp-launcher-$$[.minisig]`, `accelerator-verify-<p>-<sha>.staging.$$`,
+`.accelerator-probe-$$` and `.accelerator-lock-<p>/pid`.
+`tests/unit/tasks/test_bootstrap_name_coherence.py` extracts those templates
+and the pid file's `printf` format from `bin/accelerator`, expands them, and
+asserts each against the shape this table lists. It also reads the grammar's
+prefix constants out of `root_entries.rs`, so drift on either side fails.
+
+#### 2. Pure decisions
+
+**File**: `retention/single_file.rs` (new)
+
+```rust
+pub enum ShimSource { Digest(String), Unhashable }
+
+pub struct RunningShims { … }     // with(platform, ShimSource)
+pub struct LiveBootstraps { … }   // with(pid)
+
+pub struct ProtectionContext {
+    pub fresh: FreshVersions,
+    pub running_shims: RunningShims,
+    pub live_bootstraps: LiveBootstraps,
+}
+
+pub fn protection(entry: &RootEntry<'_>, context: &ProtectionContext)
+    -> Protection
+```
+
+`protection` is the one place any entry's protection is decided. A
+`SubBinary` is `Protected` when its stem, less its `-<64hex>`, ends with
+`-{v}` for some fresh version `v`, with something before that hyphen. A
+`LauncherEntry` is `Protected` when its version is fresh. A
+`ShimCopy { platform, digest }` is `Protected` when `running_shims` maps
+`platform` to `digest`, or to `Unhashable`, or has no entry for it. A
+`ShimStaging` or `LauncherStaging` is `Protected` while `live_bootstraps`
+holds its pid: the bootstrap that wrote it is still running, and on a wget
+host the file's mtime is the server's upload time, not its age. Other
+variants are `Unprotected`. Names are never split into name and version.
+
+`FreshVersions` gains `including(version)`, `iter()` and `Clone`.
+
+```rust
+pub enum Disposition { Remove, Keep }
+
+pub enum Protection { Protected, Unprotected }
+
+pub enum Age { Aged, Young }
+
+pub const fn disposition(
+    entry: &RootEntry<'_>,
+    protection: Protection,
+    age: Age,
+) -> Disposition
+```
+
+A copy matching its platform's source is the one every bootstrap on that
+platform runs, even on another host sharing the root, so removing it would
+race a live bootstrap into `fail_integrity`, which records a lasting
+unverified-launcher notice.
+
+| Entry | Rule |
+|---|---|
+| `SubBinary`, `LauncherEntry` | remove when unprotected and the entry and `.minisig` are both aged regular files |
+| `ShimCopy` | remove when unprotected and aged; the running plugin's copy for its platform is protected |
+| `ShimStaging`, `LauncherStaging` | remove when unprotected and aged |
+| `StoreStaging` | remove when aged; the launcher wrote it, so its mtime is local |
+| others | keep (the residue sweep owns `Probe`, `BootstrapLock`) |
+
+`retention_windows::is_aged(modified_seconds, now)` is the one age rule for
+both prunes: `age >= AGE_BACKSTOP` is aged, and an unknown or future mtime is
+never aged.
+
+#### 3. Single-file prune
+
+**File**: `retention/single_file.rs`
+
+```rust
+pub struct SingleFilePrune<'a> {
+    pub root: &'a Path,
+    pub running_version: &'a str,
+    pub plugin_root: Option<&'a Path>,
+    pub claim_window: Duration,
+    pub ports: &'a CachePorts,
+}
+
+pub struct SingleFileOutcome {
+    pub removals: Removals,
+    pub unreadable_claims: Option<UnreadableClaims>,
+}
+
+impl SingleFilePrune<'_> {
+    pub fn run(&self, listing: &RootListing, held: &HeldRootLock)
+        -> SingleFileOutcome;
+}
+```
+
+The `&HeldRootLock` is the proof the root lock guards it. `RootListing::read`
+has already listed the root and reported both steps. `run` then:
+
+1. Builds `RunningShims`: for each platform with a `ShimCopy` in the listing,
+   it reads `${plugin_root}/bin/accelerator-verify-<platform>` through the
+   filesystem port and hashes it. That is one hash of about 480 KB on a
+   single-platform root and at most four on a mixed one, once per prune, on
+   cold paths and in the verb, never on the warm path. When the plugin root
+   is unset, or a platform's source cannot be read, that platform is
+   `Unhashable` and its copies are all kept.
+2. Builds `LiveBootstraps` by asking `BootstrapHolderLiveness` about each pid
+   that a listed staging name carries. A dead pid reused by another process
+   reads as live, which only keeps the file longer.
+3. Reads claims with `version_claims::list`. If the listing is `Unreadable`,
+   it skips the `SubBinary` and `LauncherEntry` removals and reports
+   `UnreadableClaims { directory, kind }`. Shim copies and staging residue
+   are still removed. `FreshVersions` is the claims' fresh versions, always
+   `including(running_version)`.
+4. Removes each listed entry whose disposition is `Remove`: the `.minisig`
+   first, then the entry, so a concurrent `find` stops matching before the
+   binary goes. If the `.minisig` removal fails, the entry is kept.
+5. Removes stale version claims. A stale claim is a valid claim, with a name
+   that parses as `<version>.<16hex>`, not refreshed within the window. The
+   rule is a pure function with a table test:
+
+   ```rust
+   pub const fn stale_claim_disposition(
+       has_other_fresh_claim: bool,
+       every_entry_removed: bool,
+   ) -> Disposition
+   ```
+
+   `has_other_fresh_claim` comes from the claims alone, not the running
+   version's protection. `every_entry_removed` holds when every listed
+   `SubBinary` or `LauncherEntry` of that version, matched by the same suffix
+   rule, is gone after step 4; a version with none listed qualifies. Before
+   unlinking, the step re-reads the claim's `entry` and skips it unless it is
+   still a valid, stale claim.
+
+Removing only listed entries after reading claims is what makes a concurrent
+`store` safe: an entry stored after listing is never touched, and one stored
+before listing was preceded by its claim. The struct's doc comment states this
+invariant.
+
+**File**: `resolve/prune_report.rs`
+**Changes**: every removal in both prunes goes through `Removals`, which
+traces the rule and tallies the outcome:
+
+```rust
+pub enum Count { Once, WithItsEntry }
+
+pub enum Removal { Removed, AlreadyGone, Failed }
+
+pub struct Removals {
+    pub reclaimed: u64,
+    pub failures: Vec<RemovalFailure>,
+}
+
+impl Removals {
+    pub fn remove_file(&mut self, filesystem: &dyn CacheFilesystem,
+        path: &Path, rule: &str, count: Count) -> Removal;
+    pub fn remove_dir(&mut self, filesystem: &dyn CacheFilesystem,
+        path: &Path, rule: &str, count: Count) -> Removal;
+    pub fn absorb(&mut self, other: Removals);
+}
+```
+
+`NotFound` is `AlreadyGone`, neither counted nor a failure.
+
+#### 4. Residue sweep
+
+**File**: `retention/residue.rs` (new)
+
+```rust
+pub trait BootstrapHolderLiveness {
+    fn is_alive(&self, pid: i32) -> bool;
+}
+
+pub struct KillZeroProbe;
+
+pub fn parse_pid(contents: &str) -> Option<i32>
+
+pub struct ResidueSweep<'a> { … }
+
+impl<'a> ResidueSweep<'a> {
+    pub const fn new(root: &'a Path, ports: &'a CachePorts) -> Self;
+    pub fn run(&self, listing: &RootListing) -> Removals;
+}
+```
+
+`KillZeroProbe` sends `kill(pid, 0)` through `rustix::process::test_kill_process`.
+`ESRCH` means dead; any other result, including `EPERM`, means alive.
+
+`CacheFilesystem` gains `remove_dir`, and `FilesystemCall` gains `RemoveDir`.
+
+`ResidueSweep::run` uses the same listing, under the root lock:
+
+- **Probe files.** A `Probe` that is a regular file and aged is removed.
+- **Bootstrap lock directories.** A `BootstrapLock` that is a trusted
+  directory (`is_trusted_directory_entry`), aged, whose `pid` is missing,
+  empty or whitespace, or names a dead process is removed with
+  `remove_file(pid)` then `remove_dir`. The pid file is read with
+  `read_bounded(pid, 64)`. An untrusted one is kept, and so is one whose
+  `pid` does not parse or cannot be read.
+- **Pid grammar.** `parse_pid` trims trailing ASCII whitespace, because the
+  bootstrap writes `printf '%s\n' "$$"`, and accepts only ASCII digits for an
+  integer of 1 or more. `0`, negative values and a leading `+` are
+  unparseable: `kill` gives the first two process-group meanings.
+- **Re-check before unlinking.** The sweep judges the directory twice, the
+  second time immediately before `remove_file(pid)`, and skips the removal
+  unless both judgements saw the same mtime and pid contents. A bootstrap
+  reclaiming the same directory between decision and unlink is then kept.
+
+#### 5. The root lock and the lock seam
+
+**File**: `resolve/single_flight.rs` (new, a leaf module) for the trait and
+its values, and `tree/locks.rs` (new) for `FlockLocks`, the production
+implementation over the `lease.rs` primitives, so the leaf imports nothing
+from `tree/`
+
+```rust
+pub trait SingleFlightLocks {
+    fn take(&self, path: &Path) -> Result<LockGuard, TreeError>;
+    fn try_take(&self, path: &Path) -> Result<Option<LockGuard>, TreeError>;
+    fn wait_existing(&self, path: &Path)
+        -> Result<Option<LockGuard>, TreeError>;
+    fn probe(&self, path: &Path) -> Result<LockProbe, TreeError>;
+}
+
+pub struct LockGuard { _inner: Box<dyn Send> }   // LockGuard::holding(inner)
+
+pub enum LockProbe { Taken(LockGuard), Held, Absent }
+
+pub enum LockPatience { Wait, Try }
+```
+
+```rust
+// tree/locks.rs
+pub struct FlockLocks;
+```
+
+`SingleFlightLocks` is the path-level primitive, and `CachePorts::locks` is
+its one instance, serving the root lock and, from Phase 5, tree locks.
+`LockGuard` wraps whatever guard an implementation returns and releases it on
+drop, so a test decorator can wrap the inner guard and see the release.
+Retention never names the primitive outside two types: `HeldRootLock::acquire`
+here and `TreeLocks` in Phase 5.
+
+`tree/lease.rs`'s `open_creating` and `open_existing` now open every
+single-flight lock file, tree locks included, with `O_NOFOLLOW`, so a
+symlinked lock file is a `TreeError::Lease` and its target is untouched. Before
+opening, `HeldRootLock::acquire` reads `.accelerator-prune.lock` through
+`ports.filesystem.entry`, so the overlay reaches it too: anything other than a
+missing file or a regular file owned by the effective uid is refused. In a root
+only its owner can write, a symlinked or foreign-owned lock can only be the
+same user's doing, so it is a `LockFailure`, reported by the verb and skipped
+on cold paths; prune never unlinks a lock it did not create.
+
+**File**: `retention/root_lock.rs` (new)
+
+```rust
+pub struct HeldRootLock { _guard: LockGuard }
+
+pub const ROOT_LOCK: &str = ".accelerator-prune.lock";
+
+impl HeldRootLock {
+    pub fn acquire(root: &Path, patience: LockPatience, ports: &CachePorts)
+        -> Result<Option<HeldRootLock>, TreeError>;
+}
+```
+
+`acquire` takes the lock with `take` when waiting and `try_take` when trying,
+and reports `PruneStep::RootLockHeld` once it holds it.
+
+`wait_existing` is a new `tree/lease.rs` function: a blocking
+`lock_confirmed(path, open_existing, LockExclusive)`, where `None` means the
+file is absent. `wait_existing_outcome` maps `Locked::KeptBeingReplaced` to
+`Err`, so the verb reports it and a cold path skips the artifact; it never
+reaches the lock-free arm. `wait_existing_maps_a_churning_lock_to_an_error`
+pins this beside `take_outcome` and `try_outcome`.
+
+Lock order is one rule: the root lock is released before any tree lock is
+taken or waited on, and a holder of a tree lock only ever tries the root
+lock. `RootPrune::run` holds `HeldRootLock` inside a helper around single-file
+prune and the residue sweep, so it drops before tree prune starts.
+
+#### 6. Prune steps seam
+
+**File**: `resolve/prune_report.rs` (new, a leaf module), so both prunes can
+report steps without importing each other
+
+```rust
+pub enum PruneStep { AboutToList, Listed, RootLockHeld, TreeLockHeld }
+
+pub trait PruneSteps {
+    fn reached(&self, step: PruneStep);
+}
+
+pub struct NoPruneSteps;
+```
+
+It also holds `LockFailure { lock, detail }`,
+`UnreadableClaims { directory, kind }`, `RemovalFailure { path, kind }` and
+the `Removals` tally of §3.
+
+#### 7. `RootPrune` and the verb
+
+**File**: `cli/launcher/src/launch/outbound/resolve/ownership/` (was
+`ownership.rs`): `mod.rs`, `accounts.rs` and `safe_root.rs`
+**Changes**: `is_trusted_entry` gains a `private_gid: Option<u32>`
+parameter and admits a directory that is group-writable but not
+world-writable whose group is `private_gid`. `Ownership` gains two methods:
+
+```rust
+pub enum PrimaryGroup { Private, Shared { name: String }, Unresolved }
+
+pub trait Ownership {
+    fn effective_uid(&self) -> u32;
+    fn effective_gid(&self) -> u32;
+    fn primary_group(&self) -> PrimaryGroup;
+    fn primary_group_is_private(&self) -> bool { … }  // provided
+}
+```
+
+`primary_group` carries the group's name and the unresolved case, so a
+refusal can name the shared group or the cause. `is_trusted_directory` and
+`is_trusted_directory_entry(path, entry, filesystem, ownership)` apply the
+widening lazily: a directory the strict rule already trusts never resolves
+the group, and the exception is consulted only when the directory's group is
+the effective gid, it has no access ACL, and `primary_group_is_private()`. No
+warm path resolves the group. `version_claims::list` uses
+`is_trusted_directory_entry` on the entry it already read.
+
+The rule itself is a pure function, so it is tested without the system's
+databases:
+
+```rust
+pub fn is_private_group(
+    login: &str,
+    group_name: &str,
+    members: &[&str],
+) -> bool
+```
+
+It holds when the group is named as the user's login and its member list is
+empty or holds only the user: the user-private-group convention of Ubuntu,
+Debian, Fedora and RHEL. It never enumerates the password database, which can
+be slow under LDAP or SSSD. `cli/launcher/Cargo.toml` adds
+`libc = { workspace = true }`; `libc` is already a workspace dependency, so no
+`deny.toml` or cargo-pup change is needed.
+
+`ProcessOwnership` resolves the login and group through an `AccountLookup`
+seam (`ownership/accounts.rs`):
+
+```rust
+pub struct Accounts {
+    pub login: String,
+    pub group_name: String,
+    pub members: Vec<String>,
+}
+
+pub trait AccountLookup {
+    fn accounts(&self, uid: u32, gid: u32) -> Option<Accounts>;
+}
+
+pub struct LibcLookup;
+pub struct GetentLookup { executables: Vec<PathBuf>, timeout: Duration }
+// GetentLookup::production(), GetentLookup::using(executables, timeout)
+
+impl ProcessOwnership {
+    pub fn with_lookups(lookups: Vec<Box<dyn AccountLookup + Send + Sync>>)
+        -> Self;
+}
+```
+
+`ProcessOwnership::default()` is `[LibcLookup]`, plus
+`GetentLookup::production()` on Linux. It tries them in order, stopping at
+the first that answers, and caches the `PrimaryGroup` in a `OnceLock` field of
+the instance `main.rs` builds once, never a static, so tests in one binary
+cannot see each other's answers. Every former `ProcessOwnership` unit value is
+now `ProcessOwnership::default()`.
+
+1. `LibcLookup`: `getpwuid_r` and `getgrgid_r`, starting at a 1 KiB buffer and
+   doubling on `ERANGE` up to 1 MiB, copying every string out while the buffer
+   is alive. (NixOS and Guix install `getent` outside the fixed paths of step
+   2, so their directory-service accounts reach step 3; see Accepted Risks.)
+2. `GetentLookup`, on Linux, when step 1 finds no entry: `getent passwd <uid>`
+   and `getent group <egid>`, run from the first of `/usr/bin/getent` and
+   `/bin/getent` that exists, never through `PATH`, with a 2 s timeout. The
+   child runs with stdin null, stderr null, `env_clear()` plus `LC_ALL=C`, in
+   its own process group, under a small launcher-local supervisor that polls
+   `try_wait`, then kills the group and reaps the child, on timeout or exit
+   alike, so nothing holds the pipe. `config-adapters`' `command_runner` is
+   not reused: its `Supervision` is private and its public runner runs
+   `bash -c` found through `PATH`, which `pup.ron` already forbids the
+   launcher from naming. An answer counts only when the child exits 0 with
+   exactly one line of at most 64 KiB, a passwd line of seven fields or a
+   group line of four, whose decimal id field equals the queried uid or egid;
+   anything else falls to step 3. This step exists because the shipped Linux
+   launchers are static musl builds, whose lookups read only `/etc/passwd`,
+   `/etc/group` and `nscd`, so SSSD, FreeIPA, Active Directory, LDAP and
+   systemd-homed accounts are invisible to step 1. `getent` goes through the
+   host's NSS.
+3. Otherwise the group is `Unresolved`, and the refusal names the cause
+   (`could not resolve group <gid>`) and the remedy `chmod g-w <root>`.
+
+A lookup that fails can only refuse. No warm path runs any of this: it runs
+only on a prune of a group-writable relocated root.
+
+The private-group exception applies only to a directory with no access ACL,
+because on Linux a directory's group mode bits are its ACL mask when it has one,
+so an entry such as `user:bob:rwx` would show as group-writable. The check is a
+`CacheFilesystem::access_acl` port method, so the overlay can test it, returning
+`AccessAcl::{None, Posix, Other}`. On Linux it uses `rustix::fs::lgetxattr`:
+`system.posix_acl_access` present is `Posix`; `system.nfs4_acl`,
+`system.nfs4_acl_xdr` or `system.richacl`, as on NFSv4, SMB or ZFS with
+`acltype=nfsv4`, is `Other`; `ENODATA` or `ENOTSUP` for every one is `None`.
+On macOS, where ACLs never appear in mode bits, it reads the ACL with
+`exacl::getfacl(path, AclOption::SYMLINK_ACL)` and returns `Other` for any
+allow entry granting `WRITE` (`add_file`), `APPEND` (`add_subdirectory`) or
+`DELETE_CHILD`, and `None` otherwise; deny entries, such as a home directory's
+`everyone deny delete`, are ignored. An allow entry for the owner counts too:
+matching the owner would need a uid lookup, and refusing it only refuses more.
+`exacl` is a macOS-only dependency
+(`[target.'cfg(target_os = "macos")'.dependencies]`, declared in the workspace
+with `default-features = false`), because on Linux it links `libacl`, which the
+static musl launcher cannot; its dependencies were already in the closure, and
+`licenses/accelerator-third-party-notices.txt` gains its MIT notice. Other
+platforms report `Other`.
+
+`CacheFilesystem` also gains `ignores_ownership(path)`, with an
+`IgnoresOwnership` `FilesystemCall` and a `reporting_ownership_ignored`
+overlay builder: on macOS it is `statfs` with `MNT_IGNORE_OWNERSHIP` in
+`f_flags`, elsewhere `false`. `ReportingFilesystem` gains `reporting_acl`.
+
+A directory is *safe to prune in* when its `entry` reports a directory owned
+by the effective uid or by root, its ACL is not `Other`, and it is not
+writable by others unless one of these holds:
+
+| Directory | Writable by group | Writable by world |
+|---|---|---|
+| root | safe only when its group is the effective gid and `primary_group()` is `Private` | never safe |
+| ancestor | safe through the user's private group, or with the sticky bit | safe with the sticky bit |
+
+A `Posix` directory that is group-writable without the sticky bit is refused,
+since its group bits are its mask. The root itself must also be owned by the
+effective uid; only its ancestors may
+be owned by root, as `/` and `/tmp` are, or by a uid the operator lists in
+`ACCELERATOR_CACHE_TRUSTED_OWNERS`. A directory's owner can always rename or
+`chmod` what it holds, so an ancestor owned by anyone else could swap the root;
+relaxing this for an effective uid of 0 would let an ordinary user steer root's
+deletions, so the widening is explicit instead. A CI job whose workspace is
+owned by its runner (GitHub Actions' `/__w`, uid 1001) or a container whose
+bind mount is owned by the host user lists that uid. Listing a uid trusts that
+account fully: as an ancestor's owner it can rename or `chmod` within it, so it
+could redirect prune's removals within the user's privileges. The overflow uid
+65534 and uid 99 stand for every unmapped host account and every local user,
+so they are refused even when listed, and the refusal never offers them; a
+root on a volume that ignores ownership is refused outright, and so is one
+whose volume cannot be examined.
+
+`TrustedOwners` (in `ownership/safe_root.rs`) has `none()`, `parse(value)` and
+`from_env()`. The variable is comma-separated decimal uids, parsed strictly;
+`from_env` ignores a malformed value with a `tracing::warn!`, so it can only
+refuse. `start_up` takes a `TrustedOwners` argument, which `main.rs` fills with
+`TrustedOwners::from_env()` and tests set directly, and passes it to the
+relocated retention for `SafePruneRoot::check`. A cache root is therefore
+pruned only when it is its owner's alone. The sticky bit stops other users
+renaming entries,
+but not creating names first, and several writers in the root use predictable
+names and follow what they find there: the bootstrap's probe, shim staging and
+launcher staging, and the launcher's own probe. So a root any other user can
+create names in is refused, sticky or not, while a sticky `/tmp` above a
+per-user root is fine. A shared cache such as a `/tmp/accelerator` or
+`/var/cache/accelerator` made writable by other users still works as a cache,
+but is never pruned; a per-user root beneath it, such as
+`/var/cache/accelerator/$USER`, is.
+
+`SafePruneRoot::check` first asks `ignores_ownership(root)`, then applies the
+rule to the canonical root and to each of its ancestors up to `/`, one `entry`
+and one `access_acl` per path component, as sshd's `StrictModes` does after its
+`realpath`. The root is the canonical path
+`start_up` resolved, so it holds no symlink: macOS `/var` and `/tmp`, or a
+Linux `/home` that is a link, are walked as their targets, `dir-link` and
+`dir-link/` get the same verdict, and no link is trusted for anything. In a
+directory another user can write to without these exceptions, that user can
+rename `trees/`, or the root itself, and put a symlink in its place at any
+moment, so every per-directory check would be checking the attacker's
+choice.
+
+```rust
+pub enum UnsafeReason {
+    Unexaminable(io::ErrorKind),
+    NotADirectory,
+    RootOwnedByAnother { owner: u32 },
+    AncestorOwnedByAnother { owner: u32 },
+    WritableBySharedGroup { group: String },
+    WritableByUnresolvedGroup { gid: u32 },
+    WorldWritableRoot,
+    WorldWritableWithoutStickyBit,
+    AclMayGrantWrite,
+    OwnershipIgnored,
+}
+
+pub struct UnsafeRoot { pub path: PathBuf, pub reason: UnsafeReason }
+```
+
+`UnsafeRoot`'s `Display` names the path, the condition and the remedy, for
+example `<path> is group-writable by the shared group staff; run chmod g-w
+<path>`. A shared group is named by its name when it is the effective gid's,
+and as `gid <n>` otherwise. A world-writable root names `chmod 700 <path>` and
+the per-user `ACCELERATOR_CACHE_DIR` remedy; an ancestor owned by an untrusted
+uid names `ACCELERATOR_CACHE_TRUSTED_OWNERS=<uid>`, except for 65534 and 99.
+
+**File**: `retention/ports.rs`, `CachePorts`' one home from Phase 3 on
+
+```rust
+pub struct CachePorts {
+    // ... Phase 3's filesystem, ownership, clock
+    pub locks: Arc<dyn SingleFlightLocks + Send + Sync>,
+    pub steps: Arc<dyn PruneSteps + Send + Sync>,
+    pub bootstrap_holders: Arc<dyn BootstrapHolderLiveness + Send + Sync>,
+    pub lease_liveness: Arc<dyn LivenessProbe + Send + Sync>,
+    pub pins: Arc<dyn PinnedDigests + Send + Sync>,
+}
+```
+
+`main.rs` fills them with `FlockLocks`, `NoPruneSteps`, `KillZeroProbe`,
+`FlockProbe` and `ExpectedDigests::Compiled`. `TreeConfig` loses its
+`liveness` field: `StartUp::tree_resolver` borrows `ports.lease_liveness`.
+
+**File**: `retention/root_prune.rs` (new)
+
+```rust
+pub struct RootPrune<'a> {
+    pub safe: &'a SafePruneRoot,
+    pub running_version: &'a str,
+    pub plugin_root: Option<&'a Path>,
+    pub claim_window: Duration,
+    pub ports: &'a CachePorts,
+}
+
+pub struct PruneReport {
+    pub reclaimed: u64,
+    pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Vec<UnreadableClaims>,
+    pub removal_failures: Vec<RemovalFailure>,
+}
+
+pub enum PruneOutcome {
+    Refused(UnsafeRoot),
+    Ran(PruneReport),
+    Unavailable { detail: String },
+}
+
+impl RootPrune<'_> {
+    pub fn run(&self, patience: LockPatience) -> PruneReport;
+}
+```
+
+`run` takes the root lock (contention when trying returns without a report;
+an error is a `LockFailure` on `.accelerator-prune.lock`), reads the
+`RootListing` (a listing error is a `RemovalFailure` on the root), runs
+`SingleFilePrune` and `ResidueSweep` over it, and releases the lock. It then
+calls `tree::prune_pinned_on_host` for the root with `Some(claim_window)` and
+the ports' clock, lease liveness and pins, so a relocated root's verb keeps
+today's tree prune until Phase 5 replaces it with `TreePrune`; a tree prune
+error is a `LockFailure` on `trees/`. `run` takes no `HeldLeases` yet: Phase 5,
+which first reads one, adds it.
+
+`RootPrune` prunes `safe.path()` and nothing else, so the path that was
+checked is the path that is pruned. The root-safety check is a proof value,
+defined in the `ownership` leaf so `tree/` can require it, rather than a call
+each site must remember:
+
+```rust
+pub struct SafePruneRoot { root: PathBuf }
+
+impl SafePruneRoot {
+    pub fn check(
+        root: &Path,
+        filesystem: &dyn CacheFilesystem,
+        ownership: &dyn Ownership,
+        trusted_owners: &TrustedOwners,
+    ) -> Result<SafePruneRoot, UnsafeRoot>;
+    pub fn path(&self) -> &Path;
+}
+```
+
+`check` takes only the two leaf ports it uses, so the `ownership` leaf depends
+on nothing in `retention/`. `RootPrune`, `TreePruneRegime::WholeTree` and, in
+Phase 7, a relocated root's `ReapPermit` each
+require a `&SafePruneRoot`, so none can be built without the check.
+`RelocatedRetention` obtains it once per prune; an unsafe root yields
+`PruneOutcome::Refused` and removes nothing. Claims are still written, so a root
+made safe later keeps its protection. `FreshVersions` always contains
+`running_version`, whatever the claims say, as tree prune always spares the
+running launcher's pinned digest. `RootPrune` never asks which kind of root it
+is in: only `RelocatedRetention` constructs one.
+
+**File**: `retention/root_retention.rs`
+**Changes**: `RootRetention` gains
+`fn prune(&self, older_than: Option<Duration>) -> PruneOutcome`.
+
+| Retention | `prune` |
+|---|---|
+| `PluginBinRetention::new(root, ports)` | `tree::prune_pinned_on_host`, today's loop over pinned artifacts on the host; always `Ran` |
+| `RelocatedRetention` (gains `plugin_root` and `trusted_owners`) | `SafePruneRoot::check`, then `RootPrune::run(LockPatience::Wait)` with `claim_window` set to `older_than` when given, else `CLAIM_WINDOW` |
+| `UnidentifiedRetention` (new) | `Unavailable { detail }`; it claims nothing |
+
+`for_root(root: Result<&CacheRoot, &str>, plugin_root: Option<&Path>,
+trusted_owners: TrustedOwners, ports)` chooses among them. An identification
+error now selects `UnidentifiedRetention` rather than `PluginBinRetention`, so
+a root that cannot be identified is still never claimed, and its prune is
+reported rather than run against no root. Phase 3's
+`an_unidentifiable_root_selects_the_plugin_bin_retention` becomes
+`an_unidentifiable_root_is_never_claimed`, beside
+`an_unidentifiable_root_is_never_pruned`.
+
+`older_than` replaces `CLAIM_WINDOW` for version and tree claims alike, as
+the verb does today. A value above 14 days widens the window and keeps more.
+
+**File**: `tree/pinned_prune.rs` (new) and `tree/resolver.rs`
+**Changes**: the per-artifact body of `TreeResolver::prune`
+(`reclaim_unclaimed` then `reap_orphans`), with `artifact_pointers` and
+`PointerTarget`, moves unchanged into
+`tree::prune_pinned_artifact(paths, artifact, collaborators, older_than)`
+over `PinnedPruneCollaborators { clock, liveness, pins }`. It keeps today's
+static tree lock until Phase 5 introduces `TreeLocks`. The verb's loop over
+`pins::artifact_names()` on `HOST_PLATFORM` moves from `launch/cache.rs`
+into `tree::prune_pinned_on_host(cache_root, collaborators, older_than)`.
+`prune_pinned_on_host` returns nothing reclaimed, and creates no lock, when
+`trees/` does not exist; before, the `O_CREAT` lock open failed with `ENOENT`
+in a root that had never materialised a tree, in the default root too. An
+unreadable `trees/` still reports. `TreeResolver::prune` delegates to
+`prune_pinned_artifact` until Phase 5 deletes them, and `PluginBinRetention`
+and `RootPrune` call `prune_pinned_on_host`, so no retention holds a resolver.
+
+**File**: `cli/launcher/src/launch/cache.rs`
+**Changes**: `cache::run(action, resolver, retention, out, err)` takes the
+retention and a stderr writer; `main.rs::run_cache` passes
+`start.retention()` and locked stderr. `prune` calls
+`retention.prune(older_than)` with no branching. For `Ran` it writes
+`reclaimed {n} entries` to `out`, then one line per failure to `err`:
+`could not lock <lock>: <detail>`,
+`claims unreadable (<kind>) in <dir>; kept every versioned entry` and
+`could not remove <path>: <kind>`. It returns `kernel::Error::Failed` when a
+lock or a removal failed; an unreadable claims directory alone exits 0,
+because it removed nothing wrongly. `Refused` returns
+`kernel::Error::Failed("not pruning: <UnsafeRoot>")`, which `main` prints, for
+example `not pruning: <path> is group-writable by the shared group staff; run
+chmod g-w <path>`. `Unavailable` returns `CacheRootUnavailable`. Cold paths
+log a refusal once per process, not on every prune (Phase 7).
+
+`n` counts removed entries. A sub-binary or launcher entry counts once with
+its `.minisig`, a lock directory once with its pid file, and, from Phase 5, a
+generation once with its sidecars. A claim and a residue file each count once.
+
+Every removal emits `tracing::debug!(path, rule)` through `Removals`, where
+`rule` names the decision-table row that allowed it, so a deletion can be
+traced to its cause. Tree prune and the cold paths do the same.
+
+**File**: `.github/workflows/main.yml`
+**Changes**: the unit-test job installs the `acl` package on Linux, for
+`the_system_filesystem_reports_acls`.
+
+#### 8. Tests (red first)
+
+Pure rules and module-level behaviour are unit tests beside their code; the
+verb, the scripted defensive branches, the recorded orderings and the paused
+concurrency tests are integration tests in `cli/launcher/tests/root_prune.rs`.
+Where `deny(warnings)` rejected a stub with unused fields, a test was written
+with its code and then mutation-checked: removing the guard it pins makes it
+fail.
+
+Unit tests:
+
+- `root_entries.rs`: `top_level_names_are_fixed_across_launcher_versions`,
+  every known platform, unsigned and lone-signature names, the
+  `Unrecognised` cases (`.tmp-launcher-0`, `.tmp-launcher--1`,
+  `.tmp-launcher-abc`, `accelerator-verify-<p>-<64hex>.staging.abc`, unknown
+  platforms, short and uppercase digests).
+- `residue.rs`: `parse_pid`; `old_probe_files_are_swept_and_young_ones_kept`;
+  `stale_bootstrap_locks_with_empty_or_dead_pids_are_swept` (a missing `pid`,
+  an empty one, a dead one and a live one, written as bash does, `"<pid>\n"`);
+  `a_young_lock_with_a_dead_pid_is_kept`;
+  `an_unparseable_or_non_positive_pid_keeps_the_lock_directory` (`abc`, `0`,
+  `-1`); `a_symlinked_bootstrap_lock_leaves_its_target_untouched`;
+  `a_private_group_writable_bootstrap_lock_is_swept` and
+  `a_shared_group_writable_bootstrap_lock_is_kept` (the bootstrap's
+  `mkdir`-created lock directory is `0775` under umask 002);
+  `kill_zero_probe_maps_errno_to_liveness` (the current pid is alive, a
+  spawned and reaped child's pid is dead, pid 1 is alive through `EPERM`,
+  skipped when running as root).
+- `single_file.rs`, the decision tables: every row of `protection`,
+  `disposition` and `stale_claim_disposition`.
+- `single_file.rs`, `SingleFilePrune::run` over `retention::testing`'s
+  canonical `0700` root, back-dated files and an injected clock:
+  `only_the_unclaimed_versions_entries_are_removed`,
+  `two_claimed_versions_lose_nothing`,
+  `a_symlinked_and_a_foreign_owned_claim_protect_nothing` (through the
+  overlay, on the claim file only),
+  `pre_claim_entries_younger_than_the_backstop_survive`,
+  `an_entry_goes_only_once_its_signature_is_aged_too`,
+  `a_version_is_matched_by_suffix_never_by_splitting_the_name`
+  (`x-1.24.0-pre.78-<hex>` kept, `x-y-1.24.0-<hex>` removed),
+  `stale_claims_go_independently_and_a_last_claim_goes_after_its_entries`,
+  `a_last_stale_claim_survives_an_unremoved_entry`,
+  `plugin_staging_entries_are_removed_only_once_aged`,
+  `launcher_staging_with_a_live_pid_survives_however_old`,
+  `launcher_staging_with_a_dead_pid_goes_once_aged`,
+  `shim_staging_with_a_live_pid_survives_however_old`,
+  `shim_staging_with_a_dead_pid_goes_once_aged`,
+  `the_running_plugins_shim_copies_survive_for_every_platform`,
+  `stale_shim_copies_go_on_every_platform` (a host-platform copy and an
+  other-platform copy with another digest, and a copy whose digest matches a
+  different platform's source, all removed once aged and kept when fresh),
+  `an_unreadable_shim_source_keeps_that_platforms_copies` (and with no plugin
+  root), `the_running_version_survives_older_than_zero`,
+  `the_running_version_survives_without_a_valid_claim`,
+  `older_than_narrows_the_version_claim_window`,
+  `older_than_beyond_the_window_widens_it`,
+  `a_claim_exactly_at_the_window_is_stale`,
+  `an_unreadable_claims_directory_removes_no_entries`,
+  `a_held_tree_temp_generation_is_untouched_by_single_file_prune`,
+  `the_reclaimed_count_counts_an_entry_and_its_signature_once`.
+- `retention_windows.rs`: `an_entry_exactly_at_the_backstop_is_aged` and
+  `an_unknown_or_future_mtime_is_never_aged`.
+- `root_lock.rs`: a free lock is taken and `RootLockHeld` reported; a held
+  lock is skipped when only tried; a symlinked lock is refused with its target
+  untouched; a foreign-owned lock is refused (through the overlay).
+- `tree/lease.rs`: `wait_existing_maps_a_churning_lock_to_an_error`,
+  contention on a blocking wait is a fault, waiting on an absent lock creates
+  nothing, waiting on a held lock takes it once released, and
+  `a_symlinked_lock_file_is_refused_and_its_target_untouched`.
+- `tree/locks.rs`: `FlockLocks` holds until its guard drops, and neither
+  waiting nor probing creates a lock file.
+- `tree/pinned_prune.rs`:
+  `a_root_that_never_materialised_a_tree_has_nothing_to_prune`.
+- `filesystem.rs`: `the_system_filesystem_reports_acls` (real filesystem: a
+  fresh tempdir is `None` on both legs; on macOS `chmod +a "everyone deny
+  delete"` is `None` and `chmod +a "everyone allow add_file"` is `Other`; on
+  Linux `setfacl -m u:nobody:rwx` is `Posix`, and without `setfacl` the test
+  skips locally but fails under CI, as `minisign_or_skip!` does), and
+  `a_local_temporary_volume_enforces_ownership`.
+- `ownership/mod.rs`: the `is_trusted_entry` table and its widening table
+  (`0775` with the private gid passes, with another gid or `None` fails,
+  `0777` always fails); the `is_private_group` table (empty member list, self
+  only, another member, name mismatch);
+  `the_getent_fallback_is_used_only_when_libc_has_no_entry`;
+  `no_answer_leaves_the_primary_group_unresolved_and_asks_once`;
+  `the_process_ownership_answers_for_the_current_user` (an `id -un` and
+  `id -gn` oracle, plus members from `dscacheutil -q group -a gid <gid>` on
+  macOS and `getent group` on Linux);
+  `a_private_group_writable_directory_without_an_acl_is_trusted`;
+  `an_acl_granting_another_user_write_is_not_private`;
+  `a_directory_writable_by_another_group_is_never_trusted`;
+  `a_directory_nobody_else_can_write_never_resolves_the_primary_group`.
+- `ownership/accounts.rs`, with stub `getent` scripts that record their pid in
+  a marker file, so each test asserts its stub ran:
+  `the_getent_fallback_parses_passwd_and_group_lines`,
+  `a_getent_answer_for_both_ids_resolves_the_accounts`,
+  `the_getent_fallback_rejects_mismatched_or_malformed_answers` (a wrong id
+  field, two lines, oversized output, a non-zero exit),
+  `the_getent_fallback_times_out_to_a_refusal` (the stub's pid answers
+  `ESRCH` afterwards), `the_getent_child_runs_with_a_cleared_environment`
+  (only `LC_ALL=C`, beside what the shell itself sets),
+  `the_production_getent_executables_are_fixed_absolute_paths`, and, on Linux
+  only, `the_getent_fallback_resolves_the_current_user`.
+- `ownership/safe_root.rs`, over a synthetic `/srv/cache/accelerator` built
+  entirely through the overlay and a fake `Ownership`; each refusal asserts
+  the exact path and `UnsafeReason`: `a_root_owned_ancestor_is_accepted`,
+  `a_sticky_world_writable_ancestor_is_accepted`,
+  `a_root_under_a_writable_ancestor_is_not_pruned`,
+  `a_per_user_root_under_a_sticky_shared_parent_is_pruned`,
+  `a_private_group_writable_ancestor_is_accepted`,
+  `a_shared_group_writable_ancestor_is_refused`,
+  `a_shared_group_writable_root_is_not_pruned_automatically`,
+  `a_user_private_group_writable_root_is_pruned`,
+  `a_root_writable_by_another_private_looking_group_is_refused`,
+  `an_unresolvable_account_refuses_with_the_cause_and_remedy`,
+  `a_user_owned_world_writable_root_is_not_pruned`,
+  `a_root_owned_sticky_root_is_not_pruned`,
+  `a_root_owned_0755_root_is_not_pruned`,
+  `a_root_owned_by_another_uid_is_not_pruned`,
+  `an_ancestor_owned_by_an_untrusted_owner_names_the_variable`,
+  `an_ancestor_owned_by_a_trusted_owner_is_accepted`,
+  `a_trusted_owner_does_not_admit_a_writable_ancestor`,
+  `a_trusted_owner_does_not_admit_a_foreign_root`,
+  `the_overflow_uid_and_uid_99_are_refused_even_when_listed`,
+  `an_acl_granting_another_user_write_refuses_the_directory` (an allow-write
+  ACE refused, none accepted), `a_posix_acl_denies_the_private_group_exception`,
+  `a_root_on_a_volume_ignoring_ownership_is_refused`,
+  `a_symlink_in_the_walk_is_refused`,
+  `the_unsafe_root_message_names_the_condition_and_remedy`,
+  `a_real_temporary_root_is_safe`, and the `TrustedOwners` parser table
+  (empty, a leading or trailing space, a leading or trailing comma, an empty
+  item, `-1`, `+5`, hex, overflow and letters are malformed; `1001,1000`
+  parses).
+- `root_retention.rs`: `the_plugin_bin_retention_claims_nothing`,
+  `an_unidentifiable_root_is_never_claimed`,
+  `an_unidentifiable_root_is_never_pruned`,
+  `for_root_chooses_the_retention_from_the_root_kind`.
+
+Integration tests in `tests/root_prune.rs` use a `RootHarness` that makes a
+canonical `0700` root and a plugin root with explicit modes, so the
+developer's umask and group database cannot decide a result, and asserts as a
+precondition that `SafePruneRoot::check` accepts it. It seeds and back-dates
+names and drives `start_up` (with the override, the plugin root and a
+`TrustedOwners`) then `StartUp::tree_resolver` and `cache::run`, the
+production sequence; ownership and modes a test cannot create for real come
+from `ReportingFilesystem`:
+
+- `foreign_names_survive_every_trigger`: foreign `.tmp-*`, an unpaired
+  `*-*-<64hex>`, a foreign dotfile and an old foreign file in `claims/`, with
+  an unclaimed aged version's entries removed in the same run as the positive
+  control. Phase 4 runs it through the verb; Phase 5 adds the `trees/` names
+  and Phase 7 the cold store and the materialise.
+- `the_kept_names_survive_beside_an_unclaimed_version`: a live-`pid` lock
+  directory, a young probe, `.accelerator-unverified.log`, `trees/`, an
+  unknown-platform launcher entry, a lone `.minisig`.
+- `the_verb_names_unreadable_claims_and_exits_zero`: a `0000` `claims/`.
+- `a_lock_directory_reclaimed_before_the_unlink_is_kept`: `ScriptedFilesystem`
+  rewrites the pid before its second read.
+- `a_store_after_listing_survives_a_paused_prune` (pauses at `Listed`),
+  `a_store_before_listing_survives_a_paused_prune` (pauses at `AboutToList`)
+  and `a_store_without_a_claim_behind_a_paused_prune_is_removed`, the control
+  that shows the other two can fail. `PruneSteps` pauses through a channel
+  handshake while the test thread claims and stores. In all three the
+  prune's `FixedClock` stands `AGE_BACKSTOP` plus ten minutes past the stored
+  entry's mtime and far inside `CLAIM_WINDOW` of its claim, so only the claim
+  protects the entry, with a margin no scheduling delay can eat.
+- `single_file_prune_lists_the_root_before_reading_claims`: over the calls
+  after `start_up`, the recorder shows `List(InRoot(""))` before the first
+  call touching `claims/`. This is the ordering the concurrent-store argument
+  rests on; the paused tests alone cannot catch a reordering.
+- `a_last_claim_goes_only_after_its_versions_entries`: the recorded removals
+  are exactly the entry's `.minisig`, the entry, then the claim.
+- `the_verb_waits_for_a_held_root_lock`: the lock is held from the test
+  thread; the verb has not finished after 300 ms, then prunes once released.
+- `the_verb_reports_a_failed_root_lock_and_exits_non_zero`: a `FailingLocks`
+  seam returns a `TreeError::Lease` naming `ENOLCK`.
+- `a_symlinked_or_foreign_root_lock_is_a_lock_failure`: the lock file and the
+  symlink's target are untouched.
+- `a_relocated_root_verb_still_reclaims_an_unclaimed_superseded_pinned_tree`:
+  `RootPrune` keeps today's tree prune until Phase 5.
+- `the_verb_refuses_an_unsafe_root_and_exits_non_zero` and
+  `claims_are_still_written_in_an_unsafe_root`.
+- `a_root_reached_through_a_symlinked_ancestor_is_pruned` (through
+  `start_up` with the non-canonical path, so it fails if `start_up` stops
+  canonicalising), `a_symlinked_root_is_pruned_through_its_target` (with and
+  without a trailing slash) and
+  `a_symlinked_root_with_an_unsafe_target_is_not_pruned`.
+- `a_listed_owner_reaches_the_relocated_prune`: an overlay ancestor owned by
+  the listed uid prunes through `RelocatedRetention`; unlisted, it is refused.
+- `the_verb_reports_a_failed_removal_and_exits_non_zero`: `ScriptedFilesystem`
+  fails one `remove_file` with `PermissionDenied`.
+- `a_claim_refreshed_before_unlink_is_kept`: refreshes the claim's mtime
+  before its second `entry`, the re-read just before the unlink.
+- `a_failed_removal_keeps_the_versions_claim` and
+  `a_removal_failing_with_enoent_is_not_an_error`.
+- `older_than_narrows_the_version_claim_window_through_the_verb` and
+  `the_reclaimed_count_counts_an_entry_and_its_signature_once`.
+
+`tests/version.rs` gains
+`a_built_launcher_warns_on_a_malformed_trusted_owners_value`, which shows
+`main` reads the variable, and its runner now removes
+`ACCELERATOR_CACHE_TRUSTED_OWNERS`.
+
+A `ScriptedFilesystem` decorator in `tests/common/` wraps the recorder and
+scripts the nth call of a given kind on a given path:
+
+```rust
+impl ScriptedFilesystem {
+    pub fn over(recorder: RecordingFilesystem) -> Self;
+    pub fn failing(self, call: CallKind, path: &Path, nth: usize,
+        error: io::ErrorKind) -> Self;
+    pub fn before(self, call: CallKind, path: &Path, nth: usize,
+        action: impl Fn() + Send + Sync + 'static) -> Self;
+    pub fn fired(&self) -> Vec<ScriptedEvent>;
+}
+```
+
+`CallKind` is `std::mem::Discriminant<FilesystemCall>`, from
+`FilesystemCall::kind()`, not a hand-kept parallel enum. The recorder's
+`Arc<Mutex<Vec<_>>>` is now a timeline of `TimelineEvent::{Call, Scripted}`;
+`calls()` filters it to calls, `timeline()` returns all of it, and
+`FilesystemCall` gains `paths()`. Each scripted test asserts through `fired()`
+or the timeline that its script ran, and that the scripted event sits
+immediately before the guarded call, so it can pass neither because the
+script never ran nor because it ran before the decision. The recording
+`SingleFlightLocks` arrives in Phase 5, whose
+`no_prune_path_probes_or_takes_a_lock_it_holds` first needs it.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] All Phase 4 tests pass: `mise run test:unit:cli`
+- [x] Default-root verb tests in `tests/tree_resolution.rs` pass unchanged
+- [x] `mise run cli:check` exits 0
+
+#### Manual Verification:
+
+- [x] `accelerator cache prune` in a scratch relocated root seeded with an
+      old version's entries removes them and prints the count. A scratch root
+      holding an old sub-binary and launcher entry with their signatures, a
+      dead-pid launcher staging file, an aged probe and a foreign file printed
+      `reclaimed 4 entries`, kept the foreign file and wrote the running
+      version's claim.
+
+---
+
+## Phase 5: Widened Tree Prune Behind the Verb
+
+### Overview
+
+In a relocated root, tree prune visits every artifact and platform found
+under `trees/`. It reclaims unclaimed trees regardless of artifact name,
+platform or supersession, and reaps stale tree claims, orphan sidecars and
+orphan tree locks. In every root, the verb stops creating tree locks for
+artifacts it never materialised.
+
+### Changes Required:
+
+#### 1. Artifact discovery
+
+**File**: `cli/launcher/src/launch/outbound/resolve/tree/layout.rs`
+**Changes**:
+
+```rust
+pub enum TreesEntry<'a> {
+    Pointer { artifact: Artifact, digest: &'a str },
+    Generation(GenerationName<'a>),
+    Sidecar { artifact: Artifact, generation: &'a str },
+    TempResidue { artifact: Artifact },
+    Lock { artifact: Artifact },
+    Unrecognised,
+}
+
+pub fn classify_trees_entry(name: &str) -> TreesEntry<'_>
+```
+
+`TreesEntry` is named for the `trees/` index, apart from
+`launch/core/tree_entry.rs`'s archive entries. `classify_trees_entry` is the
+one classifier for names under `trees/`, as
+`root_entries::classify` is at the top level. It recognises:
+
+- pointers: `<n>-<p>-<64hex>.ref`
+- generations of any layout version: `<n>-<p>-<64hex>-<u32>-<16hex>`, through
+  Phase 2's `parse_generation_name`
+- a generation's `.sealed`, `.sealed.sig` and `.lease`
+- temp residue, through today's `Artifact::owning`
+- tree locks: `.tmp-<n>-<p>.lock`
+
+The platform `p` must be in `KNOWN_PLATFORMS`; an unknown platform is
+`Unrecognised`, so it is kept. Discovery and every lock-table state come from
+this one classification of the shared index.
+
+#### 2. Tree prune
+
+**File**: `cli/launcher/src/launch/outbound/resolve/tree/prune.rs` (new)
+
+```rust
+pub enum TreePruneRegime<'a> {
+    PinnedOnHost(&'a PluginBinRoot),
+    WholeTree(&'a SafePruneRoot),
+}
+
+pub struct TreePrunePorts<'a> {
+    pub held_leases: &'a HeldLeases,
+    pub filesystem: &'a dyn CacheFilesystem,
+    pub ownership: &'a dyn Ownership,
+    pub clock: &'a dyn Clock,
+    pub lease_liveness: &'a dyn LivenessProbe,
+    pub pins: &'a dyn PinnedDigests,
+    pub locks: TreeLocks<'a>,
+    pub steps: &'a dyn PruneSteps,
+    pub removals: &'a dyn RemovalObserver,
+}
+
+pub struct TreePrune<'a> {
+    pub regime: TreePruneRegime<'a>,
+    pub claim_window: Duration,
+    pub ports: TreePrunePorts<'a>,
+}
+
+impl TreePrune<'_> {
+    pub fn run(&self, patience: LockPatience) -> TreePruneReport;
+    pub fn prune_held(&self, held: &HeldTreeLock) -> TreePruneReport;
+}
+
+pub struct TreePruneReport {
+    pub removals: Removals,
+    pub lock_failures: Vec<LockFailure>,
+    pub unreadable_claims: Option<UnreadableClaims>,
+    pub untrusted_directories: Vec<UntrustedDirectory>,
+}
+```
+
+This is the only tree reclamation in the launcher, and `TreePruneRegime` is
+its only switch:
+
+| Regime | Artifacts visited | Bookkeeping sweeps (orphan sidecars, orphan tree locks, stale tree claims) |
+|---|---|---|
+| `PinnedOnHost` (default root) | pinned artifacts on `HOST_PLATFORM`, today's scope | none |
+| `WholeTree` (relocated root) | every artifact and platform under `trees/` | all three |
+
+`PluginBinRoot` (in `cache_root.rs`) is introduced here. `CacheRoot`'s fields
+are now private, so only `identify` builds one, and `CacheRoot::plugin_bin()`
+mints a `PluginBinRoot` only for a root identified as `CacheRootKind::PluginBin`.
+`for_root` chooses the retention from `plugin_bin()`. So neither regime can be
+built from a bare path.
+
+`tests/tree_resolution.rs` moves with it in Phase 5's tests-only commit: the
+`Harness` cache becomes `<tempdir>/bin`, and the harness mints its
+`PluginBinRoot` through `identify` with plugin root `<tempdir>` and no
+override. `prune_plugin_bin` takes that `PluginBinRoot`. `Harness::resolver_*`
+stays a struct literal (`tree_resolution.rs:351-376`); Phase 7 gives it the
+harness's own `PluginBinRetention` as its post-materialise hook.
+
+`TreePruneReport` is `tree`'s own type; `RootPrune` aggregates it into
+`PruneReport` with `absorb_trees`, so `tree` never imports `retention`.
+`PruneReport` gains `untrusted_directories`. `WholeTree` carries the
+`SafePruneRoot`, so a whole-tree prune cannot be built without the check.
+`TreePrune` has no paths of its own: the regime derives `TreePaths` from the
+root it carries, so it prunes the root that was checked, and the `ownership`
+leaf stays free of `tree/`. `PinnedOnHost` needs no check, because the plugin
+`bin` is outside the gate.
+
+`HeldLeases` (in `tree/lease.rs`) is the set of generation directories this
+process holds shared leases on, built with `none()` or `holding(dirs)`. Every
+lease probe `TreePrune` and its `Reaper` make goes through
+`held_leases.before(lease_liveness)`, a `LivenessProbe` that answers `Held`
+for a held generation without a probe, since probing a lease the process holds
+would release it under emulated `flock`.
+
+`TreePrune`'s listings, metadata reads, pointer reads and removals all go
+through `ports.filesystem`, so the recorder and `ScriptedFilesystem` see tree
+prune as they see single-file prune. `CacheFilesystem` gains
+`remove_tree(path)` (`remove_dir_all`) and `FilesystemCall` gains
+`RemoveTree`. `removals` is notified before each removal, as the `Reaper`
+already does. The `Reaper` keeps its own `std::fs` reads, as today.
+
+`CachePorts` gains `removals` in this phase, which production fills with
+`UnobservedRemovals`; `lease_liveness`, `pins` and `locks` arrived in Phase 4.
+Both retentions build `TreePrunePorts` by borrowing from it, with
+`TreeLocks::over(CachePorts::locks)`. The `Reaper` is observed by a wrapper
+that tells `removals` and makes the shared index forget each entry, so steps
+after the reap judge what is left.
+
+A process holds at most one tree lock at a time. `run` takes each artifact's
+lock inside that artifact's own iteration, so its guard drops before the next
+lock is taken. `prune_held` runs steps 1 and 2 for the one artifact whose lock
+the caller already holds, and takes no other tree lock. Together these keep
+the rule `reap.rs` states: a process never probes or retakes a tree lock it
+holds, because with emulated `flock` that releases the first.
+
+`run` and `prune_held` both check `trees/` with `is_trusted_directory`
+first; an untrusted `trees/` skips all tree prune. They then read tree
+claims once:
+
+```rust
+pub enum TreeClaimsListing {
+    Read(TreeClaimIndex),
+    Unreadable(io::ErrorKind),
+    Untrusted,
+}
+
+pub fn list(
+    paths: &TreePaths,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+) -> TreeClaimsListing
+```
+
+`NotFound` is `Read` of an empty index. A claim is listed when its name is
+`<64hex>.<launcher-id>` with any non-empty id, and protects its digest when it
+is a regular file owned by the effective uid with an mtime inside the window
+(an unknown mtime protects); only a claim whose id is sixteen lowercase hex is
+ever swept, so another launcher's differently named claim can only keep. On
+`Unreadable` or `Untrusted`, `run` skips step 1 and the stale tree-claim sweep,
+records an `UnreadableClaims` or an `UntrustedDirectory` in the report, and
+still runs the orphan, sidecar and lock steps, which do not depend on claims.
+
+It then lists `trees/` once into an index the per-artifact steps share, and
+discovers artifacts from it in sorted order. For each artifact it takes a lock
+according to this table:
+
+| Artifact state | `Wait` | `Try` |
+|---|---|---|
+| has a pointer, a generation or temp residue `Artifact::owning` attributes to it | `locks.take_tree` | `locks.try_take_tree`; `None` skips it |
+| sidecars or lock file only | `locks.wait_existing_tree` | `locks.probe_tree`; `Held` skips it |
+| absent lock file, sidecars only | lock-free | same |
+| nothing present (a pinned artifact under `PinnedOnHost`) | skip, no lock call | same |
+| `None` from `wait_existing_tree`, or `Absent` from `probe_tree` | lock-free, as the row above | same |
+| `Err` from any of the above | record `LockFailure`, skip | record, skip |
+
+An untrusted `trees/` or `trees/claims/` is recorded as an
+`UntrustedDirectory` in the report, which the verb prints as `not pruning
+through <path>: another user could write to it` and cold paths `warn!`, so a
+refused prune is never indistinguishable from "nothing to reclaim". Like
+unreadable claims, it alone exits 0, and the unreadable-claims line now ends
+"kept everything they could protect", since it covers tree claims too.
+
+Every row that yields a lock yields a `HeldTreeLock`, so a lock-only
+artifact reaches the orphan-lock step like any other.
+
+Temp residue counts as something to lock because it shows a materialise of
+that artifact was attempted, so taking the lock, creating it if missing,
+never creates a lock for an artifact the launcher never materialised. It
+keeps today's default-root behaviour, where the verb reaps an artifact's
+orphan even when no lock file exists. A lock created this way is young, so
+step 3 keeps it. A later `WholeTree` prune removes it once it is aged and no
+residue remains. `PinnedOnHost` never sweeps lock files, as today.
+
+`run` models the table's outcome as a value, so only an artifact whose lock
+this prune took can reach step 3:
+
+```rust
+enum ArtifactLock {
+    Taken(HeldTreeLock),
+    LockFree,
+    Skipped,
+    Failed(LockFailure),
+}
+```
+
+Each numbered step below is a named method taking the `ArtifactLock` it
+needs. Under the lock, it does the following for each artifact:
+
+1. **Reclaim unclaimed trees.** For each of the artifact's pointers, classify
+   its contents as a `PointerTarget`, which moves here from `resolver.rs`.
+   Keep the pointer when:
+   - it is `Malformed`;
+   - it is `OtherLayout` (both pointer and generation are kept);
+   - the digest is `pins.pinned_digest(artifact)`;
+   - the index holds a valid claim on the digest within `claim_window`;
+   - `!reap::unclaimed_is_reclaimable(liveness, aged)`.
+
+   Otherwise, immediately before removing anything, it re-reads that
+   digest's claims from `trees/claims/` through the filesystem port and
+   keeps the tree if a fresh valid claim has appeared since the index was
+   read, or if the re-read is `Unreadable`. The index decides every keep; the
+   re-read guards every removal, at one listing per tree removed. After
+   unlinking the pointer, so a concurrent `locate` misses and re-materialises
+   rather than leasing a generation about to go, it takes a non-blocking
+   exclusive lock on the generation's `.lease` (`lease::try_exclusive_lease`,
+   creating the file if missing) and holds it across `remove_tree`, the
+   sidecars and the digest's claims. When that lock is contended, a dispatch
+   leased the tree after the probe, so the generation is left for a later
+   reap. When `flock` fails outright the probe has already answered
+   `Unknown`, and only the age backstop let the removal this far, so it
+   proceeds. A pointer that cannot be removed keeps its generation.
+2. **Orphan sidecars** (`WholeTree` only). A `.sealed`, `.sealed.sig` or
+   `.lease` whose generation is absent is removed when the lease probe reports
+   `Free` or `Unknown` and the sidecar is older than `AGE_BACKSTOP`. That is
+   the rule `reap::orphan_is_reclaimable(liveness, aged)` already holds for
+   an unreferenced generation, so it is reused, now `pub(super)`.
+3. **Orphan tree lock** (`WholeTree` only, `run` only, never `prune_held`).
+   The shared index decides first. Only when it shows nothing of the artifact's
+   left and the lock file aged does the step re-list the artifact's names under
+   the held lock to confirm. If no pointer, generation or temp entry that
+   `Artifact::owning` attributes to the artifact remains, and the lock file is
+   older than `AGE_BACKSTOP`, it unlinks the lock while holding it, then drops
+   the guard.
+
+The orphan reap is root-wide, so it is a separate stage of `run`, not a
+per-artifact step: `reap_orphans_under(&HeldTreeLock)` runs once,
+immediately after the loop produces its first `ArtifactLock::Taken` and
+before that artifact's step 1. When the loop took no lock but the index holds
+temp residue or a generation no pointer names, of any artifact, `run` then
+takes the first pinned artifact's lock, `take_tree` when waiting and
+`try_take_tree` when trying, and reaps under it, as today's verb does by
+creating each pinned artifact's lock. When there is neither, nothing is reaped
+and no lock is created.
+`prune_held` does not reap; `materialise` already has, under the same lock.
+A lock from another root makes `prune_held` a no-op.
+
+After the artifacts, under `WholeTree`, it removes each regular file in
+`trees/claims/` whose name parses as `<64hex>.<16hex>` and whose mtime is
+outside `claim_window`, re-checking the mtime just before the unlink. The module
+doc states the precondition, without citing any work item: unlinking a lock file
+it holds is safe only while every launcher confirms its lock's inode after
+taking it, and a held tree lock means a materialise or prune is in progress.
+
+**File**: `tree/locks.rs`
+**Changes**: tree locks get an artifact-level type over the path primitive:
+
+```rust
+pub struct TreeLocks<'a> { primitive: &'a dyn SingleFlightLocks }
+
+impl TreeLocks<'_> {
+    pub fn take_tree(&self, paths: &TreePaths, artifact: &Artifact)
+        -> Result<HeldTreeLock, TreeError>;
+    pub fn try_take_tree(&self, paths: &TreePaths, artifact: &Artifact)
+        -> Result<Option<HeldTreeLock>, TreeError>;
+    pub fn wait_existing_tree(&self, paths: &TreePaths, artifact: &Artifact)
+        -> Result<Option<HeldTreeLock>, TreeError>;
+    pub fn probe_tree(&self, paths: &TreePaths, artifact: &Artifact)
+        -> Result<TreeLockProbe, TreeError>;
+}
+
+pub enum TreeLockProbe { Taken(HeldTreeLock), Held, Absent }
+```
+
+`TreeLocks::over(primitive)` builds one. It derives the lock path from the
+artifact, so a guard and its artifact can never disagree, and it is the only
+constructor of `HeldTreeLock`. `HeldTreeLock` holds a `LockGuard`. Nothing outside `tree/`
+takes a tree lock by path. `tree_lock.rs`'s static `HeldTreeLock::take` and
+`try_take` are deleted, so the compiler moves every caller, `repair`
+included, onto `TreeLocks`.
+
+**File**: `tree/resolver.rs`
+**Changes**: `TreeResolver` gains `locks: TreeLocks<'a>`, borrowed from
+`CachePorts::locks` by `StartUp::tree_resolver`. `materialise` and `repair` take
+their locks through `self.locks`, and `self.reaper(&held)` passes the same
+`TreeLocks` to `Reaper::new`, so every tree lock and probe the launcher makes
+goes through the one injected primitive, and the self-probe guard sees the
+materialise path too.
+
+`TreePrune` reports `PruneStep::TreeLockHeld` after taking each artifact's
+lock.
+
+**File**: `tree/reap.rs`
+**Changes**: `Reaper::new` takes the `TreeLocks` it is given, and
+`Reaper::lock_of` probes through `TreeLocks::probe_tree` instead of calling
+`probe_single_flight` directly, so a test can see every probe.
+`OwnerLock::Taken`, which holds a raw `SingleFlight` today
+(`reap.rs:67-73`), holds the probe's `HeldTreeLock` instead.
+`OwnerLock::while_reclaimable` still consumes it, so another artifact's lock
+is released as soon as its entries are removed, as main does today.
+
+**File**: `retention/root_prune.rs`
+**Changes**: `RootPrune::run` gains its `held_leases: &HeldLeases` argument,
+and the verb passes `HeldLeases::none()`, since it consumes no trees. Tree
+prune runs with the patience the root prune was given. `run`
+builds a `TreePrune` with `WholeTree(self.safe)` and those leases, and runs it
+after the root-locked work, in place of Phase 4's call to
+`tree::prune_pinned_on_host`. A held root lock never blocks
+tree prune.
+
+#### 3. One tree prune in every root
+
+**File**: `retention/root_retention.rs`
+**Changes**: `PluginBinRetention::prune` runs `TreePrune` with
+`PinnedOnHost`, waiting.
+
+**File**: `tree/resolver.rs`
+**Changes**: `TreeResolver::prune`, `reclaim_unclaimed` and
+`artifact_pointers` are deleted. The default root therefore inherits
+`TreePrune`'s lock table: it takes a lock only when the artifact has a pointer,
+a generation or temp residue, so the verb no longer creates tree locks for
+artifacts it never materialised. A missing `trees/` stopped being an
+`ENOENT` in Phase 4, and `TreePrune` keeps that. It also inherits the fail-closed tree-claims listing.
+`claims::claimed_within`, `claims::drop_all` and `tree/pinned_prune.rs` lose
+their last callers and are deleted; `PointerTarget` moves into
+`tree/prune.rs`.
+
+The swap is two commits, so the default-root regression tests guard it:
+
+1. **Tests only.** The 17 direct `resolver.prune(ARTIFACT, older_than)` calls
+   in `tests/tree_resolution.rs` move to a helper that carries what each
+   call site injects today:
+
+   ```rust
+   struct PluginBinSeams {
+       clock: Box<dyn Clock>,
+       lease_liveness: Box<dyn LivenessProbe>,
+       pins: Box<dyn PinnedDigests>,
+   }
+
+   fn prune_plugin_bin(harness: &Harness, seams: PluginBinSeams,
+       artifact: &str, older_than: Option<Duration>) -> Reclaimed
+   ```
+
+   Each existing constructor maps to a seams value: `resolver_with`,
+   `resolver_expecting` and `resolver_also_pinning_bystander`, plus the
+   `AdvancingClock` at `:656` and the second resolver pinning `"e"*64` at
+   `:2640-2684`. In this commit the helper calls Phase 4's
+   `tree::prune_pinned_artifact` with `PinnedPruneCollaborators` for the one
+   `artifact` each call site names today, so its scope is unchanged and every
+   assertion is unchanged.
+2. **The swap.** The helper drops its `artifact` parameter and calls
+   `TreePrune { regime: PinnedOnHost(&plugin_bin_root) }` with the seams and
+   returns its `TreePruneReport`, which
+   visits every pinned host artifact, as the verb's loop always has, and
+   `TreeResolver::prune` is deleted. `PluginBinSeams` gains `patience`, read for
+   the first time here; it is `Wait` everywhere except the bystander tests.
+   `cache_prune_reclaims_owned_orphans_and_keeps_unowned_ones` (`:949`) passes
+   unchanged, because residue takes the lock. Assertions are unchanged except
+   one: `another_artifacts_materialise_survives_this_ones_prune` holds
+   BYSTANDER's lock while BYSTANDER is pinned and has residue, so its seams use
+   `Try` and it asserts BYSTANDER survives and the report is empty, where
+   today it was never visited. `another_artifacts_pinned_archive_survives_a_prune` (`:1045`)
+   leaves BYSTANDER's lock free: BYSTANDER sorts first and has residue, so
+   `TreePrune` takes its lock and the reap judges its archive as `HeldByCaller`,
+   where only `is_resumable`, the pin rule, spares it. The test adds an unpinned
+   archive beside it and asserts the pinned one survives and the unpinned one
+   goes, so it still fails if the pin rule is dropped. Those are the two changed
+   tests; the others seed only `ARTIFACT` and are unaffected. The verb's own
+   `run_cache` calls already pass a `PluginBinRetention` from Phase 4
+   (`Harness::retention_with`, now over `retention_over(clock, liveness,
+   locks)`) and keep their assertions.
+
+The verb leg of `the_plugin_bin_root_is_never_claimed_or_pruned` moves into
+this phase, in `tests/root_prune.rs`, so the default-root criterion is checked
+when the default-root verb changes.
+
+#### 4. Tests (red first)
+
+In `tests/root_prune.rs` (relocated root), over a new `tests/common/trees.rs`
+that plants trees, pointers, sidecars, locks, residue and claims, and holds
+the shared `FixedClock`, `FixedLiveness` and `FailingLockAt` (which fails
+every lock call on one path):
+
+- `only_aged_unknown_and_free_unpinned_trees_are_reclaimed`: held, young
+  unknown, old unknown, free and pinned-free, through `FixedLiveness`
+- `old_orphans_sidecars_and_retired_locks_go_and_young_generations_stay`
+- `unclaimed_retired_and_foreign_platform_trees_go_and_claimed_ones_stay`
+- `only_tree_claims_outside_the_window_are_removed`
+- `an_unreadable_tree_claims_directory_reclaims_no_claimed_tree`: mode `000`
+  on `trees/claims/`, skipped when running as root; the verb reports it and
+  exits 0, and orphan residue is still reaped
+- `only_old_unheld_orphan_sidecars_are_removed`
+- `orphan_tree_locks_go_only_once_aged_and_never_for_a_current_tree`
+- `a_tree_lock_is_kept_while_its_partial_archive_remains`: a pinned partial
+  archive, an aged lock and no pointer all survive
+- `a_lockless_partial_archive_waits_for_its_own_lock`: an unpinned partial
+  archive of a retired artifact with no lock file, plus an earlier-sorting
+  artifact with an unclaimed tree, so the reap runs under that artifact's
+  lock and finds the retired one's lock `Absent`. The first prune keeps the
+  archive, as `is_spared` requires, and creates the retired artifact's lock
+  through the residue row. The second prune reaps the archive under that
+  lock, and the third, once the lock has aged, removes it. When the retired
+  artifact is the only one, its own lock is the reaping holder, and one
+  prune removes the archive
+- `a_retired_partial_archive_goes_with_its_lock`: the same seed unpinned
+  but with an aged lock file already present;
+  one prune removes the archive in the reap stage and then the aged lock
+- `another_layouts_tree_is_kept_and_this_layouts_twin_is_removed`
+- `foreign_names_survive_every_trigger` gains its `trees/` seed
+- `a_symlinked_trees_or_tree_claims_directory_is_not_pruned_through`: the
+  verb prints the `UntrustedDirectory` line, and a sibling single-file entry
+  of an unclaimed version is removed as the positive control
+- `a_tree_leased_during_removal_is_kept`: a second open file description
+  takes the shared lease after the probe; the contended exclusive lock keeps
+  the generation
+- the Phase 2 pointer-containment tests, including
+  `a_symlinked_fifo_or_oversized_pointer_is_malformed_and_kept`, re-run
+  against a relocated root so `TreePrune`'s pointer path is held to the same
+  rule
+- `each_artifact_state_and_patience_uses_the_tables_lock_call`: a recording
+  locks seam over every (artifact state × patience) cell
+- `the_verb_reclaims_single_file_entries_and_an_unclaimed_tree`
+- `older_than_narrows_the_tree_claim_window`
+- `the_verb_waits_for_a_held_tree_lock`
+- `the_verb_reports_a_failed_tree_lock_and_exits_non_zero` (`ENOLCK` for
+  artifact X; Y is still pruned)
+- `a_residue_only_artifact_is_locked_and_reaped`: an orphan temp generation
+  (not a partial archive, which `is_spared` keeps for any artifact whose
+  lock file is absent at reap time, `reap.rs:258-267`)
+  with no pointer and no lock file is reaped, and the lock this creates is
+  removed by a prune once it is aged
+- `a_user_private_group_root_prunes_its_group_writable_trees`: a `trees/`
+  the overlay reports group-writable by the private gid, holding an
+  unclaimed tree, is reclaimed; reported writable by a shared gid, nothing
+  is
+- `a_lock_only_artifact_reaches_the_orphan_lock_step`: an aged lock file with
+  no pointer, generation or residue is removed under `wait_existing_tree`
+  and under `probe_tree`
+- `a_symlinked_trees_directory_is_not_pruned_by_prune_held`
+- `a_tree_claim_exactly_at_the_window_is_stale`
+- `a_tree_removal_failure_is_reported`: `ScriptedFilesystem` fails one
+  `remove_tree`
+- `a_tree_claimed_after_the_index_was_read_is_kept`: `ScriptedFilesystem`
+  writes a fresh claim after the index read and before the re-read, with
+  `FixedLiveness` at `Unknown` and an aged generation
+- `a_tree_whose_lease_this_process_holds_is_kept_unprobed`: a `TreePrune`
+  built directly with `HeldLeases::holding` keeps the tree and never asks the
+  probe about its lease
+- `the_pointer_goes_before_its_generation`: the recorder shows the pointer's
+  `RemoveFile` before the generation's `RemoveTree`
+- `the_verb_creates_no_lock_for_an_artifact_it_never_materialised`, the
+  relocated twin of the default-root test below
+
+Unit tests in `tree/layout.rs` cover `classify_trees_entry` for every recognised
+shape, an unknown platform, a malformed digest and another layout.
+
+In `tests/tree_resolution.rs` (every root):
+
+- `the_verb_creates_no_lock_for_an_artifact_it_never_materialised`, with its
+  relocated twin in `tests/root_prune.rs`
+- `the_verb_tolerates_a_missing_trees_directory`
+- `an_unreadable_tree_claims_directory_reclaims_nothing_in_the_plugin_bin`
+- `the_plugin_bin_verb_still_reclaims_an_unclaimed_superseded_tree`
+  (existing behaviour, pinned)
+- `a_residue_only_default_root_is_still_reaped` and
+  `the_plugin_bin_verb_reports_a_failed_tree_lock_and_prunes_the_rest`, here
+  rather than in `tests/root_prune.rs`, since both run the default root
+
+Every unlink `TreePrune` makes goes through `removals`, which it shares with
+its `Reaper`: pointers, generations, sidecars, tree claims and lock files.
+
+A guard test, `no_production_path_unlinks_a_tree_lock_it_does_not_hold`,
+records removals through that observer across every phase-5 path. At the
+moment of each lock-file removal, the observer tries the lock without
+blocking from a separate open file description, as `ProbingLockOf` in
+`reap.rs` does, and asserts contention. This follows the PR #167 review
+suggestion. `a_claim_refreshed_before_unlink_is_kept` also runs against the
+tree-claim sweep, as `a_tree_claim_refreshed_before_unlink_is_kept`, now
+that tree prune reads through the port. That variant puts the claim on a
+digest with no tree, so step 1 never reads it and the scripted call is the
+sweep's own re-check, the claim's second `entry`.
+`a_tree_claimed_after_the_index_was_read_is_kept` scripts the second
+`List(trees/claims)`, the re-read after the index.
+
+A second guard, `no_prune_path_probes_or_takes_a_lock_it_holds`, uses
+`RecordingLocks` (`tests/common/recording_locks.rs`), a `SingleFlightLocks`
+that wraps each `LockGuard` it hands out, so it tracks which paths are held
+until each guard drops. It fails on any `take`, `try_take`, `wait_existing` or
+`probe` of a held path; its seed gives the first-locked artifact residue of
+its own, so a reap probing its own lock would be caught. The same seam's
+`calls_on(path)` drives `each_artifact_state_and_patience_uses_the_tables_lock_call`.
+Phase 5 runs the guard over the verb; Phase 7 extends it to a cold store and a
+materialise.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] All Phase 5 tests pass: `mise run test:unit:cli`
+- [x] Existing `tree_resolution.rs` prune tests pass with unchanged
+      assertions after commit 1, and after commit 2 except the cases that
+      commit lists
+- [x] `mise run cli:check` exits 0
+
+#### Manual Verification:
+
+- [x] In a scratch relocated root, a planted retired-artifact tree with an
+      old lock file is removed by `accelerator cache prune`, lock included.
+      A pointer, generation, three sidecars and a lock, all dated 2020,
+      printed `reclaimed 2 entries` and left `trees/` empty.
+
+---
+
+## Phase 6: Release Markers That Survive Stripping
+
+### Overview
+
+`jira`, `linear` and `research` mark a `test-loopback` build with a
+`#[no_mangle] static … : u8`, and `_assert_no_test_loopback` scans each staged
+release binary for the bytes `TEST_LOOPBACK_MARKER`. The release profile sets
+`strip = true` and `lto = "thin"` (`cli/Cargo.toml:260-261`), so the symbol
+name is stripped and the unused static can be dropped: against a release
+build carrying the feature, the scan found nothing. The compile guard keys on
+`debug_assertions`, which `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true` turns
+back on in a release build, leaving the blind scan as the only backstop. This
+phase gives the three existing binaries a marker that survives and proves the
+guard on real release artefacts. It is independent of the cache work, and
+Phase 7 uses the same pattern for the launcher.
+
+### Changes Required:
+
+#### 1. A retained marker
+
+**Files**: `cli/jira-cli/src/main.rs`, `cli/linear-cli/src/main.rs`,
+`cli/research-cli/src/main.rs`
+**Changes**: each replaces its `#[no_mangle] pub static` with a string
+literal that live code reads:
+
+```rust
+#[cfg(feature = "test-loopback")]
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_JIRA_TEST_LOOPBACK_MARKER";
+
+fn main() -> ExitCode {
+    #[cfg(feature = "test-loopback")]
+    std::hint::black_box(TEST_LOOPBACK_MARKER);
+    // ... unchanged
+}
+```
+
+The literal's bytes sit in `.rodata`, which stripping keeps, and the
+`black_box` read stops LTO from discarding them. The existing comment above
+each `compile_error!` is rewritten to say why the literal is read in `main`:
+so that a release build carrying the feature still contains its bytes. It
+names no build task. That reason is the one non-obvious fact here.
+
+**File**: `tasks/build.py`
+**Changes**: `_assert_no_test_loopback`'s docstring describes a string marker
+read at start-up rather than a symbol.
+
+#### 2. Tests (red first)
+
+**File**: `tests/integration/release_guard/test_release_guard.py` (new),
+behind a new `test:integration:release-guard` leaf (`tasks/test/integration.py`,
+`mise.toml`). The leaf depends on `deps:install:python` and the mise-pinned
+Rust toolchain, as `build:cli:fixture-size` does. It joins the
+`test:integration` roll-up and `_NO_LAUNCHER_NEEDED` in
+`tests/unit/tasks/test_mise.py`, since it builds its own release binaries.
+`test:integration:tasks` stays Python-only.
+
+- `test_a_release_binary_built_with_test_loopback_is_rejected`, parametrised
+  over `accelerator-jira`, `accelerator-linear` and `accelerator-research`.
+- `test_a_default_release_binary_passes_the_loopback_guard`: the control.
+
+Both parametrise over every `DevBinary` in `tasks/shared/dev_builds.py` whose
+`loopback_seam` is set, rather than a list of their own, so a binary gains the
+guard when it gains the seam.
+
+A module-scoped fixture builds both variants, one `--bin` per seamed binary,
+with the same profile environment,
+`CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true`, so the second build reuses the
+first build's dependency graph and only the binary crates and their LTO link
+rebuild. The second build overwrites the first's binaries, so the fixture
+copies each variant into pytest's temp area. `CARGO_TARGET_DIR` is the stable
+`cli/target/release-guard`, which nothing else reads, so a binary that trusts
+a test key never lands in `cli/target/release/` for another task to measure
+or run. Being stable, it persists locally between runs instead of piling up
+in pytest's temp area.
+
+**File**: `.github/workflows/main.yml`
+**Changes**: the integration job's rust-cache step lists
+`cli -> target/release-guard` beside `cli` under `workspaces`, so CI keeps
+the release-guard dependency graph between runs and only the seamed
+binaries relink. The leaf runs on both CI legs, which covers both linker
+families the shipped artefacts use.
+
+**File**: `tasks/README.md`
+**Changes**: a "The test-loopback release guard" subsection beside the
+link-ratio guard says what the leaf proves and why its builds live apart.
+
+Against the static marker, the first test was red: all three rejection cases
+failed with `DID NOT RAISE`, and the controls passed.
+
+⏱️ The leaf's first run on a cache miss costs one thin-LTO release build of
+the dependency graph, a few minutes per CI leg. A warm local run took about
+3 minutes.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] The rejection test fails against the static marker and passes after
+      the change; the default-build control passes throughout:
+      `mise run test:integration:release-guard`
+- [x] The existing `test_build.py` guard unit tests pass unchanged:
+      `mise run test:unit:tasks`
+- [x] The `test-loopback` integration suites of the three CLIs pass:
+      `mise run test:unit:cli`
+- [x] `mise run check` exits 0
+
+#### Manual Verification:
+
+- [x] `strings` on a stripped release build with the feature shows the
+      marker for each of the three binaries. Each feature build carried its
+      marker once; each default build carried none.
+
+---
+
+## Phase 7: Cold-Path Triggers and the End-to-End Scenario
+
+### Overview
+
+Run a root prune on every cold path in a relocated root, trying each lock
+without blocking. Add the guarded `test-loopback` launcher feature and prove
+the A/B/C scenario through `bin/accelerator`.
+
+### Changes Required:
+
+#### 1. After a successful `store`
+
+**File**: `cli/launcher/src/launch/outbound/resolve/mod.rs`
+**Changes**: a narrow port beside the resolver, which `RootRetention`
+extends, mirroring `AfterMaterialise`:
+
+```rust
+pub trait AfterStore {
+    fn after_store(&self, held_leases: &HeldLeases);
+}
+```
+
+`StartUp::dispatch_resolver(config, consumed: &[AcquiredTree])` builds
+`HeldLeases::of(consumed)` itself and hands it to the resolver with the
+retention as its `Arc<dyn AfterStore>`, so the wiring lives in the library,
+where a test can reach it. `run` keeps `export_consumed_trees` and passes the
+trees it acquired to `LazyProductionResolver`, which still builds the dispatch
+resolver only when a command first needs one, so a built-in never touches TLS.
+`PluginBinRetention` and `UnidentifiedRetention` make no call;
+`RelocatedRetention` runs `RootPrune::run(LockPatience::Try, held_leases)`
+and
+logs each line of `PruneReport::problems()`, the lines the verb prints, with
+`tracing::warn!`, and an `UnsafeRoot` once per process.
+`FetchVerifyCacheResolver::new` and `with_fetcher` take a `ResolverPorts`
+whose `filesystem`, `after_store` and `held_leases` are required fields, so
+production wiring cannot silently omit them; the help path, which only reads
+the manifest, passes `NothingAfterStore`. `fetch_verify_store` calls
+`after_store.after_store(&held_leases)` after `cache::store` succeeds and
+still returns the stored path.
+
+#### 2. After a materialise
+
+**File**: `tree/after_materialise.rs` (new)
+
+```rust
+pub trait AfterMaterialise {
+    fn reap_permit(&self) -> Option<ReapPermit>;
+    fn after_materialise(&self, held: HeldTreeLock);
+}
+
+pub struct ReapPermit { paths: TreePaths }
+
+pub enum RootTrust<'a> {
+    PluginBin(&'a PluginBinRoot),
+    Relocated(&'a SafePruneRoot),
+}
+
+impl ReapPermit {
+    pub fn for_root(trust: RootTrust<'_>,
+        filesystem: &dyn CacheFilesystem, ownership: &dyn Ownership)
+        -> Option<ReapPermit>;
+    pub fn paths(&self) -> &TreePaths;
+}
+```
+
+There is one constructor. `RootTrust::PluginBin` carries Phase 5's
+`PluginBinRoot`, not a bare `TreePaths`, as `TreePruneRegime::PinnedOnHost`
+already does. A permit derives its `TreePaths` from the root its `RootTrust`
+carries, as `TreePruneRegime` does, so the paths a permit reaps are the paths
+of the root that was checked, and no caller can pair a relocated root with the
+plugin-bin arm. `TreeResolver` holds the hook, which `StartUp::tree_resolver`
+sets to the root's retention; the in-crate reap tests build a permit with a
+`#[cfg(test)]` `ReapPermit::trusting`.
+
+`tree` owns this port and `retention` implements it, so the dependency still
+points one way. Taking `held` by value makes releasing it part of the contract.
+A `ReapPermit` exists only when `trees/` passes `is_trusted_directory`, and in a
+relocated root only alongside a `SafePruneRoot`. `Reaper::reap_orphans` and
+`reap_superseded`, which removes the generation a forced re-materialise
+replaces, both require one, and reap only `permit.paths()`. `repair`, the other
+caller of `reap_superseded` (`resolver.rs:723-726`), asks the hook's
+`reap_permit()` as `materialise` does. `TreePrune`'s reap stage builds its
+permit from the trusted-`trees/` check it already makes; in a relocated root
+that stage only ever runs inside `RootPrune`, which holds a `SafePruneRoot`.
+
+**File**: `tree/resolver.rs`
+**Changes**: `TreeResolver` takes `&dyn AfterMaterialise`. In `materialise`
+it asks the hook for a permit, runs its own `reap_orphans` and
+`reap_superseded` under `held` only with one, then hands `held` to the
+hook. The reap stays inside
+`materialise`, so wiring cannot drop it; the permit decides whether this
+root may be reaped.
+
+**File**: `retention/root_retention.rs`
+**Changes**: `RootRetention: AfterMaterialise`.
+
+| Retention | `reap_permit()` |
+|---|---|
+| `PluginBinRetention` | granted when `trees/` is trusted, as it is in any plugin `bin` the user can write |
+| `RelocatedRetention` | granted only with a `SafePruneRoot` and a trusted `trees/` |
+
+In the default root this reaps exactly as today wherever the user owns
+`trees/`; where they do not, as in a system-wide install, they could not
+have created anything to reap. In a relocated root it makes "no prune path in
+an unsafe root removes anything" true of the reap too.
+
+| Retention | `after_materialise(held)` |
+|---|---|
+| `PluginBinRetention` | `drop(held)`; the reap has already run |
+| `RelocatedRetention` | with a `SafePruneRoot`, `RootPrune::after_materialise(held)`: `prune_held(&held)` on a `TreePrune` whose regime is `WholeTree(&safe)`, then `drop(held)`, then the root prune trying each lock with `HeldLeases::none()` |
+
+A materialise holds no leases: dispatch's `acquire` never materialises, and
+returns `None` for an absent tree (`resolver.rs:557-558`); materialising runs
+in its own `accelerator cache ensure` process. Only a cold store can run
+while its process holds leases.
+
+The materialise's own artifact is pruned under `held`, after the reap
+`materialise` already ran. `held` is dropped before the rest of the root is
+pruned, so the materialise never holds its lock while another artifact's trees
+are removed. A second visit to its artifact from `run` is harmless.
+
+#### 3. The `test-loopback` feature
+
+**File**: `cli/launcher/Cargo.toml`
+**Changes**: `test-loopback = []`, with no comment: the `compile_error!`
+enforces what a comment would say.
+
+**File**: `cli/launcher/src/main.rs`
+**Changes**:
+
+```rust
+#[cfg(all(feature = "test-loopback", not(debug_assertions)))]
+compile_error!("test-loopback must never be enabled in a release build");
+
+#[cfg(feature = "test-loopback")]
+const TEST_LOOPBACK_MARKER: &str = "ACCELERATOR_LAUNCHER_TEST_LOOPBACK_MARKER";
+
+#[cfg(feature = "test-loopback")]
+fn admits_test_release(base_url: &str) -> bool
+```
+
+The marker follows Phase 6's pattern. `admits_test_release` parses the URL
+with `reqwest::Url`, already a dependency, and holds only for scheme `http` and
+`host_str() == Some("127.0.0.1")`. Both relaxations depend on that one
+condition. `release_keys()` and `release_fetcher()` replace the direct
+`TrustedKeys::embedded()` calls at `main.rs:84`, `:326` and `:421` and the
+`Fetcher::new()` calls at `:86`, `:327` and `:422`. The help path (`:104`)
+keeps `Fetcher::for_help()`:
+
+- **`release_keys()`.** Under the feature, when `admits_test_release` holds
+  and `ACCELERATOR_TEST_RELEASE_PUBLIC_KEY` names a readable file, it logs
+  `tracing::warn!("{TEST_LOOPBACK_MARKER}: trusting the test release key at
+  {path}")`, reads the file, and passes its contents to
+  `TrustedKeys::from_public_key_files`, which takes key contents, not paths.
+  Otherwise it returns the embedded key, logging a key variable it ignored. The
+  log line is the marker's live read.
+- **`release_fetcher()`.** Under the feature, when `admits_test_release`
+  holds, it returns `Fetcher::admitting_loopback_http()`. That new
+  constructor builds with `require_https = false` and production limits.
+
+`main.rs` is the only file with `#[cfg(feature …)]` arms.
+
+**File**: `tasks/shared/dev_builds.py`
+**Changes**: `LAUNCHER` becomes `DevBinary("accelerator", package="accelerator",
+loopback_seam=True)`, so every debug launcher build carries the feature.
+
+**File**: `bin/accelerator`
+**Changes**: the final `exec` intercepts only a missing launcher:
+
+```bash
+shopt -s execfail
+exec "${launcher}" "$@"
+exec_status=$?
+if [[ ! -e "${launcher}" ]]; then
+	fail "the launcher ${launcher} vanished before it could run"
+fi
+exit "${exec_status}"
+```
+
+The branch tests the file, not the status: bash 3.2 reports 126 for an
+`exec` of a missing file, the same as for an unexecutable one, where later
+bash reports 127. A launcher entry removed between verification and `exec`
+reaches `fail`, which honours `--fail-safe`. Any other `exec` failure, such
+as `EACCES` on a `noexec` mount, `ENOEXEC` or `ETXTBSY`, exits with bash's
+own status, exactly as today, so a launcher that can never run stays visible
+even under `--fail-safe`. None of these goes through
+`fail_integrity`: they are not trust-chain failures. `execfail` is
+bash-3.2-safe, and nothing is written. Older bootstraps keep the 126/127
+behaviour.
+
+**File**: `tests/integration/entrypoint/test_accelerator_entrypoint.py`
+**Changes**: `test_a_launcher_removed_before_exec_honours_fail_safe`: a
+stub verifier that deletes the launcher after verifying it, then a
+`--fail-safe` dispatch exits 0 with the diagnostic.
+`test_a_launcher_removed_before_exec_fails_with_the_diagnostic`: the same
+stub without `--fail-safe` exits 1 with the "vanished" message.
+`test_an_unexecutable_launcher_still_fails_under_fail_safe`: a stub verifier
+that clears the launcher's execute bit after verifying it, then a
+`--fail-safe` dispatch exits 126.
+
+**File**: `tests/support/artefacts.py`
+**Changes**: `build_launcher()` passes `--features accelerator/test-loopback`.
+
+**File**: `tasks/build.py`
+**Changes**: `_assert_no_test_loopback`'s docstring names the launcher. The
+check itself already covers `accelerator`.
+
+**File**: `tasks/README.md`
+**Changes**: the list of loopback-seamed binaries (`:254`) gains the
+launcher.
+
+#### 4. Tests (red first)
+
+In `cli/launcher/src/main.rs` (unit tests, under the feature):
+
+The key decision is a value, `release_trust_for(base_url, key) ->
+ReleaseTrust::{Embedded, TestKey}`, since `TrustedKeys` cannot say which key
+it holds, and `release_fetcher_for(base_url)` is tested through the fetch it
+refuses.
+
+- `a_loopback_base_url_trusts_the_test_key`
+- `a_non_loopback_base_url_ignores_the_test_key`
+- `a_lookalike_host_is_not_loopback`: `http://127.0.0.1.example` and
+  `http://127.0.0.1@example`
+- `a_missing_key_file_falls_back_to_the_embedded_key`
+- `a_non_loopback_base_url_keeps_https_only`: `release_fetcher()` keeps
+  `require_https` for a non-loopback or lookalike base URL
+
+`tests/integration/release_guard/`'s
+`test_a_release_binary_built_with_test_loopback_is_rejected` and its control
+gain `accelerator` as a fourth parameter, built in the same invocation. They
+parametrise over every seamed `DevBinary`, so `LAUNCHER`'s `loopback_seam=True`
+adds it with no edit to the test.
+
+`tests/integration/entrypoint/`: `assert_hermetic` still rejects a release
+host that is neither `.invalid` nor loopback
+(`test_the_funnel_refuses_a_release_host_neither_invalid_nor_loopback`).
+
+In `tests/root_prune.rs`, driving the real resolvers in-process over
+`tests/common/signed_release.rs`, a release signed by a freshly generated
+key that `tests/resolution.rs` now shares and that can also publish trees:
+
+- `a_cold_dispatch_prunes_before_exec`: an `exec` fake snapshots the root,
+  and the unclaimed version's entries are already absent.
+- `a_held_root_lock_does_not_delay_a_cold_dispatch`: single-file entries
+  survive, and `exec` is reached within `BLOCKING_BOUND`. That 10 s bound
+  guards against blocking, not latency.
+- `a_materialise_with_the_root_lock_held_still_prunes_other_trees`
+- `a_materialise_releases_its_lock_before_pruning_other_artifacts`: a
+  second thread's `try_take` on the materialised artifact succeeds while the
+  prune is paused at another artifact
+- `no_prune_path_probes_or_takes_a_lock_it_holds`, extended to a cold store
+  and a materialise
+- `a_cold_dispatch_skips_a_held_tree_lock_and_prunes_the_rest` (X held, Y
+  removed)
+- `a_materialise_prunes_the_superseded_tree_single_files_and_probes`
+- `a_materialise_in_an_unsafe_root_reaps_nothing`: an orphan temp
+  generation, and on a forced re-materialise the superseded generation,
+  survive in a shared-group-writable relocated root
+- `a_materialise_with_an_untrusted_trees_directory_reaps_nothing`, in both
+  root kinds: `trees/` is untrusted only through the overlay, so
+  `ensure_trees_dir`'s own checks pass and the materialise returns `Ok`; the
+  same seed with `trees/` trusted has its orphan temp generation and
+  superseded generation removed
+- `a_forced_repair_in_an_unsafe_root_reaps_nothing`, paired with an
+  owner-only root where the superseded generation is removed
+- `prune_held_removes_the_superseded_tree_before_the_lock_is_released`: the
+  recorder shows its `RemoveTree` before the `TreeLocks` guard drops, so the
+  test fails if `prune_held` does nothing and `run` removes it later
+- `a_cold_store_never_probes_its_own_held_leases` and
+  `acquired_trees_are_never_probed_by_the_cold_store_prune`: the second
+  materialises and acquires two trees through `StartUp::tree_resolver`, then
+  hands them to `StartUp::dispatch_resolver`, as `run` does, and cold-stores a
+  sub-binary. A lease probe is only reached for a
+  generation step 1 would otherwise reclaim, so both seed it: `CachePorts`
+  pins no digest for the acquired artifacts, and an advancing clock moves
+  past `CLAIM_WINDOW` after `acquire` refreshes their claims. A
+  `LivenessProbe` wrapper fails on any probe of a leased generation and
+  answers `Free` for every other, and the leased generations survive. A
+  control builds the resolver with no consumed trees and shows the wrapper
+  fires, so the test can fail. This pins the `HeldLeases::of`
+  wiring
+- `an_unsafe_root_is_not_pruned_from_any_trigger`: the group-writable and
+  foreign-uid roots of Phase 4, now through a cold store and a materialise.
+  The materialised artifact's superseded tree and an orphan temp generation
+  both survive; an owner-only root, the positive control, has both removed
+- `a_cold_prune_behind_a_paused_prune_returns_without_touching_anything`:
+  the first prune pauses at `RootLockHeld`, the cold-path second returns,
+  and the seeded entries survive. The verb's second prune blocks until the
+  first is released.
+- `an_enolck_root_lock_skips_single_file_work_on_the_cold_path`
+- `an_enolck_tree_lock_skips_only_that_artifact_on_cold_paths`: cold store
+  and Y's materialise both proceed, X survives, Y's unclaimed tree goes.
+- `the_plugin_bin_root_is_never_claimed_or_pruned`: the default-root
+  criterion. It seeds every listed shape, runs a cold dispatch, a materialise
+  and the verb, and asserts no claim and every seeded entry survives, while
+  an unclaimed superseded tree of a pinned artifact is removed by the verb,
+  as today, as the positive control. It is
+  run with the root named directly, through a symlink, and with a trailing
+  slash.
+- `the_plugin_bin_orphan_reap_is_unchanged`: built through
+  `StartUp::tree_resolver`, so a wrongly wired hook fails it; the old
+  unreferenced generation goes and the young one stays.
+  `tests/tree_resolution.rs` keeps its `TreeResolver` literals, each given
+  the harness's own `PluginBinRetention` as the hook, or `ReapsNothing` for
+  the one test whose cache is no plugin `bin`.
+- `a_development_checkout_relocated_elsewhere_prunes_on_its_cold_path`
+- `foreign_names_survive_every_trigger` and
+  `the_kept_names_survive_beside_an_unclaimed_version` become parameterised
+  over the trigger: the verb, a cold store and a materialise
+- `an_entry_removed_between_find_and_exec_is_refetched_once` and
+  `a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it` re-run
+  in a relocated root with the post-store prune active
+
+The end-to-end scenario goes in
+`tests/integration/entrypoint/test_accelerator_entrypoint.py`, as
+`test_a_relocated_root_keeps_only_the_current_versions_footprint`:
+
+1. **Release server.** A `ThreadingHTTPServer` on `127.0.0.1:0` serves
+   `SERVER_DIR`. That directory holds the launcher assets the downloader stub
+   already reads, plus a manifest for the launcher's crate version, its
+   signature, and an `accelerator-visualiser-<platform>` `#!/bin/sh` asset.
+   Everything is signed with the run's `release` key.
+2. **Seeded history.** The fixture creates the relocated root with mode
+   `0700` and asserts it, so the test does not depend on the developer's
+   umask. The relocated root is seeded with A's and B's
+   history: entries, launcher entries, version claims, trees with pointers,
+   claims, sidecars and locks, shim copies under other digests, and
+   interrupted stores as `.tmp-` files. All
+   of it is back-dated past `CLAIM_WINDOW`, and the residue past
+   `AGE_BACKSTOP`.
+3. **C's trees.** C's own trees are planted under the digests from
+   the repository-root `pins.toml`, which `cli/launcher/build.rs` reads,
+   with fresh tree claims.
+4. **Dispatch.** The test's `make_harness(real_launcher=True)` (as at
+   `test_accelerator_entrypoint.py:130`) builds the installation, and
+   `run_bootstrap(…, extra_env={ ACCELERATOR_CACHE_DIR,
+   ACCELERATOR_RELEASE_BASE_URL: http://127.0.0.1:…,
+   ACCELERATOR_TEST_RELEASE_PUBLIC_KEY })` dispatches `visualiser`.
+5. **End state.** The test asserts the bootstrap exits 0, the stub's marker
+   is on stdout, the loopback server served the sub-binary asset exactly
+   once, and the root holds exactly the item's list: the running plugin's
+   staged shim copy included, and `.accelerator-unverified.log` only if
+   present, since only an integrity failure creates it.
+
+`assert_hermetic` (`installation.py:252-268`) also admits a
+`http://127.0.0.1` release host.
+
+`tests/unit/tasks/test_dev_builds.py`:
+`test_a_build_without_seams_passes_no_feature_flag` builds `accelerator-vcs`
+instead of `LAUNCHER`. The existing
+`test_a_binary_carries_the_loopback_seam_exactly_when_its_package_has_it`
+already covers the launcher once its `DevBinary` changes.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] All Phase 7 Rust tests pass: `mise run test:unit:cli`
+- [x] The scenario passes: `mise run test:integration:entrypoint`
+- [x] A release launcher built with `test-loopback` is rejected by the
+      guard, and a default one passes:
+      `mise run test:integration:release-guard`
+- [x] `mise run check` exits 0
+
+#### Manual Verification:
+
+- [x] `cargo build --release -p accelerator --features test-loopback` fails
+      with the `compile_error!` message
+- [x] In a scratch relocated root shared by two installed plugin versions, a
+      first-use dispatch on the newer one leaves the older one's entries
+      intact while its claim is fresh
+- [x] Time a cold dispatch against a scratch relocated root seeded with two
+      unclaimed `browser` trees, both from an interactive dispatch and from a
+      SessionStart hook, and record the figures in the PR description. On an
+      Apple-silicon Mac with debug builds and two trees of 2,000 files and
+      256 MiB each, `visualiser` took 1.62 s against 1.31 s with no trees,
+      and `vcs detect --format=hook --fail-safe --descriptive` 1.48 s
+      against 1.29 s; both removed the trees.
+
+---
+
+## Phase 8: Documentation and Measurement
+
+### Overview
+
+Document the new behaviour where users read about `ACCELERATOR_CACHE_DIR`,
+record a post-change measurement, and run the full default task.
+
+### Changes Required:
+
+#### 1. `docs-site/src/content/docs/design.md`
+
+- The `prune` row in the verbs table (`:211`): "Reclaim what no fresh claim
+  protects. In a relocated root this covers single-file entries, trees of
+  any artifact or platform, stale claims, orphan sidecars and locks, and
+  crash residue. In the default root it covers unclaimed trees of the
+  current artifacts. Prints how many entries it removed, and exits non-zero
+  when a lock cannot be taken or a removal fails."
+- The `ACCELERATOR_CACHE_DIR` row (`:264`) summarises the first, second,
+  third and fifth statements below and links to `internals.md`'s
+  "A relocated cache root", which carries all five; a table cell cannot
+  hold a list:
+  - a relocated root is pruned automatically on cold paths;
+  - a version idle for 14 days loses its entries and re-fetches;
+  - `--older-than` below ~1.4 days can evict versions other sessions are
+    using; they re-fetch on their next dispatch, and the running version is
+    never evicted;
+  - what `accelerator cache prune` now removes;
+  - a cache root is pruned only when it is writable by its owner alone, or
+    through the owner's private group, and every directory above it is
+    owned by the user, by root or by a uid listed in
+    `ACCELERATOR_CACHE_TRUSTED_OWNERS`, and not writable by others without
+    the sticky bit; CI and container examples show the variable; a shared
+    location such as `/var/cache/accelerator` still works as a cache but is
+    not pruned, so on a shared host give each user
+    `ACCELERATOR_CACHE_DIR=<shared>/$USER`; the refusal names the directory
+    and the fix.
+
+#### 2. `docs-site/src/content/docs/internals.md`
+
+- The `ACCELERATOR_CACHE_DIR` row (`:263`) links to a new subsection,
+  "A relocated cache root", after the read-only-installs section.
+- The subsection carries the five statements, with a GitHub Actions example
+  of `ACCELERATOR_CACHE_TRUSTED_OWNERS`.
+- Its last paragraph explains why a warm dispatch in a relocated root still
+  tolerates a read-only directory: the claim write is best-effort. It also
+  states the accepted pre-0339 lock-file risk.
+
+#### 3. `CHANGELOG.md`
+
+Add `[Unreleased]` entries, each as a bold-led bullet under the
+`[Unreleased]` section the label names:
+
+- **Changed.** A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically
+  on cold paths, keeping what a version or tree claim from the last 14 days
+  protects. A root is pruned only when it is writable by its owner alone, or
+  through the owner's private group, and no directory above it is writable by
+  others without the sticky bit. A root shared by several users, sticky or not,
+  works as a cache but is not pruned; give each user their own, such as
+  `/var/cache/accelerator/$USER`. In a relocated root, `cache prune` also
+  removes single-file entries, other artifacts' and platforms' trees, stale
+  claims, orphan sidecars and locks, and crash residue.
+- **Breaking.** `cache prune` no longer stops at the first lock it cannot
+  take: it prunes every other artifact, prints the count, and then exits
+  non-zero. A removal that fails, which was silently ignored, now also exits
+  non-zero. `--older-than` also sets the version-claim window. When the
+  launcher vanishes before it can run, `bin/accelerator` now exits 1, or 0
+  under `--fail-safe`, where it exited 126 or 127, depending on the bash
+  version. Every other `exec` failure exits
+  as before.
+- **Changed.** A dispatch whose sub-binary vanishes between lookup and
+  `exec` re-fetches it once, in every cache root.
+- **Breaking.** `cache prune` in a relocated root that other users can
+  write to, or that sits under a directory they can, now removes nothing
+  and exits non-zero, printing the directory at fault and the fix, where it
+  pruned the pinned trees and exited 0. In such a root a materialise no
+  longer reaps orphan residue or a superseded generation either. A root
+  writable only through a private group that no lookup can resolve is
+  refused the same way, with the `chmod g-w` remedy, and so is a root under
+  a directory owned by another uid, as in a container's bind mount or a CI
+  workspace, until `ACCELERATOR_CACHE_TRUSTED_OWNERS` lists that uid.
+- **Fixed.** The default-root verb no longer creates tree locks for artifacts
+  it never materialised, except to reap an interrupted materialise's
+  residue, and no longer errors when `trees/` is missing. Tree prune never
+  follows a pointer outside `trees/`, keeps malformed and other-layout
+  pointers, and reclaims nothing when `trees/claims/` cannot be read, where
+  it reclaimed claimed trees.
+- **Changed.** A plugin `bin/trees/` that is a symlink or owned by another
+  user is no longer pruned or reaped.
+- **Migrations.** Sessions of older launchers sharing a relocated root have
+  their entries evicted after each prune by a newer launcher, and re-fetch.
+  Reloading the plugin ends this.
+
+#### 4. Measurement
+
+Run `mise run measure:warm-dispatch` and commit the resulting
+`meta/measurements/warm-dispatch-{N}.json`, whatever its gating result. The
+commit message says it is a record, not evidence of this change's cost.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] `mise run docs:check` exits 0
+- [x] `CHANGELOG.md`'s `[Unreleased]` section carries the seven entries
+- [x] A new `meta/measurements/warm-dispatch-*.json` is committed
+- [x] `mise run` exits 0 end-to-end
+
+#### Manual Verification:
+
+- [x] Both `ACCELERATOR_CACHE_DIR` entries read as one consistent account in
+      the rendered docs site
+
+---
+
+## Testing Strategy
+
+### Unit Tests:
+
+- Pure rules: the name grammar, `parse_generation_name`, `protection`,
+  `disposition`, `orphan_is_reclaimable`, `classify_trees_entry`, claim-name
+  parsing and the
+  identity table. Each is tested exhaustively without a filesystem.
+- Seams: `Ownership`, `BootstrapHolderLiveness`, `SingleFlightLocks` (a
+  `FailingLocks` returning `ENOLCK` for a chosen path), `PruneSteps` (a
+  channel-handshake pause), `LivenessProbe` (`FixedLiveness`), `Clock`
+  (`FixedClock`), `ScriptedFilesystem` (injected failures and refreshes) and
+  `RemovalObserver` (the lock-held probe at removal).
+- Boundaries: one exactly-at-threshold case per rule, with `FixedClock` at the
+  threshold: the claim refresh interval, `AGE_BACKSTOP`, claim freshness and the
+  tree-claim window. Each pins the side the boundary falls on, as `claims.rs`
+  and `reap.rs` already do. Time is advanced through the clock, not by
+  back-dating where avoidable (`reap.rs:415-418`).
+
+### Integration Tests:
+
+- `tests/resolution.rs`: the recorded call lists, claims before `find`, the
+  re-resolve and the replacement invariant.
+- `tests/root_prune.rs`: the relocated-root verb, scripted defensive
+  branches, recorded orderings, cold paths and concurrency. Phase 4's
+  single-file, residue and root-safety rules are unit-tested beside their
+  code (`single_file.rs`, `residue.rs`, `ownership/safe_root.rs`).
+- `tests/tree_resolution.rs`: no-new-lock and the default-root regressions.
+- The entrypoint suite: the A/B/C end-to-end scenario through
+  `bin/accelerator`.
+
+### Acceptance Criterion Map:
+
+| Criterion (work item order) | Test | Phase |
+|---|---|---|
+| A unclaimed, B claimed | `only_the_unclaimed_versions_entries_are_removed` | 4 |
+| A and B claimed | `two_claimed_versions_lose_nothing` | 4 |
+| entries absent at `exec` | `a_cold_dispatch_prunes_before_exec` | 7 |
+| root lock held, cold store | `a_held_root_lock_does_not_delay_a_cold_dispatch` | 7 |
+| claim written before `find` | `an_override_root_dispatch_writes_its_claim_before_find` | 3 |
+| young claim not rewritten | `an_override_root_dispatch_with_a_young_claim_does_not_rewrite_it` | 3 |
+| symlink and foreign claims | `a_symlinked_and_a_foreign_owned_claim_protect_nothing` | 4 |
+| default root untouched | `the_plugin_bin_root_is_never_claimed_or_pruned` | 7 |
+| default orphan reap | `the_plugin_bin_orphan_reap_is_unchanged` | 7 |
+| safety changes in default root | re-resolve, replacement and no-new-lock tests run in both kinds | 2, 5 |
+| default verb reclaims superseded | `the_plugin_bin_verb_still_reclaims_an_unclaimed_superseded_tree` | 5 |
+| `ENOENT` re-resolve | `an_entry_removed_between_find_and_exec_is_refetched_once` | 2 |
+| second failure / non-`ENOENT` | `a_second_missing_program_surfaces_as_exec`, `a_failure_other_than_enoent_is_not_re_resolved` | 2 |
+| foreign names kept | `foreign_names_survive_every_trigger` (verb, cold store, materialise) | 4, 5, 7 |
+| kept names beside unclaimed | `the_kept_names_survive_beside_an_unclaimed_version` (verb, cold) | 4, 7 |
+| plugin `.tmp-` staging | `plugin_staging_entries_are_removed_only_once_aged`, `launcher_staging_with_a_live_pid_…`, `…_with_a_dead_pid_goes_once_aged` | 4 |
+| shim copies | `the_running_plugins_shim_copies_survive_for_every_platform`, `stale_shim_copies_go_on_every_platform`, `an_unreadable_shim_source_keeps_that_platforms_copies` | 4 |
+| unsafe root not pruned | `a_shared_group_writable_root_…`, `a_user_private_group_writable_root_is_pruned`, `a_symlinked_root_…`, `a_root_under_a_writable_ancestor_…`, `a_user_owned_world_writable_root_is_not_pruned`, `a_per_user_root_under_a_sticky_shared_parent_is_pruned`, `a_root_owned_sticky_root_is_not_pruned`, `a_root_owned_by_another_uid_is_not_pruned`, `the_verb_refuses_an_unsafe_root_…`, `an_unsafe_root_is_not_pruned_from_any_trigger` | 4, 7 |
+| `--older-than` | `older_than_narrows_the_version_claim_window` (and `…_through_the_verb`), `older_than_narrows_the_tree_claim_window` | 4, 5 |
+| unreadable tree claims fail closed | `an_unreadable_tree_claims_directory_…` (both roots) | 5 |
+| running version protected | `the_running_version_survives_older_than_zero`, `the_running_version_survives_without_a_valid_claim` | 4 |
+| built-ins claim | `a_built_in_command_refreshes_the_version_claim` | 3 |
+| verb removes both kinds | `the_verb_reclaims_single_file_entries_and_an_unclaimed_tree` | 5 |
+| verb waits for locks | `the_verb_waits_for_a_held_root_lock`, `the_verb_waits_for_a_held_tree_lock` | 4, 5 |
+| materialise with root lock held | `a_materialise_with_the_root_lock_held_still_prunes_other_trees` | 7 |
+| no self-probe of a held lock | `no_prune_path_probes_or_takes_a_lock_it_holds` | 5, 7 |
+| X held, Y pruned | `a_cold_dispatch_skips_a_held_tree_lock_and_prunes_the_rest` | 7 |
+| lease outcomes | `only_aged_unknown_and_free_unpinned_trees_are_reclaimed` | 5 |
+| orphans, sidecars, retired lock | `old_orphans_sidecars_and_retired_locks_go_and_young_generations_stay` | 5 |
+| retired and other platform | `unclaimed_retired_and_foreign_platform_trees_go_and_claimed_ones_stay` | 5 |
+| claim appearing during a prune | `a_tree_claimed_after_the_index_was_read_is_kept`, `the_pointer_goes_before_its_generation` | 5 |
+| tree claim ages | `only_tree_claims_outside_the_window_are_removed` | 5 |
+| sidecar ages and holds | `only_old_unheld_orphan_sidecars_are_removed` | 5 |
+| lock outlives its residue | `a_tree_lock_is_kept_while_its_partial_archive_remains`, `a_retired_partial_archive_goes_with_its_lock` | 5 |
+| lock file ages | `orphan_tree_locks_go_only_once_aged_and_never_for_a_current_tree` | 5 |
+| other layout kept | `another_layouts_tree_is_kept_and_this_layouts_twin_is_removed` | 2, 5 |
+| foreign generation-like directory | `an_aged_foreign_directory_resembling_a_generation_survives_the_reap` | 2 |
+| symlinked directories and claims | `a_symlinked_tree_claim_…`, `a_symlinked_bootstrap_lock_…`, `a_symlinked_trees_or_tree_claims_directory_…` | 3–5 |
+| pointer containment | `a_pointer_naming_an_absolute_path_…`, `a_pointer_escaping_with_dot_dot_…`, `a_pointer_naming_another_artifacts_…`, `a_malformed_pointer_is_kept` | 2, 5 |
+| probe ages | `old_probe_files_are_swept_and_young_ones_kept` | 4 |
+| bootstrap names coherent with the shell | `test_bootstrap_name_coherence.py` | 4 |
+| bootstrap lock directories | `stale_bootstrap_locks_with_empty_or_dead_pids_are_swept` | 4 |
+| materialise runs root prune | `a_materialise_prunes_the_superseded_tree_single_files_and_probes` | 7 |
+| paused prune vs store | `a_store_after_listing_…`, `a_store_before_listing_…`, `a_store_without_a_claim_…` | 4 |
+| two concurrent prunes | `a_cold_prune_behind_a_paused_prune_returns_without_touching_anything` | 7 |
+| loopback guard on real artefacts | `test_a_release_binary_built_with_test_loopback_is_rejected` (jira, linear, research, launcher) | 6, 7 |
+| A/B/C end-to-end | `test_a_relocated_root_keeps_only_the_current_versions_footprint` | 7 |
+| claim removal order | `stale_claims_go_independently_and_a_last_claim_goes_after_its_entries`, `a_last_claim_goes_only_after_its_versions_entries` | 4 |
+| pre-claim backstop | `pre_claim_entries_younger_than_the_backstop_survive` | 4 |
+| suffix matching | `a_version_is_matched_by_suffix_never_by_splitting_the_name` | 4 |
+| read-only override root | `a_read_only_override_root_still_dispatches_warm` | 3 |
+| corrupt-entry rename | `a_corrupt_entry_is_replaced_by_a_rename_with_no_unlink_before_it` | 2 |
+| unset override fixed list | `an_unset_override_performs_exactly_the_fixed_calls` | 1, 3 |
+| override naming plugin `bin` | `naming_the_plugin_bin_adds_only_the_canonical_resolution` | 3 |
+| `ENOLCK` root lock | `an_enolck_root_lock_skips_…`, `the_verb_reports_a_failed_root_lock_…` | 4, 7 |
+| `ENOLCK` tree lock | `an_enolck_tree_lock_skips_…`, `the_verb_reports_a_failed_tree_lock_…` | 5, 7 |
+| development checkout | `a_development_checkout_relocated_elsewhere_…` (claims, prunes) | 3, 7 |
+| held `trees/.tmp-` generation | `a_held_tree_temp_generation_is_untouched_by_single_file_prune` | 4 |
+| fresh claim warm cost | `a_fresh_claim_costs_one_metadata_read_beyond_the_fixed_list` | 3 |
+| documentation | Phase 8 edits, `CHANGELOG.md`, `docs:check` | 8 |
+| measurement | committed JSON | 8 |
+| `mise run` green | full default task | 8 |
+
+### Manual Testing Steps:
+
+1. Point `ACCELERATOR_CACHE_DIR` at a scratch directory and dispatch any
+   sub-binary. Confirm `claims/` appears and contains one claim.
+2. Plant an old version's entries, back-dated two weeks, and dispatch a
+   sub-binary not yet cached. The old entries are gone before it runs.
+3. Unset `ACCELERATOR_CACHE_DIR` and repeat step 2 against the plugin
+   `bin/`. Nothing is claimed or removed.
+
+## Performance Considerations
+
+- ⏱️ **Default root:** the warm path is unchanged. The fixed-list test proves
+  it.
+- ⏱️ **Relocated root, warm:** each process adds two `stat` calls, one
+  `lstat` and the launcher-id hash, plus one `open` per `CLAIM_WINDOW/10`
+  (~1.4 days). `identify` runs once per process, so a tree-consuming
+  dispatch pays this once.
+- ⏱️ **Cold path:** it gains one listing each of the root, `trees/` and
+  `trees/claims/`, one lock attempt per artifact, one SHA-256 of a ~480 KB
+  verifier shim per platform with a staged copy (usually one), and removals.
+- ⏱️ **Tree removal before `exec`:** the first cold path after an upgrade in
+  a long-shared root removes every unclaimed tree, synchronously, before the
+  dispatch execs. Each `browser` or `driver` tree is hundreds of MB and
+  thousands of files: roughly 0.2–1 s per tree on local disk, and more on a
+  network filesystem. Later cold paths remove none until another version
+  goes stale. The work item accepts this cost, and its A/B/C criterion needs
+  every unclaimed tree gone after one dispatch, which rules out spreading the
+  removals. In practice the batch lands on the first SessionStart hook
+  dispatch of a newly installed version, because its hook sub-binaries are
+  not yet cached, and it runs inside that hook's timeout. Phase 7's manual
+  verification times both an interactive and a hook-triggered cold path.
+
+## Migration Notes
+
+There is no data migration. The first prune by a claim-aware launcher in a
+relocated root evicts pre-claim versions' entries older than `AGE_BACKSTOP`,
+and a live pre-upgrade session re-fetches after each claim-aware prune,
+unable to dispatch offline until it is reloaded. The rollout window's
+risks are listed under Accepted Risks.
+
+## References
+
+- Original work item: `meta/work/0218-bound-cache-root-growth.md`
+- Codebase research:
+  `meta/research/codebase/2026-10-18-0218-bound-cache-root-growth.md`
+- Decision:
+  `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
+- Lease and layout rules:
+  `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
+- Precedent plans:
+  `meta/plans/2026-10-16-0339-tree-reap-cross-artifact-lock-probe.md`,
+  `meta/plans/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
+- Claims precedent: `cli/launcher/src/launch/outbound/resolve/tree/claims.rs`
+- Feature-guard precedent: `cli/research-cli/src/main.rs:71-76`,
+  `tasks/build.py:354-371`
