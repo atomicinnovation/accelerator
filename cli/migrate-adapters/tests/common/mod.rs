@@ -14,7 +14,7 @@ use migrate::ports::WorkItemIdentity;
 use migrate_adapters::context::Capabilities;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::legacy_ids::LegacyNumericIds;
 
 pub struct NoBaselines;
@@ -49,7 +49,7 @@ impl WorkItemIdentity for WorkIdentity {
             .map(IdKey::parse)
             .transpose()
             .map_err(|error| failure(&error))?;
-        WorkItemIdScheme::new(pattern, key)
+        IdScheme::new(pattern, key)
             .canonicalise(raw)
             .map_err(|error| failure(&error))
     }

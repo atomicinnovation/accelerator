@@ -10,7 +10,7 @@ use crate::id_pattern::escaped;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::PatternKeying;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::IdentityField;
 use crate::retirement::relative_to;
 use crate::work_item_files::identity_of;
@@ -21,7 +21,7 @@ use crate::work_item_files::WorkItemListing;
 pub struct RequestedId {
     text: String,
     parts: IdParts,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,7 +93,7 @@ impl RequestedId {
     pub fn admit(
         requested: &str,
         project: Option<&str>,
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
     ) -> Result<Self, RequestedIdRefusal> {
         let pattern = scheme.pattern().as_str().to_owned();
         if let Some(project) = project {
@@ -130,7 +130,7 @@ impl RequestedId {
     /// makes it exact.
     pub fn propose(
         requested: &str,
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
     ) -> Result<Proposal, RequestedIdRefusal> {
         match Self::admit(requested, None, scheme) {
             Ok(id) if id.key_differs() => Ok(Proposal::OtherKey(id)),
@@ -146,7 +146,7 @@ impl RequestedId {
         }
     }
 
-    fn of(text: String, parts: IdParts, scheme: &WorkItemIdScheme) -> Self {
+    fn of(text: String, parts: IdParts, scheme: &IdScheme) -> Self {
         Self {
             text,
             parts,
@@ -225,7 +225,7 @@ impl RequestedId {
 
 /// The only gate between a caller's string and the path a create writes:
 /// ASCII in the pattern's exact shape, with a number of at least 1.
-fn in_exact_shape(text: &str, scheme: &WorkItemIdScheme) -> Option<IdParts> {
+fn in_exact_shape(text: &str, scheme: &IdScheme) -> Option<IdParts> {
     scheme
         .pattern()
         .read_exact(text)
@@ -237,7 +237,7 @@ fn in_exact_shape(text: &str, scheme: &WorkItemIdScheme) -> Option<IdParts> {
 /// scheme's key, kept only when the rendering is in the exact shape.
 fn correction_for(
     requested: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Option<(String, IdParts)> {
     let reading = scheme.pattern().read_correctable(requested)?;
     let carried = reading.key().and_then(|key| IdKey::parse(key).ok());
@@ -248,11 +248,7 @@ fn correction_for(
 }
 
 impl ProjectRemedy {
-    fn for_request(
-        requested: &str,
-        project: &str,
-        scheme: &WorkItemIdScheme,
-    ) -> Self {
+    fn for_request(requested: &str, project: &str, scheme: &IdScheme) -> Self {
         match scheme.pattern().keying() {
             PatternKeying::Tracker => Self::DropBoth,
             PatternKeying::Keyless => Self::DropProject,
@@ -302,7 +298,7 @@ impl ProjectRemedy {
 }
 
 impl ExampleShape {
-    fn of(scheme: &WorkItemIdScheme) -> Self {
+    fn of(scheme: &IdScheme) -> Self {
         Self {
             pattern: scheme.pattern().as_str().to_owned(),
             description: scheme.pattern().describe(),
@@ -461,33 +457,33 @@ mod tests {
     use super::RequestedIdRefusal;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::identity::IdentityField;
     use crate::work_item_files::ReadFailure;
     use crate::work_item_files::UnreadableFile;
     use crate::work_item_files::WorkItemFile;
     use crate::work_item_files::WorkItemListing;
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern).expect("a well-formed pattern"),
             key.map(|key| IdKey::parse(key).expect("a well-formed key")),
         )
     }
 
-    fn numeric() -> WorkItemIdScheme {
+    fn numeric() -> IdScheme {
         scheme("{number:04d}", None)
     }
 
-    fn keyed() -> WorkItemIdScheme {
+    fn keyed() -> IdScheme {
         scheme("{key}-{number:04d}", Some("PP"))
     }
 
-    fn tracker() -> WorkItemIdScheme {
+    fn tracker() -> IdScheme {
         scheme("{tracker}", None)
     }
 
-    fn admitted(requested: &str, under: &WorkItemIdScheme) -> RequestedId {
+    fn admitted(requested: &str, under: &IdScheme) -> RequestedId {
         RequestedId::admit(requested, None, under)
             .unwrap_or_else(|refusal| unreachable!("{requested}: {refusal}"))
     }
@@ -495,7 +491,7 @@ mod tests {
     fn refusal(
         requested: &str,
         project: Option<&str>,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
     ) -> RequestedIdRefusal {
         RequestedId::admit(requested, project, under)
             .expect_err(&format!("{requested} is refused"))
@@ -504,7 +500,7 @@ mod tests {
     fn refused_as(
         requested: &str,
         project: Option<&str>,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
     ) -> &'static str {
         refusal(requested, project, under).code()
     }
@@ -545,7 +541,7 @@ mod tests {
 
     fn holder_of(
         requested: &str,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
         listing: &WorkItemListing,
     ) -> Option<(PathBuf, Holding, String)> {
         match admitted(requested, under).refuse_if_taken(listing) {
@@ -562,7 +558,7 @@ mod tests {
 
     fn is_taken(
         requested: &str,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
         listing: &WorkItemListing,
     ) -> bool {
         holder_of(requested, under, listing).is_some()
@@ -718,7 +714,7 @@ mod tests {
         Corrected(String, bool),
     }
 
-    fn proposed(requested: &str, under: &WorkItemIdScheme) -> Proposed {
+    fn proposed(requested: &str, under: &IdScheme) -> Proposed {
         match RequestedId::propose(requested, under) {
             Ok(Proposal::Exact(id)) => Proposed::Exact(id.as_str().to_owned()),
             Ok(Proposal::OtherKey(id)) => {
@@ -733,7 +729,7 @@ mod tests {
 
     fn proposal_refused_as(
         requested: &str,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
     ) -> RequestedIdRefusal {
         match RequestedId::propose(requested, under) {
             Err(refusal) => refusal,
@@ -771,7 +767,7 @@ mod tests {
         }
     }
 
-    fn corrected(requested: &str, under: &WorkItemIdScheme) -> (String, bool) {
+    fn corrected(requested: &str, under: &IdScheme) -> (String, bool) {
         match proposed(requested, under) {
             Proposed::Corrected(id, key_differs) => (id, key_differs),
             Proposed::Exact(id) | Proposed::OtherKey(id) => {
@@ -1146,7 +1142,7 @@ mod tests {
     fn remedy(
         requested: &str,
         project: &str,
-        under: &WorkItemIdScheme,
+        under: &IdScheme,
     ) -> ProjectRemedy {
         match refusal(requested, Some(project), under) {
             RequestedIdRefusal::WithProject { remedy, .. } => remedy,

@@ -12,7 +12,7 @@ use ::config::ConfigAccess;
 use tracker::ExternalId;
 use vcs::guarded_working_copy::GUARDED_SCOPES;
 use vcs::RepositoryProbe;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity_run::waiting_line;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::mapping::RefreshedKeys;
@@ -176,7 +176,7 @@ const fn skipped_by_force(action: RekeyAction) -> &'static str {
 struct Located {
     root: PathBuf,
     work_dir: PathBuf,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     integration: Option<String>,
     integrations_root: PathBuf,
 }

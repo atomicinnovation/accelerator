@@ -16,6 +16,7 @@ from tasks.shared.sources import repo_root
 _CORPUS_SOURCES = ("cli/corpus/src", "cli/corpus-adapters/src")
 
 _WORK_ITEM_IDENTITY = (
+    "IdScheme",
     "WorkItemIdScheme",
     "SchemeConvention",
     "IdScanner",

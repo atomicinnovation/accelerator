@@ -15,7 +15,7 @@ use corpus_adapters::FileCorpusStore;
 use work::draft_id::DraftId;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::identity_run::RunPlanGate;
 use work::identity_run::RunPlanStatus as _;
@@ -97,8 +97,8 @@ impl AtomicWrite for RecordingWrite {
     }
 }
 
-fn scheme() -> WorkItemIdScheme {
-    WorkItemIdScheme::new(
+fn scheme() -> IdScheme {
+    IdScheme::new(
         IdPattern::parse("{key}-{number:04d}")
             .unwrap_or_else(|error| unreachable!("{error}")),
         IdKey::parse("ACC").ok(),

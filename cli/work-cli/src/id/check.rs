@@ -5,7 +5,7 @@ use std::path::Path;
 
 use ::config::ConfigAccess;
 use work::id_pattern::IdKey;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::requested_id::Proposal;
 use work::requested_id::RequestedId;
 
@@ -60,7 +60,7 @@ pub fn run(
     }
 }
 
-fn verdict(proposal: &Proposal, scheme: &WorkItemIdScheme) -> String {
+fn verdict(proposal: &Proposal, scheme: &IdScheme) -> String {
     let configured_key = || scheme.key().map(IdKey::as_str).unwrap_or_default();
     match proposal {
         Proposal::Exact(id) => format!("exact\t{}", id.as_str()),

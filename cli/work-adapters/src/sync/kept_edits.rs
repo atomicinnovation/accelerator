@@ -19,7 +19,7 @@ use corpus::store::RECOVERY_BOOKKEEPING;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use work::draft_id::is_token_safe;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 
 use crate::sync::fetch::LocalItem;
 use crate::sync::recovery_label::RecoveryLabel;
@@ -130,7 +130,7 @@ pub struct KeptEditsRetention<'a> {
     pub tracking: &'a dyn RepositoryTracking,
     pub locks: &'a dyn ExclusiveLock,
     pub work_root: PathBuf,
-    pub scheme: &'a WorkItemIdScheme,
+    pub scheme: &'a IdScheme,
     pub corpus: &'a [LocalItem],
     /// The items whose earlier copies a person asked to discard.
     pub discarding: &'a BTreeSet<String>,

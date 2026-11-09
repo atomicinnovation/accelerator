@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -28,7 +28,7 @@ pub struct Config {
     /// The work-item ID scheme composed in-process; never deserialised.
     /// `None` is the numeric default.
     #[serde(skip)]
-    pub work_item: Option<WorkItemIdScheme>,
+    pub work_item: Option<IdScheme>,
     /// Kanban column keys. Absent → seven template-status defaults.
     /// An empty list is rejected at boot.
     #[serde(default)]
@@ -63,12 +63,12 @@ pub struct KanbanColumn {
 /// boot.
 #[derive(Debug, Clone, Default)]
 pub struct WorkItemConfig {
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
 }
 
 impl WorkItemConfig {
     #[must_use]
-    pub const fn new(scheme: WorkItemIdScheme) -> Self {
+    pub const fn new(scheme: IdScheme) -> Self {
         Self { scheme }
     }
 
@@ -76,11 +76,11 @@ impl WorkItemConfig {
     /// pattern.
     #[must_use]
     pub fn default_numeric() -> Self {
-        Self::new(WorkItemIdScheme::numeric())
+        Self::new(IdScheme::numeric())
     }
 
     #[must_use]
-    pub const fn scheme(&self) -> &WorkItemIdScheme {
+    pub const fn scheme(&self) -> &IdScheme {
         &self.scheme
     }
 
@@ -113,8 +113,8 @@ impl WorkItemConfig {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-pub fn scheme_for_test(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-    WorkItemIdScheme::new(
+pub fn scheme_for_test(pattern: &str, key: Option<&str>) -> IdScheme {
+    IdScheme::new(
         work::id_pattern::IdPattern::parse(pattern).unwrap(),
         key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
     )

@@ -131,12 +131,12 @@ const DRAFT_SUFFIX_LENGTH: usize = 6;
 
 /// The identity scheme a workspace configures for its work items.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkItemIdScheme {
+pub struct IdScheme {
     pattern: IdPattern,
     key: Option<IdKey>,
 }
 
-impl WorkItemIdScheme {
+impl IdScheme {
     /// The scheme of `pattern`, holding `key` only when the pattern has a
     /// key token.
     #[must_use]
@@ -427,13 +427,13 @@ fn without_surrounding_quotes(input: &str) -> &str {
         .unwrap_or(input)
 }
 
-impl Default for WorkItemIdScheme {
+impl Default for IdScheme {
     fn default() -> Self {
         Self::numeric()
     }
 }
 
-impl corpus::IdConvention for WorkItemIdScheme {
+impl corpus::IdConvention for IdScheme {
     fn slug_start(&self, stem: &str) -> Option<usize> {
         self.filename_reading(stem)
             .map(|(_, slug_start)| slug_start)
@@ -464,38 +464,38 @@ mod tests {
     use super::is_tracker_owned_token;
     use super::CanonicaliseError;
     use super::IdOwnership;
+    use super::IdScheme;
     use super::TrackerIntegrationError;
-    use super::WorkItemIdScheme;
     use super::TRACKER_TOKEN;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdParts;
     use crate::id_pattern::IdPattern;
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern).unwrap(),
             key.map(|key| IdKey::parse(key).unwrap()),
         )
     }
 
-    fn keyed(key: &str) -> WorkItemIdScheme {
+    fn keyed(key: &str) -> IdScheme {
         scheme("{key}-{number:04d}", Some(key))
     }
 
-    fn project(key: &str) -> WorkItemIdScheme {
+    fn project(key: &str) -> IdScheme {
         scheme("{project}-{number:04d}", Some(key))
     }
 
-    fn tracker() -> WorkItemIdScheme {
+    fn tracker() -> IdScheme {
         scheme(TRACKER_TOKEN, None)
     }
 
-    fn identity(scheme: &WorkItemIdScheme, reference: &str) -> Option<String> {
+    fn identity(scheme: &IdScheme, reference: &str) -> Option<String> {
         scheme.identity_key(reference)
     }
 
     fn canonical(
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
         input: &str,
     ) -> Result<String, CanonicaliseError> {
         scheme.canonicalise(input)
@@ -529,7 +529,7 @@ mod tests {
     #[test]
     fn a_tracker_scheme_reports_tracker_ownership() {
         assert_eq!(tracker().ownership(), IdOwnership::Tracker);
-        assert_eq!(WorkItemIdScheme::numeric().ownership(), IdOwnership::Local);
+        assert_eq!(IdScheme::numeric().ownership(), IdOwnership::Local);
     }
 
     #[test]
@@ -555,11 +555,8 @@ mod tests {
             Some("draft-k7mq3x")
         );
         assert_eq!(tracker.normalise_id("0042"), None);
-        assert_eq!(WorkItemIdScheme::numeric().normalise_id("MY_PROJ-7"), None);
-        assert_eq!(
-            WorkItemIdScheme::numeric().normalise_id("draft-k7mq3x"),
-            None
-        );
+        assert_eq!(IdScheme::numeric().normalise_id("MY_PROJ-7"), None);
+        assert_eq!(IdScheme::numeric().normalise_id("draft-k7mq3x"), None);
     }
 
     #[test]
@@ -572,7 +569,7 @@ mod tests {
 
     #[test]
     fn is_canonical_id_token_under_default_numeric() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         assert!(scheme.is_canonical_id_token("0040"));
         assert!(!scheme.is_canonical_id_token("40"));
         assert!(!scheme.is_canonical_id_token("00040"));
@@ -617,7 +614,7 @@ mod tests {
 
     #[test]
     fn normalise_id_handles_prefixed_and_bare_forms() {
-        let numeric = WorkItemIdScheme::numeric();
+        let numeric = IdScheme::numeric();
         assert_eq!(
             numeric.normalise_id("ENG-0042").as_deref(),
             Some("ENG-0042")
@@ -635,7 +632,7 @@ mod tests {
 
     #[test]
     fn canonicalise_pads_and_prefixes_per_scheme() {
-        let numeric = WorkItemIdScheme::numeric();
+        let numeric = IdScheme::numeric();
         assert_eq!(canonical(&numeric, "40").as_deref(), Ok("0040"));
         assert_eq!(canonical(&numeric, "00040").as_deref(), Ok("0040"));
         assert_eq!(canonical(&numeric, "12345").as_deref(), Ok("12345"));
@@ -683,7 +680,7 @@ mod tests {
 
     #[test]
     fn identity_key_pads_and_folds_per_scheme() {
-        let numeric = WorkItemIdScheme::numeric();
+        let numeric = IdScheme::numeric();
         assert_eq!(identity(&numeric, "40").as_deref(), Some("0040"));
         assert_eq!(identity(&numeric, "00040").as_deref(), Some("0040"));
         assert_eq!(identity(&numeric, "12345").as_deref(), Some("12345"));
@@ -719,7 +716,7 @@ mod tests {
             Some("PROJ-123")
         );
         assert_eq!(
-            identity(&WorkItemIdScheme::numeric(), "ENG-42").as_deref(),
+            identity(&IdScheme::numeric(), "ENG-42").as_deref(),
             Some("ENG-0042")
         );
     }
@@ -736,7 +733,7 @@ mod tests {
             Some("PROJ_0042")
         );
         assert_eq!(
-            identity(&WorkItemIdScheme::numeric(), "42").as_deref(),
+            identity(&IdScheme::numeric(), "42").as_deref(),
             Some("0042")
         );
     }
@@ -751,11 +748,11 @@ mod tests {
                 Some("PP_0042"),
             ),
             (scheme("v{number:03d}", None), "v001-x.md", Some("v001")),
-            (WorkItemIdScheme::numeric(), "42-x.md", Some("0042")),
-            (WorkItemIdScheme::numeric(), "0042-foo.md", Some("0042")),
-            (WorkItemIdScheme::numeric(), "0042-bar-baz.md", Some("0042")),
-            (WorkItemIdScheme::numeric(), "malformed.md", None),
-            (WorkItemIdScheme::numeric(), "ADR-0001-foo.md", None),
+            (IdScheme::numeric(), "42-x.md", Some("0042")),
+            (IdScheme::numeric(), "0042-foo.md", Some("0042")),
+            (IdScheme::numeric(), "0042-bar-baz.md", Some("0042")),
+            (IdScheme::numeric(), "malformed.md", None),
+            (IdScheme::numeric(), "ADR-0001-foo.md", None),
             (project("PROJ"), "PROJ-0042-foo.md", Some("PROJ-0042")),
             (project("PROJ"), "PROJ-1-short.md", Some("PROJ-0001")),
             (project("PROJ"), "PROJ-0042.md", None),
@@ -794,32 +791,29 @@ mod tests {
 
     #[test]
     fn is_legacy_id_accepts_one_to_four_nonzero_digits() {
-        assert!(WorkItemIdScheme::is_legacy_id("42"));
-        assert!(WorkItemIdScheme::is_legacy_id("0042"));
-        assert!(WorkItemIdScheme::is_legacy_id("9"));
-        assert!(!WorkItemIdScheme::is_legacy_id("0000"));
-        assert!(!WorkItemIdScheme::is_legacy_id("12345"));
-        assert!(!WorkItemIdScheme::is_legacy_id(""));
-        assert!(!WorkItemIdScheme::is_legacy_id("12a4"));
+        assert!(IdScheme::is_legacy_id("42"));
+        assert!(IdScheme::is_legacy_id("0042"));
+        assert!(IdScheme::is_legacy_id("9"));
+        assert!(!IdScheme::is_legacy_id("0000"));
+        assert!(!IdScheme::is_legacy_id("12345"));
+        assert!(!IdScheme::is_legacy_id(""));
+        assert!(!IdScheme::is_legacy_id("12a4"));
     }
 
     #[test]
     fn pad_legacy_number_zero_pads_to_four_digits() {
+        assert_eq!(IdScheme::pad_legacy_number("42").as_deref(), Some("0042"));
         assert_eq!(
-            WorkItemIdScheme::pad_legacy_number("42").as_deref(),
-            Some("0042")
-        );
-        assert_eq!(
-            WorkItemIdScheme::pad_legacy_number("12345").as_deref(),
+            IdScheme::pad_legacy_number("12345").as_deref(),
             Some("12345")
         );
-        assert_eq!(WorkItemIdScheme::pad_legacy_number(""), None);
-        assert_eq!(WorkItemIdScheme::pad_legacy_number("12a"), None);
+        assert_eq!(IdScheme::pad_legacy_number(""), None);
+        assert_eq!(IdScheme::pad_legacy_number("12a"), None);
     }
 
     #[test]
     fn a_numeric_scheme_answers_as_an_id_convention() {
-        let scheme = WorkItemIdScheme::numeric();
+        let scheme = IdScheme::numeric();
         let filenames: &[(&str, Option<usize>, Option<&str>)] = &[
             ("0042-foo", Some(5), Some("0042")),
             ("42-foo", Some(3), Some("0042")),

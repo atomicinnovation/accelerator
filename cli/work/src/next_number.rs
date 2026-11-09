@@ -9,7 +9,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::KeyError;
 use crate::id_pattern::MissingKey;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,7 +139,7 @@ pub fn allocation_key(
 /// would exceed the pattern's numeric cap — the error still carries every ID
 /// that fit before the boundary.
 pub fn allocate(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     key: Option<&IdKey>,
     count: u32,
     filenames: &[String],
@@ -230,7 +230,7 @@ mod tests {
 
     use super::{allocate, allocate_above, allocation_key, AllocationError};
     use crate::id_pattern::{IdKey, IdPattern, KeyError};
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
 
     fn pattern(text: &str) -> IdPattern {
         IdPattern::parse(text).unwrap()
@@ -240,12 +240,12 @@ mod tests {
         IdKey::parse(text).unwrap()
     }
 
-    fn scheme(text: &str, configured: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(pattern(text), configured.map(key))
+    fn scheme(text: &str, configured: Option<&str>) -> IdScheme {
+        IdScheme::new(pattern(text), configured.map(key))
     }
 
-    fn numeric() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn numeric() -> IdScheme {
+        IdScheme::numeric()
     }
 
     fn names(filenames: &[&str]) -> Vec<String> {
@@ -415,7 +415,7 @@ mod tests {
         );
     }
 
-    fn exhausted(scheme: &WorkItemIdScheme, filenames: &[String]) -> String {
+    fn exhausted(scheme: &IdScheme, filenames: &[String]) -> String {
         let error = allocate(scheme, None, 1, filenames).unwrap_err();
         error.message(scheme.pattern(), Path::new("meta/work"))
     }
@@ -453,7 +453,7 @@ mod tests {
     }
 
     fn overflowed(
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
         count: u32,
         filenames: &[String],
     ) -> String {

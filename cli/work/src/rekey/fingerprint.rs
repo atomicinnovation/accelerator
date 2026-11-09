@@ -5,12 +5,12 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityFingerprint {
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     items: BTreeMap<PathBuf, ItemIdentity>,
 }
 
@@ -22,7 +22,7 @@ pub enum Staleness {
 
 impl IdentityFingerprint {
     #[must_use]
-    pub fn of(scheme: &WorkItemIdScheme, items: &[ItemIdentity]) -> Self {
+    pub fn of(scheme: &IdScheme, items: &[ItemIdentity]) -> Self {
         Self {
             scheme: scheme.clone(),
             items: items
@@ -33,7 +33,7 @@ impl IdentityFingerprint {
     }
 
     #[must_use]
-    pub const fn scheme(&self) -> &WorkItemIdScheme {
+    pub const fn scheme(&self) -> &IdScheme {
         &self.scheme
     }
 
@@ -74,20 +74,20 @@ mod tests {
     use super::Staleness;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::identity::ItemIdentity;
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
-    fn scheme_of(pattern: &str, key: &str) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme_of(pattern: &str, key: &str) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse(key).ok(),
         )
     }
 
-    fn scheme() -> WorkItemIdScheme {
+    fn scheme() -> IdScheme {
         scheme_of("{key}-{number:04d}", "ACC")
     }
 

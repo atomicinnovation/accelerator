@@ -16,7 +16,7 @@ use corpus::StoreError;
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::holder_of_under;
 use crate::identity::linker_of_under;
 use crate::identity::IdentityField;
@@ -468,7 +468,7 @@ fn directory_of(path: &Path) -> &Path {
 /// already occupies the target path.
 pub fn plan_retirement(
     retirement: &Retirement<'_>,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     work_dir: &Path,
     items: &[ItemIdentity],
     corpus: &[CorpusFile],
@@ -626,7 +626,7 @@ fn retired_from(
 
 fn refuse_collisions(
     retirement: &Retirement<'_>,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     items: &[ItemIdentity],
     retiring: Option<&ItemIdentity>,
     interrupted: Option<&ItemIdentity>,
@@ -869,7 +869,7 @@ mod tests {
     use crate::dirtiness::Dirtiness;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::id_scheme::TRACKER_TOKEN;
     use crate::identity::IdentityField;
     use crate::work_item_files::identities;
@@ -918,8 +918,8 @@ mod tests {
         }
     }
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),
@@ -934,7 +934,7 @@ mod tests {
     }
 
     fn plan_under(
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
         retirement: &Retirement<'_>,
         corpus: &[CorpusFile],
     ) -> Result<RetirementPlan, RetirementRefusal> {

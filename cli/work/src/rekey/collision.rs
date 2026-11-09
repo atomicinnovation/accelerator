@@ -1,7 +1,7 @@
 //! Targets a re-key cannot hand out because something else already names
 //! them.
 
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::holder_of_under;
 use crate::identity::linker_of_under;
 use crate::identity::ItemIdentity;
@@ -18,7 +18,7 @@ use crate::rekey::outcome::NotRekeyed;
 pub fn refuse_collisions(
     entries: &[RekeyEntry],
     items: &[ItemIdentity],
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<(), NotRekeyed> {
     let mut by_old: Vec<&RekeyEntry> = entries.iter().collect();
     by_old.sort_by(|left, right| left.old.cmp(&right.old));
@@ -75,7 +75,7 @@ pub fn refuse_collisions(
 
 /// `work.key`, when `external_id` reads under a key pattern with a key equal
 /// to it: the tracker's own key is then `work.key`.
-fn shared_key(scheme: &WorkItemIdScheme, external_id: &str) -> Option<String> {
+fn shared_key(scheme: &IdScheme, external_id: &str) -> Option<String> {
     let key = scheme.key()?;
     let linked = scheme.read_held(external_id)?;
     linked
@@ -101,7 +101,7 @@ mod tests {
     use super::refuse_collisions;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::id_scheme::TRACKER_TOKEN;
     use crate::identity::ItemIdentity;
     use crate::rekey::entry::RekeyEntry;
@@ -110,23 +110,23 @@ mod tests {
     use crate::rekey::outcome::NotRekeyed;
     use crate::tracker_key::TrackerKey;
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),
         )
     }
 
-    fn acc() -> WorkItemIdScheme {
+    fn acc() -> IdScheme {
         scheme("{key}-{number:04d}", Some("ACC"))
     }
 
-    fn pp() -> WorkItemIdScheme {
+    fn pp() -> IdScheme {
         scheme("{key}-{number:04d}", Some("PP"))
     }
 
-    fn tracker() -> WorkItemIdScheme {
+    fn tracker() -> IdScheme {
         scheme(TRACKER_TOKEN, None)
     }
 

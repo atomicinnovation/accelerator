@@ -13,7 +13,7 @@ use time::OffsetDateTime;
 use work::draft_id::DraftId;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::path_component::is_one_path_component;
 use work::path_component::is_relative_path_of_components;
@@ -225,7 +225,7 @@ impl<'a> FileRunPlanStore<'a> {
             .map(|key| IdKey::parse(&key))
             .transpose()
             .map_err(|error| malformed(&error.to_string()))?;
-        let scheme = WorkItemIdScheme::new(pattern, key);
+        let scheme = IdScheme::new(pattern, key);
         let items = array(value, "items")?
             .iter()
             .map(|item| {
@@ -327,7 +327,7 @@ fn relative_path<'v>(
 
 fn decode_entry(
     value: &Value,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<RekeyEntry, Unreadability> {
     let target = field(value, "target")?;
     let id = text(target, "id")?;

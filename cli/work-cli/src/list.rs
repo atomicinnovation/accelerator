@@ -20,7 +20,7 @@ use work::filter::WorkItemView;
 use work::hierarchy::children_of;
 use work::hierarchy::cyclic_members;
 use work::hierarchy::HierarchyNode;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::show::read_field_raw;
 use work::sync::label;
@@ -170,7 +170,7 @@ fn item_view(item: &ScannedItem) -> WorkItemView<'_> {
 pub fn apply_filter<'a>(
     items: &'a [ScannedItem],
     filter: &Filter,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Vec<&'a ScannedItem> {
     items
         .iter()
@@ -326,7 +326,7 @@ fn tree_line(item: &ScannedItem, label: Option<&&'static str>) -> String {
 pub fn render_hierarchy(
     items: &[&ScannedItem],
     labels: Option<&BTreeMap<String, &'static str>>,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> String {
     let canonical_id: BTreeMap<String, &ScannedItem> = items
         .iter()
@@ -393,7 +393,7 @@ fn render_children(
     labels: Option<&BTreeMap<String, &'static str>>,
     lines: &mut Vec<String>,
     depth: usize,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) {
     let Some(group) = children.get(parent) else {
         return;
@@ -542,7 +542,7 @@ pub fn render(
     filter: &Filter,
     labels: Option<&BTreeMap<String, &'static str>>,
     hierarchy: bool,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> String {
     let selected = apply_filter(items, filter, scheme);
     if selected.is_empty() {
@@ -696,8 +696,8 @@ mod tests {
 
     use super::*;
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     struct AlwaysClean;

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use config_adapters::FileConfigStore;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::resolve_identity;
 use work::identity::IdentityField;
 use work::identity::IdentityMatch;
@@ -133,7 +133,7 @@ pub fn canonical_work_dir(
 /// set.
 #[must_use]
 pub fn resolve_with(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     work_dir: &Path,
     start: &Path,
     input: &str,
@@ -162,7 +162,7 @@ pub fn resolve_with(
 
 fn resolve_by_filename(
     class: InputClass,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     work_dir: &Path,
     input: &str,
 ) -> RunOutcome {
@@ -206,7 +206,7 @@ mod tests {
 
     use work::id_pattern::IdKey;
     use work::id_pattern::IdPattern;
-    use work::id_scheme::WorkItemIdScheme;
+    use work::id_scheme::IdScheme;
     use work::id_scheme::TRACKER_TOKEN;
     use work::identity::IdentityField;
 
@@ -227,14 +227,14 @@ mod tests {
         path.to_path_buf()
     }
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern).expect("a well-formed pattern"),
             key.map(|key| IdKey::parse(key).expect("a well-formed key")),
         )
     }
 
-    fn tracker() -> WorkItemIdScheme {
+    fn tracker() -> IdScheme {
         scheme(TRACKER_TOKEN, None)
     }
 
@@ -254,7 +254,7 @@ mod tests {
         );
 
         let outcome = resolve_with(
-            &WorkItemIdScheme::numeric(),
+            &IdScheme::numeric(),
             &work_dir,
             &work_dir,
             "draft-k7mq3x",
@@ -383,12 +383,8 @@ mod tests {
         )
         .expect("chmod");
 
-        let outcome = resolve_with(
-            &WorkItemIdScheme::numeric(),
-            &work_dir,
-            &work_dir,
-            "0042",
-        );
+        let outcome =
+            resolve_with(&IdScheme::numeric(), &work_dir, &work_dir, "0042");
 
         std::fs::set_permissions(
             &drafts,

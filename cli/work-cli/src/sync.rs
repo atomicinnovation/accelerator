@@ -38,7 +38,7 @@ use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
 use work::inventory::CorpusInventory;
@@ -374,7 +374,7 @@ struct Orders {
 fn parse_orders(
     raw: &[(String, String)],
     integration: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<Orders, String> {
     let mut orders = Orders {
         resolutions: BTreeMap::new(),
@@ -993,7 +993,7 @@ fn dossier_path(dir: &Path, id: &str) -> PathBuf {
 fn retire_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     authority: &DossierAuthority<'_>,
 ) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -1055,7 +1055,7 @@ fn persist_dossiers(
     store: &dyn SyncStore,
     dossiers: &[ConflictDossier],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = Vec::new();
@@ -1096,7 +1096,7 @@ fn partially_resolved_dossiers(
     console: &mut Console<'_>,
     ids: &[String],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Vec<StaleDossier> {
     ids.iter()
         .filter(|id| is_token_safe(scheme, id))
@@ -1117,7 +1117,7 @@ fn persist_conflict_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
     report: &RunReport,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = partially_resolved_dossiers(
@@ -2075,7 +2075,7 @@ impl Refusal {
 struct PreparedSync {
     integration: String,
     repo_root: PathBuf,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     discarding: BTreeSet<String>,
     roots: ValidatedRoots,
     integration_state: BoundedRoot,
@@ -2286,7 +2286,7 @@ fn sync_request<'a>(
 }
 
 fn ids_to_discard(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     named: &[String],
 ) -> Result<BTreeSet<String>, String> {
     named
@@ -2311,7 +2311,7 @@ struct RunAssembly<'a> {
     repo_root: &'a Path,
     tracker: &'a dyn tracker::RemoteTracker,
     identity_run: &'a IdentityRunGuard,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     roots: &'a ValidatedRoots,
 }
 
@@ -2399,7 +2399,7 @@ struct FinishedRunContext<'a> {
     corpus: &'a [LocalItem],
     workspace: &'a IdentityWorkspace,
     work_dir: &'a Path,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     discarding: &'a BTreeSet<String>,
     finaliser: &'a dyn RunFinaliser,
     dossier_store: &'a dyn SyncStore,
@@ -2567,7 +2567,7 @@ mod tests {
     use crate::finished_run::StaleDossierCause;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
-    use work::id_scheme::WorkItemIdScheme;
+    use work::id_scheme::IdScheme;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
@@ -2624,8 +2624,8 @@ mod tests {
         assert!(!unbounded_gate_fires(Ceiling::Unlimited, false, false));
     }
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     fn target_item(dir: &Path, id: &str, external: Option<&str>) -> LocalItem {
@@ -5266,8 +5266,8 @@ mod tests {
         );
     }
 
-    fn tracker_scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn tracker_scheme() -> IdScheme {
+        IdScheme::new(
             work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
                 .expect("the tracker pattern"),
             None,

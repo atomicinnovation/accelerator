@@ -46,7 +46,7 @@ use vcs::WorkingCopyStateProbe;
 use work::dirtiness::Dirtiness;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity_run::begin_rekey_run;
 use work::identity_run::HeldIdentityRun;
 use work::identity_run::IdentityRun;
@@ -89,8 +89,7 @@ use work_adapters::sync::files::SyncStore;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 use work_adapters::sync::recovery_label::RecoveryLabels;
 
-static SCHEME: std::sync::LazyLock<WorkItemIdScheme> =
-    std::sync::LazyLock::new(scheme);
+static SCHEME: std::sync::LazyLock<IdScheme> = std::sync::LazyLock::new(scheme);
 
 pub type TestError = Box<dyn std::error::Error>;
 
@@ -580,8 +579,8 @@ pub fn entry_fragment(id: &str, entry: Entry) -> String {
 
 // "{key}" and "{number:04d}" are pattern tokens, not format args.
 #[allow(clippy::literal_string_with_formatting_args)]
-pub fn scheme() -> WorkItemIdScheme {
-    WorkItemIdScheme::new(
+pub fn scheme() -> IdScheme {
+    IdScheme::new(
         IdPattern::parse("{key}-{number:04d}")
             .unwrap_or_else(|error| unreachable!("{error}")),
         IdKey::parse("ACC").ok(),

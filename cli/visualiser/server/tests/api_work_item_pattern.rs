@@ -9,7 +9,7 @@ use http_body_util::BodyExt;
 use std::collections::HashMap;
 use tower::ServiceExt;
 use work::id_pattern::{IdKey, IdPattern};
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     config_for(
@@ -36,8 +36,8 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     )
 }
 
-fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-    WorkItemIdScheme::new(
+fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+    IdScheme::new(
         IdPattern::parse(pattern).unwrap(),
         key.map(|key| IdKey::parse(key).unwrap()),
     )
@@ -46,7 +46,7 @@ fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
 fn config_for(
     tmp: &std::path::Path,
     files: &[(&str, &str)],
-    work_item: WorkItemIdScheme,
+    work_item: IdScheme,
 ) -> Config {
     let work = tmp.join("meta/work");
     std::fs::create_dir_all(&work).unwrap();

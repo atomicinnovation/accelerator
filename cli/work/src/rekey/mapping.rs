@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
-use crate::id_scheme::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
 use crate::path_component::is_one_path_component;
 use crate::rekey::classify::classify;
@@ -40,7 +40,7 @@ pub struct RekeyCandidate {
 /// [`NotRekeyed`] when an item's `id` has no known shape, a kept or fresh
 /// number does not fit the pattern, or a target collides.
 pub fn numeric_mapping(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidates: &[RekeyCandidate],
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
     let cap = cap_of(scheme);
@@ -85,13 +85,13 @@ pub fn numeric_mapping(
     Ok(entries)
 }
 
-fn cap_of(scheme: &WorkItemIdScheme) -> u64 {
+fn cap_of(scheme: &IdScheme) -> u64 {
     scheme.pattern().cap().unwrap_or(u64::MAX)
 }
 
 /// `number` as the pattern renders it under `work.key`, which a scheme a
 /// re-key runs under always holds when its pattern needs one.
-fn rendered(scheme: &WorkItemIdScheme, number: u64) -> String {
+fn rendered(scheme: &IdScheme, number: u64) -> String {
     scheme
         .pattern()
         .render(scheme.key(), number)
@@ -101,7 +101,7 @@ fn rendered(scheme: &WorkItemIdScheme, number: u64) -> String {
 fn cause_of(
     unclassified: Unclassified,
     id: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> UnclassifiableCause {
     let id = id.to_owned();
     match unclassified {
@@ -137,7 +137,7 @@ fn renumbered(old: &str, new: String) -> RekeyEntry {
 /// The highest number held, as an `id`, an alias or a kept target, bare or
 /// under the default key.
 fn default_key_floor(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidates: &[RekeyCandidate],
     kept: &[RekeyEntry],
 ) -> u64 {
@@ -163,7 +163,7 @@ fn default_key_floor(
 }
 
 fn fresh_entries(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     floor: u64,
     mut needing_fresh: Vec<&RekeyCandidate>,
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
@@ -251,7 +251,7 @@ pub fn keys_to_refresh(
 /// [`NotRekeyed`] when an `external_id` is not shaped like a tracker key,
 /// no free draft ID can be drawn, or a target collides.
 pub fn tracker_mapping(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     candidates: &[RekeyCandidate],
     refreshed: &RefreshedKeys,
     draws: &mut dyn SuffixDraws,
@@ -315,7 +315,7 @@ mod tests {
     use super::RekeyCandidate;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
-    use crate::id_scheme::WorkItemIdScheme;
+    use crate::id_scheme::IdScheme;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
@@ -324,19 +324,19 @@ mod tests {
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
-    fn scheme(pattern: &str, key: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme::new(
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),
         )
     }
 
-    fn keyed(key: &str) -> WorkItemIdScheme {
+    fn keyed(key: &str) -> IdScheme {
         scheme("{key}-{number:04d}", Some(key))
     }
 
-    fn acc() -> WorkItemIdScheme {
+    fn acc() -> IdScheme {
         keyed("ACC")
     }
 
@@ -390,7 +390,7 @@ mod tests {
     }
 
     fn mapped(
-        scheme: &WorkItemIdScheme,
+        scheme: &IdScheme,
         candidates: &[RekeyCandidate],
     ) -> Vec<(String, String)> {
         numeric_mapping(scheme, candidates)
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn a_prefixed_id_is_rerendered_bare() {
         assert_eq!(
-            mapped(&WorkItemIdScheme::numeric(), &[local("ACC-0042")]),
+            mapped(&IdScheme::numeric(), &[local("ACC-0042")]),
             pairs(&[("ACC-0042", "0042")])
         );
     }
@@ -542,7 +542,7 @@ mod tests {
     #[test]
     fn a_kept_number_past_the_cap_is_refused_naming_the_item() {
         assert_eq!(
-            numeric_mapping(&WorkItemIdScheme::numeric(), &[local("PP-12345")]),
+            numeric_mapping(&IdScheme::numeric(), &[local("PP-12345")]),
             Err(NotRekeyed::KeptNumberAboveCap {
                 item: path_of("PP-12345"),
                 number: 12_345,
@@ -722,7 +722,7 @@ mod tests {
         use crate::draft_id::SuffixDraws;
         use crate::draft_id::ALPHABET;
         use crate::id_pattern::IdPattern;
-        use crate::id_scheme::WorkItemIdScheme;
+        use crate::id_scheme::IdScheme;
         use crate::id_scheme::TRACKER_TOKEN;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
@@ -793,8 +793,8 @@ mod tests {
             )
         }
 
-        fn tracker_scheme() -> WorkItemIdScheme {
-            WorkItemIdScheme::new(
+        fn tracker_scheme() -> IdScheme {
+            IdScheme::new(
                 IdPattern::parse(TRACKER_TOKEN)
                     .unwrap_or_else(|error| unreachable!("{error}")),
                 None,

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use ::config::Key;
-use work::id_scheme::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work_adapters::config::read_scheme;
 use work_adapters::config::resolve_scheme;
 use work_adapters::config::SchemeError;
@@ -26,7 +26,7 @@ pub fn effective_nonempty(
         .rendered())
 }
 
-fn announced(reading: SchemeReading) -> WorkItemIdScheme {
+fn announced(reading: SchemeReading) -> IdScheme {
     ::config::emit_deprecation_once(
         LEGACY_PREFIX_KEY,
         reading.deprecation.as_deref(),
@@ -43,7 +43,7 @@ fn announced(reading: SchemeReading) -> WorkItemIdScheme {
 /// [`work_adapters::config::resolve_scheme`].
 pub fn announced_scheme_with_key(
     config: &dyn ConfigAccess,
-) -> Result<WorkItemIdScheme, SchemeError> {
+) -> Result<IdScheme, SchemeError> {
     resolve_scheme(config).map(announced)
 }
 
@@ -55,12 +55,12 @@ pub fn announced_scheme_with_key(
 /// A [`SchemeError`] from [`work_adapters::config::read_scheme`].
 pub fn announced_scheme(
     config: &dyn ConfigAccess,
-) -> Result<WorkItemIdScheme, SchemeError> {
+) -> Result<IdScheme, SchemeError> {
     read_scheme(config).map(announced)
 }
 
 pub struct WorkItemLocation {
-    pub scheme: WorkItemIdScheme,
+    pub scheme: IdScheme,
     pub root: PathBuf,
     pub work_dir: PathBuf,
 }
