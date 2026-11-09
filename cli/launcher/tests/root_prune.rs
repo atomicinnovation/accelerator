@@ -1573,6 +1573,55 @@ fn a_retired_partial_archive_goes_with_its_lock() {
     assert!(!exists(&lock), "the lock survived its archive");
 }
 
+struct AtStep {
+    at: PruneStep,
+    action: Box<dyn Fn() + Send + Sync>,
+}
+
+impl PruneSteps for AtStep {
+    fn reached(&self, step: PruneStep) {
+        if step == self.at {
+            (self.action)();
+        }
+    }
+}
+
+#[test]
+fn a_reap_that_cannot_read_trees_names_the_directory_and_its_cause() {
+    if is_running_as_root() {
+        return;
+    }
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    trees.plant_temp_generation(
+        &on_host("retired"),
+        &digest('e'),
+        harness.aged(),
+    );
+    let directory = trees.paths().root().to_path_buf();
+    let unlistable = directory.clone();
+
+    let verb = harness.prune(Ports {
+        steps: Arc::new(AtStep {
+            at: PruneStep::TreeLockHeld,
+            action: Box::new(move || set_mode(&unlistable, 0o300)),
+        }),
+        ..harness.ports()
+    });
+
+    set_mode(&directory, 0o700);
+    verb.failed();
+    assert!(
+        verb.err.contains(&format!(
+            "could not reap orphans under {}: ",
+            directory.display()
+        )),
+        "{}",
+        verb.err
+    );
+    assert!(!verb.err.contains("other error"), "{}", verb.err);
+}
+
 #[test]
 fn a_residue_only_artifact_is_locked_and_reaped() {
     let harness = RootHarness::new();

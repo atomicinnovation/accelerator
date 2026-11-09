@@ -51,6 +51,14 @@ pub struct RemovalFailure {
     pub kind: io::ErrorKind,
 }
 
+/// A reap that could not start, so it removed none of the orphans under
+/// `root`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReapFailure {
+    pub root: PathBuf,
+    pub detail: String,
+}
+
 /// Whether a removal adds to the reclaimed count: an entry's signature, a
 /// lock directory's pid file and a generation's sidecars go uncounted with
 /// what they belong to.
