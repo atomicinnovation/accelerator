@@ -39,12 +39,22 @@ pub enum ShimSource {
     Unhashable,
 }
 
+/// A copy's name carries only its digest, so while another version may still
+/// bootstrap here its copy cannot be told from a stale one.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum OtherVersions {
+    #[default]
+    Unclaimed,
+    MayBeActive,
+}
+
 /// The shim copy each platform's bootstraps run, even on another host
 /// sharing the root; removing it would race a live bootstrap into
 /// `fail_integrity`, which leaves a lasting unverified-launcher notice.
 #[derive(Debug, Default)]
 pub struct RunningShims {
     sources: BTreeMap<String, ShimSource>,
+    other_versions: OtherVersions,
 }
 
 impl RunningShims {
@@ -54,7 +64,16 @@ impl RunningShims {
         self
     }
 
+    #[must_use]
+    pub const fn alongside(mut self, other_versions: OtherVersions) -> Self {
+        self.other_versions = other_versions;
+        self
+    }
+
     fn runs(&self, platform: &str, digest: &str) -> bool {
+        if self.other_versions == OtherVersions::MayBeActive {
+            return true;
+        }
         match self.sources.get(platform) {
             Some(ShimSource::Digest(running)) => running == digest,
             Some(ShimSource::Unhashable) | None => true,
@@ -214,7 +233,6 @@ impl SingleFilePrune<'_> {
         _held: &HeldRootLock,
     ) -> SingleFileOutcome {
         let entries = listing.classified();
-        let running_shims = self.running_shims(&entries);
         let live_bootstraps = self.live_bootstraps(&entries);
         let mut outcome = SingleFileOutcome::default();
         let claims = match version_claims::list(
@@ -242,6 +260,14 @@ impl SingleFilePrune<'_> {
                 self.ports.clock.as_ref(),
             )
         });
+        let other_versions = match &claimed {
+            Some(fresh) if !fresh.holds_any_besides(self.running_version) => {
+                OtherVersions::Unclaimed
+            }
+            _ => OtherVersions::MayBeActive,
+        };
+        let running_shims =
+            self.running_shims(&entries).alongside(other_versions);
         let context = ProtectionContext {
             fresh: claimed
                 .clone()
@@ -1102,6 +1128,50 @@ mod run_tests {
         }
         fresh.prune_with(fresh.ports(), Some(plugin.path()), CLAIM_WINDOW);
         assert!(stale.iter().all(|copy| fresh.has(copy)));
+    }
+
+    #[test]
+    fn another_versions_fresh_claim_keeps_every_shim_copy() {
+        let plugin = Plugin::with_sources(&[HOST_PLATFORM]);
+        let foreign = shim_copy(HOST_PLATFORM, OTHER_DIGEST);
+
+        let shared = Seeded::new();
+        shared.root.file(&foreign, b"", aged(shared.now));
+        shared.claim("2.0.0", OTHER_ID, shared.now);
+        shared.prune_with(shared.ports(), Some(plugin.path()), CLAIM_WINDOW);
+        assert!(shared.has(&foreign));
+
+        let alone = Seeded::new();
+        alone.root.file(&foreign, b"", aged(alone.now));
+        alone.claim(RUNNING, LAUNCHER_ID, alone.now);
+        alone.claim("2.0.0", OTHER_ID, alone.now - 2 * CLAIM_WINDOW.as_secs());
+        alone.prune_with(alone.ports(), Some(plugin.path()), CLAIM_WINDOW);
+        assert!(!alone.has(&foreign));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_claims_keep_every_shim_copy() {
+        let plugin = Plugin::with_sources(&[HOST_PLATFORM]);
+        let root = Seeded::new();
+        let foreign = shim_copy(HOST_PLATFORM, OTHER_DIGEST);
+        root.root.file(&foreign, b"", aged(root.now));
+        root.claim("2.0.0", OTHER_ID, root.now);
+        let filesystem = ReportingFilesystem::over_system().failing_entry(
+            &root.claims(),
+            std::io::ErrorKind::PermissionDenied,
+        );
+
+        root.prune_with(
+            Ports {
+                filesystem: Arc::new(filesystem),
+                ..root.ports()
+            },
+            Some(plugin.path()),
+            CLAIM_WINDOW,
+        );
+
+        assert!(root.has(&foreign));
     }
 
     #[test]

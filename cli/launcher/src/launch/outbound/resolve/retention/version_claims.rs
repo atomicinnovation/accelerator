@@ -190,6 +190,11 @@ impl FreshVersions {
         self.versions.contains(version)
     }
 
+    #[must_use]
+    pub fn holds_any_besides(&self, version: &str) -> bool {
+        self.versions.iter().any(|fresh| fresh != version)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &str> {
         self.versions.iter().map(String::as_str)
     }
