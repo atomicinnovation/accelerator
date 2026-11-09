@@ -9,9 +9,9 @@ status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/180"
 pr_number: 180
 tags: []
-revision: "6cafaac15986dc41feaf9259b44d6ede078da7fd"
+revision: "54a91e99d806b16d1d7ea793fdd2168463be0b9e"
 repository: "accelerator"
-last_updated: "2026-11-09T00:43:47+00:00"
+last_updated: "2026-11-09T12:03:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -160,7 +160,10 @@ removed base line; context never needs reading.
   that reading flows between views: a ticked stop reads its lines in All
   files, a reviewed file shows the stop as read via it, a line marked in By
   commit reads in All files and the reverse, single lines can be marked, each
-  unread run has one mark link, and `n` reaches an unread line.
+  unread run has one mark link, and `n` reaches an unread line. Last, it
+  unfolds a run of unchanged lines in a file opened by link and in one picked
+  from the file list; before this branch's fix, a file picked from the list
+  could not be unfolded.
 
 ## Context
 
@@ -183,8 +186,8 @@ does not depend on that change.
   other added, through `export`-shaped data, `extract_commits.py` and
   `build.py`, and ran `smoke.js` against it: every route rendered, including
   By commit, `"ok": true`, every cross-view check passed, with no errors and
-  no phone-width overflow. Each of the four commits since the last
-  description was checked at its own state.
+  no phone-width overflow. Each commit since the first description was
+  checked at its own state.
 - [x] Exported and traced #170's 81 commits: no traced line is outside the
   whole diff's changed lines, none is claimed twice, and 18 of the whole
   diff's 24,119 changed lines belong to no commit (see Notes). The same page
