@@ -46,6 +46,10 @@ pub fn refresh(
 }
 
 /// A young valid claim is left alone, so a crawl writes at most once.
+///
+/// One dated further ahead than the refresh interval came from a skewed clock
+/// and is rewritten, or it would protect its version until the clock caught
+/// up.
 #[must_use]
 pub fn is_due(
     root: &Path,
@@ -56,10 +60,12 @@ pub fn is_due(
 ) -> bool {
     let path = root.join(VERSION_CLAIMS_DIR).join(claim.name());
     let now = clock.now_seconds();
+    let refresh = CLAIM_WINDOW.as_secs() / REFRESH_FRACTION;
     !filesystem.entry(&path).is_ok_and(|entry| {
         is_valid(&entry, ownership.effective_uid())
-            && age(&entry, now).is_some_and(|age| {
-                age < CLAIM_WINDOW.as_secs() / REFRESH_FRACTION
+            && entry.modified_seconds.is_some_and(|modified| {
+                now.saturating_sub(modified) < refresh
+                    && modified.saturating_sub(now) < refresh
             })
     })
 }
@@ -310,12 +316,6 @@ const fn is_valid(entry: &EntryMetadata, uid: u32) -> bool {
     matches!(entry.kind, FileKind::File) && entry.owner == uid
 }
 
-fn age(entry: &EntryMetadata, now: u64) -> Option<u64> {
-    entry
-        .modified_seconds
-        .map(|modified| now.saturating_sub(modified))
-}
-
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
 mod tests {
@@ -555,6 +555,28 @@ mod tests {
 
         assert_eq!(std::fs::read(root.claim()).expect("claim"), b"sentinel");
         assert_eq!(modified(&root.claim()), Some(seeded));
+    }
+
+    #[test]
+    fn a_claim_dated_beyond_the_refresh_interval_ahead_is_rewritten_to_now() {
+        let root = Root::new();
+        let at = now();
+        root.seed_claim(b"", at + CLAIM_WINDOW.as_secs());
+
+        root.refresh_at(at);
+
+        assert_eq!(modified(&root.claim()), Some(at));
+    }
+
+    #[test]
+    fn a_claim_dated_slightly_ahead_is_left_alone() {
+        let root = Root::new();
+        let at = now();
+        root.seed_claim(b"sentinel", at + 60);
+
+        root.refresh_at(at);
+
+        assert_eq!(std::fs::read(root.claim()).expect("claim"), b"sentinel");
     }
 
     #[test]
