@@ -54,7 +54,11 @@ impl RootPrune<'_> {
         report: &mut PruneReport,
     ) {
         let root = self.safe.path();
-        let held = match HeldRootLock::acquire(root, patience, self.ports) {
+        let held = match HeldRootLock::acquire(
+            root,
+            patience,
+            self.ports.root_lock_ports(),
+        ) {
             Ok(Some(held)) => held,
             Ok(None) => return,
             Err(error) => {
@@ -86,12 +90,12 @@ impl RootPrune<'_> {
                 plugin_root: self.plugin_root,
                 claim_window: self.claim_window,
                 budget: self.budget,
-                ports: self.ports,
+                ports: self.ports.root_file_ports(),
             }
             .run(&listing, &held),
         );
         report.removals.absorb(
-            ResidueSweep::new(root, self.ports)
+            ResidueSweep::new(root, self.ports.root_file_ports())
                 .within(self.budget)
                 .run(&listing),
         );

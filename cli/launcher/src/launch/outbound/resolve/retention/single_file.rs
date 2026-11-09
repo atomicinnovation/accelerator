@@ -8,7 +8,7 @@ use super::super::prune_report::{
 };
 use super::super::retention_windows::{is_aged, Age};
 use super::super::verifier::sha256_hex;
-use super::ports::CachePorts;
+use super::ports::RootFilePorts;
 use super::root_entries::{Half, RootEntry, RootListing};
 use super::root_lock::HeldRootLock;
 use super::version_claims::{
@@ -244,7 +244,7 @@ pub struct SingleFilePrune<'a> {
     pub plugin_root: Option<&'a Path>,
     pub claim_window: Duration,
     pub budget: PruneBudget,
-    pub ports: &'a CachePorts,
+    pub ports: RootFilePorts<'a>,
 }
 
 struct RemovalAttempt {
@@ -289,8 +289,8 @@ impl SingleFilePrune<'_> {
         let mut outcome = PruneReport::default();
         let claims = match version_claims::list(
             self.root,
-            self.ports.filesystem.as_ref(),
-            self.ports.ownership.as_ref(),
+            self.ports.filesystem,
+            self.ports.ownership,
         ) {
             ClaimsListing::Read(claims) => Some(claims),
             ClaimsListing::Unreadable(kind) => {
@@ -312,18 +312,14 @@ impl SingleFilePrune<'_> {
             }
         };
         let claimed = claims.as_deref().map(|claims| {
-            FreshVersions::within(
-                claims,
-                self.claim_window,
-                self.ports.clock.as_ref(),
-            )
+            FreshVersions::within(claims, self.claim_window, self.ports.clock)
         });
         let grace = version_claims::grace(
             self.root,
-            self.ports.filesystem.as_ref(),
-            self.ports.ownership.as_ref(),
+            self.ports.filesystem,
+            self.ports.ownership,
             self.claim_window,
-            self.ports.clock.as_ref(),
+            self.ports.clock,
         );
         if grace == Grace::Running {
             tracing::info!(
@@ -479,7 +475,7 @@ impl SingleFilePrune<'_> {
         if disposition(entry, protection, age) == Disposition::Keep {
             return false;
         }
-        let filesystem = self.ports.filesystem.as_ref();
+        let filesystem = self.ports.filesystem;
         let removals = &mut outcome.removals;
         let rule = rule_of(entry);
         if let Some(signature) = &signature {
@@ -537,7 +533,7 @@ impl SingleFilePrune<'_> {
                 continue;
             }
             outcome.removals.remove_file(
-                self.ports.filesystem.as_ref(),
+                self.ports.filesystem,
                 &claim.path,
                 "stale version claim",
                 Count::Once,
@@ -546,7 +542,7 @@ impl SingleFilePrune<'_> {
     }
 
     fn has_budget(&self) -> bool {
-        self.budget.allows_more(self.ports.clock.as_ref())
+        self.budget.allows_more(self.ports.clock)
     }
 
     fn is_stale(&self, claim: &ListedClaim) -> bool {
@@ -554,7 +550,7 @@ impl SingleFilePrune<'_> {
             && !FreshVersions::within(
                 std::slice::from_ref(claim),
                 self.claim_window,
-                self.ports.clock.as_ref(),
+                self.ports.clock,
             )
             .contains(&claim.version)
     }
@@ -563,10 +559,7 @@ impl SingleFilePrune<'_> {
     /// the listing and here keeps its claim.
     fn is_still_stale(&self, claim: &ListedClaim) -> bool {
         claim
-            .reread(
-                self.ports.filesystem.as_ref(),
-                self.ports.ownership.as_ref(),
-            )
+            .reread(self.ports.filesystem, self.ports.ownership)
             .is_some_and(|now| self.is_stale(&now))
     }
 }
@@ -915,7 +908,7 @@ mod run_tests {
             let held = HeldRootLock::acquire(
                 self.root.path(),
                 LockPatience::Wait,
-                &ports,
+                ports.root_lock_ports(),
             )
             .expect("root lock")
             .expect("taken");
@@ -931,7 +924,7 @@ mod run_tests {
                 plugin_root,
                 claim_window,
                 budget: PruneBudget::Unbounded,
-                ports: &ports,
+                ports: ports.root_file_ports(),
             }
             .run(&listing, &held)
         }

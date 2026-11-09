@@ -10,7 +10,7 @@ use crate::launch::core::tree::TreeError;
 use super::super::filesystem::FileKind;
 use super::super::prune_report::PruneStep;
 use super::super::single_flight::{LockGuard, LockPatience};
-use super::ports::CachePorts;
+use super::ports::RootLockPorts;
 
 pub const ROOT_LOCK: &str = ".accelerator-prune.lock";
 
@@ -30,7 +30,7 @@ impl HeldRootLock {
     pub fn acquire(
         root: &Path,
         patience: LockPatience,
-        ports: &CachePorts,
+        ports: RootLockPorts<'_>,
     ) -> Result<Option<Self>, TreeError> {
         let path = root.join(ROOT_LOCK);
         refuse_unless_owned_file(&path, ports)?;
@@ -47,7 +47,7 @@ impl HeldRootLock {
 
 fn refuse_unless_owned_file(
     path: &Path,
-    ports: &CachePorts,
+    ports: RootLockPorts<'_>,
 ) -> Result<(), TreeError> {
     let refused = |detail: String| TreeError::Lease {
         detail: format!("{}: {detail}", path.display()),
@@ -122,7 +122,7 @@ mod tests {
     ) -> Result<bool, TreeError> {
         let root = root.to_path_buf();
         within(BLOCKING_BOUND, "the root lock", move || {
-            HeldRootLock::acquire(&root, patience, &ports)
+            HeldRootLock::acquire(&root, patience, ports.root_lock_ports())
                 .map(|held| held.is_some())
         })
     }

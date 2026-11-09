@@ -8,7 +8,7 @@ use super::super::filesystem::{CacheFilesystem, FileKind};
 use super::super::ownership::is_trusted_directory_entry;
 use super::super::prune_report::{Count, PruneBudget, Removals};
 use super::super::retention_windows::is_aged;
-use super::ports::CachePorts;
+use super::ports::RootFilePorts;
 use super::root_entries::{RootEntry, RootListing};
 
 const PID_FILE: &str = "pid";
@@ -40,7 +40,7 @@ impl BootstrapHolderLiveness for KillZeroProbe {
 /// Runs under the root lock, over the same listing single-file prune read.
 pub struct ResidueSweep<'a> {
     root: &'a Path,
-    ports: &'a CachePorts,
+    ports: RootFilePorts<'a>,
     budget: PruneBudget,
 }
 
@@ -53,7 +53,7 @@ struct AbandonedLock {
 }
 
 impl<'a> ResidueSweep<'a> {
-    pub const fn new(root: &'a Path, ports: &'a CachePorts) -> Self {
+    pub const fn new(root: &'a Path, ports: RootFilePorts<'a>) -> Self {
         Self {
             root,
             ports,
@@ -69,7 +69,7 @@ impl<'a> ResidueSweep<'a> {
     pub fn run(&self, listing: &RootListing) -> Removals {
         let mut removals = Removals::default();
         for (name, entry) in listing.classified() {
-            if !self.budget.allows_more(self.ports.clock.as_ref()) {
+            if !self.budget.allows_more(self.ports.clock) {
                 break;
             }
             match entry {
@@ -85,7 +85,7 @@ impl<'a> ResidueSweep<'a> {
 
     fn sweep_probe(&self, name: &str, removals: &mut Removals) {
         let path = self.root.join(name);
-        let filesystem = self.ports.filesystem.as_ref();
+        let filesystem = self.ports.filesystem;
         if filesystem.entry(&path).is_ok_and(|entry| {
             entry.kind == FileKind::File
                 && is_aged(entry.modified_seconds, self.now())
@@ -105,7 +105,7 @@ impl<'a> ResidueSweep<'a> {
         if self.abandoned(&lock, &pid).as_ref() != Some(&judged) {
             return;
         }
-        let filesystem = self.ports.filesystem.as_ref();
+        let filesystem = self.ports.filesystem;
         if !holds_only_its_pid(filesystem, &lock) {
             tracing::warn!(
                 lock = %lock.display(),
@@ -133,13 +133,13 @@ impl<'a> ResidueSweep<'a> {
     }
 
     fn abandoned(&self, lock: &Path, pid: &Path) -> Option<AbandonedLock> {
-        let filesystem = self.ports.filesystem.as_ref();
+        let filesystem = self.ports.filesystem;
         let entry = filesystem.entry(lock).ok()?;
         if !is_trusted_directory_entry(
             lock,
             &entry,
             filesystem,
-            self.ports.ownership.as_ref(),
+            self.ports.ownership,
         ) || !is_aged(entry.modified_seconds, self.now())
         {
             return None;
@@ -223,7 +223,8 @@ mod tests {
             ports.steps.as_ref(),
         )
         .expect("listed");
-        let removals = ResidueSweep::new(root.path(), &ports).run(&listing);
+        let removals = ResidueSweep::new(root.path(), ports.root_file_ports())
+            .run(&listing);
         assert!(removals.failures.is_empty(), "{:?}", removals.failures);
         removals.reclaimed
     }
