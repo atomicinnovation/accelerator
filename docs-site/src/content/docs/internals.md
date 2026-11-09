@@ -323,9 +323,10 @@ so the launcher bounds what it holds:
   version is in use as `claims/<version>.<launcher-id>` in the cache
   directory, rewriting the claim at most once every ~1.4 days.
 - **Automatic prune.** Every cold dispatch and every runtime-tree
-  materialise prunes the directory before the dispatch runs. A part of the
-  directory another process is pruning or holding is skipped, never waited
-  for.
+  materialise prunes the directory before the dispatch runs, starting
+  removals for at most about two seconds and leaving the rest to later cold
+  paths. A part of the directory another process is pruning or holding is
+  skipped, never waited for.
 - **Retention.** A version loses its entries 12.6 to 14 days after its last
   use, because its claim was last rewritten up to ~1.4 days before that, and
   re-fetches them on its next dispatch. A runtime tree stays

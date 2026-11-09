@@ -6,7 +6,7 @@ use std::path::Path;
 
 use super::super::filesystem::{CacheFilesystem, FileKind};
 use super::super::ownership::is_trusted_directory_entry;
-use super::super::prune_report::{Count, Removals};
+use super::super::prune_report::{Count, PruneBudget, Removals};
 use super::super::retention_windows::is_aged;
 use super::ports::CachePorts;
 use super::root_entries::{RootEntry, RootListing};
@@ -41,6 +41,7 @@ impl BootstrapHolderLiveness for KillZeroProbe {
 pub struct ResidueSweep<'a> {
     root: &'a Path,
     ports: &'a CachePorts,
+    budget: PruneBudget,
 }
 
 /// What a lock directory looked like when judged abandoned, so a bootstrap
@@ -53,12 +54,24 @@ struct AbandonedLock {
 
 impl<'a> ResidueSweep<'a> {
     pub const fn new(root: &'a Path, ports: &'a CachePorts) -> Self {
-        Self { root, ports }
+        Self {
+            root,
+            ports,
+            budget: PruneBudget::Unbounded,
+        }
+    }
+
+    #[must_use]
+    pub const fn within(self, budget: PruneBudget) -> Self {
+        Self { budget, ..self }
     }
 
     pub fn run(&self, listing: &RootListing) -> Removals {
         let mut removals = Removals::default();
         for (name, entry) in listing.classified() {
+            if !self.budget.allows_more(self.ports.clock.as_ref()) {
+                break;
+            }
             match entry {
                 RootEntry::Probe => self.sweep_probe(name, &mut removals),
                 RootEntry::BootstrapLock => {

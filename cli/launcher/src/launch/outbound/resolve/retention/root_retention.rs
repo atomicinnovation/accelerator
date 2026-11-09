@@ -9,7 +9,8 @@ use super::super::cache_root::{
 use super::super::ownership::safe_root::{
     SafePruneRoot, TrustedOwners, UnsafeRoot,
 };
-use super::super::retention_windows::CLAIM_WINDOW;
+use super::super::prune_report::PruneBudget;
+use super::super::retention_windows::{CLAIM_WINDOW, COLD_PATH_BUDGET};
 use super::super::single_flight::LockPatience;
 use super::super::tree::after_materialise::{
     AfterMaterialise, ReapPermit, RootTrust,
@@ -72,6 +73,7 @@ impl RootRetention for PluginBinRetention {
             TreePrune {
                 regime: TreePruneRegime::PinnedOnHost(&self.root),
                 claim_window: older_than.unwrap_or(CLAIM_WINDOW),
+                budget: PruneBudget::Unbounded,
                 ports: self.ports.tree_prune_ports(&HeldLeases::none()),
             }
             .run(LockPatience::Wait),
@@ -105,14 +107,20 @@ impl RelocatedRetention {
         &'a self,
         safe: &'a SafePruneRoot,
         claim_window: Duration,
+        budget: PruneBudget,
     ) -> RootPrune<'a> {
         RootPrune {
             safe,
             running_version: &self.running_version,
             plugin_root: self.plugin_root.as_deref(),
             claim_window,
+            budget,
             ports: &self.ports,
         }
+    }
+
+    fn cold_path_budget(&self) -> PruneBudget {
+        PruneBudget::starting_now(self.ports.clock.as_ref(), COLD_PATH_BUDGET)
     }
 
     /// A cold path reports nothing to the user, so an unsafe root is logged
@@ -140,7 +148,7 @@ impl AfterStore for RelocatedRetention {
         if let Some(safe) = self.safe_for_cold_path() {
             warn_of(
                 &self
-                    .root_prune(&safe, CLAIM_WINDOW)
+                    .root_prune(&safe, CLAIM_WINDOW, self.cold_path_budget())
                     .run(LockPatience::Try, held_leases),
             );
         }
@@ -162,7 +170,9 @@ impl AfterMaterialise for RelocatedRetention {
     fn after_materialise(&self, held: HeldTreeLock) {
         match self.safe_for_cold_path() {
             Some(safe) => warn_of(
-                &self.root_prune(&safe, CLAIM_WINDOW).after_materialise(held),
+                &self
+                    .root_prune(&safe, CLAIM_WINDOW, self.cold_path_budget())
+                    .after_materialise(held),
             ),
             None => drop(held),
         }
@@ -192,8 +202,12 @@ impl RootRetention for RelocatedRetention {
             Err(unsafe_root) => return PruneOutcome::Refused(unsafe_root),
         };
         PruneOutcome::Ran(
-            self.root_prune(&safe, older_than.unwrap_or(CLAIM_WINDOW))
-                .run(LockPatience::Wait, &HeldLeases::none()),
+            self.root_prune(
+                &safe,
+                older_than.unwrap_or(CLAIM_WINDOW),
+                PruneBudget::Unbounded,
+            )
+            .run(LockPatience::Wait, &HeldLeases::none()),
         )
     }
 }

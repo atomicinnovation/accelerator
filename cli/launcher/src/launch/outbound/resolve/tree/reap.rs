@@ -34,6 +34,7 @@ use kernel::TEMP_PREFIX;
 use crate::launch::core::tree::{Clock, TreeError};
 
 use super::super::filesystem::SystemFilesystem;
+use super::super::prune_report::PruneBudget;
 use super::super::retention_windows::AGE_BACKSTOP;
 use super::after_materialise::ReapPermit;
 use super::layout::{
@@ -92,6 +93,7 @@ pub struct Reaper<'a> {
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
     observer: &'a dyn RemovalObserver,
+    budget: PruneBudget,
 }
 
 impl<'a> Reaper<'a> {
@@ -110,12 +112,18 @@ impl<'a> Reaper<'a> {
             liveness,
             pins,
             observer: &UnobservedRemovals,
+            budget: PruneBudget::Unbounded,
         }
     }
 
     #[must_use]
     pub const fn observed_by(self, observer: &'a dyn RemovalObserver) -> Self {
         Self { observer, ..self }
+    }
+
+    #[must_use]
+    pub const fn within(self, budget: PruneBudget) -> Self {
+        Self { budget, ..self }
     }
 
     /// Reclaim orphan temp residue and unreferenced generations under
@@ -145,6 +153,9 @@ impl<'a> Reaper<'a> {
         let referenced = referenced_generations(self.paths().root());
         let mut reclaimed = Reclaimed::default();
         for (owner, entries) in temp_entries_by_owner(&names) {
+            if !self.budget.allows_more(self.clock) {
+                return Ok(reclaimed);
+            }
             self.reap_temp_entries_of(&owner, &entries, &mut reclaimed);
         }
         self.reap_generations(&names, &referenced, &mut reclaimed);
@@ -198,6 +209,9 @@ impl<'a> Reaper<'a> {
         reclaimed: &mut Reclaimed,
     ) {
         for name in names.iter().filter(|name| is_generation(name)) {
+            if !self.budget.allows_more(self.clock) {
+                return;
+            }
             if is_reclaimable_generation(
                 self.paths(),
                 name,

@@ -26,6 +26,9 @@ pub fn is_aged(modified_seconds: Option<u64>, now: u64) -> bool {
     })
 }
 
+/// What a cold path may spend starting removals before its dispatch runs.
+pub const COLD_PATH_BUDGET: Duration = Duration::from_secs(2);
+
 #[cfg(test)]
 mod tests {
     use super::{is_aged, AGE_BACKSTOP};

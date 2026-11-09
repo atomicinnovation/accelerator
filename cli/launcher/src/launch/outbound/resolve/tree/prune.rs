@@ -22,8 +22,9 @@ use super::super::filesystem::{CacheFilesystem, EntryMetadata};
 use super::super::ownership::safe_root::SafePruneRoot;
 use super::super::ownership::{is_trusted_directory, Ownership};
 use super::super::prune_report::{
-    Count, LockFailure, PruneStep, PruneSteps, ReapFailure, Removal, Removals,
-    UnlistableDirectory, UnreadableClaims, UntrustedDirectory,
+    Count, LockFailure, PruneBudget, PruneStep, PruneSteps, ReapFailure,
+    Removal, Removals, UnlistableDirectory, UnreadableClaims,
+    UntrustedDirectory,
 };
 use super::super::retention_windows::is_aged;
 use super::super::single_flight::LockPatience;
@@ -100,6 +101,7 @@ pub struct TreePrunePorts<'a> {
 pub struct TreePrune<'a> {
     pub regime: TreePruneRegime<'a>,
     pub claim_window: Duration,
+    pub budget: PruneBudget,
     pub ports: TreePrunePorts<'a>,
 }
 
@@ -121,6 +123,10 @@ enum ArtifactLock {
 }
 
 impl TreePrune<'_> {
+    fn has_budget(&self) -> bool {
+        self.budget.allows_more(self.ports.clock)
+    }
+
     pub fn run(&self, patience: LockPatience) -> TreePruneReport {
         let mut report = TreePruneReport::default();
         let paths = self.regime.paths();
@@ -129,6 +135,9 @@ impl TreePrune<'_> {
         };
         let mut reaped = false;
         for artifact in self.regime.artifacts(&index) {
+            if !self.has_budget() {
+                break;
+            }
             match self.lock(&paths, &artifact, &index, patience) {
                 ArtifactLock::Taken(held) => {
                     self.ports.steps.reached(PruneStep::TreeLockHeld);
@@ -388,6 +397,7 @@ impl TreePrune<'_> {
             &liveness,
             self.ports.pins,
         )
+        .within(self.budget)
         .observed_by(&Announcing {
             index,
             observer: self.ports.removals,
@@ -415,6 +425,9 @@ impl TreePrune<'_> {
         let artifact = held.artifact();
         let pinned = self.ports.pins.pinned_digest(artifact);
         for (name, digest) in index.pointers_of(artifact) {
+            if !self.has_budget() {
+                return;
+            }
             let pointer = paths.root().join(name);
             let PointerTarget::Current(generation) = PointerTarget::of(
                 read_pointer(&pointer, self.ports.filesystem),
@@ -594,6 +607,9 @@ impl TreePrune<'_> {
             .iter()
             .filter(|claim| claim.sweepable && is_stale(&claim.entry))
         {
+            if !self.has_budget() {
+                return;
+            }
             if self
                 .ports
                 .filesystem

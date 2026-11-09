@@ -3,7 +3,9 @@ use std::path::Path;
 use std::time::Duration;
 
 use super::super::filesystem::FileKind;
-use super::super::prune_report::{Count, Removals, UnreadableClaims};
+use super::super::prune_report::{
+    Count, PruneBudget, Removals, UnreadableClaims,
+};
 use super::super::retention_windows::is_aged;
 use super::super::verifier::sha256_hex;
 use super::ports::CachePorts;
@@ -192,6 +194,7 @@ pub struct SingleFilePrune<'a> {
     pub running_version: &'a str,
     pub plugin_root: Option<&'a Path>,
     pub claim_window: Duration,
+    pub budget: PruneBudget,
     pub ports: &'a CachePorts,
 }
 
@@ -361,6 +364,9 @@ impl SingleFilePrune<'_> {
     ) -> VersionedRemovals {
         let mut versioned = VersionedRemovals::default();
         for (name, entry) in entries {
+            if !self.has_budget() {
+                break;
+            }
             let is_versioned = matches!(
                 entry,
                 RootEntry::SubBinary { .. } | RootEntry::LauncherEntry { .. }
@@ -446,6 +452,9 @@ impl SingleFilePrune<'_> {
         outcome: &mut SingleFileOutcome,
     ) {
         for claim in claims.iter().filter(|claim| self.is_stale(claim)) {
+            if !self.has_budget() {
+                return;
+            }
             if stale_claim_disposition(
                 claimed.contains(&claim.version),
                 versioned.every_entry_removed(&claim.version),
@@ -463,6 +472,10 @@ impl SingleFilePrune<'_> {
                 Count::Once,
             );
         }
+    }
+
+    fn has_budget(&self) -> bool {
+        self.budget.allows_more(self.ports.clock.as_ref())
     }
 
     fn is_stale(&self, claim: &ListedClaim) -> bool {
@@ -692,7 +705,7 @@ mod run_tests {
     use super::super::root_lock::HeldRootLock;
     use super::super::testing::{aged, now, young, LiveHolders, Ports, Root};
     use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
-    use super::{SingleFileOutcome, SingleFilePrune};
+    use super::{PruneBudget, SingleFileOutcome, SingleFilePrune};
 
     const RUNNING: &str = "9.9.9";
     const DIGEST: &str =
@@ -828,6 +841,7 @@ mod run_tests {
                 running_version: RUNNING,
                 plugin_root,
                 claim_window,
+                budget: PruneBudget::Unbounded,
                 ports: &ports,
             }
             .run(&listing, &held)

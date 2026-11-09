@@ -3,6 +3,9 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use crate::launch::core::tree::Clock;
 
 use super::filesystem::CacheFilesystem;
 
@@ -23,6 +26,32 @@ pub struct NoPruneSteps;
 
 impl PruneSteps for NoPruneSteps {
     fn reached(&self, _step: PruneStep) {}
+}
+
+/// How long a prune may go on starting removals.
+///
+/// A cold path runs before its dispatch, so it stops starting them once its
+/// allowance is spent and leaves the rest to a later prune; a removal already
+/// started finishes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PruneBudget {
+    Unbounded,
+    Until(u64),
+}
+
+impl PruneBudget {
+    #[must_use]
+    pub fn starting_now(clock: &dyn Clock, allowance: Duration) -> Self {
+        Self::Until(clock.now_seconds().saturating_add(allowance.as_secs()))
+    }
+
+    #[must_use]
+    pub fn allows_more(self, clock: &dyn Clock) -> bool {
+        match self {
+            Self::Unbounded => true,
+            Self::Until(deadline) => clock.now_seconds() < deadline,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

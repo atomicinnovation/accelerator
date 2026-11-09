@@ -32,7 +32,9 @@ use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::ownership::{
     Ownership as _, ProcessOwnership,
 };
-use accelerator::launch::outbound::resolve::prune_report::NoPruneSteps;
+use accelerator::launch::outbound::resolve::prune_report::{
+    NoPruneSteps, PruneBudget,
+};
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::KillZeroProbe;
 use accelerator::launch::outbound::resolve::retention::root_retention::PluginBinRetention;
@@ -540,6 +542,7 @@ fn prune_plugin_bin(
     TreePrune {
         regime: TreePruneRegime::PinnedOnHost(&root),
         claim_window: older_than.unwrap_or(retention_windows::CLAIM_WINDOW),
+        budget: PruneBudget::Unbounded,
         ports: TreePrunePorts {
             held_leases: &HeldLeases::none(),
             filesystem: &SystemFilesystem,

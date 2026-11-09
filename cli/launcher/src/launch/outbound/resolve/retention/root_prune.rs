@@ -4,8 +4,8 @@ use std::time::Duration;
 use super::super::cache_root::{NoCacheRoot, Unconfirmed};
 use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
 use super::super::prune_report::{
-    LockFailure, ReapFailure, RemovalFailure, Removals, UnlistableDirectory,
-    UnreadableClaims, UntrustedDirectory,
+    LockFailure, PruneBudget, ReapFailure, RemovalFailure, Removals,
+    UnlistableDirectory, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
@@ -22,6 +22,7 @@ pub struct RootPrune<'a> {
     pub running_version: &'a str,
     pub plugin_root: Option<&'a Path>,
     pub claim_window: Duration,
+    pub budget: PruneBudget,
     pub ports: &'a CachePorts,
 }
 
@@ -185,6 +186,7 @@ impl RootPrune<'_> {
             running_version: self.running_version,
             plugin_root: self.plugin_root,
             claim_window: self.claim_window,
+            budget: self.budget,
             ports: self.ports,
         }
         .run(&listing, &held);
@@ -192,7 +194,11 @@ impl RootPrune<'_> {
         report
             .unreadable_claims
             .extend(single_files.unreadable_claims);
-        report.absorb(ResidueSweep::new(root, self.ports).run(&listing));
+        report.absorb(
+            ResidueSweep::new(root, self.ports)
+                .within(self.budget)
+                .run(&listing),
+        );
     }
 
     fn prune_trees(
@@ -207,6 +213,7 @@ impl RootPrune<'_> {
         TreePrune {
             regime: TreePruneRegime::WholeTree(self.safe),
             claim_window: self.claim_window,
+            budget: self.budget,
             ports: self.ports.tree_prune_ports(held_leases),
         }
     }

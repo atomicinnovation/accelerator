@@ -726,6 +726,19 @@ None remaining.
   retired sub-binaries are reclaimed as retired trees are.
 - Considered and rejected for pre-claim versions: an entry-mtime fallback claim
   and a claims-directory grace period, in favour of a one-off eviction.
+  Reversed on 2026-11-09 after PR review: a pre-claim launcher cannot
+  re-resolve an evicted entry and fails its dispatch, so a root keeps every
+  version for one `CLAIM_WINDOW` after its first claim, recorded as
+  `claims/.since`.
+- Amended on 2026-11-09 after PR review:
+  - A cold path stops starting removals once `COLD_PATH_BUDGET` (2 s) is spent,
+    so a large backlog clears over several cold paths; `cache prune` still
+    clears it in one run. The A/B/C end state is reached within the budget.
+  - An override that does not resolve yet, or that has no plugin `bin` to
+    compare it with, is `Unconfirmed`: nothing is claimed, pruned or reaped
+    in it.
+  - Every staged shim copy is kept while a version other than the running one
+    holds a fresh claim, since a copy's name carries no version.
 
 ## References
 

@@ -39,7 +39,7 @@ use accelerator::launch::outbound::resolve::ownership::{
     Ownership, PrimaryGroup, ProcessOwnership,
 };
 use accelerator::launch::outbound::resolve::prune_report::{
-    NoPruneSteps, PruneStep, PruneSteps, UntrustedDirectory,
+    NoPruneSteps, PruneBudget, PruneStep, PruneSteps, UntrustedDirectory,
 };
 use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::BootstrapHolderLiveness;
@@ -1096,6 +1096,44 @@ fn a_directory_the_prune_cannot_list_is_reported_as_unlistable() {
     }
 }
 
+/// Every removal takes a second of the cold path's budget.
+#[test]
+fn a_cold_path_stops_starting_removals_once_its_budget_is_spent() {
+    let harness = RootHarness::new();
+    let entries: Vec<String> = (0..8)
+        .map(|patch| harness.entry(&format!("1.0.{patch}"), harness.aged()))
+        .collect();
+    let clock = Arc::new(SettableClock(harness.now.into()));
+    let mut filesystem = ScriptedFilesystem::over(harness.recorder());
+    for entry in &entries {
+        for removed in [entry.clone(), format!("{entry}.minisig")] {
+            let clock = Arc::clone(&clock);
+            filesystem = filesystem.before(
+                FilesystemCall::RemoveFile(in_root("")).kind(),
+                &harness.join(&removed),
+                1,
+                move || clock.set(clock.now_seconds() + 1),
+            );
+        }
+    }
+    let start = harness.start_over(
+        &harness.root,
+        TrustedOwners::none(),
+        Ports {
+            filesystem: Arc::new(filesystem),
+            clock,
+            ..harness.ports()
+        },
+    );
+
+    start.retention().after_store(&HeldLeases::none());
+
+    let kept = entries.iter().filter(|entry| harness.has(entry)).count();
+    assert!(0 < kept && kept < entries.len(), "{kept} entries kept");
+    harness.prune(harness.ports()).succeeded();
+    assert!(entries.iter().all(|entry| !harness.has(entry)));
+}
+
 #[test]
 fn a_claim_refreshed_before_unlink_is_kept() {
     let harness = RootHarness::new();
@@ -1699,6 +1737,7 @@ fn prune_trees_directly(
     TreePrune {
         regime: TreePruneRegime::WholeTree(&safe),
         claim_window: CLAIM_WINDOW,
+        budget: PruneBudget::Unbounded,
         ports: TreePrunePorts {
             held_leases,
             filesystem: ports.filesystem.as_ref(),
@@ -2297,6 +2336,7 @@ fn prune_held_tree(
     TreePrune {
         regime: TreePruneRegime::WholeTree(&safe),
         claim_window: CLAIM_WINDOW,
+        budget: PruneBudget::Unbounded,
         ports: TreePrunePorts {
             held_leases: &HeldLeases::none(),
             filesystem: ports.filesystem.as_ref(),
