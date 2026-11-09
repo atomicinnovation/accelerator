@@ -138,3 +138,90 @@ test('a file with no changed lines is never covered elsewhere', () => {
 
   assert.deepEqual(ReviewCoverage.coveredElsewhere(file, [], BINARY), []);
 });
+
+const MARKS = { target: 'lines:src/a.rs', label: 'your marks' };
+
+test('marking lines merges them into ranges per side', () => {
+  let lines = ReviewCoverage.withLinesMarked([], 'new', [3, 2, 4], true);
+  lines = ReviewCoverage.withLinesMarked(lines, 'old', [2], true);
+  lines = ReviewCoverage.withLinesMarked(lines, 'new', [5, 9], true);
+
+  assert.deepEqual(lines, ['new:2-5', 'new:9', 'old:2']);
+});
+
+test('unmarking a line splits the range around it', () => {
+  const lines = ReviewCoverage.withLinesMarked(['new:2-5'], 'new', [3], false);
+
+  assert.deepEqual(lines, ['new:2', 'new:4-5']);
+});
+
+test('marked lines claim what they name', () => {
+  const marks = ReviewCoverage.lineMarkClaims('src/a.rs', ['new:2-3', 'old:4'], MARKS);
+  const coverage = ReviewCoverage.fileCoverage('src/a.rs', MODIFIED, marks);
+
+  assert.equal(coverage.read, 3);
+  assert.deepEqual(coverage.readBy['old:4'], ['your marks']);
+});
+
+const COMMIT = {
+  sha: 'c1abcdef0000', merge: false,
+  files: [
+    { path: 'src/a.rs', headPath: 'src/a.rs', hunks: [{ o: 1, n: 1, l: [' a', '-b', '+c', '+d', ' e'] }], fate: ['old:2', 'new:2', '~c2'] },
+    { path: 'src/old.rs', headPath: 'src/new.rs', hunks: [{ o: 5, n: 5, l: ['-x', '+y'] }], fate: ['^c0', 'new:7'] },
+  ],
+};
+const COMMIT_BY = { target: 'commit:c1abcdef0000', label: 'Commit c1abcde' };
+
+test('a commit line the whole diff shows takes its key there; any other stays the commit\'s own', () => {
+  const rows = ReviewCoverage.commitLines(COMMIT);
+
+  assert.deepEqual(rows.map(r => [r.path, r.key, r.counted]), [
+    ['src/a.rs', 'old:2', true], ['src/a.rs', 'new:2', true], ['commit:c1abcdef0000:src/a.rs', 'new:3', false],
+    ['commit:c1abcdef0000:src/old.rs', 'old:5', false], ['src/new.rs', 'new:7', true],
+  ]);
+});
+
+test('a commit verdict reads every line of the commit, in the whole diff and its own', () => {
+  const claims = ReviewCoverage.commitClaims(COMMIT, COMMIT_BY);
+
+  const whole = ReviewCoverage.fileCoverage('src/a.rs', MODIFIED, claims);
+  assert.deepEqual(whole.readBy['new:2'], ['Commit c1abcde']);
+  assert.equal(whole.read, 2);
+  assert.equal(ReviewCoverage.commitCoverage(COMMIT, claims).state, 'read');
+});
+
+test('a commit is read once every line it counts is read, whatever reads it', () => {
+  const marks = [
+    ...ReviewCoverage.lineMarkClaims('src/a.rs', ['old:2', 'new:2'], MARKS),
+    ...ReviewCoverage.lineMarkClaims('src/new.rs', ['new:7'], MARKS),
+  ];
+
+  const coverage = ReviewCoverage.commitCoverage(COMMIT, marks);
+
+  assert.equal(coverage.changed, 3);
+  assert.equal(coverage.read, 3);
+  assert.equal(coverage.superseded, 2);
+  assert.equal(coverage.state, 'read');
+});
+
+test('a commit with lines left to read is read in part', () => {
+  const marks = ReviewCoverage.lineMarkClaims('src/a.rs', ['new:2'], MARKS);
+
+  assert.equal(ReviewCoverage.commitCoverage(COMMIT, marks).state, 'partial');
+});
+
+test('the readers of one line are named for it', () => {
+  const marks = ReviewCoverage.lineMarkClaims('src/a.rs', ['new:2'], MARKS);
+
+  assert.deepEqual(ReviewCoverage.readersAt(marks, 'src/a.rs', 'new', 2), ['your marks']);
+  assert.deepEqual(ReviewCoverage.readersAt(marks, 'src/a.rs', 'new', 3), []);
+});
+
+test('each line of the whole diff names the commit that last changed it', () => {
+  const later = { sha: 'c2', merge: false, files: [{ path: 'src/a.rs', headPath: 'src/a.rs', hunks: [{ o: 6, n: 6, l: ['+z'] }], fate: ['new:6'] }] };
+
+  const origins = ReviewCoverage.originsOf([COMMIT, later]);
+
+  assert.deepEqual(origins['src/a.rs'], { 'old:2': 'c1abcdef0000', 'new:2': 'c1abcdef0000', 'new:6': 'c2' });
+  assert.deepEqual(origins['src/new.rs'], { 'new:7': 'c1abcdef0000' });
+});

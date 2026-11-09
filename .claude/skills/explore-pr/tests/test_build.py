@@ -247,3 +247,88 @@ def test_the_command_line_builds_the_bundled_page(tmp_path, script):
     assert re.search(r"<title>PR 9 Explorer</title>", html)
     assert "window.EXTRA_VIEW = 1;" in html
     assert "explore-pr:data" not in html
+
+
+COMMITS = {
+    "commits": [
+        {
+            "sha": "c1",
+            "subject": "Change the core",
+            "message": "Change the core\n\nBecause.",
+            "author": "a",
+            "date": "d",
+            "merge": False,
+            "files": [
+                {
+                    "path": "src/core.rs",
+                    "headPath": "src/core.rs",
+                    "status": "modified",
+                    "previous": None,
+                    "binary": False,
+                    "add": 1,
+                    "del": 1,
+                    "hunks": [{"o": 1, "n": 1, "l": [" a", "-b", "+c"]}],
+                    "fate": ["old:2", "new:9"],
+                }
+            ],
+        }
+    ]
+}
+
+
+def with_commits(root):
+    ws = workspace(root)
+    (ws / "data/commits.json").write_text(json.dumps(COMMITS))
+    return ws
+
+
+def test_the_page_carries_a_summary_of_each_commit(tmp_path, script):
+    build = script("build")
+
+    content, _ = build.assemble(with_commits(tmp_path))
+
+    assert content["commits"] == [
+        {
+            "sha": "c1",
+            "subject": "Change the core",
+            "message": "Change the core\n\nBecause.",
+            "author": "a",
+            "date": "d",
+            "merge": False,
+            "files": 1,
+            "add": 1,
+            "del": 1,
+        }
+    ]
+
+
+def test_a_traced_line_the_whole_diff_does_not_change_is_reported(
+    tmp_path, script
+):
+    build = script("build")
+
+    _, warnings = build.assemble(with_commits(tmp_path))
+
+    assert any("c1" in w and "new:9" in w for w in warnings)
+    assert not any("old:2" in w for w in warnings)
+
+
+def test_both_layouts_carry_the_commits_when_there_are_some(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t", commits=COMMITS)
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t", commits=COMMITS)
+
+    assert "__EXPLORE_COMMITS" in page
+    hosted = json.loads((tmp_path / "commits.json").read_text())
+    assert hosted == COMMITS
+
+
+def test_a_page_without_commits_has_no_commit_data(tmp_path, script):
+    build = script("build")
+
+    content, _ = build.assemble(workspace(tmp_path / "ws"))
+    build.hosted(PAGE, tmp_path / "out", {}, {}, [], "t")
+
+    assert content["commits"] == []
+    assert not (tmp_path / "out/commits.json").exists()

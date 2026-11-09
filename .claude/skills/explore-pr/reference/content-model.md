@@ -20,6 +20,7 @@ orchestrator, the reading passes and the page.
     criteria.json         acceptance criteria to tests (scripts/criteria_map.py)
     modmap.json           module map: layers, nodes, edges
   data/diff.json          per-file diff (scripts/extract_diff.py)
+  data/commits.json       per-commit hunks, traced onto the diff (scripts/extract_commits.py)
   views/*.js              PR-specific views (reference/custom-views.md)
   page.html               optional: a modified copy of assets/page.html
 ```
@@ -380,7 +381,9 @@ can be mapped to the same shape:
 Every review control writes one record keyed by its target: `decision` (the
 overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 `stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
-`ledger:<id>`, `file:<path>`. Each record carries `target`, `kind`, `status`,
+`ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
+lines marked one at a time (its `lines` field lists them as `new:12-15` or
+`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each record carries `target`, `kind`, `status`,
 `note`, `label`, `where` and `updatedAt`. Hosted on claude.ai, records live in
 the artifact's `reviews` collection, with `/` in a target written as `~2f`.
 Opened as a file, they live in the browser's local storage under
@@ -391,11 +394,16 @@ Opened as a file, they live in the browser's local storage under
 Which changed lines the reviewer has read is derived from those records, never
 stored. A verdict of any kind on a stop claims its `start`–`end` on its
 `side`; on a ledger row, its `start`–`end`, or its `line` alone; on a file,
-the whole file. A file's changed lines are its added head lines and removed
+the whole file; on a commit, every line it changes; and a `lines` record, the
+lines it lists. A file's changed lines are its added head lines and removed
 base lines; context never needs reading. **All files** shows each file read in
 full, in part or not at all, marks each changed line in the code as read (a
 green edge, a tick, faded text, and what read it) or still to read (an amber
 edge), and the Files meter counts files read in full. In the other direction, a stop, ledger row or
 file whose lines other verdicts have already read shows as *read via* them,
-without a verdict of its own. `assets/review-coverage.js` is the model; **Your
+without a verdict of its own. In **By commit**, each line a commit changes is traced onto the whole diff, so
+it is the same line there as in All files and the tour. A line a later commit
+rewrites or removes, a line removed after an earlier commit added it, and a
+change a later commit restores are **superseded**: they can be read and
+marked, but are not counted. `assets/review-coverage.js` is the model; **Your
 notes** ends with the lines still to read.

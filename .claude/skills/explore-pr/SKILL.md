@@ -130,10 +130,11 @@ content (the contract is `{skill dir}/reference/content-model.md`):
 | Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
 | Guided tour | Chapters by design concept in reading order, each opening with its figures, then the terms it uses, then what it adds to the design; code at every stop as the evidence, each placed in the change before it is explained; invariants with the tests that pin them; a sign-off question per chapter |
 | Ledger | Every call site of the PR's riskiest class of operation: what guards it, what is held, what races it, what pins it |
+| By commit | Each commit in order with its message and hunks, stepped through with Previous/Next or `j`/`k`; lines marked one at a time, by block or by a commit verdict, shared with All files and the tour; lines a later commit superseded shown but not counted |
 | Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
 | Findings | Each prior finding with an independent verdict against the code, its level (design or implementation), and a triage control |
 | Criteria → tests | Acceptance criteria resolved to the tests that pin them |
-| All files, Domain terms, Your notes | Annotated diffs showing which changed lines the tour, the ledger and file verdicts have read, the change's vocabulary, and everything recorded, copyable as Markdown |
+| All files, Domain terms, Your notes | Annotated diffs showing which changed lines are read and which are still to read, marked one at a time, by block or from the tour, the ledger, a commit or a file verdict, with the commits that changed each file; the change's vocabulary; and everything recorded, copyable as Markdown |
 
 Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 
@@ -144,6 +145,8 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
 | `scripts/export_trees.py` | Base and head copies of every changed file, through the GitHub API |
 | `scripts/extract_diff.py` | `data/diff.json` from those trees |
+| `scripts/export_commits.py` | Every file each commit leaves behind, through the GitHub API |
+| `scripts/extract_commits.py` | `data/commits.json`: each commit's hunks, every changed line traced onto the whole diff |
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked |
@@ -245,12 +248,18 @@ Run these from the repository root:
 ```bash
 python3 {skill dir}/scripts/export_trees.py {owner/repo} {number} {workspace}
 python3 {skill dir}/scripts/extract_diff.py {workspace}/base {workspace}/head {workspace}/data/changed-files.txt {workspace}/data/diff.json
+python3 {skill dir}/scripts/export_commits.py {owner/repo} {number} {workspace}
+python3 {skill dir}/scripts/extract_commits.py {workspace}
 python3 {skill dir}/scripts/parse_review.py {review file} {workspace}/data/changed-files.txt {workspace}/content/findings.json --prefix R{review number}
 python3 {skill dir}/scripts/criteria_map.py {plan file} {workspace}/head {workspace}/content/criteria.json
 ```
 
 The trees come from the merge base and head, so the diff matches GitHub's,
-and a renamed file's diff shows what changed. Skip the last two commands when
+and a renamed file's diff shows what changed. The commit export fetches each
+file every commit touches, so it makes a few API calls per commit; the
+extraction traces every line a commit changes onto the whole diff, so the
+By commit view shares one record of what has been read with All files and the
+tour. Skip the last two commands when
 there is no review or no criterion map; the criteria map resolves tests in the
 head tree, so a test the PR does not touch stays unresolved.
 
@@ -364,8 +373,9 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   its absolute path.
 - **Hosted**: run `python3 {skill dir}/scripts/build.py {workspace} --hosted
   {workspace}/hosted`, then publish `{workspace}/hosted/index.html` with the
-  Artifact tool, following its own rules, with `content.json` and
-  `diff.json` as supporting files and the capabilities
+  Artifact tool, following its own rules, with `content.json`, `diff.json`
+  and, when it was written, `commits.json` as supporting files and the
+  capabilities
   `{"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}`.
   Prove the store with one probe record (write, list, delete), and give the
   link.

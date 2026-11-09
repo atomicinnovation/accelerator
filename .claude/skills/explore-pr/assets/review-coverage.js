@@ -32,7 +32,8 @@
     return claims;
   }
 
-  const reads = (claim, side, line) => claim.whole || (claim.side === side && claim.start <= line && line <= claim.end);
+  const reads = (claim, side, line) => claim.whole
+    || (claim.keys ? claim.keys.has(lineKey(side, line)) : claim.side === side && claim.start <= line && line <= claim.end);
   const readersOf = (claims, side, line) => claims.filter(claim => reads(claim, side, line));
   const labelsOf = claims => [...new Set(claims.map(claim => claim.by.label))];
 
@@ -84,7 +85,108 @@
     return labelsOf(readers);
   }
 
-  const ReviewCoverage = { changedLinesOf, readingClaimsIn, fileCoverage, coveredElsewhere };
+  function rangesOf(numbers) {
+    const ranges = [];
+    for (const n of [...new Set(numbers)].sort((a, b) => a - b)) {
+      const last = ranges[ranges.length - 1];
+      if (last && last[1] === n - 1) last[1] = n;
+      else ranges.push([n, n]);
+    }
+    return ranges;
+  }
+
+  function numbersOf(lines, side) {
+    const numbers = [];
+    for (const entry of lines) {
+      const [entrySide, span] = entry.split(':');
+      if (entrySide !== side) continue;
+      const [start, end = start] = span.split('-').map(Number);
+      for (let n = start; n <= end; n++) numbers.push(n);
+    }
+    return numbers;
+  }
+
+  function withLinesMarked(lines, side, numbers, marked) {
+    const out = [];
+    for (const each of ['new', 'old']) {
+      const current = new Set(numbersOf(lines, each));
+      if (each === side) numbers.forEach(n => (marked ? current.add(n) : current.delete(n)));
+      out.push(...rangesOf([...current]).map(([start, end]) => `${each}:${start}${end !== start ? '-' + end : ''}`));
+    }
+    return out;
+  }
+
+  function lineMarkClaims(path, lines, by) {
+    return ['new', 'old'].flatMap(side => rangesOf(numbersOf(lines, side)).map(([start, end]) => ({ path, side, start, end, by })));
+  }
+
+  const commitPath = (commit, file) => `commit:${commit.sha}:${file.path}`;
+  const inWholeDiff = fate => fate.includes(':');
+
+  const commitLinesMemo = new WeakMap();
+  function commitLines(commit) {
+    const known = commitLinesMemo.get(commit);
+    if (known) return known;
+    const rows = [];
+    for (const file of commit.files || []) {
+      let i = 0;
+      for (const hunk of file.hunks || []) {
+        let old = hunk.o, head = hunk.n;
+        for (const row of hunk.l) {
+          if (row[0] === '+' || row[0] === '-') {
+            const side = row[0] === '+' ? 'new' : 'old', line = side === 'new' ? head : old, fate = file.fate[i++];
+            rows.push(inWholeDiff(fate)
+              ? { file, side, line, fate, counted: true, path: file.headPath, key: fate }
+              : { file, side, line, fate, counted: false, path: commitPath(commit, file), key: lineKey(side, line) });
+          }
+          if (row[0] !== '+') old++;
+          if (row[0] !== '-') head++;
+        }
+      }
+    }
+    commitLinesMemo.set(commit, rows);
+    return rows;
+  }
+
+  function commitClaims(commit, by) {
+    return (commit.files || []).flatMap(file => [
+      { path: file.headPath, keys: new Set(file.fate.filter(inWholeDiff)), by },
+      { path: commitPath(commit, file), whole: true, by },
+    ]);
+  }
+
+  function readersAt(claims, path, side, line) {
+    return labelsOf(claims.filter(claim => claim.path === path && reads(claim, side, line)));
+  }
+
+  function commitCoverage(commit, claims) {
+    const rows = commitLines(commit);
+    const counted = rows.filter(row => row.counted);
+    const byPath = new Map();
+    claims.forEach(claim => (byPath.get(claim.path) || byPath.set(claim.path, []).get(claim.path)).push(claim));
+    const isRead = row => {
+      const [side, line] = row.key.split(':');
+      return (byPath.get(row.path) || []).some(claim => reads(claim, side, Number(line)));
+    };
+    const read = counted.filter(isRead).length;
+    const state = counted.length ? (read === counted.length ? 'read' : read ? 'partial' : 'unread') : (rows.length && rows.every(isRead) ? 'read' : 'unread');
+    return { changed: counted.length, read, superseded: rows.length - counted.length, state };
+  }
+
+  function originsOf(commits) {
+    const origins = {};
+    for (const commit of commits) {
+      for (const row of commitLines(commit).filter(each => each.counted)) {
+        (origins[row.path] = origins[row.path] || {})[row.key] = commit.sha;
+      }
+    }
+    return origins;
+  }
+
+  const ReviewCoverage = {
+    changedLinesOf, readingClaimsIn, fileCoverage, coveredElsewhere,
+    withLinesMarked, lineMarkClaims, commitLines, commitClaims, commitCoverage, readersAt, originsOf,
+  };
   if (typeof module === 'object' && module.exports) module.exports = ReviewCoverage;
   else root.ReviewCoverage = ReviewCoverage;
 })(typeof window !== 'undefined' ? window : globalThis);

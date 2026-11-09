@@ -4,8 +4,10 @@
 // route the page registers, and fails on any uncaught error, unresolved code
 // slice, or sideways scroll at phone width. It then reads a tour stop and checks
 // that All files counts and marks its lines as read and the rest as unread, and
-// marks that stop's file reviewed
-// and checks the stop shows as already read. Needs Node 22+ (global WebSocket).
+// marks that stop's file reviewed and checks the stop shows as already read.
+// With commits, it marks a line in By commit and finds it read in All files,
+// gives a file a verdict and finds its lines read in By commit, and marks one
+// line at a time in All files. Needs Node 22+ (global WebSocket).
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -102,6 +104,37 @@ const COVERAGE_PROBE = `(async () => {
   return { stop: stop.id, stopReachesFiles, linesMarked, fileReachesStops };
 })()`;
 
+const COMMITS_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = () => new Promise(r => setTimeout(r, 600));
+  if (!(api.content.commits || []).length) return { skipped: 'no commits' };
+  for (let i = 0; i < 30 && !Object.keys(api.commits || {}).length; i++) await settle();
+  const commits = Object.values(window.ExplorePR.api.commits);
+  const row = commits.flatMap(c => window.ReviewCoverage.commitLines(c).filter(r => r.counted && api.diff[r.path]).map(r => ({ ...r, sha: c.sha })))[0];
+  if (!row) return { skipped: 'no commit line in the whole diff' };
+  const sel = (lp, lk) => 'tr[data-lp="' + CSS.escape(lp) + '"][data-lk="' + lk + '"]';
+  const forget = target => api.store.put(target, target.split(':')[0], { status: '', lines: [] }, {});
+  location.hash = 'commits'; await settle();
+  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  document.querySelector('#commit-code ' + sel(row.path, row.key) + ' td.ln').click(); await settle();
+  api.openFile(row.path, +row.key.split(':')[1], row.key.startsWith('old') ? 'old' : 'new'); await settle();
+  const commitReachesFiles = !!document.querySelector('#file-code ' + sel(row.path, row.key) + '.read');
+  forget('lines:' + row.path);
+  api.store.put('file:' + row.path, 'file', { status: 'ok' }, {});
+  location.hash = 'commits'; await settle();
+  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  const filesReachCommits = !!document.querySelector('#commit-code ' + sel(row.path, row.key) + '.read');
+  forget('file:' + row.path);
+  api.openFile(row.path, null, 'new'); await settle();
+  const before = document.querySelectorAll('#file-code tr.read').length;
+  const unread = document.querySelector('#file-code tr.unread[data-lk] td.ln');
+  if (unread) unread.click();
+  await settle();
+  const linesMarkOneByOne = document.querySelectorAll('#file-code tr.read').length === before + 1;
+  forget('lines:' + row.path);
+  return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne };
+})()`;
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -127,6 +160,7 @@ async function main() {
       }
     }
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
+    report.commits = await cdp.evaluate(COMMITS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -146,7 +180,9 @@ async function main() {
   const missing = Object.entries(report.routes).filter(([, r]) => !r.heading || r.unresolvedSlices).map(([route]) => route);
   const coverage = report.coverage || {};
   const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
-  report.ok = !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const commits = report.commits || {};
+  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne);
+  report.ok = commitsHold && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

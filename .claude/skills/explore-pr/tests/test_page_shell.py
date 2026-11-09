@@ -37,3 +37,12 @@ def test_a_stop_places_itself_in_the_change_before_explaining_its_code():
 
     assert "s.fit" in stop
     assert stop.index("s.fit") < stop.index("md(s.note)")
+
+
+def test_by_commit_sits_with_the_reference_views_after_all_files():
+    shell = SHELL.read_text()
+    routes = shell[shell.index("function routes() {") :]
+    routes = routes[: routes.index("\n}\n")]
+
+    by_commit = routes.index("['commits', 'By commit', 'Reference']")
+    assert routes.index("['files', 'All files', 'Reference']") < by_commit

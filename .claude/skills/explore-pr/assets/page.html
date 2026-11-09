@@ -214,6 +214,19 @@ table.data tr:last-child td { border-bottom: 0; }
 .read-key i { display: inline-block; width: 4px; height: 12px; border-radius: 1px; margin-right: 5px; vertical-align: -1px; }
 .read-key .k-unread { background: var(--warn); }
 .read-key .k-read { background: var(--ok); }
+.read-key .k-superseded { background: var(--none); }
+.code tr[data-lk] td.ln { cursor: pointer; }
+.code tr[data-lk] td.ln:hover { color: var(--ink); text-decoration: underline; }
+.code tr.superseded.unread td.ln:first-child { box-shadow: inset 4px 0 0 var(--none); }
+.code tr.superseded td.src { font-style: italic; }
+.code tr.blk td { padding: 2px 10px 2px 14px; background: var(--panel); font-family: var(--f-body); font-size: 11.5px; line-height: 1.6; }
+.code tr.blk button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+.commit-msg { white-space: pre-wrap; font-size: 14px; color: var(--ink-2); max-width: 80ch; overflow-wrap: anywhere; }
+.fl-item.cm-item .nm { direction: ltr; font-family: var(--f-body); }
+.commit-files { display: grid; gap: 14px; }
+.pager-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pager-row .btn[disabled] { opacity: .45; cursor: default; }
+kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11.5px; }
 .code tr.gap td { background: var(--panel-2); color: var(--ink-3); font-family: var(--f-body); font-size: 12px; padding: 3px 10px; }
 .code tr.gap button { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
 .code tr.anno td { padding: 8px 12px 10px 60px; background: var(--panel); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); white-space: normal; font-family: var(--f-body); font-size: 13.5px; }
@@ -521,9 +534,10 @@ const KINDS = {
   ledger: { label: 'Removal site', opts: [['ok', 'Safe', 'ok'], ['question', 'Unsure', 'warn'], ['issue', 'Unsafe', 'bad']] },
   finding: { label: 'Triage', opts: [['block', 'Block merge', 'bad'], ['fix-now', 'Fix in PR', 'warn'], ['follow-up', 'Follow-up', 'info'], ['reject', 'Reject', 'none']] },
   file: { label: 'File', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
+  commit: { label: 'Commit', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
 };
 const Store = {
-  mode: 'none', canWrite: true, docs: new Map(), db: null, pending: new Map(), inflight: new Set(), reachable: true,
+  mode: 'none', canWrite: true, version: 0, docs: new Map(), db: null, pending: new Map(), inflight: new Set(), reachable: true,
   key: 'explore-pr',
   enc: t => t.replace(/[^A-Za-z0-9_.~:@+-]/g, c => '~' + c.charCodeAt(0).toString(16).padStart(2, '0')),
   get(t) { return this.docs.get(t) || {}; },
@@ -544,12 +558,14 @@ const Store = {
         snap.docs.forEach(d => { const v = d.data(); if (v && v.target) next.set(v.target, v); });
         for (const [t, v] of this.pending) next.set(t, { ...(next.get(t) || {}), ...v });
         this.docs = next;
+        this.version++;
         onStateChange();
       }, err => { clearTimeout(timer); this.reachable = false; renderBanner(); });
     } else {
       this.mode = 'local';
       try { const raw = localStorage.getItem(this.key); if (raw) this.docs = new Map(Object.entries(JSON.parse(raw))); } catch (e) { /* storage unavailable */ }
     }
+    this.version++;
     renderBanner();
     onStateChange();
   },
@@ -558,6 +574,7 @@ const Store = {
     const cur = this.get(target);
     const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, updatedAt: new Date().toISOString() };
     this.docs.set(target, doc);
+    this.version++;
     if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
     else { try { localStorage.setItem(this.key, JSON.stringify(Object.fromEntries(this.docs))); } catch (e) { /* storage unavailable */ } }
     onStateChange();
@@ -747,10 +764,10 @@ const ghAnchor = (path, start, end, side) => GH ? `<a href="${ghLink(path, start
 const ghLink = (path, start, end, side) => side === 'old'
   ? `${GH}/blob/${C.pr.base}/${path}${start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''}`
   : `${GH}/blob/${C.pr.head}/${path}${start ? `#L${start}${end && end !== start ? `-L${end}` : ''}` : ''}`;
-function rowHtml(r, focus) {
+function rowHtml(r, focus, attrs = '', extra = '') {
   if (r.gap) return `<tr class="gap"><td colspan="4">⋯</td></tr>`;
   const cls = r.t === 1 ? 'add' : r.t === -1 ? 'del' : 'ctx';
-  return `<tr class="${cls}${focus ? ' focus' : ''}" data-n="${r.n || ''}" data-o="${r.o || ''}"><td class="ln">${r.o || ''}</td><td class="ln">${r.n || ''}</td><td class="mk">${r.t === 1 ? '+' : r.t === -1 ? '−' : ''}</td><td class="src">${r.html || ''}</td></tr>`;
+  return `<tr class="${cls}${focus ? ' focus' : ''}${extra}" data-n="${r.n || ''}" data-o="${r.o || ''}"${attrs}><td class="ln">${r.o || ''}</td><td class="ln">${r.n || ''}</td><td class="mk">${r.t === 1 ? '+' : r.t === -1 ? '−' : ''}</td><td class="src">${r.html || ''}</td></tr>`;
 }
 function codeSlice(path, start, end, side = 'new', opts = {}) {
   const head = `<div class="code-head"><span class="path">${esc(short(path))}</span><span class="muted">${side === 'old' ? 'base ' : ''}${start}${end && end !== start ? '–' + end : ''}</span>
@@ -773,7 +790,7 @@ function fillPendingSlices() {
 /* ---------- Lookups ---------- */
 let F = {}, CH = {}, FILE = {}, LEDGER = {};
 function index() {
-  for (const [k, v] of Object.entries({ chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
+  for (const [k, v] of Object.entries({ commits: [], chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
   F = Object.fromEntries(C.findings.map(f => [f.id, f]));
   CH = Object.fromEntries(C.chapters.map(c => [c.id, c]));
   FILE = Object.fromEntries(C.files.map(f => [f.path, f]));
@@ -789,7 +806,22 @@ function index() {
 
 /* ---------- Review coverage ---------- */
 let READING_CLAIMS = [], READING_CLAIM = {};
-const recordedClaims = () => READING_CLAIMS.filter(c => Store.get(c.by.target).status);
+const MARKED = 'your line marks';
+let COMMITS = [], COMMIT = {}, ORIGINS = {};
+let claimsMemo = { at: null, claims: [] };
+function recordedClaims() {
+  if (!window.ReviewCoverage) return [];
+  const at = `${Store.version}:${COMMITS.length}`;
+  if (claimsMemo.at === at) return claimsMemo.claims;
+  const verdicts = READING_CLAIMS.filter(c => Store.get(c.by.target).status);
+  const marks = [...Store.docs.values()].filter(d => d.kind === 'lines' && (d.lines || []).length)
+    .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), d.lines, { target: d.target, label: MARKED }));
+  const commits = COMMITS.filter(c => Store.get('commit:' + c.sha).status)
+    .flatMap(c => ReviewCoverage.commitClaims(c, { target: 'commit:' + c.sha, label: 'Commit ' + shortSha(c.sha) }));
+  claimsMemo = { at, claims: [...verdicts, ...marks, ...commits] };
+  return claimsMemo.claims;
+}
+const shortSha = sha => String(sha || '').slice(0, 7);
 function coverageOf(path, recorded = recordedClaims()) {
   return window.ReviewCoverage && D && D[path] ? ReviewCoverage.fileCoverage(path, D[path], recorded) : null;
 }
@@ -823,14 +855,119 @@ function refreshCoverage(recorded) {
     const cov = coverageOf(el.dataset.coverageSummary, recorded);
     if (cov) el.textContent = coverageSummary(cov);
   });
-  const code = $('#file-code');
-  const cov = code && coverageOf(code.dataset.path, recorded);
-  if (!cov) return;
-  $$('tr.add, tr.del', code).forEach(tr => {
-    const readers = cov.readBy[tr.classList.contains('add') ? 'new:' + tr.dataset.n : 'old:' + tr.dataset.o];
-    tr.classList.toggle('read', !!readers);
-    tr.classList.toggle('unread', !readers);
-    tr.title = readers ? `Read via ${readers.join(', ')}` : '';
+  refreshLineMarks(recorded);
+  refreshCommitCoverage(recorded);
+}
+
+/* ---------- Line marks ---------- */
+const BLOCK_ROW = `<tr class="blk"><td colspan="4"><button type="button" data-mark-block="read" hidden></button></td></tr>`;
+const lineAttrs = (path, r) => ` data-lp="${esc(path)}" data-lk="${r.t === 1 ? 'new:' + r.n : 'old:' + r.o}"`;
+function claimsByPath(recorded) {
+  const byPath = new Map();
+  recorded.forEach(c => (byPath.get(c.path) || byPath.set(c.path, []).get(c.path)).push(c));
+  return byPath;
+}
+function readersOfRow(tr, byPath) {
+  if (!window.ReviewCoverage) return [];
+  const [side, line] = tr.dataset.lk.split(':');
+  return ReviewCoverage.readersAt(byPath.get(tr.dataset.lp) || [], tr.dataset.lp, side, +line);
+}
+function fateText(fate) {
+  if (!fate) return '';
+  if (fate[0] === '~') return `Superseded: rewritten or removed later, in ${shortSha(fate.slice(1))}`;
+  if (fate[0] === '^') return `Superseded: added earlier in this PR, in ${shortSha(fate.slice(1))}`;
+  if (fate === '=') return 'Superseded: restored later, so unchanged in the whole diff';
+  return '';
+}
+function blockRows(blk) {
+  const rows = [];
+  for (let n = blk.nextElementSibling; n && (n.matches('tr[data-lk]') || n.matches('tr.anno')); n = n.nextElementSibling) if (n.matches('tr[data-lk]')) rows.push(n);
+  return rows;
+}
+function refreshLineMarks(recorded) {
+  const byPath = claimsByPath(recorded);
+  $$('tr[data-lk]').forEach(tr => {
+    const readers = readersOfRow(tr, byPath);
+    tr.classList.toggle('read', readers.length > 0);
+    tr.classList.toggle('unread', !readers.length);
+    const origin = !tr.dataset.fate && (ORIGINS[tr.dataset.lp] || {})[tr.dataset.lk];
+    const hint = !readers.length ? 'Still to read: click its line number to mark it read, or shift-click to mark a range'
+      : readers.every(r => r === MARKED) ? 'Read: you marked it; click its line number to unmark it'
+      : `Read via ${readers.join(', ')}`;
+    tr.title = [fateText(tr.dataset.fate), origin ? `${tr.dataset.lk.startsWith('new') ? 'Added' : 'Removed'} in ${shortSha(origin)}` : '', hint].filter(Boolean).join(' · ');
+  });
+  $$('tr.blk').forEach(blk => {
+    const rows = blockRows(blk);
+    const unread = rows.filter(tr => tr.classList.contains('unread'));
+    const mine = rows.filter(tr => readersOfRow(tr, byPath).includes(MARKED));
+    const button = $('button', blk);
+    button.hidden = !Store.canWrite || (!unread.length && !mine.length);
+    button.dataset.markBlock = unread.length ? 'read' : 'unread';
+    button.textContent = unread.length ? `Mark ${plural(unread.length, 'line')} below read` : `Unmark the ${plural(mine.length, 'line')} you marked below`;
+  });
+}
+function markRows(rows, marked) {
+  const byPath = claimsByPath(recordedClaims());
+  const groups = new Map();
+  rows.forEach(tr => {
+    if (!marked && !readersOfRow(tr, byPath).includes(MARKED)) return;
+    const [side, line] = tr.dataset.lk.split(':');
+    const group = groups.get(tr.dataset.lp) || groups.set(tr.dataset.lp, { new: [], old: [] }).get(tr.dataset.lp);
+    group[side].push(+line);
+  });
+  for (const [path, sides] of groups) {
+    const target = 'lines:' + path;
+    let lines = Store.get(target).lines || [];
+    for (const side of ['new', 'old']) if (sides[side].length) lines = ReviewCoverage.withLinesMarked(lines, side, sides[side], marked);
+    Store.put(target, 'lines', { lines, status: lines.length ? 'marked' : '' }, { label: `Lines you marked in ${path}`, where: path });
+  }
+}
+function flashRow(tr) { tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 900); }
+let markAnchor = null;
+document.addEventListener('click', e => {
+  const cell = e.target.closest('tr[data-lk] td.ln');
+  if (!cell || !Store.canWrite || !window.ReviewCoverage) return;
+  const tr = cell.closest('tr'), table = tr.closest('table');
+  let rows = [tr];
+  if (e.shiftKey && markAnchor && markAnchor.isConnected && markAnchor.closest('table') === table) {
+    const all = $$('tr[data-lk]', table), a = all.indexOf(markAnchor), b = all.indexOf(tr);
+    rows = all.slice(Math.min(a, b), Math.max(a, b) + 1);
+  }
+  markAnchor = tr;
+  const readers = readersOfRow(tr, claimsByPath(recordedClaims()));
+  if (readers.length && !readers.includes(MARKED)) { flashRow(tr); return; }
+  const marking = !readers.length;
+  markRows(marking ? rows.filter(r => r.classList.contains('unread')) : rows, marking);
+});
+document.addEventListener('click', e => {
+  const button = e.target.closest('[data-mark-block]');
+  if (!button) return;
+  const rows = blockRows(button.closest('tr'));
+  const marking = button.dataset.markBlock === 'read';
+  markRows(marking ? rows.filter(r => r.classList.contains('unread')) : rows, marking);
+});
+
+/* ---------- Commit coverage ---------- */
+function commitSummary(cov) {
+  if (!cov.changed) return cov.superseded ? `Only superseded lines (${fmt(cov.superseded)}), none counted.` : 'No line-level changes.';
+  return `Read ${fmt(cov.read)} of ${plural(cov.changed, 'counted line')}${cov.superseded ? `; ${plural(cov.superseded, 'superseded line')} not counted` : ''}.`;
+}
+function refreshCommitCoverage(recorded) {
+  if (!window.ReviewCoverage) return;
+  const coverage = sha => COMMIT[sha] && ReviewCoverage.commitCoverage(COMMIT[sha], recorded);
+  $$('[data-commit-coverage]').forEach(el => {
+    const cov = coverage(el.dataset.commitCoverage);
+    if (!cov) return;
+    $('i', el).style.width = `${100 * shareRead(cov)}%`;
+    el.title = commitSummary(cov);
+  });
+  $$('[data-commit-count]').forEach(el => {
+    const cov = coverage(el.dataset.commitCount);
+    if (cov && cov.changed) el.textContent = `${fmt(cov.read)}/${fmt(cov.changed)}`;
+  });
+  $$('[data-commit-summary]').forEach(el => {
+    const cov = coverage(el.dataset.commitSummary);
+    if (cov) el.textContent = commitSummary(cov);
   });
 }
 const sevChip = s => `<span class="chip c-${esc(s)}">${esc(s)}</span>`;
@@ -883,6 +1020,8 @@ function totals() {
   const recorded = recordedClaims();
   const done = ks => ks.filter(k => Store.get(k).status || (k.startsWith('stop:') && readVia(k, recorded).length)).length;
   const out = Object.fromEntries(Object.entries(t).map(([k, ks]) => [k, { n: ks.length, done: done(ks) }]));
+  const real = (C.commits || []).filter(c => !c.merge);
+  out.commits = { n: real.length, done: real.filter(c => Store.get('commit:' + c.sha).status || (COMMIT[c.sha] && ReviewCoverage.commitCoverage(COMMIT[c.sha], recorded).state === 'read')).length };
   const covs = C.files.map(f => coverageOf(f.path, recorded));
   if (covs.every(Boolean)) {
     out.files.done = covs.filter(cov => cov.state === 'read').length;
@@ -892,7 +1031,7 @@ function totals() {
 }
 function renderMeters() {
   const t = totals();
-  const items = [['Design', t.design], ['Chapters', t.chapters], ['Findings', t.findings], [(C.ledgerMeta || {}).short || 'Ledger', t.ledger], ['Files', t.files]].filter(([, v]) => v.n);
+  const items = [['Design', t.design], ['Chapters', t.chapters], ['Findings', t.findings], [(C.ledgerMeta || {}).short || 'Ledger', t.ledger], ['Commits', t.commits], ['Files', t.files]].filter(([, v]) => v.n);
   $('#meters').innerHTML = items.map(([l, v]) => `<div class="meter" title="${l}: ${v.done} of ${v.n} ${v.lines ? `read in full; ${fmt(v.lines.read)} of ${fmt(v.lines.changed)} changed lines read` : 'reviewed'}"><div class="meter-label"><span>${l}</span><span>${v.done}/${v.n}</span></div><div class="meter-bar"><i style="width:${v.n ? (100 * v.done / v.n) : 0}%"></i></div></div>`).join('');
   const d = Store.get('decision').status;
   const chip = $('#decision-chip');
@@ -914,6 +1053,7 @@ function routes() {
   if (C.findings.length) r.push(['findings', 'Findings', 'Decide']);
   if (C.acs.length) r.push(['criteria', 'Criteria → tests', 'Decide']);
   r.push(['files', 'All files', 'Reference']);
+  if (C.commits.length) r.push(['commits', 'By commit', 'Reference']);
   if (C.chapters.some(c => (c.domain || []).length)) r.push(['terms', 'Domain terms', 'Reference']);
   r.push(['notes', 'Your notes', 'Reference']);
   const order = ['Start', 'Read', 'Decide', 'Reference'];
@@ -924,7 +1064,7 @@ function renderRail() {
   const groups = {};
   routes().forEach(r => (groups[r[2]] = groups[r[2]] || []).push(r));
   const t = totals();
-  const counts = { findings: `${t.findings.done}/${t.findings.n}`, ledger: `${t.ledger.done}/${t.ledger.n}`, files: `${t.files.done}/${t.files.n}`, tour: `${t.chapters.done}/${t.chapters.n}` };
+  const counts = { findings: `${t.findings.done}/${t.findings.n}`, ledger: `${t.ledger.done}/${t.ledger.n}`, files: `${t.files.done}/${t.files.n}`, tour: `${t.chapters.done}/${t.chapters.n}`, commits: `${t.commits.done}/${t.commits.n}` };
   let html = `<div class="rail-path">${esc(C.pr.branch || '')}<br>${esc((C.pr.head || '').slice(0, 8))} ← ${esc((C.pr.base || '').slice(0, 8))}</div>`;
   for (const [g, rs] of Object.entries(groups)) {
     html += `<div class="rail-group"><div class="rail-head">${g}</div>`;
@@ -950,7 +1090,7 @@ function render() {
   [currentRoute, currentSub] = parseHash();
   renderRail();
   const main = $('#main');
-  const views = { overview: vOverview, design: vDesign, pictures: vPictures, map: vMap, tour: vTour, ledger: vLedger, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
+  const views = { overview: vOverview, design: vDesign, pictures: vPictures, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
   customViews.forEach(v => { views[v.id] = () => v.render(api()); after[v.id] = () => v.mount && v.mount($('#main'), api()); });
   main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
   renderBanner();
@@ -1720,7 +1860,7 @@ function vFiles() {
     return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${esc(short(f.path))}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`).join('');
   }).join('');
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a whole block from the link above it. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
     <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files"><label class="unread-only"><input type="checkbox" id="unread-only" ${unreadOnly ? 'checked' : ''}> Still to read</label>${list}</div>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
@@ -1754,7 +1894,8 @@ function filePane(path) {
         if (j - i > 3) { out += `<tr class="gap"><td colspan="4"><button type="button" data-unfold="${i}-${j}">Show ${j - i} unchanged lines</button></td></tr>`; i = j; continue; }
       }
       const r = rows[i];
-      let h = rowHtml(r);
+      if (r.t && !(rows[i - 1] && rows[i - 1].t)) out += BLOCK_ROW;
+      let h = rowHtml(r, false, r.t ? lineAttrs(path, r) : '');
       if (r.n && marks[r.n]) h = h.replace('</td><td class="mk">', `${[...marks[r.n]].map(k => `<span class="gut k-${k}">${k === 'stop' ? 'S' : k === 'ledger' ? 'L' : 'F'}</span>`).join('')}</td><td class="mk">`);
       out += h;
       if (r.n && ann[r.n]) out += `<tr class="anno"><td colspan="4"><div class="anno-list">${ann[r.n].map(it => `<div class="anno-item k-${it.k}">${it.html}</div>`).join('')}</div></td></tr>`;
@@ -1765,6 +1906,7 @@ function filePane(path) {
   return `<div class="panel stack"><div class="row"><span class="mono" style="font-weight:600;overflow-wrap:anywhere;min-width:0">${esc(path)}</span><span class="chip c-${riskOf(f) === 'skim' ? 'suggestion' : riskOf(f)}">${riskOf(f)}</span><span class="tnum small">+${fmt(f.add)} −${fmt(f.del)}</span>${f.status === 'added' ? '<span class="chip plain c-info">new file</span>' : ''}</div>
     <div class="md">${md(f.summary)}</div>
     <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
+    ${commitsTouching(path)}
     <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread>Next unread</button><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
     <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
@@ -1796,7 +1938,7 @@ function bindUnfold() {
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('[data-next-unread]')) return;
-  const unread = $$('#file-code tr.add:not(.read), #file-code tr.del:not(.read)');
+  const unread = $$('#main tr.unread[data-lk]:not(.superseded)');
   if (!unread.length) return;
   const next = unread.find(tr => tr.getBoundingClientRect().top > window.innerHeight / 2 + 4) || unread[0];
   next.scrollIntoView({ block: 'center' });
@@ -1809,6 +1951,106 @@ document.addEventListener('click', e => {
   const id = s.dataset.scrollStop ? 'stop-' + s.dataset.scrollStop : 'l-' + s.dataset.scrollLedger;
   setTimeout(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start' }); }, 60);
 });
+
+
+/* By commit */
+let selectedCommit = null;
+const commitIndex = sha => C.commits.findIndex(c => c.sha === sha);
+function commitsTouching(path) {
+  const touching = COMMITS.filter(c => c.files.some(f => f.headPath === path));
+  return touching.length ? `<div class="row small"><span class="muted">Changed in</span>${touching.map(c => `<button type="button" class="loc" data-goto-commit="${esc(c.sha)}" title="${esc(c.subject)}">${esc(shortSha(c.sha))}</button>`).join('')}</div>` : '';
+}
+function vCommits() {
+  if (!selectedCommit || commitIndex(selectedCommit) < 0) selectedCommit = (C.commits.find(c => !c.merge) || C.commits[0]).sha;
+  const list = C.commits.map((c, i) => `<button type="button" class="fl-item cm-item" data-commit="${esc(c.sha)}" aria-current="${c.sha === selectedCommit}" title="${esc(c.subject)}"><span class="cov" data-commit-coverage="${esc(c.sha)}" data-status-of="commit:${esc(c.sha)}"><i></i></span><span class="nm">${i + 1}. ${esc(c.subject)}</span><span class="ct" data-commit-count="${esc(c.sha)}">${c.merge ? 'merge' : `+${fmt(c.add)} −${fmt(c.del)}`}</span></button>`).join('');
+  return `<div class="view-head"><div class="eyebrow">By commit</div><h1>The change, one commit at a time</h1>
+    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a block from the link above it, or give the whole commit a verdict. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
+    <div class="files-layout"><div class="file-list">${list}</div><div class="stack" id="commit-pane">${commitPane(selectedCommit)}</div></div>`;
+}
+function commitRowsHtml(commit, file) {
+  const lines = ReviewCoverage.commitLines({ ...commit, files: [file] });
+  const lang = langOf(file.headPath || file.path);
+  let k = 0, out = '';
+  file.hunks.forEach((h, hi) => {
+    if (hi > 0) out += `<tr class="gap"><td colspan="4">⋯</td></tr>`;
+    let o = h.o, n = h.n;
+    const nt = [], ot = [], rows = [];
+    for (const l of h.l) {
+      const t = l[0], text = l.slice(1);
+      if (t === '+') { rows.push({ t: 1, o: 0, n: n++, i: nt.length }); nt.push(text); }
+      else if (t === '-') { rows.push({ t: -1, o: o++, n: 0, i: ot.length }); ot.push(text); }
+      else { rows.push({ t: 0, o: o++, n: n++, i: nt.length }); nt.push(text); ot.push(text); }
+    }
+    const nh = hlLines(nt, lang), oh = hlLines(ot, lang);
+    rows.forEach((r, ri) => {
+      r.html = r.t === -1 ? oh[r.i] : nh[r.i];
+      if (!r.t) { out += rowHtml(r); return; }
+      const line = lines[k++];
+      if (!(rows[ri - 1] && rows[ri - 1].t)) out += BLOCK_ROW;
+      out += rowHtml(r, false, ` data-lp="${esc(line.path)}" data-lk="${esc(line.key)}" data-fate="${esc(line.fate)}"`, line.counted ? '' : ' superseded');
+    });
+  });
+  return out;
+}
+function commitPane(sha) {
+  const i = commitIndex(sha), c = C.commits[i], d = COMMIT[sha];
+  if (!c) return '';
+  const body = String(c.message || '').split('\n').slice(1).join('\n').trim();
+  const prev = C.commits[i - 1], next = C.commits[i + 1];
+  const link = GH ? `<a href="${GH}/commit/${esc(sha)}" target="_blank" rel="noopener" class="mono">${esc(shortSha(sha))}</a>` : `<span class="mono">${esc(shortSha(sha))}</span>`;
+  const head = `<div class="panel stack">
+    <div class="eyebrow">Commit ${i + 1} of ${C.commits.length} · ${link}${c.author ? ' · ' + esc(c.author) : ''}${c.date ? ' · ' + esc(String(c.date).slice(0, 10)) : ''}</div>
+    <h2>${esc(c.subject)}</h2>
+    ${body ? `<div class="commit-msg">${esc(body)}</div>` : ''}
+    <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>k</kbd> and <kbd>j</kbd></span></div>
+    ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread>Next unread</button><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
+    ${ctl('commit:' + sha, 'commit', { label: `Commit ${shortSha(sha)}: ${c.subject}`, where: shortSha(sha) })}`}</div>`;
+  if (c.merge) return head + `<div class="empty">A merge commit: it brings in changes from elsewhere, so it is not reviewed here.</div>`;
+  if (!d || !window.ReviewCoverage) return head + `<div class="loading">Loading the commit…</div>`;
+  const files = d.files.map(f => `<div class="code tall"><div class="code-head"><span class="path">${f.previous ? `${esc(short(f.previous))} → ` : ''}${esc(short(f.path))}</span><span class="muted tnum">+${fmt(f.add)} −${fmt(f.del)}</span>${D && D[f.headPath] ? `<button class="loc" data-open="${esc(f.headPath)}" data-line="" data-side="new">in All files</button>` : ''}</div>${f.binary ? '<div class="muted small" style="padding:12px 14px">A binary file.</div>' : `<table>${commitRowsHtml(d, f)}</table>`}</div>`).join('');
+  return head + `<div class="commit-files" id="commit-code">${files || '<div class="empty">This commit changes no file content.</div>'}</div>`;
+}
+function selectCommit(sha) {
+  selectedCommit = sha;
+  $$('.cm-item').forEach(x => x.setAttribute('aria-current', String(x.dataset.commit === sha)));
+  $('#commit-pane').innerHTML = commitPane(sha);
+  refreshControls();
+  $('#commit-pane').scrollIntoView({ block: 'start' });
+  const cur = $('.cm-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function stepCommit(by) {
+  const target = C.commits[commitIndex(selectedCommit) + by];
+  if (target) selectCommit(target.sha);
+}
+after.commits = () => {
+  $$('.cm-item').forEach(b => b.addEventListener('click', () => selectCommit(b.dataset.commit)));
+  const cur = $('.cm-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+};
+document.addEventListener('click', e => {
+  const step = e.target.closest('[data-step-commit]');
+  if (step) { stepCommit(+step.dataset.stepCommit); return; }
+  const go = e.target.closest('[data-goto-commit]');
+  if (!go) return;
+  selectedCommit = go.dataset.gotoCommit;
+  if (location.hash !== '#commits') location.hash = 'commits'; else render();
+});
+document.addEventListener('keydown', e => {
+  if (currentRoute !== 'commits' || e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest('input, textarea, select'))) return;
+  if (e.key === 'j') stepCommit(1);
+  else if (e.key === 'k') stepCommit(-1);
+});
+async function loadCommits() {
+  try {
+    const data = window.__EXPLORE_COMMITS || await (await fetch('commits.json')).json();
+    COMMITS = data.commits || [];
+    COMMIT = Object.fromEntries(COMMITS.map(c => [c.sha, c]));
+    ORIGINS = window.ReviewCoverage ? ReviewCoverage.originsOf(COMMITS) : {};
+    if (currentRoute === 'commits' || currentRoute === 'files') render();
+    onStateChange();
+  } catch (e) {
+    $$('#commit-pane .loading').forEach(el => { el.textContent = 'The commits could not be loaded. Reload to try again.'; });
+  }
+}
 
 /* Terms */
 function vTerms() {
@@ -1840,6 +2082,7 @@ function notesMarkdown() {
   section('Removal sites', ['ledger'], ['issue', 'question', 'ok', '']);
   section('Tour stops', ['stop'], ['issue', 'question', 'ok', '']);
   section('Files', ['file'], ['issue', 'ok', 'skip', '']);
+  section('Commits', ['commit'], ['issue', 'ok', 'skip', '']);
   out += linesReadMarkdown();
   return out;
 }
@@ -1854,7 +2097,7 @@ function linesReadMarkdown() {
   return out;
 }
 function vNotes() {
-  const n = [...Store.docs.values()].filter(d => d.status || d.note).length;
+  const n = [...Store.docs.values()].filter(d => d.kind !== 'lines' && (d.status || d.note)).length;
   return `<div class="view-head"><div class="eyebrow">Your notes</div><h1>Everything you've recorded</h1>
     <p class="lede">${plural(n, 'item')} with a verdict or a note. ${Store.mode === 'db' ? 'They are saved with this artifact, so Claude Code can read them back: ask it to turn them into PR comments, or to start a respond-to-pr pass from them.' : 'They are saved in this browser only.'}</p></div>
     <div class="row"><button class="btn primary" id="copy-notes" type="button">Copy as Markdown</button><span class="small muted" id="copy-status" aria-live="polite"></span></div>
@@ -1870,7 +2113,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, md, esc, fmt, plural, figure: figureHtml, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);
@@ -1900,6 +2143,7 @@ async function boot() {
     D = window.__EXPLORE_DIFF || await (await fetch('diff.json')).json();
     if (currentRoute === 'files') render(); else fillPendingSlices();
     onStateChange();
+    if (C.commits.length) loadCommits();
   } catch (e) {
     $$('[data-pending-slice]').forEach(el => { el.innerHTML = '<div class="muted small" style="padding:12px">The code could not be loaded. Reload to try again.</div>'; });
   }

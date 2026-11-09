@@ -3,12 +3,13 @@
 Usage: build.py WORKSPACE [--out FILE] [--hosted DIR] [--page FILE]
 
 WORKSPACE holds `explore.json` (the manifest), `content/*.json`,
-`data/diff.json` and `views/*.js`. By default the result is one
-self-contained HTML file, with the libraries, data and custom views inlined,
-that opens from `file://`. `--hosted DIR` writes the split layout a static
-host or a claude.ai artifact serves instead: `index.html`, `content.json` and
-`diff.json`, with the libraries loaded from their CDNs. `--page` replaces the
-bundled page shell with a workspace copy.
+`data/diff.json`, `data/commits.json` and `views/*.js`. By default the
+result is one self-contained HTML file, with the libraries, data and custom
+views inlined, that opens from `file://`. `--hosted DIR` writes the split
+layout a static host or a claude.ai artifact serves instead: `index.html`,
+`content.json`, `diff.json` and, when the workspace has them,
+`commits.json`, with the libraries loaded from their CDNs. `--page`
+replaces the bundled page shell with a workspace copy.
 """
 
 import argparse
@@ -147,11 +148,56 @@ def file_entries(diff: dict, summaries: list[dict], layers: list) -> list:
     return files
 
 
+COMMIT_SUMMARY = ("sha", "subject", "message", "author", "date", "merge")
+
+
+def commit_summaries(commits: dict) -> list[dict]:
+    return [
+        {key: commit.get(key) for key in COMMIT_SUMMARY}
+        | {
+            "files": len(commit["files"]),
+            "add": sum(f.get("add", 0) for f in commit["files"]),
+            "del": sum(f.get("del", 0) for f in commit["files"]),
+        }
+        for commit in commits.get("commits", [])
+    ]
+
+
+def changed_keys(entry: dict) -> set[str]:
+    keys, old, new = set(), 0, 0
+    for hunk in entry.get("hunks", []):
+        old, new = hunk["o"], hunk["n"]
+        for line in hunk["l"]:
+            if line[0] == "+":
+                keys.add(f"new:{new}")
+            elif line[0] == "-":
+                keys.add(f"old:{old}")
+            old += line[0] != "+"
+            new += line[0] != "-"
+    return keys
+
+
+def commit_warnings(commits: dict, diff: dict) -> list[str]:
+    """Return a warning for every traced line the whole diff leaves alone."""
+    warnings = []
+    for commit in commits.get("commits", []):
+        for file in commit["files"]:
+            whole = changed_keys(diff.get(file["headPath"], {}))
+            warnings += [
+                f"commit {commit['sha'][:12]}: {file['headPath']} {fate} "
+                "is not a changed line of the whole diff"
+                for fate in file.get("fate", [])
+                if ":" in fate and fate not in whole
+            ]
+    return warnings
+
+
 def assemble(workspace: Path) -> tuple[dict, list[str]]:
     """Merge the workspace's content model; return it and its warnings."""
     manifest = load_json(workspace / "explore.json", {})
     content = workspace / "content"
     diff = load_json(workspace / "data/diff.json", {})
+    commits = load_json(workspace / "data/commits.json", {})
     layers = list(manifest.get("layers") or DEFAULT_LAYERS)
     summaries = concatenated(content, "files*.json")
     pr = pr_details(manifest, diff)
@@ -174,9 +220,10 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "moduleMap": load_json(content / "modmap.json", None),
         "layers": [{"id": x["id"], "label": x["label"]} for x in layers],
         "pathAliases": manifest.get("pathAliases", []),
+        "commits": commit_summaries(commits),
     }
     summarised = {entry["path"] for entry in summaries}
-    warnings = check(model, diff)
+    warnings = check(model, diff) + commit_warnings(commits, diff)
     warnings += [
         f"{path}: no summary in files*.json; shown as skim"
         for path in diff
@@ -453,6 +500,8 @@ def standalone(
     views: list[str],
     vendor: dict[str, str],
     title: str,
+    *,
+    commits: dict | None = None,
 ) -> str:
     """Return one HTML document that needs no server and no network."""
     page = page.replace(TITLE_PLACEHOLDER, html.escape(title))
@@ -461,6 +510,8 @@ def standalone(
             page = page.replace(tag, inline_script(vendor[name]))
     data = inline_json("__EXPLORE_CONTENT", content)
     data += inline_json("__EXPLORE_DIFF", diff)
+    if commits:
+        data += inline_json("__EXPLORE_COMMITS", commits)
     page = with_views(page.replace(DATA_MARKER, data), views)
     page = with_review_coverage(page)
     head, separator, body = page.partition("</style>")
@@ -476,8 +527,10 @@ def hosted(
     diff: dict,
     views: list[str],
     title: str,
+    *,
+    commits: dict | None = None,
 ) -> None:
-    """Write the page, its content and its diff as three files."""
+    """Write the page, its content, its diff and any commits as files."""
     out_dir.mkdir(parents=True, exist_ok=True)
     page = page.replace(TITLE_PLACEHOLDER, html.escape(title))
     page = with_views(page.replace(DATA_MARKER, ""), views)
@@ -487,6 +540,10 @@ def hosted(
         json.dumps(content, separators=(",", ":"))
     )
     (out_dir / "diff.json").write_text(json.dumps(diff, separators=(",", ":")))
+    if commits:
+        (out_dir / "commits.json").write_text(
+            json.dumps(commits, separators=(",", ":"))
+        )
 
 
 def view_sources(workspace: Path, manifest: dict) -> list[str]:
@@ -515,9 +572,12 @@ def main(argv: list[str] | None = None) -> None:
     page = page_path.read_text()
     views = view_sources(workspace, manifest)
     diff = load_json(workspace / "data/diff.json", {})
+    commits = load_json(workspace / "data/commits.json", {})
+    title = content["title"]
     if args.hosted:
-        hosted(page, args.hosted, content, diff, views, content["title"])
-        print(f"wrote {args.hosted}/index.html, content.json, diff.json")
+        hosted(page, args.hosted, content, diff, views, title, commits=commits)
+        extra = ", commits.json" if commits else ""
+        print(f"wrote {args.hosted}/index.html, content.json, diff.json{extra}")
         return
     vendor = {
         name: (ASSETS / path).read_text()
@@ -526,7 +586,7 @@ def main(argv: list[str] | None = None) -> None:
     number = content["pr"].get("number")
     out = args.out or workspace / f"explore-pr-{number}.html"
     out.write_text(
-        standalone(page, content, diff, views, vendor, content["title"])
+        standalone(page, content, diff, views, vendor, title, commits=commits)
     )
     stops = sum(len(c.get("stops", [])) for c in content["chapters"])
     print(
