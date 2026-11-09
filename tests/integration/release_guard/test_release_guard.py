@@ -1,8 +1,9 @@
-"""The `test-loopback` release guard against real stripped release binaries.
+"""The `test-loopback` release guards against real release builds.
 
-The unit tests in `tests/unit/tasks/test_build.py` prove the guard spots the
-marker in planted bytes; these prove a real release build carrying the feature
-still contains those bytes after `strip` and thin LTO.
+The unit tests in `tests/unit/tasks/test_build.py` prove the byte scan spots
+the marker in planted bytes; these prove a release build carrying the feature
+does not compile, and that one forced past that with debug assertions still
+contains those bytes after `strip` and thin LTO.
 """
 
 import os
@@ -97,3 +98,51 @@ def test_a_default_release_binary_passes_the_loopback_guard(
     release_builds, binary
 ):
     _assert_no_test_loopback(release_builds["default"] / binary)
+
+
+_COMPILE_GUARD = "test-loopback must never be enabled in a release build"
+
+
+@pytest.fixture(scope="module")
+def guarded_release_check() -> subprocess.CompletedProcess[str]:
+    require("cargo")
+    binaries = [
+        argument
+        for binary in _LOOPBACK_SEAMED
+        for argument in ("--bin", binary.name)
+    ]
+    features = ",".join(
+        f for binary in _LOOPBACK_SEAMED for f in binary.features
+    )
+    return subprocess.run(
+        [
+            "cargo",
+            "check",
+            "--release",
+            "--keep-going",
+            "--manifest-path",
+            str(CLI_WORKSPACE_CARGO_TOML),
+            *binaries,
+            "--features",
+            features,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            **os.environ,
+            "CARGO_TARGET_DIR": str(_RELEASE_GUARD_TARGET_DIR),
+            "CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS": "false",
+        },
+    )
+
+
+@pytest.mark.parametrize("binary", _LOOPBACK_SEAMED, ids=_LOOPBACK_SEAMED_NAMES)
+def test_a_release_build_with_test_loopback_does_not_compile(
+    guarded_release_check, binary
+):
+    assert guarded_release_check.returncode != 0
+    assert _COMPILE_GUARD in guarded_release_check.stderr
+    assert (
+        f"could not compile `{binary.package}`" in guarded_release_check.stderr
+    ), guarded_release_check.stderr
