@@ -739,6 +739,11 @@ None remaining.
     in it.
   - Every staged shim copy is kept while a version other than the running one
     holds a fresh claim, since a copy's name carries no version.
+  - Residue converges over several prunes rather than one: the orphan reap
+    runs once, under the first tree lock taken, so a later artifact's lockless
+    partial archive waits for the next prune, and a tree lock a prune created
+    goes an hour after that. Reaping under every artifact's lock would hold a
+    second lock while removing large trees, so this was accepted.
 
 ## References
 
