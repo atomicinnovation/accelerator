@@ -780,7 +780,12 @@ impl TreeResolver<'_> {
                 }
             }
             reap::SupersededDisposition::Defer => {
-                reap::restart_backstop(paths, generation, self.clock);
+                reap::restart_backstop(
+                    self.filesystem,
+                    paths,
+                    generation,
+                    self.clock,
+                );
             }
             reap::SupersededDisposition::Keep => {}
         }

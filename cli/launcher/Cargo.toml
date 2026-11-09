@@ -51,7 +51,7 @@ serde_json = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 # Declared directly rather than reached transitively through `store`: the tree
-# resolver needs flock, openat with O_NOFOLLOW, fstatat and utimensat, and
+# resolver needs flock, openat with O_NOFOLLOW and fstatat, and
 # depending on a transitive edge is the coupling the workspace's pin discipline
 # exists to prevent.
 rustix = { workspace = true }

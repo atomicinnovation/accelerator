@@ -375,8 +375,54 @@ pub fn read_pointer(
     path: &Path,
     filesystem: &dyn CacheFilesystem,
 ) -> Option<String> {
-    let bytes = filesystem.read_bounded(path, POINTER_READ_LIMIT).ok()?;
-    String::from_utf8(bytes).ok()
+    match read_pointer_reference(path, filesystem) {
+        PointerReference::Names(contents) => Some(contents),
+        PointerReference::Nothing | PointerReference::Unknown => None,
+    }
+}
+
+/// What a listed pointer tells a reader that must not lose a generation it
+/// cannot rule out.
+#[derive(Debug, PartialEq, Eq)]
+pub enum PointerReference {
+    Names(String),
+    /// Gone since it was listed, or something the launcher never writes.
+    Nothing,
+    /// It exists but could not be read, so it may name anything it stands for.
+    Unknown,
+}
+
+#[must_use]
+pub fn read_pointer_reference(
+    path: &Path,
+    filesystem: &dyn CacheFilesystem,
+) -> PointerReference {
+    match filesystem.read_bounded(path, POINTER_READ_LIMIT) {
+        Ok(bytes) => String::from_utf8(bytes)
+            .map_or(PointerReference::Nothing, PointerReference::Names),
+        Err(error) if never_written_by_the_launcher(&error) => {
+            PointerReference::Nothing
+        }
+        Err(_) => PointerReference::Unknown,
+    }
+}
+
+fn never_written_by_the_launcher(error: &std::io::Error) -> bool {
+    use std::io::ErrorKind;
+    matches!(
+        error.kind(),
+        ErrorKind::NotFound | ErrorKind::InvalidInput | ErrorKind::InvalidData
+    ) || is_a_symlink_refused(error)
+}
+
+#[cfg(unix)]
+fn is_a_symlink_refused(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(libc::ELOOP)
+}
+
+#[cfg(not(unix))]
+const fn is_a_symlink_refused(_error: &std::io::Error) -> bool {
+    false
 }
 
 /// The generation a validated pointer names, or why the pointer is unusable.

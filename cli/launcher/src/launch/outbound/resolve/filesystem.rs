@@ -161,11 +161,12 @@ pub trait CacheFilesystem: TrustInspection {
     /// the creation meets.
     fn create_private_dir(&self, path: &Path) -> io::Result<()>;
 
-    /// Never follows a symlink at `path`.
+    /// Sets the modification time of a file or directory, never following a
+    /// symlink at `path`.
     ///
     /// # Errors
     ///
-    /// If the file cannot be opened or its time set.
+    /// If `path` cannot be opened or its time set.
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()>;
 }
 
@@ -265,7 +266,7 @@ impl CacheFilesystem for SystemFilesystem {
 
     fn set_modified(&self, path: &Path, seconds: u64) -> io::Result<()> {
         let mut options = std::fs::OpenOptions::new();
-        options.write(true);
+        options.read(true);
         not_following_links_nor_blocking(&mut options)
             .open(path)?
             .set_modified(
@@ -516,7 +517,16 @@ pub mod testing {
         failing_ownership_checks: BTreeMap<PathBuf, io::ErrorKind>,
         failing_removals: BTreeMap<PathBuf, io::ErrorKind>,
         listings: BTreeMap<PathBuf, Vec<OsString>>,
+        failing_listings: BTreeMap<PathBuf, FailingFrom>,
+        listings_seen: BTreeMap<PathBuf, usize>,
+        failing_reads: BTreeMap<PathBuf, io::ErrorKind>,
         resolved: Vec<PathBuf>,
+    }
+
+    #[derive(Clone, Copy)]
+    struct FailingFrom {
+        nth: usize,
+        kind: io::ErrorKind,
     }
 
     impl ReportingFilesystem {
@@ -602,6 +612,29 @@ pub mod testing {
             self
         }
 
+        /// Lists `dir` as it is until its `nth` listing, and fails every
+        /// listing from then on.
+        #[must_use]
+        pub fn failing_listing_from(
+            self,
+            dir: &Path,
+            nth: usize,
+            kind: io::ErrorKind,
+        ) -> Self {
+            self.overlay()
+                .failing_listings
+                .insert(dir.to_path_buf(), FailingFrom { nth, kind });
+            self
+        }
+
+        #[must_use]
+        pub fn failing_read(self, path: &Path, kind: io::ErrorKind) -> Self {
+            self.overlay()
+                .failing_reads
+                .insert(path.to_path_buf(), kind);
+            self
+        }
+
         #[must_use]
         pub fn failing_removal(self, path: &Path, kind: io::ErrorKind) -> Self {
             self.overlay()
@@ -623,7 +656,22 @@ pub mod testing {
 
     impl<F: CacheFilesystem> CacheFilesystem for ReportingFilesystem<F> {
         fn list(&self, dir: &Path) -> io::Result<Vec<OsString>> {
-            let listed = self.overlay().listings.get(dir).cloned();
+            let (listed, failure) = {
+                let mut overlay = self.overlay();
+                let seen =
+                    overlay.listings_seen.entry(dir.to_path_buf()).or_default();
+                *seen += 1;
+                let nth = *seen;
+                let failure = overlay
+                    .failing_listings
+                    .get(dir)
+                    .filter(|failing| nth >= failing.nth)
+                    .map(|failing| failing.kind);
+                (overlay.listings.get(dir).cloned(), failure)
+            };
+            if let Some(kind) = failure {
+                return Err(io::Error::from(kind));
+            }
             listed.map_or_else(|| self.inner.list(dir), Ok)
         }
 
@@ -640,7 +688,11 @@ pub mod testing {
         }
 
         fn read_bounded(&self, path: &Path, limit: u64) -> io::Result<Vec<u8>> {
-            self.inner.read_bounded(path, limit)
+            let failure = self.overlay().failing_reads.get(path).copied();
+            failure.map_or_else(
+                || self.inner.read_bounded(path, limit),
+                |kind| Err(io::Error::from(kind)),
+            )
         }
 
         fn create_dir_all(&self, path: &Path) -> io::Result<()> {
@@ -744,7 +796,43 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    use super::{AccessAcl, SystemFilesystem, TrustInspection as _};
+    use super::{
+        AccessAcl, CacheFilesystem as _, SystemFilesystem, TrustInspection as _,
+    };
+
+    fn modified_seconds(path: &Path) -> u64 {
+        std::fs::symlink_metadata(path)
+            .expect("metadata")
+            .modified()
+            .expect("mtime")
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("after the epoch")
+            .as_secs()
+    }
+
+    #[test]
+    fn a_directory_takes_the_modification_time_it_is_given() {
+        let directory = tempfile::tempdir().expect("tempdir");
+
+        SystemFilesystem
+            .set_modified(directory.path(), 1_000_000)
+            .expect("set the directory's mtime");
+
+        assert_eq!(modified_seconds(directory.path()), 1_000_000);
+    }
+
+    #[test]
+    fn setting_a_modification_time_never_follows_a_symlink() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let target = root.path().join("target");
+        std::fs::create_dir(&target).expect("target");
+        let link = root.path().join("link");
+        std::os::unix::fs::symlink(&target, &link).expect("symlink");
+        let before = modified_seconds(&target);
+
+        assert!(SystemFilesystem.set_modified(&link, 1_000_000).is_err());
+        assert_eq!(modified_seconds(&target), before);
+    }
 
     fn acl_of(path: &Path) -> AccessAcl {
         SystemFilesystem.access_acl(path).expect("access ACL")

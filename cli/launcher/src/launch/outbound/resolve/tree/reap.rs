@@ -38,7 +38,8 @@ use super::super::prune_report::{Count, PruneBudget, Removals};
 use super::super::retention_windows::{Age, AGE_BACKSTOP};
 use super::after_materialise::ReapPermit;
 use super::layout::{
-    parse_generation_name, read_pointer, Artifact, TreePaths, LAYOUT_VERSION,
+    parse_generation_name, read_pointer_reference, Artifact, PointerReference,
+    TreePaths, LAYOUT_VERSION,
 };
 use super::lease::{Liveness, LivenessProbe};
 use super::locks::{TreeLockProbe, TreeLocks};
@@ -139,8 +140,8 @@ impl<'a> Reaper<'a> {
     /// artifact's temp residue goes only under that artifact's tree lock,
     /// taken without blocking, or, all but its partial archives, when it has
     /// no lock file; otherwise it is kept. A fully-materialised generation
-    /// goes only when no pointer names it, no live lease is held on it, and it
-    /// is older than the backstop.
+    /// goes only when no pointer names it or, being unreadable, may name it,
+    /// no live lease is held on it, and it is older than the backstop.
     ///
     /// # Errors
     ///
@@ -154,7 +155,7 @@ impl<'a> Reaper<'a> {
         }
         let names = entry_names(self.filesystem, self.paths().root())?;
         let referenced =
-            referenced_generations(self.filesystem, self.paths().root());
+            PointerReferences::read(self.filesystem, self.paths(), &names);
         let mut removals = Removals::default();
         for (owner, entries) in temp_entries_by_owner(&names) {
             if !self.budget.allows_more(self.clock) {
@@ -209,7 +210,7 @@ impl<'a> Reaper<'a> {
     fn reap_generations(
         &self,
         names: &[String],
-        referenced: &BTreeSet<String>,
+        referenced: &PointerReferences,
         removals: &mut Removals,
     ) {
         for name in names.iter().filter(|name| is_generation(name)) {
@@ -320,36 +321,65 @@ fn is_generation(name: &str) -> bool {
             .is_some_and(|generation| generation.layout == LAYOUT_VERSION)
 }
 
-/// The generation directory names any pointer currently references.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
-fn referenced_generations(
-    filesystem: &dyn CacheFilesystem,
-    root: &Path,
-) -> BTreeSet<String> {
-    let mut referenced = BTreeSet::new();
-    let Ok(names) = filesystem.list(root) else {
-        return referenced;
-    };
-    for name in &names {
-        let Some(name) = name.to_str() else { continue };
-        if name.ends_with(".ref") {
-            if let Some(contents) = read_pointer(&root.join(name), filesystem) {
-                referenced.insert(contents.trim().to_owned());
+/// The generations the pointers in one listing of `trees/` may name. A
+/// pointer that is listed but cannot be read may name any generation its own
+/// name stands for, so it protects all of them; one that vanished before it
+/// was read names nothing.
+struct PointerReferences {
+    named: BTreeSet<String>,
+    unreadable_stems: Vec<String>,
+}
+
+impl PointerReferences {
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
+    fn read(
+        filesystem: &dyn CacheFilesystem,
+        paths: &TreePaths,
+        names: &[String],
+    ) -> Self {
+        let mut references = Self {
+            named: BTreeSet::new(),
+            unreadable_stems: Vec::new(),
+        };
+        for name in names.iter().filter(|name| name.ends_with(".ref")) {
+            match read_pointer_reference(&paths.root().join(name), filesystem) {
+                PointerReference::Names(contents) => {
+                    references.named.insert(contents.trim().to_owned());
+                }
+                PointerReference::Nothing => {}
+                PointerReference::Unknown => {
+                    references.unreadable_stems.push(pointer_stem(name));
+                }
             }
         }
+        references
     }
-    referenced
+
+    fn protects(&self, generation: &str) -> bool {
+        self.named.contains(generation)
+            || self
+                .unreadable_stems
+                .iter()
+                .any(|stem| generation.starts_with(stem.as_str()))
+    }
+}
+
+/// A live pointer's name is its generations' common prefix; a temp pointer's
+/// name holds its generation's whole name.
+fn pointer_stem(pointer: &str) -> String {
+    let stem = pointer.strip_suffix(".ref").unwrap_or(pointer);
+    stem.strip_prefix(TEMP_PREFIX).unwrap_or(stem).to_owned()
 }
 
 fn is_reclaimable_generation(
     filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     name: &str,
-    referenced: &BTreeSet<String>,
+    referenced: &PointerReferences,
     clock: &dyn Clock,
     liveness: &dyn LivenessProbe,
 ) -> bool {
-    if referenced.contains(name) {
+    if referenced.protects(name) {
         return false;
     }
     orphan_is_reclaimable(
@@ -413,39 +443,19 @@ pub(super) fn generation_is_aged(
 /// this moment rather than from extraction. Best-effort: where the filesystem
 /// rejects it, the generation keeps its extraction mtime and a warning says so.
 pub(super) fn restart_backstop(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     generation: &str,
     clock: &dyn Clock,
 ) {
-    #[cfg(unix)]
-    {
-        use rustix::fs::{AtFlags, Timespec, Timestamps, CWD, UTIME_OMIT};
-
-        let timestamps = Timestamps {
-            last_access: Timespec {
-                tv_sec: 0,
-                tv_nsec: UTIME_OMIT,
-            },
-            last_modification: Timespec {
-                tv_sec: i64::try_from(clock.now_seconds()).unwrap_or(i64::MAX),
-                tv_nsec: 0,
-            },
-        };
-        let path = paths.generation(generation);
-        if let Err(error) =
-            rustix::fs::utimensat(CWD, &path, &timestamps, AtFlags::empty())
-        {
-            tracing::warn!(
-                generation = %path.display(),
-                %error,
-                "cannot restart the age backstop; the generation keeps its \
-                 extraction age"
-            );
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (paths, generation, clock);
+    let path = paths.generation(generation);
+    if let Err(error) = filesystem.set_modified(&path, clock.now_seconds()) {
+        tracing::warn!(
+            generation = %path.display(),
+            %error,
+            "cannot restart the age backstop; the generation keeps its \
+             extraction age"
+        );
     }
 }
 
@@ -493,7 +503,8 @@ mod tests {
 
     use crate::launch::core::tree::{Clock, TreeError};
 
-    use super::super::super::filesystem::SystemFilesystem;
+    use super::super::super::filesystem::testing::ReportingFilesystem;
+    use super::super::super::filesystem::{CacheFilesystem, SystemFilesystem};
     use super::super::super::prune_report::Removals;
     use super::super::super::retention_windows::Age;
 
@@ -592,6 +603,16 @@ mod tests {
         pins: Pins,
         observer: impl RemovalObserver + Send + 'static,
     ) -> Result<Removals, TreeError> {
+        reap_for_y_through(root, clock, pins, observer, SystemFilesystem)
+    }
+
+    fn reap_for_y_through(
+        root: &Path,
+        clock: impl Clock + Send + 'static,
+        pins: Pins,
+        observer: impl RemovalObserver + Send + 'static,
+        filesystem: impl CacheFilesystem + Send + 'static,
+    ) -> Result<Removals, TreeError> {
         let paths = TreePaths::under(root);
         let locks = TreeLocks::over(&FlockLocks);
         let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
@@ -600,7 +621,7 @@ mod tests {
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
             Reaper::new(
                 &caller_holds,
-                &SystemFilesystem,
+                &filesystem,
                 TreeLocks::over(&FlockLocks),
                 &clock,
                 &FlockProbe,
@@ -1113,6 +1134,107 @@ mod tests {
         );
     }
 
+    /// An aged generation that a `driver` pointer names, so only that
+    /// pointer keeps it from the reap.
+    fn referenced_by_a_pointer(paths: &TreePaths) -> (PathBuf, PathBuf) {
+        let generation = generation_name(
+            "driver",
+            PLATFORM,
+            DIGEST,
+            LAYOUT_VERSION,
+            "fedcba9876543210",
+        );
+        let generation_dir = paths.generation(&generation);
+        fs::create_dir(&generation_dir).expect("generation");
+        let pointer = paths.pointer("driver", PLATFORM, DIGEST);
+        fs::write(&pointer, &generation).expect("pointer");
+        (generation_dir, pointer)
+    }
+
+    #[test]
+    fn a_generation_whose_pointer_cannot_be_read_is_kept() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_read(&pointer, std::io::ErrorKind::PermissionDenied);
+
+        reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        )
+        .expect("reap");
+
+        assert!(generation.exists(), "a possibly referenced generation went");
+    }
+
+    #[test]
+    fn a_generation_whose_pointer_vanished_before_it_was_read_is_reclaimed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_read(&pointer, std::io::ErrorKind::NotFound);
+
+        reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        )
+        .expect("reap");
+
+        assert!(!generation.exists(), "an unreferenced generation survived");
+    }
+
+    #[test]
+    fn a_planted_symlink_pointer_protects_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, pointer) = referenced_by_a_pointer(&paths);
+        let elsewhere = dir.path().join("elsewhere");
+        fs::copy(&pointer, &elsewhere).expect("the pointer's contents");
+        fs::remove_file(&pointer).expect("the pointer");
+        std::os::unix::fs::symlink(&elsewhere, &pointer).expect("symlink");
+
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
+
+        assert!(!generation.exists(), "a symlinked pointer protected it");
+    }
+
+    #[test]
+    fn a_referenced_generation_survives_trees_failing_to_list_mid_reap() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let (generation, _) = referenced_by_a_pointer(&paths);
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_listing_from(
+                paths.root(),
+                2,
+                std::io::ErrorKind::PermissionDenied,
+            );
+
+        let _ = reap_for_y_through(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+            filesystem,
+        );
+
+        assert!(generation.exists(), "a referenced generation went");
+    }
+
     #[test]
     fn a_young_unreferenced_generation_is_spared_by_the_backstop() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -1278,7 +1400,7 @@ mod tests {
         back_date(&paths.generation(&name), 2 * 86_400);
         let later = now() + 86_400;
 
-        restart_backstop(&paths, &name, &AtClock(later));
+        restart_backstop(&SystemFilesystem, &paths, &name, &AtClock(later));
 
         assert!(!generation_is_aged(
             &SystemFilesystem,
@@ -1300,7 +1422,9 @@ mod tests {
         let paths = trees(dir.path());
         let absent = gen_name();
 
-        let log = logged(|| restart_backstop(&paths, &absent, &present()));
+        let log = logged(|| {
+            restart_backstop(&SystemFilesystem, &paths, &absent, &present());
+        });
 
         assert!(log.contains("WARN"), "no warning: {log}");
         assert!(log.contains(&absent), "warning names no generation: {log}");
@@ -1312,7 +1436,9 @@ mod tests {
         let paths = trees(dir.path());
         let name = planted(&paths);
 
-        let log = logged(|| restart_backstop(&paths, &name, &present()));
+        let log = logged(|| {
+            restart_backstop(&SystemFilesystem, &paths, &name, &present());
+        });
 
         assert!(log.is_empty(), "unexpected log: {log}");
     }
