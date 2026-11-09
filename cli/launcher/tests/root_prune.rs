@@ -2302,6 +2302,24 @@ fn another_layouts_tree_is_kept_and_this_layouts_twin_is_removed() {
 }
 
 #[test]
+fn a_retired_layouts_unclaimed_tree_is_reclaimed() {
+    let harness = RootHarness::new();
+    let trees = harness.trees();
+    let retired = on_host("retired");
+    let generation = Trees::generation_at_layout(&retired, &digest('e'), 0);
+    let tree = trees.plant_generation(&generation, harness.aged());
+    let sidecars = trees.plant_sidecars(&generation, harness.aged());
+    let pointer = trees.plant_pointer(&retired, &digest('e'), &generation);
+    set_mtime(&pointer, harness.aged());
+
+    harness.prune(harness.ports()).succeeded();
+
+    assert!(!tree.exists(), "the retired layout's tree survived");
+    assert!(!pointer.exists(), "the retired layout's pointer survived");
+    assert!(sidecars.iter().all(|sidecar| !sidecar.exists()));
+}
+
+#[test]
 fn the_verb_creates_no_lock_for_an_artifact_it_never_materialised() {
     let harness = RootHarness::new();
     let trees = harness.trees();

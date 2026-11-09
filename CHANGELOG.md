@@ -819,12 +819,12 @@
 - **`describe-pr` lists an unreadable body file under exit 2**, matching what
   `update-body` returns, where it listed it under exit 1.
 
-- **The default-root `cache prune` no longer creates tree locks for
-  artifacts it never materialised**, except to reap an interrupted
-  materialise's residue, and no longer errors when `trees/` is missing. Tree
-  prune never follows a pointer outside `trees/`, keeps malformed and
-  other-layout pointers, and reclaims nothing when `trees/claims/` cannot be
-  read, where it reclaimed claimed trees.
+- **The default-root `cache prune` no longer creates tree locks for artifacts
+  it never materialised**, except to reap an interrupted materialise's
+  residue, and no longer errors when `trees/` is missing. Tree prune never
+  follows a pointer outside `trees/`, keeps malformed and newer-layout
+  pointers, reclaims a retired layout's unclaimed trees, and reclaims nothing
+  when `trees/claims/` cannot be read, where it reclaimed claimed trees.
 
 ### Security
 

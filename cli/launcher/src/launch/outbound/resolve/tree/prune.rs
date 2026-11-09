@@ -429,11 +429,13 @@ impl TreePrune<'_> {
                 return;
             }
             let pointer = paths.root().join(name);
-            let PointerTarget::Current(generation) = PointerTarget::of(
+            let (PointerTarget::Current(generation)
+            | PointerTarget::Retired(generation)) = PointerTarget::of(
                 read_pointer(&pointer, self.ports.filesystem),
                 artifact,
                 digest,
-            ) else {
+            )
+            else {
                 continue;
             };
             if pinned.as_deref() == Some(digest)
@@ -844,9 +846,13 @@ impl RemovalObserver for Announcing<'_> {
 
 /// What a pointer's contents name, judged by the grammar `locate` holds a
 /// pointer to before any of it becomes a path.
+///
+/// A newer layout's tree is a newer launcher's to prune, but no launcher
+/// returns to a retired layout, so nothing else would ever reclaim one.
 pub(super) enum PointerTarget {
     Current(String),
-    OtherLayout,
+    Retired(String),
+    NewerLayout,
     Malformed,
 }
 
@@ -867,7 +873,21 @@ impl PointerTarget {
             LAYOUT_VERSION,
         ) {
             Ok(generation) => Self::Current(generation),
-            Err(TreeError::LayoutUnsupported { .. }) => Self::OtherLayout,
+            Err(TreeError::LayoutUnsupported { found, .. })
+                if found > LAYOUT_VERSION =>
+            {
+                Self::NewerLayout
+            }
+            Err(TreeError::LayoutUnsupported { found, .. }) => {
+                validated_generation(
+                    &contents,
+                    artifact.name(),
+                    artifact.platform(),
+                    digest,
+                    found,
+                )
+                .map_or(Self::Malformed, Self::Retired)
+            }
             Err(_) => Self::Malformed,
         }
     }
