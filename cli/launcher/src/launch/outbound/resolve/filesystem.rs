@@ -293,14 +293,28 @@ const fn ignores_ownership_of(_path: &Path) -> io::Result<bool> {
 /// only refuse more.
 #[cfg(target_os = "macos")]
 fn access_acl_of(path: &Path) -> io::Result<AccessAcl> {
-    use exacl::{AclOption, Perm};
+    access_acl_from(exacl::getfacl(path, exacl::AclOption::SYMLINK_ACL))
+}
+
+/// A volume that does not support ACLs has none to grant anything.
+#[cfg(target_os = "macos")]
+fn access_acl_from(
+    entries: io::Result<Vec<exacl::AclEntry>>,
+) -> io::Result<AccessAcl> {
+    use exacl::Perm;
     let reading = Perm::READ
         | Perm::EXECUTE
         | Perm::READATTR
         | Perm::READEXTATTR
         | Perm::READSECURITY
         | Perm::SYNC;
-    let entries = exacl::getfacl(path, AclOption::SYMLINK_ACL)?;
+    let entries = match entries {
+        Ok(entries) => entries,
+        Err(error) if error.raw_os_error() == Some(libc::ENOTSUP) => {
+            return Ok(AccessAcl::None);
+        }
+        Err(error) => return Err(error),
+    };
     Ok(
         if entries
             .iter()
@@ -711,6 +725,27 @@ mod tests {
             .status()
             .expect("chmod +a");
         assert!(status.success(), "chmod +a {ace}");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_volume_without_acl_support_has_no_access_acl() {
+        use super::access_acl_from;
+        assert_eq!(
+            access_acl_from(Err(std::io::Error::from_raw_os_error(
+                libc::ENOTSUP
+            )))
+            .expect("unsupported"),
+            AccessAcl::None
+        );
+        assert_eq!(
+            access_acl_from(Err(std::io::Error::from(
+                std::io::ErrorKind::PermissionDenied
+            )))
+            .expect_err("denied")
+            .kind(),
+            std::io::ErrorKind::PermissionDenied
+        );
     }
 
     #[cfg(target_os = "macos")]
