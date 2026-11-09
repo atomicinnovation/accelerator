@@ -34,6 +34,53 @@ every other flag.
 flags given, with `--state` resolved through the catalogue into the same
 input.
 
+```diff
+ run_update(args)
+-  if --state
+-    transition(key, state)                  # every other flag dropped
+-    print issue JSON with "outcome"
+-    return
+-  update_op(key, title ?? "", description ?? "")
++  state_id = resolve_state(--state)?       # 122 / 123 before any request
++  update_op(key, UpdateFields {            # only the flags given
++    title, description, state_id, assignee_id, priority
++  })
+   print "updated\t<KEY>"
+```
+
+## Evidence
+
+The `issueUpdate` input each command sends. "After" is what `flow_update.rs`
+asserts. "Before" is read from `main`'s `run_update`:
+
+| Command | Before | After |
+| --- | --- | --- |
+| `--title x` | `{title: "x", description: ""}`, body erased | `{title: "x"}` |
+| `--description x` | `{title: "", description: "x"}`, exit 34 | `{description: "x"}` |
+| `--priority 1` | `{title: "", description: ""}`, exit 34 | `{priority: 1}` |
+| `--state "In Progress" --title x` | state only, title dropped | `{stateId: "state-ip-uuid", title: "x"}` |
+
+Against real Linear on PP-938, `--description`, `--title` and `--priority`
+each changed only their own field.
+
+## Merge Danger
+
+**Door:** two-way
+
+A revert restores the old input and output. Nothing is migrated or stored.
+
+**Blast Radius:** narrow
+
+- **Scripts calling `linear update --state`.** They get `updated\t<KEY>`
+  instead of JSON. Some exit codes change too: a bare 401 exits 20, not 11,
+  and a malformed identifier such as `#BLA-1` exits 34 before sending.
+- **Scripts calling `linear update`.** `--assignee-id` and `--priority` now
+  reach Linear, so a value Linear refuses, such as `--assignee-id ""`, exits
+  34 where it used to succeed.
+- **`work sync`, `work update --push` and promotion.** These now go through
+  `update_op`. The existing pins and the new titled `update` pin hold their
+  input byte-for-byte.
+
 ## Changes
 
 ### `linear-client`
