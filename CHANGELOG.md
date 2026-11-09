@@ -203,9 +203,10 @@
   which was silently ignored, now also exits non-zero.
 - **`cache prune --older-than` also sets the version-claim window**, as well
   as the tree-claim window it set before.
-- **`bin/accelerator` exits 1, or 0 under `--fail-safe`, when the launcher
-  vanishes before it can run**, where it exited 126 or 127, depending on the
-  bash version. Every other `exec` failure exits as before.
+- **`bin/accelerator` fetches a launcher that vanishes before it can run once
+  more, and exits 1, or 0 under `--fail-safe`, only when that fails too**,
+  where it exited 126 or 127, depending on the bash version. Every other
+  `exec` failure exits as before.
 - **`cache prune` refuses a relocated root other users can write to.** In
   such a root, or one under a directory they can write to, it removes
   nothing and exits non-zero, printing the directory at fault and the fix,

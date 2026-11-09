@@ -1669,6 +1669,30 @@ def test_a_launcher_removed_before_exec_fails_with_the_diagnostic(
 
     assert result.returncode == 1, result.stdout + result.stderr
     assert "vanished before it could run" in result.stderr, result.stderr
+    assert not (harness.root / "bin/.accelerator-unverified.log").exists()
+
+
+def test_a_launcher_removed_once_before_exec_is_fetched_again_and_runs(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    _run_bootstrap(harness.root, harness.server, downloader)
+    removed_once = harness.root / "removed-once"
+    _verify_then(
+        harness,
+        host_platform,
+        f'[ -e "{removed_once}" ] || {{ touch "{removed_once}"; rm -f "$3"; }};'
+        " true",
+    )
+
+    result = _run_bootstrap(
+        harness.root, harness.server, downloader, args=("visualiser",)
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vanished" not in result.stderr, result.stderr
 
 
 def test_an_unexecutable_launcher_still_fails_under_fail_safe(

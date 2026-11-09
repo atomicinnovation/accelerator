@@ -432,9 +432,10 @@ fetch_and_verify() {
 	mv "${tmp_sig}" "${launcher_sig}" && mv "${tmp_bin}" "${launcher}"
 }
 
-if [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] && verify_launcher; then
-	: # cache hit — reuse without a lock or fetch
-else
+ensure_launcher() {
+	if [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] && verify_launcher; then
+		return 0
+	fi
 	# Staging was skipped (the staged shim already matched) but verification
 	# failed. Without this, an unwritable cache dir reaches acquire_lock, whose
 	# mkdir can never succeed and whose loop treats a missing pid file as an
@@ -445,22 +446,36 @@ else
 	# Re-check under the lock in case another session populated the cache.
 	if ! { [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] &&
 		verify_launcher; }; then
-		fetch_and_verify ||
-			fail_integrity "could not fetch and verify the accelerator launcher \
-for ${platform}"
+		if ! fetch_and_verify; then
+			release_lock
+			return 1
+		fi
 	fi
 	release_lock
-fi
+}
+
+ensure_launcher ||
+	fail_integrity "could not fetch and verify the accelerator launcher \
+for ${platform}"
 
 # argv list (no shell-string interpolation); the exported root stays in the env
 # so the launcher resolves the same cache root for its sub-binaries. The file,
 # not the status, tells a vanished launcher apart: bash 3.2 reports 126 for a
 # missing file and an unexecutable one alike. Every other failure keeps bash's
 # own status, so a launcher that can never run stays visible under --fail-safe.
+# A launcher a prune removed after it was verified is fetched once more; one
+# that then cannot be fetched is not an integrity failure, so it leaves no
+# unverified-launcher record.
 shopt -s execfail
 exec "${launcher}" "$@"
 exec_status=$?
 if [[ ! -e "${launcher}" ]]; then
-	fail "the launcher ${launcher} vanished before it could run"
+	ensure_launcher ||
+		fail "the launcher ${launcher} vanished before it could run, and \
+could not be fetched again"
+	exec "${launcher}" "$@"
+	exec_status=$?
+	[[ -e "${launcher}" ]] ||
+		fail "the launcher ${launcher} vanished before it could run"
 fi
 exit "${exec_status}"
