@@ -10,7 +10,7 @@ use super::ports::CachePorts;
 use super::root_entries::{RootEntry, RootListing};
 use super::root_lock::HeldRootLock;
 use super::version_claims::{
-    self, ClaimsListing, FreshVersions, ListedClaim, VERSION_CLAIMS_DIR,
+    self, ClaimsListing, FreshVersions, Grace, ListedClaim, VERSION_CLAIMS_DIR,
 };
 
 const SIGNATURE_SUFFIX: &str = ".minisig";
@@ -260,8 +260,22 @@ impl SingleFilePrune<'_> {
                 self.ports.clock.as_ref(),
             )
         });
-        let other_versions = match &claimed {
-            Some(fresh) if !fresh.holds_any_besides(self.running_version) => {
+        let grace = version_claims::grace(
+            self.root,
+            self.ports.filesystem.as_ref(),
+            self.ports.ownership.as_ref(),
+            self.claim_window,
+            self.ports.clock.as_ref(),
+        );
+        if grace == Grace::Running {
+            tracing::info!(
+                "the root is newly claim-aware; kept every versioned entry"
+            );
+        }
+        let other_versions = match (&claimed, grace) {
+            (Some(fresh), Grace::Over)
+                if !fresh.holds_any_besides(self.running_version) =>
+            {
                 OtherVersions::Unclaimed
             }
             _ => OtherVersions::MayBeActive,
@@ -279,7 +293,7 @@ impl SingleFilePrune<'_> {
         let versioned = self.remove_entries(
             &entries,
             &context,
-            claims.is_some(),
+            claims.is_some() && grace == Grace::Over,
             &mut outcome,
         );
         if let (Some(claims), Some(claimed)) = (claims, claimed) {
@@ -689,7 +703,7 @@ mod run_tests {
     use super::super::root_entries::RootListing;
     use super::super::root_lock::HeldRootLock;
     use super::super::testing::{aged, now, young, LiveHolders, Ports, Root};
-    use super::super::version_claims::VERSION_CLAIMS_DIR;
+    use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
     use super::{SingleFileOutcome, SingleFilePrune};
 
     const RUNNING: &str = "9.9.9";
@@ -718,10 +732,36 @@ mod run_tests {
 
     impl Seeded {
         fn new() -> Self {
-            Self {
+            let seeded = Self {
                 root: Root::new(),
                 now: now(),
+            };
+            seeded.claim_aware_since(Some(
+                seeded.now - 2 * CLAIM_WINDOW.as_secs(),
+            ));
+            seeded
+        }
+
+        fn claim_aware_since(&self, since: Option<u64>) {
+            let marker = self.claims_directory().join(CLAIM_AWARE_SINCE);
+            match since {
+                None => std::fs::remove_file(&marker).expect("no marker"),
+                Some(since) => {
+                    std::fs::write(&marker, b"").expect("marker");
+                    SystemFilesystem
+                        .set_modified(&marker, since)
+                        .expect("marker mtime");
+                }
             }
+        }
+
+        fn claims_directory(&self) -> PathBuf {
+            let claims = self.claims();
+            if !claims.exists() {
+                std::fs::create_dir(&claims).expect("claims");
+                super::super::testing::set_mode(&claims, 0o700);
+            }
+            claims
         }
 
         fn sub_binary(&self, version: &str, modified: u64) -> String {
@@ -745,12 +785,7 @@ mod run_tests {
         }
 
         fn claim(&self, version: &str, id: &str, modified: u64) -> PathBuf {
-            let claims = self.claims();
-            if !claims.exists() {
-                std::fs::create_dir(&claims).expect("claims");
-                super::super::testing::set_mode(&claims, 0o700);
-            }
-            let path = claims.join(format!("{version}.{id}"));
+            let path = self.claims_directory().join(format!("{version}.{id}"));
             std::fs::write(&path, b"").expect("claim");
             SystemFilesystem
                 .set_modified(&path, modified)
@@ -809,6 +844,35 @@ mod run_tests {
             }
             .run(&listing, &held)
         }
+    }
+
+    #[test]
+    fn a_root_claim_aware_for_under_a_window_keeps_unclaimed_versions() {
+        let plugin = Plugin::with_sources(&[HOST_PLATFORM]);
+        let foreign = shim_copy(HOST_PLATFORM, OTHER_DIGEST);
+        for since in [None, Some(young(now()))] {
+            let root = Seeded::new();
+            root.claim_aware_since(since);
+            let pre_claim = root.sub_binary("1.23.0", aged(root.now));
+            root.root.file(&foreign, b"", aged(root.now));
+            root.claim(RUNNING, LAUNCHER_ID, root.now);
+
+            root.prune_with(root.ports(), Some(plugin.path()), CLAIM_WINDOW);
+
+            assert!(root.has_entry(&pre_claim), "{since:?}");
+            assert!(root.has(&foreign), "{since:?}");
+        }
+    }
+
+    #[test]
+    fn a_narrower_window_shortens_the_grace_with_it() {
+        let root = Seeded::new();
+        root.claim_aware_since(Some(young(root.now)));
+        let unclaimed = root.sub_binary("1.23.0", aged(root.now));
+
+        root.prune_with(root.ports(), None, Duration::from_secs(60));
+
+        assert!(!root.has_entry(&unclaimed));
     }
 
     #[test]

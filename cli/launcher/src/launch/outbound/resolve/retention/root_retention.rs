@@ -305,7 +305,7 @@ mod tests {
     use super::super::ports::CachePorts;
     use super::super::root_prune::PruneOutcome;
     use super::super::testing::{now, Ports};
-    use super::super::version_claims::VERSION_CLAIMS_DIR;
+    use super::super::version_claims::{CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR};
     use super::{for_root, PluginBinRetention, RootRetention as _};
 
     fn ports() -> Arc<CachePorts> {
@@ -389,6 +389,8 @@ mod tests {
         assert_eq!(
             std::fs::read_dir(claims(&relocated))
                 .expect("claims")
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name() != CLAIM_AWARE_SINCE)
                 .count(),
             1,
             "only the identified root is claimed"

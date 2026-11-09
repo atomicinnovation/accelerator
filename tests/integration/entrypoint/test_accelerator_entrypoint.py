@@ -1852,6 +1852,7 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
     cache.chmod(0o700)
     assert stat.S_IMODE(cache.stat().st_mode) == 0o700
     root = _Root(cache, time.time())
+    root.file("claims/.since", _BEYOND_THE_CLAIM_WINDOW, body="")
     _seed_a_superseded_version(root, "0.1.0", "a", "e", host_platform)
     _seed_a_superseded_version(root, "0.2.0", "b", "f", host_platform)
     root.file(f".tmp-visualiser-{'c' * 64}-1-2", 2 * 60 * 60)
@@ -1889,7 +1890,11 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
     shim = harness.root / f"bin/accelerator-verify-{host_platform}"
     shim_digest = hashlib.sha256(shim.read_bytes()).hexdigest()
     remaining = root.names() - {".accelerator-unverified.log"}
-    claims = {name for name in remaining if name.startswith("claims/")}
+    claims = {
+        name
+        for name in remaining
+        if name.startswith("claims/") and name != "claims/.since"
+    }
     assert len(claims) == 1, claims
     assert re.fullmatch(
         rf"claims/{re.escape(crate)}\.[0-9a-f]{{16}}", next(iter(claims))
@@ -1902,6 +1907,7 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
         f"accelerator-verify-{host_platform}-{shim_digest}",
         ".accelerator-prune.lock",
         "claims",
+        "claims/.since",
         "trees",
         "trees/claims",
         *c_trees,

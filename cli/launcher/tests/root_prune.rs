@@ -45,7 +45,7 @@ use accelerator::launch::outbound::resolve::retention::ports::CachePorts;
 use accelerator::launch::outbound::resolve::retention::residue::BootstrapHolderLiveness;
 use accelerator::launch::outbound::resolve::retention::root_lock::ROOT_LOCK;
 use accelerator::launch::outbound::resolve::retention::version_claims::{
-    self, VersionClaim, VERSION_CLAIMS_DIR,
+    self, VersionClaim, CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR,
 };
 use accelerator::launch::outbound::resolve::retention_windows::{
     AGE_BACKSTOP, CLAIM_WINDOW,
@@ -186,11 +186,28 @@ impl RootHarness {
             .is_ok(),
             "the harness root must be safe to prune on this host"
         );
-        Self {
+        let harness = Self {
             anchor,
             root,
             plugin,
             now: now(),
+        };
+        harness.claim_aware_since(harness.now - 2 * CLAIM_WINDOW.as_secs());
+        harness
+    }
+
+    /// Long past the grace a newly claim-aware root keeps every version in.
+    fn claim_aware_since(&self, since: u64) {
+        self.claims_directory();
+        let marker = self.claims().join(CLAIM_AWARE_SINCE);
+        std::fs::write(&marker, b"").expect("claim-aware marker");
+        set_mtime(&marker, since);
+    }
+
+    fn claims_directory(&self) {
+        if !self.claims().exists() {
+            std::fs::create_dir(self.claims()).expect("claims");
+            set_mode(&self.claims(), 0o700);
         }
     }
 
@@ -237,10 +254,7 @@ impl RootHarness {
     }
 
     fn claim(&self, version: &str, modified: u64) -> PathBuf {
-        if !self.claims().exists() {
-            std::fs::create_dir(self.claims()).expect("claims");
-            set_mode(&self.claims(), 0o700);
-        }
+        self.claims_directory();
         let path = self.claims().join(format!("{version}.{OTHER_ID}"));
         std::fs::write(&path, b"").expect("claim");
         set_mtime(&path, modified);
@@ -442,7 +456,6 @@ fn kept_names_survive(trigger: Trigger) {
 fn the_verb_names_unreadable_claims_and_exits_zero() {
     let harness = RootHarness::new();
     let entry = harness.entry(OLD, harness.aged());
-    std::fs::create_dir(harness.claims()).expect("claims");
     set_mode(&harness.claims(), 0o000);
 
     let verb = harness.prune(harness.ports());

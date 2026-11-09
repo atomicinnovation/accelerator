@@ -17,6 +17,9 @@ use super::super::retention_windows::{CLAIM_WINDOW, REFRESH_FRACTION};
 
 pub const VERSION_CLAIMS_DIR: &str = "claims";
 
+/// Outside the claim name grammar, so every claim reader passes over it.
+pub const CLAIM_AWARE_SINCE: &str = ".since";
+
 const LAUNCHER_ID_LENGTH: usize = 16;
 
 pub struct VersionClaim<'a> {
@@ -80,8 +83,61 @@ fn write_claim(
             "the claims directory is not this user's alone",
         ));
     }
+    mark_claim_aware(claims, filesystem, now);
     filesystem.write_private(path, b"")?;
     filesystem.set_modified(path, now)
+}
+
+fn mark_claim_aware(claims: &Path, filesystem: &dyn CacheFilesystem, now: u64) {
+    let marker = claims.join(CLAIM_AWARE_SINCE);
+    if !filesystem
+        .entry(&marker)
+        .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
+    {
+        return;
+    }
+    let written = filesystem
+        .write_private(&marker, b"")
+        .and_then(|()| filesystem.set_modified(&marker, now));
+    if let Err(error) = written {
+        tracing::debug!(
+            path = %marker.display(),
+            %error,
+            "could not mark the root claim-aware"
+        );
+    }
+}
+
+/// A launcher from before claims shares the root without claiming its
+/// version, so no version is taken as unclaimed until the root has been
+/// claim-aware for a whole window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Grace {
+    Running,
+    Over,
+}
+
+/// A missing, foreign or future marker keeps the grace running.
+pub fn grace(
+    root: &Path,
+    filesystem: &dyn CacheFilesystem,
+    ownership: &dyn Ownership,
+    window: Duration,
+    clock: &dyn Clock,
+) -> Grace {
+    let marker = root.join(VERSION_CLAIMS_DIR).join(CLAIM_AWARE_SINCE);
+    let over = filesystem.entry(&marker).is_ok_and(|entry| {
+        is_valid(&entry, ownership.effective_uid())
+            && entry.modified_seconds.is_some_and(|modified| {
+                clock.now_seconds().checked_sub(modified)
+                    >= Some(window.as_secs())
+            })
+    });
+    if over {
+        Grace::Over
+    } else {
+        Grace::Running
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,8 +295,8 @@ mod tests {
         CLAIM_WINDOW, REFRESH_FRACTION,
     };
     use super::{
-        list, parse_claim_name, refresh, ClaimsListing, FreshVersions,
-        VersionClaim, VERSION_CLAIMS_DIR,
+        grace, list, parse_claim_name, refresh, ClaimsListing, FreshVersions,
+        Grace, VersionClaim, CLAIM_AWARE_SINCE, VERSION_CLAIMS_DIR,
     };
 
     const VERSION: &str = "1.24.0-pre.83";
@@ -358,6 +414,73 @@ mod tests {
         root.refresh_at(at);
 
         assert_eq!(modified(&root.claim()), Some(at));
+    }
+
+    fn marker(root: &Root) -> PathBuf {
+        root.claims().join(CLAIM_AWARE_SINCE)
+    }
+
+    #[test]
+    fn the_first_claim_marks_the_root_claim_aware() {
+        let root = Root::new();
+        let at = now();
+
+        root.refresh_at(at);
+
+        assert_eq!(modified(&marker(&root)), Some(at));
+    }
+
+    #[test]
+    fn a_later_claim_leaves_the_claim_aware_marker_alone() {
+        let root = Root::new();
+        let first = now();
+        root.refresh_at(first);
+
+        root.refresh_at(first + REFRESH_AGE + 60);
+
+        assert_eq!(modified(&marker(&root)), Some(first));
+    }
+
+    #[test]
+    fn the_grace_is_over_only_once_the_marker_is_a_window_old() {
+        let root = Root::new();
+        let at = now();
+        let grace_at = |seconds| {
+            grace(
+                root.path(),
+                &SystemFilesystem,
+                &ProcessOwnership::default(),
+                CLAIM_WINDOW,
+                &AtClock(seconds),
+            )
+        };
+        assert_eq!(grace_at(at), Grace::Running, "no marker yet");
+
+        root.refresh_at(at);
+
+        assert_eq!(grace_at(at + CLAIM_WINDOW.as_secs() - 1), Grace::Running);
+        assert_eq!(grace_at(at + CLAIM_WINDOW.as_secs()), Grace::Over);
+        assert_eq!(grace_at(at - 60), Grace::Running, "a future marker");
+    }
+
+    #[test]
+    fn a_foreign_owned_marker_never_ends_the_grace() {
+        let root = Root::new();
+        let at = now();
+        root.refresh_at(at);
+        let filesystem = ReportingFilesystem::over_system()
+            .reporting(&marker(&root), foreign(&marker(&root)));
+
+        assert_eq!(
+            grace(
+                root.path(),
+                &filesystem,
+                &ProcessOwnership::default(),
+                CLAIM_WINDOW,
+                &AtClock(at + 2 * CLAIM_WINDOW.as_secs()),
+            ),
+            Grace::Running
+        );
     }
 
     #[test]

@@ -329,7 +329,10 @@ so the launcher bounds what it holds:
 - **Retention.** A version idle for 14 days, whose claim is that old, loses
   its entries and re-fetches them on its next dispatch. A runtime tree stays
   while a dispatch from the last 14 days claims it or a running crawl leases
-  it. Crash residue stays for an hour.
+  it. Crash residue stays for an hour. For the first 14 days after a
+  directory sees its first claim, recorded as `claims/.since`, no version
+  loses its entries, so a launcher from before claims that shares the
+  directory keeps working through an upgrade.
 - **`accelerator cache prune`** runs the same prune but waits for each lock.
   It removes the launcher and sub-binary entries of unclaimed versions,
   verifier copies the running plugin no longer stages, unclaimed trees of
@@ -338,7 +341,7 @@ so the launcher bounds what it holds:
   prints `reclaimed <n> entries`, and exits non-zero when a lock cannot be
   taken or a removal fails, after pruning everything else.
 - **`--older-than <seconds>`** replaces the 14-day window for both version
-  and tree claims. Below ~1.4 days (`120960`) it can evict versions other
+  and tree claims, and for the first-claim grace. Below ~1.4 days (`120960`) it can evict versions other
   sessions are using, because their claims are refreshed no more often than
   that; they re-fetch on their next dispatch. The running version is never
   evicted.

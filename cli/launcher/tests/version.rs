@@ -225,6 +225,7 @@ fn a_built_in_command_refreshes_the_version_claim() -> Result<(), Box<dyn Error>
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| name != ".since")
         .collect();
     let prefix = format!("{}.", env!("CARGO_PKG_VERSION"));
     assert!(
