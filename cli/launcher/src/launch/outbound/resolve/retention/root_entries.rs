@@ -24,15 +24,36 @@ const DIGEST_LENGTH: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RootEntry<'a> {
-    SubBinary { stem: &'a str },
-    LauncherEntry { version: &'a str },
-    ShimCopy { platform: &'a str, digest: &'a str },
-    ShimStaging { pid: i32 },
+    SubBinary {
+        stem: &'a str,
+    },
+    LauncherEntry {
+        version: &'a str,
+    },
+    ShimCopy {
+        platform: &'a str,
+        digest: &'a str,
+    },
+    ShimStaging {
+        pid: i32,
+    },
     StoreStaging,
-    LauncherStaging { pid: i32 },
+    LauncherStaging {
+        pid: i32,
+    },
     Probe,
     BootstrapLock,
+    /// An entry or its signature without the other, which nothing can find
+    /// or run.
+    HalfPair(Half<'a>),
     Unrecognised,
+}
+
+/// What a half pair would belong to, once whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Half<'a> {
+    SubBinary { stem: &'a str },
+    LauncherEntry { version: &'a str },
 }
 
 /// A name that is not UTF-8 is no name the plugin writes, so it is left out
@@ -73,8 +94,8 @@ impl RootListing {
 }
 
 /// An entry with a signature is recognised only while its `.minisig` is
-/// listed too, and a `.minisig` is never recognised alone: it goes with its
-/// entry.
+/// listed too, and a listed pair's `.minisig` goes with its entry. Either
+/// half listed without the other is a [`RootEntry::HalfPair`].
 #[must_use]
 pub fn classify<'a>(name: &'a str, listed: &BTreeSet<&str>) -> RootEntry<'a> {
     shim_entry(name)
@@ -82,6 +103,7 @@ pub fn classify<'a>(name: &'a str, listed: &BTreeSet<&str>) -> RootEntry<'a> {
         .or_else(|| sub_binary(name, listed))
         .or_else(|| staging(name))
         .or_else(|| bootstrap_residue(name))
+        .or_else(|| half_pair(name, listed))
         .unwrap_or(RootEntry::Unrecognised)
 }
 
@@ -104,12 +126,8 @@ fn launcher_entry<'a>(
     name: &'a str,
     listed: &BTreeSet<&str>,
 ) -> Option<RootEntry<'a>> {
-    let rest = name.strip_prefix(LAUNCHER_PREFIX)?;
-    let version = KNOWN_PLATFORMS
-        .iter()
-        .find_map(|platform| rest.strip_suffix(platform)?.strip_suffix('-'))?;
-    (!version.is_empty() && has_signature(name, listed))
-        .then_some(RootEntry::LauncherEntry { version })
+    let version = launcher_version(name)?;
+    has_signature(name, listed).then_some(RootEntry::LauncherEntry { version })
 }
 
 fn sub_binary<'a>(
@@ -120,6 +138,39 @@ fn sub_binary<'a>(
         && !name.starts_with('.')
         && has_signature(name, listed))
     .then_some(RootEntry::SubBinary { stem: name })
+}
+
+fn half_pair<'a>(
+    name: &'a str,
+    listed: &BTreeSet<&str>,
+) -> Option<RootEntry<'a>> {
+    let (entry, partner_listed) =
+        name.strip_suffix(SIGNATURE_SUFFIX).map_or_else(
+            || (name, has_signature(name, listed)),
+            |entry| (entry, listed.contains(entry)),
+        );
+    if partner_listed
+        || entry.starts_with('.')
+        || entry.starts_with(SHIM_PREFIX)
+    {
+        return None;
+    }
+    let half = match launcher_version(entry) {
+        Some(version) => Half::LauncherEntry { version },
+        None if is_digest_suffixed_stem(entry) => {
+            Half::SubBinary { stem: entry }
+        }
+        None => return None,
+    };
+    Some(RootEntry::HalfPair(half))
+}
+
+fn launcher_version(name: &str) -> Option<&str> {
+    let rest = name.strip_prefix(LAUNCHER_PREFIX)?;
+    KNOWN_PLATFORMS
+        .iter()
+        .find_map(|platform| rest.strip_suffix(platform)?.strip_suffix('-'))
+        .filter(|version| !version.is_empty())
 }
 
 fn staging(name: &str) -> Option<RootEntry<'_>> {
@@ -180,7 +231,7 @@ fn is_known_platform(candidate: &str) -> bool {
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::{classify, RootEntry};
+    use super::{classify, Half, RootEntry};
 
     const DIGEST: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -258,23 +309,54 @@ mod tests {
         }
     }
 
-    #[test]
-    fn an_entry_without_its_listed_signature_is_unrecognised() {
-        for name in [
+    fn entries() -> [String; 2] {
+        [
             format!("vcs-1.24.0-{DIGEST}"),
             "accelerator-launcher-1.24.0-linux-x64".to_owned(),
-        ] {
-            assert_eq!(alone(&name), RootEntry::Unrecognised, "{name}");
+        ]
+    }
+
+    fn half_of(entry: &str) -> RootEntry<'_> {
+        RootEntry::HalfPair(
+            entry
+                .strip_prefix("accelerator-launcher-")
+                .map_or(Half::SubBinary { stem: entry }, |_| {
+                    Half::LauncherEntry { version: "1.24.0" }
+                }),
+        )
+    }
+
+    #[test]
+    fn an_entry_without_its_listed_signature_is_half_a_pair() {
+        for name in entries() {
+            assert_eq!(alone(&name), half_of(&name), "{name}");
         }
     }
 
     #[test]
-    fn a_signature_is_never_recognised_alone() {
+    fn a_signature_goes_with_its_listed_entry_and_is_half_a_pair_without_it() {
+        for entry in entries() {
+            let signature = format!("{entry}.minisig");
+            assert_eq!(
+                classify(&signature, &BTreeSet::from([entry.as_str()])),
+                RootEntry::Unrecognised,
+                "{signature}"
+            );
+            assert_eq!(alone(&signature), half_of(&entry), "{signature}");
+        }
+    }
+
+    #[test]
+    fn a_name_shaped_like_no_entry_is_never_half_a_pair() {
         for name in [
-            format!("vcs-1.24.0-{DIGEST}.minisig"),
-            "accelerator-launcher-1.24.0-linux-x64.minisig".to_owned(),
+            "notes.minisig".to_owned(),
+            format!(".vcs-1.24.0-{DIGEST}"),
+            format!(".vcs-1.24.0-{DIGEST}.minisig"),
+            "accelerator-launcher-1.24.0-plan9-x64".to_owned(),
+            format!("accelerator-verify-plan9-x64-{DIGEST}"),
+            format!("accelerator-verify-linux-x64-{DIGEST}.minisig"),
         ] {
-            assert_eq!(signed(&name), RootEntry::Unrecognised, "{name}");
+            assert_eq!(alone(&name), RootEntry::Unrecognised, "{name}");
         }
     }
 

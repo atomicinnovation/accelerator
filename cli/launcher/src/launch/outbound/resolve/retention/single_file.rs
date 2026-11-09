@@ -9,7 +9,7 @@ use super::super::prune_report::{
 use super::super::retention_windows::is_aged;
 use super::super::verifier::sha256_hex;
 use super::ports::CachePorts;
-use super::root_entries::{RootEntry, RootListing};
+use super::root_entries::{Half, RootEntry, RootListing};
 use super::root_lock::HeldRootLock;
 use super::version_claims::{
     self, ClaimsListing, FreshVersions, Grace, ListedClaim, VERSION_CLAIMS_DIR,
@@ -100,8 +100,37 @@ impl LiveBootstraps {
     }
 }
 
+/// Every version a claim in this root names, fresh or stale, and the running
+/// one: the versions whose names this launcher knows to be its own.
+#[derive(Debug, Default)]
+pub struct ClaimedVersions {
+    versions: BTreeSet<String>,
+}
+
+impl ClaimedVersions {
+    #[must_use]
+    pub fn named_by(claims: &[ListedClaim], running: &str) -> Self {
+        Self {
+            versions: claims
+                .iter()
+                .filter(|claim| claim.valid)
+                .map(|claim| claim.version.clone())
+                .chain(std::iter::once(running.to_owned()))
+                .collect(),
+        }
+    }
+
+    fn own(&self, half: &Half<'_>) -> bool {
+        self.versions.iter().any(|version| match *half {
+            Half::SubBinary { stem } => is_stem_of_version(stem, version),
+            Half::LauncherEntry { version: of } => of == version,
+        })
+    }
+}
+
 pub struct ProtectionContext {
     pub fresh: FreshVersions,
+    pub claimed: ClaimedVersions,
     pub running_shims: RunningShims,
     pub live_bootstraps: LiveBootstraps,
 }
@@ -123,6 +152,7 @@ pub fn protection(
         RootEntry::ShimStaging { pid } | RootEntry::LauncherStaging { pid } => {
             context.live_bootstraps.holds(pid)
         }
+        RootEntry::HalfPair(half) => !context.claimed.own(&half),
         RootEntry::StoreStaging
         | RootEntry::Probe
         | RootEntry::BootstrapLock
@@ -156,7 +186,8 @@ pub const fn disposition(
         | RootEntry::LauncherEntry { .. }
         | RootEntry::ShimCopy { .. }
         | RootEntry::ShimStaging { .. }
-        | RootEntry::LauncherStaging { .. } => {
+        | RootEntry::LauncherStaging { .. }
+        | RootEntry::HalfPair(_) => {
             matches!(protection, Protection::Unprotected)
                 && matches!(age, Age::Aged)
         }
@@ -286,6 +317,10 @@ impl SingleFilePrune<'_> {
         let running_shims =
             self.running_shims(&entries).alongside(other_versions);
         let context = ProtectionContext {
+            claimed: ClaimedVersions::named_by(
+                claims.as_deref().unwrap_or_default(),
+                self.running_version,
+            ),
             fresh: claimed
                 .clone()
                 .unwrap_or_default()
@@ -377,13 +412,15 @@ impl SingleFilePrune<'_> {
             let removed =
                 self.remove_if_disposable(name, entry, context, outcome);
             match *entry {
-                RootEntry::SubBinary { stem } => {
+                RootEntry::SubBinary { stem }
+                | RootEntry::HalfPair(Half::SubBinary { stem }) => {
                     versioned.stems.push(RemovalAttempt {
                         of: stem.to_owned(),
                         removed,
                     });
                 }
-                RootEntry::LauncherEntry { version } => {
+                RootEntry::LauncherEntry { version }
+                | RootEntry::HalfPair(Half::LauncherEntry { version }) => {
                     versioned.launchers.push(RemovalAttempt {
                         of: version.to_owned(),
                         removed,
@@ -395,6 +432,10 @@ impl SingleFilePrune<'_> {
         versioned
     }
 
+    /// The signature goes first, so a dispatch never finds an entry on its
+    /// way out, mirroring `store`, which writes the entry before its
+    /// signature. A half that a failure on either side leaves behind is swept
+    /// once aged, while its version is claimed.
     fn remove_if_disposable(
         &self,
         name: &str,
@@ -516,6 +557,7 @@ const fn rule_of(entry: &RootEntry<'_>) -> &'static str {
             "aged staging of a finished bootstrap"
         }
         RootEntry::StoreStaging => "aged store staging",
+        RootEntry::HalfPair(_) => "aged half of an entry and its signature",
         RootEntry::Probe
         | RootEntry::BootstrapLock
         | RootEntry::Unrecognised => "kept",
@@ -527,9 +569,9 @@ mod tests {
     use super::super::root_entries::RootEntry;
     use super::super::version_claims::FreshVersions;
     use super::{
-        disposition, protection, stale_claim_disposition, Age, Disposition,
-        LiveBootstraps, Protection, ProtectionContext, RunningShims,
-        ShimSource,
+        disposition, protection, stale_claim_disposition, Age, ClaimedVersions,
+        Disposition, LiveBootstraps, Protection, ProtectionContext,
+        RunningShims, ShimSource,
     };
 
     const DIGEST: &str =
@@ -540,6 +582,7 @@ mod tests {
     fn context() -> ProtectionContext {
         ProtectionContext {
             fresh: FreshVersions::default().including("1.24.0-pre.78"),
+            claimed: ClaimedVersions::default(),
             running_shims: RunningShims::default()
                 .with("linux-x64", ShimSource::Digest(DIGEST.to_owned()))
                 .with("darwin-arm64", ShimSource::Unhashable),
@@ -864,6 +907,66 @@ mod run_tests {
             assert!(root.has_entry(&pre_claim), "{since:?}");
             assert!(root.has(&foreign), "{since:?}");
         }
+    }
+
+    #[test]
+    fn an_aged_half_of_a_claimed_version_goes_and_any_other_half_stays() {
+        let root = Seeded::new();
+        let stale = root.now - 2 * CLAIM_WINDOW.as_secs();
+        root.claim("1.0.0", OTHER_ID, stale);
+        root.claim("2.0.0", OTHER_ID, stale);
+        let foreign = [
+            format!("x-y-{DIGEST}"),
+            format!("lone-3.0.0-{DIGEST}.minisig"),
+        ];
+        for name in &foreign {
+            root.root.file(name, b"x", aged(root.now));
+        }
+        let halves = [
+            format!("vcs-1.0.0-{DIGEST}"),
+            format!("vcs-2.0.0-{DIGEST}.minisig"),
+            format!("accelerator-launcher-1.0.0-{HOST_PLATFORM}.minisig"),
+        ];
+        for half in &halves {
+            root.root.file(half, b"x", aged(root.now));
+        }
+        let in_progress = format!("vcs-{RUNNING}-{OTHER_DIGEST}");
+        root.root.file(&in_progress, b"x", young(root.now));
+
+        root.prune();
+
+        assert!(halves.iter().all(|half| !root.has(half)), "{halves:?}");
+        assert!(root.has(&in_progress));
+        assert!(foreign.iter().all(|name| root.has(name)), "{foreign:?}");
+    }
+
+    #[test]
+    fn a_half_that_fails_to_go_keeps_its_versions_last_claim() {
+        let root = Seeded::new();
+        let claim = root.claim(
+            "1.0.0",
+            OTHER_ID,
+            root.now - 2 * CLAIM_WINDOW.as_secs(),
+        );
+        let half = root.root.file(
+            &format!("vcs-1.0.0-{DIGEST}"),
+            b"x",
+            aged(root.now),
+        );
+        let filesystem = ReportingFilesystem::over_system()
+            .failing_removal(&half, std::io::ErrorKind::PermissionDenied);
+
+        root.prune_with(
+            Ports {
+                filesystem: Arc::new(filesystem),
+                ..root.ports()
+            },
+            None,
+            CLAIM_WINDOW,
+        );
+
+        assert!(half.exists());
+        assert!(claim.exists());
     }
 
     #[test]
