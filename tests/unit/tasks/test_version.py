@@ -146,6 +146,14 @@ class TestLockVersionCoherence:
             "sync it (the minimal update), never `cargo generate-lockfile`."
         )
 
+    def test_the_plugin_version_is_the_workspace_version(self):
+        # Launcher entries are named by plugin.json's version and version
+        # claims by the crate's, so the running launcher's own entry is
+        # protected only while the two agree.
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        plugin = json.loads(tv.PLUGIN_JSON.read_text())
+        assert plugin["version"] == cargo["workspace"]["package"]["version"]
+
     def test_the_assertion_covers_every_member(self):
         # Non-vacuity: a lock that stopped listing members, or a member renamed
         # out of it, would leave the assertion above passing over a smaller set

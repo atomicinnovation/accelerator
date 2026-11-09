@@ -299,6 +299,38 @@ pub trait ResolveBinary {
         &self,
         command: &ExternalCommand,
     ) -> Result<PathBuf, ResolutionError>;
+
+    /// Produce the binary again after `missing`, which [`Self::resolve`]
+    /// returned, vanished before it could be executed.
+    ///
+    /// Goes straight to the cold path rather than through the cache lookup: a
+    /// second lookup could return another entry a prune is about to remove.
+    /// [`run_external`] asks at most once, so an entry removed again between
+    /// the re-fetch and the second `exec` cannot loop.
+    fn re_resolve(
+        &self,
+        command: &ExternalCommand,
+        missing: &Path,
+    ) -> ReResolution;
+}
+
+/// What a [`ResolveBinary`] offers after its resolved binary went missing.
+#[derive(Debug)]
+pub enum ReResolution {
+    Declined,
+    Resolved(PathBuf),
+    Failed(ResolutionError),
+}
+
+impl ResolutionError {
+    #[must_use]
+    pub fn is_missing_program(&self) -> bool {
+        matches!(
+            self,
+            Self::Exec { source, .. }
+                if source.kind() == std::io::ErrorKind::NotFound
+        )
+    }
 }
 
 /// Replaces the current process with a resolved binary — a driven port.
@@ -308,16 +340,28 @@ pub trait ExecBinary {
     fn exec(&self, program: &Path, args: &[OsString]) -> ResolutionError;
 }
 
-/// Resolve the sub-binary and exec it. Only ever returns an error — a
-/// successful `exec` replaces this process.
+/// Resolve the sub-binary and exec it, re-resolving once if it vanished in
+/// between. Only ever returns an error — a successful `exec` replaces this
+/// process.
 pub fn run_external(
     resolver: &impl ResolveBinary,
     executor: &impl ExecBinary,
     command: &ExternalCommand,
 ) -> ResolutionError {
-    match resolver.resolve(command) {
-        Ok(program) => executor.exec(&program, &command.args),
-        Err(error) => error,
+    let program = match resolver.resolve(command) {
+        Ok(program) => program,
+        Err(error) => return error,
+    };
+    let failure = executor.exec(&program, &command.args);
+    if !failure.is_missing_program() {
+        return failure;
+    }
+    match resolver.re_resolve(command, &program) {
+        ReResolution::Resolved(program) => {
+            executor.exec(&program, &command.args)
+        }
+        ReResolution::Failed(error) => error,
+        ReResolution::Declined => failure,
     }
 }
 
@@ -442,8 +486,8 @@ mod tests {
     use super::{
         consumes_trees, derive_override_var, forwarded_fail_safe,
         forwarded_non_blocking, run_external, tree_var, DispatchFailureExit,
-        DispatchFailurePolicy, ExecBinary, ExternalCommand, ResolutionError,
-        ResolveBinary, LAUNCHER_PATH_VAR,
+        DispatchFailurePolicy, ExecBinary, ExternalCommand, ReResolution,
+        ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
     };
 
     fn command(name: &str, args: &[&str]) -> ExternalCommand {
@@ -464,6 +508,14 @@ mod tests {
         ) -> Result<PathBuf, ResolutionError> {
             Ok(self.path.clone())
         }
+
+        fn re_resolve(
+            &self,
+            _command: &ExternalCommand,
+            _missing: &Path,
+        ) -> ReResolution {
+            ReResolution::Declined
+        }
     }
 
     struct FailingResolver;
@@ -476,6 +528,14 @@ mod tests {
             Err(ResolutionError::Unresolved {
                 name: command.name.clone(),
             })
+        }
+
+        fn re_resolve(
+            &self,
+            _command: &ExternalCommand,
+            _missing: &Path,
+        ) -> ReResolution {
+            ReResolution::Declined
         }
     }
 
@@ -545,6 +605,166 @@ mod tests {
             run_external(&FailingResolver, &executor, &command("foo", &[]));
         assert!(matches!(error, ResolutionError::Unresolved { .. }));
         assert!(executor.seen.borrow().is_none(), "exec must not run");
+    }
+
+    struct ReResolvingResolver {
+        first: PathBuf,
+        again: RefCell<Option<ReResolution>>,
+        missing: RefCell<Vec<PathBuf>>,
+    }
+
+    impl ReResolvingResolver {
+        fn answering(first: &str, again: ReResolution) -> Self {
+            Self {
+                first: PathBuf::from(first),
+                again: RefCell::new(Some(again)),
+                missing: RefCell::default(),
+            }
+        }
+    }
+
+    impl ResolveBinary for ReResolvingResolver {
+        fn resolve(
+            &self,
+            _command: &ExternalCommand,
+        ) -> Result<PathBuf, ResolutionError> {
+            Ok(self.first.clone())
+        }
+
+        fn re_resolve(
+            &self,
+            _command: &ExternalCommand,
+            missing: &Path,
+        ) -> ReResolution {
+            self.missing.borrow_mut().push(missing.to_path_buf());
+            self.again
+                .borrow_mut()
+                .take()
+                .unwrap_or(ReResolution::Declined)
+        }
+    }
+
+    struct FailingExec {
+        kind: std::io::ErrorKind,
+        attempted: RefCell<Vec<PathBuf>>,
+    }
+
+    impl FailingExec {
+        fn with(kind: std::io::ErrorKind) -> Self {
+            Self {
+                kind,
+                attempted: RefCell::default(),
+            }
+        }
+    }
+
+    impl ExecBinary for FailingExec {
+        fn exec(&self, program: &Path, _args: &[OsString]) -> ResolutionError {
+            self.attempted.borrow_mut().push(program.to_path_buf());
+            ResolutionError::Exec {
+                program: program.to_path_buf(),
+                source: std::io::Error::from(self.kind),
+            }
+        }
+    }
+
+    fn paths(raw: &[&str]) -> Vec<PathBuf> {
+        raw.iter().map(PathBuf::from).collect()
+    }
+
+    #[test]
+    fn a_missing_program_is_re_resolved_once_and_execed_again() {
+        let resolver = ReResolvingResolver::answering(
+            "/cache/removed",
+            ReResolution::Resolved(PathBuf::from("/cache/refetched")),
+        );
+        let executor = FailingExec::with(std::io::ErrorKind::NotFound);
+
+        let _ = run_external(&resolver, &executor, &command("foo", &[]));
+
+        assert_eq!(*resolver.missing.borrow(), paths(&["/cache/removed"]));
+        assert_eq!(
+            *executor.attempted.borrow(),
+            paths(&["/cache/removed", "/cache/refetched"])
+        );
+    }
+
+    #[test]
+    fn a_second_missing_program_surfaces_as_exec() {
+        let resolver = ReResolvingResolver::answering(
+            "/cache/removed",
+            ReResolution::Resolved(PathBuf::from("/cache/removed-again")),
+        );
+        let executor = FailingExec::with(std::io::ErrorKind::NotFound);
+
+        let error = run_external(&resolver, &executor, &command("foo", &[]));
+
+        assert!(
+            matches!(
+                &error,
+                ResolutionError::Exec { program, .. }
+                    if program == Path::new("/cache/removed-again")
+            ),
+            "{error:?}"
+        );
+        assert!(error.is_missing_program());
+        assert_eq!(resolver.missing.borrow().len(), 1);
+        assert_eq!(executor.attempted.borrow().len(), 2);
+    }
+
+    #[test]
+    fn a_failure_other_than_enoent_is_not_re_resolved() {
+        let resolver = ReResolvingResolver::answering(
+            "/cache/unrunnable",
+            ReResolution::Resolved(PathBuf::from("/cache/refetched")),
+        );
+        let executor = FailingExec::with(std::io::ErrorKind::PermissionDenied);
+
+        let error = run_external(&resolver, &executor, &command("foo", &[]));
+
+        assert!(matches!(error, ResolutionError::Exec { .. }), "{error:?}");
+        assert!(resolver.missing.borrow().is_empty());
+        assert_eq!(*executor.attempted.borrow(), paths(&["/cache/unrunnable"]));
+    }
+
+    #[test]
+    fn a_resolver_that_cannot_re_resolve_surfaces_the_first_failure() {
+        let resolver = ReResolvingResolver::answering(
+            "/cache/removed",
+            ReResolution::Declined,
+        );
+        let executor = FailingExec::with(std::io::ErrorKind::NotFound);
+
+        let error = run_external(&resolver, &executor, &command("foo", &[]));
+
+        assert!(
+            matches!(
+                &error,
+                ResolutionError::Exec { program, .. }
+                    if program == Path::new("/cache/removed")
+            ),
+            "{error:?}"
+        );
+        assert_eq!(*executor.attempted.borrow(), paths(&["/cache/removed"]));
+    }
+
+    #[test]
+    fn a_failed_re_resolution_surfaces_its_own_error() {
+        let resolver = ReResolvingResolver::answering(
+            "/cache/removed",
+            ReResolution::Failed(ResolutionError::CacheRootUnavailable {
+                detail: "read-only".to_owned(),
+            }),
+        );
+        let executor = FailingExec::with(std::io::ErrorKind::NotFound);
+
+        let error = run_external(&resolver, &executor, &command("foo", &[]));
+
+        assert!(
+            matches!(error, ResolutionError::CacheRootUnavailable { .. }),
+            "{error:?}"
+        );
+        assert_eq!(executor.attempted.borrow().len(), 1);
     }
 
     #[test]

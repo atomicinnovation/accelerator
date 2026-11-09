@@ -4,6 +4,7 @@
 //! `${ACCELERATOR_PLUGIN_ROOT}/bin`. Selection only — no filesystem access —
 //! so a warm cache hit pays nothing here. There is no XDG fallback: an
 //! XDG-resident binary would break the plugin-root `allowed-tools` glob match.
+//! [`identify`] tags the selection with its kind, resolving only an override.
 //!
 //! Cache-root writability is owned by the resolver — new callers route
 //! through it rather than probing directly.
@@ -21,6 +22,8 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use crate::launch::core::ResolutionError;
+
+use super::filesystem::CacheFilesystem;
 
 /// Injected environment inputs, so tests supply temp dirs.
 pub struct CacheRootConfig {
@@ -44,6 +47,30 @@ impl CacheRootConfig {
     }
 }
 
+/// Neither an override nor a plugin root names a cache root, and there is no
+/// XDG fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoCacheRoot;
+
+impl std::fmt::Display for NoCacheRoot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(
+            "ACCELERATOR_PLUGIN_ROOT is not set and no ACCELERATOR_CACHE_DIR \
+             override was given",
+        )
+    }
+}
+
+impl std::error::Error for NoCacheRoot {}
+
+impl From<NoCacheRoot> for ResolutionError {
+    fn from(error: NoCacheRoot) -> Self {
+        Self::CacheRootUnavailable {
+            detail: error.to_string(),
+        }
+    }
+}
+
 /// The cache root candidate: the `ACCELERATOR_CACHE_DIR` override, else
 /// `${ACCELERATOR_PLUGIN_ROOT}/bin`.
 ///
@@ -52,25 +79,124 @@ impl CacheRootConfig {
 ///
 /// # Errors
 ///
-/// [`ResolutionError::CacheRootUnavailable`] when neither
-/// `ACCELERATOR_CACHE_DIR` nor `ACCELERATOR_PLUGIN_ROOT` is set (no XDG
-/// fallback).
-pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
+/// [`NoCacheRoot`] when neither `ACCELERATOR_CACHE_DIR` nor
+/// `ACCELERATOR_PLUGIN_ROOT` is set.
+pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, NoCacheRoot> {
     if let Some(override_dir) = &config.cache_dir_override {
-        tracing::info!(
-            path = %override_dir.display(),
-            "using ACCELERATOR_CACHE_DIR override for the cache root"
-        );
         return Ok(override_dir.clone());
     }
-    let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
-        ResolutionError::CacheRootUnavailable {
-            detail: "ACCELERATOR_PLUGIN_ROOT is not set and no \
-                     ACCELERATOR_CACHE_DIR override was given"
-                .to_owned(),
-        }
-    })?;
+    let plugin_root = config.plugin_root.as_ref().ok_or(NoCacheRoot)?;
     Ok(plugin_root.join("bin"))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheRootKind {
+    PluginBin,
+    Relocated,
+    Unconfirmed(Unconfirmed),
+}
+
+/// Why an override cannot yet be told apart from the plugin `bin`, so that
+/// nothing may be claimed or removed in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unconfirmed {
+    Unresolved,
+    NoPluginBinToCompare,
+}
+
+impl std::fmt::Display for Unconfirmed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Unresolved => "it does not resolve to a directory yet",
+            Self::NoPluginBinToCompare => {
+                "no plugin bin resolves to tell it apart from; \
+                 ACCELERATOR_PLUGIN_ROOT is unset or has no bin"
+            }
+        })
+    }
+}
+
+/// A cache root as only [`identify`] names one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheRoot {
+    path: PathBuf,
+    kind: CacheRootKind,
+}
+
+impl CacheRoot {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    #[must_use]
+    pub const fn unconfirmed(&self) -> Option<Unconfirmed> {
+        match self.kind {
+            CacheRootKind::Unconfirmed(reason) => Some(reason),
+            CacheRootKind::PluginBin | CacheRootKind::Relocated => None,
+        }
+    }
+
+    #[must_use]
+    pub fn plugin_bin(&self) -> Option<PluginBinRoot> {
+        (self.kind == CacheRootKind::PluginBin).then(|| PluginBinRoot {
+            root: self.path.clone(),
+        })
+    }
+}
+
+/// The plugin's own `bin`, which no bare path can stand in for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginBinRoot {
+    root: PathBuf,
+}
+
+impl PluginBinRoot {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.root
+    }
+}
+
+/// The cache root [`candidate`] selects, tagged with its kind.
+///
+/// An override is the plugin `bin` exactly when both name the same directory
+/// by device and inode. A resolved override is carried as its canonical path.
+///
+/// # Errors
+///
+/// As [`candidate`].
+pub fn identify(
+    config: &CacheRootConfig,
+    filesystem: &dyn CacheFilesystem,
+) -> Result<CacheRoot, NoCacheRoot> {
+    let path = candidate(config)?;
+    if config.cache_dir_override.is_none() {
+        return Ok(CacheRoot {
+            path,
+            kind: CacheRootKind::PluginBin,
+        });
+    }
+    let Ok(resolved) = filesystem.resolve(&path) else {
+        return Ok(CacheRoot {
+            path,
+            kind: CacheRootKind::Unconfirmed(Unconfirmed::Unresolved),
+        });
+    };
+    let plugin_bin = config.plugin_root.as_ref().and_then(|plugin_root| {
+        filesystem.resolve(&plugin_root.join("bin")).ok()
+    });
+    let kind = match plugin_bin {
+        None => CacheRootKind::Unconfirmed(Unconfirmed::NoPluginBinToCompare),
+        Some(plugin_bin) if plugin_bin.identity == resolved.identity => {
+            CacheRootKind::PluginBin
+        }
+        Some(_) => CacheRootKind::Relocated,
+    };
+    Ok(CacheRoot {
+        path: resolved.canonical,
+        kind,
+    })
 }
 
 thread_local! {
@@ -179,8 +305,13 @@ mod tests {
 
     use tempfile::TempDir;
 
+    use super::super::filesystem::testing::ReportingFilesystem;
+    use super::super::filesystem::{
+        DirectoryIdentity, ResolvedDirectory, SystemFilesystem,
+    };
     use super::{
-        candidate, probe_attempts, run_probe, verify_writable, CacheRootConfig,
+        candidate, identify, probe_attempts, run_probe, verify_writable,
+        CacheRoot, CacheRootConfig, CacheRootKind, Unconfirmed,
     };
 
     fn config() -> CacheRootConfig {
@@ -356,5 +487,245 @@ mod tests {
             "candidate must not create any directory"
         );
         Ok(())
+    }
+
+    struct Layout {
+        _temp: TempDir,
+        plugin_root: PathBuf,
+        plugin_bin: PathBuf,
+        elsewhere: PathBuf,
+    }
+
+    fn layout() -> Result<Layout, Box<dyn Error>> {
+        let temp = tempdir()?;
+        let plugin_root = temp.path().join("plugin");
+        let plugin_bin = plugin_root.join("bin");
+        let elsewhere = temp.path().join("elsewhere");
+        std::fs::create_dir_all(&plugin_bin)?;
+        std::fs::create_dir_all(&elsewhere)?;
+        Ok(Layout {
+            _temp: temp,
+            plugin_root,
+            plugin_bin,
+            elsewhere,
+        })
+    }
+
+    fn overriding(
+        override_dir: &std::path::Path,
+        plugin_root: Option<&std::path::Path>,
+    ) -> CacheRootConfig {
+        CacheRootConfig {
+            cache_dir_override: Some(override_dir.to_path_buf()),
+            plugin_root: plugin_root.map(std::path::Path::to_path_buf),
+        }
+    }
+
+    #[test]
+    fn an_unset_override_is_the_plugin_bin_and_resolves_nothing(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let filesystem = ReportingFilesystem::over_system();
+
+        let root = identify(
+            &CacheRootConfig {
+                cache_dir_override: None,
+                plugin_root: Some(layout.plugin_root.clone()),
+            },
+            &filesystem,
+        )?;
+
+        assert_eq!(
+            root,
+            CacheRoot {
+                path: layout.plugin_bin,
+                kind: CacheRootKind::PluginBin,
+            }
+        );
+        assert!(filesystem.resolved_paths().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn an_override_that_does_not_resolve_yet_is_unconfirmed(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let missing = layout.elsewhere.join("not-yet-created");
+        let filesystem = ReportingFilesystem::over_system();
+
+        let root = identify(
+            &overriding(&missing, Some(&layout.plugin_root)),
+            &filesystem,
+        )?;
+
+        assert_eq!(
+            root.kind,
+            CacheRootKind::Unconfirmed(Unconfirmed::Unresolved)
+        );
+        assert_eq!(root.plugin_bin(), None);
+        assert_eq!(root.path(), missing);
+        assert_eq!(filesystem.resolved_paths(), [missing]);
+        Ok(())
+    }
+
+    #[test]
+    fn an_override_with_an_unresolvable_plugin_bin_is_unconfirmed(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        std::fs::remove_dir(&layout.plugin_bin)?;
+
+        let root = identify(
+            &overriding(&layout.elsewhere, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(
+            root,
+            CacheRoot {
+                path: layout.elsewhere.canonicalize()?,
+                kind: CacheRootKind::Unconfirmed(
+                    Unconfirmed::NoPluginBinToCompare
+                ),
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_override_with_no_plugin_root_is_unconfirmed(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+
+        let root =
+            identify(&overriding(&layout.plugin_bin, None), &SystemFilesystem)?;
+
+        assert_eq!(
+            root.kind,
+            CacheRootKind::Unconfirmed(Unconfirmed::NoPluginBinToCompare)
+        );
+        assert_eq!(root.plugin_bin(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_override_naming_the_plugin_bin_is_the_plugin_bin(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+
+        let root = identify(
+            &overriding(&layout.plugin_bin, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(root.kind, CacheRootKind::PluginBin);
+        Ok(())
+    }
+
+    #[test]
+    fn an_override_naming_another_directory_is_relocated(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+
+        let root = identify(
+            &overriding(&layout.elsewhere, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(root.kind, CacheRootKind::Relocated);
+        Ok(())
+    }
+
+    #[test]
+    fn a_symlink_naming_the_plugin_bin_is_the_plugin_bin(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let link = layout.elsewhere.join("link-to-bin");
+        std::os::unix::fs::symlink(&layout.plugin_bin, &link)?;
+
+        let root = identify(
+            &overriding(&link, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(root.kind, CacheRootKind::PluginBin);
+        Ok(())
+    }
+
+    #[test]
+    fn a_trailing_slash_naming_the_plugin_bin_is_the_plugin_bin(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let mut slashed = layout.plugin_bin.clone().into_os_string();
+        slashed.push("/");
+
+        let root = identify(
+            &overriding(&PathBuf::from(slashed), Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(root.kind, CacheRootKind::PluginBin);
+        Ok(())
+    }
+
+    #[test]
+    fn two_spellings_with_one_directory_identity_are_the_plugin_bin(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let identity = DirectoryIdentity {
+            device: 7,
+            inode: 42,
+        };
+        let filesystem = ReportingFilesystem::over_system()
+            .resolving(
+                &layout.elsewhere,
+                ResolvedDirectory {
+                    canonical: PathBuf::from("/mnt/bound"),
+                    identity,
+                },
+            )
+            .resolving(
+                &layout.plugin_bin,
+                ResolvedDirectory {
+                    canonical: PathBuf::from("/srv/plugin/bin"),
+                    identity,
+                },
+            );
+
+        let root = identify(
+            &overriding(&layout.elsewhere, Some(&layout.plugin_root)),
+            &filesystem,
+        )?;
+
+        assert_eq!(root.kind, CacheRootKind::PluginBin);
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_root_identified_as_the_plugin_bin_names_one(
+    ) -> Result<(), Box<dyn Error>> {
+        let layout = layout()?;
+        let plugin_bin = identify(
+            &CacheRootConfig {
+                cache_dir_override: None,
+                plugin_root: Some(layout.plugin_root.clone()),
+            },
+            &SystemFilesystem,
+        )?;
+        let relocated = identify(
+            &overriding(&layout.elsewhere, Some(&layout.plugin_root)),
+            &SystemFilesystem,
+        )?;
+
+        assert_eq!(
+            plugin_bin.plugin_bin().map(|bin| bin.path().to_path_buf()),
+            Some(layout.plugin_bin)
+        );
+        assert_eq!(relocated.plugin_bin(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn no_override_and_no_plugin_root_cannot_be_identified() {
+        assert!(identify(&config(), &SystemFilesystem).is_err());
     }
 }
