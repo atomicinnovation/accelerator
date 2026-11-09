@@ -82,7 +82,7 @@ use common::scripted_filesystem::ScriptedFilesystem;
 use common::signed_release::{SignedRelease, BINARY};
 use common::trees::{
     another_platform, digest, exists, on_host, set_mode, set_mtime,
-    FailingLockAt, FixedClock, FixedLiveness, PlantedTree, Trees,
+    FailingLockAt, FixedClock, FixedLiveness, ModeGuard, PlantedTree, Trees,
 };
 
 const OLD: &str = "1.0.0";
@@ -454,13 +454,16 @@ fn kept_names_survive(trigger: Trigger) {
 
 #[test]
 fn the_verb_names_unreadable_claims_and_exits_zero() {
+    if is_running_as_root() {
+        return;
+    }
     let harness = RootHarness::new();
     let entry = harness.entry(OLD, harness.aged());
-    set_mode(&harness.claims(), 0o000);
+    let unreadable = ModeGuard::narrowing(&harness.claims(), 0o000, 0o700);
 
     let verb = harness.prune(harness.ports());
 
-    set_mode(&harness.claims(), 0o700);
+    drop(unreadable);
     verb.succeeded();
     assert!(harness.has(&entry));
     assert!(
@@ -1635,6 +1638,7 @@ fn a_reap_that_cannot_read_trees_names_the_directory_and_its_cause() {
     );
     let directory = trees.paths().root().to_path_buf();
     let unlistable = directory.clone();
+    let restored = ModeGuard::restoring(&directory, 0o700);
 
     let verb = harness.prune(Ports {
         steps: Arc::new(AtStep {
@@ -1644,7 +1648,7 @@ fn a_reap_that_cannot_read_trees_names_the_directory_and_its_cause() {
         ..harness.ports()
     });
 
-    set_mode(&directory, 0o700);
+    drop(restored);
     verb.failed();
     assert!(
         verb.err.contains(&format!(
@@ -1826,11 +1830,11 @@ fn an_unreadable_tree_claims_directory_reclaims_no_claimed_tree() {
         &digest('b'),
         harness.aged(),
     );
-    set_mode(&trees.claims(), 0o000);
+    let unreadable = ModeGuard::narrowing(&trees.claims(), 0o000, 0o700);
 
     let verb = harness.prune(harness.ports());
 
-    set_mode(&trees.claims(), 0o700);
+    drop(unreadable);
     verb.succeeded();
     claimed.assert_survives();
     assert!(!exists(&residue), "the orphan residue was not reaped");

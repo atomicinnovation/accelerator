@@ -96,6 +96,38 @@ pub fn set_mode(path: &Path, mode: u32) {
         .expect("mode");
 }
 
+/// Puts a directory's mode back however the test ends, so a failed assertion
+/// never leaves a temp directory nothing can remove.
+#[must_use = "the mode is restored when the guard drops"]
+pub struct ModeGuard {
+    path: std::path::PathBuf,
+    restored: u32,
+}
+
+impl ModeGuard {
+    pub fn narrowing(path: &Path, narrowed: u32, restored: u32) -> Self {
+        set_mode(path, narrowed);
+        Self::restoring(path, restored)
+    }
+
+    pub fn restoring(path: &Path, restored: u32) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            restored,
+        }
+    }
+}
+
+impl Drop for ModeGuard {
+    fn drop(&mut self) {
+        use std::os::unix::fs::PermissionsExt as _;
+        let _ = std::fs::set_permissions(
+            &self.path,
+            std::fs::Permissions::from_mode(self.restored),
+        );
+    }
+}
+
 pub fn set_mtime(path: &Path, seconds: u64) {
     std::fs::File::open(path)
         .expect("opened to set its mtime")
