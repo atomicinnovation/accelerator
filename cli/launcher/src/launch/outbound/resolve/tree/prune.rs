@@ -1,6 +1,7 @@
-//! A process holds at most one tree lock at a time, and each artifact's lock
-//! is taken inside that artifact's own iteration and released before the
-//! next, so no prune ever probes or retakes a tree lock it holds.
+//! Each artifact's lock is taken inside that artifact's own iteration and
+//! released before the next, so no prune ever probes or retakes a tree lock it
+//! holds. The orphan reap is the one place a second lock is held, and only one
+//! taken by a probe that never blocks.
 //!
 //! Unlinking a lock file this prune holds is safe only while every launcher
 //! confirms its lock's inode after taking it: one that does not can go on

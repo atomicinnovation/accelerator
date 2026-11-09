@@ -326,8 +326,9 @@ so the launcher bounds what it holds:
   materialise prunes the directory before the dispatch runs. A part of the
   directory another process is pruning or holding is skipped, never waited
   for.
-- **Retention.** A version idle for 14 days, whose claim is that old, loses
-  its entries and re-fetches them on its next dispatch. A runtime tree stays
+- **Retention.** A version loses its entries 12.6 to 14 days after its last
+  use, because its claim was last rewritten up to ~1.4 days before that, and
+  re-fetches them on its next dispatch. A runtime tree stays
   while a dispatch from the last 14 days claims it or a running crawl leases
   it. Crash residue stays for an hour. For the first 14 days after a
   directory sees its first claim, recorded as `claims/.since`, no version
