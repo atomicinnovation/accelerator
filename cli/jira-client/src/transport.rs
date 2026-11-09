@@ -78,6 +78,7 @@ impl Transport {
     ) -> Result<Self, ClientError> {
         install_crypto_provider();
         let client = Client::builder()
+            .tls_certs_only(bundled_trust_roots())
             .timeout(config.timeout)
             // Jira's API never legitimately redirects, and following one would
             // defeat the site validator: it inspects the initial host only.
@@ -319,11 +320,19 @@ impl Transport {
     }
 }
 
-/// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, and the
-/// offline harness is cleartext, so nothing but this call stands between an
-/// https request and a handshake failure.
+/// `rustls-no-provider` installs no crypto provider, and the offline harness
+/// is cleartext, so nothing but this call stands between an https request and
+/// a handshake failure.
 fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// The Mozilla roots webpki-root-certs bundles, so a client trusts the same
+/// roots on every host rather than whatever certificate store it finds there.
+fn bundled_trust_roots() -> impl Iterator<Item = reqwest::Certificate> {
+    webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .filter_map(|root| reqwest::Certificate::from_der(root).ok())
 }
 
 /// Which answers a request may be sent again after.

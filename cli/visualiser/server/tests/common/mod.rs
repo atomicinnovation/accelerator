@@ -5,6 +5,15 @@ use accelerator_visualiser::config::{Config, TemplateTiers};
 
 // Shared helper compiled into every integration test binary; only some use
 // it, so binaries that don't would otherwise flag it as dead code.
+// Built with the rest of the workspace, reqwest carries the rustls backend
+// without a crypto provider, and building a client panics until one is
+// installed, even for plain http.
+#[allow(dead_code)]
+pub fn http_client() -> reqwest::ClientBuilder {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    reqwest::Client::builder()
+}
+
 #[allow(dead_code)]
 pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
     use std::fs::OpenOptions;

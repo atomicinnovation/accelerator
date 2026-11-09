@@ -16,10 +16,11 @@ workspace = true
 
 [dependencies]
 # Reused verbatim: all three workspace features are load-bearing against a
-# named gate, and rustls-tls-webpki-roots-no-provider installs no crypto
-# provider, so the constructor installs ring itself.
+# named gate, and rustls-no-provider installs no crypto provider, so the
+# constructor installs ring itself and names the roots it trusts.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+webpki-root-certs = { workspace = true }
 # The multipart boundary is a CSPRNG token; rand is already in the production
 # closure via store, so this adds no crate to the graph.
 rand = { workspace = true }

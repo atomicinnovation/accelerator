@@ -2,8 +2,14 @@
 
 deny.toml bans native-tls/openssl by name; this asserts the *feature* graph via
 `cargo tree`: ring present / aws-lc-rs absent, hickory-resolver present by crate
-name (so a feature rename back to getaddrinfo is caught), and no
-native-tls/openssl, host-cert-store or C-backed zlib crate.
+name (so a feature rename back to getaddrinfo is caught), webpki-root-certs
+present (the roots every client is confined to), and no native-tls/openssl or
+C-backed zlib crate.
+
+The host certificate store's crates (rustls-native-certs, security-framework)
+are no longer kept out: reqwest 0.13 links rustls-platform-verifier whatever
+its features. test_bundled_trust_roots.py guards instead that no client trusts
+the host store.
 
 The tree is resolved once **per published target triple**, not for the host.
 A C-backend edge introduced under a target-specific dependency table would not
@@ -30,14 +36,18 @@ _CLI = _REPO_ROOT / "cli"
 
 _CARGO = shutil.which("cargo")
 
-_PRESENT = ("ring", "hickory-resolver", "rustls", "reqwest", "webpki-roots")
+_PRESENT = (
+    "ring",
+    "hickory-resolver",
+    "rustls",
+    "reqwest",
+    "webpki-root-certs",
+)
 _ABSENT = (
     "aws-lc-rs",
     "native-tls",
     "openssl",
     "openssl-sys",
-    "rustls-native-certs",
-    "security-framework",
     # flate2's C backends. Cargo unifies features across the workspace, so any
     # crate enabling one would pull it into the launcher and break the static
     # musl cross-build.

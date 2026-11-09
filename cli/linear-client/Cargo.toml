@@ -16,9 +16,11 @@ workspace = true
 
 [dependencies]
 # Reused verbatim, as jira-client does: the workspace entry installs no crypto
-# provider, so the constructor installs ring itself.
+# provider, so the constructor installs ring itself and names the roots it
+# trusts.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+webpki-root-certs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

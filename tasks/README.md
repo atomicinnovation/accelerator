@@ -152,8 +152,8 @@ cargo-deny's `advisories` scope under `unmaintained = "all"` with
 DB is fetched fresh every run. One upstream advisory there turns
 `check-supply-chain` red for every unrelated PR — and that job is in
 `prerelease.needs`, so it also stops releases. Recovery is a scoped, dated
-`[advisories].ignore` entry following the existing `RUSTSEC-2026-0118/0119`
-precedent, with a `review-by: YYYY-MM-DD` in its `reason`;
+`[advisories].ignore` entry, written as a table with a
+`review-by: YYYY-MM-DD` in its `reason`;
 `tests/integration/deny/test_advisory_ignores.py` asserts every entry carries
 one and that none has lapsed.
 

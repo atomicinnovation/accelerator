@@ -62,7 +62,9 @@ form_urlencoded = "1"
 humantime = "2"
 
 [dev-dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+# The tests reach the server over plain http on loopback, so no TLS backend.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+rustls = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "process"] }
 assert_cmd = "2"
 predicates = "3"

@@ -18,10 +18,11 @@ research = { path = "../research" }
 network = { path = "../network" }
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
-# rustls-tls-webpki-roots-no-provider installs no crypto provider, so the
-# transport installs ring itself.
+# rustls-no-provider installs no crypto provider, so the transport installs
+# ring itself and names the roots it trusts.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+webpki-root-certs = { workspace = true }
 url = { workspace = true }
 hickory-resolver = { workspace = true }
 tokio = { workspace = true }

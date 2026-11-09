@@ -62,6 +62,7 @@ impl HttpTransport {
     pub fn new(per_request: Duration) -> Result<Self, TransportUnavailable> {
         install_crypto_provider();
         let client = Client::builder()
+            .tls_certs_only(bundled_trust_roots())
             .pool_max_idle_per_host(0)
             .redirect(redirect::Policy::custom(follow_within_origin))
             .build()
@@ -151,9 +152,17 @@ fn seconds(headers: &HeaderMap, name: &str) -> Option<u64> {
     headers.get(name)?.to_str().ok()?.trim().parse().ok()
 }
 
-/// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, so
-/// nothing but this call stands between an `https` request and a handshake
-/// failure.
+/// `rustls-no-provider` installs no crypto provider, so nothing but this call
+/// stands between an `https` request and a handshake failure.
 pub(crate) fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// The Mozilla roots webpki-root-certs bundles, so a client trusts the same
+/// roots on every host rather than whatever certificate store it finds there.
+pub(crate) fn bundled_trust_roots() -> impl Iterator<Item = reqwest::Certificate>
+{
+    webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .filter_map(|root| reqwest::Certificate::from_der(root).ok())
 }

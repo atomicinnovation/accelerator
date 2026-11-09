@@ -10,6 +10,8 @@ use reqwest::redirect::{Attempt, Policy};
 use reqwest::StatusCode;
 use sha2::{Digest as _, Sha256};
 
+use crate::launch::outbound::tls::bundled_trust_roots;
+
 const MAX_ATTEMPTS: u32 = 3;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 // The help path never needs the manifest, so it gives up fast and fails open to
@@ -248,6 +250,7 @@ impl Fetcher {
         // just the initial request the `get()` guard checks. Off for the test
         // fetcher so it can reach a local `http` mock.
         let client = Client::builder()
+            .tls_certs_only(bundled_trust_roots())
             .connect_timeout(limits.connect)
             .timeout(limits.total)
             .redirect(redirect_policy())

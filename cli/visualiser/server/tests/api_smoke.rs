@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use tokio::process::Command;
 
+mod common;
+
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
     // Model-1 fixture project: symlink meta/ + templates/ to the committed
@@ -58,7 +60,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .trim_end_matches('/')
         .to_string();
 
-    let client = reqwest::Client::builder()
+    let client = common::http_client()
         .timeout(Duration::from_secs(30))
         .build()
         .unwrap();
