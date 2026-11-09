@@ -150,6 +150,7 @@ impl TreeResolver<'_> {
     fn reaper<'r>(&'r self, held: &'r HeldTreeLock) -> reap::Reaper<'r> {
         reap::Reaper::new(
             held,
+            self.filesystem,
             self.locks,
             self.clock,
             self.liveness,

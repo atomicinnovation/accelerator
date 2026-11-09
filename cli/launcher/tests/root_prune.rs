@@ -1714,6 +1714,38 @@ fn a_reap_that_cannot_read_trees_names_the_directory_and_its_cause() {
 }
 
 #[test]
+fn a_reaped_orphan_that_fails_to_go_is_reported() {
+    let harness = RootHarness::new();
+    let residue = harness.trees().plant_temp_generation(
+        &on_host("retired"),
+        &digest('e'),
+        harness.aged(),
+    );
+    let filesystem = ScriptedFilesystem::over(harness.recorder()).failing(
+        FilesystemCall::RemoveTree(in_root("")).kind(),
+        &residue,
+        1,
+        std::io::ErrorKind::PermissionDenied,
+    );
+
+    let verb = harness.prune(Ports {
+        filesystem: Arc::new(filesystem),
+        ..harness.ports()
+    });
+
+    verb.failed();
+    assert!(exists(&residue));
+    assert!(
+        verb.err.contains(&format!(
+            "could not remove {}: permission denied",
+            residue.display()
+        )),
+        "{}",
+        verb.err
+    );
+}
+
+#[test]
 fn a_residue_only_artifact_is_locked_and_reaped() {
     let harness = RootHarness::new();
     let trees = harness.trees();

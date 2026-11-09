@@ -392,6 +392,7 @@ impl TreePrune<'_> {
         let liveness = self.liveness();
         match Reaper::new(
             held,
+            self.ports.filesystem,
             self.ports.locks,
             self.ports.clock,
             &liveness,
@@ -404,7 +405,7 @@ impl TreePrune<'_> {
         })
         .reap_orphans(&permit)
         {
-            Ok(reaped) => report.removals.reclaimed += reaped.entries,
+            Ok(reaped) => report.removals.absorb(reaped),
             Err(error) => report.reap_failures.push(ReapFailure {
                 root: held.paths().root().to_path_buf(),
                 detail: error.to_string(),

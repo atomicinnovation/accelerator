@@ -33,8 +33,8 @@ use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
-use super::super::filesystem::SystemFilesystem;
-use super::super::prune_report::PruneBudget;
+use super::super::filesystem::{CacheFilesystem, FileKind};
+use super::super::prune_report::{Count, PruneBudget, Removals};
 use super::super::retention_windows::AGE_BACKSTOP;
 use super::after_materialise::ReapPermit;
 use super::layout::{
@@ -88,6 +88,7 @@ impl OwnerLock {
 /// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
     held: &'a HeldTreeLock,
+    filesystem: &'a dyn CacheFilesystem,
     locks: TreeLocks<'a>,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
@@ -100,6 +101,7 @@ impl<'a> Reaper<'a> {
     #[must_use]
     pub const fn new(
         held: &'a HeldTreeLock,
+        filesystem: &'a dyn CacheFilesystem,
         locks: TreeLocks<'a>,
         clock: &'a dyn Clock,
         liveness: &'a dyn LivenessProbe,
@@ -107,6 +109,7 @@ impl<'a> Reaper<'a> {
     ) -> Self {
         Self {
             held,
+            filesystem,
             locks,
             clock,
             liveness,
@@ -145,28 +148,29 @@ impl<'a> Reaper<'a> {
     pub fn reap_orphans(
         &self,
         permit: &ReapPermit,
-    ) -> Result<Reclaimed, TreeError> {
+    ) -> Result<Removals, TreeError> {
         if permit.paths().root() != self.paths().root() {
-            return Ok(Reclaimed::default());
+            return Ok(Removals::default());
         }
-        let names = entry_names(self.paths().root())?;
-        let referenced = referenced_generations(self.paths().root());
-        let mut reclaimed = Reclaimed::default();
+        let names = entry_names(self.filesystem, self.paths().root())?;
+        let referenced =
+            referenced_generations(self.filesystem, self.paths().root());
+        let mut removals = Removals::default();
         for (owner, entries) in temp_entries_by_owner(&names) {
             if !self.budget.allows_more(self.clock) {
-                return Ok(reclaimed);
+                return Ok(removals);
             }
-            self.reap_temp_entries_of(&owner, &entries, &mut reclaimed);
+            self.reap_temp_entries_of(&owner, &entries, &mut removals);
         }
-        self.reap_generations(&names, &referenced, &mut reclaimed);
-        Ok(reclaimed)
+        self.reap_generations(&names, &referenced, &mut removals);
+        Ok(removals)
     }
 
     fn reap_temp_entries_of(
         &self,
         owner: &Artifact,
         entries: &[&str],
-        reclaimed: &mut Reclaimed,
+        removals: &mut Removals,
     ) {
         let lock = self.lock_of(owner);
         if let OwnerLock::Unprobeable(error) = &lock {
@@ -180,7 +184,7 @@ impl<'a> Reaper<'a> {
         lock.while_reclaimable(|lock| {
             for entry in entries {
                 if !is_spared(entry, owner, lock, self.pins) {
-                    self.remove(&self.paths().root().join(entry), reclaimed);
+                    self.remove(&self.paths().root().join(entry), removals);
                 }
             }
         });
@@ -206,51 +210,65 @@ impl<'a> Reaper<'a> {
         &self,
         names: &[String],
         referenced: &BTreeSet<String>,
-        reclaimed: &mut Reclaimed,
+        removals: &mut Removals,
     ) {
         for name in names.iter().filter(|name| is_generation(name)) {
             if !self.budget.allows_more(self.clock) {
                 return;
             }
             if is_reclaimable_generation(
+                self.filesystem,
                 self.paths(),
                 name,
                 referenced,
                 self.clock,
                 self.liveness,
             ) {
-                self.remove(&self.paths().generation(name), reclaimed);
+                self.remove(&self.paths().generation(name), removals);
                 for sidecar in sidecars_of(self.paths(), name) {
-                    let _ = std::fs::remove_file(sidecar);
+                    removals.remove_file(
+                        self.filesystem,
+                        &sidecar,
+                        "orphan generation",
+                        Count::WithItsEntry,
+                    );
                 }
             }
         }
     }
 
-    fn remove(&self, path: &Path, reclaimed: &mut Reclaimed) {
+    fn remove(&self, path: &Path, removals: &mut Removals) {
         self.observer.removing(path);
-        let outcome = if path.is_dir() {
-            std::fs::remove_dir_all(path)
+        let is_directory = self
+            .filesystem
+            .entry(path)
+            .is_ok_and(|entry| entry.kind == FileKind::Directory);
+        if is_directory {
+            removals.remove_tree(
+                self.filesystem,
+                path,
+                "orphan residue",
+                Count::Once,
+            );
         } else {
-            std::fs::remove_file(path)
-        };
-        if outcome.is_ok() {
-            reclaimed.entries += 1;
+            removals.remove_file(
+                self.filesystem,
+                path,
+                "orphan residue",
+                Count::Once,
+            );
         }
     }
 }
 
-/// How much a reap reclaimed, for the caller to report.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct Reclaimed {
-    pub entries: u64,
-}
-
-fn entry_names(root: &Path) -> Result<Vec<String>, TreeError> {
-    match std::fs::read_dir(root) {
+fn entry_names(
+    filesystem: &dyn CacheFilesystem,
+    root: &Path,
+) -> Result<Vec<String>, TreeError> {
+    match filesystem.list(root) {
         Ok(entries) => Ok(entries
-            .flatten()
-            .filter_map(|entry| entry.file_name().into_string().ok())
+            .into_iter()
+            .filter_map(|name| name.into_string().ok())
             .collect()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             Ok(Vec::new())
@@ -304,18 +322,18 @@ fn is_generation(name: &str) -> bool {
 
 /// The generation directory names any pointer currently references.
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
-fn referenced_generations(root: &Path) -> BTreeSet<String> {
+fn referenced_generations(
+    filesystem: &dyn CacheFilesystem,
+    root: &Path,
+) -> BTreeSet<String> {
     let mut referenced = BTreeSet::new();
-    let Ok(entries) = std::fs::read_dir(root) else {
+    let Ok(names) = filesystem.list(root) else {
         return referenced;
     };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
+    for name in &names {
         let Some(name) = name.to_str() else { continue };
         if name.ends_with(".ref") {
-            if let Some(contents) =
-                read_pointer(&entry.path(), &SystemFilesystem)
-            {
+            if let Some(contents) = read_pointer(&root.join(name), filesystem) {
                 referenced.insert(contents.trim().to_owned());
             }
         }
@@ -324,6 +342,7 @@ fn referenced_generations(root: &Path) -> BTreeSet<String> {
 }
 
 fn is_reclaimable_generation(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     name: &str,
     referenced: &BTreeSet<String>,
@@ -335,7 +354,7 @@ fn is_reclaimable_generation(
     }
     orphan_is_reclaimable(
         liveness.probe(&paths.lease(name)),
-        generation_is_aged(paths, name, clock),
+        generation_is_aged(filesystem, paths, name, clock),
     )
 }
 
@@ -382,11 +401,12 @@ pub(super) const fn orphan_is_reclaimable(
 }
 
 pub(super) fn generation_is_aged(
+    filesystem: &dyn CacheFilesystem,
     paths: &TreePaths,
     generation: &str,
     clock: &dyn Clock,
 ) -> bool {
-    older_than_backstop(&paths.generation(generation), clock)
+    older_than_backstop(filesystem, &paths.generation(generation), clock)
 }
 
 /// Sets the generation's mtime to the clock's now, so the backstop counts from
@@ -433,22 +453,22 @@ pub(super) fn restart_backstop(
 /// so a test advances time by advancing the clock rather than by back-dating an
 /// mtime — which is the discipline the repository's lock-timing flake history
 /// demands.
-fn older_than_backstop(path: &Path, clock: &dyn Clock) -> bool {
-    let Some(modified) = modified_unix_seconds(path) else {
+fn older_than_backstop(
+    filesystem: &dyn CacheFilesystem,
+    path: &Path,
+    clock: &dyn Clock,
+) -> bool {
+    let Some(modified) = filesystem
+        .entry(path)
+        .ok()
+        .and_then(|entry| entry.modified_seconds)
+    else {
         return false;
     };
     clock
         .now_seconds()
         .checked_sub(modified)
         .is_some_and(|age| age >= AGE_BACKSTOP.as_secs())
-}
-
-fn modified_unix_seconds(path: &Path) -> Option<u64> {
-    let modified = std::fs::symlink_metadata(path).ok()?.modified().ok()?;
-    modified
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|since| since.as_secs())
 }
 
 /// The sidecars belonging to a reclaimed generation, removed alongside it.
@@ -473,6 +493,9 @@ mod tests {
 
     use crate::launch::core::tree::{Clock, TreeError};
 
+    use super::super::super::filesystem::SystemFilesystem;
+    use super::super::super::prune_report::Removals;
+
     use super::super::after_materialise::ReapPermit;
     use super::super::layout::{
         generation_name, Artifact, TreePaths, LAYOUT_VERSION,
@@ -486,8 +509,8 @@ mod tests {
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
         sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
-        PinnedDigests, Reaper, Reclaimed, RemovalObserver,
-        SupersededDisposition, UnobservedRemovals, AGE_BACKSTOP,
+        PinnedDigests, Reaper, RemovalObserver, SupersededDisposition,
+        UnobservedRemovals, AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -567,7 +590,7 @@ mod tests {
         clock: impl Clock + Send + 'static,
         pins: Pins,
         observer: impl RemovalObserver + Send + 'static,
-    ) -> Result<Reclaimed, TreeError> {
+    ) -> Result<Removals, TreeError> {
         let paths = TreePaths::under(root);
         let locks = TreeLocks::over(&FlockLocks);
         let caller_holds = locks.take_tree(&paths, &y()).expect("Y's lock");
@@ -576,6 +599,7 @@ mod tests {
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
             Reaper::new(
                 &caller_holds,
+                &SystemFilesystem,
                 TreeLocks::over(&FlockLocks),
                 &clock,
                 &FlockProbe,
@@ -588,7 +612,7 @@ mod tests {
         outcome
     }
 
-    fn reap_for_y(root: &Path, pins: Pins) -> Result<Reclaimed, TreeError> {
+    fn reap_for_y(root: &Path, pins: Pins) -> Result<Removals, TreeError> {
         reap_for_y_at(root, present(), pins, UnobservedRemovals)
     }
 
@@ -676,7 +700,7 @@ mod tests {
         fs::create_dir(&temp_tree).expect("temp tree");
 
         let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
-        assert_eq!(reclaimed.entries, 2);
+        assert_eq!(reclaimed.reclaimed, 2);
         assert!(!archive.exists());
         assert!(!temp_tree.exists());
     }
@@ -689,7 +713,7 @@ mod tests {
 
         let reclaimed = reap_for_y(dir.path(), Pins::pinning(&[(y(), DIGEST)]))
             .expect("reap");
-        assert_eq!(reclaimed.entries, 0);
+        assert_eq!(reclaimed.reclaimed, 0);
         assert!(archive.exists(), "a resumable partial was reclaimed");
     }
 
@@ -1023,7 +1047,7 @@ mod tests {
         removed.push(paths.generation(&generation));
         removed.sort();
         assert_eq!(observer.sorted(), removed);
-        assert_eq!(reclaimed.entries, 4);
+        assert_eq!(reclaimed.reclaimed, 4);
     }
 
     #[test]
@@ -1102,7 +1126,7 @@ mod tests {
         // The clock reads the present, so a just-renamed generation — between
         // its rename and its pointer write — is inside the backstop window.
         let reclaimed = reap_for_y(dir.path(), Pins::default()).expect("reap");
-        assert_eq!(reclaimed.entries, 0);
+        assert_eq!(reclaimed.reclaimed, 0);
         assert!(fresh.exists(), "a freshly renamed generation was reaped");
         for sidecar in &sidecars {
             assert!(sidecar.exists(), "{} was removed", sidecar.display());
@@ -1226,7 +1250,12 @@ mod tests {
         let mtime = mtime_of(&paths.generation(&name));
 
         let clock = AtClock(mtime + AGE_BACKSTOP.as_secs() - 1);
-        assert!(!generation_is_aged(&paths, &name, &clock));
+        assert!(!generation_is_aged(
+            &SystemFilesystem,
+            &paths,
+            &name,
+            &clock
+        ));
     }
 
     #[test]
@@ -1237,7 +1266,7 @@ mod tests {
         let mtime = mtime_of(&paths.generation(&name));
 
         let clock = AtClock(mtime + AGE_BACKSTOP.as_secs());
-        assert!(generation_is_aged(&paths, &name, &clock));
+        assert!(generation_is_aged(&SystemFilesystem, &paths, &name, &clock));
     }
 
     #[test]
@@ -1250,8 +1279,14 @@ mod tests {
 
         restart_backstop(&paths, &name, &AtClock(later));
 
-        assert!(!generation_is_aged(&paths, &name, &AtClock(later + 60)));
+        assert!(!generation_is_aged(
+            &SystemFilesystem,
+            &paths,
+            &name,
+            &AtClock(later + 60)
+        ));
         assert!(generation_is_aged(
+            &SystemFilesystem,
             &paths,
             &name,
             &AtClock(later + AGE_BACKSTOP.as_secs())
