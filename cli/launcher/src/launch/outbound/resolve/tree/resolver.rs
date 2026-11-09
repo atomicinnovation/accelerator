@@ -178,7 +178,7 @@ impl TreeResolver<'_> {
         if !is_privately_owned(&pointer) {
             return None;
         }
-        let contents = std::fs::read_to_string(&pointer).ok()?;
+        let contents = self.filesystem.read_to_string(&pointer).ok()?;
 
         // 2. The contents become a path only after the full grammar validates.
         let generation = validated_generation(
@@ -197,10 +197,12 @@ impl TreeResolver<'_> {
 
         // 4-5. The attestation, verified under the embedded key and checked
         //      field by field against what is being resolved.
-        let document = std::fs::read(paths.attestation(&generation)).ok()?;
-        let signature =
-            std::fs::read_to_string(paths.attestation_signature(&generation))
-                .ok()?;
+        let document =
+            self.filesystem.read(&paths.attestation(&generation)).ok()?;
+        let signature = self
+            .filesystem
+            .read_to_string(&paths.attestation_signature(&generation))
+            .ok()?;
         let attestation =
             Attestation::verified(&document, &signature, self.keys).ok()?;
         attestation.matches(artifact, &self.platform, digest).ok()?;
@@ -348,7 +350,7 @@ impl TreeResolver<'_> {
         // 7. Seal, then 8. write the sidecars from the release's own bytes.
         seal::seal_tree(&temp_generation)?;
         self.steps.after(MaterialiseStep::Sealed)?;
-        write_private(
+        self.write_private(
             &paths.attestation(&generation),
             &self.reread(&paths, artifact, digest)?,
         )?;
@@ -386,9 +388,8 @@ impl TreeResolver<'_> {
         let paths = self.paths();
         let prefix =
             generation_prefix(artifact, &self.platform, digest, LAYOUT_VERSION);
-        let entries = std::fs::read_dir(paths.root()).ok()?;
-        for entry in entries.flatten() {
-            let name = entry.file_name();
+        let names = self.filesystem.list(paths.root()).ok()?;
+        for name in &names {
             let name = name.to_str()?;
             if !name.starts_with(&prefix) || has_sidecar_suffix(name) {
                 continue;
@@ -482,7 +483,7 @@ impl TreeResolver<'_> {
                     "cannot reread the attestation signature: {error:?}"
                 ),
             })?;
-        write_private(&paths.attestation_signature(generation), &signature)
+        self.write_private(&paths.attestation_signature(generation), &signature)
     }
 
     fn publish_pointer(
@@ -494,11 +495,23 @@ impl TreeResolver<'_> {
     ) -> Result<(), TreeError> {
         let pointer = paths.pointer(artifact, &self.platform, digest);
         let temp = paths.temp_pointer(generation);
-        write_private(&temp, generation.as_bytes())?;
-        std::fs::rename(&temp, &pointer).map_err(|error| {
-            let _ = std::fs::remove_file(&temp);
+        self.write_private(&temp, generation.as_bytes())?;
+        self.filesystem.rename(&temp, &pointer).map_err(|error| {
+            let _ = self.filesystem.remove_file(&temp);
             TreeError::Pointer {
                 detail: format!("cannot publish the pointer: {error}"),
+            }
+        })
+    }
+
+    fn write_private(
+        &self,
+        path: &Path,
+        bytes: &[u8],
+    ) -> Result<(), TreeError> {
+        self.filesystem.write_private(path, bytes).map_err(|error| {
+            TreeError::Pointer {
+                detail: format!("cannot write {}: {error}", path.display()),
             }
         })
     }
@@ -747,36 +760,27 @@ impl TreeResolver<'_> {
         if let Some(old) = superseded {
             if paths.generation(&old) != sealed.path {
                 if let Some(permit) = self.after_materialise.reap_permit() {
-                    Self::reap_superseded(
-                        &permit,
-                        self.liveness,
-                        self.clock,
-                        &old,
-                    );
+                    self.reap_superseded(&permit, &old);
                 }
             }
         }
         Ok(sealed)
     }
 
-    fn reap_superseded(
-        permit: &ReapPermit,
-        liveness: &dyn LivenessProbe,
-        clock: &dyn Clock,
-        generation: &str,
-    ) {
+    fn reap_superseded(&self, permit: &ReapPermit, generation: &str) {
         let paths = permit.paths();
         match reap::superseded_disposition(
-            liveness.probe(&paths.lease(generation)),
+            self.liveness.probe(&paths.lease(generation)),
         ) {
             reap::SupersededDisposition::Reclaim => {
-                let _ = std::fs::remove_dir_all(paths.generation(generation));
+                let _ =
+                    self.filesystem.remove_tree(&paths.generation(generation));
                 for sidecar in reap::sidecars_of(paths, generation) {
-                    let _ = std::fs::remove_file(sidecar);
+                    let _ = self.filesystem.remove_file(&sidecar);
                 }
             }
             reap::SupersededDisposition::Defer => {
-                reap::restart_backstop(paths, generation, clock);
+                reap::restart_backstop(paths, generation, self.clock);
             }
             reap::SupersededDisposition::Keep => {}
         }
@@ -1052,23 +1056,6 @@ fn available_bytes(trees_root: &Path, cache_root: &Path) -> Option<u64> {
     };
     let stat = rustix::fs::statvfs(target).ok()?;
     Some(stat.f_bavail.saturating_mul(stat.f_frsize))
-}
-
-fn write_private(path: &Path, bytes: &[u8]) -> Result<(), TreeError> {
-    use std::io::Write as _;
-    use std::os::unix::fs::OpenOptionsExt as _;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|error| TreeError::Pointer {
-            detail: format!("cannot write {}: {error}", path.display()),
-        })?;
-    file.write_all(bytes).map_err(|error| TreeError::Pointer {
-        detail: format!("cannot write {}: {error}", path.display()),
-    })
 }
 
 fn hex(bytes: &[u8]) -> String {

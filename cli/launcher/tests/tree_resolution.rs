@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use common::recording_filesystem::{FilesystemCall, RecordingFilesystem};
 use common::{MockHTTPServer, Route};
 use sha2::{Digest as _, Sha256};
 use tempfile::TempDir;
@@ -3271,6 +3272,40 @@ fn a_tree_claim_is_refreshed_through_the_resolvers_filesystem() {
         std::fs::read_dir(paths.claims()).unwrap().count(),
         0,
         "a claim was written into a directory the port reports untrusted"
+    );
+}
+
+#[test]
+fn a_materialise_publishes_and_reads_its_pointer_through_the_port() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let paths = tree_paths(&harness);
+    let pointer = paths.pointer(ARTIFACT, HOST_PLATFORM, &harness.archive_sha);
+    let recorder = RecordingFilesystem::new(
+        &harness.cache,
+        harness.cache.parent().expect("anchor"),
+    );
+    let resolver = TreeResolver {
+        filesystem: &recorder,
+        ..harness.resolver()
+    };
+
+    resolver.materialise(ARTIFACT).expect("materialise");
+    resolver.acquire(ARTIFACT).expect("acquire");
+
+    let calls = recorder.calls_touching(&pointer);
+    assert!(
+        calls.iter().any(|call| matches!(
+            call,
+            FilesystemCall::Rename { to, .. } if *to == recorder.recorded(&pointer)
+        )),
+        "{calls:?}"
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|call| matches!(call, FilesystemCall::ReadToString(_))),
+        "{calls:?}"
     );
 }
 

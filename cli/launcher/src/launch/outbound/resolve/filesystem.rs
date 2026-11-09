@@ -1,5 +1,9 @@
-//! The filesystem calls the single-file cache makes, behind a port so a test
-//! can record a dispatch's exact sequence.
+//! The filesystem calls a cache root's resolution, retention and prune make,
+//! behind a port so a test can record or script a dispatch's exact sequence.
+//!
+//! A tree's materialisation is the one boundary: streaming its archive,
+//! extracting it, sealing it and walking it to verify the seal stay on direct
+//! I/O, which this port would only mirror call for call.
 
 use std::ffi::OsString;
 use std::io;
