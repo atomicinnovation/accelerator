@@ -4,8 +4,8 @@ use std::time::Duration;
 use super::super::cache_root::Unconfirmed;
 use super::super::ownership::safe_root::{SafePruneRoot, UnsafeRoot};
 use super::super::prune_report::{
-    LockFailure, ReapFailure, RemovalFailure, Removals, UnreadableClaims,
-    UntrustedDirectory,
+    LockFailure, ReapFailure, RemovalFailure, Removals, UnlistableDirectory,
+    UnreadableClaims, UntrustedDirectory,
 };
 use super::super::single_flight::LockPatience;
 use super::super::tree::lease::HeldLeases;
@@ -33,6 +33,7 @@ pub struct PruneReport {
     pub removal_failures: Vec<RemovalFailure>,
     pub untrusted_directories: Vec<UntrustedDirectory>,
     pub reap_failures: Vec<ReapFailure>,
+    pub unlistable_directories: Vec<UnlistableDirectory>,
 }
 
 impl PruneReport {
@@ -48,6 +49,7 @@ impl PruneReport {
         self.lock_failures.is_empty()
             && self.removal_failures.is_empty()
             && self.reap_failures.is_empty()
+            && self.unlistable_directories.is_empty()
     }
 
     #[must_use]
@@ -80,6 +82,13 @@ impl PruneReport {
                 failure.kind
             )
         });
+        let unlistable = self.unlistable_directories.iter().map(|directory| {
+            format!(
+                "could not list {}: {}",
+                directory.path.display(),
+                directory.kind
+            )
+        });
         let reaps = self.reap_failures.iter().map(|failure| {
             format!(
                 "could not reap orphans under {}: {}",
@@ -90,6 +99,7 @@ impl PruneReport {
         locks
             .chain(claims)
             .chain(untrusted)
+            .chain(unlistable)
             .chain(removals)
             .chain(reaps)
             .collect()
@@ -102,6 +112,8 @@ impl PruneReport {
         self.untrusted_directories
             .extend(trees.untrusted_directories);
         self.reap_failures.extend(trees.reap_failures);
+        self.unlistable_directories
+            .extend(trees.unlistable_directories);
     }
 }
 
@@ -161,7 +173,7 @@ impl RootPrune<'_> {
         ) {
             Ok(listing) => listing,
             Err(error) => {
-                report.removal_failures.push(RemovalFailure {
+                report.unlistable_directories.push(UnlistableDirectory {
                     path: root.to_path_buf(),
                     kind: error.kind(),
                 });

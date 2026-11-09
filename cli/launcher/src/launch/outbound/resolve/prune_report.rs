@@ -51,6 +51,13 @@ pub struct RemovalFailure {
     pub kind: io::ErrorKind,
 }
 
+/// A directory whose listing failed, so nothing in it was pruned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnlistableDirectory {
+    pub path: PathBuf,
+    pub kind: io::ErrorKind,
+}
+
 /// A reap that could not start, so it removed none of the orphans under
 /// `root`.
 #[derive(Debug, Clone, PartialEq, Eq)]

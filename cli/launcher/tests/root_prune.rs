@@ -1059,6 +1059,41 @@ fn the_verb_prunes_everything_else_after_a_failed_removal() {
 }
 
 #[test]
+fn a_directory_the_prune_cannot_list_is_reported_as_unlistable() {
+    let harness = RootHarness::new();
+    harness.trees().plant_tree(
+        &on_host("retired"),
+        &digest('a'),
+        harness.aged(),
+    );
+    let trees = harness.trees().paths().root().to_path_buf();
+    for unlistable in [harness.root.clone(), trees] {
+        let filesystem = ScriptedFilesystem::over(harness.recorder()).failing(
+            FilesystemCall::List(in_root("")).kind(),
+            &unlistable,
+            1,
+            std::io::ErrorKind::PermissionDenied,
+        );
+
+        let verb = harness.prune(Ports {
+            filesystem: Arc::new(filesystem),
+            ..harness.ports()
+        });
+
+        verb.failed();
+        assert!(
+            verb.err.contains(&format!(
+                "could not list {}: permission denied",
+                unlistable.display()
+            )),
+            "{}",
+            verb.err
+        );
+        assert!(!verb.err.contains("could not remove"), "{}", verb.err);
+    }
+}
+
+#[test]
 fn a_claim_refreshed_before_unlink_is_kept() {
     let harness = RootHarness::new();
     let claim = harness.claim(OLD, harness.now - CLAIM_WINDOW.as_secs());

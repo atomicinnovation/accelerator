@@ -21,8 +21,8 @@ use super::super::filesystem::{CacheFilesystem, EntryMetadata};
 use super::super::ownership::safe_root::SafePruneRoot;
 use super::super::ownership::{is_trusted_directory, Ownership};
 use super::super::prune_report::{
-    Count, LockFailure, PruneStep, PruneSteps, ReapFailure, Removal,
-    RemovalFailure, Removals, UnreadableClaims, UntrustedDirectory,
+    Count, LockFailure, PruneStep, PruneSteps, ReapFailure, Removal, Removals,
+    UnlistableDirectory, UnreadableClaims, UntrustedDirectory,
 };
 use super::super::retention_windows::is_aged;
 use super::super::single_flight::LockPatience;
@@ -109,6 +109,7 @@ pub struct TreePruneReport {
     pub unreadable_claims: Option<UnreadableClaims>,
     pub untrusted_directories: Vec<UntrustedDirectory>,
     pub reap_failures: Vec<ReapFailure>,
+    pub unlistable_directories: Vec<UnlistableDirectory>,
 }
 
 enum ArtifactLock {
@@ -254,7 +255,7 @@ impl TreePrune<'_> {
         match TreesIndex::read(paths, self.ports.filesystem) {
             Ok(index) => Some((claims, index)),
             Err(error) => {
-                report.removals.failures.push(RemovalFailure {
+                report.unlistable_directories.push(UnlistableDirectory {
                     path: paths.root().to_path_buf(),
                     kind: error.kind(),
                 });
