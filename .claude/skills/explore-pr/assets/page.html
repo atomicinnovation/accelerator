@@ -1397,22 +1397,25 @@ function designItems(key) {
   C.chapters.forEach(ch => (ch[key] || []).forEach(item => out.push({ item, chapter: ch })));
   return out;
 }
+function keyAbstractions() {
+  return (C.keyAbstractions || []).map(({ item, chapters }) => ({ item, chapters: chapters.map(id => CH[id]).filter(Boolean) }));
+}
 const decisionTarget = d => 'design:' + (d.id || plain(d.decision));
 function hasDesign() {
   const d = C.design || {};
-  return !!(d.summary || (d.figures || []).length || designItems('abstractions').length || designItems('decisions').length);
+  return !!(d.summary || (d.figures || []).length || keyAbstractions().length || designItems('decisions').length);
 }
-function abstractionCard({ item: a, chapter }) {
+function abstractionCard({ item: a, chapters }) {
   return `<article class="abs t-${esc(a.status || 'existing')}" id="abs-${esc(a.id || '')}">
     <div class="row"><b class="mono">${esc(plain(a.name))}</b>${a.kind ? `<span class="chip plain c-none">${esc(a.kind)}</span>` : ''}${a.status ? `<span class="chip ${STATUS_CHIP[a.status] || 'c-none'}">${esc(a.status)}</span>` : ''}</div>
     <div class="small">${md(a.responsibility, true)}</div>
     ${(a.collaborators || []).length ? `<div class="small muted">Works with ${a.collaborators.map(c => `<code>${esc(plain(c))}</code>`).join(', ')}</div>` : ''}
-    <div class="row small">${whereBtn(a.where)}${chapter ? `<a href="#tour-${chapter.id}">${esc(chapter.title)}</a>` : ''}</div>
+    <div class="row small">${whereBtn(a.where)}${chapters.map(ch => `<a href="#tour-${ch.id}">${esc(ch.title)}</a>`).join('')}</div>
   </article>`;
 }
 function relationsFigure(items) {
   const nodes = new Map();
-  items.forEach(({ item, chapter }) => nodes.set(plain(item.name), { id: plain(item.name), label: plain(item.name), sub: item.kind, tone: { new: 'new', changed: 'changed', removed: 'removed' }[item.status], where: item.where, chapter: chapter && chapter.id }));
+  items.forEach(({ item, chapters }) => nodes.set(plain(item.name), { id: plain(item.name), label: plain(item.name), sub: item.kind, tone: { new: 'new', changed: 'changed', removed: 'removed' }[item.status], where: item.where, chapter: chapters[0] && chapters[0].id }));
   if (nodes.size < 2 || nodes.size > 16) return '';
   const edges = [];
   let extra = 0;
@@ -1451,7 +1454,7 @@ function designSection(abstractions, decisions, heading) {
 }
 function vDesign() {
   const d = C.design || {};
-  const abstractions = designItems('abstractions'), decisions = designItems('decisions');
+  const abstractions = keyAbstractions(), decisions = designItems('decisions');
   const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
   return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
     ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
@@ -1710,7 +1713,7 @@ function vChapter(ch) {
   return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede">${md(ch.oneLiner, true)}</p></div>
     ${(ch.figures || []).length ? `<div class="figs">${ch.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
     ${terms ? `<section class="section"><h2>Terms this chapter introduces</h2><div class="glossary">${terms}</div></section>` : ''}
-    ${designSection((ch.abstractions || []).map(item => ({ item, chapter: null })), (ch.decisions || []).map(item => ({ item, chapter: null })), 'What it adds to the design')}
+    ${designSection((ch.abstractions || []).map(item => ({ item, chapters: [] })), (ch.decisions || []).map(item => ({ item, chapter: null })), 'What it adds to the design')}
     <div class="grid-2"><section class="stack"><div class="eyebrow">Why it exists</div><div class="md prose">${md(ch.purpose)}</div></section>
     <section class="stack"><div class="eyebrow">How it works</div><div class="md prose">${md(ch.mechanism)}</div></section></div>
     ${ba}
