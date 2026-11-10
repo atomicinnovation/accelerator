@@ -13,7 +13,7 @@ blocks: ["work-item:0366", "work-item:0370"]
 relates_to: ["work-item:0165", "work-item:0182", "work-item:0368"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "ci"]
-last_updated: "2026-11-10T12:22:08+00:00"
+last_updated: "2026-11-10T16:24:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -311,10 +311,11 @@ None.
 
 - Per-call verification: `bin/accelerator:409-435`.
 - Debug shim and launcher built inside pytest:
-  `tests/support/artefacts.py:56-93`.
+  `tests/support/artefacts.py:56-95`.
 - `minisign-verify` dependency: `cli/verify/Cargo.toml:22`.
 - Today's smoke test:
-  `tests/integration/hooks/test_vcs_detect_registration.py:30-81`.
+  `tests/integration/hooks/test_vcs_detect_registration.py:48-82`, with
+  its environment built by `_dispatch_env` at `:30-45`.
 - `bin/accelerator` does not read `ACCELERATOR_BIN`. The `accelerator_env()`
   overlay in `tasks/test/helpers.py` sets it for suites that choose their
   entry point from it; today's smoke test calls `bin/accelerator` directly
@@ -325,16 +326,17 @@ None.
   `bin/accelerator`, which is why the rewritten smoke test runs a copy.
 - The `.invalid` release URL that `assert_hermetic` enforces also confines
   the launcher: `release_base_url()` reads the same
-  `ACCELERATOR_RELEASE_BASE_URL` (`cli/launcher/src/main.rs:55-59`), so
+  `ACCELERATOR_RELEASE_BASE_URL` (`cli/launcher/src/main.rs:158-169`), so
   neither the bootstrap nor the launcher can fetch a release asset from
   the network. That, `assert_hermetic` and the download-log assertion
   together are the hermeticity check; no separate offline run is needed.
 - Serve the launcher that `test:integration:hooks` already builds through
-  its `build:cli:dev` edge (`mise.toml:457-460`; the task itself is
-  `tasks/test/integration.py:114-127`), copied out of `cli/target/debug`
+  its `build:cli:dev` edge (`mise.toml:462-465`; the task itself is
+  `tasks/test/integration.py:120-133`), copied out of `cli/target/debug`
   with `claim_artefact`. The sibling `test_research_guard_registration.py`
-  already uses that build. Do not call `build_launcher()`: its docstring
-  forbids a suite from both calling it and carrying the edge.
+  already uses that build, though it copies it with `shutil.copy2`
+  rather than `claim_artefact`. Do not call `build_launcher()`: its
+  docstring forbids a suite from both calling it and carrying the edge.
 - Build the shim with `build_shim()`. No mise task builds the debug shim.
 - `accelerator-vcs` comes from the existing `build:cli:vcs:dev` edge.
 - Keep the `ACCELERATOR_VCS_BIN` override. The launcher verifies the
@@ -344,7 +346,7 @@ None.
 - `make_installation`'s root is enough for `vcs detect`. With
   `ACCELERATOR_VCS_BIN` set, the launcher's resolver returns the override
   before it looks up a cache root, its embedded key or the network
-  (`cli/launcher/src/main.rs:72-92`), and the `vcs`, `vcs-adapters` and
+  (`cli/launcher/src/main.rs:171-204`), and the `vcs`, `vcs-adapters` and
   `vcs-cli` crates never read the plugin root.
 - The shim speed and local suite speed criteria use medians because a
   single timing of a 0.06 s verification sits within process-start noise.
