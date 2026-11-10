@@ -7,7 +7,7 @@ PAGE = """<title>__EXPLORE_PR_TITLE__</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- explore-pr:data -->
-<!-- explore-pr:coverage -->
+<!-- explore-pr:models -->
 <script>window.APP = true;</script>
 <!-- explore-pr:views -->
 """
@@ -195,8 +195,28 @@ def test_both_layouts_carry_the_review_coverage_model(tmp_path, script):
     build.hosted(PAGE, tmp_path, {}, {}, [], "t")
 
     for html in (page, (tmp_path / "index.html").read_text()):
-        assert "explore-pr:coverage" not in html
+        assert "explore-pr:models" not in html
         assert html.index("ReviewCoverage") < html.index("window.APP")
+
+
+def test_both_layouts_carry_the_graph_focus_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert html.index("GraphFocus") < html.index("window.APP")
+
+
+def test_both_layouts_carry_the_graph_routes_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert html.index("GraphRoutes") < html.index("window.APP")
 
 
 def test_the_standalone_page_is_a_complete_document(script):

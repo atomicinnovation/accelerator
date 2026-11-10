@@ -22,8 +22,10 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 DATA_MARKER = "<!-- explore-pr:data -->"
 VIEWS_MARKER = "<!-- explore-pr:views -->"
-COVERAGE_MARKER = "<!-- explore-pr:coverage -->"
+MODELS_MARKER = "<!-- explore-pr:models -->"
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
+GRAPH_FOCUS_MODEL = ASSETS / "graph-focus.js"
+GRAPH_ROUTES_MODEL = ASSETS / "graph-routes.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -225,6 +227,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     model["keyAbstractions"] = key_abstractions(
         model["design"], model["chapters"]
     )
+    model["collaboratorKinds"] = collaborator_kinds(
+        model["design"], model["chapters"]
+    )
     summarised = {entry["path"] for entry in summaries}
     warnings = check(model, diff) + commit_warnings(commits, diff)
     warnings += [
@@ -405,6 +410,28 @@ def abstraction_name(item: dict) -> str:
     return item.get("name", "").replace("`", "").strip()
 
 
+def collaborator_name(collaborator: str | dict) -> str:
+    if isinstance(collaborator, dict):
+        return collaborator.get("name", "")
+    return collaborator
+
+
+def declared_abstractions(design: dict, chapters: list[dict]) -> list[dict]:
+    return design.get("abstractions", []) + [
+        item for chapter in chapters for item in chapter.get("abstractions", [])
+    ]
+
+
+def collaborator_kinds(design: dict, chapters: list[dict]) -> dict[str, str]:
+    """Return the kind of each collaborator that was given one."""
+    return {
+        collaborator["name"]: collaborator["kind"]
+        for item in declared_abstractions(design, chapters)
+        for collaborator in item.get("collaborators", [])
+        if isinstance(collaborator, dict) and collaborator.get("kind")
+    }
+
+
 def key_abstractions(design: dict, chapters: list[dict]) -> list[dict]:
     """Each abstraction once, as first declared, with every chapter it is in."""
     declarations = [
@@ -424,7 +451,7 @@ def key_abstractions(design: dict, chapters: list[dict]) -> list[dict]:
         collaborators = entry["item"]["collaborators"]
         collaborators += [
             name
-            for name in item.get("collaborators", [])
+            for name in map(collaborator_name, item.get("collaborators", []))
             if name not in collaborators
         ]
         entry["chapters"] += [
@@ -466,6 +493,16 @@ def design_warnings(model: dict) -> list[str]:
         for chapter in model["chapters"]
         for stop in chapter.get("stops", [])
         if not stop.get("fit")
+    ]
+    known = {
+        abstraction_name(entry["item"]) for entry in model["keyAbstractions"]
+    } | set(model["collaboratorKinds"])
+    warnings += [
+        f"abstraction {abstraction_name(entry['item'])}: collaborator "
+        f'{name} has no kind; give it as {{"name", "kind"}}'
+        for entry in model["keyAbstractions"]
+        for name in entry["item"]["collaborators"]
+        if name.replace("`", "").strip() not in known
     ]
     chapters = {chapter["id"] for chapter in model["chapters"]}
     items = design_items(model)
@@ -525,9 +562,10 @@ def with_views(page: str, views: list[str]) -> str:
     return page.replace(VIEWS_MARKER, "".join(map(inline_script, views)))
 
 
-def with_review_coverage(page: str) -> str:
-    model = inline_script(COVERAGE_MODEL.read_text())
-    return page.replace(COVERAGE_MARKER, model)
+def with_page_models(page: str) -> str:
+    models = (COVERAGE_MODEL, GRAPH_FOCUS_MODEL, GRAPH_ROUTES_MODEL)
+    scripts = "".join(inline_script(model.read_text()) for model in models)
+    return page.replace(MODELS_MARKER, scripts)
 
 
 def standalone(
@@ -550,7 +588,7 @@ def standalone(
     if commits:
         data += inline_json("__EXPLORE_COMMITS", commits)
     page = with_views(page.replace(DATA_MARKER, data), views)
-    page = with_review_coverage(page)
+    page = with_page_models(page)
     head, separator, body = page.partition("</style>")
     if not separator:
         head, body = "", page
@@ -571,7 +609,7 @@ def hosted(
     out_dir.mkdir(parents=True, exist_ok=True)
     page = page.replace(TITLE_PLACEHOLDER, html.escape(title))
     page = with_views(page.replace(DATA_MARKER, ""), views)
-    page = with_review_coverage(page)
+    page = with_page_models(page)
     (out_dir / "index.html").write_text(page)
     (out_dir / "content.json").write_text(
         json.dumps(content, separators=(",", ":"))
