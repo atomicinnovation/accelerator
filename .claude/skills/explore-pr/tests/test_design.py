@@ -133,6 +133,126 @@ def test_an_abstraction_or_decision_id_used_twice_is_reported(tmp_path, script):
     assert any("duplicate design id a-store" in w for w in warnings)
 
 
+def key_abstractions(tmp_path, script, chapters, design=DESIGN):
+    content, _ = assemble(tmp_path, script, chapters, design)
+    return [
+        (entry["item"]["name"], entry["chapters"])
+        for entry in content["keyAbstractions"]
+    ]
+
+
+def test_an_abstraction_in_the_design_and_a_chapter_is_listed_once(
+    tmp_path, script
+):
+    design = dict(DESIGN, abstractions=[dict(ABSTRACTION, id="a-top")])
+
+    keys = key_abstractions(
+        tmp_path, script, [chapter("c", abstractions=[ABSTRACTION])], design
+    )
+
+    assert keys == [("Store", ["c"])]
+
+
+def test_an_abstraction_two_chapters_declare_lists_both_chapters(
+    tmp_path, script
+):
+    chapters = [
+        chapter("c1", abstractions=[dict(ABSTRACTION, id="a-1")]),
+        chapter("c2", abstractions=[dict(ABSTRACTION, id="a-2")]),
+    ]
+
+    keys = key_abstractions(tmp_path, script, chapters)
+
+    assert keys == [("Store", ["c1", "c2"])]
+
+
+def test_names_that_differ_only_in_markup_are_the_same_abstraction(
+    tmp_path, script
+):
+    chapters = [
+        chapter("c1", abstractions=[dict(ABSTRACTION, id="a-1")]),
+        chapter(
+            "c2", abstractions=[dict(ABSTRACTION, id="a-2", name="`Store`")]
+        ),
+    ]
+
+    keys = key_abstractions(tmp_path, script, chapters)
+
+    assert keys == [("Store", ["c1", "c2"])]
+
+
+def test_the_first_declaration_describes_the_key_abstraction(tmp_path, script):
+    design = dict(
+        DESIGN,
+        abstractions=[
+            dict(ABSTRACTION, id="a-top", responsibility="Owns every record.")
+        ],
+    )
+
+    content, _ = assemble(
+        tmp_path, script, [chapter("c", abstractions=[ABSTRACTION])], design
+    )
+
+    [entry] = content["keyAbstractions"]
+    assert entry["item"]["responsibility"] == "Owns every record."
+
+
+def test_a_key_abstraction_works_with_every_declarations_collaborators(
+    tmp_path, script
+):
+    chapters = [
+        chapter(
+            "c1",
+            abstractions=[
+                dict(ABSTRACTION, id="a-1", collaborators=["Clock", "Disk"])
+            ],
+        ),
+        chapter(
+            "c2",
+            abstractions=[
+                dict(ABSTRACTION, id="a-2", collaborators=["Disk", "Log"])
+            ],
+        ),
+    ]
+
+    content, _ = assemble(tmp_path, script, chapters)
+
+    [entry] = content["keyAbstractions"]
+    assert entry["item"]["collaborators"] == ["Clock", "Disk", "Log"]
+
+
+def test_a_design_abstraction_owned_by_a_chapter_lists_that_chapter_first(
+    tmp_path, script
+):
+    design = dict(
+        DESIGN, abstractions=[dict(ABSTRACTION, id="a-top", chapter="c2")]
+    )
+    chapters = [
+        chapter("c1", abstractions=[ABSTRACTION]),
+        chapter("c2", decisions=[DECISION]),
+    ]
+
+    keys = key_abstractions(tmp_path, script, chapters, design)
+
+    assert keys == [("Store", ["c2", "c1"])]
+
+
+def test_distinct_abstractions_keep_the_design_then_tour_order(
+    tmp_path, script
+):
+    design = dict(
+        DESIGN, abstractions=[dict(ABSTRACTION, id="a-top", name="Port")]
+    )
+    chapters = [
+        chapter("c1", abstractions=[ABSTRACTION]),
+        chapter("c2", abstractions=[dict(ABSTRACTION, id="a-2", name="Disk")]),
+    ]
+
+    keys = key_abstractions(tmp_path, script, chapters, design)
+
+    assert keys == [("Port", []), ("Store", ["c1"]), ("Disk", ["c2"])]
+
+
 STOP = {
     "id": "c-s1",
     "file": "src/a.rs",
