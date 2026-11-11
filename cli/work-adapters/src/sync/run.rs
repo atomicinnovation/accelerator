@@ -2558,6 +2558,26 @@ mod tests {
         }
     }
 
+    #[test]
+    fn an_unsynced_relink_is_not_a_create_from_local() {
+        use work::sync::Action;
+        use work::sync::PlannedAction;
+        use work::sync::SyncState;
+
+        use super::creatable_item;
+        use crate::sync::fetch::LocalItem;
+
+        let items = [LocalItem {
+            id: "0001".to_owned(),
+            path: "0001.md".into(),
+            external_id: None,
+        }];
+        let relink =
+            PlannedAction::new("0001", SyncState::Unsynced, Action::Relink);
+
+        assert!(creatable_item(&relink, &items).is_none());
+    }
+
     fn ok_renderer(section: &SectionDiff) -> String {
         format!("=== {} (- LOCAL / + REMOTE) ===\nbody\n\n", section.name)
     }
