@@ -510,14 +510,14 @@ Nothing else in the skill refers to the old row. The Completion rule
 
 #### Automated Verification:
 
-- [ ] Before the table edit, the new structure test fails:
+- [x] Before the table edit, the new structure test fails:
       `uv run pytest tests/unit/tasks/test_sync_work_items_skill_structure.py -k refused_order`
-- [ ] After it, all the skill structure tests pass:
+- [x] After it, all the skill structure tests pass:
       `uv run pytest tests/unit/tasks/test_sync_work_items_skill_structure.py`
-- [ ] The old rule and its test are gone:
+- [x] The old rule and its test are gone:
       `git grep -nE 'create_s_duplicate_noop|that also has a .failed., .create-from-local' -- skills tests`
       returns nothing
-- [ ] The Python toolchain checks pass: `mise run build-system:check`
+- [x] The Python toolchain checks pass: `mise run build-system:check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
