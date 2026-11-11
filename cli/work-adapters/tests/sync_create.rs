@@ -3959,6 +3959,69 @@ fn an_unknown_recipe_entry_leaves_only_the_create_row() -> Result<(), TestError>
     Ok(())
 }
 
+#[test]
+fn a_previewed_create_over_an_unknown_recipe_entry_is_not_left_untouched(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_unknown_recipe_entry(&fixture, "0001");
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Preview,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::NotApplied));
+    Ok(())
+}
+
+#[test]
+fn an_unknown_recipe_entry_on_a_draft_is_left_untouched(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
+    seed_unknown_recipe_entry(&fixture, "draft-k7mq3x");
+
+    let report = sync_item(
+        &fixture,
+        &draft,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "draft-k7mq3x");
+    assert_eq!(row.planned.action(), Action::Noop);
+    assert!(matches!(row.outcome, ItemOutcome::UnsupportedRecipe));
+    Ok(())
+}
+
+#[test]
+fn an_unknown_recipe_entry_under_pull_only_is_left_untouched(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_unknown_recipe_entry(&fixture, "0001");
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::PullOnly,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::Noop);
+    assert!(matches!(row.outcome, ItemOutcome::UnsupportedRecipe));
+    Ok(())
+}
+
 fn sync_item(
     fixture: &Fixture,
     item: &LocalItem,
