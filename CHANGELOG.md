@@ -782,10 +782,11 @@
   in the tracker no longer prints a second `noop\tunsynced` row beside its
   `create-from-local`, `adopt` or `failed` row; scripts that listed unsynced
   items by their `noop` row should key on the `unsynced` state column
-  instead. A failed create no longer advances the item's baseline watermark,
-  and an unsynced item that sync creates or adopts no longer draws the "left
-  untouched" warning when its baseline entry was written by a newer release,
-  since its create runs regardless.
+  instead. A failed create no longer marks the item as synced up to the
+  run's start, so the next sync still notices a local edit made during the
+  failed run. An unsynced item that sync creates or adopts no longer draws
+  the "left untouched" warning when its baseline entry was written by a newer
+  release.
 - **Web researchers write nothing when fetching is denied.** A researcher on
   the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
   that has neither tool, now writes no finding or level note and reports
