@@ -1340,31 +1340,41 @@ fn previewed_adoptions(
         .collect()
 }
 
-/// The unsynced local items eligible for create-from-local: state `Unsynced`
-/// (no `external_id`), under a push-capable direction. A draft is excluded:
-/// it reaches the tracker only through promotion, which retires its ID.
+/// Takes the unsynced items a run creates from local out of `plan`, so each
+/// is reported once, by its create.
 fn unsynced_creates<'a>(
-    plan: &work::sync::SyncPlan,
+    plan: &mut SyncPlan,
     items: &'a [LocalItem],
     direction: SyncDirection,
 ) -> Vec<LocalCreate<'a>> {
     if matches!(direction, SyncDirection::PullOnly) {
         return Vec::new();
     }
-    plan.actions
-        .iter()
-        .filter(|planned| planned.state() == SyncState::Unsynced)
-        .filter_map(|planned| {
-            items
-                .iter()
-                .find(|item| item.id == planned.id())
-                .map(|item| LocalCreate {
-                    item,
-                    planned: planned.clone(),
-                })
-        })
-        .filter(|create| DraftId::parse(&create.item.id).is_none())
-        .collect()
+    let mut creates = Vec::new();
+    let mut remaining = Vec::new();
+    for planned in std::mem::take(&mut plan.actions) {
+        match creatable_item(&planned, items) {
+            Some(item) => creates.push(LocalCreate { item, planned }),
+            None => remaining.push(planned),
+        }
+    }
+    plan.actions = remaining;
+    creates
+}
+
+/// A draft is never created from local: it reaches the tracker only through
+/// promotion, which retires its ID.
+fn creatable_item<'a>(
+    planned: &PlannedAction,
+    items: &'a [LocalItem],
+) -> Option<&'a LocalItem> {
+    if planned.state() != SyncState::Unsynced
+        || planned.action() != Action::Noop
+        || DraftId::parse(planned.id()).is_some()
+    {
+        return None;
+    }
+    items.iter().find(|item| item.id == planned.id())
 }
 
 /// One refusal per pending-push order that reaches no create, so an order
@@ -2212,6 +2222,9 @@ fn prepare_run<'a>(
     let mut plan =
         knowledge.plan(&loaded_baseline, request, &unconfirmed_links);
     let relinks = relinks(&mut plan, request.reconciled(), request.direction);
+    let mut creates_from_local =
+        unsynced_creates(&mut plan, request.reconciled(), request.direction);
+    creates_from_local.extend(relinks);
 
     let read_failure = knowledge.facts.read_failure.clone();
     let unsupported_recipe = request
@@ -2232,9 +2245,6 @@ fn prepare_run<'a>(
         discovery,
         deferral: discovery_deferral,
     } = untracked_to_import(ports, request, settled, &pending_pushes)?;
-    let mut creates_from_local =
-        unsynced_creates(&plan, request.reconciled(), request.direction);
-    creates_from_local.extend(relinks);
 
     // A create-from-remote authors a new local file (pull-direction); a
     // create-from-local issues a new remote issue (push-direction). Each folds

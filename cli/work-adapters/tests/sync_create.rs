@@ -3546,6 +3546,17 @@ fn seed_recorded_entry(
     Ok(())
 }
 
+fn seed_unknown_recipe_entry(fixture: &Fixture, id: &str) {
+    let unknown = work_adapters::sync::baseline::DigestRecipe::CURRENT + 1;
+    let entry = format!(
+        "\"{id}\":{{\"digest_recipe\":{unknown},\"local_hash\":\"l\",\
+         \"local_synced_at\":5,\"remote_updated_at\":\"t\"}}"
+    );
+    fixture
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[entry]));
+}
+
 fn assert_order_refused(
     failure: &RunFailure,
     operation: SyncOperation,
@@ -3767,6 +3778,185 @@ fn a_preview_reports_an_inert_order_without_sending() -> Result<(), TestError> {
         SyncOperation::Create,
         "no work item 0009 in this run",
     );
+    Ok(())
+}
+
+#[test]
+fn a_previewed_create_is_the_items_only_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Preview,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::NotApplied));
+    Ok(())
+}
+
+#[test]
+fn a_previewed_adopt_is_the_items_only_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let orders = orders(&[("0001", adopt("ENG-7"))]);
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        OrderedRun {
+            mode: RunMode::Preview,
+            ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+        },
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert_eq!(row.planned.order(), Some(&adopt("ENG-7")));
+    Ok(())
+}
+
+#[test]
+fn an_applied_create_is_the_items_only_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    Ok(())
+}
+
+#[test]
+fn an_equivalent_adopt_is_the_items_only_row_and_watermarks_its_entry(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker =
+        RecordingTracker::holding(vec![keyed("ENG-7", "Draft one\nBody\n")]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = adopting(
+        &fixture,
+        &tracker,
+        &author,
+        std::slice::from_ref(&item),
+        "ENG-7",
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.planned.order(), Some(&adopt("ENG-7")));
+    assert_eq!(stored_watermark(&fixture, "0001"), Some(1_700_000_000));
+    Ok(())
+}
+
+#[test]
+fn an_ordered_create_is_the_items_only_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.planned.order(), Some(&PendingPushOrder::Create));
+    Ok(())
+}
+
+fn refusing_creates() -> RecordingTracker {
+    RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Retryable {
+            detail: "jira create: could not connect".to_owned(),
+        },
+    )
+}
+
+#[test]
+fn a_failed_create_is_the_items_only_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &refusing_creates(),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Failed(_)));
+    Ok(())
+}
+
+#[test]
+fn a_failed_create_leaves_the_items_watermark_where_it_was(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_recorded_entry(&fixture, &item)?;
+    let before = stored_watermark(&fixture, "0001");
+    assert!(before.is_some());
+
+    sync_item(
+        &fixture,
+        &item,
+        &refusing_creates(),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    assert_eq!(stored_watermark(&fixture, "0001"), before);
+    Ok(())
+}
+
+#[test]
+fn an_unknown_recipe_entry_leaves_only_the_create_row() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_unknown_recipe_entry(&fixture, "0001");
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert!(!report
+        .reported
+        .iter()
+        .any(|item| matches!(item.outcome, ItemOutcome::UnsupportedRecipe)));
+    assert_eq!(stored_watermark(&fixture, "0001"), Some(1_700_000_000));
     Ok(())
 }
 
@@ -4041,6 +4231,9 @@ fn adopting_a_missing_issue_is_refused() -> Result<(), TestError> {
     );
     assert_nothing_sent(&tracker, &author);
     assert!(!fixture.spy.removals.borrow().contains(&marker));
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Failed(_)));
     Ok(())
 }
 
