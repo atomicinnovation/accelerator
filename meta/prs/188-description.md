@@ -12,9 +12,9 @@ relates_to: ["work-item:0351"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/188"
 pr_number: 188
 tags: ["sync", "report", "work-adapters", "baseline", "sync-work-items"]
-revision: "c4539f049c479a819aa013d2d94b795668b25dbd"
+revision: "08ac3ae1abd33bf2a2bfdaac01302998fa08744b"
 repository: "accelerator"
-last_updated: "2026-11-11T09:12:09+00:00"
+last_updated: "2026-11-11T10:02:52+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 ---
@@ -46,9 +46,11 @@ row.
   exactly one report row, rather than finding the first. Eight behaviour tests
   cover preview and apply, plain create, create order and adopt order, a
   tracker failure, an adopt refused at apply time, the failed-create
-  watermark, and an unknown-recipe baseline entry. Regression guards cover a
-  successful create's watermark, an unsynced draft, `--pull-only`, and orders
-  refused on both.
+  watermark, and an unknown-recipe baseline entry in preview and apply.
+  Regression guards cover a successful create's watermark, an unsynced draft,
+  `--pull-only`, orders refused on both, and the unknown-recipe warning that
+  drafts and `--pull-only` items keep. A unit test in `run.rs` pins that an
+  unsynced relink is never created from local.
 - **`cli/work-cli/tests/cli_sync.rs`**: the push-only preview's expected
   stdout drops the `noop` line.
 - **`skills/work/sync-work-items/SKILL.md`**: the interim Membership rule for
@@ -74,8 +76,12 @@ row.
   failing before the partition (`0001 reported as [Noop, CreateFromLocal]`,
   or the watermark at `Some(1700000000)` instead of `Some(0)`). The
   regression guards passed before and after.
-- [x] `sync_create` passes 118/118 and `cli_sync` 19/19.
-- [x] The whole `cli/` workspace passes (7382 passed, 2 skipped), and
+- [x] The guards added after review were each seen failing against the
+  breakage they protect from: the relink unit test with the `Action::Noop`
+  clause removed, and the preview unknown-recipe test with create rows routed
+  through the unknown-recipe relabelling.
+- [x] `sync_create` passes 121/121 and `cli_sync` 19/19.
+- [x] The whole `cli/` workspace passes (7386 passed, 2 skipped), and
   workspace rustfmt and clippy (`-D warnings`) are clean.
 - [x] The `cli:check` Python guards and every `build-system:check` task
   pass, including the skill structure tests (74 passed, the new one seen
@@ -98,10 +104,11 @@ row.
   plugin" warning or an `Unobserved` dossier status when the run creates it.
   Neither was true: the create runs regardless and replaces the entry. Drafts
   and `--pull-only` items keep the warning.
-- **Unreachable guard**: the `Action::Noop` clause in `creatable_item` cannot
-  be reached by a test, since the planner gives every unsynced item `Noop` and
-  `relinks` has already taken the `Relink` entries out. It keeps the
-  predicate stating the rule rather than relying on call order.
+- **Order-independent guard**: the `Action::Noop` clause in `creatable_item`
+  cannot be reached through `run_sync`, since the planner gives every
+  unsynced item `Noop` and `relinks` has already taken the `Relink` entries
+  out. It keeps the predicate stating the rule rather than relying on call
+  order, and a unit test calls it directly.
 - **Not changed**: the decision table, the dossier mapping, and the
   `order-refused` line an order on a draft or under `--pull-only` prints
   beside its `noop` row.
