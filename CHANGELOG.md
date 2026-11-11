@@ -778,6 +778,14 @@
 - **`work sync --preview` reports a pull's failure.** A planned pull the run
   would fail before writing, such as one over a Jira description with no
   Markdown form, previewed as not applied.
+- **`work sync` reports an unsynced item once.** An item it creates or adopts
+  in the tracker no longer prints a second `noop\tunsynced` row beside its
+  `create-from-local`, `adopt` or `failed` row; scripts that listed unsynced
+  items by their `noop` row should key on the `unsynced` state column
+  instead. A failed create no longer advances the item's baseline watermark,
+  and an unsynced item that sync creates or adopts no longer draws the "left
+  untouched" warning when its baseline entry was written by a newer release,
+  since its create runs regardless.
 - **Web researchers write nothing when fetching is denied.** A researcher on
   the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
   that has neither tool, now writes no finding or level note and reports
