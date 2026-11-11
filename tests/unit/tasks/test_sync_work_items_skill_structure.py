@@ -451,10 +451,8 @@ class TestMembership:
         self, output_section: str
     ) -> None:
         rows = _table_rows(output_section, "Record")
-        noop = next(
-            row for row in rows if row[0].startswith("`noop\\tunsynced`")
-        )
-        assert "`order-refused`" in noop[0]
+        [noop] = [row for row in rows if row[0].startswith("`noop\\tunsynced`")]
+        assert "`failed` row, `order-refused`" in noop[0]
         assert "`create-from-local`" not in noop[0]
         assert noop[1].startswith("none")
         assert noop[2] == "no"
