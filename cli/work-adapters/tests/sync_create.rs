@@ -32,6 +32,7 @@ use work::sync::Dirtiness;
 use work::sync::PendingPushOrder;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
+use work::sync::SyncState;
 use work::tracker_key::TrackerKey;
 use work_adapters::sync::apply::ApplyError;
 use work_adapters::sync::apply::FailureClass;
@@ -3508,6 +3509,43 @@ fn failure_for(report: &RunReport, id: &str) -> RunFailure {
     failures[0].clone()
 }
 
+fn only_row<'r>(report: &'r RunReport, id: &str) -> &'r ReportedItem {
+    let rows: Vec<&ReportedItem> = report
+        .reported
+        .iter()
+        .filter(|item| item.planned.id() == id)
+        .collect();
+    let actions: Vec<Action> =
+        rows.iter().map(|row| row.planned.action()).collect();
+    assert_eq!(rows.len(), 1, "{id} reported as {actions:?}");
+    rows[0]
+}
+
+fn stored_watermark(fixture: &Fixture, id: &str) -> Option<u64> {
+    fixture
+        .baseline()
+        .get(id)
+        .and_then(work_adapters::sync::baseline::Entry::stamps)
+        .map(|stamps| stamps.local_synced_at)
+}
+
+fn seed_recorded_entry(
+    fixture: &Fixture,
+    item: &LocalItem,
+) -> Result<(), TestError> {
+    let entry = support::split_entry(
+        &item.id,
+        &PlainDialect,
+        &std::fs::read_to_string(&item.path)?,
+        "Draft one\nBody\n",
+        "2026-06-01T00:00:00Z",
+    );
+    fixture
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[entry]));
+    Ok(())
+}
+
 fn assert_order_refused(
     failure: &RunFailure,
     operation: SyncOperation,
@@ -3554,6 +3592,7 @@ fn an_order_under_pull_only_is_refused() -> Result<(), TestError> {
         "orders settle pending pushes; run without --pull-only",
     );
     assert_nothing_sent(&tracker, &author);
+    assert_eq!(only_row(&report, "0001").planned.action(), Action::Noop);
     Ok(())
 }
 
@@ -3579,6 +3618,10 @@ fn an_order_naming_a_draft_is_refused() -> Result<(), TestError> {
          draft-k7mq3x",
     );
     assert_nothing_sent(&tracker, &author);
+    assert_eq!(
+        only_row(&report, "draft-k7mq3x").planned.action(),
+        Action::Noop
+    );
     Ok(())
 }
 
@@ -3724,6 +3767,92 @@ fn a_preview_reports_an_inert_order_without_sending() -> Result<(), TestError> {
         SyncOperation::Create,
         "no work item 0009 in this run",
     );
+    Ok(())
+}
+
+fn sync_item(
+    fixture: &Fixture,
+    item: &LocalItem,
+    tracker: &RecordingTracker,
+    direction: SyncDirection,
+    mode: RunMode,
+) -> Result<RunReport, TestError> {
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+    run_sync(
+        &ports,
+        std::slice::from_ref(item),
+        fixture.dir.path(),
+        direction,
+        SearchScope::default(),
+        25,
+        25,
+        mode,
+    )
+    .map_err(|error| format!("the run stopped: {error:?}").into())
+}
+
+#[test]
+fn a_successful_create_watermarks_its_new_entry_at_the_run_start(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+
+    sync_item(
+        &fixture,
+        &item,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    assert_eq!(stored_watermark(&fixture, "0001"), Some(1_700_000_000));
+    Ok(())
+}
+
+#[test]
+fn an_unsynced_draft_keeps_its_single_noop_row() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
+
+    let report = sync_item(
+        &fixture,
+        &draft,
+        &RecordingTracker::holding(Vec::new()),
+        SyncDirection::Bidirectional,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "draft-k7mq3x");
+    assert_eq!(row.planned.action(), Action::Noop);
+    assert_eq!(row.planned.state(), SyncState::Unsynced);
+    assert!(matches!(row.outcome, ItemOutcome::NotApplied));
+    Ok(())
+}
+
+#[test]
+fn an_unsynced_item_under_pull_only_keeps_its_single_noop_row(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let report = sync_item(
+        &fixture,
+        &item,
+        &tracker,
+        SyncDirection::PullOnly,
+        RunMode::Apply,
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::Noop);
+    assert!(matches!(row.outcome, ItemOutcome::NotApplied));
+    assert_eq!(created_count(&tracker), 0);
     Ok(())
 }
 
@@ -4843,17 +4972,7 @@ fn linked_and_recorded(fixture: &Fixture) -> Result<LocalItem, TestError> {
         external_id: Some(ExternalId::new("ENG-3".to_owned())),
         ..fixture.unsynced_item("0001", "Draft one")?
     };
-    let content = std::fs::read_to_string(&item.path)?;
-    let entry = support::split_entry(
-        "0001",
-        &PlainDialect,
-        &content,
-        "Draft one\nBody\n",
-        "2026-06-01T00:00:00Z",
-    );
-    fixture
-        .spy
-        .seed(BASELINE_PATH, &baseline_document(&[entry]));
+    seed_recorded_entry(fixture, &item)?;
     Ok(item)
 }
 
