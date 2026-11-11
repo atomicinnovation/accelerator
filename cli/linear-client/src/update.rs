@@ -14,7 +14,9 @@ use crate::failure::LinearFailure;
 use crate::transition::StateId;
 
 const UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
-    issueUpdate(id: $id, input: $input) { success issue { id identifier } }
+    issueUpdate(id: $id, input: $input) {
+      success issue { id identifier state { name } }
+    }
   }";
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +47,8 @@ impl UpdateFields<'_> {
 }
 
 impl LinearClient {
-    /// `update`, surfacing the structured discriminant.
+    /// `update`, answering with Linear's response and surfacing the structured
+    /// discriminant.
     ///
     /// # Errors
     ///
@@ -55,7 +58,7 @@ impl LinearClient {
         &self,
         id: &ExternalId,
         fields: &UpdateFields<'_>,
-    ) -> Result<(), LinearFailure> {
+    ) -> Result<Value, LinearFailure> {
         refuse_identifier_op(id, Operation::Update)?;
         let input = fields.input();
         if input.is_empty() {
@@ -66,7 +69,6 @@ impl LinearClient {
             ));
         }
         let variables = json!({"id": id.as_str(), "input": input});
-        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
-        Ok(())
+        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())
     }
 }

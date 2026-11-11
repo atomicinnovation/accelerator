@@ -1,23 +1,13 @@
-//! Workflow transitions.
+//! The workflow state a transition targets.
 //!
 //! Unlike Jira there is no live transition lookup: the state name resolves to a
-//! UUID directly from the cached catalogue, and the same `issueUpdate` mutation
-//! the port's `update` uses carries it, with `stateId` as the input field.
-
-use serde_json::json;
-use serde_json::Value;
+//! UUID directly from the cached catalogue, and an update carries it as its
+//! `stateId`.
 
 use crate::client::LinearClient;
 use crate::resolution::NameUnresolved;
 use crate::resolution::SingleResolution;
-use crate::surface::interpret;
 use crate::surface::SurfaceError;
-
-const ISSUE_UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
-    issueUpdate(id: $id, input: $input) {
-      success issue { id identifier state { name } }
-    }
-  }";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateId(String);
@@ -50,25 +40,5 @@ impl LinearClient {
                 count,
             }),
         }
-    }
-
-    /// Transitions an issue to the named state.
-    ///
-    /// # Errors
-    ///
-    /// The resolution errors above, plus a transport failure or a response
-    /// carrying `errors[]`.
-    pub fn transition(
-        &self,
-        identifier: &str,
-        state_name: &str,
-    ) -> Result<Value, SurfaceError> {
-        let state_id = self.resolve_state(state_name)?;
-        let variables = json!({
-            "id": identifier,
-            "input": { "stateId": state_id.as_str() },
-        });
-        let received = self.transport().send(ISSUE_UPDATE, &variables)?;
-        interpret(&received, "transition")
     }
 }

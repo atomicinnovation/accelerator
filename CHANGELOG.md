@@ -227,6 +227,16 @@
   identifier, such as `#BLA-1`, is refused with exit 34 before anything is
   sent. Scripts that parse `linear update --state` output or exit codes need
   updating.
+- **A failed `linear transition` reports and fails like a failed
+  `linear update`.** It now sends the same request `linear update --state`
+  does, so a failure prints `linear update failed`, where it printed a line
+  led by a code such as `E_GQL_ERRORS`, `E_REQ_STATUS` or
+  `E_REQ_BAD_RESPONSE`. It exits with the code `linear update --state` would,
+  which differs from before for some failures: a 401 without a JSON body exits
+  20 where it exited 11. A malformed identifier, such as `#BLA-1`, is refused
+  with exit 34 before anything is sent. A transition that succeeds prints the
+  same JSON as before. Scripts that parse a failed `linear transition`'s
+  output or exit codes need updating.
 
 ### Added
 

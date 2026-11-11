@@ -905,6 +905,7 @@ impl RemoteTracker for LinearClient {
                 ..UpdateFields::default()
             },
         )
+        .map(drop)
         .map_err(TrackerError::from)
     }
 
@@ -920,6 +921,7 @@ impl RemoteTracker for LinearClient {
                 ..UpdateFields::default()
             },
         )
+        .map(drop)
         .map_err(TrackerError::from)
     }
 

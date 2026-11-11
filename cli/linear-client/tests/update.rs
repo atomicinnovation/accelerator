@@ -96,6 +96,28 @@ fn wire_outcome(failure: &LinearFailure) -> Outcome {
 }
 
 #[test]
+fn an_update_answers_with_the_issue_linear_returned() {
+    let (_server, client) = answering(
+        200,
+        "{\"data\":{\"issueUpdate\":{\"success\":true,\"issue\":\
+         {\"id\":\"u\",\"identifier\":\"ENG-1\",\
+         \"state\":{\"name\":\"In Progress\"}}}}}",
+    );
+    let fields = UpdateFields {
+        title: Some("Renamed"),
+        ..UpdateFields::default()
+    };
+
+    let answer = client
+        .update_op(&issue(), &fields)
+        .expect("the update succeeds");
+
+    let updated = &answer["data"]["issueUpdate"]["issue"];
+    assert_eq!(updated["identifier"], "ENG-1");
+    assert_eq!(updated["state"]["name"], "In Progress");
+}
+
+#[test]
 fn a_title_alone_is_the_whole_input() {
     let fields = UpdateFields {
         title: Some("Renamed"),
