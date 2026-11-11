@@ -417,17 +417,17 @@ section's bold-lead style:
 
 #### Automated Verification:
 
-- [ ] Before the partition, the CLI preview test fails:
+- [x] Before the partition, the CLI preview test fails:
       `cd cli && cargo nextest run -p accelerator-work --test cli_sync a_push_only_preview_plans_an_unsynced_item_without_reaching_the_tracker`
-- [ ] Before the partition, behaviour tests 1-8 and the extended
+- [x] Before the partition, behaviour tests 1-8 and the extended
       `adopting_a_missing_issue_is_refused` fail (two rows, an
       `UnsupportedRecipe` row, or a moved watermark), and the regression tests
       in §4 pass:
       `cd cli && cargo nextest run -p work-adapters --test sync_create`
-- [ ] After the partition, both commands above pass.
-- [ ] The whole `cli/` workspace passes:
+- [x] After the partition, both commands above pass.
+- [x] The whole `cli/` workspace passes:
       `ACCELERATOR_COVERAGE=off mise run test:unit:cli`
-- [ ] Format and lint pass: `mise run cli:check`
+- [x] Format and lint pass: `mise run cli:check`
 - [ ] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
