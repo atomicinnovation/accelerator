@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0048", "work-item:0296"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/181"
 pr_number: 181
 tags: ["linear", "cli", "update"]
-revision: "0538df52402f7c1d3b442f220c7752e8ade237be"
+revision: "c5a889a6758ad6cf64e88e1b376be905bc789164"
 repository: "accelerator-git"
-last_updated: "2026-11-06T12:48:12+00:00"
+last_updated: "2026-11-11T15:48:35+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 ---
@@ -48,6 +48,17 @@ input.
    print "updated\t<KEY>"
 ```
 
+`linear transition` now sends that same update, so there is one `issueUpdate`
+document and one failure path:
+
+```diff
+ run_transition(args)
+-  transition(key, state)                    # its own document and errors
++  state_id = resolve_state(state)?          # 122 / 123 before any request
++  update_op(key, UpdateFields { state_id })
+   print issue JSON with "outcome"
+```
+
 ## Evidence
 
 The `issueUpdate` input each command sends. "After" is what `flow_update.rs`
@@ -74,6 +85,10 @@ A revert restores the old input and output. Nothing is migrated or stored.
 - **Scripts calling `linear update --state`.** They get `updated\t<KEY>`
   instead of JSON. Some exit codes change too: a bare 401 exits 20, not 11,
   and a malformed identifier such as `#BLA-1` exits 34 before sending.
+- **Scripts calling `linear transition`.** Success is unchanged. A failure
+  prints `linear update failed` where it printed a line led by a code such as
+  `E_GQL_ERRORS`. The same exit codes change as for `--state`: a bare 401
+  exits 20, not 11, and a malformed identifier exits 34 before sending.
 - **Scripts calling `linear update`.** `--assignee-id` and `--priority` now
   reach Linear, so a value Linear refuses, such as `--assignee-id ""`, exits
   34 where it used to succeed.
@@ -95,7 +110,10 @@ A revert restores the old input and output. Nothing is migrated or stored.
   `work sync`, `work update --push` and promotion are unchanged. A new exact
   pin for a titled `update`, beside the existing pins, guards this.
 - `call_op` and `refuse_identifier_op` become `pub(crate)`, so `update.rs`
-  can own its document as `transition.rs` does.
+  can own its document.
+- **`LinearClient::transition` is gone.** `transition.rs` keeps only
+  `StateId` and `resolve_state`. `update_op` returns Linear's response, and
+  its document also selects the state name, so a transition can print it.
 
 ### `linear update`
 
@@ -111,6 +129,14 @@ A revert restores the old input and output. Nothing is migrated or stored.
 - `UpdateArgs::names_no_field` replaces the five-way `is_none()` chain behind
   the `E_UPDATE_NO_OPS` refusal (exit 111).
 
+### `linear transition`
+
+- **The same update.** `run_transition` resolves the state, then calls
+  `update_op` with only `state_id` set. It prints the same JSON on success.
+- **The same failure.** A failed transition and a failed update share one
+  function, which prints `linear update failed` and exits with the
+  port-failure code.
+
 ### Skill and CHANGELOG
 
 - **`update-linear-issue`.**
@@ -120,8 +146,8 @@ A revert restores the old input and output. Nothing is migrated or stored.
     timeout can follow a write Linear applied, so the skill now suggests
     `/show-linear-issue` to check.
 - **`CHANGELOG.md`.** `[Unreleased]` gains a `Fixed` entry for the erased
-  description and a `Breaking` entry for `--state`'s output and failure
-  reporting.
+  description, a `Breaking` entry for `--state`'s output and failure
+  reporting, and a `Breaking` entry for a failed `linear transition`.
 
 ### Breaking
 
@@ -131,6 +157,13 @@ update. Its failures now exit with the codes a plain update uses, which
 differ for some responses, such as a 401 without a JSON body. An identifier
 the shared rule refuses is now refused before anything is sent. The only
 caller in the repo is `update-linear-issue`, which this PR updates.
+
+A failed `linear transition` used to print a line led by a code such as
+`E_GQL_ERRORS`, `E_REQ_STATUS` or `E_REQ_BAD_RESPONSE`. It now prints
+`linear update failed` and exits with the codes an update uses. A malformed
+identifier is refused before anything is sent. The only caller in the repo is
+`transition-linear-issue`, which reads the `outcome` on success and the two
+state refusals, none of which change.
 
 ## Context
 
@@ -163,9 +196,23 @@ caller in the repo is `update-linear-issue`, which this PR updates.
   - A failed `--state` update prints `linear update failed` and exits 34.
   - A `--state` update fails with the same exit code as a plain update against
     a bare 401.
+- [x] `cli/linear-cli/tests/flow_transition.rs` checks:
+  - the request a transition sends, and the identifier, state name and
+    `outcome` it prints, over the current and legacy catalogue shapes;
+  - that a failed transition prints `linear update failed` and exits 34;
+  - that against a bare 401 it exits and reports exactly as `update --state`
+    does;
+  - that a malformed identifier, an unknown state and an ambiguous state each
+    send nothing.
+- [x] `cli/linear-client/tests/transition.rs` checks state resolution and the
+  `stateId` an update carries. `update.rs` checks that an update answers with
+  the issue Linear returned.
 - [x] The existing pins in `contract_offline.rs` and `port.rs` pass unedited.
-- [x] `mise run --continue-on-error`: every task passes except the two
-  date-expired advisory checks described below.
+- [x] For the transition commit: rustfmt, clippy on every crate but the
+  visualiser, and the tests of `linear-client`, `linear-cli`, `work-adapters`
+  and `accelerator-work` (1,931 pass). `mise run` was not run for it.
+- [ ] `linear transition` against real Linear after the transition commit.
+  The runs below predate it.
 - [x] Against real Linear on 2026-11-05, on scratch issue PP-938 (since
   archived), with the release binary built from `91d7fa12`:
   - `--description`, `--title` and `--priority` each change only their own
@@ -186,20 +233,15 @@ caller in the repo is `update-linear-issue`, which this PR updates.
 
 ## Notes for Reviewers
 
-- **Date-expired advisory checks.** Two checks fail on `main` too, and are
-  unrelated to this change. Their review-by dates of 2026-11-03 have passed:
-  - `docs:audit:check` fails on the `GHSA-ch52-4w7c-c8xp` ignore in
-    `docs-site/audit-ignores.toml`.
-  - `test:integration:deny` fails on the `RUSTSEC-2026-0118` and
-    `RUSTSEC-2026-0119` cargo-deny ignores.
-
-  They need re-checking upstream in a separate change.
+- **"Check supply chain" fails, as it does on `main`.** `RUSTSEC-2026-0486`
+  was published against `rustix` 1.1.4, a transitive dependency this PR does
+  not touch. It needs a lockfile bump in a separate change.
 - **What isn't changed:**
   - `linear update failed` gives no detail about what went wrong.
   - `--priority` and `--assignee-id` are not validated locally, so Linear's
     refusal shows up as exit 34.
   - There is no way to unassign an issue.
-  - `linear transition` and its JSON output are unchanged.
+  - A successful `linear transition` prints the same JSON as before.
 - **Ambiguous state tested offline only.** The live catalogue has no
   ambiguous active state name, so the 123 refusal is proven only by the flow
   test.
