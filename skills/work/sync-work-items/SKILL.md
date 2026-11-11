@@ -463,7 +463,7 @@ the cause is fixed:
 | `adopt` or `relink` row | `adopted: <id> → <KEY>` (annotated "conflict to resolve on next sync" when a `note: <id>: adopt:` line exists) | no |
 | `#\tunidentified` `unreadable`, `undecodable` or `malformed`, targeted run | listed once, with its `warning:` | no |
 | `#\tunidentified` `no-frontmatter` or `no-id` | listed once | no |
-| `noop\tunsynced` row for an id that also has a `failed`, `create-from-local` or `adopt` row | none: that row speaks for the item | no |
+| `noop\tunsynced` row for an id that also has an `order-refused` row | none: the refusal speaks for the item | no |
 
 Example: `needs-retry: 0001, meta/work/0002-x.md (unreadable), sync baseline
 (not saved)`.

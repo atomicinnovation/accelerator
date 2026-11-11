@@ -447,14 +447,17 @@ class TestMembership:
         assert "`in sync:`" in summary[1]
         assert summary[2] == "no"
 
-    def test_a_create_s_duplicate_noop_row_joins_no_group(
+    def test_a_refused_order_s_noop_row_joins_no_group(
         self, output_section: str
     ) -> None:
         rows = _table_rows(output_section, "Record")
-        duplicate = next(
+        noop = next(
             row for row in rows if row[0].startswith("`noop\\tunsynced`")
         )
-        assert duplicate[2] == "no"
+        assert "`order-refused`" in noop[0]
+        assert "`create-from-local`" not in noop[0]
+        assert noop[1].startswith("none")
+        assert noop[2] == "no"
 
     def test_completion_needs_a_clean_exit_and_no_blocking_group(
         self, output_section: str
