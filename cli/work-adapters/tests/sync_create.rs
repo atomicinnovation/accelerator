@@ -3886,7 +3886,7 @@ fn an_ordered_create_is_the_items_only_row() -> Result<(), TestError> {
     Ok(())
 }
 
-fn refusing_creates() -> RecordingTracker {
+fn unreachable_tracker() -> RecordingTracker {
     RecordingTracker::holding(Vec::new()).failing_create(
         TrackerError::Retryable {
             detail: "jira create: could not connect".to_owned(),
@@ -3902,7 +3902,7 @@ fn a_failed_create_is_the_items_only_row() -> Result<(), TestError> {
     let report = sync_item(
         &fixture,
         &item,
-        &refusing_creates(),
+        &unreachable_tracker(),
         SyncDirection::Bidirectional,
         RunMode::Apply,
     )?;
@@ -3919,18 +3919,17 @@ fn a_failed_create_leaves_the_items_watermark_where_it_was(
     let fixture = Fixture::new()?;
     let item = fixture.unsynced_item("0001", "Draft one")?;
     seed_recorded_entry(&fixture, &item)?;
-    let before = stored_watermark(&fixture, "0001");
-    assert!(before.is_some());
+    assert_eq!(stored_watermark(&fixture, "0001"), Some(0));
 
     sync_item(
         &fixture,
         &item,
-        &refusing_creates(),
+        &unreachable_tracker(),
         SyncDirection::Bidirectional,
         RunMode::Apply,
     )?;
 
-    assert_eq!(stored_watermark(&fixture, "0001"), before);
+    assert_eq!(stored_watermark(&fixture, "0001"), Some(0));
     Ok(())
 }
 
