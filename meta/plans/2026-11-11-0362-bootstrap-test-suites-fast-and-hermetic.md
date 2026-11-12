@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T19:21:46+00:00"
+last_updated: "2026-11-12T19:22:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -48,7 +48,7 @@ The work ships as three pull requests:
 | PR | Phases | Content | Status |
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
-| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Implemented; not yet raised |
+| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Open as #212 |
 | 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | Not started |
 
 ## Current State Analysis
