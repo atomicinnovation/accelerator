@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T20:25:00+00:00"
+last_updated: "2026-11-12T21:10:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -49,7 +49,7 @@ The work ships as three pull requests:
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
 | 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Open as #212 |
-| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phases 3–4 done) |
+| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phases 3–5 done; not yet raised) |
 
 ## Current State Analysis
 
@@ -1327,20 +1327,23 @@ skipped.
 
 #### Automated Verification
 
-- [ ] The module passes alone:
+- [x] The module passes alone:
       `uv run pytest tests/integration/hooks/test_vcs_detect_hook.py -v -rs`
-- [ ] The hooks suite passes: `mise run test:integration:hooks`
-- [ ] The entrypoint suite is unaffected:
+- [x] The hooks suite passes: `mise run test:integration:hooks`
+- [x] The entrypoint suite is unaffected:
       `mise run test:integration:entrypoint`
-- [ ] `mise run check` passes
-- [ ] Full run green: `mise run`
+- [x] `mise run check` passes
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] Every row of the mutation table failed at its named assertion before
-      being restored
-- [ ] The module's run reported no skipped test
-- [ ] PR 3's description carries the three statements above
+- [x] Every row of the mutation table failed at its named assertion before
+      being restored. The deleted-launcher row logs one asset; the
+      cache-directory and deleted-`sign` rows fail with the refusal
+      diagnostic as the assertion message
+- [x] The module's run reported no skipped test
+- [ ] PR 3's description carries the three statements above. Pending: PR 3
+      is not yet raised
 
 ---
 
