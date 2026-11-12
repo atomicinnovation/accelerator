@@ -6,9 +6,7 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def accelerator_env(
-    *, vcs_bin: bool = False, corpus_bin: bool = False
-) -> dict[str, str]:
+def accelerator_env(*, corpus_bin: bool = False) -> dict[str, str]:
     """Return the ACCELERATOR_BIN/ACCELERATOR_PLUGIN_ROOT overlay.
 
     Repointed production shell scripts read config through
@@ -26,11 +24,6 @@ def accelerator_env(
     ACCELERATOR_BIN/ACCELERATOR_PLUGIN_ROOT (a stub or a release build) is
     honoured.
 
-    ``vcs_bin=True`` additionally sets ACCELERATOR_VCS_BIN, the launcher's
-    dev-only ``accelerator vcs ...`` dispatch override — needed only by the
-    vcs-detect launcher-dispatch guard (tests/integration/hooks), so it stays
-    opt-in rather than joining every subtree's overlay.
-
     ``corpus_bin=True`` additionally sets ACCELERATOR_CORPUS_BIN, the
     launcher's dev-only ``accelerator corpus ...`` dispatch override — needed
     by suites that drive `accelerator corpus frontmatter validate`/`linkage
@@ -46,13 +39,6 @@ def accelerator_env(
             "ACCELERATOR_PLUGIN_ROOT", str(repo)
         ),
     }
-    if vcs_bin:
-        default_vcs_bin = str(
-            repo / "cli" / "target" / "debug" / "accelerator-vcs"
-        )
-        env["ACCELERATOR_VCS_BIN"] = os.environ.get(
-            "ACCELERATOR_VCS_BIN", default_vcs_bin
-        )
     if corpus_bin:
         default_corpus_bin = str(
             repo / "cli" / "target" / "debug" / "accelerator-corpus"

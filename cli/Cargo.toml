@@ -290,6 +290,11 @@ must_use_candidate = "allow"
 strip = true
 lto = "thin"
 
+# The bootstrap re-verifies the whole launcher on every call, so in debug
+# builds the unoptimised signature hash dominates every bootstrap-driven test.
+[profile.dev.package.minisign-verify]
+opt-level = 3
+
 # include-flate-compress 0.3.4, the latest release, pins zstd 0.13, which
 # carries RUSTSEC-2026-0391 and RUSTSEC-2026-0398 into the signed visualiser
 # binary through rust-embed's compression. The vendored copy differs only in

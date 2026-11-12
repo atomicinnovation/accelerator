@@ -121,16 +121,11 @@ def conformance(context: Context) -> None:
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
-    The launcher-dispatch smoke drives the compiled accelerator-vcs through the
-    real `bin/accelerator` wrapper, so it needs ACCELERATOR_VCS_BIN — the
-    vcs_bin=True overlay — and the launcher, accelerator-vcs and
-    accelerator-research built by the build:cli:dev, build:cli:vcs:dev and
-    build:cli:research:dev dependencies.
+    The suite runs the launcher, accelerator-vcs and accelerator-research
+    built by the build:cli:dev, build:cli:vcs:dev and build:cli:research:dev
+    dependencies.
     """
-    context.run(
-        "uv run pytest tests/integration/hooks -v",
-        env=accelerator_env(vcs_bin=True),
-    )
+    context.run("uv run pytest tests/integration/hooks -v")
 
 
 _RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"

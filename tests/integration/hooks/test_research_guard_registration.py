@@ -3,9 +3,8 @@
 Each run goes through the real `bin/accelerator` bootstrap into the launcher
 built from this tree, reached through the contributor override in a temporary
 plugin root, since the bootstrap admits an override only inside its own
-`cli/target/`. Integrity refusals are exercised in the launcher's
-`dispatch_failure_policy.rs`: a real signature failure cannot be produced
-through `bin/accelerator` offline.
+`cli/target/`. The launcher's own integrity refusals are exercised in its
+`dispatch_failure_policy.rs`.
 """
 
 import json

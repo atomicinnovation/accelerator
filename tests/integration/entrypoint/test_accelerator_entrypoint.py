@@ -13,7 +13,7 @@ import subprocess
 import threading
 import time
 import tomllib
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -38,26 +38,21 @@ from tests.integration.support.installation import (
     VERSION as _VERSION,
 )
 from tests.integration.support.installation import (
-    Installation as Harness,
-)
-from tests.integration.support.installation import (
+    Installation,
     assert_hermetic,
     copy_bootstrap,
     download_log,
     dumped_env,
-    generate_keys,
-    make_installation,
     run_bootstrap,
     serve_launcher,
-    write_downloader,
-)
-from tests.integration.support.installation import (
-    host_platform as _resolve_host_platform,
 )
 from tests.integration.support.installation import (
     sign as sign_with,
 )
-from tests.support.artefacts import build_launcher, build_shim
+from tests.integration.support.installation_fixtures import NewInstallation
+from tests.support.artefacts import build_launcher
+
+pytest_plugins = ("tests.integration.support.installation_fixtures",)
 
 _HERE = Path(__file__).resolve().parent
 
@@ -78,16 +73,6 @@ def _require_unprivileged() -> None:
         "these cases assert on permission bits, which are advisory for uid 0; "
         "run them unprivileged, or exclude them with a recorded privilege check"
     )
-
-
-@pytest.fixture(scope="module")
-def host_platform() -> str:
-    return _resolve_host_platform()
-
-
-@pytest.fixture(scope="module")
-def shim_bin() -> Path:
-    return build_shim()
 
 
 @pytest.fixture(scope="module")
@@ -113,53 +98,6 @@ def repo_bin_is_untouched() -> Iterator[None]:
     assert not added, f"the suite wrote into the shipped bin/: {added}"
 
 
-@pytest.fixture(scope="module")
-def keys(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return generate_keys(tmp_path_factory.mktemp("keys"))
-
-
-@pytest.fixture
-def downloader(tmp_path: Path) -> Path:
-    return write_downloader(tmp_path / "downloader.py")
-
-
-@pytest.fixture
-def make_harness(
-    request: pytest.FixtureRequest,
-    tmp_path: Path,
-    shim_bin: Path,
-    keys: Path,
-    host_platform: str,
-    bootstrap_src: Path,
-) -> Callable[..., Harness]:
-    """Factory: build a plugin root + release server, return an installation."""
-    counter = {"n": 0}
-
-    def _make(
-        label: str = "self",
-        *,
-        secret: str = "release",
-        real_launcher: bool = False,
-    ) -> Harness:
-        counter["n"] += 1
-        source = (
-            request.getfixturevalue("launcher_bin") if real_launcher else None
-        )
-        return make_installation(
-            tmp_path / f"root{counter['n']}",
-            tmp_path / f"server{counter['n']}",
-            keys=keys,
-            shim=shim_bin,
-            bootstrap=bootstrap_src,
-            alias=host_platform,
-            label=label,
-            secret=secret,
-            launcher_source=source,
-        )
-
-    return _make
-
-
 @pytest.mark.parametrize(
     ("uname_s", "uname_m", "want"),
     [
@@ -170,7 +108,7 @@ def make_harness(
     ],
 )
 def test_host_detection_maps_uname_to_target(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     shim_bin: Path,
     keys: Path,
@@ -178,8 +116,8 @@ def test_host_detection_maps_uname_to_target(
     uname_m: str,
     want: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     # Serve + verify the launcher under the *expected* alias; a wrong
     # normalisation would request an alias with no served asset (404).
     shim = root / f"bin/accelerator-verify-{want}"
@@ -204,12 +142,12 @@ def test_host_detection_maps_uname_to_target(
 
 
 def test_happy_path_forwards_args_and_exit_code(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     args_out = tmp_path / "args.out"
     result = _run_bootstrap(
         root,
@@ -223,10 +161,10 @@ def test_happy_path_forwards_args_and_exit_code(
 
 
 def test_cache_hit_performs_no_further_fetch(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _run_bootstrap(root, server, downloader)
     first = len(_dl_lines(server))
     _run_bootstrap(root, server, downloader)
@@ -235,12 +173,12 @@ def test_cache_hit_performs_no_further_fetch(
 
 
 def test_tampered_cached_launcher_is_refused_and_healed(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _run_bootstrap(root, server, downloader)  # populate the cache
     launcher = root / f"bin/accelerator-launcher-{_VERSION}-{host_platform}"
     launcher.write_text("poisoned")
@@ -252,10 +190,10 @@ def test_tampered_cached_launcher_is_refused_and_healed(
 
 
 def test_non_release_key_signature_is_refused(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness(secret="attacker")
-    root, server = harness.root, harness.server
+    installation = new_installation(secret="attacker")
+    root, server = installation.root, installation.server
     result = _run_bootstrap(root, server, downloader)
     output = result.stdout + result.stderr
     assert result.returncode != 0, output
@@ -263,12 +201,12 @@ def test_non_release_key_signature_is_refused(
 
 
 def test_unrunnable_verify_shim_fails_closed(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     shim = root / f"bin/accelerator-verify-{host_platform}"
     shim.write_text("not a binary")
     shim.chmod(0o755)
@@ -277,14 +215,14 @@ def test_unrunnable_verify_shim_fails_closed(
 
 
 def test_readonly_root_with_override_runs_from_override(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     host_platform: str,
 ) -> None:
     _require_unprivileged()
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     bin_dir = root / "bin"
     bin_dir.chmod(0o555)  # no writes into the default cache dir
     alt = tmp_path / "alt"
@@ -304,11 +242,11 @@ def test_readonly_root_with_override_runs_from_override(
 
 
 def test_readonly_root_without_override_is_a_named_error(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
     _require_unprivileged()
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     bin_dir = root / "bin"
     bin_dir.chmod(0o555)
     try:
@@ -321,12 +259,12 @@ def test_readonly_root_without_override_is_a_named_error(
 
 
 def test_stale_lock_is_reclaimed(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     lock = root / f"bin/.accelerator-lock-{host_platform}"
     lock.mkdir()
     (lock / "pid").write_text("999999\n")  # a PID that is not running
@@ -335,12 +273,12 @@ def test_stale_lock_is_reclaimed(
 
 
 def test_uncreatable_lock_dir_fails_fast(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     # A file at the lock path: mkdir fails and the path is a non-directory.
     (root / f"bin/.accelerator-lock-{host_platform}").write_text("")
     result = _run_bootstrap(
@@ -357,13 +295,13 @@ def test_uncreatable_lock_dir_fails_fast(
 
 
 def test_unremovable_dead_owner_lock_terminates_within_budget(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
     _require_unprivileged()
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     lock = root / f"bin/.accelerator-lock-{host_platform}"
     lock.mkdir()
     (lock / "pid").write_text("999999\n")  # dead PID, unreadable-to-rm below
@@ -381,12 +319,12 @@ def test_unremovable_dead_owner_lock_terminates_within_budget(
 
 
 def test_empty_pid_lock_advances_budget(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     lock = root / f"bin/.accelerator-lock-{host_platform}"
     lock.mkdir()
     (lock / "pid").write_text("")  # competitor made the dir, no pid written yet
@@ -404,12 +342,12 @@ def test_empty_pid_lock_advances_budget(
 
 
 def test_symlink_lock_path_fails_fast(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     target = root / "foreign-lock-target"
     target.mkdir()
     (target / "pid").write_text(
@@ -433,12 +371,12 @@ def test_symlink_lock_path_fails_fast(
 
 
 def test_leading_zero_ceiling_is_decimal_not_octal(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     lock = root / f"bin/.accelerator-lock-{host_platform}"
     lock.mkdir()
     (lock / "pid").write_text(
@@ -458,14 +396,14 @@ def test_leading_zero_ceiling_is_decimal_not_octal(
 
 
 def test_path_planted_decoy_shim_is_not_used(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
 ) -> None:
     # Signed by the attacker key so a permissive shim found via PATH would
     # falsely pass; the absolute-path invocation must still refuse.
-    harness = make_harness(secret="attacker")
-    root, server = harness.root, harness.server
+    installation = new_installation(secret="attacker")
+    root, server = installation.root, installation.server
     decoy_dir = tmp_path / "decoy"
     decoy_dir.mkdir()
     decoy = decoy_dir / "accelerator-verify"
@@ -509,7 +447,7 @@ sys.exit(22)
 def _local_launcher(
     root: Path, *, rel: str = "cli/target/debug/accelerator"
 ) -> Path:
-    """Write a launcher stub inside the harness root's cli/target/ tree."""
+    """Write a launcher stub inside the installation root's cli/target/ tree."""
     launcher = root / rel
     launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_text(_LAUNCHER_SRC)
@@ -564,12 +502,12 @@ def slow_downloader(tmp_path: Path) -> Path:
 
 
 def test_dev_override_execs_named_binary(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     launcher = _local_launcher(root)
     args_out = tmp_path / "args.out"
@@ -595,10 +533,10 @@ def test_dev_override_execs_named_binary(
 
 
 def test_dev_override_ignored_without_optin(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     launcher = _local_launcher(root)
     result = _run_bootstrap(
@@ -613,12 +551,12 @@ def test_dev_override_ignored_without_optin(
 
 
 def test_dev_override_ignored_without_marker(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
     # A pristine tree (no marker) with both env vars set must still take the
     # verified path — the shape a real install ships in.
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     launcher = _local_launcher(root)
     result = _run_bootstrap(
         root,
@@ -635,12 +573,12 @@ def test_dev_override_ignored_without_marker(
 
 
 def _run_refused_override(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     launcher_bin: str,
 ) -> subprocess.CompletedProcess[str]:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     return _run_bootstrap(
         root,
@@ -654,10 +592,10 @@ def _run_refused_override(
 
 
 def test_dev_override_refused_when_symlink(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     real = _local_launcher(root)
     link = root / "cli/target/debug/accelerator-link"
@@ -677,10 +615,10 @@ def test_dev_override_refused_when_symlink(
 
 
 def test_dev_override_refused_when_not_executable(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     binary = root / "cli/target/debug/accelerator"
     binary.parent.mkdir(parents=True, exist_ok=True)
@@ -701,12 +639,12 @@ def test_dev_override_refused_when_not_executable(
 
 
 def test_dev_override_refused_via_symlinked_ancestor(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     (root / "cli/target").mkdir(parents=True)
     outside = tmp_path / "outside"
@@ -731,12 +669,12 @@ def test_dev_override_refused_via_symlinked_ancestor(
 
 
 def test_dev_override_refused_outside_target(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _write_marker(root)
     (root / "cli/target").mkdir(parents=True)
     outside = tmp_path / "outside"
@@ -762,12 +700,12 @@ def test_dev_override_refused_outside_target(
 
 
 def test_planted_staged_shim_rehashed_then_succeeds(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     digest = _source_shim_digest(root, host_platform)
     planted = root / f"bin/accelerator-verify-{host_platform}-{digest}"
     planted.write_text("garbage that is not the shim")
@@ -779,15 +717,15 @@ def test_planted_staged_shim_rehashed_then_succeeds(
 
 
 def test_planted_staged_shim_is_not_trusted(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
     # Launcher signed by a non-release key; a permissive stub pre-written to the
     # content-addressed staging path must be re-staged (bytes mismatch) so the
     # real shim refuses the signature rather than the stub rubber-stamping it.
-    harness = make_harness(secret="attacker")
-    root, server = harness.root, harness.server
+    installation = new_installation(secret="attacker")
+    root, server = installation.root, installation.server
     digest = _source_shim_digest(root, host_platform)
     planted = root / f"bin/accelerator-verify-{host_platform}-{digest}"
     planted.write_text("#!/bin/sh\nexit 0\n")
@@ -800,15 +738,15 @@ def test_planted_staged_shim_is_not_trusted(
 
 
 def test_planted_staged_shim_via_cache_dir_is_not_trusted(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     host_platform: str,
 ) -> None:
     # A caller-chosen cache dir must not let a planted shim be trusted by path,
     # even without the opt-in: the staged bytes are still hash-checked.
-    harness = make_harness(secret="attacker")
-    root, server = harness.root, harness.server
+    installation = new_installation(secret="attacker")
+    root, server = installation.root, installation.server
     alt = tmp_path / "altcache"
     alt.mkdir()
     source = root / f"bin/accelerator-verify-{host_platform}"
@@ -828,10 +766,10 @@ def test_planted_staged_shim_via_cache_dir_is_not_trusted(
 
 
 def test_concurrent_warm_cache_all_succeed(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server
+    installation = new_installation()
+    root, server = installation.root, installation.server
     _run_bootstrap(root, server, downloader)  # warm the cache
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         results = list(
@@ -844,10 +782,10 @@ def test_concurrent_warm_cache_all_succeed(
 
 
 def test_concurrent_cold_cache_slow_downloader_all_succeed(
-    make_harness: Callable[..., Harness], slow_downloader: Path
+    new_installation: NewInstallation, slow_downloader: Path
 ) -> None:
-    harness = make_harness()
-    root, server = harness.root, harness.server  # cold cache
+    installation = new_installation()
+    root, server = installation.root, installation.server
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
         results = list(
             pool.map(
@@ -901,7 +839,7 @@ def test_the_suite_runs_the_bootstrap_on_the_bash_floor() -> None:
 
 
 def _run_and_capture_env(
-    harness: Harness,
+    installation: Installation,
     downloader: Path,
     tmp_path: Path,
     **kwargs: object,
@@ -911,12 +849,12 @@ def _run_and_capture_env(
     Asserting the export directly beats inferring it from rendered output: it
     is cheaper, and it fails at the layer that actually broke.
     """
-    env_out = tmp_path / f"{harness.root.name}-env.json"
+    env_out = tmp_path / f"{installation.root.name}-env.json"
     extra = dict(kwargs.pop("extra_env", None) or {})  # type: ignore[arg-type]
     extra["LAUNCHER_ENV_OUT"] = str(env_out)
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         extra_env=extra,
         **kwargs,  # type: ignore[arg-type]
@@ -947,27 +885,27 @@ def _bare_root(tmp_path: Path, bootstrap_src: Path) -> Path:
 
 
 def test_rootless_template_render_resolves_the_fixture_root(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path, launcher_bin: Path
 ) -> None:
-    harness = make_harness(real_launcher=True)
+    installation = new_installation(launcher_source=launcher_bin)
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("config", "template", "adr"),
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert harness.sentinel in result.stdout, result.stdout
+    assert installation.sentinel in result.stdout, result.stdout
     assert "accelerator:" not in result.stderr, result.stderr
 
 
 def test_rootless_instructions_command_degrades_cleanly(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path, launcher_bin: Path
 ) -> None:
-    harness = make_harness(real_launcher=True)
+    installation = new_installation(launcher_source=launcher_bin)
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("config", "instructions", "commit", "--fail-safe"),
     )
@@ -976,12 +914,12 @@ def test_rootless_instructions_command_degrades_cleanly(
 
 
 def test_rootless_templates_list_carries_the_plugin_default_row(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path, launcher_bin: Path
 ) -> None:
-    harness = make_harness(real_launcher=True)
+    installation = new_installation(launcher_source=launcher_bin)
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("config", "templates", "list"),
     )
@@ -992,47 +930,51 @@ def test_rootless_templates_list_carries_the_plugin_default_row(
 
 
 def test_two_hop_symlink_chain_resolves_to_the_fixture_root(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     plugin_data = tmp_path / "plugin-data/bin"
     plugin_data.mkdir(parents=True)
     channel = plugin_data / "accelerator"
-    channel.symlink_to(harness.root / "bin/accelerator")
+    channel.symlink_to(installation.root / "bin/accelerator")
     userbin = tmp_path / "userbin"
     userbin.mkdir()
     entry = userbin / "accelerator"
     entry.symlink_to(channel)
 
-    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    _, dumped = _run_and_capture_env(
+        installation, downloader, tmp_path, entry=entry
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 def test_a_directory_symlink_in_the_entry_path_resolves_physically(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # A logical `cd ..` collapses the component textually and yields
     # <tmp>/other; only `cd -P` reaches the fixture root.
-    harness = make_harness()
+    installation = new_installation()
     other = tmp_path / "other"
     other.mkdir()
-    (other / "bin").symlink_to(harness.root / "bin", target_is_directory=True)
+    (other / "bin").symlink_to(
+        installation.root / "bin", target_is_directory=True
+    )
 
     _, dumped = _run_and_capture_env(
-        harness, downloader, tmp_path, entry=other / "bin/accelerator"
+        installation, downloader, tmp_path, entry=other / "bin/accelerator"
     )
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 @pytest.mark.parametrize("inject", ["old", "new", "both"])
 def test_ambient_roots_never_redirect_the_resolved_root(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     inject: str,
 ) -> None:
-    harness = make_harness("self")
-    decoy = make_harness("injected")
+    installation = new_installation("self")
+    decoy = new_installation("injected")
     names = {
         "old": ["CLAUDE_PLUGIN_ROOT"],
         "new": ["ACCELERATOR_PLUGIN_ROOT"],
@@ -1040,18 +982,18 @@ def test_ambient_roots_never_redirect_the_resolved_root(
     }[inject]
 
     _, dumped = _run_and_capture_env(
-        harness,
+        installation,
         downloader,
         tmp_path,
         extra_env={name: str(decoy.root) for name in names},
     )
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 def test_relative_symlink_target_resolves(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     decoy = tmp_path / "decoy"
     (decoy / ".claude-plugin").mkdir(parents=True)
     (decoy / ".claude-plugin/plugin.json").write_text(
@@ -1060,96 +1002,102 @@ def test_relative_symlink_target_resolves(
     links = tmp_path / "links"
     links.mkdir()
     entry = links / "accelerator"
-    entry.symlink_to(Path("..") / harness.root.name / "bin/accelerator")
+    entry.symlink_to(Path("..") / installation.root.name / "bin/accelerator")
 
     _, dumped = _run_and_capture_env(
-        harness, downloader, tmp_path, entry=entry, cwd=decoy
+        installation, downloader, tmp_path, entry=entry, cwd=decoy
     )
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
     assert dumped["ACCELERATOR_PLUGIN_ROOT"] != str(decoy)
 
 
 def test_an_exported_cdpath_does_not_redirect_the_resolved_root(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # CDPATH is consulted only for a relative `cd`, so the invocation has to be
     # relative for the hazard to exist at all. On a match `cd` also prints the
     # directory it chose — inside the command substitution, which would make
     # the resolved root two lines.
-    harness = make_harness()
+    installation = new_installation()
     decoy_parent = tmp_path / "cdpath-decoy"
     (decoy_parent / "bin").mkdir(parents=True)
 
     _, dumped = _run_and_capture_env(
-        harness,
+        installation,
         downloader,
         tmp_path,
         entry=Path("bin/accelerator"),
-        cwd=harness.root,
+        cwd=installation.root,
         extra_env={"CDPATH": str(decoy_parent)},
     )
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 def test_a_leading_dash_link_target_resolves(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # readlink output is taken verbatim, so a target whose first component
     # begins with `-` must never reach a command that would read it as an
     # option.
-    harness = make_harness()
+    installation = new_installation()
     links = tmp_path / "dash"
     links.mkdir()
-    (links / "-x").symlink_to(harness.root / "bin", target_is_directory=True)
+    (links / "-x").symlink_to(
+        installation.root / "bin", target_is_directory=True
+    )
     entry = links / "accelerator"
     entry.symlink_to(Path("-x/accelerator"))
 
-    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    _, dumped = _run_and_capture_env(
+        installation, downloader, tmp_path, entry=entry
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 def test_a_sixteen_link_chain_resolves(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # The at-boundary partner of the seventeen-link case: without it, relaxing
     # the bound's comparison reddens nothing.
-    harness = make_harness()
+    installation = new_installation()
     entry = _link_chain(
-        tmp_path / "chain16", harness.root / "bin/accelerator", 16
+        tmp_path / "chain16", installation.root / "bin/accelerator", 16
     )
 
-    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
-    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    _, dumped = _run_and_capture_env(
+        installation, downloader, tmp_path, entry=entry
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(installation.root)
 
 
 def test_a_seventeen_link_chain_exceeds_the_hop_bound(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     entry = _link_chain(
-        tmp_path / "chain17", harness.root / "bin/accelerator", 17
+        tmp_path / "chain17", installation.root / "bin/accelerator", 17
     )
     result = _run_bootstrap(
-        harness.root, harness.server, downloader, entry=entry
+        installation.root, installation.server, downloader, entry=entry
     )
     assert result.returncode != 0, result.stdout + result.stderr
     assert "exceeded 16 hops" in result.stderr, result.stderr
 
 
 def test_a_symlink_cycle_terminates_rather_than_hanging(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # Characterises the kernel's ELOOP at open(2), not the in-script counter:
     # with a true cycle bash never reads a byte of the script, so this passes
     # even with the chase removed. The timeout is what makes a hang detectable.
-    harness = make_harness()
+    installation = new_installation()
     cycle = tmp_path / "cycle"
     cycle.mkdir()
     (cycle / "a").symlink_to(cycle / "b")
     (cycle / "b").symlink_to(cycle / "a")
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         entry=cycle / "a",
         timeout=30,
@@ -1158,27 +1106,27 @@ def test_a_symlink_cycle_terminates_rather_than_hanging(
 
 
 def test_a_derived_root_that_is_not_an_installation_aborts_by_name(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     bootstrap_src: Path,
 ) -> None:
     # Naming the derived path also pins that self-location ran, rather than
     # something else having failed earlier.
-    harness = make_harness()
+    installation = new_installation()
     bare = _bare_root(tmp_path, bootstrap_src)
     entry = bare / "bin/accelerator"
 
     result = _run_bootstrap(
-        harness.root, harness.server, downloader, entry=entry
+        installation.root, installation.server, downloader, entry=entry
     )
     assert result.returncode != 0, result.stdout + result.stderr
     assert "plugin.json not found" in result.stderr, result.stderr
     assert str(bare) in result.stderr, result.stderr
 
     degraded = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("config", "templates", "list", "--fail-safe"),
         entry=entry,
@@ -1196,17 +1144,17 @@ def test_a_derived_root_that_is_not_an_installation_aborts_by_name(
     ],
 )
 def test_fail_safe_is_not_honoured_outside_its_scan_window(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     bootstrap_src: Path,
     args: tuple[str, ...],
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     bare = _bare_root(tmp_path, bootstrap_src)
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=args,
         entry=bare / "bin/accelerator",
@@ -1215,30 +1163,30 @@ def test_fail_safe_is_not_honoured_outside_its_scan_window(
 
 
 def test_trust_chain_failure_records_durably_under_fail_safe(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
     # Nothing unverified is ever exec'd either way, so the record buys
     # detectability: without it a trust-chain abort is byte-identical to the
     # many commands that legitimately emit nothing.
-    harness = make_harness()
-    (harness.root / f"bin/accelerator-verify-{host_platform}").unlink()
+    installation = new_installation()
+    (installation.root / f"bin/accelerator-verify-{host_platform}").unlink()
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("config", "templates", "list", "--fail-safe"),
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout == "", result.stdout
-    log = harness.root / "bin/.accelerator-unverified.log"
+    log = installation.root / "bin/.accelerator-unverified.log"
     assert log.exists(), result.stderr
     assert "verify shim missing" in log.read_text().splitlines()[-1]
 
 
 def test_a_record_is_always_one_line(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     host_platform: str,
@@ -1247,17 +1195,17 @@ def test_a_record_is_always_one_line(
     # so the write-site sanitiser — not any input check — is what keeps the log
     # parseable.
     _require_unprivileged()
-    harness = make_harness()
+    installation = new_installation()
     cache_dir = tmp_path / "cache\nwith-newline"
     cache_dir.mkdir()
-    digest = _source_shim_digest(harness.root, host_platform)
+    digest = _source_shim_digest(installation.root, host_platform)
     blocked = cache_dir / f"accelerator-verify-{host_platform}-{digest}"
     blocked.mkdir()
     blocked.chmod(0o555)
     try:
         result = _run_bootstrap(
-            harness.root,
-            harness.server,
+            installation.root,
+            installation.server,
             downloader,
             args=("config", "templates", "list", "--fail-safe"),
             extra_env={"ACCELERATOR_CACHE_DIR": str(cache_dir)},
@@ -1302,14 +1250,14 @@ def _restricted(path: Path, mode: int) -> Iterator[None]:
 
 
 def _traced(
-    harness: Harness,
+    installation: Installation,
     downloader: Path,
     *,
     extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         xtrace=True,
         extra_env=extra_env,
@@ -1332,7 +1280,7 @@ def _probe_execs(trace: str) -> int:
 
 
 def test_warm_path_survives_a_non_writable_cache_dir(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     launcher_bin: Path,
 ) -> None:
@@ -1340,8 +1288,8 @@ def test_warm_path_survives_a_non_writable_cache_dir(
     # the fixture built. It pins the vergen commit/build stamps too, so a
     # relink between fixture setup and this call would fail it.
     _require_unprivileged()
-    harness = make_harness(real_launcher=True)
-    root, server = harness.root, harness.server
+    installation = new_installation(launcher_source=launcher_bin)
+    root, server = installation.root, installation.server
     warm = _run_bootstrap(root, server, downloader, args=("version",))
     assert warm.returncode == 0, warm.stdout + warm.stderr
     with _restricted(root / "bin", 0o555):
@@ -1358,12 +1306,12 @@ def test_warm_path_survives_a_non_writable_cache_dir(
 
 
 def test_warm_path_does_not_enter_the_probe(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    installation = new_installation()
+    warm = _run_bootstrap(installation.root, installation.server, downloader)
     assert warm.returncode == 0, warm.stdout + warm.stderr
-    traced = _traced(harness, downloader)
+    traced = _traced(installation, downloader)
     assert traced.returncode == 0, traced.stdout + traced.stderr
     trace = traced.stderr
     # `verify_launcher` bounds the trace from the far end: `ensure_dir` alone
@@ -1375,12 +1323,14 @@ def test_warm_path_does_not_enter_the_probe(
 
 
 def test_cold_path_enters_and_executes_the_probe(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     cache = tmp_path / "fresh-cache"
     result = _traced(
-        harness, downloader, extra_env={"ACCELERATOR_CACHE_DIR": str(cache)}
+        installation,
+        downloader,
+        extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert cache.is_dir(), "the always-run ensure_dir half must create it"
@@ -1392,13 +1342,16 @@ def test_cold_path_enters_and_executes_the_probe(
 
 
 def test_cold_happy_path_creates_a_missing_cache_dir(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation,
+    downloader: Path,
+    tmp_path: Path,
+    launcher_bin: Path,
 ) -> None:
-    harness = make_harness(real_launcher=True)
+    installation = new_installation(launcher_source=launcher_bin)
     cache = tmp_path / "absent" / "cache"
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("version",),
         extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
@@ -1410,16 +1363,16 @@ def test_cold_happy_path_creates_a_missing_cache_dir(
 
 
 def test_cold_path_keeps_the_noexec_diagnostic(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     _require_unprivileged()
-    harness = make_harness()
+    installation = new_installation()
     cache = tmp_path / "noexec-cache"
     cache.mkdir()
     with _restricted(cache, 0o666):
         result = _run_bootstrap(
-            harness.root,
-            harness.server,
+            installation.root,
+            installation.server,
             downloader,
             extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
         )
@@ -1431,20 +1384,20 @@ def test_cold_path_keeps_the_noexec_diagnostic(
 
 
 def test_warmed_then_non_executable_cache_keeps_the_diagnostic(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     _require_unprivileged()
-    harness = make_harness()
+    installation = new_installation()
     cache = tmp_path / "warm-cache"
     cache.mkdir()
     env = {"ACCELERATOR_CACHE_DIR": str(cache)}
     first = _run_bootstrap(
-        harness.root, harness.server, downloader, extra_env=env
+        installation.root, installation.server, downloader, extra_env=env
     )
     assert first.returncode == 0, first.stdout + first.stderr
     with _restricted(cache, 0o666):
         result = _run_bootstrap(
-            harness.root, harness.server, downloader, extra_env=env
+            installation.root, installation.server, downloader, extra_env=env
         )
     output = result.stdout + result.stderr
     assert result.returncode != 0, output
@@ -1452,7 +1405,7 @@ def test_warmed_then_non_executable_cache_keeps_the_diagnostic(
 
 
 def test_unverifiable_launcher_in_readonly_cache_fails_fast(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     host_platform: str,
@@ -1462,19 +1415,23 @@ def test_unverifiable_launcher_in_readonly_cache_fails_fast(
     # verification is genuinely reached. `timeout` sits between the sub-second
     # pass and the ~30s lock-timeout budget the gate prevents.
     _require_unprivileged()
-    harness = make_harness()
+    installation = new_installation()
     cache = tmp_path / "readonly-cache"
     cache.mkdir()
     env = {"ACCELERATOR_CACHE_DIR": str(cache)}
     first = _run_bootstrap(
-        harness.root, harness.server, downloader, extra_env=env
+        installation.root, installation.server, downloader, extra_env=env
     )
     assert first.returncode == 0, first.stdout + first.stderr
     launcher = cache / f"accelerator-launcher-{_VERSION}-{host_platform}"
     launcher.write_bytes(b"poisoned")
     with _restricted(cache, 0o555):
         result = _run_bootstrap(
-            harness.root, harness.server, downloader, extra_env=env, timeout=15
+            installation.root,
+            installation.server,
+            downloader,
+            extra_env=env,
+            timeout=15,
         )
     output = result.stdout + result.stderr
     assert result.returncode != 0, output
@@ -1482,18 +1439,18 @@ def test_unverifiable_launcher_in_readonly_cache_fails_fast(
 
 
 def test_uncreatable_cache_dir_is_a_named_error(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
     # The cause clause is what distinguishes this site from the two probe
     # gates, which emit the same leading substring.
     _require_unprivileged()
-    harness = make_harness()
+    installation = new_installation()
     parent = tmp_path / "readonly-parent"
     parent.mkdir()
     with _restricted(parent, 0o555):
         result = _run_bootstrap(
-            harness.root,
-            harness.server,
+            installation.root,
+            installation.server,
             downloader,
             extra_env={"ACCELERATOR_CACHE_DIR": str(parent / "nested")},
         )
@@ -1514,12 +1471,12 @@ def _backend_execs(trace: str) -> int:
 
 
 def test_warm_path_forks_the_sha256_backend_once_without_awk(
-    make_harness: Callable[..., Harness], downloader: Path
+    new_installation: NewInstallation, downloader: Path
 ) -> None:
-    harness = make_harness()
-    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    installation = new_installation()
+    warm = _run_bootstrap(installation.root, installation.server, downloader)
     assert warm.returncode == 0, warm.stdout + warm.stderr
-    traced = _traced(harness, downloader)
+    traced = _traced(installation, downloader)
     assert traced.returncode == 0, traced.stdout + traced.stderr
     assert _backend_execs(traced.stderr) == 1, traced.stderr
     assert not re.search(r"^\++\S*:awk\b", traced.stderr, re.MULTILINE), (
@@ -1528,12 +1485,14 @@ def test_warm_path_forks_the_sha256_backend_once_without_awk(
 
 
 def test_cold_path_forks_the_backend_once_with_no_missing_input(
-    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+    new_installation: NewInstallation, downloader: Path, tmp_path: Path
 ) -> None:
-    harness = make_harness()
+    installation = new_installation()
     cache = tmp_path / "fresh-cache"
     traced = _traced(
-        harness, downloader, extra_env={"ACCELERATOR_CACHE_DIR": str(cache)}
+        installation,
+        downloader,
+        extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
     )
     assert traced.returncode == 0, traced.stdout + traced.stderr
     assert _backend_execs(traced.stderr) == 1, traced.stderr
@@ -1546,7 +1505,7 @@ def test_cold_path_forks_the_backend_once_with_no_missing_input(
 
 
 def test_warm_path_on_the_shasum_fallback_batches_and_trusts(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     host_platform: str,
@@ -1573,12 +1532,12 @@ def test_warm_path_on_the_shasum_fallback_batches_and_trusts(
         resolved = shutil.which(tool)
         if resolved:
             (fallback_bin / tool).symlink_to(resolved)
-    harness = make_harness()
-    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    installation = new_installation()
+    warm = _run_bootstrap(installation.root, installation.server, downloader)
     assert warm.returncode == 0, warm.stdout + warm.stderr
     traced = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         path=str(fallback_bin),
         xtrace=True,
@@ -1595,27 +1554,27 @@ def test_warm_path_on_the_shasum_fallback_batches_and_trusts(
         traced.stderr
     )
     assert _staged_shim_digest(
-        harness.root, host_platform
-    ) == _source_shim_digest(harness.root, host_platform)
+        installation.root, host_platform
+    ) == _source_shim_digest(installation.root, host_platform)
 
 
 def test_stale_staged_shim_is_ignored_not_trusted_or_removed(
-    make_harness: Callable[..., Harness], downloader: Path, host_platform: str
+    new_installation: NewInstallation, downloader: Path, host_platform: str
 ) -> None:
     # A valid-shaped stale candidate (garbage bytes, a hex suffix that is not
     # the current source digest) beside the real staged shim forces the batched,
     # path-keyed multi-input parse. If the source digest were mis-keyed by
     # output position the run would compute a wrong `${shim}`, fail to match the
     # real candidate, and spuriously re-stage — changing the inode.
-    harness = make_harness()
-    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    installation = new_installation()
+    warm = _run_bootstrap(installation.root, installation.server, downloader)
     assert warm.returncode == 0, warm.stdout + warm.stderr
-    shim = _staged_shim_path(harness.root, host_platform)
+    shim = _staged_shim_path(installation.root, host_platform)
     before = shim.stat()
     stale = shim.with_name(shim.name[:-64] + "0" * 64)
     stale.write_bytes(b"#!/bin/sh\nexit 3\n")
     stale.chmod(0o755)
-    again = _run_bootstrap(harness.root, harness.server, downloader)
+    again = _run_bootstrap(installation.root, installation.server, downloader)
     assert again.returncode == 0, again.stdout + again.stderr
     after = shim.stat()
     assert (after.st_ino, after.st_mtime_ns) == (
@@ -1625,27 +1584,29 @@ def test_stale_staged_shim_is_ignored_not_trusted_or_removed(
     assert stale.exists()
 
 
-def _verify_then(harness: Harness, host_platform: str, action: str) -> None:
+def _verify_then(
+    installation: Installation, host_platform: str, action: str
+) -> None:
     """Replace the shim with one that passes, then does `action` to the
     launcher it was asked about, as a prune or a remount would between the
     bootstrap's verification and its `exec`."""
-    shim = harness.root / f"bin/accelerator-verify-{host_platform}"
+    shim = installation.root / f"bin/accelerator-verify-{host_platform}"
     shim.write_text(f'#!/bin/sh\n{action} "$3"\nexit 0\n')
     shim.chmod(0o755)
 
 
 def test_a_launcher_removed_before_exec_honours_fail_safe(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    _run_bootstrap(harness.root, harness.server, downloader)
-    _verify_then(harness, host_platform, "rm -f")
+    installation = new_installation()
+    _run_bootstrap(installation.root, installation.server, downloader)
+    _verify_then(installation, host_platform, "rm -f")
 
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("visualiser", "--fail-safe"),
     )
@@ -1655,40 +1616,40 @@ def test_a_launcher_removed_before_exec_honours_fail_safe(
 
 
 def test_a_launcher_removed_before_exec_fails_with_the_diagnostic(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    _run_bootstrap(harness.root, harness.server, downloader)
-    _verify_then(harness, host_platform, "rm -f")
+    installation = new_installation()
+    _run_bootstrap(installation.root, installation.server, downloader)
+    _verify_then(installation, host_platform, "rm -f")
 
     result = _run_bootstrap(
-        harness.root, harness.server, downloader, args=("visualiser",)
+        installation.root, installation.server, downloader, args=("visualiser",)
     )
 
     assert result.returncode == 1, result.stdout + result.stderr
     assert "vanished before it could run" in result.stderr, result.stderr
-    assert not (harness.root / "bin/.accelerator-unverified.log").exists()
+    assert not (installation.root / "bin/.accelerator-unverified.log").exists()
 
 
 def test_a_launcher_removed_once_before_exec_is_fetched_again_and_runs(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    _run_bootstrap(harness.root, harness.server, downloader)
-    removed_once = harness.root / "removed-once"
+    installation = new_installation()
+    _run_bootstrap(installation.root, installation.server, downloader)
+    removed_once = installation.root / "removed-once"
     _verify_then(
-        harness,
+        installation,
         host_platform,
         f'[ -e "{removed_once}" ] || {{ touch "{removed_once}"; rm -f "$3"; }};'
         " true",
     )
 
     result = _run_bootstrap(
-        harness.root, harness.server, downloader, args=("visualiser",)
+        installation.root, installation.server, downloader, args=("visualiser",)
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
@@ -1696,17 +1657,17 @@ def test_a_launcher_removed_once_before_exec_is_fetched_again_and_runs(
 
 
 def test_an_unexecutable_launcher_still_fails_under_fail_safe(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     host_platform: str,
 ) -> None:
-    harness = make_harness()
-    _run_bootstrap(harness.root, harness.server, downloader)
-    _verify_then(harness, host_platform, "chmod -x")
+    installation = new_installation()
+    _run_bootstrap(installation.root, installation.server, downloader)
+    _verify_then(installation, host_platform, "chmod -x")
 
     result = _run_bootstrap(
-        harness.root,
-        harness.server,
+        installation.root,
+        installation.server,
         downloader,
         args=("visualiser", "--fail-safe"),
     )
@@ -1863,14 +1824,17 @@ def _seed_a_superseded_version(
 
 
 def test_a_relocated_root_keeps_only_the_current_versions_footprint(
-    make_harness: Callable[..., Harness],
+    new_installation: NewInstallation,
     downloader: Path,
     tmp_path: Path,
     keys: Path,
     host_platform: str,
+    launcher_bin: Path,
 ) -> None:
-    harness = make_harness(real_launcher=True)
-    visualiser_digest = _publish_visualiser(harness.server, keys, host_platform)
+    installation = new_installation(launcher_source=launcher_bin)
+    visualiser_digest = _publish_visualiser(
+        installation.server, keys, host_platform
+    )
     cache = tmp_path / "cache"
     cache.mkdir()
     cache.chmod(0o700)
@@ -1891,10 +1855,10 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
         )
     ]
 
-    with _release_server(harness.server) as (base_url, requests):
+    with _release_server(installation.server) as (base_url, requests):
         result = _run_bootstrap(
-            harness.root,
-            harness.server,
+            installation.root,
+            installation.server,
             downloader,
             args=("visualiser",),
             extra_env={
@@ -1911,7 +1875,7 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
     asset = f"/accelerator-visualiser-{host_platform}"
     assert requests.count(asset) == 1, requests
     crate = _crate_version()
-    shim = harness.root / f"bin/accelerator-verify-{host_platform}"
+    shim = installation.root / f"bin/accelerator-verify-{host_platform}"
     shim_digest = hashlib.sha256(shim.read_bytes()).hexdigest()
     remaining = root.names() - {".accelerator-unverified.log"}
     claims = {
