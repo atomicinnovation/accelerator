@@ -47,7 +47,7 @@ _SKILLS = REPO_ROOT / "skills"
 
 # Collected at import time because parametrisation needs it before fixtures
 # run. One case per *distinct* command: the 204 occurrences carry 122 distinct
-# texts, and re-running a duplicate exercises nothing new at ~0.1s a go.
+# texts, and re-running a duplicate exercises nothing new.
 _ALL = corpus.extract(_SKILLS)
 _DISTINCT = sorted({c.raw: c for c in _ALL}.values(), key=lambda c: c.tail)
 
