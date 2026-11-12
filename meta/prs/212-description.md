@@ -14,7 +14,7 @@ pr_number: 212
 tags: ["build-system", "testing", "bootstrap", "refactor", "pytest-fixtures"]
 revision: "398108820863e526b71ecc841d12496fcdff176d"
 repository: "accelerator"
-last_updated: "2026-11-12T19:22:06+00:00"
+last_updated: "2026-11-12T19:45:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -79,6 +79,13 @@ restores the hand-wired fixtures, and nothing is stored or migrated.
   copies the bootstrap into the root itself and never read the parameter.
   Both callers had been building a copy only to pass it in. This has its own
   commit.
+- **Assertion rewriting for the shared module.** The entrypoint module
+  imports `NewInstallation` from the shared module before pytest loads that
+  module as a plugin. Pytest therefore skipped rewriting its assertions and
+  raised `PytestAssertRewriteWarning`. `tests/conftest.py` now registers the
+  module for rewriting before any test module imports it, and `pyproject.toml`
+  turns that warning into an error, so a module imported too early fails
+  collection instead of warning. This has its own commit.
 
 The plan records Phase 2 as implemented.
 
@@ -101,6 +108,9 @@ The plan records Phase 2 as implemented.
   `uv run pytest tests/integration/entrypoint tests/integration/skill-invocation`
   (218 passed)
 - [x] `grep -rn "bootstrap=" tests/integration` finds nothing.
+- [x] With the warning made an error and no registration, the entrypoint
+  module failed collection. With the registration, both modules pass alone
+  and together with no warnings.
 - [x] `mise run check` passes.
 - [x] `mise run` exits 0, with no formatter changes.
 - [x] The entrypoint module's diff holds only the intended changes. I
