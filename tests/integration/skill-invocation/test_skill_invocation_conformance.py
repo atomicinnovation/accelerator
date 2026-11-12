@@ -34,13 +34,13 @@ from tests.integration.support.installation import (
     REPO_BIN,
     REPO_ROOT,
     Installation,
-    generate_keys,
-    host_platform,
     make_installation,
     run_bootstrap,
     write_downloader,
 )
-from tests.support.artefacts import build_launcher, build_shim
+from tests.support.artefacts import build_launcher
+
+pytest_plugins = ("tests.integration.support.installation_fixtures",)
 
 _SKILLS = REPO_ROOT / "skills"
 
@@ -65,16 +65,19 @@ def repo_bin_is_untouched() -> Iterator[None]:
 
 
 @pytest.fixture(scope="module")
-def installation(tmp_path_factory: pytest.TempPathFactory) -> Installation:
+def installation(
+    tmp_path_factory: pytest.TempPathFactory,
+    keys: Path,
+    shim_bin: Path,
+    host_platform: str,
+) -> Installation:
     base = tmp_path_factory.mktemp("conformance")
-    keys = base / "keys"
-    keys.mkdir()
     return make_installation(
         base / "root",
         base / "server",
-        keys=generate_keys(keys),
-        shim=build_shim(),
-        alias=host_platform(),
+        keys=keys,
+        shim=shim_bin,
+        alias=host_platform,
         launcher_source=build_launcher(),
         templates=REPO_ROOT / "templates",
     )
