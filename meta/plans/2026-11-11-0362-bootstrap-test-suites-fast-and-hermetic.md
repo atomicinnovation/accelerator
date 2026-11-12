@@ -5,7 +5,7 @@ title: "Make the Bootstrap Test Suites Fast and Hermetic Implementation Plan"
 date: "2026-11-11T19:01:52+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0362"
 parent: "work-item:0362"
 derived_from: ["codebase-research:2026-11-10-0362-bootstrap-test-suites-fast-and-hermetic"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T10:15:00+00:00"
+last_updated: "2026-11-12T18:23:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -461,26 +461,30 @@ Do not rerun the job to chase the bar.
 
 #### Automated Verification
 
-- [ ] The pin test passes:
+- [x] The pin test passes:
       `uv run pytest tests/unit/tasks/test_cargo_profiles.py`
-- [ ] The drift marker is unchanged, so the vendor check passes:
+- [x] The drift marker is unchanged, so the vendor check passes:
       `uv run pytest tests/unit/tasks/test_build.py` and `mise run check`
-- [ ] The `report.rs` profile slice test passes: `mise run test:unit:cli`
-- [ ] The entrypoint regressions pass with the optimised shim:
+- [x] The `report.rs` profile slice test passes: `mise run test:unit:cli`
+- [x] The entrypoint regressions pass with the optimised shim:
       `mise run test:integration:entrypoint`, including
       `test_non_release_key_signature_is_refused` and
       `test_tampered_cached_launcher_is_refused_and_healed`
-- [ ] Skill-invocation passes: `mise run test:integration:skill-invocation`
-- [ ] Full run green: `mise run`
+- [x] Skill-invocation passes: `mise run test:integration:skill-invocation`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] The pin test was seen to fail with `KeyError: 'dev'` before the
+- [x] The pin test was seen to fail with `KeyError: 'dev'` before the
       override, and its dependency assertion was seen to fail once after
 - [ ] The shim medians are recorded in the PR: both shims accept the
-      signature, and the after-median is ≥ 5× faster than the before-median
+      signature, and the after-median is ≥ 5× faster than the before-median.
+      Measured, not yet in a PR: 1.189 s before, 0.069 s after (~17×), both
+      accepting
 - [ ] The local skill-invocation medians are recorded in the PR, ≥ 4×
-      faster, with every case passing
+      faster, with every case passing. Measured, not yet in a PR: 167.8 /
+      168.4 / 168.8 s before (median 168.4 s), 14.3 / 14.2 / 13.7 s after
+      (median 14.2 s, ~11.9×), 143 passed on every run
 - [ ] The CI figures from the PR's last `Main` run are recorded. The
       `Finished in` duration is either ≤ 422 s, or a ready follow-up item
       carrying the bar, the baseline and the miss is linked from the PR
