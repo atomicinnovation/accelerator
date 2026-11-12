@@ -5,7 +5,7 @@ title: "Make the Bootstrap Test Suites Fast and Hermetic Implementation Plan"
 date: "2026-11-11T19:01:52+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0362"
 parent: "work-item:0362"
 derived_from: ["codebase-research:2026-11-10-0362-bootstrap-test-suites-fast-and-hermetic"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T20:25:30+00:00"
+last_updated: "2026-11-12T21:40:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -825,8 +825,9 @@ skipped.
       the fixture; the deleted-`.minisig` row fails on the refusal text,
       with `cannot read …payload.minisig` on stderr
 - [x] The module's run reported no skipped test
-- [ ] On PR 3's `Main` run, the new module's three tests pass on both the
-      ubuntu and the macOS integration lanes. Pending: #214's `Main` run
+- [x] On PR 3's `Main` run, the new module's three tests pass on both the
+      ubuntu and the macOS integration lanes. #214's run 43299443166 passed
+      all three on both lanes
 
 ---
 
@@ -1144,7 +1145,7 @@ Both tests pass and neither is skipped.
       being restored. The attacker-signed row fails with exit 1 and the
       refusal diagnostic; the second-call row reports two extra assets
 - [x] The module's run reported no skipped test
-- [ ] The hooks suite's duration is recorded in the PR against its 2.7 s
+- [x] The hooks suite's duration is recorded in the PR against its 2.7 s
       warm baseline, three times:
       - `mise run --skip-deps test:integration:hooks` alone on a warm cargo
         cache. Taken: 1.36 s, 1.38 s and 1.44 s wall time (pytest's own
@@ -1153,7 +1154,13 @@ Both tests pass and neither is skipped.
         indication only, since it is one sample of a wait on cargo's lock.
         Taken: 2.28 s;
       - the task's `Finished in` from PR 3's ubuntu `Main` run, read as in
-        Phase 1. Pending: #214's `Main` run.
+        Phase 1. Taken: 66.53 s on ubuntu (37.28 s on macOS), 30 passed.
+        Before this PR it was 11.4–14.6 s on ubuntu. The smoke test took
+        58.8 s of that. Its `build_shim()` waited on cargo's lock while
+        `test:integration:visualiser` compiled, as the performance
+        considerations anticipated; every other hooks test took about a
+        second or less. The integration job was no slower: 11m43s on
+        ubuntu, against 15–20 min on the three runs before.
 
       The two local figures are recorded in #214, with two more full-run
       samples taken after the refusal test (2.00 s and 2.08 s, 30 passed)

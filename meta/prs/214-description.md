@@ -14,7 +14,7 @@ pr_number: 214
 tags: ["build-system", "testing", "bootstrap", "hooks", "minisign", "hermetic"]
 revision: "f6ff2a043df78c50eb42074726ab199a57d8fec1"
 repository: "accelerator"
-last_updated: "2026-11-12T20:19:49+00:00"
+last_updated: "2026-11-12T21:40:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -169,10 +169,21 @@ network-bound smoke test, and nothing is stored or migrated.
   - within full `mise run` runs, the task's `Finished in` was 2.28 s with 29
     tests, then 2.00 s and 2.08 s with 30. Each is one sample of a wait on
     cargo's lock, so read them as an indication only.
-- [ ] On this PR's `Main` run, the three vendored-shim tests pass on both the
-  ubuntu and the macOS integration lanes.
-- [ ] Record the hooks task's `Finished in` from this PR's ubuntu `Main` run
-  here.
+- [x] On this PR's `Main` run (43299443166), the three vendored-shim tests
+  pass on both the ubuntu and the macOS integration lanes.
+- [x] The hooks task on this PR's `Main` run took 66.53 s on ubuntu and
+  37.28 s on macOS, with 30 passed. On the three runs before this PR it took
+  11.4–14.6 s on ubuntu and 11.9–15.5 s on macOS.
+  - **The extra time is a wait on cargo's lock, not work.** The smoke test
+    took 58.8 s on ubuntu, and every other hooks test about a second or less.
+    It is the suite's first request for the debug shim, and its in-pytest
+    `cargo build` waited while `test:integration:visualiser` compiled its
+    tests (20:28:20 to about 20:29:16). The smoke test passed at 20:29:22.
+  - **The integration job was no slower.** It took 11m43s on ubuntu and
+    24m22s on macOS, against 15–20 min and 21–28 min on the three runs
+    before. The hooks suite does not hold the job up.
+  - If 0366 gives the debug shim its own mise task, the suite would take the
+    shim from a build edge and this wait would go.
 
 ## Notes for Reviewers
 
