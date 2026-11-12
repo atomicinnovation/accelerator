@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T18:23:34+00:00"
+last_updated: "2026-11-12T18:59:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -477,18 +477,17 @@ Do not rerun the job to chase the bar.
 
 - [x] The pin test was seen to fail with `KeyError: 'dev'` before the
       override, and its dependency assertion was seen to fail once after
-- [ ] The shim medians are recorded in the PR: both shims accept the
+- [x] The shim medians are recorded in the PR: both shims accept the
       signature, and the after-median is ≥ 5× faster than the before-median.
-      Measured, not yet in a PR: 1.189 s before, 0.069 s after (~17×), both
-      accepting
-- [ ] The local skill-invocation medians are recorded in the PR, ≥ 4×
-      faster, with every case passing. Measured, not yet in a PR: 167.8 /
-      168.4 / 168.8 s before (median 168.4 s), 14.3 / 14.2 / 13.7 s after
-      (median 14.2 s, ~11.9×), 143 passed on every run
-- [ ] The CI figures from the PR's last `Main` run are recorded. The
+      Recorded in #210: 1.189 s before, 0.069 s after (~17×), both accepting
+- [x] The local skill-invocation medians are recorded in the PR, ≥ 4×
+      faster, with every case passing. Recorded in #210: median 168.4 s
+      before, 14.2 s after (~11.9×), 143 passed on every run
+- [x] The CI figures from the PR's last `Main` run are recorded. The
       `Finished in` duration is either ≤ 422 s, or a ready follow-up item
       carrying the bar, the baseline and the miss is linked from the PR
-      before merge
+      before merge. Recorded in #210: 375.46 s (~3.37× against 1,266 s),
+      including the one-off rebuild, so no follow-up item
 
 ---
 

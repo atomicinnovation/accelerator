@@ -14,7 +14,7 @@ pr_number: 210
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "cargo-profile"]
 revision: "66ff5bb06686a3ef1f461e62cc34dbf5ce849642"
 repository: "accelerator"
-last_updated: "2026-11-12T18:24:51+00:00"
+last_updated: "2026-11-12T18:59:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -64,10 +64,34 @@ The after-median is ~17× faster. The bar is ≥ 5×.
 All 143 tests passed on every run. The median is ~11.9× faster. The bar is
 ≥ 4×.
 
-**CI suite speed.** This is still to come. It will be read from this PR's last
-`Main` run: the ubuntu `Run integration tests` job, against the 1,266 s
-baseline. The bar is ≤ 422 s (3×). If the run misses it, a follow-up work item
-at status ready will be linked here before merging.
+**CI suite speed.** These figures come from the ubuntu `Run integration tests`
+job in
+[`Main` run 43279755256](https://github.com/atomicinnovation/accelerator/actions/runs/43279755256),
+attempt 1, on `6d042c7`.
+
+| | Baseline | This PR |
+| --- | --- | --- |
+| mise `Finished in` | 1,266 s | 375.46 s |
+| pytest summary | — | 373.27 s |
+| Tests | 143 | 143 |
+| Median time per test | 8.0 s | 1.56 s |
+
+The task's time is ~3.37× faster than the baseline, inside the ≤ 422 s (3×)
+bar, so no follow-up item is needed.
+
+- **The build lands on the seventh test.** That is the first test that uses
+  the installation, and it took 70.6 s. The six corpus-integrity tests before
+  it don't build anything. In the baseline run, the same build took 154 s.
+- **This run includes the one-off rebuild.** It was the first run with the
+  override on a cargo cache restored from `main`, and its log shows
+  `Compiling minisign-verify v0.2.5`. So the build time above includes that
+  rebuild.
+- **The remaining tests are steady.** The 136 tests after the build have a
+  median of 1.57 s each. The timestamps record when log lines reached the
+  runner, so per-test figures this small are coarse.
+- **The run's overall conclusion is `failure`.** That comes only from the
+  advisory `Check measurement harness (macos-latest)` job, which was
+  cancelled. Every blocking job passed. Attempt 2 re-runs only that job.
 
 ## Merge Danger
 
@@ -130,9 +154,8 @@ records Phase 1 as implemented.
   `test_tampered_cached_launcher_is_refused_and_healed`.
 - [x] `mise run test:integration:skill-invocation` passes (143 passed).
 - [x] `mise run` exits 0, with no formatter changes.
-- [ ] The CI skill-invocation figures from this PR's last `Main` run are
-  recorded here. Either they meet the ≤ 422 s bar, or a ready follow-up item
-  is linked.
+- [x] The CI skill-invocation figures from this PR's last `Main` run are
+  recorded above. The task took 375.46 s, inside the ≤ 422 s bar.
 
 ## Notes for Reviewers
 
@@ -141,9 +164,5 @@ records Phase 1 as implemented.
   `\n[`, so the slice gains the new table's comment. Its test fails only if
   that slice contains both `panic` and `abort`. The comment contains neither,
   and it should stay that way if anyone rewords it.
-- **The first CI run includes the rebuild.** The first `Main` run on this
-  branch pays the one-off `minisign-verify` rebuild, and that cost lands in
-  the first skill-invocation test. The recorded CI figures will say whether
-  they came from that run.
 - **0366 must keep this override.** 0366 reshapes the same dev-profile table,
   and the pin test fails if the override disappears.
