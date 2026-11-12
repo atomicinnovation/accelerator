@@ -298,6 +298,34 @@ fn update_without_a_title_sends_only_the_description() {
 }
 
 #[test]
+fn update_with_a_title_sends_the_title_and_description() {
+    let (server, subject) = scripted(vec![json(
+        "{\"data\":{\"issueUpdate\":{\"success\":true,\
+         \"issue\":{\"identifier\":\"ENG-1\"}}}}",
+    )]);
+
+    subject
+        .tracker()
+        .update(
+            &ExternalId::new(CREATED.to_owned()),
+            Some("Updated"),
+            "Body\n",
+        )
+        .expect("update succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server
+            .last_body(&RequestKey::post(GRAPHQL))
+            .expect("the update was sent"),
+    )
+    .expect("a JSON request");
+    assert_eq!(
+        sent["variables"]["input"],
+        serde_json::json!({"title": "Updated", "description": "Body\n"})
+    );
+}
+
+#[test]
 fn validating_without_a_title_requires_none() {
     let (_server, subject) = scripted(vec![]);
     let id = ExternalId::new(CREATED.to_owned());

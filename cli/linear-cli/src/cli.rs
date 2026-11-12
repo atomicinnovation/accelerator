@@ -72,6 +72,16 @@ pub struct UpdateArgs {
     pub quiet: bool,
 }
 
+impl UpdateArgs {
+    pub const fn names_no_field(&self) -> bool {
+        self.title.is_none()
+            && self.description.is_none()
+            && self.state.is_none()
+            && self.assignee_id.is_none()
+            && self.priority.is_none()
+    }
+}
+
 #[derive(Args)]
 pub struct ShowArgs {
     pub id: String,

@@ -21,6 +21,7 @@ pub mod resolution;
 pub mod surface;
 pub mod transition;
 pub mod transport;
+pub mod update;
 pub mod upload;
 
 pub use crate::auth::resolve_credentials;
@@ -34,7 +35,9 @@ pub use crate::client::LinearClient;
 pub use crate::error::ClientError;
 pub use crate::failure::LinearFailure;
 pub use crate::surface::SurfaceError;
+pub use crate::transition::StateId;
 pub use crate::transport::Received;
 pub use crate::transport::Transport;
+pub use crate::update::UpdateFields;
 pub use crate::upload::EchoedHeader;
 pub use crate::upload::UploadTransport;
