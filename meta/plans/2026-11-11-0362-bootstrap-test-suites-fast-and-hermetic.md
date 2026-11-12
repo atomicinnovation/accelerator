@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T19:22:43+00:00"
+last_updated: "2026-11-12T19:31:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -49,7 +49,7 @@ The work ships as three pull requests:
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
 | 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Open as #212 |
-| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | Not started |
+| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phase 3 done) |
 
 ## Current State Analysis
 
@@ -812,17 +812,19 @@ skipped.
 
 #### Automated Verification
 
-- [ ] The new module passes alone:
+- [x] The new module passes alone:
       `uv run pytest tests/integration/entrypoint/test_vendored_shim.py -v -rs`
-- [ ] The entrypoint suite passes: `mise run test:integration:entrypoint`
-- [ ] `mise run check` passes
-- [ ] Full run green: `mise run`
+- [x] The entrypoint suite passes: `mise run test:integration:entrypoint`
+- [x] `mise run check` passes
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] Every row of the mutation table failed at its named assertion before
-      being restored
-- [ ] The module's run reported no skipped test
+- [x] Every row of the mutation table failed at its named assertion before
+      being restored. The executable-bit row errors all three tests at
+      the fixture; the deleted-`.minisig` row fails on the refusal text,
+      with `cannot read …payload.minisig` on stderr
+- [x] The module's run reported no skipped test
 - [ ] On PR 3's `Main` run, the new module's three tests pass on both the
       ubuntu and the macOS integration lanes
 
