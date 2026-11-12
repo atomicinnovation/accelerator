@@ -2558,6 +2558,29 @@ mod tests {
         }
     }
 
+    fn unsynced_item_0001() -> [crate::sync::fetch::LocalItem; 1] {
+        [crate::sync::fetch::LocalItem {
+            id: "0001".to_owned(),
+            path: "0001.md".into(),
+            external_id: None,
+        }]
+    }
+
+    #[test]
+    fn an_unsynced_noop_is_a_create_from_local() {
+        use work::sync::Action;
+        use work::sync::PlannedAction;
+        use work::sync::SyncState;
+
+        use super::creatable_item;
+
+        let items = unsynced_item_0001();
+        let noop =
+            PlannedAction::new("0001", SyncState::Unsynced, Action::Noop);
+
+        assert!(creatable_item(&noop, &items).is_some());
+    }
+
     #[test]
     fn an_unsynced_relink_is_not_a_create_from_local() {
         use work::sync::Action;
@@ -2565,13 +2588,8 @@ mod tests {
         use work::sync::SyncState;
 
         use super::creatable_item;
-        use crate::sync::fetch::LocalItem;
 
-        let items = [LocalItem {
-            id: "0001".to_owned(),
-            path: "0001.md".into(),
-            external_id: None,
-        }];
+        let items = unsynced_item_0001();
         let relink =
             PlannedAction::new("0001", SyncState::Unsynced, Action::Relink);
 
