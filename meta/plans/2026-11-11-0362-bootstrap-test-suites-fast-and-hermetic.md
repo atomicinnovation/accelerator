@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T19:31:46+00:00"
+last_updated: "2026-11-12T20:25:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -49,7 +49,7 @@ The work ships as three pull requests:
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
 | 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Open as #212 |
-| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phase 3 done) |
+| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phases 3–4 done) |
 
 ## Current State Analysis
 
@@ -826,7 +826,8 @@ skipped.
       with `cannot read …payload.minisig` on stderr
 - [x] The module's run reported no skipped test
 - [ ] On PR 3's `Main` run, the new module's three tests pass on both the
-      ubuntu and the macOS integration lanes
+      ubuntu and the macOS integration lanes. Pending: PR 3 is not yet
+      raised
 
 ---
 
@@ -1124,33 +1125,38 @@ Both tests pass and neither is skipped.
 
 #### Automated Verification
 
-- [ ] The task test passes:
+- [x] The task test passes:
       `uv run pytest tests/unit/tasks/test_hooks_task_environment.py`
-- [ ] The rewritten module passes alone:
+- [x] The rewritten module passes alone:
       `uv run pytest tests/integration/hooks/test_vcs_detect_hook.py -v -rs`
-- [ ] The hooks suite passes: `mise run test:integration:hooks`
-- [ ] Nothing still names the removed overlay:
+- [x] The hooks suite passes: `mise run test:integration:hooks`
+- [x] Nothing still names the removed overlay:
       `grep -rnw "vcs_bin" tasks` finds nothing
-- [ ] The entrypoint and hooks suites pass in one process, where both
+- [x] The entrypoint and hooks suites pass in one process, where both
       claim a launcher:
       `uv run pytest tests/integration/entrypoint tests/integration/hooks`
-- [ ] `mise run check` passes (ruff, pyrefly)
-- [ ] Full run green: `mise run`
+- [x] `mise run check` passes (ruff, pyrefly)
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] The task test was seen to fail before the task change
-- [ ] Every row of the mutation table failed at its named assertion before
-      being restored
-- [ ] The module's run reported no skipped test
+- [x] The task test was seen to fail before the task change
+- [x] Every row of the mutation table failed at its named assertion before
+      being restored. The attacker-signed row fails with exit 1 and the
+      refusal diagnostic; the second-call row reports two extra assets
+- [x] The module's run reported no skipped test
 - [ ] The hooks suite's duration is recorded in the PR against its 2.7 s
       warm baseline, three times:
       - `mise run --skip-deps test:integration:hooks` alone on a warm cargo
-        cache;
+        cache. Taken: 1.36 s, 1.38 s and 1.44 s wall time (pytest's own
+        summary 0.85–1.10 s), 29 passed each time;
       - the task's `Finished in` from one warm full `mise run`, as an
-        indication only, since it is one sample of a wait on cargo's lock;
+        indication only, since it is one sample of a wait on cargo's lock.
+        Taken: 2.28 s;
       - the task's `Finished in` from PR 3's ubuntu `Main` run, read as in
-        Phase 1
+        Phase 1. Pending: PR 3 is not yet raised.
+
+      The two local figures are held here until PR 3's description exists
 
 ---
 
