@@ -3921,7 +3921,7 @@ fn a_failed_create_leaves_the_items_watermark_where_it_was(
     seed_recorded_entry(&fixture, &item)?;
     assert_eq!(stored_watermark(&fixture, "0001"), Some(0));
 
-    sync_item(
+    let report = sync_item(
         &fixture,
         &item,
         &unreachable_tracker(),
@@ -3929,6 +3929,9 @@ fn a_failed_create_leaves_the_items_watermark_where_it_was(
         RunMode::Apply,
     )?;
 
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::Failed(_)));
     assert_eq!(stored_watermark(&fixture, "0001"), Some(0));
     Ok(())
 }
