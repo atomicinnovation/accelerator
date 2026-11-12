@@ -5,6 +5,10 @@ built from this tree, fetched from a stub release server and verified against
 a per-run key. The launcher's own verification of `accelerator-vcs` is not
 traversed: it checks against the committed key embedded at build time, which
 no per-run key can satisfy. Its `dispatch_failure_policy.rs` covers that.
+
+The hook's refusal of a launcher signed with another key sits here too. Every
+hook reaches the bootstrap under `--fail-safe`, where the exit status cannot
+show a refusal.
 """
 
 import filecmp
@@ -18,6 +22,7 @@ from tests.integration.support.installation import (
     Installation,
     download_log,
     run_bootstrap,
+    sign,
 )
 from tests.integration.support.installation_fixtures import NewInstallation
 from tests.support.artefacts import claim_task_built
@@ -127,6 +132,52 @@ def test_launcher_dispatch_smoke_on_a_plain_non_repo_dir(
     assert context.startswith(_GIT_REFERENCE_OPENING), context
     for marker in _BOUNDARY_BLOCK_MARKERS:
         assert marker not in context
+
+
+def _refusal_diagnostic(alias: str) -> str:
+    return f"could not fetch and verify the accelerator launcher for {alias}"
+
+
+def test_a_launcher_signed_with_a_non_release_key_is_refused_under_fail_safe(
+    new_installation: NewInstallation,
+    downloader: Path,
+    keys: Path,
+    host_platform: str,
+    tmp_path: Path,
+) -> None:
+    installation = new_installation(secret="attacker")
+    cache = installation.root / "bin"
+    unverified_log = cache / ".accelerator-unverified.log"
+    launcher_record = tmp_path / "launcher-args"
+    recording_launcher_args = {"LAUNCHER_ARGS_OUT": str(launcher_record)}
+
+    refused = _detect(installation, downloader, env=recording_launcher_args)
+
+    assert _served_assets(installation) == _launcher_and_signature(
+        host_platform
+    ), refused.stderr
+    assert refused.returncode == 0, refused.stderr
+    assert _refusal_diagnostic(host_platform) in refused.stderr
+    assert unverified_log.exists(), refused.stderr
+    entries = unverified_log.read_text().splitlines()
+    assert len(entries) == 1, entries
+    assert _refusal_diagnostic(host_platform) in entries[0]
+    assert not launcher_record.exists(), "the refused launcher ran"
+    for leftover in (
+        "accelerator-launcher-*",
+        ".tmp-launcher-*",
+        ".accelerator-lock-*",
+    ):
+        assert not list(cache.glob(leftover)), leftover
+
+    sign(
+        keys / "release.key",
+        installation.server / f"accelerator-{host_platform}",
+    )
+    accepted = _detect(installation, downloader, env=recording_launcher_args)
+
+    assert launcher_record.exists(), accepted.stderr
+    assert launcher_record.read_text().splitlines() == list(_DETECT_ARGS)
 
 
 def _session_start_entries() -> list[dict]:
