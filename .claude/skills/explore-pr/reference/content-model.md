@@ -47,6 +47,10 @@ level:
   `decisions` it embodies, each with the alternatives it was chosen over, why,
   and at what cost. The page draws the abstractions' collaborations as a
   diagram automatically. The build warns about a chapter with neither.
+  The Design view lists each abstraction once, merged by name across
+  `design.json` and every chapter: the first declaration describes it, its
+  collaborators are all of theirs, and it links to every chapter that
+  declares it.
 - **Stops are evidence for the design**, chosen to show where a responsibility
   lives or how a decision is enforced, not to walk every hunk. Every stop
   says first how its code fits the bigger picture (`fit`), then what the code
