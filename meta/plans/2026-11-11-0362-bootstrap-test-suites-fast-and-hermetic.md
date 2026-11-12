@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T21:10:00+00:00"
+last_updated: "2026-11-12T20:25:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -49,7 +49,7 @@ The work ships as three pull requests:
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
 | 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Open as #212 |
-| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | In progress (Phases 3–5 done; not yet raised) |
+| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | Open as #214 |
 
 ## Current State Analysis
 
@@ -826,8 +826,7 @@ skipped.
       with `cannot read …payload.minisig` on stderr
 - [x] The module's run reported no skipped test
 - [ ] On PR 3's `Main` run, the new module's three tests pass on both the
-      ubuntu and the macOS integration lanes. Pending: PR 3 is not yet
-      raised
+      ubuntu and the macOS integration lanes. Pending: #214's `Main` run
 
 ---
 
@@ -1154,9 +1153,10 @@ Both tests pass and neither is skipped.
         indication only, since it is one sample of a wait on cargo's lock.
         Taken: 2.28 s;
       - the task's `Finished in` from PR 3's ubuntu `Main` run, read as in
-        Phase 1. Pending: PR 3 is not yet raised.
+        Phase 1. Pending: #214's `Main` run.
 
-      The two local figures are held here until PR 3's description exists
+      The two local figures are recorded in #214, with two more full-run
+      samples taken after the refusal test (2.00 s and 2.08 s, 30 passed)
 
 ---
 
@@ -1342,8 +1342,8 @@ skipped.
       cache-directory and deleted-`sign` rows fail with the refusal
       diagnostic as the assertion message
 - [x] The module's run reported no skipped test
-- [ ] PR 3's description carries the three statements above. Pending: PR 3
-      is not yet raised
+- [x] PR 3's description carries the three statements above. Recorded in
+      #214's notes for reviewers
 
 ---
 
