@@ -63,6 +63,7 @@ dev = [
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 pythonpath = ["."]
+filterwarnings = ["error::pytest.PytestAssertRewriteWarning"]
 
 [tool.uv]
 prerelease = "allow"
