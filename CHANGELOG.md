@@ -217,6 +217,27 @@
   a directory owned by another uid, as in a container's bind mount or a CI
   workspace, until `ACCELERATOR_CACHE_TRUSTED_OWNERS` lists that uid.
 
+- **`linear update --state` reports and fails like every other
+  `linear update`.** It prints `updated\t<KEY>` instead of the issue as JSON,
+  so the resulting state name is no longer echoed; read it with `linear show`,
+  or use `linear transition <KEY> <STATE>`, whose JSON output is unchanged.
+  A failed `--state` update prints `linear update failed` and exits with the
+  code a plain `linear update` would, which differs from before for some
+  failures: a 401 without a JSON body exits 20 where it exited 11. A malformed
+  identifier, such as `#BLA-1`, is refused with exit 34 before anything is
+  sent. Scripts that parse `linear update --state` output or exit codes need
+  updating.
+- **A failed `linear transition` reports and fails like a failed
+  `linear update`.** It now sends the same request `linear update --state`
+  does, so a failure prints `linear update failed`, where it printed a line
+  led by a code such as `E_GQL_ERRORS`, `E_REQ_STATUS` or
+  `E_REQ_BAD_RESPONSE`. It exits with the code `linear update --state` would,
+  which differs from before for some failures: a 401 without a JSON body exits
+  20 where it exited 11. A malformed identifier, such as `#BLA-1`, is refused
+  with exit 34 before anything is sent. A transition that succeeds prints the
+  same JSON as before. Scripts that parse a failed `linear transition`'s
+  output or exit codes need updating.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -834,6 +855,14 @@
   follows a pointer outside `trees/`, keeps malformed and newer-layout
   pointers, reclaims a retired layout's unclaimed trees, and reclaims nothing
   when `trees/claims/` cannot be read, where it reclaimed claimed trees.
+
+- **`linear update` changes only the fields it is given.** Without `--title`
+  it sent an empty title, which Linear refused; without `--description` it
+  sent an empty description, which erased the issue's body. `--assignee-id`
+  and `--priority` are now sent, and `--state` joins the same update instead
+  of discarding the other flags. Because those flags now reach Linear, an
+  update Linear refuses for one of them, such as `--assignee-id ""`, exits 34
+  where it used to succeed.
 
 ### Security
 

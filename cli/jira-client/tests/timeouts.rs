@@ -112,7 +112,7 @@ fn a_paginated_fixture_stops_at_the_page_cap_and_reports_indeterminate() {
                 .to_owned(),
         },
     );
-    let client = client_for(&server, at(Duration::from_millis(400)));
+    let client = client_for(&server, TransportConfig::default());
 
     let outcome = client
         .fetch_all(&[id("ENG-1"), id("ENG-2")])
