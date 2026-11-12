@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T18:59:01+00:00"
+last_updated: "2026-11-12T19:00:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -45,11 +45,11 @@ Two supporting changes come with the second:
 
 The work ships as three pull requests:
 
-| PR | Phases | Content |
-|---|---|---|
-| 1 | 1 | The `minisign-verify` override and its measurements |
-| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) |
-| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test |
+| PR | Phases | Content | Status |
+|---|---|---|---|
+| 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
+| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Not started |
+| 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | Not started |
 
 ## Current State Analysis
 
@@ -487,7 +487,9 @@ Do not rerun the job to chase the bar.
       `Finished in` duration is either ≤ 422 s, or a ready follow-up item
       carrying the bar, the baseline and the miss is linked from the PR
       before merge. Recorded in #210: 375.46 s (~3.37× against 1,266 s),
-      including the one-off rebuild, so no follow-up item
+      including the one-off rebuild, so no follow-up item. The build landed
+      on the seventh test, the first to use the installation (70.6 s), not
+      on the first; the 136 tests after it had a median of 1.57 s
 
 ---
 
