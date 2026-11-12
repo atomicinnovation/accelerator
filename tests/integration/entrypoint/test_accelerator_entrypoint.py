@@ -785,7 +785,7 @@ def test_concurrent_cold_cache_slow_downloader_all_succeed(
     new_installation: NewInstallation, slow_downloader: Path
 ) -> None:
     installation = new_installation()
-    root, server = installation.root, installation.server  # cold cache
+    root, server = installation.root, installation.server
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
         results = list(
             pool.map(
