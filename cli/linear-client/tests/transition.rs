@@ -1,5 +1,5 @@
-//! Transitions: state-name resolution over the base team's catalogued states,
-//! and the `issueUpdate` mutation that carries the resolved `stateId`.
+//! The state a transition targets: its name resolves over the base team's
+//! catalogued states, and an update carries the resolved `stateId`.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
@@ -12,9 +12,10 @@ use linear_client::catalogue::{Catalogue, TeamEntries};
 use linear_client::resolution::{
     FixedNames, NameResolver, NameUnresolved, ResolverSet, SingleResolution,
 };
-use linear_client::SurfaceError;
+use linear_client::{LinearClient, SurfaceError, UpdateFields};
 use serde_json::{json, Value};
 use support::client::{client_with_resolvers, TEAM_ID, TEAM_KEY};
+use tracker::ExternalId;
 
 const GRAPHQL: &str = "/graphql";
 
@@ -63,23 +64,38 @@ impl NameResolver for AmbiguousStates {
     }
 }
 
-fn sent_state_id(server: &MockHTTPServer, key: &RequestKey) -> Value {
+fn refusal(client: &LinearClient, state: &str) -> SurfaceError {
+    client
+        .resolve_state(state)
+        .expect_err("the state name is refused")
+}
+
+fn state_id_an_update_carries(
+    server: &MockHTTPServer,
+    client: &LinearClient,
+    state: &str,
+) -> Value {
+    let key = RequestKey::post(GRAPHQL);
+    let state_id = client.resolve_state(state).expect("the state resolves");
+    client
+        .update_op(
+            &ExternalId::new("ENG-1".to_owned()),
+            &UpdateFields {
+                state_id: Some(&state_id),
+                ..UpdateFields::default()
+            },
+        )
+        .expect("the update succeeds");
     let sent: Value =
-        serde_json::from_slice(&server.last_body(key).expect("a body"))
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
             .expect("JSON");
-    assert!(sent["query"]
-        .as_str()
-        .expect("a document")
-        .contains("issueUpdate"));
-    assert_eq!(sent["variables"]["id"], "ENG-1");
     sent["variables"]["input"]["stateId"].clone()
 }
 
 #[test]
-fn a_known_state_resolves_to_its_uuid_and_the_mutation_carries_it() {
+fn a_known_state_resolves_to_its_uuid_and_an_update_carries_it() {
     let server = MockHTTPServer::start();
-    let key = RequestKey::post(GRAPHQL);
-    server.route(key.clone(), updated_route());
+    server.route(RequestKey::post(GRAPHQL), updated_route());
     let client = client_with_resolvers(
         &server,
         catalogued(&json!({
@@ -91,12 +107,8 @@ fn a_known_state_resolves_to_its_uuid_and_the_mutation_carries_it() {
         })),
     );
 
-    client
-        .transition("ENG-1", "in progress")
-        .expect("the transition succeeds");
-
     assert_eq!(
-        sent_state_id(&server, &key),
+        state_id_an_update_carries(&server, &client, "in progress"),
         "st-42",
         "matching is case-insensitive and resolves to the catalogue UUID"
     );
@@ -115,9 +127,7 @@ fn a_state_absent_from_the_team_refuses_as_not_in_catalogue() {
         server.route(key.clone(), Route::Status(200));
         let client = client_with_resolvers(&server, resolvers);
 
-        let error = client
-            .transition("ENG-1", "Nonexistent")
-            .expect_err("an unresolvable state is refused");
+        let error = refusal(&client, "Nonexistent");
 
         assert!(
             matches!(error, SurfaceError::UnknownState { .. }),
@@ -137,9 +147,7 @@ fn an_ambiguous_state_refuses_naming_the_count() {
         with_team_states(Box::new(AmbiguousStates)),
     );
 
-    let error = client
-        .transition("ENG-1", "Review")
-        .expect_err("a shared display name cannot be disambiguated");
+    let error = refusal(&client, "Review");
 
     assert!(
         matches!(error, SurfaceError::AmbiguousState { count: 2, .. }),
@@ -164,24 +172,21 @@ fn two_teams() -> Value {
 }
 
 #[test]
-fn transition_resolves_against_the_base_team_only() {
+fn a_state_resolves_against_the_base_team_only() {
     let server = MockHTTPServer::start();
-    let key = RequestKey::post(GRAPHQL);
-    server.route(key.clone(), updated_route());
+    server.route(RequestKey::post(GRAPHQL), updated_route());
     let client = client_with_resolvers(&server, catalogued(&two_teams()));
 
-    let error = client
-        .transition("ENG-1", "Blocked")
-        .expect_err("another team's state is not a target");
+    let error = refusal(&client, "Blocked");
     assert!(
         matches!(error, SurfaceError::UnknownState { .. }),
         "{error}"
     );
 
-    client
-        .transition("ENG-1", "In Progress")
-        .expect("the base team's state resolves");
-    assert_eq!(sent_state_id(&server, &key), "st-eng-ip");
+    assert_eq!(
+        state_id_an_update_carries(&server, &client, "In Progress"),
+        "st-eng-ip"
+    );
 }
 
 #[test]
@@ -191,9 +196,7 @@ fn an_archived_state_is_never_a_transition_target() {
     server.route(key.clone(), Route::Status(200));
     let client = client_with_resolvers(&server, catalogued(&two_teams()));
 
-    let error = client
-        .transition("ENG-1", "Shelved")
-        .expect_err("an archived state is refused");
+    let error = refusal(&client, "Shelved");
 
     assert!(
         matches!(error, SurfaceError::UnknownState { .. }),
