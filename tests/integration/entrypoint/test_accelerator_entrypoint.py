@@ -130,7 +130,6 @@ def make_harness(
     shim_bin: Path,
     keys: Path,
     host_platform: str,
-    bootstrap_src: Path,
 ) -> Callable[..., Harness]:
     """Factory: build a plugin root + release server, return an installation."""
     counter = {"n": 0}
@@ -150,7 +149,6 @@ def make_harness(
             tmp_path / f"server{counter['n']}",
             keys=keys,
             shim=shim_bin,
-            bootstrap=bootstrap_src,
             alias=host_platform,
             label=label,
             secret=secret,

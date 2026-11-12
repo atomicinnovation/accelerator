@@ -203,7 +203,6 @@ def make_installation(
     *,
     keys: Path,
     shim: Path,
-    bootstrap: Path,
     alias: str,
     label: str = "self",
     secret: str = "release",
