@@ -14,23 +14,45 @@ pr_number: 188
 tags: ["sync", "report", "work-adapters", "baseline", "sync-work-items"]
 revision: "f9887ec718bb95a61801426c9173de864e8ca9a0"
 repository: "accelerator"
-last_updated: "2026-11-12T10:31:48+00:00"
+last_updated: "2026-11-12T10:49:52+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
 # [0352] Report each unsynced item once, by its create
 
-## Summary
+## Problem
 
 `accelerator work sync` reported every unsynced item it planned a create for
 twice: once by its create (`create-from-local`, `adopt` or `failed`) and once
-as a leftover `noop\tunsynced` row. A failed create sat beside a row that read
-as if nothing was wrong, and because the leftover row counted as settled, a
-failed create also advanced the item's baseline watermark. Each such item now
-reports once, by its create, and a failed create leaves its watermark where it
-was. Unsynced drafts and items under `--pull-only` keep their single `noop`
-row.
+as a leftover `noop\tunsynced` row. Found during 0300's manual checks against
+the `TES` sandbox, on preview and apply runs and on the released
+`1.24.0-pre.86` binary:
+
+```text
+0004	failed	unsynced	terminal
+0004	noop	unsynced	-
+```
+
+That leftover row caused three problems:
+
+- **Misleading output.** A failed create sat beside a row that read as if
+  nothing was wrong, and `/sync-work-items` needed an interim rule telling it
+  to ignore the `noop` row.
+- **A failed create looked settled.** The `noop` row counted as reconciled,
+  so the item's baseline watermark advanced to the run's start even though
+  the create failed. For an item still carrying an old baseline entry, a
+  create that wrote its link and then failed could hide that link from the
+  next run's local-change check.
+- **A false warning.** For an item whose baseline entry came from a newer
+  release, the `noop` row was relabelled "left untouched; upgrade the
+  plugin", although the create ran and replaced that entry.
+
+## Summary
+
+Each unsynced item sync creates or adopts now reports once, by its create,
+and a failed create leaves its watermark where it was. Unsynced drafts and
+items under `--pull-only` keep their single `noop` row.
 
 The planner gives every unsynced item a `Noop` entry. Creates used to be
 copied from those entries, leaving the `Noop` behind; now they are moved out,
@@ -179,3 +201,163 @@ dossiers are read and written as before. Reverting restores the old output.
 - **Not changed**: the decision table, the dossier mapping, and the
   `order-refused` line an order on a draft or under `--pull-only` prints
   beside its `noop` row.
+
+<details>
+<summary>Walkthrough</summary>
+
+```mermaid
+flowchart LR
+    plan["Plan: every unsynced item is a Noop"]
+    extract["Extraction: relinks and creates moved out"]
+    report["Report: one row per plan entry, one per create"]
+    baseline["Baseline: watermark advances for settled rows"]
+    skill["Skill: sync-work-items Membership table"]
+    plan -- "entries taken by" --> extract
+    extract -- "residual plan + creates feed" --> report
+    report -- "rows decide" --> baseline
+    report -- "stdout read by" --> skill
+
+    click plan "#0-relevant-context" "Read the context"
+    click extract "#1-creates-leave-the-plan" "Read about the partition"
+    click report "#3-what-the-report-and-baseline-now-see" "Read the knock-on effects"
+    click baseline "#3-what-the-report-and-baseline-now-see" "Read the knock-on effects"
+    click skill "#5-the-skill-and-the-changelog" "Read about the skill"
+```
+
+### Tour
+
+#### 0. Relevant context
+
+The pure planner gives every unsynced item (no `external_id`) a `Noop`
+entry, in every direction
+([`cli/work/src/sync/decide.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work/src/sync/decide.rs#L115-L119)).
+Only the adapter knows the run's direction, drafts and orders, so it decides
+which unsynced items become creates after planning.
+
+A run's report merges two row sources: every entry left in `plan.actions`,
+then every create
+([`run.rs` preview](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L2367-L2385),
+[`run.rs` apply](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L2469)).
+`relinks` already moved its entries out of the plan with `std::mem::take`
+([`run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L1288-L1310)), so a
+relink reports once. `unsynced_creates` cloned instead, so every create's
+item had a second, `Noop` row.
+
+`finalise_baseline` advances the watermark of any id with a row that passes
+`definitively_reconciled`
+([`run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L334-L384)). A leftover
+`(Unsynced, Noop, NotApplied)` row passes, so a failed create's id advanced.
+
+#### 1. Creates leave the plan
+
+[`cli/work-adapters/src/sync/run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L1343-L1378)
+
+```diff
+ fn unsynced_creates<'a>(
+-    plan: &work::sync::SyncPlan,
++    plan: &mut SyncPlan,
+     items: &'a [LocalItem],
+     direction: SyncDirection,
+ ) -> Vec<LocalCreate<'a>> {
+     if matches!(direction, SyncDirection::PullOnly) {
+         return Vec::new();
+     }
+-    plan.actions.iter()
+-        .filter(|planned| planned.state() == SyncState::Unsynced)
+-        … .map(|item| LocalCreate { item, planned: planned.clone() })
+-        .filter(|create| DraftId::parse(&create.item.id).is_none())
+-        .collect()
++    for planned in std::mem::take(&mut plan.actions) {
++        match creatable_item(&planned, items) {
++            Some(item) => creates.push(LocalCreate { item, planned }),
++            None => remaining.push(planned),
++        }
++    }
++    plan.actions = remaining;
++    creates
+ }
+```
+
+The `--pull-only` return comes **before** the partition. `relinks` checks
+direction after partitioning, because relinks are refused under
+`--pull-only`; unsynced items must keep their `noop` rows there instead.
+
+`creatable_item` states the rule in one place: unsynced, still `Noop`, not a
+draft, with a matching local item. The `Noop` clause cannot be reached
+through `run_sync` today, because `relinks` runs first; it keeps the rule
+independent of call order.
+
+#### 2. The call moves next to relinks
+
+[`cli/work-adapters/src/sync/run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L2224-L2227)
+
+```diff
+     let relinks = relinks(&mut plan, request.reconciled(), request.direction);
++    let mut creates_from_local =
++        unsynced_creates(&mut plan, request.reconciled(), request.direction);
++    creates_from_local.extend(relinks);
+     …
+-    let mut creates_from_local =
+-        unsynced_creates(&plan, request.reconciled(), request.direction);
+-    creates_from_local.extend(relinks);
+```
+
+Nothing between the old and new positions reads `plan.actions`, so the two
+steps that take entries out of the plan now sit side by side.
+
+#### 3. What the report and baseline now see
+
+The report loops are unchanged. With the `Noop` entry gone, each create's
+item has one row, carrying the create's outcome.
+
+- **Watermark**: a failed create's only row is `Failed`, which
+  `definitively_reconciled` rejects, so its watermark stays put. A
+  successful create still advances through its own `Applied` row.
+- **Unknown-recipe warning**: `reported_as` relabels only plan rows as
+  `UnsupportedRecipe`
+  ([`run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L2367-L2369)). An item
+  the run creates no longer has a plan row, so it no longer gets the false
+  "left untouched; upgrade the plugin" warning. Drafts and `--pull-only`
+  items keep their plan row, and the warning.
+
+#### 4. Tests
+
+[`cli/work-adapters/tests/sync_create.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/tests/sync_create.rs#L3512-L3558)
+adds `only_row`, which asserts an id has exactly one row and prints every
+action when it does not. The older helpers return an id's first row, which
+was the `Noop` row, so none of them could see the duplicate.
+
+- **Behaviour** (failed before the partition): preview and apply, plain and
+  ordered creates, adopts, a tracker failure, an adopt refused at apply
+  time, the failed-create watermark, unknown-recipe entries
+  ([L3785-L3986](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/tests/sync_create.rs#L3785-L3986)).
+- **Guards** (passed before and after): drafts and `--pull-only` keep one
+  `noop` row and the unknown-recipe warning; a successful create watermarks
+  its new entry
+  ([L3987-L4110](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/tests/sync_create.rs#L3987-L4110)).
+- **Unit**: `creatable_item` accepts an unsynced `Noop` and rejects an
+  unsynced `Relink`
+  ([`run.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-adapters/src/sync/run.rs#L2561-L2597)).
+- **CLI**: the push-only preview's full stdout loses its `noop` line
+  ([`cli_sync.rs`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/cli/work-cli/tests/cli_sync.rs#L327-L363)).
+
+#### 5. The skill and the changelog
+
+[`skills/work/sync-work-items/SKILL.md`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/skills/work/sync-work-items/SKILL.md#L466)
+had an interim Membership rule telling the model to ignore a create's
+duplicate `noop` row. That pairing no longer occurs. The one that still
+does, a `noop` row beside a `failed` row, `order-refused`, for an order on a
+draft or under `--pull-only`, gets the rule instead, pinned by
+[`test_a_refused_order_s_noop_row_joins_no_group`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/tests/unit/tasks/test_sync_work_items_skill_structure.py#L450-L460).
+
+[`CHANGELOG.md`](https://github.com/atomicinnovation/accelerator/blob/f9887ec718bb95a61801426c9173de864e8ca9a0/CHANGELOG.md#L781-L787) records the fix under Fixed
+and tells scripts that listed unsynced items by their `noop` row to read the
+create's row instead.
+
+**Review discussion**: two `/review-pr` rounds
+(`meta/reviews/prs/188-review-1.md`, `188-review-2.md`) found nothing
+blocking. Fixes landed as follow-up commits; the planner emitting
+`CreateFromLocal`, a shared extraction helper and older test helpers were
+declined as out of scope, with reasons on each thread.
+
+</details>
