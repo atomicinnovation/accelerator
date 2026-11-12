@@ -222,6 +222,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "pathAliases": manifest.get("pathAliases", []),
         "commits": commit_summaries(commits),
     }
+    model["keyAbstractions"] = key_abstractions(
+        model["design"], model["chapters"]
+    )
     summarised = {entry["path"] for entry in summaries}
     warnings = check(model, diff) + commit_warnings(commits, diff)
     warnings += [
@@ -396,6 +399,40 @@ def figure_warnings(model: dict) -> list[str]:
 
 
 DESIGN_KEYS = ("abstractions", "decisions")
+
+
+def abstraction_name(item: dict) -> str:
+    return item.get("name", "").replace("`", "").strip()
+
+
+def key_abstractions(design: dict, chapters: list[dict]) -> list[dict]:
+    """Each abstraction once, as first declared, with every chapter it is in."""
+    declarations = [
+        (item, [item["chapter"]] if item.get("chapter") else [])
+        for item in design.get("abstractions", [])
+    ] + [
+        (item, [chapter["id"]])
+        for chapter in chapters
+        for item in chapter.get("abstractions", [])
+    ]
+    merged: dict[str, dict] = {}
+    for item, chapter_ids in declarations:
+        entry = merged.setdefault(
+            abstraction_name(item),
+            {"item": dict(item, collaborators=[]), "chapters": []},
+        )
+        collaborators = entry["item"]["collaborators"]
+        collaborators += [
+            name
+            for name in item.get("collaborators", [])
+            if name not in collaborators
+        ]
+        entry["chapters"] += [
+            chapter_id
+            for chapter_id in chapter_ids
+            if chapter_id not in entry["chapters"]
+        ]
+    return list(merged.values())
 
 
 def design_items(model: dict) -> list[tuple[str, dict]]:
