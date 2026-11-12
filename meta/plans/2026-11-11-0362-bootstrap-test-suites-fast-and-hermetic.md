@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
-last_updated: "2026-11-12T19:00:10+00:00"
+last_updated: "2026-11-12T19:21:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -48,7 +48,7 @@ The work ships as three pull requests:
 | PR | Phases | Content | Status |
 |---|---|---|---|
 | 1 | 1 | The `minisign-verify` override and its measurements | Open as #210 |
-| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Not started |
+| 2 | 2 | Shared installation fixtures (a refactor; no behaviour change) | Implemented; not yet raised |
 | 3 | 3, 4, 5 | Vendored-shim check, hermetic smoke test, refusal test | Not started |
 
 ## Current State Analysis
@@ -662,24 +662,27 @@ commands below and keep the passed and skipped counts.
 
 #### Automated Verification
 
-- [ ] The entrypoint module passes alone:
+- [x] The entrypoint module passes alone:
       `uv run pytest tests/integration/entrypoint/test_accelerator_entrypoint.py -q -rs`
-- [ ] The skill-invocation module passes alone:
+- [x] The skill-invocation module passes alone:
       `uv run pytest tests/integration/skill-invocation/test_skill_invocation_conformance.py -q -rs`
-- [ ] Both suites pass in one process, where the plugin is named twice:
+- [x] Both suites pass in one process, where the plugin is named twice:
       `uv run pytest tests/integration/entrypoint tests/integration/skill-invocation`
-- [ ] No caller still passes `bootstrap=`:
+- [x] No caller still passes `bootstrap=`:
       `grep -rn "bootstrap=" tests/integration` finds nothing
-- [ ] `mise run check` passes (ruff, pyrefly)
-- [ ] Full run green: `mise run`
+- [x] `mise run check` passes (ruff, pyrefly)
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] Each module's passed count matches the count noted before the
-      refactor, and neither run reports a skip
-- [ ] The pull request's diff of the entrypoint module holds only the
+- [x] Each module's passed count matches the count noted before the
+      refactor, and neither run reports a skip. Entrypoint 72 passed and
+      skill-invocation 143 passed, before and after
+- [x] The pull request's diff of the entrypoint module holds only the
       fixture removals, the three renames and the 6 `launcher_source` call
-      sites
+      sites. Checked on the commit before the PR was raised, by reversing
+      the renames and diffing what remained: beyond those, only the import
+      changes and ruff's re-wraps of lines the longer names lengthened
 
 ---
 
