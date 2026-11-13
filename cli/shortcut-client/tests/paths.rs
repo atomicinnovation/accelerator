@@ -118,6 +118,14 @@ fn collection_and_catalogue_paths_sit_under_the_workspace() {
         "https://api.app.shortcut.com/api/v4/acme/workflows"
     );
     assert_eq!(
+        paths.team_workflows("t-1").as_str(),
+        "https://api.app.shortcut.com/api/v4/acme/teams/t-1/workflows"
+    );
+    assert_eq!(
+        paths.workflow_states(500).as_str(),
+        "https://api.app.shortcut.com/api/v4/acme/workflows/500/states"
+    );
+    assert_eq!(
         paths.members().as_str(),
         "https://api.app.shortcut.com/api/v4/acme/members"
     );

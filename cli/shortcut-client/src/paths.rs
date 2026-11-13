@@ -156,6 +156,16 @@ impl Paths {
     }
 
     #[must_use]
+    pub fn team_workflows(&self, uuid: &str) -> Url {
+        self.workspace(&["teams", uuid, "workflows"])
+    }
+
+    #[must_use]
+    pub fn workflow_states(&self, workflow: i64) -> Url {
+        self.workspace(&["workflows", &workflow.to_string(), "states"])
+    }
+
+    #[must_use]
     pub fn members(&self) -> Url {
         self.workspace(&["members"])
     }
