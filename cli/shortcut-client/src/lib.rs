@@ -4,6 +4,7 @@
 //! in both directions.
 
 pub mod auth;
+pub mod cache;
 pub mod catalogue;
 pub mod classify;
 pub mod error;

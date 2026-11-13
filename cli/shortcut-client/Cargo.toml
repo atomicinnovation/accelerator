@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 config = { path = "../config" }
+store = { path = "../store" }
 tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }
 
