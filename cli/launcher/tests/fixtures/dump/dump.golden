@@ -79,6 +79,9 @@
 | `linear.team_key` | *(not set)* | default |
 | `linear.token` | *(not set)* | default |
 | `linear.token_cmd` | *(not set)* | default |
+| `shortcut.team_key` | *(not set)* | default |
+| `shortcut.token` | *(not set)* | default |
+| `shortcut.token_cmd` | *(not set)* | default |
 | `github.token` | *(not set)* | default |
 | `github.token_cmd` | *(not set)* | default |
 | `openalex.api_key` | *(set — hidden)* | team (.accelerator/config.md) |

@@ -236,6 +236,17 @@ pub const EXTRA_KEYS: &[ExtraKey] = &[
         BASE_COMMAND,
         &["ACCELERATOR_LINEAR_TOKEN_CMD"],
     ),
+    ExtraKey::open("shortcut.team_key"),
+    ExtraKey::overridden(
+        "shortcut.token",
+        Trust::Open,
+        &["ACCELERATOR_SHORTCUT_TOKEN"],
+    ),
+    ExtraKey::overridden(
+        "shortcut.token_cmd",
+        BASE_COMMAND,
+        &["ACCELERATOR_SHORTCUT_TOKEN_CMD"],
+    ),
     ExtraKey::overridden(
         "github.token",
         Trust::Open,
@@ -555,6 +566,7 @@ mod tests {
     fn extra_keys_declares_the_tracker_scope_keys() {
         assert!(is_extra("jira.project_key"));
         assert!(is_extra("linear.team_key"));
+        assert!(is_extra("shortcut.team_key"));
     }
 
     fn is_extra(name: &str) -> bool {
@@ -562,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    fn consent_keys_are_exactly_the_six_user_only_keys() {
+    fn consent_keys_are_exactly_the_seven_user_only_keys() {
         let names: Vec<&str> = consent_keys().map(|key| key.name).collect();
         assert_eq!(
             names,
@@ -570,6 +582,7 @@ mod tests {
                 "jira.allowed_sites",
                 "jira.token_cmd",
                 "linear.token_cmd",
+                "shortcut.token_cmd",
                 "github.token_cmd",
                 "openalex.api_key_cmd",
                 "design.browser_path",
@@ -582,9 +595,12 @@ mod tests {
         let trust = |name| declared(name).map(|key| key.trust);
         assert_eq!(trust("jira.allowed_sites"), Some(Trust::Consent));
         assert_eq!(trust("design.browser_path"), Some(Trust::PathConsent));
-        for name in
-            ["jira.token_cmd", "linear.token_cmd", "openalex.api_key_cmd"]
-        {
+        for name in [
+            "jira.token_cmd",
+            "linear.token_cmd",
+            "shortcut.token_cmd",
+            "openalex.api_key_cmd",
+        ] {
             assert_eq!(
                 trust(name),
                 Some(Trust::CommandConsent {
@@ -626,6 +642,13 @@ mod tests {
             ("linear.team_key", &[], None),
             ("linear.token", &["ACCELERATOR_LINEAR_TOKEN"], None),
             ("linear.token_cmd", &["ACCELERATOR_LINEAR_TOKEN_CMD"], None),
+            ("shortcut.team_key", &[], None),
+            ("shortcut.token", &["ACCELERATOR_SHORTCUT_TOKEN"], None),
+            (
+                "shortcut.token_cmd",
+                &["ACCELERATOR_SHORTCUT_TOKEN_CMD"],
+                None,
+            ),
             ("github.token", &["GH_TOKEN", "GITHUB_TOKEN"], None),
             ("github.token_cmd", &[], Some("GH_TOKEN")),
             ("openalex.api_key", &["ACCELERATOR_OPENALEX_API_KEY"], None),
