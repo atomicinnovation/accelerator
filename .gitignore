@@ -91,3 +91,6 @@ bin/.tmp-*
 *.key
 /keys/*.sec
 
+
+# Raw Shortcut live-test responses; only sanitised fixtures are committed.
+cli/shortcut-client/tests/captures/
