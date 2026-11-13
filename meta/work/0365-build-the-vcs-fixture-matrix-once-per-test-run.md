@@ -93,6 +93,10 @@ when the phase ran alone.
   0368's warm no-op baseline, which 0361 measures its 200 s target
   against, is recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
+- Measurement ordering with 0363: 0363 changes `test:unit:cli`'s coverage
+  sequence and removes the slow `log::tests` writes. Take this item's
+  before and after timings only once both halves of 0363 have landed,
+  so the comparison is not confounded by 0363's changes.
 - Blocks: none
 
 ## Assumptions
