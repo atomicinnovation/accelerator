@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-11-13-shortcut-integration-review-1"
+id: "2026-11-13-0371-shortcut-integration-review-1"
 title: "Plan Review: Shortcut Integration Implementation Plan"
 date: "2026-11-13T18:29:45+00:00"
 author: "Tom Scott"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-11-13-shortcut-integration"
+target: "plan:2026-11-13-0371-shortcut-integration"
 reviewer: "Tom Scott"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "compatibility", "usability", "standards"]
