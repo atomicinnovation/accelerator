@@ -4,6 +4,7 @@
 //! in both directions.
 
 pub mod auth;
+pub mod catalogue;
 pub mod classify;
 pub mod error;
 pub mod new_entity;

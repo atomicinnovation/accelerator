@@ -4625,6 +4625,7 @@ dependencies = [
  "http-test-support",
  "reqwest",
  "rustls",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror",
