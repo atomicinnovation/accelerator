@@ -16,10 +16,15 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
+rustls = { workspace = true }
+webpki-root-certs = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 config = { path = "../config" }
 tracker-support = { path = "../tracker-support" }
 
 [dev-dependencies]
 config-adapters = { path = "../config-adapters" }
+http-test-support = { path = "../http-test-support" }
 tempfile = { workspace = true }

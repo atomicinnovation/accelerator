@@ -16,6 +16,24 @@ pub enum ClientError {
     NoToken,
     #[error("E_TOKEN_MALFORMED: the token contains {found}")]
     MalformedToken { found: String },
+    #[error("E_SC_CONNECT: {detail}")]
+    NotSent { detail: String },
+    #[error("E_SC_CONNECT: {detail}")]
+    Transport { detail: String },
+    #[error("E_SC_INVALID: {detail}")]
+    RequestInvalid { detail: String },
+    #[error(
+        "E_SC_OVERSIZED: the response exceeded the {limit}-byte bound before \
+         it could be parsed"
+    )]
+    OversizedResponse { limit: usize },
+    #[error(
+        "E_SC_FOREIGN_PAGE: Shortcut returned a next page outside its own \
+         origin or the v4 API, so it was not followed: {url}"
+    )]
+    ForeignPage { url: String },
+    #[error("the TLS stack could not be initialised: {detail}")]
+    TlsUnavailable { detail: String },
     #[error("{key} could not be read: {detail}")]
     ConfigUnreadable { key: String, detail: String },
 }
