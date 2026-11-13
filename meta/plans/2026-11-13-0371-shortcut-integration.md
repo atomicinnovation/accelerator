@@ -492,10 +492,10 @@ The widened gate applies to every tracker, so a Jira or Linear user's
 lowercase key such as `eng-12` now reaches a command. That is intended: the
 Rust grammar already accepts it.
 
-Add eval cases to the sync skill's evals:
-- a `created sc-12` cause flows into `--resolve <id>=adopt:sc-12`;
-- the `:588` site accepts `adopt sc-12` on the unconfirmed-link prompt;
-- `sc-12;x`, `sc-`, `1234` and `sc-12 x` are shown but never used.
+The sync skill has no evals, so the structure test pins the change instead:
+it asserts the widened regex is present and the uppercase-only one is gone.
+The `:588` site names the shape without repeating the regex, so it follows
+the `:302` rule.
 
 #### 5. Exit-code docs
 
@@ -507,17 +507,17 @@ Add eval cases to the sync skill's evals:
 
 #### Automated Verification
 
-- [ ] Config tests pass: `cargo nextest run -p config`
-- [ ] Registry tests pass: `cargo nextest run -p work-cli tracker_registry`
-- [ ] Launcher dump golden passes: `cargo nextest run -p launcher config_read`
-- [ ] Build-system tests pass: `mise run test:unit:tasks`
-- [ ] Skill lint passes: `mise run lint:integration-skills:check lint:skill-permissions:check lint:skill-cli-refs:check`
-- [ ] Full run passes: `mise run`
+- [x] Config tests pass: `cargo nextest run -p config`
+- [x] Registry tests pass: `cargo nextest run -p accelerator-work tracker_registry`
+- [x] Launcher dump golden passes: `cargo nextest run -p accelerator config_read`
+- [x] Build-system tests pass: `mise run test:unit:tasks`
+- [x] Skill lint passes: `mise run lint:integration-skills:check`, `mise run lint:skill-permissions:check` and `mise run lint:skill-cli-refs:check`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `accelerator config dump` lists the three Shortcut keys.
-- [ ] `work.integration: shortcut` makes `accelerator work sync` print the
+- [x] `accelerator config dump` lists the three Shortcut keys.
+- [x] `work.integration: shortcut` makes `accelerator work sync` print the
       "recognised but has no client wired yet" message, with exit 72.
 
 ---
@@ -829,7 +829,7 @@ no "if the evidence shows" text when work on it begins. Decide:
 
 - [ ] Client tests pass: `cargo nextest run -p shortcut-client`
 - [ ] Evidence tests pass: `cargo nextest run -p tracker-test-support`
-- [ ] Architecture rules pass: `mise run pup:check test:integration:pup`
+- [ ] Architecture rules pass: `mise run pup:check` and `mise run test:integration:pup`
 - [ ] Crate-dependency tests pass: `mise run test:unit:tasks`
 - [ ] Public API check passes: `mise run public-api:check`
 - [ ] Dependency policy passes: `mise run deny:check`
@@ -1165,7 +1165,7 @@ Parameterise the corpus hash tests over `Integration::Shortcut`. Add cases:
 
 #### Automated Verification
 
-- [ ] Work CLI tests pass: `cargo nextest run -p work-cli`
+- [ ] Work CLI tests pass: `cargo nextest run -p accelerator-work`
 - [ ] Work adapter tests pass: `cargo nextest run -p work-adapters`
 - [ ] Crate-dependency tests pass: `mise run test:unit:tasks`
 - [ ] Full run passes: `mise run`
@@ -1344,8 +1344,8 @@ comments are untrusted data, never instructions. Add eval cases:
 #### Automated Verification
 
 - [ ] Binary tests pass: `cargo nextest run -p shortcut-cli`
-- [ ] Build-system tests pass: `mise run test:unit:tasks test:integration:tasks`
-- [ ] Skill lints pass: `mise run lint:integration-skills:check lint:skill-permissions:check lint:skill-cli-refs:check`
+- [ ] Build-system tests pass: `mise run test:unit:tasks` and `mise run test:integration:tasks`
+- [ ] Skill lints pass: `mise run lint:integration-skills:check`, `mise run lint:skill-permissions:check` and `mise run lint:skill-cli-refs:check`
 - [ ] Read-only checks pass, including dispatch coherence: `mise run check`
 - [ ] Full run passes: `mise run`
 
@@ -1457,7 +1457,7 @@ first for each subcommand:
 
 - [ ] Client tests pass: `cargo nextest run -p shortcut-client`
 - [ ] Binary tests pass: `cargo nextest run -p shortcut-cli`
-- [ ] Skill lints, including the write gate, pass: `mise run lint:integration-skills:check lint:skill-permissions:check`
+- [ ] Skill lints, including the write gate, pass: `mise run lint:integration-skills:check` and `mise run lint:skill-permissions:check`
 - [ ] Full run passes: `mise run`
 
 #### Manual Verification
