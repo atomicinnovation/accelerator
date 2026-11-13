@@ -1,0 +1,18 @@
+[package]
+name = "shortcut-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[package.metadata.accelerator]
+role = "adapter"
+context = "shortcut"
+kind = "product"
+
+[lints]
+workspace = true
+
+[dependencies]
+tracker-support = { path = "../tracker-support" }
