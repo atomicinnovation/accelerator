@@ -15,6 +15,7 @@ kind = "product"
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 thiserror = { workspace = true }
 config = { path = "../config" }
 tracker-support = { path = "../tracker-support" }

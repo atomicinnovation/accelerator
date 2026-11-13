@@ -4622,6 +4622,7 @@ version = "1.24.0-pre.96"
 dependencies = [
  "config",
  "config-adapters",
+ "reqwest",
  "tempfile",
  "thiserror",
  "tracker-support",

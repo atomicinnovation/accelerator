@@ -6,6 +6,7 @@
 pub mod auth;
 pub mod error;
 pub mod new_entity;
+pub mod paths;
 pub mod shortcut_key;
 
 pub use crate::auth::Credentials;
@@ -20,3 +21,4 @@ pub use crate::shortcut_key::NotAStory;
 pub use crate::shortcut_key::ShortcutKey;
 pub use crate::shortcut_key::StoryId;
 pub use crate::shortcut_key::UnparseableKey;
+pub use reqwest::Url;
