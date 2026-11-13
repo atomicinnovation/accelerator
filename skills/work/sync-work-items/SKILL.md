@@ -55,12 +55,12 @@ configured.
         with. It is currently unset.
   Why:  sync reads and writes that tracker's API; with no tracker there is
         nothing to reconcile against.
-  Fix:  set `work.integration` to one of `jira`, `linear`, `trello`, or
-        `github-issues` via /accelerator:configure, then re-run.
+  Fix:  set `work.integration` to one of `jira`, `linear`, `shortcut`,
+        `trello`, or `github-issues` via /accelerator:configure, then re-run.
 ```
 
-`trello` and `github-issues` are not built yet; `work sync` exits **72**
-("not available") for them, which you surface as a clear message. A wired
+`shortcut`, `trello` and `github-issues` are not built yet; `work sync` exits
+**72** ("not available") for them, which you surface as a clear message. A wired
 tracker (`jira`, `linear`) exits **74** ("unconfigured") when a run cannot
 proceed on its configuration — its credentials are missing or refused, or a
 non-push-only run's discovery scope names no valid target (an unset or
@@ -300,7 +300,7 @@ path it did not get from its own configuration:
   suggests no command and asks the user to handle the file by hand, after
   checking its version-control status themselves.
 - A tracker key goes into a command only when it matches the tracker-key shape
-  (`^[A-Z][A-Z0-9_]*-[0-9]+$`), whatever its source (the user, a `created
+  (`^[A-Za-z][A-Za-z0-9_]*-[0-9]+$`), whatever its source (the user, a `created
   <KEY>` cause, a moved-to key, a marker's key); any other key is shown, never
   used.
 - Bash commands take only ids, keys and flags, except `work show` and `work
