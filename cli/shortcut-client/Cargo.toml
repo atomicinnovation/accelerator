@@ -15,4 +15,10 @@ kind = "product"
 workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
+config = { path = "../config" }
 tracker-support = { path = "../tracker-support" }
+
+[dev-dependencies]
+config-adapters = { path = "../config-adapters" }
+tempfile = { workspace = true }

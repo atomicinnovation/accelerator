@@ -3,9 +3,13 @@
 //! No ADF layer: Shortcut stores Markdown, so a body passes through verbatim
 //! in both directions.
 
+pub mod auth;
+pub mod error;
 pub mod new_entity;
 pub mod shortcut_key;
 
+pub use crate::auth::Credentials;
+pub use crate::error::ClientError;
 pub use crate::new_entity::story_type_for_kind;
 pub use crate::new_entity::NewEntity;
 pub use crate::new_entity::StoryType;
