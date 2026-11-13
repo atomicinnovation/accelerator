@@ -7,12 +7,15 @@ pub mod auth;
 pub mod cache;
 pub mod catalogue;
 pub mod classify;
+pub mod discovery;
 pub mod error;
 pub mod new_entity;
+pub mod paging;
 pub mod paths;
 pub mod shortcut_key;
 pub mod team_key;
 pub mod transport;
+pub mod workspace;
 
 pub use crate::auth::Credentials;
 pub use crate::error::ClientError;
