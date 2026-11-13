@@ -568,6 +568,7 @@ fn an_unknown_tracking_refusal_names_each_consent_keys_recovery_hint() {
         ("jira.allowed_sites", "ACCELERATOR_JIRA_ALLOWED_SITES"),
         ("jira.token_cmd", "ACCELERATOR_JIRA_TOKEN_CMD"),
         ("linear.token_cmd", "ACCELERATOR_LINEAR_TOKEN_CMD"),
+        ("shortcut.token_cmd", "ACCELERATOR_SHORTCUT_TOKEN_CMD"),
         ("github.token_cmd", "GH_TOKEN"),
         ("openalex.api_key_cmd", "ACCELERATOR_OPENALEX_API_KEY_CMD"),
         ("design.browser_path", "ACCELERATOR_DESIGN_BROWSER_PATH"),
