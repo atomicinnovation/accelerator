@@ -4627,6 +4627,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "store",
  "tempfile",
  "thiserror",
  "tracing",
