@@ -823,17 +823,28 @@ no "if the evidence shows" text when work on it begins. Decide:
 - whether `SECRET_SHAPES` needs a shape beyond `sct_`;
 - whether Shortcut rewrites Markdown in a way that changes meaning.
 
+#### Implementation notes
+
+- `ShortcutClient::from_config` and its two no-request tests move to Phase 3,
+  where the client type is built. Phase 2 delivers the parts it calls:
+  `ShortcutCache::load`, the catalogue validation and `auth::team_key`.
+- Discovery reads each team's workflows from `GET /teams/{uuid}/workflows`
+  and each workflow's states from `GET /workflows/{id}/states`, rather than
+  the nested lists an entity carries, which v4 may cut short.
+- The whoami and listing decoders follow the v4 reference. The checkpoint
+  confirms or corrects them from the recorded captures.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Client tests pass: `cargo nextest run -p shortcut-client`
-- [ ] Evidence tests pass: `cargo nextest run -p tracker-test-support`
-- [ ] Architecture rules pass: `mise run pup:check` and `mise run test:integration:pup`
-- [ ] Crate-dependency tests pass: `mise run test:unit:tasks`
-- [ ] Public API check passes: `mise run public-api:check`
-- [ ] Dependency policy passes: `mise run deny:check`
-- [ ] Full run passes: `mise run`
+- [x] Client tests pass: `cargo nextest run -p shortcut-client`
+- [x] Evidence tests pass: `cargo nextest run -p tracker-test-support`
+- [x] Architecture rules pass: `mise run pup:check` and `mise run test:integration:pup`
+- [x] Crate-dependency tests pass: `mise run test:unit:tasks`
+- [x] Public API check passes: `mise run public-api:check`
+- [x] Dependency policy passes: `mise run deny:check`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
