@@ -111,6 +111,7 @@ pub enum tracker::TrackerKeys
 pub tracker::TrackerKeys::AnySupported
 pub tracker::TrackerKeys::Jira
 pub tracker::TrackerKeys::Linear
+pub tracker::TrackerKeys::Shortcut
 impl tracker::TrackerKeys
 pub fn tracker::TrackerKeys::is_key(self, token: &str) -> bool
 pub fn tracker::TrackerKeys::of_integration(integration: &str) -> Self

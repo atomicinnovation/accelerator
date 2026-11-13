@@ -2038,6 +2038,117 @@ def test_linear_client_io_rule_permits_a_filesystem_free_upload(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# shortcut-client mirrors the linear-client rules: it may reach neither the work
+# domain nor a sibling provider, and its transport, discovery and workspace
+# modules stay off the filesystem.
+
+_SHORTCUT_CLIENT_MANIFEST = """\
+[package]
+name = "shortcut-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+linear-client = { path = "../linear-client" }
+work = { path = "../work" }
+tracker = { path = "../tracker" }
+"""
+
+
+def _write_shortcut_probe(root: Path, lib_body: str) -> None:
+    """A workspace with shortcut-client depending on linear-client."""
+    (root / "Cargo.toml").write_text(
+        """\
+[workspace]
+resolver = "2"
+members = ["shortcut-client", "linear-client", "work", "tracker"]
+"""
+    )
+
+    client_src = root / "shortcut-client/src"
+    client_src.mkdir(parents=True, exist_ok=True)
+    (root / "shortcut-client/Cargo.toml").write_text(_SHORTCUT_CLIENT_MANIFEST)
+    (client_src / "lib.rs").write_text(lib_body)
+
+    sibling_src = root / "linear-client/src"
+    sibling_src.mkdir(parents=True, exist_ok=True)
+    (root / "linear-client/Cargo.toml").write_text(_LINEAR_CLIENT_STUB_MANIFEST)
+    (sibling_src / "lib.rs").write_text(_LINEAR_CLIENT_STUB_LIB)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST_MIN)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB_MIN)
+
+
+def test_shortcut_client_rule_rejects_importing_a_sibling_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shortcut_probe(tmp_path, _JIRA_CLIENT_SIBLING_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "shortcut_client_is_the_only_shortcut_transport" in output, output
+
+
+def test_shortcut_client_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shortcut_probe(tmp_path, _JIRA_CLIENT_WORK_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "shortcut_client_is_the_only_shortcut_transport" in output, output
+
+
+def test_shortcut_client_rule_permits_importing_the_port(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shortcut_probe(tmp_path, _JIRA_CLIENT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def _write_shortcut_io_probe(root: Path, discovery_body: str) -> None:
+    _write_shortcut_probe(root, "pub mod discovery;\n")
+    (root / "shortcut-client/src/discovery.rs").write_text(discovery_body)
+
+
+def test_shortcut_client_io_rule_rejects_std_fs_in_discovery(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shortcut_io_probe(tmp_path, _JIRA_TRANSPORT_FS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "shortcut_client_io_lives_in_cache" in output, output
+
+
+def test_shortcut_client_io_rule_permits_a_filesystem_free_discovery(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shortcut_io_probe(tmp_path, _JIRA_TRANSPORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # The remaining whole-crate domain rules are each driven against a workspace
 # whose crate is literally named for it, under the shipped cli/pup.ron, so
 # deleting or mistyping a rule fails here. corpus and vcs carry config's rule

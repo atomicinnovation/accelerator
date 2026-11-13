@@ -905,6 +905,7 @@ pub trait RemoteTracker: BodyDialect {
 pub enum TrackerKeys {
     Jira,
     Linear,
+    Shortcut,
     AnySupported,
 }
 
@@ -933,6 +934,7 @@ impl TrackerKeys {
         match self {
             Self::Jira | Self::AnySupported => r"[A-Za-z][A-Za-z0-9_]*-\d+",
             Self::Linear => r"[A-Za-z][A-Za-z0-9]*-\d+",
+            Self::Shortcut => r"(?:sc|epic)-\d+",
         }
     }
 
@@ -942,6 +944,7 @@ impl TrackerKeys {
         match self {
             Self::Jira => is_jira_key(token),
             Self::Linear => is_linear_identifier(token),
+            Self::Shortcut => is_shortcut_key(token),
             Self::AnySupported => {
                 is_jira_key(token) || is_linear_identifier(token)
             }
@@ -959,6 +962,16 @@ fn is_jira_key(token: &str) -> bool {
 /// hyphen, and the issue number.
 fn is_linear_identifier(token: &str) -> bool {
     is_keyed_number(token, |c| c.is_ascii_alphanumeric())
+}
+
+/// A Shortcut key: `sc` for a story or `epic` for an epic, a hyphen, and
+/// the entity's number.
+fn is_shortcut_key(token: &str) -> bool {
+    token.split_once('-').is_some_and(|(kind, number)| {
+        matches!(kind, "sc" | "epic")
+            && !number.is_empty()
+            && number.chars().all(|c| c.is_ascii_digit())
+    })
 }
 
 fn is_keyed_number(token: &str, is_key_character: fn(char) -> bool) -> bool {
