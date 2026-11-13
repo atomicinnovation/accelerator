@@ -1395,7 +1395,7 @@ fn dump_annotates_an_invalid_work_integration() -> TestResult {
     assert!(
         stdout.contains(
             "`work.integration` | `bogus (invalid: must be jira, linear, \
-             trello, github-issues)`"
+             shortcut, trello, github-issues)`"
         ),
         "invalid work.integration annotation drifted: {stdout}"
     );

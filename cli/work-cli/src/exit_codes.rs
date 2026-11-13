@@ -76,9 +76,9 @@
 //! before anything was sent:
 //!
 //! - `72` `NOT_AVAILABLE` — the configured tracker is recognised but has no
-//!   client wired yet (`trello`/`github-issues`).
+//!   client wired yet (`shortcut`/`trello`/`github-issues`).
 //! - `73` `UNRECOGNISED` — `work.integration` is unset or names a tracker
-//!   outside `{linear, jira, trello, github-issues}`. Fail closed.
+//!   outside `{linear, jira, shortcut, trello, github-issues}`. Fail closed.
 //! - `74` `UNCONFIGURED` — the tracker is wired but a run cannot proceed on its
 //!   configuration: its credentials are missing or refused, or a non-push-only
 //!   run's discovery scope names no valid target (an unset or unresolvable

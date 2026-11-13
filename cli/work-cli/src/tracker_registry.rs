@@ -40,12 +40,13 @@ impl SelectionError {
     pub fn message(&self) -> String {
         match self {
             Self::Unset => "work.integration is not set. Recognised \
-                trackers: linear, jira, trello, github-issues. Configure \
-                one with /accelerator:configure."
+                trackers: linear, jira, shortcut, trello, github-issues. \
+                Configure one with /accelerator:configure."
                 .to_owned(),
             Self::Unrecognised { name } => format!(
                 "work.integration names an unrecognised tracker: '{name}'. \
-                 Recognised trackers: linear, jira, trello, github-issues."
+                 Recognised trackers: linear, jira, shortcut, trello, \
+                 github-issues."
             ),
             Self::NotAvailable { name } => format!(
                 "work.integration names '{name}', which is recognised but \
@@ -76,8 +77,8 @@ pub trait TrackerRegistry {
 }
 
 /// The production registry. `jira` and `linear` resolve real clients from
-/// configuration; `trello` and `github-issues` report not-available; everything
-/// else falls to `Unrecognised`.
+/// configuration; `shortcut`, `trello` and `github-issues` report
+/// not-available; everything else falls to `Unrecognised`.
 pub struct ConfiguredTrackers<'a> {
     config: &'a dyn ConfigAccess,
     root: PathBuf,
@@ -281,9 +282,11 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
                 report_consent(client.notice(), client.refusals());
                 Box::new(client) as Box<dyn RemoteTracker>
             }),
-            "trello" | "github-issues" => Err(SelectionError::NotAvailable {
-                name: name.to_owned(),
-            }),
+            "shortcut" | "trello" | "github-issues" => {
+                Err(SelectionError::NotAvailable {
+                    name: name.to_owned(),
+                })
+            }
             other => Err(SelectionError::Unrecognised {
                 name: other.to_owned(),
             }),
