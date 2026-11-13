@@ -30,4 +30,5 @@ tracker-support = { path = "../tracker-support" }
 [dev-dependencies]
 config-adapters = { path = "../config-adapters" }
 http-test-support = { path = "../http-test-support" }
+tracker-test-support = { path = "../tracker-test-support" }
 tempfile = { workspace = true }

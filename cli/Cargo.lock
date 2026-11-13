@@ -4633,6 +4633,7 @@ dependencies = [
  "tracing",
  "tracker",
  "tracker-support",
+ "tracker-test-support",
  "webpki-root-certs",
 ]
 

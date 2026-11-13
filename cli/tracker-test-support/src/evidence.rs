@@ -93,7 +93,7 @@ pub fn render(
     out
 }
 
-const SECRET_SHAPES: [&str; 3] = ["ATATT", "lin_api_", "Bearer "];
+const SECRET_SHAPES: [&str; 4] = ["ATATT", "lin_api_", "sct_", "Bearer "];
 
 fn comment_is_safe(line: &str) -> bool {
     line.chars().all(|character| {
@@ -234,6 +234,12 @@ mod tests {
     #[test]
     fn a_linear_token_prefix_is_a_violation() {
         let dirty = "# lin_api_0123456789\n";
+        assert!(is_reduced(dirty).is_err());
+    }
+
+    #[test]
+    fn a_shortcut_token_prefix_is_a_violation() {
+        let dirty = "# sct_rw_acme_0123456789\n";
         assert!(is_reduced(dirty).is_err());
     }
 
