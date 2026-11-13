@@ -113,6 +113,17 @@ fn trello_also_exits_72_not_73() -> Result<(), TestError> {
 }
 
 #[test]
+fn shortcut_is_recognised_but_not_yet_wired() -> Result<(), TestError> {
+    let repo = scratch_repo(Some("shortcut"))?;
+    let output = run(repo.path(), &[])?;
+    assert_eq!(output.status.code(), Some(72));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("'shortcut'"), "{stderr}");
+    assert!(stderr.contains("no client wired yet"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn preview_does_not_bypass_provider_selection() -> Result<(), TestError> {
     let repo = scratch_repo(Some("jira"))?;
     let output = run(repo.path(), &["--preview"])?;

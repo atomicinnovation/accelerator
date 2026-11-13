@@ -123,7 +123,7 @@ pub const WORK_KEYS: &[(&str, Default)] = &[
 /// The non-empty values `work.integration` accepts; empty (unset) is always
 /// permitted. A `work` read of any other value is a fail-closed refusal.
 pub const WORK_INTEGRATION_VALUES: &[&str] =
-    &["jira", "linear", "trello", "github-issues"];
+    &["jira", "linear", "shortcut", "trello", "github-issues"];
 
 /// Whether `value` is an accepted `work.integration`: empty (unset) is always
 /// permitted, else membership in [`WORK_INTEGRATION_VALUES`].
@@ -712,6 +712,11 @@ mod tests {
         }
         assert!(!super::is_valid_work_integration("bitbucket"));
         assert!(!super::is_valid_work_integration("Jira"));
+    }
+
+    #[test]
+    fn work_integration_accepts_shortcut() {
+        assert!(super::is_valid_work_integration("shortcut"));
     }
 
     #[test]
