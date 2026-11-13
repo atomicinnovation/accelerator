@@ -9,6 +9,7 @@ pub mod error;
 pub mod new_entity;
 pub mod paths;
 pub mod shortcut_key;
+pub mod team_key;
 pub mod transport;
 
 pub use crate::auth::Credentials;
