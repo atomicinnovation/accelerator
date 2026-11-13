@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 rustls = { workspace = true }
+serde = { workspace = true }
 webpki-root-certs = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
