@@ -368,6 +368,7 @@ details[open] > summary { margin-bottom: 8px; }
 .fig-body { min-width: 0; overflow-x: auto; }
 .fig-scroll { overflow-x: auto; min-width: 0; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
+.fig-scroll svg.dk { max-width: 100%; min-width: calc(var(--natural-width) * .6); }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
 .fig.wide { grid-column: 1 / -1; }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
@@ -1088,7 +1089,7 @@ function diagramLink(link) {
 function figDiagram(f) {
   if (!f.scene) return '<div class="fig-error">This diagram could not be laid out. The build names what is wrong with it.</div>';
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
-  return `<div class="fig-scroll">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${f.symbols || ''}${remarks}`;
+  return `<div class="fig-scroll" style="--natural-width:${f.scene.width}px">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${f.symbols || ''}${remarks}`;
 }
 function figSelfDrawn(f) {
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
@@ -1113,9 +1114,14 @@ function figureBody(f) {
   if (!draw) return `<div class="fig-error">No renderer for a figure of kind “${esc(f && f.kind)}”.</div>`;
   try { return draw(f, ++figureSeq); } catch (e) { return `<div class="fig-error">This figure could not be drawn: ${esc(e.message)}</div>`; }
 }
+const WIDEST_IN_HALF_A_ROW = 430;
+function spansTheRow(f) {
+  if (f.wide || ['compare', 'sequence-diagram', 'timeline'].includes(f.kind)) return true;
+  return Boolean(f.scene) && f.scene.width > WIDEST_IN_HALF_A_ROW;
+}
 function figureHtml(f, opts = {}) {
   if (!f) return '';
-  const wide = f.wide || ['compare', 'sequence-diagram', 'timeline'].includes(f.kind);
+  const wide = spansTheRow(f);
   const body = figureBody(f);
   return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}</figure>`;
 }

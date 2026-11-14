@@ -176,3 +176,23 @@ def test_an_element_being_drawn_into_says_so_until_it_is_done():
 
 def test_the_page_names_its_custom_views():
     assert "customViews: () =>" in SHELL.read_text()
+
+
+def test_a_drawing_too_wide_for_half_the_row_is_given_the_whole_row():
+    layout = renderer("figureHtml")
+    spans = renderer("spansTheRow")
+
+    assert "spansTheRow(f)" in layout
+    assert "f.wide" in spans
+    assert "f.scene.width > WIDEST_IN_HALF_A_ROW" in spans
+    assert "const WIDEST_IN_HALF_A_ROW = " in SHELL.read_text()
+
+
+def test_a_drawing_wider_than_its_row_shrinks_to_fit_within_a_limit():
+    shell = SHELL.read_text()
+
+    assert "--natural-width:${f.scene.width}px" in renderer("figDiagram")
+    assert (
+        "max-width: 100%" in shell[shell.index(".fig-scroll svg.dk {") :][:200]
+    )
+    assert "min-width: calc(var(--natural-width) * .6)" in shell

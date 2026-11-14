@@ -370,7 +370,7 @@ Every figure has:
   "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|railroad-diagram|block-diagram|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
-  "wide": false }                             // optional: span the full row
+  "wide": false }                             // optional: span the full row; a drawing too wide for half of it does anyway
 ```
 
 | Kind | Draw it for | Shape |
