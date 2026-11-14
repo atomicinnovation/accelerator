@@ -2,7 +2,7 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { SHAPES } = inNode ? require('./shapes.js') : root.DiagramKit;
-  const { blockOf } = inNode ? require('./text.js') : root.DiagramKit;
+  const { blockOf, widthOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
 
   const DIRECTIONS = { down: 'DOWN', right: 'RIGHT' };
   const EDGE_LABEL_LIMIT = 180;
@@ -12,7 +12,7 @@
     'elk.spacing.nodeNode': '26',
     'elk.spacing.edgeNode': '18',
     'elk.spacing.edgeEdge': '12',
-    'elk.spacing.edgeLabel': '4',
+    'elk.spacing.edgeLabel': '7',
     'elk.layered.spacing.edgeNodeBetweenLayers': '18',
   };
 
@@ -52,9 +52,17 @@
     for (const end of [edge.from, edge.to]) if (!known.has(end)) throw new Error(`edge ${edge.id}: no node "${end}"`);
     const label = edge.label ? blockOf(edge.label, 'edge', EDGE_LABEL_LIMIT) : null;
     const [source, target] = edge.against ? [edge.to, edge.from] : [edge.from, edge.to];
+    const atEnd = (name, text, end) => ({
+      id: `${edge.id}#${name}`, text, width: Math.ceil(widthOf(text, 'end')) + 2, height: ROLES.end.lineHeight,
+      layoutOptions: { 'elk.edgeLabels.placement': (end === 'TAIL') === !edge.against ? 'TAIL' : 'HEAD' },
+    });
     return {
       id: edge.id, sources: [source], targets: [target],
-      labels: label ? [{ text: edge.label, width: Math.ceil(label.width) + 12, height: label.height + 4 }] : [],
+      labels: [
+        ...(label ? [{ id: `${edge.id}#centre`, text: edge.label, width: Math.ceil(label.width) + 12, height: label.height + 4 }] : []),
+        ...(edge.fromLabel ? [atEnd('from', edge.fromLabel, 'TAIL')] : []),
+        ...(edge.toLabel ? [atEnd('to', edge.toLabel, 'HEAD')] : []),
+      ],
     };
   }
 
@@ -115,15 +123,19 @@
         const routed = (each.sections || []).flatMap(section => [section.startPoint, ...(section.bendPoints || []), section.endPoint])
           .map(point => [settled(left + point.x), settled(top + point.y)]);
         const points = said.against ? routed.reverse() : routed;
-        const [label] = each.labels || [];
-        const labelBox = label ? { x: settled(left + label.x), y: settled(top + label.y), width: label.width, height: label.height } : null;
+        const boxOf = name => {
+          const label = (each.labels || []).find(found => found.id === `${each.id}#${name}`) ?? (name === 'centre' ? (each.labels || []).find(found => !found.id) : undefined);
+          return label ? { x: settled(left + label.x), y: settled(top + label.y), width: label.width, height: label.height } : null;
+        };
+        const labelBox = boxOf('centre'), fromLabelBox = boxOf('from'), toLabelBox = boxOf('to');
         if (points.length) {
           points[0] = onOutline(placedById.get(said.from), points[0]);
           points[points.length - 1] = onOutline(placedById.get(said.to), points[points.length - 1]);
         }
         const hasTail = said.tail && said.tail !== 'none';
         const roomy = withRoomForHead(points);
-        edges.push({ ...said, points: hasTail ? withRoomForHead([...roomy].reverse()).reverse() : roomy, labelBox });
+        const ends = { ...(fromLabelBox ? { fromLabelBox } : {}), ...(toLabelBox ? { toLabelBox } : {}) };
+        edges.push({ ...said, points: hasTail ? withRoomForHead([...roomy].reverse()).reverse() : roomy, labelBox, ...ends });
       }
       (laidNode.children || []).forEach(route);
     };

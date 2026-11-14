@@ -121,3 +121,45 @@ test('a boundary is a dashed frame that says what it is, then its name', () => {
   assert.match(boundary, /<rect class="body" x="10" y="20" width="280" height="160" rx="10"\/>/);
   assert.match(boundary, /<text class="stereotype" x="24" y="40" text-anchor="start">«aggregate»<\/text><text class="title" x="[\d.]+" y="40" text-anchor="start">Order<\/text>/);
 });
+
+const ENDS = {
+  nodes: [{ id: 'whole', shape: 'classifier', label: 'Whole' }, { id: 'part', shape: 'classifier', label: 'Part' }, { id: 'other', shape: 'classifier', label: 'Other' }, { id: 'general', shape: 'classifier', label: 'General' }],
+  edges: [
+    { id: 'owns', from: 'whole', to: 'part', label: 'holds', tail: 'filled-diamond', head: 'none', fromLabel: '1', toLabel: '0..* parts' },
+    { id: 'knows', from: 'whole', to: 'other', head: 'open', toLabel: '0..1 other' },
+    { id: 'is', from: 'whole', to: 'general', head: 'hollow', against: true, fromLabel: 'specific', toLabel: 'general' },
+  ],
+};
+
+test('the layout is told about the label at each end of an edge, and which end it belongs to', () => {
+  const [owns, knows, is] = layoutGraphOf(ENDS).edges;
+  assert.deepEqual(owns.labels.map(label => [label.id, (label.layoutOptions || {})['elk.edgeLabels.placement']]), [['owns#centre', undefined], ['owns#from', 'TAIL'], ['owns#to', 'HEAD']]);
+  assert.deepEqual(knows.labels.map(label => label.id), ['knows#to']);
+  assert.deepEqual(is.labels.map(label => [label.id, label.layoutOptions['elk.edgeLabels.placement']]), [['is#from', 'HEAD'], ['is#to', 'TAIL']]);
+  assert.ok(owns.labels[2].width >= widthOf('0..* parts', 'end'));
+});
+
+test('each end label is placed by the layout, clear of every box and of every other label', async () => {
+  const scene = await laidOut(ENDS);
+  const boxes = scene.edges.flatMap(edge => [edge.labelBox, edge.fromLabelBox, edge.toLabelBox].filter(Boolean));
+  assert.equal(boxes.length, 6);
+  const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  boxes.forEach((a, i) => boxes.slice(i + 1).forEach(b => assert.ok(!overlap(a, b), 'two labels overlap')));
+  for (const box of boxes) for (const each of scene.nodes) assert.ok(!overlap(box, each), `a label lies on ${each.id}`);
+});
+
+test('an end label is placed near the end it describes', async () => {
+  const scene = await laidOut(ENDS);
+  const near = (box, [x, y]) => Math.abs(box.y + box.height / 2 - y) < 40 && Math.abs(box.x + box.width / 2 - x) < 80;
+  for (const edge of scene.edges) {
+    if (edge.fromLabelBox) assert.ok(near(edge.fromLabelBox, edge.points[0]), `${edge.id} from`);
+    if (edge.toLabelBox) assert.ok(near(edge.toLabelBox, edge.points.at(-1)), `${edge.id} to`);
+  }
+});
+
+test('an end label is drawn where the layout put it', () => {
+  const placed = { ...EDGE, fromLabelBox: { x: 120, y: 130, width: 10, height: 14 }, toLabelBox: { x: 40, y: 114, width: 62, height: 14 } };
+  const drawn = groupHolding(svgOf({ width: 220, height: 220, nodes: [CLOCK, PLAIN], edges: [placed] }, { uid: 'c' }), 'data-edge="e"');
+  assert.match(drawn, /<text class="end" x="120" y="141" text-anchor="start">1<\/text>/);
+  assert.match(drawn, /<text class="end" x="40" y="125" text-anchor="start">0\.\.\* clocks<\/text>/);
+});

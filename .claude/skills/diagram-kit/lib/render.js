@@ -206,8 +206,9 @@
     return `<rect x="${tidy(x)}" y="${tidy(y)}" width="${tidy(width)}" height="${tidy(height)}" rx="9"/>${opened(textOf(block, 'edge-text', x + width / 2, y + (height - block.height) / 2 + 11, 'middle'))}`;
   }
 
-  function endText(text, point, next, clearance, side) {
+  function endText(text, box, point, next, clearance, side) {
     if (!text) return '';
+    if (box) return textOf(blockOf(text, 'end'), 'end', box.x, box.y + 11, 'start');
     const { x, y, anchor } = endLabelAt(point, next, clearance, side);
     return textOf(blockOf(text, 'end'), 'end', x, y, anchor);
   }
@@ -218,8 +219,8 @@
     const head = headOf(edge.head, edge.points), tail = tailOf(edge.tail, edge.points);
     const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut, tail.cut), CORNER, head.path ? Math.max(HEAD_LENGTH - head.cut, 0) : 0)}"/>`;
     const arrow = (tail.path ? `<path class="tail ${edge.tail}" d="${tail.path}"/>` : '') + (head.path ? `<path class="head ${edge.head}" d="${head.path}"/>` : '');
-    const ends = endText(edge.fromLabel, edge.points[0], edge.points[1], tail.cut, -1)
-      + endText(edge.toLabel, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2], head.path ? Math.max(head.cut, HEAD_LENGTH) : 0, 1);
+    const ends = endText(edge.fromLabel, edge.fromLabelBox, edge.points[0], edge.points[1], tail.cut, -1)
+      + endText(edge.toLabel, edge.toLabelBox, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2], head.path ? Math.max(head.cut, HEAD_LENGTH) : 0, 1);
     return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${ends}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
   }
 

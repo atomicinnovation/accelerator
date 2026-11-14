@@ -22,8 +22,12 @@ const DRAWING_CHECKS = `(async () => {
     for (const edge of svg.querySelectorAll('.edge')) {
       const id = edge.getAttribute('data-edge'), ends = [edge.getAttribute('data-from'), edge.getAttribute('data-to')];
       const line = edge.querySelector('.line'), length = line.getTotalLength();
-      const label = edge.querySelector('rect'), text = edge.querySelector('text');
+      const label = edge.querySelector('rect'), text = edge.querySelector('.edge-text');
       if (label && text && beyond(boxOf(text), boxOf(label)) > 0) problems.push('edge ' + id + ': label runs outside its plate');
+      for (const end of edge.querySelectorAll('.end')) {
+        const lies = boxes.find(box => overlap(boxOf(end), box.body, 2));
+        if (lies) problems.push('edge ' + id + ': the label at one end lies on node ' + lies.id);
+      }
       const crossed = new Set();
       for (let at = 0; at <= length; at += 3) {
         const point = line.getPointAtLength(at);
