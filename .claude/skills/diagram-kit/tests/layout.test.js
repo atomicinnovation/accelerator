@@ -196,3 +196,9 @@ test('where arrows run in a cycle, what is written first comes first', async () 
   const top = [...scene.nodes].sort((x, y) => x.y - y.y)[0];
   assert.equal(top.id, 'b');
 });
+
+test('a laid-out scene keeps the key to its abbreviations', async () => {
+  const scene = await laidOut({ nodes: [{ id: 'a', shape: 'box', label: 'a' }], edges: [], key: [['U', 'upstream']] });
+  assert.deepEqual(scene.key, [['U', 'upstream']]);
+  assert.equal('key' in (await laidOut({ nodes: [{ id: 'a', shape: 'box', label: 'a' }], edges: [] })), false);
+});

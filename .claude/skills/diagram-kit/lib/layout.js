@@ -148,7 +148,7 @@
     route(laid);
     const inSceneOrder = new Map((scene.edges || []).map((edge, position) => [edge.id, position]));
     edges.sort((a, b) => inSceneOrder.get(a.id) - inSceneOrder.get(b.id));
-    return { width: settled(laid.width), height: settled(laid.height), nodes, edges };
+    return { width: settled(laid.width), height: settled(laid.height), nodes, edges, ...(scene.key ? { key: scene.key } : {}) };
   }
 
   function withRoomForHead(points) {

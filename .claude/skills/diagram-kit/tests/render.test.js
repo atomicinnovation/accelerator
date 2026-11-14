@@ -138,3 +138,8 @@ test('what a group is called is written again over the edges, so an arrow never 
 test('a scene with no groups has no captions to write again', () => {
   assert.doesNotMatch(svgOf({ width: 10, height: 10, nodes: [{ id: 'a', shape: 'box', label: 'a', x: 0, y: 0, width: 10, height: 10 }], edges: [] }, {}), /captions/);
 });
+
+test('the legend spells out each abbreviation a scene says it uses', () => {
+  const legend = legendOf({ nodes: [], edges: [], key: [['OHS', 'open host service'], ['ACL', 'anticorruption layer']] });
+  assert.equal(legend, '<div class="dk-legend"><span><b>OHS</b> open host service</span><span><b>ACL</b> anticorruption layer</span></div>');
+});

@@ -351,7 +351,8 @@
       ...Object.keys(STATUSES).filter(status => items.some(item => item.status === status)).map(status => `<span><span class="dk-key s-${status}"></span>${STATUSES[status]}</span>`),
       ...Object.keys(TONES).filter(tone => items.some(item => item.tone === tone)).map(tone => `<span><span class="dk-key t-${tone}"></span>${TONES[tone]}</span>`),
     ];
-    return keys.length ? `<div class="dk-legend">${keys.join('')}</div>` : '';
+    const spelled = (scene.key || []).map(([short, meaning]) => `<span><b>${escaped(short)}</b> ${escaped(meaning)}</span>`);
+    return keys.length || spelled.length ? `<div class="dk-legend">${[...keys, ...spelled].join('')}</div>` : '';
   }
 
   const api = { svgOf, legendOf, roundedPath, headOf, tailOf, endLabelAt, crowAt };
