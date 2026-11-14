@@ -1,0 +1,166 @@
+{
+  "family": "A1",
+  "title": "ask judges coverage",
+  "scenarios": [
+    {
+      "name": "a1-c1-answered",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "covered": [
+              "plan"
+            ],
+            "offers": "reject",
+            "writes": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "a1-c4-answered",
+      "verb": "ask",
+      "question": "Which agent frameworks document a planning API?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "covered": [
+              "framework"
+            ],
+            "offers": "reject",
+            "writes": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "a1-c5-partial",
+      "verb": "ask",
+      "question": "How do agents plan tasks, and which planner do benchmarks rank first?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "covered": [
+              "plan"
+            ],
+            "gaps": [
+              {
+                "keyword": "rank",
+                "tier": "tier-3 (also tier-1)"
+              }
+            ],
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "a1-c2-partial",
+      "verb": "ask",
+      "question": "How do agents plan tasks, and how do they recover from failed steps?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "partial",
+            "covered": [
+              "plan"
+            ],
+            "gaps": [
+              {
+                "keyword": "recover",
+                "tier": "tier-3"
+              }
+            ],
+            "proposal": {
+              "each_mentions": [
+                "recover",
+                "fail"
+              ]
+            },
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "a1-c3-unanswered",
+      "verb": "ask",
+      "question": "Which GPUs train agent models fastest?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "unanswered",
+            "offers": "proposal",
+            "writes": []
+          }
+        },
+        {
+          "reply": "confirm",
+          "expect": {
+            "writes": [
+              "outline.md",
+              "manifest.md"
+            ],
+            "appended_round": 4,
+            "manifest": {
+              "fields": {
+                "status": "researching",
+                "round_count": 3,
+                "finding_count": 10
+              },
+              "lists_reports": false
+            },
+            "next_steps": true
+          }
+        }
+      ]
+    }
+  ]
+}

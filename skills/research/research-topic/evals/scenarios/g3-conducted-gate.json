@@ -1,0 +1,374 @@
+{
+  "family": "G3",
+  "title": "The fully-conducted gate",
+  "scenarios": [
+    {
+      "name": "g3-straggler-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "remove": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md"
+          },
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-straggler-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "remove": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md"
+          },
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-quarantined-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "rename": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md",
+            "to": "findings/.03-how-do-agents-recover-from-failed-steps-openalex.md.invalid"
+          },
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-quarantined-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "rename": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md",
+            "to": "findings/.03-how-do-agents-recover-from-failed-steps-openalex.md.invalid"
+          },
+          {
+            "set": "manifest.md",
+            "field": "finding_count",
+            "value": 9
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-invalid-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "drop_line": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md",
+            "starting": "source_profile:"
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-invalid-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "drop_line": "findings/03-how-do-agents-recover-from-failed-steps-openalex.md",
+            "starting": "source_profile:"
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "How do agents recover from failed steps? (openalex)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-unconducted-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "Which datasets suit agent training? (web)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-unconducted-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "conducted",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Still to research:",
+                "Which datasets suit agent training? (web)",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Held back by"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-arxiv-item-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "append": "outline.md",
+            "text": "- [ ] Which planning preprints appeared this year? — profiles: arxiv\n"
+          }
+        ]
+      },
+      "gate": "held_back",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Which planning preprints appeared this year?",
+                "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Still to research:"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g3-arxiv-item-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "append": "outline.md",
+            "text": "- [ ] Which planning preprints appeared this year? — profiles: arxiv\n"
+          }
+        ]
+      },
+      "gate": "held_back",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "conducted",
+              "names": [
+                "Which planning preprints appeared this year?",
+                "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "synthesis is stale",
+                "Still to research:"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

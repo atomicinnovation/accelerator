@@ -63,6 +63,11 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:eval-fixtures": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
     "test:integration:hooks": {
         _LAUNCHER,
         "build:cli:vcs:dev",
@@ -71,6 +76,22 @@ _CLI_DEV_BUILDS = {
     "test:integration:research": {"build:cli:research:dev"},
     "test:integration:research-exhaustive": {"build:cli:research:dev"},
     "test:integration:visualiser": {_LAUNCHER},
+}
+
+# Eval tasks that run compiled cli/ binaries, each with exactly the debug
+# builds its sessions and judge run. A separate dict, because _CLI_DEV_BUILDS
+# must classify exactly the test:integration:* lanes.
+_EVAL_CLI_DEV_BUILDS = {
+    "eval:ask-and-report": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
+    "eval:citing-once": {
+        _LAUNCHER,
+        "build:cli:corpus:dev",
+        "build:cli:research:dev",
+    },
 }
 
 # Integration tasks that deliberately need no prebuilt launcher, each with a
@@ -170,6 +191,11 @@ def _cli_dev_builds(mise: dict, task: str) -> set[str]:
 @pytest.mark.parametrize("task", sorted(_CLI_DEV_BUILDS))
 def test_a_lane_depends_on_exactly_the_cli_builds_it_runs(mise, task):
     assert _cli_dev_builds(mise, task) == _CLI_DEV_BUILDS[task]
+
+
+@pytest.mark.parametrize("task", sorted(_EVAL_CLI_DEV_BUILDS))
+def test_an_eval_depends_on_exactly_the_cli_builds_it_runs(mise, task):
+    assert _cli_dev_builds(mise, task) == _EVAL_CLI_DEV_BUILDS[task]
 
 
 @pytest.mark.parametrize("task", sorted(_NO_LAUNCHER_NEEDED))
@@ -327,6 +353,10 @@ def _tasks_reaching_an_eval(mise: dict) -> set[str]:
 
 def test_the_citing_once_eval_is_reached_by_its_own_task(mise):
     assert "eval:citing-once" in _tasks_reaching_an_eval(mise)
+
+
+def test_the_ask_and_report_eval_is_reached_by_its_own_task(mise):
+    assert "eval:ask-and-report" in _tasks_reaching_an_eval(mise)
 
 
 @pytest.mark.parametrize("root", ["check", "default", "test"])

@@ -485,6 +485,56 @@
   run or one a revert has undone. It refuses over uncommitted corpus changes
   unless `ACCELERATOR_FORCE=1` is set. `/accelerator:rekey-work-items`
   previews, asks, then applies or discards.
+- **A topic-research report template.** `topic-research-report.md` is the
+  skeleton for a standalone answer to one question asked of a set:
+  `kind: report`, its `question`, `rounds_covered` and `coverage`, and an
+  Answer, Coverage, Gaps and Sources body.
+  `templates.topic-research-report` points it at a project's own file, as
+  the other topic-research keys do. A manifest may now record an optional
+  `report_count`.
+- **`BAD-EXTRA-VALUE` flags an extra outside its closed vocabulary.** A
+  report's `coverage` must be `answered` or `partial`; any other value fails
+  `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
+  its vocabulary fails with `BAD-STATUS`.
+- **`accelerator research topic report-path SLUG QUESTION`** prints the
+  absolute path a new report on the question takes:
+  `reports/<question-slug>.md`, cut before the word that would pass 60
+  characters, or the first free `-2`, `-3`, … suffix. It writes nothing,
+  and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
+  question.
+- **`accelerator research topic counts SLUG`** prints the round, finding and
+  report counts a set's files give beside those its manifest and synthesis
+  record, whether they agree, and a fixed sentence for each disagreement.
+- **`accelerator research topic consultable SLUG --profiles-dir DIR`**
+  judges whether a set may be consulted: its status, its freshness and
+  whether every outline pair is answered, in that order. It prints the first
+  gate that fails, or the findings and reports to read.
+- **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from
+  a synthesised, fresh, fully conducted set in conversation. It states its
+  coverage as `answered`, `partial` or `unanswered`, naming the sources and
+  tiers behind each part, and for a partial or unanswered question proposes a
+  new outline round, which it appends and reopens the set for only on
+  confirmation. Until Claude Code keeps a skill's grant across a reply, the
+  commands `ask` runs after a reply prompt for permission, and are denied in
+  a headless session; adding `Bash(accelerator corpus *)` and
+  `Bash(accelerator research topic *)` to your allow rules avoids that.
+- **research-topic grants a `Read` of the citing-once rule**, scoped to its
+  directory in the plugin, so `synthesise`, `ask` and `report` read the rule
+  without a permission prompt.
+- **`accelerator corpus metadata derive` prints an `Author:` line**: the
+  checkout's configured `user.name`, from jj inside a jj repository and from
+  git otherwise, omitted when none is set. A skill fills `author` from it
+  rather than running a VCS command of its own.
+- **`/accelerator:research-topic report SLUG QUESTION`** answers a question
+  from the same kind of set as `ask`, then, once you accept, writes
+  `reports/<question-slug>.md` with its `coverage` (`answered` or `partial`),
+  its answer, its gaps and every source behind them, and records it in the
+  manifest's `report_count`. It lists any existing report asking the same
+  thing, so you can rewrite that one in place instead, and a reply that
+  chooses an option may also name relationships for the report's
+  `relates_to`. As for `ask`, the commands it runs after a reply prompt for
+  permission until Claude Code keeps a skill's grant across a reply, and are
+  denied in a headless session; the same two allow rules avoid that.
 
 ### Changed
 
@@ -730,6 +780,18 @@
   `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
+- **`corpus frontmatter print-schema` rows carry `extra_vocabs`**, an object
+  mapping each extra that takes a closed set of values to those values. It
+  is `{}` on every row but the report's, which holds
+  `{"coverage": ["answered", "partial"]}`. A consumer that reads rows by key
+  is unaffected.
+- **research-topic takes its counts and freshness gate from the CLI.**
+  `conduct`, `synthesise` and `finalise` read the manifest counts from
+  `research topic counts` rather than counting files themselves.
+  `finalise`'s stale refusal names each mismatch in fixed wording, and
+  `synthesise` stamps `rounds_covered` from the counts on disk. `conduct`'s
+  planner ignores a `findings/` entry without a numbered index, as the
+  counts always have.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
@@ -948,6 +1010,15 @@
   `search_budget` line after `depth`.** Web level notes record their search
   budget there; the field is optional, so an override without it still
   writes valid notes, but they do not record the budget.
+- **Add `report_count: 0` to an overridden manifest template.** A project
+  that overrides `topic-research-manifest.md` adds the line after
+  `finding_count`, so the sets `brief` starts record their report count from
+  the outset. The field is optional, so an override without it still writes
+  valid manifests.
+- **Upgrade a shared corpus together before committing a report.** An
+  older binary's whole-corpus `validate` rejects the `report` kind as
+  `UNKNOWN-KIND`, so a teammate on an earlier release sees every committed
+  report fail until they upgrade.
 
 - **Reload every session sharing a relocated root within 14 days of
   upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so

@@ -218,6 +218,7 @@ pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     check_schema_version(&entries, &mut violations);
     check_timestamps(&entries, &mut violations);
     check_status(&entries, row, &mut violations);
+    check_extra_vocabs(&entries, row, &mut violations);
     check_provenance(&entries, row, &mut violations);
     check_forbidden_own_id(&entries, row, &mut violations);
     check_obsolete_legacy_keys(&entries, &mut violations);
@@ -310,15 +311,49 @@ fn check_status(
     row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
-    if let Some(field_value) = raw_value(entries, "status") {
-        let inner = strip_surrounding_quote(field_value);
-        if !inner.is_empty() && !row.status_vocab.contains(&inner) {
-            violations.push(Violation::BadStatus {
-                value: inner.to_owned(),
-                vocab: row.status_vocab.join(" | "),
+    let Some(field_value) = raw_value(entries, "status") else {
+        return;
+    };
+    let value = strip_surrounding_quote(field_value);
+    if value.is_empty() {
+        return;
+    }
+    if let Some(vocab) = outside_vocab(row.status_vocab, value) {
+        violations.push(Violation::BadStatus {
+            value: value.to_owned(),
+            vocab,
+        });
+    }
+}
+
+/// An empty `""` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` is
+/// outside every vocab.
+fn check_extra_vocabs(
+    entries: &[(String, String)],
+    row: &schema::SchemaRow,
+    violations: &mut Vec<Violation>,
+) {
+    for vocab in row.extra_vocabs {
+        let Some(field_value) = raw_value(entries, vocab.extra) else {
+            continue;
+        };
+        if field_value == EMPTY_STRING {
+            continue;
+        }
+        let value = strip_surrounding_quote(field_value);
+        if let Some(vocab_text) = outside_vocab(vocab.values, value) {
+            violations.push(Violation::BadExtraValue {
+                extra: vocab.extra,
+                value: value.to_owned(),
+                vocab: vocab_text,
             });
         }
     }
+}
+
+/// The vocab as the violation renders it, when `value` lies outside it.
+fn outside_vocab(values: &[&str], value: &str) -> Option<String> {
+    (!values.contains(&value)).then(|| values.join(" | "))
 }
 
 fn check_provenance(
@@ -384,6 +419,7 @@ fn check_required_extras(
 }
 
 const WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"];
+const EMPTY_STRING: &str = "\"\"";
 
 fn check_empty_placeholders(
     entries: &[(String, String)],
@@ -394,7 +430,7 @@ fn check_empty_placeholders(
         if WHOLLY_EXEMPT_KEYS.contains(&key.as_str()) {
             continue;
         }
-        let is_empty_string = value == "\"\"";
+        let is_empty_string = value == EMPTY_STRING;
         let is_forbidden_empty_list =
             value == "[]" && !row.empty_list_extras.contains(&key.as_str());
         if is_empty_string || is_forbidden_empty_list {
@@ -869,6 +905,116 @@ mod tests {
         ];
         all.extend_from_slice(extras);
         topic_research_document("level-note", &all)
+    }
+
+    fn report_with(coverage: &str) -> String {
+        topic_research_document(
+            "report",
+            &[
+                "question: \"How do LLM agents plan multi-step tasks?\"",
+                "rounds_covered: 3",
+                &format!("coverage: \"{coverage}\""),
+            ],
+        )
+    }
+
+    #[test]
+    fn an_answered_report_is_valid() {
+        assert_eq!(validate_file(&report_with("answered")), Vec::new());
+    }
+
+    #[test]
+    fn a_partial_report_is_valid() {
+        assert_eq!(validate_file(&report_with("partial")), Vec::new());
+    }
+
+    #[test]
+    fn a_report_coverage_outside_its_vocab_is_flagged() {
+        assert_eq!(
+            validate_file(&report_with("unanswered")),
+            vec![Violation::BadExtraValue {
+                extra: "coverage",
+                value: "unanswered".to_owned(),
+                vocab: "answered | partial".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn a_report_status_other_than_complete_is_flagged() {
+        let report = report_with("answered")
+            .replace("status: \"complete\"", "status: \"draft\"");
+        assert_eq!(
+            validate_file(&report),
+            vec![Violation::BadStatus {
+                value: "draft".to_owned(),
+                vocab: "complete".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn a_report_without_coverage_is_flagged() {
+        let report = topic_research_document(
+            "report",
+            &["question: \"Q?\"", "rounds_covered: 3"],
+        );
+        assert_eq!(
+            validate_file(&report),
+            vec![Violation::MissingExtra {
+                extra: "coverage".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn an_empty_report_coverage_is_only_a_placeholder() {
+        assert_eq!(
+            validate_file(&report_with("")),
+            vec![Violation::EmptyPlaceholder {
+                key: "coverage".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn a_bare_report_coverage_is_flagged() {
+        let report = topic_research_document(
+            "report",
+            &["question: \"Q?\"", "rounds_covered: 3", "coverage:"],
+        );
+        assert_eq!(
+            validate_file(&report),
+            vec![Violation::BadExtraValue {
+                extra: "coverage",
+                value: String::new(),
+                vocab: "answered | partial".to_owned(),
+            }]
+        );
+    }
+
+    fn manifest_with(extras: &[&str]) -> String {
+        let mut all = vec![
+            "slug: \"attention\"",
+            "round_count: 3",
+            "finding_count: 10",
+            "primary: \"synthesis.md\"",
+        ];
+        all.extend_from_slice(extras);
+        topic_research_document("manifest", &all)
+    }
+
+    #[test]
+    fn a_manifest_without_a_report_count_is_valid() {
+        assert_eq!(validate_file(&manifest_with(&[])), Vec::new());
+    }
+
+    #[test]
+    fn a_manifest_with_a_report_count_is_valid() {
+        assert_eq!(
+            validate_file(&manifest_with(&["report_count: 2"])),
+            Vec::new()
+        );
     }
 
     #[test]

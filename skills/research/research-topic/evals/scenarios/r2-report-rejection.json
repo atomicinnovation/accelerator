@@ -1,0 +1,67 @@
+{
+  "family": "R2",
+  "title": "report lets the user reject or decline",
+  "scenarios": [
+    {
+      "name": "r2-reject",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "reject",
+          "expect": {
+            "writes": [],
+            "offers": "proposal"
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "r2-decline",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "decline",
+          "expect": {
+            "writes": [],
+            "offers": "none",
+            "next_steps": false
+          }
+        }
+      ]
+    }
+  ]
+}
