@@ -8,6 +8,9 @@
     detail: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
     edge: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
     heading: { face: 'sans-600', size: 10.5, lineHeight: 14, letterSpacing: 0.08 },
+    message: { face: 'sans-400', size: 12, lineHeight: 15, letterSpacing: 0 },
+    operator: { face: 'sans-600', size: 11, lineHeight: 14, letterSpacing: 0 },
+    guard: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
   };
 
   function roleOf(role) {

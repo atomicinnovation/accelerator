@@ -26,7 +26,26 @@
     }),
   };
 
-  const SHAPES = { box, group };
+  const actor = {
+    holdsOthers: false,
+    sizeOf: node => ({ width: Math.ceil(Math.max(30, widthOf(node.label ?? node.id, 'name'))) + 8, height: 56 }),
+  };
+
+  const NOTE_PADDING = 10;
+  const note = {
+    holdsOthers: false,
+    blockOf: (node, width) => blockOf(node.text, 'message', width - 2 * NOTE_PADDING),
+    sizeOf: (node, width) => ({ width, height: note.blockOf(node, width).height + 14 }),
+  };
+
+  const fragment = {
+    holdsOthers: false,
+    tabWidthOf: node => Math.ceil(widthOf(node.operator, 'operator')) + 22,
+    headWidthOf: node => fragment.tabWidthOf(node) + (node.guard ? Math.ceil(widthOf(`[${node.guard}]`, 'guard')) + 16 : 0),
+  };
+
+  const supporting = { holdsOthers: false };
+  const SHAPES = { box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting };
   const api = { SHAPES, LINK_CONTROL_WIDTH };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);

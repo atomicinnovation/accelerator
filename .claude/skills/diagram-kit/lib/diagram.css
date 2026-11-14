@@ -30,6 +30,31 @@
 .dk .node.box.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.group.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
 
+.dk .message, .dk .operator, .dk .guard { font-family: var(--f-body); }
+.dk .message { fill: var(--ink-2); }
+.dk .operator { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
+.dk .guard { font-size: 11px; fill: var(--ink-3); }
+.dk .node.lifeline .body { stroke: var(--rule); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.dk .node.activation .body { fill: var(--panel-2); stroke: var(--ink-3); stroke-width: 1.2; }
+.dk .node.activation.s-new .body { stroke: var(--accent); fill: var(--accent-soft); }
+.dk .node.activation.t-risk .body { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+.dk .node.destroy .body { fill: none; stroke: var(--ink-2); stroke-width: 1.8; stroke-linecap: round; }
+.dk .node.fragment .body { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.dk .node.fragment .tab { fill: var(--panel-2); stroke: var(--ink-3); stroke-width: 1.2; stroke-linejoin: round; }
+.dk .node.fragment .divider { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.dk .node.fragment .guard, .dk .node.fragment .operator { paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+.dk .node.fragment .tab + .operator { stroke: none; }
+.dk .node.actor .body { fill: transparent; stroke: none; }
+.dk .node.actor .figure { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; }
+.dk .node.actor.s-new .figure { stroke: var(--accent); }
+.dk .node.actor.s-changed .figure { stroke: var(--warn); }
+.dk .node.note .body { fill: color-mix(in srgb, var(--warn) 9%, var(--panel)); stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); stroke-width: 1.2; }
+.dk .node.note .fold { fill: none; stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); stroke-width: 1.2; }
+.dk .node.note.t-risk .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); }
+.dk .node.note.t-risk .fold { stroke: var(--bad); }
+.dk .edge .message { paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+.dk .edge a .message, .dk .edge a .edge-text, .dk .node a text { fill: var(--accent); }
+.dk .edge a:hover text, .dk .node a:hover text { text-decoration: underline; }
 .dk .edge { color: var(--ink-3); }
 .dk .edge .line { stroke: currentColor; stroke-width: 1.4; fill: none; }
 .dk .edge.dashed .line { stroke-dasharray: 5 4; }

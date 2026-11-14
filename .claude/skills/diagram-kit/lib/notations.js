@@ -44,7 +44,8 @@
     async function laidOutSpec(spec) {
       const problems = problemsIn(spec);
       if (problems.length) throw new Error(problems.join('\n'));
-      return laidOut(byKind.get(spec.kind).sceneOf(spec));
+      const notation = byKind.get(spec.kind);
+      return notation.placedSceneOf ? notation.placedSceneOf(spec) : laidOut(notation.sceneOf(spec));
     }
 
     const remarksOn = spec => (byKind.get(spec.kind).remarksOn || (() => []))(spec);

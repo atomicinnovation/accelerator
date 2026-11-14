@@ -69,3 +69,10 @@ test('a figure with edges says how to trace them', async () => {
 test('two notations may not draw the same kind', () => {
   assert.throws(() => notations([BOXES, BOXES]), /two notations draw kind "boxes"/);
 });
+
+test('a notation that lays itself out is drawn where it says, without the layout engine', async () => {
+  const placed = { width: 40, height: 20, nodes: [{ id: 'a', shape: 'box', label: 'a', x: 0, y: 0, width: 40, height: 20 }], edges: [] };
+  const rows = { kind: 'rows', problemsIn: () => [], placedSceneOf: spec => ({ ...placed, width: spec.width }) };
+  const scene = await notations([BOXES, rows]).laidOut({ id: 'r1', kind: 'rows', title: 't', width: 99 });
+  assert.deepEqual(scene, { ...placed, width: 99 });
+});

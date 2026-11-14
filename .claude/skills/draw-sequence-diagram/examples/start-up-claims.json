@@ -1,0 +1,42 @@
+{
+  "id": "start-up-claims",
+  "kind": "sequence-diagram",
+  "title": "Start-up claims its version before any lookup",
+  "caption": "The claim is refreshed before the launcher resolves anything, so a concurrent prune always sees it. The write is skipped when the claim is fresh, which is what keeps a crawl of invocations to one write.",
+  "participants": [
+    { "id": "user", "kind": "actor", "label": "Operator" },
+    { "id": "launcher", "label": "launcher" },
+    { "id": "claims", "label": "version_claims", "status": "new" },
+    { "id": "disk", "label": "Disk" },
+    { "id": "child", "label": "sub-binary" }
+  ],
+  "steps": [
+    {
+      "from": "user", "to": "launcher", "label": "accelerator vcs status",
+      "steps": [
+        {
+          "from": "launcher", "to": "claims", "label": "claim(version, launcher_id)", "reply": "Claimed", "status": "new",
+          "steps": [
+            { "from": "claims", "to": "disk", "label": "lstat(claim path)", "reply": "mtime", "status": "new" },
+            {
+              "fragment": "alt",
+              "operands": [
+                { "guard": "age < CLAIM_WINDOW / 10", "steps": [{ "note": "Fresh enough: no write.", "over": ["claims"] }] },
+                { "guard": "else", "steps": [{ "from": "claims", "to": "disk", "label": "write(claim path)", "reply": "ok", "status": "new", "tone": "risk" }] }
+              ]
+            }
+          ]
+        },
+        {
+          "fragment": "opt", "guard": "version not cached",
+          "steps": [
+            { "from": "launcher", "to": "launcher", "label": "fetch, verify, extract" },
+            { "from": "launcher", "to": "claims", "label": "prune(stale)", "kind": "async", "status": "new" }
+          ]
+        },
+        { "from": "launcher", "to": "child", "kind": "create", "label": "exec" },
+        { "from": "child", "to": "user", "label": "output", "kind": "async" }
+      ]
+    }
+  ]
+}
