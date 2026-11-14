@@ -1,0 +1,15 @@
+module.exports = [
+  { name: 'Aggregate', means: 'A boundary of consistency: what is inside changes together, and is reached only through its root.', node: { shape: 'boundary', stereotype: 'aggregate', label: 'Name', width: 150, height: 44 } },
+  { name: 'Aggregate root', means: 'The one entity through which everything in its aggregate is reached.', node: { shape: 'classifier', label: 'Name', stereotype: 'aggregate root' }, uses: node => node.stereotype === 'aggregate root' },
+  { name: 'Entity', means: 'Something with an identity that persists as its values change.', node: { shape: 'classifier', label: 'Name', stereotype: 'entity' }, uses: node => node.stereotype === 'entity' },
+  { name: 'Value object', means: 'A value with no identity: two with the same contents are the same.', node: { shape: 'classifier', label: 'Name', stereotype: 'value object' }, uses: node => node.stereotype === 'value object' },
+  { name: 'Domain service', means: 'An operation of the domain that belongs to no one entity or value.', node: { shape: 'classifier', label: 'Name', stereotype: 'domain service' }, uses: node => node.stereotype === 'domain service' },
+  { name: 'Repository', means: 'Where aggregates are stored and found again.', node: { shape: 'classifier', label: 'Name', stereotype: 'repository' }, uses: node => node.stereotype === 'repository' },
+  { name: 'Factory', means: 'What creates an aggregate in a valid state.', node: { shape: 'classifier', label: 'Name', stereotype: 'factory' }, uses: node => node.stereotype === 'factory' },
+  { name: 'Domain event', means: 'Something that happened in the domain, which others may react to.', node: { shape: 'classifier', label: 'Name', stereotype: 'domain event' }, uses: node => node.stereotype === 'domain event' },
+  { name: 'Composition', means: 'The element at the diamond owns the other as part of itself.', edge: { line: 'solid', tail: 'filled-diamond' }, uses: edge => edge.tail === 'filled-diamond' },
+  { name: 'Association', means: 'The two elements know of each other.', edge: { line: 'solid' }, uses: edge => edge.line === 'solid' && (!edge.head || edge.head === 'none') && (!edge.tail || edge.tail === 'none') },
+  { name: 'Navigable association', means: 'The element at the tail can reach the one at the arrowhead.', edge: { line: 'solid', head: 'open' }, uses: edge => edge.line === 'solid' && edge.head === 'open' && (!edge.tail || edge.tail === 'none') },
+  { name: 'Reference or dependency', means: 'The element at the tail refers to the other by its identity, or uses it, without holding it.', edge: { line: 'dashed', head: 'open' } },
+  { name: 'Generalisation', means: 'The element at the tail is a more specific kind of the one at the triangle.', edge: { line: 'solid', head: 'hollow' } },
+];

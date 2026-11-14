@@ -225,3 +225,93 @@ test('each line of the whole diff names the commit that last changed it', () => 
   assert.deepEqual(origins['src/a.rs'], { 'old:2': 'c1abcdef0000', 'new:2': 'c1abcdef0000', 'new:6': 'c2' });
   assert.deepEqual(origins['src/new.rs'], { 'new:7': 'c1abcdef0000' });
 });
+
+const HEAD = 'head-now', EARLIER = 'head-then';
+const SHIFTED = { new: [[2, 5, 2]], old: [[2, 2, 1]], changed: true };
+const LINEAGE = { [EARLIER]: { 'src/a.rs': SHIFTED, 'src/b.rs': 'same' } };
+const NOW = { hunks: [{ o: 1, n: 1, l: [' a', '-b', '+n1', '+n2', '+n3', '+c', '+d', ' e', '-f', ' g'] }] };
+const keysOf = claim => [...claim.keys].sort();
+
+test('a verdict claims the changed lines of a whole file as ranges', () => {
+  assert.deepEqual(ReviewCoverage.claimedLines(claimOf('file:src/a.rs'), MODIFIED), ['new:2-3', 'old:2', 'old:4']);
+});
+
+test('a verdict on a stop claims its range on its side', () => {
+  assert.deepEqual(ReviewCoverage.claimedLines(claimOf('stop:s1'), MODIFIED), ['new:2-3']);
+  assert.deepEqual(ReviewCoverage.claimedLines(claimOf('stop:s2'), MODIFIED), ['old:2']);
+});
+
+test('lines carried over a head that left the file alone are the same lines', () => {
+  assert.deepEqual(ReviewCoverage.carriedOver(['new:1-3', 'old:2'], 'same'), ['new:1-3', 'old:2']);
+});
+
+test('lines carried over a head move to where the same code now is', () => {
+  assert.deepEqual(ReviewCoverage.carriedOver(['new:2-3', 'old:2'], SHIFTED), ['new:5-6', 'old:2']);
+});
+
+test('a line the later head rewrote is not carried over', () => {
+  assert.deepEqual(ReviewCoverage.carriedOver(['new:2-3', 'old:2', 'old:4'], { new: [[3, 6, 1]], old: [], changed: true }), ['new:6']);
+});
+
+test('nothing is carried over from a head the page has no lineage for', () => {
+  assert.deepEqual(ReviewCoverage.carriedOver(['new:2-3'], undefined), []);
+});
+
+test('a verdict recorded at this head stands as the page describes it', () => {
+  const claim = claimOf('stop:s1');
+  assert.equal(ReviewCoverage.standingClaim(claim, { head: HEAD, claimed: ['new:2-3'] }, HEAD, LINEAGE), claim);
+});
+
+test('a verdict recorded before heads were kept stands as the page describes it', () => {
+  const claim = claimOf('stop:s1');
+  assert.equal(ReviewCoverage.standingClaim(claim, { status: 'ok' }, HEAD, LINEAGE), claim);
+});
+
+test('a verdict from an earlier head claims only the lines that survive, where they are now', () => {
+  const standing = ReviewCoverage.standingClaim(claimOf('file:src/a.rs'), { head: EARLIER, claimed: ['new:2-3', 'old:2', 'old:4'] }, HEAD, LINEAGE);
+  assert.deepEqual(keysOf(standing), ['new:5', 'new:6', 'old:2']);
+  assert.equal(standing.path, 'src/a.rs');
+  assert.equal(standing.by.target, 'file:src/a.rs');
+  assert.equal(ReviewCoverage.fileCoverage('src/a.rs', NOW, [standing]).read, 3);
+  assert.deepEqual(ReviewCoverage.fileCoverage('src/a.rs', NOW, [standing]).unread, [
+    { side: 'new', start: 2, end: 4 }, { side: 'old', start: 4, end: 4 },
+  ]);
+});
+
+test('a verdict from an earlier head that kept no lines claims nothing', () => {
+  const standing = ReviewCoverage.standingClaim(claimOf('file:src/a.rs'), { head: EARLIER }, HEAD, LINEAGE);
+  assert.deepEqual(keysOf(standing), []);
+});
+
+test('a verdict from a head the page has no lineage for claims nothing', () => {
+  const standing = ReviewCoverage.standingClaim(claimOf('file:src/a.rs'), { head: 'unknown', claimed: ['new:2-3'] }, HEAD, LINEAGE);
+  assert.deepEqual(keysOf(standing), []);
+});
+
+test('a verdict at this head has had nothing change beneath it', () => {
+  assert.equal(ReviewCoverage.changedSince(claimOf('file:src/a.rs'), { head: HEAD }, HEAD, LINEAGE, NOW), 0);
+});
+
+test('a verdict from an earlier head counts the lines of its claim that changed since', () => {
+  const record = { head: EARLIER, claimed: ['new:2-3', 'old:2', 'old:4'] };
+  assert.equal(ReviewCoverage.changedSince(claimOf('file:src/a.rs'), record, HEAD, LINEAGE, NOW), 4);
+});
+
+test('a stop whose code only moved has had nothing change beneath it', () => {
+  const moved = { path: 'src/a.rs', side: 'new', start: 5, end: 6, by: { target: 'stop:s1' } };
+  assert.equal(ReviewCoverage.changedSince(moved, { head: EARLIER, claimed: ['new:2-3'] }, HEAD, LINEAGE, NOW), 0);
+});
+
+test('files changed since an earlier head are those its lineage does not call unchanged', () => {
+  const lineage = { [EARLIER]: { 'src/a.rs': SHIFTED, 'src/b.rs': 'same', 'src/c.rs': { new: [[1, 4, 2]], old: [], changed: false } } };
+  assert.deepEqual(ReviewCoverage.filesChangedSince(['src/a.rs', 'src/b.rs', 'src/c.rs', 'src/new.rs'], EARLIER, HEAD, lineage), ['src/a.rs', 'src/new.rs']);
+});
+
+test('no file has changed since this head', () => {
+  assert.deepEqual(ReviewCoverage.filesChangedSince(['src/a.rs'], HEAD, HEAD, LINEAGE), []);
+  assert.deepEqual(ReviewCoverage.filesChangedSince(['src/a.rs'], undefined, HEAD, LINEAGE), []);
+});
+
+test('every file has changed since a head the page has no lineage for', () => {
+  assert.deepEqual(ReviewCoverage.filesChangedSince(['src/a.rs', 'src/b.rs'], 'unknown', HEAD, LINEAGE), ['src/a.rs', 'src/b.rs']);
+});

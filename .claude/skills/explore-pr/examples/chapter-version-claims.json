@@ -73,9 +73,9 @@
     },
     {
       "id": "claims-f2",
-      "kind": "sequence",
+      "kind": "sequence-diagram",
       "title": "Start-up claims the version before any lookup",
-      "actors": [
+      "participants": [
         {
           "id": "launcher",
           "label": "launcher start-up"
@@ -94,47 +94,54 @@
           "from": "launcher",
           "to": "claims",
           "label": "lstat 1.26.0.c0ffee00c0ffee00",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45"
+          "reply": "mtime",
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45"
         },
         {
-          "over": [
-            "launcher",
-            "claims"
-          ],
-          "note": "Valid and younger than 1.4 d: stop here. Nothing else is written."
+          "fragment": "break",
+          "guard": "valid and younger than 1.4 d",
+          "steps": [
+            {
+              "note": "Stop here. Nothing else is written.",
+              "over": [
+                "launcher",
+                "claims"
+              ]
+            }
+          ]
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "mkdir with mode 0700; EEXIST is fine",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:71"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:71"
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "refuse unless only this user can write to it",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:77",
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:77",
           "tone": "risk"
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "create with O_NOFOLLOW, mtime = now",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:83"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:83"
         },
         {
+          "note": "Any failure is logged at debug level only; the command carries on.",
           "over": [
             "launcher",
             "claims",
             "root"
-          ],
-          "note": "Any failure is logged at debug level only; the command carries on."
+          ]
         },
         {
           "from": "launcher",
           "to": "root",
           "label": "find the sub-binary (warm dispatch)",
-          "where": "cli/launcher/src/launch/start_up.rs:78"
+          "link": "cli/launcher/src/launch/start_up.rs:78"
         }
       ],
       "caption": "Step 4 checks the directory by path and then writes through the path; review-1 raised that as a time-of-check gap (R1-30)."
@@ -159,7 +166,7 @@
           "path": "1.24.0.0123456789abcdef",
           "state": "removed",
           "note": "20 d old: goes after the last 1.24.0 entry",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
         },
         {
           "path": "1.24.0.9c4b1e0f2a7d5e83",
@@ -193,7 +200,11 @@
       "status": "new",
       "responsibility": "The versions a prune must keep: every valid claim inside the window, plus the running version.",
       "collaborators": [
-        "Clock"
+        {
+          "name": "Clock",
+          "kind": "trait",
+          "relation": "uses"
+        }
       ],
       "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
     },
@@ -324,6 +335,8 @@
   "stops": [
     {
       "id": "claims-s1",
+      "anchor": "pub const AGE_BACKSTOP: Duration",
+      "anchorLine": 7,
       "file": "cli/launcher/src/launch/outbound/resolve/retention_windows.rs",
       "side": "new",
       "start": 1,
@@ -336,6 +349,8 @@
     },
     {
       "id": "claims-s2",
+      "anchor": "pub fn launcher_id() -> String {",
+      "anchorLine": 16,
       "file": "cli/launcher/src/launch/outbound/resolve/retention/mod.rs",
       "side": "new",
       "start": 13,
@@ -346,33 +361,34 @@
       "findings": [],
       "figure": {
         "id": "claims-s2-f",
-        "kind": "flow",
+        "kind": "block-diagram",
         "title": "One claim per install, not per version",
-        "nodes": [
+        "direction": "right",
+        "blocks": [
           {
             "id": "exe",
-            "label": "current_exe()",
-            "sub": "the launcher's own path"
+            "name": "current_exe()",
+            "detail": "the launcher's own path"
           },
           {
             "id": "sha",
-            "label": "SHA-256",
-            "sub": "first 8 bytes"
+            "name": "SHA-256",
+            "detail": "first 8 bytes"
           },
           {
             "id": "id",
-            "label": "c0ffee00c0ffee00",
-            "sub": "launcher id",
-            "tone": "new"
+            "name": "c0ffee00c0ffee00",
+            "detail": "launcher id",
+            "status": "new"
           },
           {
             "id": "claim",
-            "label": "1.26.0.c0ffee00c0ffee00",
-            "sub": "claim file name",
-            "tone": "new"
+            "name": "1.26.0.c0ffee00c0ffee00",
+            "detail": "claim file name",
+            "status": "new"
           }
         ],
-        "edges": [
+        "arrows": [
           {
             "from": "exe",
             "to": "sha"
@@ -391,6 +407,8 @@
     },
     {
       "id": "claims-s3",
+      "anchor": "pub struct VersionClaim<'a> {",
+      "anchorLine": 24,
       "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
       "side": "new",
       "start": 18,

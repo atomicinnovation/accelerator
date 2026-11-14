@@ -1,0 +1,34 @@
+{
+  "id": "claims-directory",
+  "kind": "tree",
+  "title": "What a prune reads in claims/",
+  "root": "<root>/claims/",
+  "items": [
+    {
+      "path": "1.26.0.c0ffee00c0ffee00",
+      "state": "kept",
+      "note": "the running version: protected whatever its age"
+    },
+    {
+      "path": "1.25.0.fedcba9876543210",
+      "state": "kept",
+      "note": "2 d old: fresh, so 1.25.0's entries stay"
+    },
+    {
+      "path": "1.24.0.0123456789abcdef",
+      "state": "removed",
+      "note": "20 d old: goes after the last 1.24.0 entry",
+      "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
+    },
+    {
+      "path": "1.24.0.9c4b1e0f2a7d5e83",
+      "state": "removed",
+      "note": "stale twin from another install: goes as well"
+    },
+    {
+      "path": "notes.txt",
+      "note": "not `<version>.<16 hex>`: ignored, never removed"
+    }
+  ],
+  "caption": "A claim is an empty file whose name is the version and whose mtime is the last use. Only regular files you own count."
+}

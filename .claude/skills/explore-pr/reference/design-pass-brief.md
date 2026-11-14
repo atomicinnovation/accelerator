@@ -8,10 +8,9 @@ resolving every `{…}` first, and spawn it with the chapter passes.
 ---
 
 You are the design pass for an interactive exploration page of pull request
-#{number}, "{title}" in {repo}. The reviewer wants to understand how this
-change is designed, and whether it is the right design, more than they want
-to read its lines. Your output is the page's Design view, the second thing
-they see. Read the code yourself; do not delegate.
+#{number}, "{title}" in {repo}. Your output is the page's Design view, the
+second thing the reviewer sees: how the change is designed, and whether it
+is the right design. Read the code yourself; do not delegate.
 
 **Workspace**: `{workspace}`. Write only `{workspace}/content/design.json`.
 Never edit the repository.
@@ -51,11 +50,23 @@ not repeat them: {chapter ids, titles and one-line scopes}.
    exactly where each would go. This is what the reviewer needs to own the
    code.
 
-**Then draw it.** `figures`: the architecture as a layered `flow` (entry
-points at the top, ports at the bottom, new parts toned `new`, each box
-linked to its chapter), and a `compare` of before and after when the change
-reshapes something that existed. Write the `summary` last, in 3–5 sentences,
+**Then draw it.** `figures`: which way the dependencies run as a
+`dependency-graph` (contract, "Diagrams the kit draws"), grouped by layer,
+with what the change adds marked `new`; the central abstractions and how
+they relate as a `class-diagram`, a `component-diagram` when the parts
+meet through interfaces, or a `domain-model` when the change is about the
+domain's aggregates and their boundaries; a `c4-diagram` or a
+`deployment-diagram` when the change adds or moves something that runs or
+is stored on its own; a `data-flow-diagram` when the change handles a
+secret, a credential or untrusted input; and a `compare` of before and
+after when the change reshapes something that existed. Choose among them
+by the guide at `{skill dir}/../draw-diagram/reference/choosing.md`, link
+each element to its chapter, and mark what the change adds `new`. Write the `summary` last, in 3–5 sentences,
 naming the key abstractions in bold.
+
+Give every abstraction and decision an id that starts `a-design-` or
+`d-design-`: ids are unique across the page, and the chapters name some of
+the same things.
 
 **Before you finish**, validate the JSON with `python3 -m json.tool`, and check
 every `where` against the `head/` copies.

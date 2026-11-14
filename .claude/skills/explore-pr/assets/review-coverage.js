@@ -120,6 +120,51 @@
     return ['new', 'old'].flatMap(side => rangesOf(numbersOf(lines, side)).map(([start, end]) => ({ path, side, start, end, by })));
   }
 
+  const spanText = (side, start, end) => `${side}:${start}${end !== start ? '-' + end : ''}`;
+  const asLines = (side, numbers) => rangesOf(numbers).map(([start, end]) => spanText(side, start, end));
+
+  function claimedLines(claim, fileDiff) {
+    if (!claim.whole) return [spanText(claim.side, claim.start, claim.end)];
+    const changed = changedLinesOf(fileDiff);
+    return ['new', 'old'].flatMap(side => asLines(side, changed.filter(each => each.side === side).map(each => each.line)));
+  }
+
+  function nowAt(runs, number) {
+    for (const [from, to, length] of runs || []) if (from <= number && number < from + length) return to + number - from;
+    return null;
+  }
+
+  function carriedOver(lines, fileLineage) {
+    if (fileLineage === 'same') return lines || [];
+    if (!fileLineage) return [];
+    return ['new', 'old'].flatMap(side => asLines(side, numbersOf(lines || [], side)
+      .map(number => nowAt(fileLineage[side], number)).filter(number => number !== null)));
+  }
+
+  const recordedEarlier = (record, head) => !!(record && record.head && head && record.head !== head);
+  const lineageOf = (record, lineage, path) => ((lineage || {})[record.head] || {})[path];
+
+  function standingClaim(claim, record, head, lineage) {
+    if (!recordedEarlier(record, head)) return claim;
+    const carried = carriedOver(record.claimed, lineageOf(record, lineage, claim.path));
+    const keys = new Set(['new', 'old'].flatMap(side => numbersOf(carried, side).map(number => lineKey(side, number))));
+    return { path: claim.path, keys, by: claim.by };
+  }
+
+  function changedSince(claim, record, head, lineage, fileDiff) {
+    if (!recordedEarlier(record, head)) return 0;
+    const standing = standingClaim(claim, record, head, lineage);
+    const changed = new Set(changedLinesOf(fileDiff).map(each => lineKey(each.side, each.line)));
+    return linesClaimedBy(claim, fileDiff)
+      .filter(each => changed.has(lineKey(each.side, each.line)) && !standing.keys.has(lineKey(each.side, each.line))).length;
+  }
+
+  function filesChangedSince(paths, recordHead, head, lineage) {
+    if (!recordedEarlier({ head: recordHead }, head)) return [];
+    const then = (lineage || {})[recordHead] || {};
+    return paths.filter(path => !then[path] || (then[path] !== 'same' && then[path].changed !== false));
+  }
+
   const commitPath = (commit, file) => `commit:${commit.sha}:${file.path}`;
   const inWholeDiff = fate => fate.includes(':');
 
@@ -185,7 +230,7 @@
 
   const ReviewCoverage = {
     changedLinesOf, readingClaimsIn, fileCoverage, coveredElsewhere,
-    withLinesMarked, lineMarkClaims, commitLines, commitClaims, commitCoverage, readersAt, originsOf,
+    withLinesMarked, lineMarkClaims, claimedLines, carriedOver, standingClaim, changedSince, filesChangedSince, commitLines, commitClaims, commitCoverage, readersAt, originsOf,
   };
   if (typeof module === 'object' && module.exports) module.exports = ReviewCoverage;
   else root.ReviewCoverage = ReviewCoverage;

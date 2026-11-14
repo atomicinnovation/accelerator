@@ -1,0 +1,43 @@
+{
+  "id": "launcher-deployment",
+  "kind": "deployment-diagram",
+  "title": "Claims are files in the user's cache, written by the launcher on every start",
+  "caption": "Nothing about retention leaves the developer's machine. The launcher writes a claim into the cache each time it starts; the release host is reached only to fetch a version that is not cached, and never learns what is kept.",
+  "nodes": [
+    {
+      "id": "machine", "name": "developer machine", "stereotype": "device",
+      "nodes": [
+        {
+          "id": "session", "name": "Claude Code session", "stereotype": "execution environment",
+          "artifacts": [
+            { "id": "launcher", "name": "accelerator", "status": "changed" },
+            { "id": "sub_binary", "name": "accelerator-vcs" }
+          ]
+        },
+        {
+          "id": "cache", "name": "~/.cache/accelerator", "stereotype": "directory", "status": "changed",
+          "artifacts": [
+            { "id": "claims", "name": "claims/", "stereotype": "directory", "status": "new" },
+            { "id": "trees", "name": "trees/", "stereotype": "directory" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "release", "name": "release host", "stereotype": "device",
+      "artifacts": [
+        { "id": "archive", "name": "accelerator-1.26.0.tar.zst" }
+      ]
+    }
+  ],
+  "paths": [
+    { "from": "machine", "to": "release", "label": "HTTPS" },
+    { "from": "session", "to": "cache", "label": "file system", "status": "changed" }
+  ],
+  "dependencies": [
+    { "from": "launcher", "to": "claims", "label": "refreshes", "status": "new" },
+    { "from": "launcher", "to": "trees", "label": "reads, prunes", "status": "changed", "tone": "risk" },
+    { "from": "launcher", "to": "sub_binary", "label": "runs" },
+    { "from": "launcher", "to": "archive", "label": "fetches when not cached" }
+  ]
+}

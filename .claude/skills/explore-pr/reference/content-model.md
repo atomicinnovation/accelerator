@@ -45,7 +45,7 @@ level:
   introduces or reshapes (types, traits, modules, ports, file formats,
   protocols), with their responsibilities and collaborators, and the
   `decisions` it embodies, each with the alternatives it was chosen over, why,
-  and at what cost. The page draws the abstractions' collaborations as a
+  and at what cost. The page draws how the abstractions relate as a class
   diagram automatically. The build warns about a chapter with neither.
   The Design view lists each abstraction once, merged by name across
   `design.json` and every chapter: the first declaration describes it, its
@@ -68,16 +68,17 @@ reviewer takes in a sequence diagram of five steps at a glance, and needs
 three readings of the paragraph that says the same. So the content is drawn
 first and written second:
 
-- **Every chapter opens with at least one figure**, and usually two or three:
-  what the change introduces (a flow), the order things happen in (a
-  sequence), the state it leaves behind (a tree), the decision it makes (a
-  matrix), the windows or ages it reasons about (a timeline), or what is
-  different (a comparison). The build warns about a chapter without one.
+- **Every chapter opens with at least one figure**, and usually two or three,
+  each chosen by the question it answers ("Choosing a figure"): how what
+  the change introduces is put together, the order things happen in, the
+  state it leaves behind, the decision it makes, or what is different. The
+  build warns about a chapter without one.
 - **The overview opens with the change at a glance**: usually a before/after
   comparison of the part of the system the PR changes. The build warns if it
   is missing.
 - **A stop whose point is structural carries a figure**: a call order, a
-  layout on disk, a branch in a decision.
+  layout on disk, a branch in a decision. A drawing too wide for the
+  column beside the code is shown across the row, above the code.
 - **Prose says what the figure cannot**: why the design is this way, what
   could go wrong, and what to check. If a paragraph describes boxes and
   arrows, draw the boxes and arrows and delete the paragraph.
@@ -101,8 +102,92 @@ first and written second:
   names them. Define each in its chapter's `domain`. The page shows the
   chapter's terms straight after its figures, before any of its prose, so
   each meaning must stand on its own.
+- Refer to a stop by its id (`claims-s3`) and to a chapter as chapter
+  `claims` or the `claims` chapter, in backticks. The page replaces each with
+  a link named by the stop's number and title or the chapter's title, so
+  never write a stop number or a chapter title out by hand. The build warns
+  about a stop or chapter named this way that does not exist.
 - State only what was verified by reading the code. Mark the rest unverified,
   or make it a `question`.
+
+## What the build requires
+
+`scripts/build.py` exits 1 while any `warning:` remains, and prints each one
+with the file or item it concerns. A `note:` may stand and does not fail the
+build. Before it checks anything else, the build makes sure the page can use
+the content, and leaves out what it cannot:
+
+- every content file is valid JSON of the kind shown here: an object, or an
+  array for `ledger*`, `files*`, `findings`, `breaking`, `accepted-risks`
+  and `criteria`;
+- a chapter has an `id`; a stop has `id`, `file`, `start` and `end`; a
+  ledger row has `id`, `file` and `line`; a file summary has `path`; a
+  finding, a finding check and an accepted risk have an `id`. Line numbers
+  are whole numbers, not text;
+- a collaborator given as an object has a `name`;
+- a field holds the kind of value shown here: text for an `id`, `file`,
+  `where` or `anchor`, a whole number for a line, a list of ids for
+  `findings`, `refs` and `pinnedBy`. A field of the wrong kind is reported
+  and ignored; `null` is read as absent;
+- a field whose values this document lists with `|` between them holds one
+  of those values: `side`, `status`, `assessment`, `holds`, `level`,
+  `verdict`, `triage`, `risk`, `severity`, `state`, a check's `status`, and
+  every `tone`. An abstraction's `kind` is free text.
+
+## References the build checks
+
+Every citation must open something. `scripts/build.py` warns about:
+
+- a `where` (or a breaking change's `changelog`) that is not `path:line` or
+  `path:start-end`, that names a file the PR does not change, that matches
+  more than one changed file, or whose lines fall outside the file. A path
+  may be a suffix (`store.rs:212`) only while it matches one changed file;
+- a test in `pinnedBy`, a ledger row's `tests` or a chapter's `tests` whose
+  file the PR does not change, whose name does not appear in that file at
+  head, or whose `line` falls outside it. Write tests as `path::name`; only
+  the last `::` segment is looked for;
+- a `chapter` on a file summary, a figure box, a module-map box, an
+  abstraction or a decision that names no chapter;
+- prose that names a stop or chapter that does not exist.
+
+The workspace holds only the files the PR changes, so a citation into an
+unchanged file cannot be checked or opened: the page shows it as plain text
+and the build reports it in a note as *not a changed file; unverified*.
+
+A changed file is carried whole, so any line of it can be cited and shown,
+with two exceptions: a lockfile or generated file, and a file of more than
+20,000 lines. Of those the page holds only the five lines either side of
+each change. A stop or ledger row on other lines is a warning, since the
+page cannot show them, and a test named there is noted as unverified.
+Keep one only when the point cannot be made from a changed file, and verify
+it by hand.
+
+## Anchors
+
+Line numbers alone go stale without anyone noticing: a range a few lines off
+still falls inside its file, and when the PR's head moves every stop below
+the edit points at other code. So each stop and ledger row quotes the code
+it stands on. The `anchor` is a piece of one line, copied from the code and
+never retyped or paraphrased, that no other line of the file contains: a
+signature, a constant's declaration, the call a ledger row is about. Spacing
+is ignored. A stop's anchor sits on its `start` line, or on `anchorLine`
+when the range opens on a comment, an attribute or a line that is not
+distinctive; a ledger row's sits on its `line`.
+
+The build compares each anchor with the code and warns when:
+
+- there is none: every stop and ledger row needs one;
+- it is on one other line of the file: the code moved, and the warning gives
+  the shift. `build.py --reanchor` applies every such move, shifting
+  `start`, `end`, `anchorLine` and `line` together and rewriting the content
+  files;
+- it is on several lines: choose a line only that code has;
+- it is nowhere in the file: the code changed, so read it again and rewrite
+  the stop or row.
+
+Re-anchoring restores the position, not the prose. A stop that moved cleanly
+may still describe lines that were edited, so after a head move check each
+moved stop's range against the new diff before trusting its note.
 
 ## `explore.json`
 
@@ -145,7 +230,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 {
   "title": "How the change is designed",       // optional heading
   "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions.",
-  "figures": [ /* the architecture: a layered flow, a before/after compare */ ],
+  "figures": [ /* the architecture, chosen by the guide; a before/after compare */ ],
   "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's */ ],
   "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it */ ],
   "principles": [{                              // the existing architecture's rules, from CLAUDE.md, ADRs and the code
@@ -185,9 +270,11 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "kind": "type|trait|enum|module|port|adapter|function|file format|protocol",
     "status": "new|changed|removed|existing",
     "responsibility": "≤ 25 words: what it is for, in domain terms",
-    "collaborators": ["Clock", { "name": "Disk", "kind": "port" }],
-                                              // what it uses, drawn as arrows: an abstraction's
-                                              // name, or a name and kind for one that is not
+    "collaborators": ["Clock", { "name": "Disk", "kind": "port", "relation": "implements" }],
+                                              // what it relates to: an abstraction's name, or an
+                                              // object. "kind" is needed for one that is not an
+                                              // abstraction. "relation" is implements|extends|
+                                              // owns|holds|uses, and "uses" when left out
     "where": "path:line"
   }],
   "decisions": [{                             // design choices this chapter embodies
@@ -210,6 +297,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "risks": [{ "level": "high|medium|low", "text": "md", "where": "path:line", "refs": ["R1-06"] }],
   "stops": [{                                 // the tour, in reading order; 6–12
     "id": "claims-s1", "file": "path", "side": "new", "start": 120, "end": 160,
+    "anchor": "fn claim_version(",            // code copied from the anchor line; see Anchors
+    "anchorLine": 124,                        // optional: the line it is on; defaults to start
     "title": "≤ 8 words",
     "fit": "md, 1–3 sentences: where this code sits in the change as a whole: the abstraction or decision it carries, what reaches it and what it hands on to, and which other chapter or stop it connects to; shown before the note",
     "note": "md, 2–5 sentences: what it does, why it is shaped this way, what could go wrong",
@@ -230,76 +319,89 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 ```
 
 `examples/chapter-version-claims.json` is a real chapter at the expected
-standard: three chapter figures (a timeline, a sequence and a tree), three
+standard: three chapter figures (a timeline, a sequence diagram and a tree), three
 abstractions, two decisions with their alternatives and costs, a figure on a
-stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
+stop, an anchor on every stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
 every hunk; ranges of 10–60 lines read best. A stop may sit on unchanged lines
 of a changed file when the change cannot be understood without them.
 
 ## Figures
 
-The page draws seven kinds of figure from data, laid out and coloured for
-light and dark themes, and gathers every one into the **In pictures** view.
-Pressing boxes in a flow (or the module map) traces their arrows, those they
-send in one colour and those they receive in another, and dims the rest;
-pressing a box again drops it from the trace, and Esc clears it. A box with a
-`where` or `chapter` opens it from its own ↗ control, not from the box. Arrows
-are routed as horizontal and vertical runs with rounded corners, around boxes
-rather than behind them; a flow keeps the left-to-right order its nodes are
-given in, so order each row's nodes to keep arrows from crossing. Tracing keeps
-a busy flow legible; a flow that cannot be read without it should still be
-split.
+The page draws every figure from data, laid out and coloured for light and
+dark themes, each shown where it explains something: in the overview, the
+Design view, its chapter or its stop.
+
+### Choosing a figure
+
+Choose by the question a reviewer has, not by the subject. The guide the
+diagram skills keep, at `{skill dir}/../draw-diagram/reference/choosing.md`,
+gives the question each kit diagram answers, how to tell neighbouring
+kinds apart, and which views go together for a new abstraction, a
+lifecycle, a schema change, anything that handles a secret, a parser or a
+change in how code is organised. Read it before sketching a chapter's
+figures.
+
+Two kinds are this page's own, and the guide does not cover them:
+
+- `compare`: the same part of the system before and after, as two figures
+  of any kind side by side. The overview usually opens with one.
+- `svg`: the rare picture nothing else draws.
+
+`flow`, the page's old boxes and arrows, is no longer drawn, and the build
+warns about one. What it showed is a `block-diagram`, or better the kind
+the guide names for it.
+
+### How the page draws them
+
+Pressing boxes in a diagram that has arrows traces them, those a box sends
+in one colour and those it receives in another, and dims the rest; pressing
+a box again drops it from the trace, and Esc clears it. A box with a `link`
+opens it from its own ↗ control, not from the box.
+
+Under every figure the kit draws is a legend, closed until the reviewer
+opens it, headed by the kind of diagram it is: what each symbol of that notation means, drawn as it appears in
+the figure, with the symbols the figure does not use behind a switch, and
+how to trace and open things. The build writes it. So a caption never
+needs to explain the notation: it says what to notice.
 
 Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "flow|sequence|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|railroad-diagram|block-diagram|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
-  "wide": false }                             // optional: span the full row
+  "wide": false }                             // optional: span the full row; a drawing too wide for half of it does anyway
 ```
 
 | Kind | Draw it for | Shape |
 |---|---|---|
-| `flow` | Architecture, call graphs, data flow, what depends on what | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
-| `sequence` | Protocols, start-up order, lock ordering, races, retries | Actors across, numbered messages down, notes over actors |
-| `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
-| `matrix` | Decision tables, permission and configuration matrices, gates | Rows by columns, each cell a short outcome with a tone |
-| `timeline` | Ages, windows, timeouts, backoff, ordering in time | An axis (linear or log) with spans in lanes and labelled marks |
+| `class-diagram` | How types relate: what implements, extends, owns, holds or uses what | A UML class diagram: classes with stereotypes, attributes and operations, and the six relationships with multiplicities and roles; drawn by the diagram kit |
+| `object-diagram` | One case at one moment: a worked example, an edge case, what is on disk | A UML object diagram: named instances with their values, and the links between them; drawn by the diagram kit |
+| `domain-model` | The domain a change models and its boundaries | Aggregates as boundaries around their root, entities and value objects, with services, repositories and events beside them; the kit remarks on a broken aggregate rule |
+| `context-map` | Whose model sets the terms between bounded contexts | Contexts joined by upstream and downstream relationships and the pattern each side follows; the kit remarks on a strategic smell |
+| `component-diagram` | The replaceable parts and the interfaces they plug together through | A UML component diagram: components, subsystems, and provided and required interfaces; drawn by the diagram kit |
+| `package-diagram` | How the source is organised and which package may use which | A UML package diagram: nested folders with dependencies, imports, accesses and merges; drawn by the diagram kit |
+| `deployment-diagram` | What runs or lives where, and what crosses a boundary | A UML deployment diagram: nested nodes, the artefacts on them, communication paths; drawn by the diagram kit |
+| `c4-diagram` | The big picture: who uses the system, what it works with, and its containers | A C4 context or container diagram; drawn by the diagram kit |
+| `entity-relationship-diagram` | What is stored and how it relates; what a migration changes | A crow's foot diagram: entities with their attributes, types and keys, and how many at each end of every relationship; drawn by the diagram kit |
+| `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
+| `data-flow-diagram` | Where data goes, what handles and keeps it, and which trust boundaries it crosses | Processes, stores and external entities joined by named flows, inside dashed trust boundaries; the kit lists every flow that crosses one; drawn by the diagram kit |
+| `state-machine` | A lifecycle: the states one thing can be in and what moves it between them | A UML state machine: states with `entry`, `do` and `exit`, transitions labelled `event [guard] / action`, initial and final states, choices, composite states; drawn by the diagram kit |
+| `activity-diagram` | What is done, in what order, and by whom; what runs in parallel | A UML activity diagram: actions, decisions and merges, forks and joins, in swimlanes when it has partitions; drawn by the diagram kit |
+| `flowchart` | A procedure step by step, with its loops and where paths rejoin | Terminators, processes, decisions with the question inside, inputs and outputs, subprocesses; drawn by the diagram kit |
+| `decision-tree` | Which conditions lead to which outcome: every case of one decision | Questions, the answers branching from each, and the outcome every path ends in; drawn by the diagram kit |
+| `byte-field-diagram` | How a binary format, a wire frame or a register is laid out | Fields side by side on a scale of bits or bytes, wrapped into rows, with a broken row for a field of no fixed size; drawn by the diagram kit |
+| `railroad-diagram` | What a grammar, a command line or a pattern accepts | One track per rule: terminals and references to rules joined by rail, with branches for choices, bypasses for optional parts and loops for repeats; drawn by the diagram kit |
+| `block-diagram` | How a few things connect when no kind above fits: a derivation, a pipeline of transformations | Named boxes, optionally grouped, joined by labelled arrows; it has no rules of its own, so reach for it last; drawn by the diagram kit |
+| `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
+| `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented listing with added, removed, changed and kept states; drawn by the diagram kit |
+| `matrix` | Decision tables, permission and configuration matrices, gates | A table of rows by columns, each cell a short outcome with a tone; drawn by the diagram kit |
+| `timeline` | Ages, windows, timeouts, backoff, ordering in time | An axis (linear or log) with spans in lanes and labelled marks; drawn by the diagram kit |
 | `compare` | Anything the PR changes shape: before on the left, after on the right | Two figures side by side |
 | `svg` | The rare picture none of the above can draw | Inline SVG you write; use `currentColor` and `var(--ink)`, `var(--accent)`, `var(--bad)`, `var(--ok)` so it works in both themes |
 
 ```jsonc
-// flow
-{ "kind": "flow",
-  "layers": [{ "id": "entry", "label": "Entry" }],                 // optional rows, top to bottom
-  "nodes": [{ "id": "a", "label": "start_up", "sub": "identify, claim", "layer": "entry",
-              "tone": "new|changed|removed|risk|ok", "where": "path:line", "chapter": "identity" }],
-  "edges": [{ "from": "a", "to": "b", "label": "Try", "tone": "risk", "dashed": true }] }
-
-// sequence
-{ "kind": "sequence",
-  "actors": [{ "id": "launcher", "label": "launcher" }],
-  "steps": [{ "from": "launcher", "to": "claims", "label": "lstat the claim", "where": "path:line", "tone": "risk" },
-            { "over": ["launcher", "claims"], "note": "Young enough: stop here.", "tone": "risk" },
-            { "from": "launcher", "to": "launcher", "label": "retries once" }] }
-
-// tree
-{ "kind": "tree", "root": "<root>/claims/",
-  "items": [{ "path": "sub/dir/name", "state": "added|removed|changed|kept", "note": "md", "where": "path:line" }] }
-
-// matrix
-{ "kind": "matrix", "rowLabel": "Root", "colLabel": "Trigger",
-  "rows": ["Default", "Relocated"], "cols": ["Start-up", "Cold path"],
-  "cells": [["no claim", { "text": "prune, `Try`", "tone": "ok|warn|bad|info|none" }], ["…", "…"]] }
-
-// timeline (values in one unit; ticks name them)
-{ "kind": "timeline", "scale": "log|linear", "from": 60, "to": 5184000,
-  "ticks": [{ "at": 3600, "label": "1 h" }],
-  "spans": [{ "from": 60, "to": 120960, "label": "young", "tone": "info|ok|warn|bad|none" }],
-  "marks": [{ "at": 1728000, "label": "1.24.0", "tone": "bad" }] }
-
 // compare
 { "kind": "compare", "before": { /* any figure */ }, "after": { /* any figure */ } }
 
@@ -307,13 +409,74 @@ Every figure has:
 { "kind": "svg", "svg": "<svg viewBox='0 0 600 200'>…</svg>" }
 ```
 
+### Diagrams the kit draws
+
+A figure whose `kind` is a notation one of the `draw-*` skills draws is
+written in that notation's own terms, checked and laid out by the diagram
+kit when the page is built, and drawn by the kit's renderer. Today those
+are the kinds in the table above that say "drawn by the diagram kit".
+
+- Write it as the notation's reference says. Each kind has a skill beside
+  this one, named `draw-<kind>` (`draw-state-machine` for `state-machine`,
+  `draw-flowchart` for `flowchart`, and so on). Its notation reference is
+  the spec, and beside it is an example at the standard expected: for a
+  class diagram, `../draw-class-diagram/reference/notation.md`. A kit
+  diagram takes the same `id`, `title`, `caption` and `wide` as any
+  figure.
+- A `matrix` and a `tree` are drawn as a table and a listing, in HTML, so
+  they reflow and scroll as text does; a `timeline` is a drawing. In a
+  tree's items, write `link` where this page once took `where`.
+- A sequence diagram is one scenario written as a call tree: a call holds,
+  as its `steps`, what its receiver does before answering, and its `reply`
+  if what comes back matters.
+- Every element may carry a `status` (`new`, `changed`, `removed`,
+  `existing`), a `tone` (`risk`, `ok`) and a `link`.
+- A `link` is where the element lives: `path:line` opens the file,
+  `chapter:<id>` opens a chapter, and a web address opens as it is. The
+  build checks a `path:line` and a chapter exactly as it checks a `where`.
+- Anything the kit finds wrong with a diagram is a build warning naming
+  the figure, and the figure is not drawn until it is fixed.
+- A dependency graph with more than about twice as many dependencies as
+  modules should set `"reduce": true`.
+- A class diagram makes one point about a design with the types that
+  point needs; an object diagram shows one case at one moment; a domain
+  model shows aggregates and what crosses their boundaries.
+- An activity diagram with `partitions`, or a flowchart with `lanes`, is
+  drawn in swimlanes down the page. A decision tree is written nested, as
+  it is drawn.
+- What the kit remarks on under a figure (a state that cannot be reached,
+  a decision with nothing to decide by, a question whose answers all lead
+  to one outcome, a reference into an aggregate past its root) is either a
+  mistake in the figure or a finding about the code: settle which against
+  the code, and raise a finding in `ownNotes` if it is true.
+
+The build writes two diagrams for you. The Design view's diagram of how
+the abstractions work together is a class diagram drawn from their
+`collaborators`: each abstraction is a class with its `kind` as the
+stereotype, and each collaborator's `relation` decides the line.
+
+| `relation` | Drawn as | Say it when |
+|---|---|---|
+| `implements` | A dashed line to a hollow triangle | The abstraction implements the collaborator: an adapter and its port, a type and its trait |
+| `extends` | A solid line to a hollow triangle | It is a more specific kind of the collaborator |
+| `owns` | A filled diamond on the abstraction | The collaborator is part of it and does not outlive it |
+| `holds` | A hollow diamond on the abstraction | It keeps the collaborator, which has a life of its own |
+| `uses` | A dashed arrow | It calls or depends on the collaborator; the default |
+
+Where two declarations of the same pair disagree, the first stands and the
+build notes it. The module map is a dependency graph drawn from
+`modmap.json`.
+
+The build needs Node 22 to lay diagrams out. Without it, the build warns
+and no kit diagram is drawn.
+
 What makes a figure worth its space:
 
 - **One idea per figure**, stated in its title. Two ideas make two figures.
 - **The code's own names** on boxes, actors and paths, and real values on
   axes and in cells: `CLAIM_WINDOW` at 14 d, not "the window".
-- **Small enough to read at a glance**: up to about 12 nodes, 8 actors, 10
-  steps, 6 columns. Split anything bigger.
+- **Small enough to read at a glance**: up to about 12 nodes, 8
+  participants, 20 messages, 6 columns. Split anything bigger.
 - **Tone marks what changed**: `new` for what the PR adds, `changed`,
   `removed`, and `risk` for where it can go wrong. The page draws a legend.
 - **`where` on everything that has a home in the code**, so a click opens it.
@@ -329,6 +492,7 @@ external side effects — whatever this PR can do that is hard to undo.
 {
   "id": "L-tree-01",
   "file": "path", "line": 561,                // head line of the call
+  "anchor": "fs::remove_dir_all(",            // code copied from that line; see Anchors
   "start": 548, "end": 563,                   // optional: the call and the guards read with it; defaults to line
   "op": "unlink",                             // short operation name; counted in the lede
   "subject": "≤ 15 words: what is affected",
@@ -385,7 +549,7 @@ can be mapped to the same shape:
 [{ "n": 1, "label": "…", "phase": "4", "note": "md or null",
    "tests": [{ "ref": "name as written", "hits": [{ "name": "…", "file": "…", "line": 10 }] }] }]
 
-// modmap.json — ≤ 12 nodes; edges point from caller to callee and run down the layers
+// modmap.json — ≤ 12 nodes; edges point from caller to callee; drawn as a dependency graph, a group per layer
 { "title": "How the modules fit", "caption": "…",
   "layers": [{ "id": "entry", "label": "Entry", "sub": "…" }],
   "nodes": [{ "id": "start_up", "layer": "entry", "label": "start_up", "sub": "…", "isNew": true, "chapter": "identity" }],
@@ -399,8 +563,10 @@ overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 `stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
 `ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
-`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each record carries `target`, `kind`, `status`,
-`note`, `label`, `where` and `updatedAt`. Hosted on claude.ai, records live in
+`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each
+record carries `target`, `kind`, `status`, `note`, `label`, `where`,
+`updatedAt`, the `head` its verdict was given at and, for a stop, ledger row
+or file, the lines it `claimed` there. Hosted on claude.ai, records live in
 the artifact's `reviews` collection, with `/` in a target written as `~2f`.
 Opened as a file, they live in the browser's local storage under
 `explore-pr:<repo>#<number>`.
@@ -423,3 +589,27 @@ rewrites or removes, a line removed after an earlier commit added it, and a
 change a later commit restores are **superseded**: they can be read and
 marked, but are not counted. `assets/review-coverage.js` is the model; **Your
 notes** ends with the lines still to read.
+
+### When the head moves
+
+A verdict is about the code as it stood at one head. Each build keeps its
+diff in `data/heads/<head>.json`, and the page carries a `lineage` from every
+earlier head it finds there: for each file, which changed lines still stand
+unchanged and where they are now. A verdict recorded at an earlier head then
+claims only the lines that survive, at their new places, so:
+
+- a line added or rewritten since is unread again, in every view;
+- a stop, ledger row or file whose lines changed since its verdict says so
+  under its control, as does a chapter any of whose files changed, and the
+  overall and design verdicts when any file changed;
+- a banner counts the verdicts recorded before the head moved, and **Your
+  notes** marks each one;
+- line marks move with their lines;
+- giving the verdict again records it at the current head. Adding a note
+  does not.
+
+A commit's verdict needs none of this: its lines are traced onto whatever the
+whole diff now is. A verdict from a head with no kept diff claims no lines,
+and one recorded before heads were kept counts as given at the current head.
+`pr.head` in `explore.json` names the head, so keep it current and never
+delete `data/heads/`.

@@ -18,7 +18,7 @@ from pathlib import Path
 
 WHOLE_FILE = 1_000_000
 BULK_CONTEXT = 5
-BULK_LINE_THRESHOLD = 4000
+BULK_LINE_THRESHOLD = 20_000
 BULK_PATTERNS = (
     "*.lock",
     "*-lock.json",

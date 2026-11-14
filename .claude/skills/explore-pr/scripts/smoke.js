@@ -9,14 +9,22 @@
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
 // unread lines and that the n key jumps to the next unread line. Needs Node
-// 22+ (global WebSocket). Last, it unfolds a run of unchanged lines in a file
-// opened by link and in one picked from the file list.
+// 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
+// opened by link and in one picked from the file list. Last, it renders prose
+// naming a stop and its chapter, and checks both become links and that the
+// stop's link opens its chapter at that stop. It also records a file verdict,
+// pretends it was given at an earlier head, and checks that rewritten lines are
+// unread again and announced, that untouched ones stay read, and that only a
+// new verdict, not a note, moves the record to this head. Every diagram the
+// kit drew is put through the kit's own checks: text inside its box, no box
+// across another or across an arrow, tracing, and a linked box opening its link.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { DRAWING_CHECKS, SELF_DRAWN_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
 
 const CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -150,138 +158,85 @@ const COMMITS_PROBE = `(async () => {
   return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne, linkAboveEachUnreadRun, nextUnreadKey };
 })()`;
 
-const ARROWS_PROBE = `(async () => {
-  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
-  const crooked = [];
-  let checked = 0;
-  for (const route of ['overview', 'design', 'pictures']) {
-    location.hash = route; await settle();
-    for (const path of document.querySelectorAll('svg path[marker-end]')) {
-      if (!path.getTotalLength) continue;
-      const length = path.getTotalLength();
-      if (length < 12) continue;
-      const bends = ([a, b, c]) => Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) > 0.5;
-      const at = d => path.getPointAtLength(d);
-      checked++;
-      if (bends([at(0), at(4), at(8)])) crooked.push(route + ' start: ' + path.getAttribute('d'));
-      if (bends([at(length), at(length - 4), at(length - 8)])) crooked.push(route + ' end: ' + path.getAttribute('d'));
-    }
-  }
-  const slanted = [], throughBoxes = [], shared = [];
-  let measured = 0, crossings = 0;
-  for (const route of ['overview', 'design']) {
-    location.hash = route; await settle();
-    for (const svg of document.querySelectorAll('svg[data-graph]')) {
-      const boxes = [...svg.querySelectorAll('[data-node] > rect')].map(el => ['x', 'y', 'width', 'height'].map(k => +el.getAttribute(k)));
-      const runs = [];
-      for (const path of svg.querySelectorAll('path[data-to]')) {
-        measured++;
-        const d = path.getAttribute('d');
-        const tokens = d.match(/[MLQ]|-?[0-9.]+/g);
-        let at = null;
-        for (let i = 0; i < tokens.length;) {
-          const command = tokens[i++];
-          const take = n => tokens.slice(i, (i += n)).map(Number);
-          if (command === 'M') at = take(2);
-          else if (command === 'L') {
-            const to = take(2);
-            if (Math.abs(to[0] - at[0]) > 0.5 && Math.abs(to[1] - at[1]) > 0.5) slanted.push(route + ': ' + d);
-            runs.push({ edge: path, from: at, to });
-            at = to;
-          } else if (command === 'Q') at = take(4).slice(2);
-        }
-        const length = path.getTotalLength();
-        for (let s = 0; s <= length; s += 2) {
-          const p = path.getPointAtLength(s);
-          if (boxes.some(([x, y, w, h]) => p.x > x + 2 && p.x < x + w - 2 && p.y > y + 2 && p.y < y + h - 2)) { throughBoxes.push(route + ': ' + d); break; }
-        }
-      }
-      runs.forEach((r, i) => runs.slice(i + 1).forEach(q => {
-        if (r.edge === q.edge) return;
-        const flat = u => Math.abs(u.from[1] - u.to[1]) < 0.5, upright = u => Math.abs(u.from[0] - u.to[0]) < 0.5;
-        const overlap = (a0, a1, b0, b1) => Math.min(Math.max(a0, a1), Math.max(b0, b1)) - Math.max(Math.min(a0, a1), Math.min(b0, b1));
-        if (flat(r) && flat(q) && Math.abs(r.from[1] - q.from[1]) < 0.5 && overlap(r.from[0], r.to[0], q.from[0], q.to[0]) > 2) shared.push(route);
-        if (upright(r) && upright(q) && Math.abs(r.from[0] - q.from[0]) < 0.5 && overlap(r.from[1], r.to[1], q.from[1], q.to[1]) > 2) shared.push(route);
-        const [h, v] = flat(r) && upright(q) ? [r, q] : flat(q) && upright(r) ? [q, r] : [null, null];
-        if (h && v.from[0] > Math.min(h.from[0], h.to[0]) + 0.5 && v.from[0] < Math.max(h.from[0], h.to[0]) - 0.5 && h.from[1] > Math.min(v.from[1], v.to[1]) + 0.5 && h.from[1] < Math.max(v.from[1], v.to[1]) - 0.5) crossings++;
-      }));
-    }
-  }
-  return { checked, crooked: crooked.slice(0, 5), straightAtBothEnds: checked > 0 && !crooked.length, measured, crossings, slanted: slanted.slice(0, 3), rightAngled: measured > 0 && !slanted.length, throughBoxes: throughBoxes.slice(0, 3), clearOfBoxes: !throughBoxes.length, sharedRuns: shared.length, noSharedRuns: !shared.length };
+const REFERENCES_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const chapters = api.content.chapters || [];
+  const last = [...chapters].reverse().find(chapter => (chapter.stops || []).length);
+  if (!last) return { skipped: 'no chapter with a stop' };
+  const stop = last.stops[last.stops.length - 1];
+  location.hash = 'overview'; await settle();
+  const holder = document.createElement('p');
+  holder.innerHTML = api.md('See \`' + stop.id + '\` in chapter \`' + last.id + '\`.', true);
+  document.querySelector('#main .view').prepend(holder);
+  const [toStop, toChapter] = holder.querySelectorAll('a.ref');
+  const named = !!toStop && !!toChapter && !holder.querySelector('code') && toStop.textContent.includes(stop.title || stop.id) && toChapter.textContent === (last.title || last.id);
+  if (!named) return { named, html: holder.innerHTML };
+  toStop.click(); await settle();
+  const target = document.getElementById('stop-' + stop.id);
+  const top = target ? target.getBoundingClientRect().top : null;
+  return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
 })()`;
 
-const PRESS_PROBE = `(async () => {
-  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
-  location.hash = 'design'; await settle();
-  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]') && each.querySelector('.node-link'));
-  if (!svg) return { skipped: 'no linked graph with edges on the design view' };
-  const link = svg.querySelector('.node-link');
-  const node = link.closest('[data-node]');
-  const id = node.getAttribute('data-node');
-  if (!svg.querySelector('[data-from="' + CSS.escape(id) + '"], [data-to="' + CSS.escape(id) + '"]')) return { skipped: 'linked box has no edges' };
-  const press = (target, pointerType) => {
-    target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType }));
-    target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType }));
-    target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType }));
-    if (pointerType === 'touch') target.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType, relatedTarget: document.body }));
-    target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+const HEADS_PROBE = `(async () => {
+  const api = window.ExplorePR.api, store = api.store, content = api.content;
+  const settle = () => new Promise(r => setTimeout(r, 500));
+  const file = content.files.find(f => window.ReviewCoverage.changedLinesOf((api.diff || {})[f.path]).length);
+  if (!file || !content.pr.head) return { skipped: 'no head, or no file with a changed line' };
+  const path = file.path, target = 'file:' + path, earlier = 'earlier-head';
+  const bar = () => document.querySelector('[data-coverage-of="' + CSS.escape(path) + '"]');
+  const since = () => document.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"] [data-since-note]');
+  const recordedAt = (head, lineage) => {
+    content.lineage = { ...(content.lineage || {}), [earlier]: { [path]: lineage } };
+    store.docs.set(target, { ...store.get(target), head });
+    store.version++;
+    api.rerender();
   };
-  const result = {};
-  for (const pointerType of ['touch', 'mouse']) {
-    const body = node.querySelector('rect');
-    press(body, pointerType);
-    const pinned = svg.classList.contains('tracing') && location.hash === '#design';
-    body.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType, relatedTarget: document.body }));
-    const stays = svg.classList.contains('tracing');
-    press(body, pointerType);
-    result[pointerType] = pinned && stays && !svg.classList.contains('tracing');
-  }
-  const others = [...svg.querySelectorAll('[data-node]')].filter(n => n !== node && svg.querySelector('[data-from="' + CSS.escape(n.getAttribute('data-node')) + '"], [data-to="' + CSS.escape(n.getAttribute('data-node')) + '"]'));
-  if (others.length) {
-    const other = others[0];
-    press(node.querySelector('rect'), 'touch');
-    press(other.querySelector('rect'), 'mouse');
-    result.additive = node.classList.contains('traced') && other.classList.contains('traced');
-    press(svg.closest('figure') || document.body, 'mouse');
-    result.pressAwayKeeps = node.classList.contains('traced') && other.classList.contains('traced');
-    press(node.querySelector('rect'), 'touch');
-    result.untoggleOne = !node.classList.contains('traced') && other.classList.contains('traced');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    result.escapeClears = !svg.classList.contains('tracing');
-  }
-  press(link.querySelector('path') || link, 'touch');
-  await settle();
-  result.linkNavigates = location.hash !== '#design';
-  result.linkLeavesTraceAlone = !svg.classList.contains('tracing');
-  return result;
+  store.put(target, 'file', { status: 'ok' }, {});
+  const saved = store.get(target);
+  const stamped = saved.head === content.pr.head && Array.isArray(saved.claimed) && saved.claimed.length > 0;
+  api.openFile(path); await settle();
+  const readAtHead = +bar().dataset.read;
+  recordedAt(earlier, { new: [], old: [], changed: true }); api.openFile(path); await settle();
+  const rewrittenUnread = readAtHead > 0 && +bar().dataset.read === 0;
+  const marked = !!since() && !since().hidden && since().textContent.includes(earlier.slice(0, 7));
+  const banner = document.querySelector('#store-banner');
+  const announced = !!banner && !banner.hidden && /moved/.test(banner.textContent);
+  recordedAt(earlier, 'same'); api.openFile(path); await settle();
+  const untouchedCarried = +bar().dataset.read === readAtHead && !!since() && since().hidden;
+  store.put(target, 'file', { note: 'checked' }, {});
+  const noteKeepsHead = store.get(target).head === earlier;
+  store.put(target, 'file', { status: 'issue' }, {});
+  const verdictRestamps = store.get(target).head === content.pr.head;
+  store.put(target, 'file', { status: '', note: '' }, {});
+  delete content.lineage[earlier];
+  return { stamped, rewrittenUnread, marked, announced, untouchedCarried, noteKeepsHead, verdictRestamps };
 })()`;
 
-const GRAPH_PROBE = `(async () => {
-  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
-  location.hash = 'design'; await settle();
-  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]'));
-  if (!svg) return { skipped: 'no graph with edges on the design view' };
-  const edge = svg.querySelector('path[data-from]');
-  const node = svg.querySelector('[data-node="' + CSS.escape(edge.getAttribute('data-from')) + '"]');
-  const target = node.querySelector('rect');
-  target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
-  target.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-  const hoverLeavesAlone = !svg.classList.contains('tracing');
-  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-  const traced = svg.classList.contains('tracing') && edge.classList.contains('traced-out');
-  const outward = getComputedStyle(edge).stroke;
-  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-  const released = !svg.classList.contains('tracing') && !edge.classList.contains('traced-out');
-  const graphs = [...document.querySelectorAll('svg[data-graph]')];
-  const labelsOnTop = graphs.every(g => {
-    const order = [...g.querySelectorAll('path.edge, .elabel')];
-    const lastPath = order.map(el => el.matches('path.edge')).lastIndexOf(true);
-    const firstLabel = order.findIndex(el => el.matches('.elabel'));
-    return firstLabel === -1 || firstLabel > lastPath;
-  });
-  const linked = graphs.flatMap(g => [...g.querySelectorAll('[data-node]')]).filter(n => n.querySelector('.node-link'));
-  const bordersOverLinks = linked.length > 0 && linked.every(n => n.lastElementChild.matches('rect.frame'));
-  return { node: node.getAttribute('data-node'), hoverLeavesAlone, traced, highlighted: outward !== getComputedStyle(edge).stroke, released, labelsOnTop, bordersOverLinks };
+const DIAGRAMS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const seen = {};
+  let tracing = { skipped: 'no diagram with an arrow' };
+  for (const route of [...window.ExplorePR.figureViews(), ...window.ExplorePR.customViews()]) {
+    location.hash = route; await settle();
+    for (let waited = 0; waited < 40 && document.querySelector('[data-drawing]'); waited++) await settle();
+    if (document.querySelector('[data-drawing]')) { seen[route] = ['a diagram was still being drawn after 12 seconds']; continue; }
+    if (!document.querySelector('svg.dk, .dk-drawn')) continue;
+    const checked = await ${DRAWING_CHECKS};
+    [...checked.diagrams, ...${SELF_DRAWN_CHECKS}].forEach(each => { seen[each.id] = each.problems; });
+    const traced = await ${TRACING_CHECK};
+    if (!traced.skipped) tracing = traced;
+    const link = document.querySelector('svg.dk .node-link');
+    if (link && !('linkOpens' in seen)) {
+      const before = location.hash;
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await settle();
+      seen.linkOpens = location.hash !== before || !!document.querySelector('#file-pane');
+    }
+  }
+  const { linkOpens = null, ...problems } = seen;
+  if (!Object.keys(problems).length) return { skipped: 'no kit diagram on the page' };
+  return { problems, tracing, linkOpens };
 })()`;
 
 const UNFOLD_PROBE = `(async () => {
@@ -305,6 +260,11 @@ const UNFOLD_PROBE = `(async () => {
   return { file: folded.path, afterOpening, afterPicking };
 })()`;
 
+async function wholePage(cdp) {
+  const { result: { cssContentSize: size } } = await cdp.send('Page.getLayoutMetrics');
+  return { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: size.width, height: size.height, scale: 1 } };
+}
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -320,21 +280,23 @@ async function main() {
     for (let i = 0; i < 50 && !(await cdp.evaluate('!!(window.ExplorePR && window.ExplorePR.routes().length)')); i++) await sleep(100);
     const routes = await cdp.evaluate('window.ExplorePR ? window.ExplorePR.routes() : []');
     if (options.shots) fs.mkdirSync(options.shots, { recursive: true });
-    for (const route of routes) {
+    const figureViews = await cdp.evaluate('window.ExplorePR.figureViews()');
+    const chapters = figureViews.filter(view => !routes.includes(view));
+    for (const route of [...routes, ...chapters]) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
       await sleep(700);
       report.routes[route] = await cdp.evaluate(`({ heading: (document.querySelector('main h1') || {}).textContent || null, unresolvedSlices: document.querySelectorAll('[data-pending-slice]').length, highlighted: document.querySelectorAll('[class^="hljs-"]').length })`);
       if (options.shots) {
-        const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const shot = await cdp.send('Page.captureScreenshot', figureViews.includes(route) ? await wholePage(cdp) : { format: 'png' });
         fs.writeFileSync(path.join(options.shots, `${route}.png`), Buffer.from(shot.result.data, 'base64'));
       }
     }
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
-    report.graph = await cdp.evaluate(GRAPH_PROBE);
-    report.arrows = await cdp.evaluate(ARROWS_PROBE);
-    report.press = await cdp.evaluate(PRESS_PROBE);
+    report.references = await cdp.evaluate(REFERENCES_PROBE);
+    report.heads = await cdp.evaluate(HEADS_PROBE);
+    report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -358,13 +320,14 @@ async function main() {
   const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
   const unfold = report.unfold || {};
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
-  const graph = report.graph || {};
-  const graphHolds = !!graph.skipped || !!(graph.hoverLeavesAlone && graph.traced && graph.highlighted && graph.released && graph.labelsOnTop && graph.bordersOverLinks);
-  const arrows = report.arrows || {};
-  const arrowsHold = !!(arrows.straightAtBothEnds && arrows.rightAngled && arrows.clearOfBoxes && arrows.noSharedRuns);
-  const press = report.press || {};
-  const pressHolds = !!press.skipped || !!(press.touch && press.mouse && press.additive && press.pressAwayKeeps && press.untoggleOne && press.escapeClears && press.linkNavigates && press.linkLeavesTraceAlone);
-  report.ok = pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const references = report.references || {};
+  const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
+  const heads = report.heads || {};
+  const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
+  const diagrams = report.diagrams || {};
+  const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
+  const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
+  report.ok = diagramsHold && headsHold && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

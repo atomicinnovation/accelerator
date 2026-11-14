@@ -1,0 +1,85 @@
+{
+  "id": "keep-or-remove",
+  "kind": "decision-tree",
+  "title": "Every doubt about a tree falls on the side of keeping it",
+  "caption": "A tree is removed only when it is old, the claims can be read, and no claim inside the window names its version. A claims directory that cannot be read keeps everything, which is the answer to check: it trades disk space for never removing a version in use.",
+  "root": {
+    "question": "Is the tree younger than the age backstop?",
+    "branches": [
+      {
+        "answer": "yes",
+        "then": {
+          "outcome": "Keep: it may still be being written",
+          "tone": "ok"
+        }
+      },
+      {
+        "answer": "no",
+        "then": {
+          "question": "Can the claims directory be read?",
+          "status": "new",
+          "branches": [
+            {
+              "answer": "no",
+              "status": "new",
+              "then": {
+                "outcome": "Keep: nothing can be ruled out",
+                "tone": "ok",
+                "status": "new"
+              }
+            },
+            {
+              "answer": "yes",
+              "status": "new",
+              "then": {
+                "question": "Does any claim name this version?",
+                "status": "new",
+                "branches": [
+                  {
+                    "answer": "no",
+                    "status": "new",
+                    "tone": "risk",
+                    "then": {
+                      "outcome": "Remove",
+                      "tone": "risk",
+                      "status": "new"
+                    }
+                  },
+                  {
+                    "answer": "yes",
+                    "status": "new",
+                    "then": {
+                      "question": "Is the newest such claim inside the claim window?",
+                      "status": "new",
+                      "branches": [
+                        {
+                          "answer": "yes",
+                          "status": "new",
+                          "then": {
+                            "outcome": "Keep: an install still uses it",
+                            "tone": "ok",
+                            "status": "new"
+                          }
+                        },
+                        {
+                          "answer": "no",
+                          "status": "new",
+                          "tone": "risk",
+                          "then": {
+                            "outcome": "Remove",
+                            "tone": "risk",
+                            "status": "new"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

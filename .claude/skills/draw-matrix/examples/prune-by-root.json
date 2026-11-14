@@ -1,0 +1,14 @@
+{
+  "id": "prune-by-root",
+  "kind": "matrix",
+  "title": "Only a relocated root claims before it prunes",
+  "caption": "The plugin's own `bin/` is never pruned, so it needs no claim. A relocated root is shared by every install, so each must claim its version before any prune can run.",
+  "rowLabel": "Root",
+  "colLabel": "Trigger",
+  "rows": ["Plugin's own `bin/`", "Relocated root"],
+  "cols": ["Start-up", "Cold path", "Explicit prune"],
+  "cells": [
+    ["no claim", "no prune", { "text": "refused", "tone": "info" }],
+    [{ "text": "claims the running version", "tone": "ok" }, { "text": "prunes, keeping fresh claims", "tone": "ok" }, { "text": "prunes, even fresh claims", "tone": "warn" }]
+  ]
+}

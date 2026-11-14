@@ -96,6 +96,7 @@ p { margin: 0; }
 .prose pre code, .md pre code { background: none; padding: 0; font-size: inherit; }
 .md { display: grid; gap: .55em; min-width: 0; align-content: start; }
 .md > * { margin: 0; }
+.md > :is(p, ul, ol, blockquote, h1, h2, h3, h4) { max-width: 72ch; }
 .md ul, .md ol { padding-left: 1.2em; display: grid; gap: .25em; }
 .eyebrow { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .muted { color: var(--ink-3); }
@@ -130,7 +131,7 @@ button { font: inherit; color: inherit; }
 .rail a.sub { padding-left: 22px; font-size: 13.5px; }
 .rail-path { font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); padding: 0 10px 10px; overflow-wrap: anywhere; }
 main { min-width: 0; padding-block: 28px 80px; padding-left: max(16px, 3vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 3vw); }
-.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; max-width: 1280px; }
+.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 .view > *, .section > *, .stack > *, .grid-2 > *, .grid-3 > * { min-width: 0; }
 .view-head { display: grid; gap: 8px; }
 .lede { font-size: 16.5px; color: var(--ink-2); max-width: 70ch; }
@@ -182,6 +183,7 @@ table.data tr:last-child td { border-bottom: 0; }
 .ro .seg button, .ro textarea { pointer-events: none; opacity: .75; }
 .ctl.via .seg button.t-ok[aria-pressed="false"] { border-style: dashed; border-color: var(--ok); color: var(--ok); }
 .via-note { font-size: 11.5px; color: var(--ink-3); }
+.since-note { font-size: 11.5px; color: var(--warn); }
 
 /* Banners */
 .banner { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; color: var(--ink-2); }
@@ -255,6 +257,7 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .stop { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; padding-block: 18px; border-top: 1px solid var(--rule); }
 .stop-note { display: grid; gap: 10px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); min-width: 0; }
 .fit { display: grid; gap: 4px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; }
+.stop-figure, .stop-head { grid-column: 1 / -1; }
 .stop-num { font-family: var(--f-mono); font-size: 12px; color: var(--accent); font-weight: 600; }
 .check { border-left: 3px solid var(--warn); padding: 2px 0 2px 10px; font-size: 14px; }
 .check .eyebrow { color: var(--warn); }
@@ -350,15 +353,6 @@ details[open] > summary { margin-bottom: 8px; }
 .report { font-family: var(--f-mono); font-size: 12.5px; background: var(--panel-2); border-radius: 8px; padding: 12px 14px; white-space: pre-wrap; overflow-x: auto; }
 
 /* Module map */
-.modmap { width: 100%; height: auto; display: block; }
-.modmap text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.modmap .lay { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
-.modmap .sub { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); }
-.modmap rect.box { fill: var(--panel); stroke: var(--rule); stroke-width: 1.2; }
-.modmap rect.box.new { stroke: var(--accent); stroke-width: 1.6; }
-.modmap .edge { stroke: var(--ink-3); stroke-width: 1.2; fill: none; }
-.modmap .arrow { fill: var(--ink-3); }
-.modmap .band { fill: var(--panel-2); }
 
 .tok { color: var(--ink-3); }
 .empty { padding: 28px; text-align: center; color: var(--ink-3); border: 1px dashed var(--rule); border-radius: 10px; }
@@ -371,106 +365,14 @@ details[open] > summary { margin-bottom: 8px; }
 .fig.compact { padding: 10px 12px; background: var(--bg); }
 .fig-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.3; }
 .fig-caption { color: var(--ink-2); }
-.fig-from { color: var(--ink-3); }
 .fig-error { color: var(--bad); font-size: 13px; }
 .fig > *, .fside > *, .figs > * { min-width: 0; }
 .fig-body { min-width: 0; overflow-x: auto; }
 .fig-scroll { overflow-x: auto; min-width: 0; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
+.fig-scroll svg.dk { max-width: 100%; min-width: calc(var(--natural-width) * .6); }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
-.fd text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.fd .fs, .fd .fs-msg, .fd .fs-note, .fd .lay, .fd .tl, .fd .ml, .fd .sl, .fd .elabel text { font-family: var(--f-body); }
-.fd .fs { font-size: 11px; fill: var(--ink-3); }
-.fd .fs-msg, .fd .fs-note { font-size: 12px; fill: var(--ink-2); }
-.fd .lay { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
-.fd .band { fill: var(--panel-2); opacity: .6; }
-.fd .fnode rect, .fd .actor rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
-.fd .t-new rect { stroke: var(--accent); stroke-width: 1.9; }
-.fd .t-changed rect { stroke: var(--warn); stroke-width: 1.9; }
-.fd .t-ok rect { stroke: var(--ok); stroke-width: 1.9; }
-.fd .t-existing rect { stroke: var(--ink-3); stroke-width: 1.6; }
-.fd .t-removed rect { stroke: var(--bad); stroke-dasharray: 4 3; }
-.fd .t-removed text { text-decoration: line-through; fill: var(--ink-3); }
-.fd .t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
-.fd .link { cursor: pointer; }
-.fd .link:hover rect { stroke: var(--accent); stroke-width: 2.2; }
-.fd .step.link:hover .fs-msg { fill: var(--accent); }
-.fd .edge, .fd .msg { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
-.fd .edge.t-new, .fd .msg.t-new { stroke: var(--accent); }
-.fd .edge.t-risk, .fd .msg.t-risk, .fd .edge.t-removed, .fd .msg.t-removed { stroke: var(--bad); }
-.fd .edge.t-changed, .fd .msg.t-changed { stroke: var(--warn); }
-.fd .edge.t-ok, .fd .msg.t-ok { stroke: var(--ok); }
-.fd .dashed { stroke-dasharray: 5 4; }
-.fd .arrow { fill: var(--ink-3); }
-svg[data-graph] { --edge-out: var(--accent); --edge-in: var(--warn); }
-svg[data-graph] .arrow-out { fill: var(--edge-out); }
-.lg.trace-out { background: var(--accent); border-color: var(--accent); }
-svg[data-graph] .arrow-in { fill: var(--edge-in); }
-.lg.trace-in { background: var(--warn); border-color: var(--warn); }
-.trace-hint { color: var(--ink-3); }
-svg[data-graph] [data-node] { cursor: pointer; outline: none; }
-svg[data-graph] [data-node]:focus-visible > rect { stroke: var(--accent); stroke-width: 2.4; }
-svg[data-graph] .node-link .hit { fill: transparent; stroke: none; }
-svg[data-graph] [data-node] > rect.frame { fill: none; pointer-events: none; }
-svg[data-graph] .node-link .divider { stroke: var(--rule); }
-svg[data-graph] .node-link .glyph { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-svg[data-graph] .node-link:hover .hit, svg[data-graph] .node-link:focus-visible .hit { fill: var(--accent-soft); }
-svg[data-graph] .node-link:hover .glyph, svg[data-graph] .node-link:focus-visible .glyph { stroke: var(--accent); }
-svg[data-graph] .node-link { outline: none; }
-svg[data-graph] .edge, svg[data-graph] .elabel, svg[data-graph] [data-node] { transition: opacity .12s; }
-svg[data-graph].tracing .edge, svg[data-graph].tracing .elabel { opacity: .12; }
-svg[data-graph].tracing [data-node] { opacity: .3; }
-svg[data-graph].tracing .traced, svg[data-graph].tracing .traced-neighbour, svg[data-graph].tracing .traced-out, svg[data-graph].tracing .traced-in { opacity: 1; }
-svg[data-graph].tracing .edge.traced-out { stroke: var(--edge-out); stroke-width: 2.6; marker-end: var(--ah-out); }
-svg[data-graph].tracing .edge.traced-in { stroke: var(--edge-in); stroke-width: 2.6; marker-end: var(--ah-in); }
-svg[data-graph].tracing .elabel.traced-out rect { stroke: var(--edge-out); }
-svg[data-graph].tracing .elabel.traced-in rect { stroke: var(--edge-in); }
-svg[data-graph].tracing .traced rect { stroke-width: 2.4; }
-@media (prefers-reduced-motion: reduce) { svg[data-graph] .edge, svg[data-graph] .elabel, svg[data-graph] [data-node] { transition: none; } }
-.fd .elabel rect { fill: var(--panel); stroke: var(--rule); }
-.fd .elabel text { font-size: 11px; fill: var(--ink-2); }
-.fd .life { stroke: var(--rule); stroke-width: 1.3; stroke-dasharray: 4 4; }
-.fd .snote rect { fill: color-mix(in srgb, var(--warn) 9%, var(--panel)); stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
-.fd .snote.t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); }
-.fd .snum circle { fill: var(--accent-soft); }
-.fd .snum text { font-family: var(--f-body); font-size: 10px; font-weight: 600; fill: var(--accent); text-anchor: middle; }
-.fd .axis { stroke: var(--ink-3); stroke-width: 1.2; }
-.fd .tick { stroke: var(--ink-3); }
-.fd .tl { font-size: 10.5px; fill: var(--ink-3); }
-.fd .ml { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
-.fd .mark line { stroke: var(--ink-3); stroke-width: 1; }
-.fd .mark circle { fill: var(--ink-2); }
-.fd .mark.t-ok circle { fill: var(--ok); } .fd .mark.t-ok .ml { fill: var(--ok); }
-.fd .mark.t-bad circle, .fd .mark.t-risk circle { fill: var(--bad); } .fd .mark.t-bad .ml, .fd .mark.t-risk .ml { fill: var(--bad); }
-.fd .mark.t-warn circle { fill: var(--warn); } .fd .mark.t-warn .ml { fill: var(--warn); }
-.fd .span rect { fill: color-mix(in srgb, var(--info) 22%, var(--panel)); }
-.fd .span.t-ok rect { fill: color-mix(in srgb, var(--ok) 26%, var(--panel)); }
-.fd .span.t-warn rect { fill: color-mix(in srgb, var(--warn) 26%, var(--panel)); }
-.fd .span.t-bad rect, .fd .span.t-risk rect { fill: color-mix(in srgb, var(--bad) 22%, var(--panel)); }
-.fd .span.t-none rect { fill: var(--panel-2); }
-.fd .sl { font-size: 11px; fill: var(--ink); }
-.fig-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
-.lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
-.lg.t-new { border-color: var(--accent); } .lg.t-changed { border-color: var(--warn); } .lg.t-ok { border-color: var(--ok); } .lg.t-existing { border-color: var(--ink-3); }
-.lg.t-removed { border-color: var(--bad); border-style: dashed; } .lg.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
-.ftree { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; }
-.ftree .tr { display: flex; align-items: baseline; white-space: pre; }
-.ftree .tp { color: var(--ink-3); }
-.ftree .tn.dir { font-weight: 600; }
-.ftree .tn.link { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
-.ftree .ts-added .tn { color: var(--ok); }
-.ftree .ts-removed .tn { color: var(--bad); text-decoration: line-through; }
-.ftree .ts-changed .tn { color: var(--warn); }
-.ftree .tnote { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); margin-left: 14px; white-space: normal; }
 .fig.wide { grid-column: 1 / -1; }
-.fmatrix table.data th { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--ink-2); white-space: normal; }
-.fmatrix table.data th[scope="row"] { color: var(--ink); font-weight: 600; font-size: 13px; }
-.fmatrix td.mc { font-size: 13px; }
-.mt-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
-.mt-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
-.mt-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
-.mt-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
-.mt-none { color: var(--ink-3); }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 .abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .abs.t-new { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
@@ -542,11 +444,12 @@ const base = p => (p || '').split('/').pop();
 
 function md(s, inline) {
   if (!s) return '';
+  const linked = html => (window.ProseReferences && C ? ProseReferences.link(html, C.chapters) : html);
   if (window.marked) {
-    try { return inline ? marked.parseInline(String(s)) : marked.parse(String(s)); } catch (e) { /* fall through */ }
+    try { return linked(inline ? marked.parseInline(String(s)) : marked.parse(String(s))); } catch (e) { /* fall through */ }
   }
   const t = esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-  return inline ? t : t.split(/\n{2,}/).map(p => `<p>${p}</p>`).join('');
+  return linked(inline ? t : t.split(/\n{2,}/).map(p => `<p>${p}</p>`).join(''));
 }
 
 /* ---------- Review state ---------- */
@@ -597,7 +500,7 @@ const Store = {
   put(target, kind, patch, meta) {
     if (!this.canWrite) return;
     const cur = this.get(target);
-    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, updatedAt: new Date().toISOString() };
+    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...headOfVerdict(target, cur, patch), updatedAt: new Date().toISOString() };
     this.docs.set(target, doc);
     this.version++;
     if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
@@ -626,6 +529,29 @@ const Store = {
   },
 };
 
+function headOfVerdict(target, cur, patch) {
+  if (!('status' in patch) && !('lines' in patch) && cur.head) return { head: cur.head, claimed: cur.claimed || [] };
+  const claim = READING_CLAIM[target];
+  const claimed = claim && window.ReviewCoverage && D && D[claim.path] ? ReviewCoverage.claimedLines(claim, D[claim.path]) : [];
+  return { head: C.pr.head || '', claimed };
+}
+const recordedEarlier = doc => !!(doc.head && C.pr.head && doc.head !== C.pr.head);
+function sinceText(target, cur = Store.get(target)) {
+  if (!cur.status || !recordedEarlier(cur) || !window.ReviewCoverage) return '';
+  const at = `Recorded at ${shortSha(cur.head)}`;
+  const claim = READING_CLAIM[target];
+  if (claim) {
+    const lines = D && D[claim.path] ? ReviewCoverage.changedSince(claim, cur, C.pr.head, C.lineage, D[claim.path]) : 0;
+    return lines ? `${at}; ${plural(lines, 'line')} of it changed since and ${lines === 1 ? 'is' : 'are'} unread again` : '';
+  }
+  const chapter = target.startsWith('chapter:') ? target.slice('chapter:'.length) : null;
+  const paths = C.files.filter(f => !chapter || f.chapter === chapter).map(f => f.path);
+  const files = ReviewCoverage.filesChangedSince(paths, cur.head, C.pr.head, C.lineage).length;
+  if (!files) return '';
+  if (chapter) return `${at}; ${plural(files, 'file')} of this chapter changed since`;
+  return target === 'decision' || target.startsWith('design') ? `${at}, before the pull request moved; ${plural(files, 'file')} changed since` : '';
+}
+const currentMarks = doc => (recordedEarlier(doc) ? ReviewCoverage.carriedOver(doc.lines, ((C.lineage || {})[doc.head] || {})[doc.target.slice('lines:'.length)]) : doc.lines || []);
 function ctl(target, kind, meta, opts = {}) {
   const k = KINDS[kind];
   const cur = Store.get(target);
@@ -637,11 +563,12 @@ function ctl(target, kind, meta, opts = {}) {
       <button type="button" class="note-toggle" data-note-toggle aria-expanded="${noteOpen}">${noteOpen ? 'Note' : '+ Note'}</button>
     </div>
     <span class="via-note" data-via-note hidden></span>
+    <span class="since-note" data-since-note hidden></span>
     <textarea data-note placeholder="Your note: what to change, what to ask, what you checked" ${noteOpen ? '' : 'hidden'} aria-label="Note">${esc(cur.note || '')}</textarea>
   </div>`;
 }
 
-GraphFocus.attach(document);
+DiagramKit.attachTracing(document);
 document.addEventListener('click', e => {
   const b = e.target.closest('.ctl .seg button');
   if (!b) return;
@@ -682,6 +609,8 @@ function refreshControls() {
     box.classList.toggle('via', via.length > 0);
     const viaNote = $('[data-via-note]', box);
     if (viaNote) { viaNote.hidden = !via.length; viaNote.textContent = via.length ? `Read via ${via.join(', ')}` : ''; }
+    const since = sinceText(box.dataset.ctl, cur), sinceNote = $('[data-since-note]', box);
+    if (sinceNote) { sinceNote.hidden = !since; sinceNote.textContent = since; }
     $$('.seg button[data-v]', box).forEach(b => b.setAttribute('aria-pressed', String(cur.status === b.dataset.v)));
     const ta = $('textarea', box);
     if (ta && document.activeElement !== ta && ta.value !== (cur.note || '')) { ta.value = cur.note || ''; if (cur.note) { ta.hidden = false; } }
@@ -696,6 +625,7 @@ function refreshControls() {
 
 function onStateChange() {
   if (!C) return;
+  renderBanner();
   refreshControls();
   renderMeters();
   renderRail();
@@ -709,6 +639,11 @@ function renderBanner() {
   if (Store.mode === 'local') html = `<strong>Notes are saved in this browser only.</strong> To share them, open <a href="#notes">Your notes</a> and copy them as Markdown.`;
   else if (Store.mode === 'db' && !Store.canWrite) html = `<strong>Read-only.</strong> You can read the review but only the artifact's owner records verdicts and notes.`;
   else if (Store.mode === 'db' && !Store.reachable) html = `<strong>Saved notes can't be reached yet.</strong> What you see may be out of date; new notes are kept and sent when the store answers.`;
+  const earlier = [...Store.docs.values()].filter(d => d.status && recordedEarlier(d));
+  if (earlier.length) {
+    const heads = [...new Set(earlier.map(d => shortSha(d.head)))].join(', ');
+    html += `${html ? '<br>' : ''}<strong>The pull request has moved since you reviewed it.</strong> ${plural(earlier.length, 'verdict')} ${earlier.length === 1 ? 'was' : 'were'} recorded at ${esc(heads)}, before ${esc(shortSha(C.pr.head))}. Lines changed since are unread again in <a href="#files">All files</a>, and each verdict whose code changed says so.`;
+  }
   el.innerHTML = html;
   el.hidden = !html;
 }
@@ -839,9 +774,10 @@ function recordedClaims() {
   if (!window.ReviewCoverage) return [];
   const at = `${Store.version}:${COMMITS.length}`;
   if (claimsMemo.at === at) return claimsMemo.claims;
-  const verdicts = READING_CLAIMS.filter(c => Store.get(c.by.target).status);
+  const verdicts = READING_CLAIMS.filter(c => Store.get(c.by.target).status)
+    .map(c => ReviewCoverage.standingClaim(c, Store.get(c.by.target), C.pr.head, C.lineage));
   const marks = [...Store.docs.values()].filter(d => d.kind === 'lines' && (d.lines || []).length)
-    .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), d.lines, { target: d.target, label: MARKED }));
+    .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), currentMarks(d), { target: d.target, label: MARKED }));
   const commits = COMMITS.filter(c => Store.get('commit:' + c.sha).status)
     .flatMap(c => ReviewCoverage.commitClaims(c, { target: 'commit:' + c.sha, label: 'Commit ' + shortSha(c.sha) }));
   claimsMemo = { at, claims: [...verdicts, ...marks, ...commits] };
@@ -942,7 +878,7 @@ function markRows(rows, marked) {
   });
   for (const [path, sides] of groups) {
     const target = 'lines:' + path;
-    let lines = Store.get(target).lines || [];
+    let lines = currentMarks({ lines: [], ...Store.get(target), target });
     for (const side of ['new', 'old']) if (sides[side].length) lines = ReviewCoverage.withLinesMarked(lines, side, sides[side], marked);
     Store.put(target, 'lines', { lines, status: lines.length ? 'marked' : '' }, { label: `Lines you marked in ${path}`, where: path });
   }
@@ -1067,7 +1003,6 @@ const customViews = [];
 function routes() {
   const r = [['overview', 'Overview', 'Start']];
   if (hasDesign()) r.push(['design', 'Design', 'Start']);
-  if (allFigures().length) r.push(['pictures', 'In pictures', 'Start']);
   r.push(['map', 'Attention map', 'Start']);
   if (C.chapters.length) r.push(['tour', 'Guided tour', 'Read']);
   if (C.ledger.length) r.push(['ledger', (C.ledgerMeta || {}).title || 'Risk ledger', 'Read']);
@@ -1112,7 +1047,7 @@ function render() {
   [currentRoute, currentSub] = parseHash();
   renderRail();
   const main = $('#main');
-  const views = { overview: vOverview, design: vDesign, pictures: vPictures, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
+  const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
   customViews.forEach(v => { views[v.id] = () => v.render(api()); after[v.id] = () => v.mount && v.mount($('#main'), api()); });
   main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
   renderBanner();
@@ -1134,304 +1069,76 @@ function openFile(path, line, side) {
 }
 
 /* ---------- Figures ---------- */
-const MONO = '12px "JetBrains Mono", ui-monospace, Menlo, monospace';
-const SANS = '12px "IBM Plex Sans", system-ui, sans-serif';
-const SANS_SMALL = '11px "IBM Plex Sans", system-ui, sans-serif';
-let measurer = null;
-function textWidth(text, font) {
-  try {
-    measurer = measurer || document.createElement('canvas').getContext('2d');
-    measurer.font = font || MONO;
-    return measurer.measureText(String(text)).width;
-  } catch (e) { return String(text).length * 7.3; }
-}
-function wrapText(text, maxWidth, font) {
-  const lines = [];
-  let line = '';
-  for (const word of String(text || '').split(/\s+/).filter(Boolean)) {
-    const next = line ? line + ' ' + word : word;
-    if (line && textWidth(next, font) > maxWidth) { lines.push(line); line = word; } else line = next;
-  }
-  if (line) lines.push(line);
-  return lines.length ? lines : [''];
-}
-function fit(text, maxWidth, font) {
-  let s = String(text || '');
-  if (textWidth(s, font) <= maxWidth) return s;
-  while (s.length > 1 && textWidth(s + '…', font) > maxWidth) s = s.slice(0, -1);
-  return s + '…';
-}
 const plain = s => String(s == null ? '' : s).replace(/`/g, '');
-const toneOf = t => (t ? ' t-' + String(t).replace(/[^a-z-]/g, '') : '');
-const svgLines = (x, y, lines, cls, anchor = 'middle', lineHeight = 15) =>
-  `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? lineHeight : 0}">${esc(l)}</tspan>`).join('')}</text>`;
-function openAttrs(item) {
-  const w = item && item.where ? parseWhere(item.where) : null;
-  return w ? { cls: ' link', attrs: ` data-open="${esc(w.path)}" data-line="${w.line}"`, title: `<title>${esc(item.where)}</title>` } : { cls: '', attrs: '', title: '' };
-}
-const { ARROWHEAD } = GraphRoutes;
-const arrowheads = id => ['', '-out', '-in'].map(trace => `<marker id="${id}${trace}" viewBox="0 0 10 10" preserveAspectRatio="none" refX="0" refY="5" markerUnits="userSpaceOnUse" markerWidth="${ARROWHEAD}" markerHeight="${trace ? ARROWHEAD + 3 : ARROWHEAD}" orient="auto"><path class="arrow${trace}" d="M0 0 L10 5 L0 10 z"/></marker>`).join('');
-const routeBox = (id, rank, box, link) => ({ id, rank, x: box.x, y: box.y, w: box.w, h: box.h, portLeft: box.x + 10, portRight: box.x + box.w - link - 10 });
-const traceStyle = id => `--ah-out:url(#${id}-out);--ah-in:url(#${id}-in);`;
-function svgFrame(width, height, body, label, uid, graph = false) {
-  return `<div class="fig-scroll"><svg class="fd"${graph ? ` data-graph="${uid}"` : ''} width="${Math.ceil(width)}" height="${Math.ceil(height)}" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" style="${traceStyle(`ah-${uid}`)}width:${Math.ceil(width)}px;max-width:100%;min-width:${Math.min(Math.ceil(width), Math.round(width * 0.62))}px" role="img" aria-label="${esc(plain(label))}">
-    <defs>${arrowheads(`ah-${uid}`)}</defs>${body}</svg></div>`;
-}
-function edgeLabel(x, y, text, ends = '') {
-  if (!text) return '';
-  const w = textWidth(plain(text), SANS_SMALL) + 12;
-  return `<g class="elabel"${ends}><rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="9"/><text x="${x}" y="${y + 4}" text-anchor="middle">${esc(plain(text))}</text></g>`;
-}
-const traceHint = '<div class="fig-legend trace-hint">Press boxes to trace their arrows (Esc clears): <span><span class="lg trace-out"></span>out</span><span><span class="lg trace-in"></span>in</span><span>↗ opens it</span></div>';
-const NODE_LINK_W = 24, DIVIDER_WIDTH = 1;
-function linkTarget(item) {
-  if (item.chapter) return { attrs: `href="#tour-${esc(item.chapter)}"`, label: 'Open its chapter' };
-  const w = item.where ? parseWhere(item.where) : null;
-  return w ? { attrs: `href="#files" data-open="${esc(w.path)}" data-line="${w.line}"`, label: `Open ${item.where}` } : null;
-}
-function nodeLink(item, x, y, h) {
-  const target = linkTarget(item);
-  if (!target) return '';
-  const left = x - NODE_LINK_W, cx = left + NODE_LINK_W / 2, cy = y + h / 2;
-  const right = x, r = 7, bottom = y + h, dividerLeft = left - DIVIDER_WIDTH / 2;
-  const hit = `M${dividerLeft} ${y} H${right - r} Q${right} ${y} ${right} ${y + r} V${bottom - r} Q${right} ${bottom} ${right - r} ${bottom} H${dividerLeft} Z`;
-  return `<a class="node-link" ${target.attrs} aria-label="${esc(target.label)}"><title>${esc(target.label)}</title><path class="hit" d="${hit}"/><line class="divider" stroke-width="${DIVIDER_WIDTH}" x1="${left}" y1="${y + 6}" x2="${left}" y2="${y + h - 6}"/><path class="glyph" d="M${cx - 4} ${cy + 4} L${cx + 4} ${cy - 4} M${cx - 2} ${cy - 4} L${cx + 4} ${cy - 4} L${cx + 4} ${cy + 2}"/></a>`;
-}
-const nodeFrame = (item, box, cls = '') => (linkTarget(item) ? `<rect class="frame${cls}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="7"/>` : '');
-const labelCentre = n => n.x + (n.w - n.link) / 2;
-const nodeAttrs = (id, label) => `data-node="${esc(id)}" tabindex="0" role="button" aria-label="Trace the arrows of ${esc(plain(label))}"`;
-function legend(tones) {
-  const names = { new: 'new in this PR', changed: 'changed', removed: 'removed', existing: 'unchanged', risk: 'risk', ok: 'safe' };
-  const used = [...new Set(tones.filter(t => names[t]))];
-  return used.length ? `<div class="fig-legend">${used.map(t => `<span><span class="lg t-${t}"></span>${names[t]}</span>`).join('')}</div>` : '';
-}
-
-function figFlow(f, uid) {
-  const nodes = (f.nodes || []).map(n => ({ ...n }));
-  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
-  const edges = (f.edges || []).filter(e => byId[e.from] && byId[e.to]);
-  const layerIds = (f.layers || []).map(l => l.id);
-  if (layerIds.length) nodes.forEach(n => { n.rank = Math.max(0, layerIds.indexOf(n.layer)); });
-  else {
-    const rank = {}, visiting = new Set();
-    const rankOf = id => {
-      if (id in rank) return rank[id];
-      visiting.add(id);
-      const preds = edges.filter(e => e.to === id && !visiting.has(e.from)).map(e => e.from);
-      const r = preds.length ? Math.max(...preds.map(rankOf)) + 1 : 0;
-      visiting.delete(id);
-      return (rank[id] = r);
-    };
-    nodes.forEach(n => { n.rank = rankOf(n.id); });
-  }
-  const rows = [];
-  nodes.forEach(n => {
-    (rows[n.rank] = rows[n.rank] || []).push(n);
-    n.link = linkTarget(n) ? NODE_LINK_W : 0;
-    n.w = Math.max(96, Math.min(250, Math.max(textWidth(plain(n.label)), n.sub ? textWidth(plain(n.sub), SANS_SMALL) : 0) + 28)) + n.link;
-    n.h = n.sub ? 46 : 32;
-  });
-  if (f.arrange) {
-    const arranged = GraphRoutes.orderRows(rows.map(r => (r || []).map(n => n.id)), edges);
-    arranged.forEach((ids, i) => { if (rows[i]) rows[i] = ids.map(id => byId[id]); });
-  }
-  const labelCol = layerIds.length ? 128 : 0, gap = 22;
-  const rowW = rows.map(r => (r || []).reduce((s, n) => s + n.w, 0) + Math.max(0, (r || []).length - 1) * gap);
-  const rowH = rows.map(r => Math.max(32, ...(r || []).map(n => n.h)));
-  const inner = Math.max(220, ...rowW);
-  const backLanes = edges.filter(e => byId[e.to].rank < byId[e.from].rank).length;
-  const indent = labelCol + 40 + Math.max(0, backLanes * 10 - 18);
-  rows.forEach((r, i) => {
-    let x = indent + (inner - rowW[i]) / 2;
-    (r || []).forEach(n => { n.x = x; x += n.w + gap; });
-  });
-  const width = indent + inner + 40;
-  const boxes = Object.fromEntries(nodes.map(n => [n.id, routeBox(n.id, n.rank, n, n.link)]));
-  const plan = GraphRoutes.plan(Object.values(boxes), edges);
-  const gapAt = g => (plan.gaps[g] ? GraphRoutes.gapHeight(plan.gaps[g]) : g < 0 || g >= rows.length - 1 ? 0 : GraphRoutes.gapHeight({}));
-  const rowY = [];
-  let y = 18 + gapAt(-1);
-  rows.forEach((r, i) => {
-    rowY[i] = y;
-    (r || []).forEach(n => { n.y = y + (rowH[i] - n.h) / 2; boxes[n.id].y = n.y; boxes[n.id].h = n.h; });
-    y += rowH[i] + gapAt(i);
-  });
-  const height = y + 30;
-  let svg = '';
-  if (layerIds.length) (f.layers || []).forEach((l, i) => {
-    if (rowY[i] == null) return;
-    svg += `<rect class="band" x="0" y="${rowY[i] - 9}" width="${width}" height="${rowH[i] + 18}" rx="8"/>${svgLines(12, rowY[i] + rowH[i] / 2 + 4, [fit(plain(l.label).toUpperCase(), labelCol - 18, SANS_SMALL)], 'lay', 'start')}`;
-  });
-  const gapTop = g => (g < 0 ? 18 : rowY[g] + rowH[g]);
-  const routes = GraphRoutes.draw(plan, Object.values(boxes), { gapTop, gapBottom: g => gapTop(g) + gapAt(g) });
-  const ends = e => ` data-from="${esc(e.from)}" data-to="${esc(e.to)}"`;
-  edges.forEach((e, i) => { svg += `<path class="edge${toneOf(e.tone)}${e.dashed ? ' dashed' : ''}"${ends(e)} d="${routes[i].d}" marker-end="url(#ah-${uid})"/>`; });
-  edges.forEach((e, i) => { svg += edgeLabel(routes[i].labelAt[0], routes[i].labelAt[1], e.label, ends(e)); });
-  nodes.forEach(n => {
-    const textW = n.w - n.link, mid = labelCentre(n);
-    svg += `<g class="fnode${toneOf(n.tone)}" ${nodeAttrs(n.id, n.label)}><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="7"/>${svgLines(mid, n.y + (n.sub ? 19 : 20), [fit(plain(n.label), textW - 16)], 'fl')}${n.sub ? svgLines(mid, n.y + 35, [fit(plain(n.sub), textW - 16, SANS_SMALL)], 'fs') : ''}${nodeLink(n, n.x + n.w, n.y, n.h)}${nodeFrame(n, n)}</g>`;
-  });
-  return svgFrame(width, height, svg, f.title, uid, edges.length > 0) + legend(nodes.map(n => n.tone).concat(edges.map(e => e.tone)));
-}
-
-function figSequence(f, uid) {
-  const actors = f.actors || [];
-  const index = Object.fromEntries(actors.map((a, i) => [a.id, i]));
-  const spans = (f.steps || []).filter(s => !s.over && index[s.from] != null && index[s.to] != null).map(s => (Math.min(320, textWidth(plain(s.label), SANS) + 32)) / Math.max(1, Math.abs(index[s.to] - index[s.from])));
-  const colW = Math.max(150, ...actors.map(a => textWidth(plain(a.label)) + 44), ...spans);
-  const left = 36;
-  const width = left + actors.length * colW + 16;
-  const cx = i => left + i * colW + colW / 2;
-  const top = 12, headH = 34;
-  let y = top + headH + 22, body = '', n = 0;
-  for (const s of f.steps || []) {
-    if (s.over) {
-      const cols = s.over.map(a => index[a]).filter(i => i != null);
-      if (!cols.length) continue;
-      const x1 = cx(Math.min(...cols)) - colW / 2 + 12, x2 = cx(Math.max(...cols)) + colW / 2 - 12;
-      const lines = wrapText(plain(s.note), x2 - x1 - 20, SANS);
-      const h = lines.length * 15 + 14;
-      body += `<g class="snote${toneOf(s.tone)}"><rect x="${x1}" y="${y}" width="${x2 - x1}" height="${h}" rx="6"/>${svgLines((x1 + x2) / 2, y + 19, lines, 'fs-note')}</g>`;
-      y += h + 14;
-      continue;
-    }
-    const a = index[s.from], b = index[s.to];
-    if (a == null || b == null) continue;
-    n++;
-    const o = openAttrs(s);
-    if (a === b) {
-      const x = cx(a), lines = wrapText(plain(s.label), colW - 28, SANS);
-      const top2 = y, loopY = y + lines.length * 15 + 2;
-      body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines(x + 10, top2 + 11, lines, 'fs-msg', 'start')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="${GraphRoutes.roundedPath([[x, loopY], [x + 32, loopY], [x + 32, loopY + 20], [x + 2, loopY + 20]])}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${loopY + 10}" r="9"/><text x="18" y="${loopY + 14}">${n}</text></g></g>`;
-      y = loopY + 36;
-      continue;
-    }
-    const x1 = cx(a), x2 = cx(b);
-    const lines = wrapText(plain(s.label), Math.abs(x2 - x1) - 24, SANS);
-    const arrowY = y + lines.length * 15 + 4;
-    body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines((x1 + x2) / 2, y + 11, lines, 'fs-msg')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="M${x1} ${arrowY} L${x2 - Math.sign(x2 - x1) * (2 + ARROWHEAD)} ${arrowY}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${arrowY}" r="9"/><text x="18" y="${arrowY + 4}">${n}</text></g></g>`;
-    y = arrowY + 20;
-  }
-  const height = y + 6;
-  const lifelines = actors.map((a, i) => `<line class="life" x1="${cx(i)}" y1="${top + headH}" x2="${cx(i)}" y2="${height - 6}"/>`).join('');
-  const heads = actors.map((a, i) => `<g class="actor${toneOf(a.tone)}"><rect x="${cx(i) - (colW - 24) / 2}" y="${top}" width="${colW - 24}" height="${headH}" rx="7"/>${svgLines(cx(i), top + 21, [fit(plain(a.label), colW - 36)], 'fl')}</g>`).join('');
-  return svgFrame(width, height, lifelines + heads + body, f.title, uid);
-}
-
-function figTree(f) {
-  const root = { children: new Map() };
-  for (const item of f.items || []) {
-    const parts = String(item.path || '').split('/').filter(Boolean);
-    let node = root;
-    parts.forEach((part, i) => {
-      if (!node.children.has(part)) node.children.set(part, { name: part, children: new Map(), dir: i < parts.length - 1 });
-      node = node.children.get(part);
-    });
-    node.item = item;
-    if (String(item.path).endsWith('/')) node.dir = true;
-  }
-  const rows = [];
-  const walk = (node, prefix) => {
-    const kids = [...node.children.values()];
-    kids.forEach((k, i) => {
-      const last = i === kids.length - 1;
-      rows.push({ guide: prefix + (last ? '└── ' : '├── '), node: k });
-      walk(k, prefix + (last ? '    ' : '│   '));
-    });
-  };
-  walk(root, '');
-  const mark = { added: '+ ', removed: '− ', changed: '~ ' };
-  return `<div class="ftree">${f.root ? `<div class="tr"><span class="tn dir">${esc(f.root)}</span></div>` : ''}${rows.map(({ guide, node }) => {
-    const item = node.item || {}, state = item.state || 'neutral', o = openAttrs(item);
-    return `<div class="tr ts-${esc(state)}"><span class="tp">${esc(guide)}</span><span class="tn${node.dir ? ' dir' : ''}${o.cls}"${o.attrs}>${mark[state] || ''}${esc(node.name)}${node.dir ? '/' : ''}</span>${item.note ? `<span class="tnote">${md(item.note, true)}</span>` : ''}</div>`;
-  }).join('')}</div>`;
-}
-
-function figMatrix(f) {
-  const cell = c => (c && typeof c === 'object' ? c : { text: c });
-  const corner = [f.rowLabel, f.colLabel].filter(Boolean).map(esc).join(' <span class="muted">×</span> ');
-  return `<div class="table-wrap fmatrix"><table class="data"><thead><tr><th>${corner}</th>${(f.cols || []).map(c => `<th>${md(String(c), true)}</th>`).join('')}</tr></thead><tbody>${(f.rows || []).map((r, i) => `<tr><th scope="row">${md(String(r), true)}</th>${((f.cells || [])[i] || []).map(c => { const x = cell(c); return `<td class="mc${x.tone ? ' mt-' + esc(x.tone) : ''}">${md(String(x.text == null ? '' : x.text), true)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
-}
-
-function figTimeline(f, uid) {
-  const log = f.scale === 'log';
-  const values = [...(f.spans || []).flatMap(s => [s.from, s.to]), ...(f.marks || []).map(m => m.at), ...(f.ticks || []).map(t => t.at)].filter(v => typeof v === 'number');
-  const lo = f.from != null ? f.from : Math.min(...values), hi = f.to != null ? f.to : Math.max(...values);
-  const width = 760, left = 24, plotW = width - left * 2;
-  const scale = v => {
-    const t = log ? (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / ((hi - lo) || 1);
-    return left + Math.max(0, Math.min(1, t)) * plotW;
-  };
-  const axisY = 58;
-  let svg = `<line class="axis" x1="${left}" y1="${axisY}" x2="${width - left}" y2="${axisY}"/>`;
-  (f.ticks || []).forEach(t => { const x = scale(t.at); svg += `<line class="tick" x1="${x}" y1="${axisY - 5}" x2="${x}" y2="${axisY + 5}"/>${svgLines(x, axisY + 19, [plain(t.label)], 'tl')}`; });
-  (f.marks || []).forEach((m, i) => {
-    const x = scale(m.at), ly = i % 2 ? 14 : 30;
-    svg += `<g class="mark${toneOf(m.tone)}"><line x1="${x}" y1="${ly + 4}" x2="${x}" y2="${axisY}"/><circle cx="${x}" cy="${axisY}" r="5"/>${svgLines(Math.min(Math.max(x, 60), width - 60), ly, [plain(m.label)], 'ml')}</g>`;
-  });
-  const lanes = [];
-  const spans = (f.spans || []).map(s => ({ ...s, x1: scale(s.from), x2: scale(s.to) })).sort((a, b) => a.x1 - b.x1);
-  spans.forEach(s => {
-    let lane = lanes.findIndex(end => end <= s.x1 + 1);
-    if (lane < 0) { lane = lanes.length; lanes.push(0); }
-    lanes[lane] = s.x2;
-    s.lane = lane;
-  });
-  const below = [];
-  spans.forEach(s => {
-    s.label = plain(s.label);
-    s.inside = textWidth(s.label, SANS_SMALL) + 12 <= Math.max(3, s.x2 - s.x1);
-    if (s.label && !s.inside) below[s.lane] = true;
-  });
-  const laneTop = [];
-  let laneY = axisY + 34;
-  lanes.forEach((_, i) => { laneTop[i] = laneY; laneY += 26 + (below[i] ? 16 : 0); });
-  spans.forEach(s => {
-    const y = laneTop[s.lane], w = Math.max(3, s.x2 - s.x1);
-    const outsideX = Math.max(left, Math.min(s.x1, width - left - textWidth(s.label, SANS_SMALL)));
-    svg += `<g class="span${toneOf(s.tone)}"><rect x="${s.x1}" y="${y}" width="${w}" height="18" rx="4"/>${s.label ? (s.inside ? svgLines(s.x1 + w / 2, y + 13, [s.label], 'sl') : svgLines(outsideX, y + 32, [s.label], 'sl', 'start')) : ''}</g>`;
-  });
-  const height = laneY + 8;
-  return svgFrame(width, height, svg, f.title, uid);
-}
-
 function figSvg(f) {
   const safe = String(f.svg || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, '');
   return `<div class="fig-scroll fsvg">${safe}</div>`;
 }
 
+function withoutItsSide(title, label) {
+  const rest = String(title || '').replace(new RegExp('^\\s*`?' + label + '`?\\s*[:—–-]\\s*', 'i'), '').trim();
+  if (!rest || plain(rest).toLowerCase() === label.toLowerCase()) return '';
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
 function figCompare(f) {
-  const side = (label, sub) => `<div class="fside"><div class="eyebrow">${label}${sub && sub.title && plain(sub.title).toLowerCase() !== label.toLowerCase() ? ' · ' + md(sub.title, true) : ''}</div>${sub ? figureBody(sub) : '<div class="muted small">Nothing.</div>'}${sub && sub.caption ? `<div class="fig-caption md small">${md(sub.caption)}</div>` : ''}</div>`;
+  const said = (sub, label) => (sub && withoutItsSide(sub.title, label) ? ' · ' + md(withoutItsSide(sub.title, label), true) : '');
+  const side = (label, sub) => `<div class="fside"><div class="eyebrow">${label}${said(sub, label)}</div>${sub ? figureBody(sub) : '<div class="muted small">Nothing.</div>'}${sub && sub.caption ? `<div class="fig-caption md small">${md(sub.caption)}</div>` : ''}</div>`;
   return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
 }
 
-const FIGURES = { flow: figFlow, sequence: figSequence, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
+const FIGURES = { svg: figSvg, compare: figCompare };
 let figureSeq = 0;
+function diagramLink(link) {
+  if (link.startsWith('chapter:')) return { href: '#tour-' + link.slice('chapter:'.length), label: 'Open its chapter' };
+  const w = parseWhere(link);
+  if (w) return { href: '#files', label: `Open ${link}`, attributes: { 'data-open': w.path, 'data-line': w.line } };
+  return /^(https?:|#)/.test(link) ? { href: link, label: `Open ${link}` } : null;
+}
+function figDiagram(f) {
+  if (!f.scene) return '<div class="fig-error">This diagram could not be laid out. The build names what is wrong with it.</div>';
+  const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
+  return `<div class="fig-scroll" style="--natural-width:${f.scene.width}px">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${f.symbols || ''}${remarks}`;
+}
+function figSelfDrawn(f) {
+  const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
+  return `<div class="dk-drawn">${DiagramKit.NOTATIONS[f.kind].htmlOf(f, { resolveLink: diagramLink })}</div>${f.symbols || ''}${remarks}`;
+}
+async function liveDiagram(spec) {
+  const live = DiagramKit.live;
+  if (!live) return '<div class="fig-error">This page was built without the layout engine, so it cannot draw this diagram. A view that draws one calls <code>api.diagram</code> or <code>api.drawInto</code>.</div>';
+  const problems = live.problemsIn(spec);
+  if (problems.length) return `<div class="fig-error">This diagram could not be drawn:<ul>${problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>`;
+  const scene = await live.laidOut(spec);
+  return figureHtml({ ...spec, ...(scene ? { scene, legend: DiagramKit.legendOf(scene) } : {}), remarks: live.remarksOn(spec), symbols: live.symbolsOf(spec, scene) });
+}
+async function drawInto(element, spec) {
+  element.setAttribute('data-drawing', '');
+  try { element.innerHTML = await liveDiagram(spec); } catch (e) { element.innerHTML = `<div class="fig-error">This diagram could not be drawn: ${esc(e.message)}</div>`; }
+  element.removeAttribute('data-drawing');
+}
 function figureBody(f) {
-  const draw = FIGURES[f && f.kind];
+  const drawsItself = f && (DiagramKit.NOTATIONS || {})[f.kind];
+  const draw = drawsItself ? figSelfDrawn : f && 'scene' in f ? figDiagram : FIGURES[f && f.kind];
   if (!draw) return `<div class="fig-error">No renderer for a figure of kind “${esc(f && f.kind)}”.</div>`;
   try { return draw(f, ++figureSeq); } catch (e) { return `<div class="fig-error">This figure could not be drawn: ${esc(e.message)}</div>`; }
 }
+const WIDEST_IN_HALF_A_ROW = 430;
+function spansTheRow(f) {
+  if (f.wide || ['compare', 'sequence-diagram', 'timeline'].includes(f.kind)) return true;
+  return Boolean(f.scene) && f.scene.width > WIDEST_IN_HALF_A_ROW;
+}
 function figureHtml(f, opts = {}) {
   if (!f) return '';
-  const wide = f.wide || ['compare', 'sequence', 'timeline'].includes(f.kind);
+  const wide = spansTheRow(f);
   const body = figureBody(f);
-  return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}${body.includes('data-graph=') ? traceHint : ''}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}${opts.from ? `<div class="fig-from small">${opts.from}</div>` : ''}</figure>`;
+  return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}</figure>`;
 }
-function allFigures() {
-  const out = [];
-  ((C.overview || {}).figures || []).forEach(f => out.push({ f, from: 'Overview', href: '#overview' }));
-  C.chapters.forEach((ch, i) => {
-    (ch.figures || []).forEach(f => out.push({ f, from: `Chapter ${i + 1}: ${ch.title}`, href: '#tour-' + ch.id }));
-    (ch.stops || []).forEach((s, j) => { if (s.figure) out.push({ f: s.figure, from: `Stop ${i + 1}.${j + 1}: ${s.title}`, href: '#tour-' + ch.id, stop: s.id }); });
-  });
-  return out;
-}
-function vPictures() {
-  const figs = allFigures();
-  return `<div class="view-head"><div class="eyebrow">In pictures</div><h1>The change, drawn</h1>
-    <p class="lede">${plural(figs.length, 'figure')} in reading order. Skim these first: each one links to the chapter that explains it, and every box or step marked as a link opens its code.</p></div>
-    <div class="figs">${figs.map(x => figureHtml(x.f, { from: `<a href="${x.href}"${x.stop ? ` data-scroll-stop="${esc(x.stop)}"` : ''}>${esc(x.from)}</a>` })).join('')}</div>`;
+function figureViews() {
+  const drawn = [];
+  if (((C.overview || {}).figures || []).length) drawn.push('overview');
+  if (hasDesign()) drawn.push('design');
+  C.chapters.forEach(ch => { if ((ch.figures || []).length || (ch.stops || []).some(s => s.figure)) drawn.push('tour-' + ch.id); });
+  return drawn;
 }
 
 /* ---------- Design ---------- */
@@ -1460,21 +1167,6 @@ function abstractionCard({ item: a, chapters }) {
   </article>`;
 }
 const collaboratorName = c => (typeof c === 'string' ? c : c.name || '');
-function relationsFigure(items) {
-  const nodes = new Map();
-  items.forEach(({ item, chapters }) => nodes.set(plain(item.name), { id: plain(item.name), label: plain(item.name), sub: item.kind, tone: { new: 'new', changed: 'changed', removed: 'removed', existing: 'existing' }[item.status], where: item.where, chapter: chapters[0] && chapters[0].id }));
-  if (nodes.size < 2 || nodes.size > 16) return '';
-  const edges = [];
-  let extra = 0;
-  items.forEach(({ item }) => (item.collaborators || []).forEach(c => {
-    const name = plain(collaboratorName(c));
-    if (!nodes.has(name)) { if (extra >= 6) return; extra++; nodes.set(name, { id: name, label: name, sub: (C.collaboratorKinds || {})[name] || '', tone: 'existing' }); }
-    edges.push({ from: plain(item.name), to: name });
-  }));
-  if (!edges.length) return '';
-  return figureHtml({ id: 'design-relations', kind: 'flow', title: 'How the abstractions work together', nodes: [...nodes.values()], edges, wide: true, arrange: true,
-    caption: 'Drawn from each abstraction\'s collaborators: an arrow points from an abstraction to one it uses. Each box\'s border says whether it is new, changed, removed or unchanged; ↗ on a box opens its code.' });
-}
 function decisionCard({ item: d, chapter }) {
   const chip = d.assessment ? `<span class="chip ${ASSESS_CHIP[d.assessment] || 'c-none'}">${esc(d.assessment)}</span>` : '';
   return `<article class="finding decision" id="dec-${esc(d.id || '')}">
@@ -1505,11 +1197,11 @@ function vDesign() {
   const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
   return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
     ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
-    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${relationsFigure(abstractions)}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
+    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${d.relations ? figureHtml(d.relations) : ''}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
     ${decisions.length ? `<section class="section"><h2>Design decisions ${count(decisions.length)}</h2><p class="small muted">What was chosen, over what, why, and at what cost. Whether you agree with these matters more than any single line.</p><div class="stack">${decisions.map(decisionCard).join('')}</div></section>` : ''}
     ${(d.principles || []).length ? `<section class="section"><h2>Fit with the existing architecture</h2>${principlesTable(d.principles)}</section>` : ''}
     ${(d.extension || []).length ? `<section class="section"><h2>Where the next change goes</h2>${extensionTable(d.extension)}</section>` : ''}
-    ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div></section>` : ''}
+    ${C.moduleMap ? `<section class="section"><div class="figs">${figureHtml(C.moduleMap)}</div></section>` : ''}
     <section class="panel stack"><div class="eyebrow">Your view of the design</div><div class="md" style="font-size:16px">${md(d.signOff || 'Is this the right shape for the problem, and would you be content to own and extend it?')}</div>${ctl('design-overall', 'chapter', { label: 'The design as a whole' }, { noteOpen: true })}</section>`;
 }
 
@@ -1574,7 +1266,7 @@ function vOverview() {
 
   ${o.whatChanges ? `<section class="section"><h2>What changes</h2><div class="md prose">${md(o.whatChanges)}</div></section>` : ''}
 
-  ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div><p class="small muted">${esc(C.moduleMap.caption || 'Arrows point from caller to dependency. Outlined boxes are new in this PR. ↗ on a box opens its chapter.')}</p></section>` : ''}
+  ${C.moduleMap ? `<section class="section"><div class="figs">${figureHtml(C.moduleMap)}</div></section>` : ''}
 
   ${(C.breaking || []).length ? `<section class="section"><h2>Breaking changes <span class="muted small" style="font-family:var(--f-body);font-weight:400">${C.breaking.length}</span></h2><div class="ba">${breaking}</div></section>` : ''}
 
@@ -1595,37 +1287,6 @@ document.addEventListener('click', e => {
   findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: a.dataset.jumpFinding };
   if (location.hash !== '#findings') location.hash = 'findings'; else render();
 });
-
-function moduleMap() {
-  const nodes = C.moduleMap.nodes, edges = C.moduleMap.edges, layers = C.moduleMap.layers;
-  const W = 940, rowH = 92, top = 16, boxH = 46;
-  const H = top + layers.length * rowH;
-  const pos = {};
-  layers.forEach((L, li) => {
-    const ns = nodes.filter(n => n.layer === L.id);
-    const gap = 16, avail = W - 150 - 10;
-    const bw = Math.min(200, (avail - gap * (ns.length - 1)) / ns.length);
-    const totalW = ns.length * bw + (ns.length - 1) * gap;
-    let x = 150 + (avail - totalW) / 2;
-    ns.forEach(n => { pos[n.id] = { x, y: top + li * rowH + 18, w: bw, h: boxH }; x += bw + gap; });
-  });
-  let svg = `<svg class="modmap" data-graph="modmap" style="${traceStyle('ah-modmap')}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Module dependency map"><defs>${arrowheads('ah-modmap')}</defs>`;
-  layers.forEach((L, li) => { const y = top + li * rowH; svg += `<rect class="band" x="0" y="${y + 6}" width="${W}" height="${rowH - 12}" rx="8" opacity=".55"/><text class="lay" x="14" y="${y + 30}">${esc(L.label)}</text><text class="sub" x="14" y="${y + 46}">${esc(L.sub || '')}</text>`; });
-  const rankOf = Object.fromEntries(nodes.map(n => [n.id, layers.findIndex(L => L.id === n.layer)]));
-  const boxes = nodes.filter(n => pos[n.id]).map(n => routeBox(n.id, rankOf[n.id], pos[n.id], linkTarget(n) ? NODE_LINK_W : 0));
-  const downward = edges.filter(([a, b]) => pos[a] && pos[b] && rankOf[b] > rankOf[a]).map(([from, to]) => ({ from, to }));
-  const gapTop = g => top + g * rowH + 18 + boxH;
-  const routes = GraphRoutes.draw(GraphRoutes.plan(boxes, downward), boxes, { gapTop, gapBottom: g => top + (g + 1) * rowH + 18 });
-  downward.forEach(({ from, to }, i) => {
-    svg += `<path class="edge" data-from="${esc(from)}" data-to="${esc(to)}" d="${routes[i].d}" marker-end="url(#ah-modmap)"/>`;
-  });
-  nodes.forEach(n => {
-    const p = pos[n.id];
-    const inner = `<rect class="box${n.isNew ? ' new' : ''}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="7"/><text x="${p.x + 10}" y="${p.y + 19}">${esc(n.label)}</text><text class="sub" x="${p.x + 10}" y="${p.y + 35}">${esc(n.sub || '')}</text>`;
-    svg += `<g class="mnode" ${nodeAttrs(n.id, n.label)}>${inner}${nodeLink(n, p.x + p.w, p.y, p.h)}${nodeFrame(n, p, ` box${n.isNew ? ' new' : ''}`)}</g>`;
-  });
-  return `<div style="overflow-x:auto">${svg}</svg></div>`;
-}
 
 /* Attention map */
 let mapSize = 'all';
@@ -1737,9 +1398,10 @@ function vChapter(ch) {
   const prev = C.chapters[i - 1], next = C.chapters[i + 1];
   const stops = (ch.stops || []).map((s, j) => `
     <div class="stop" id="stop-${esc(s.id)}">
+      ${s.figure && spansTheRow(s.figure) ? `<div class="row stop-head"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div><div class="stop-figure">${figureHtml(s.figure)}</div>` : ''}
       <div class="stop-note">
-        <div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>
-        ${s.figure ? figureHtml(s.figure, { compact: true }) : ''}
+        ${s.figure && spansTheRow(s.figure) ? '' : `<div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>`}
+        ${s.figure && !spansTheRow(s.figure) ? figureHtml(s.figure, { compact: true }) : ''}
         ${s.fit ? `<div class="fit"><div class="eyebrow">In the bigger picture</div><div class="md">${md(s.fit)}</div></div>` : ''}
         <div class="md">${md(s.note)}</div>
         ${s.check ? `<div class="check"><div class="eyebrow">Check</div><div class="md">${md(s.check)}</div></div>` : ''}
@@ -2116,13 +1778,13 @@ function notesMarkdown() {
   const docs = [...Store.docs.values()].filter(d => d.status || d.note);
   const label = (kind, s) => (KINDS[kind]?.opts.find(o => o[0] === s) || [s, s])[1];
   const dec = Store.get('decision');
-  let out = `# PR ${C.pr.number} review notes\n\nVerdict: ${dec.status ? label('decision', dec.status) : 'undecided'}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
+  let out = `# PR ${C.pr.number} review notes\n\n${C.pr.head ? `Head: ${shortSha(C.pr.head)}\n\n` : ''}Verdict: ${dec.status ? label('decision', dec.status) : 'undecided'}${recordedEarlier(dec) ? ` (recorded at ${shortSha(dec.head)}, before the pull request moved)` : ''}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
   const section = (title, kinds, order) => {
     const ds = docs.filter(d => kinds.includes(d.kind) && d.target !== 'decision');
     if (!ds.length) return;
     out += `\n## ${title}\n\n`;
     const sorted = ds.sort((a, b) => (order ? order.indexOf(a.status) - order.indexOf(b.status) : 0) || String(a.target).localeCompare(String(b.target)));
-    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
+    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${recordedEarlier(d) ? ` — recorded at ${shortSha(d.head)}, before the pull request moved` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
   };
   section('Design decisions', ['design'], ['disagree', 'question', 'agree', '']);
   section('Findings', ['finding'], ['block', 'fix-now', 'follow-up', 'reject', '']);
@@ -2162,7 +1824,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);
@@ -2171,6 +1833,8 @@ window.ExplorePR = {
   },
   registerKind(name, spec) { KINDS[name] = spec; },
   routes: () => (C ? routes().map(r => r[0]) : []),
+  customViews: () => customViews.map(view => view.id),
+  figureViews: () => (C ? figureViews() : []),
   get api() { return api(); },
 };
 

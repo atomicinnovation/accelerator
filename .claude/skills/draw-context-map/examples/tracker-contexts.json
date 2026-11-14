@@ -1,0 +1,20 @@
+{
+  "id": "tracker-contexts",
+  "kind": "context-map",
+  "title": "Work items keep their own model, with a layer in front of each tracker",
+  "caption": "Jira and Linear each publish their own model of an issue. The work context does not take either as it is: an anticorruption layer per tracker translates into work items, so adding Linear in this change touched no code that plans or reviews.",
+  "contexts": [
+    { "id": "work", "name": "Work items", "subdomain": "core", "description": "What is to be done, its state and how items relate.", "status": "changed" },
+    { "id": "planning", "name": "Planning", "subdomain": "core", "description": "Plans for a work item, and their review." },
+    { "id": "jira", "name": "Jira", "external": true, "description": "Atlassian's issue tracker." },
+    { "id": "linear", "name": "Linear", "external": true, "description": "Linear's issue tracker.", "status": "new" },
+    { "id": "kernel", "name": "Kernel", "subdomain": "generic", "description": "Identifiers, paths and errors every context uses." }
+  ],
+  "relationships": [
+    { "upstream": "jira", "downstream": "work", "upstreamPatterns": ["open host service", "published language"], "downstreamPatterns": ["anticorruption layer"] },
+    { "upstream": "linear", "downstream": "work", "upstreamPatterns": ["open host service", "published language"], "downstreamPatterns": ["anticorruption layer"], "status": "new" },
+    { "upstream": "work", "downstream": "planning", "kind": "customer-supplier" },
+    { "between": ["work", "kernel"], "kind": "shared kernel" },
+    { "between": ["planning", "kernel"], "kind": "shared kernel" }
+  ]
+}

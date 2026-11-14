@@ -1,0 +1,16 @@
+{
+  "id": "version-requirement",
+  "kind": "railroad-diagram",
+  "title": "A version requirement is one or more comparators, and a comparator may leave out its operator and the end of its version",
+  "caption": "The grammar of a Cargo-style version requirement such as \">=1.2, <2\". A comparator's operator is optional, and so are its minor and patch numbers; a pre-release label may follow only a full version.",
+  "rules": [
+    { "name": "requirement", "is": { "oneOrMore": { "rule": "comparator" }, "separator": "," } },
+    { "name": "comparator", "is": [
+      { "optional": { "choice": ["=", ">", ">=", "<", "<=", "~", "^"] } },
+      { "rule": "number" },
+      { "optional": [".", { "rule": "number" }, { "optional": [".", { "rule": "number" }, { "optional": ["-", { "rule": "label" }] }] }] }
+    ] },
+    { "name": "number", "is": { "choice": ["0", [{ "rule": "non-zero digit" }, { "zeroOrMore": { "rule": "digit" } }]] } },
+    { "name": "label", "is": { "oneOrMore": { "choice": [{ "rule": "letter" }, { "rule": "digit" }, "-"] }, "separator": "." } }
+  ]
+}

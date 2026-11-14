@@ -1,8 +1,6 @@
 import re
 from pathlib import Path
 
-import pytest
-
 SHELL = Path(__file__).resolve().parent.parent / "assets/page.html"
 INLINE_MARKDOWN_CONTAINER = re.compile(
     r'class="([^"]*)"[^>]*>\$\{md\([^)]*,\s*true\)'
@@ -56,62 +54,180 @@ def renderer(name):
     return shell[start : shell.index("\n}\n", start)]
 
 
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
-def test_a_graph_names_each_node_and_the_ends_of_each_edge(name):
-    body = renderer(name)
+def test_how_to_use_a_figure_is_said_in_its_legend_not_by_the_page():
     shell = SHELL.read_text()
-    node_attrs = shell[shell.index("const nodeAttrs = ") :].split("\n")[0]
 
-    assert "nodeAttrs(" in body
-    assert "data-node=" in node_attrs
-    assert "data-from=" in body and "data-to=" in body
+    assert "traceHint" not in shell
+    assert "trace-hint" not in shell
 
 
-@pytest.mark.parametrize(
-    ("name", "marks_itself"),
-    [("moduleMap", "data-graph="), ("figFlow", "edges.length > 0)")],
-)
-def test_a_graph_with_edges_marks_its_svg_for_tracing(name, marks_itself):
-    assert marks_itself in renderer(name)
-    assert "data-graph=" in renderer("svgFrame")
+def test_a_figure_shows_what_the_kit_wrote_about_its_symbols():
+    assert "f.symbols || ''" in renderer("figDiagram")
+    assert "f.symbols || ''" in renderer("figSelfDrawn")
+    assert "symbols: live.symbolsOf(spec, scene)" in renderer("liveDiagram")
 
 
-def test_a_figure_explains_tracing_once_however_many_graphs_it_draws():
-    assert "traceHint" not in renderer("figFlow")
-    assert "traceHint" in renderer("figureHtml")
+def test_the_page_lays_out_and_routes_no_graph_of_its_own():
+    shell = SHELL.read_text()
 
-
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
-def test_a_linked_box_navigates_only_from_its_own_link_control(name):
-    body = renderer(name)
-
-    assert "nodeLink(" in body
-    assert '<a href="#tour-' not in body
-
-
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
-def test_a_graph_routes_its_arrows_through_the_router(name):
-    body = renderer(name)
-
-    assert "GraphRoutes.plan(" in body
-    assert "GraphRoutes.draw(" in body
+    assert "function figFlow" not in shell
+    assert "GraphRoutes" not in shell
+    assert not (SHELL.parent / "graph-routes.js").exists()
 
 
 def test_the_page_starts_tracing_graphs_once_it_loads():
-    assert "GraphFocus.attach(document)" in SHELL.read_text()
+    assert "DiagramKit.attachTracing(document)" in SHELL.read_text()
 
 
-def test_only_the_page_built_abstraction_diagram_rearranges_its_rows():
-    assert "arrange: true" in renderer("relationsFigure")
-    assert "f.arrange" in renderer("figFlow")
+def test_rendered_markdown_links_its_chapter_and_stop_references():
+    shell = SHELL.read_text()
+    start = shell.index("function md(s, inline) {")
+    markdown = shell[start : shell.index("\n}\n", start)]
+
+    assert "ProseReferences.link(" in markdown
+    assert markdown.count("return ") == markdown.count("return linked(") + 1
 
 
-def test_every_box_in_the_abstraction_diagram_names_its_kind():
-    body = renderer("relationsFigure")
+def test_a_figure_the_kit_laid_out_is_drawn_by_the_kit():
+    assert "'scene' in f ? figDiagram" in renderer("figureBody")
+    drawing = renderer("figDiagram")
 
-    assert "sub: 'existing'" not in body
-    assert "collaboratorKinds" in body
+    assert "DiagramKit.svgOf(f.scene" in drawing
+    assert "resolveLink: diagramLink" in drawing
 
 
-def test_the_legend_explains_an_unchanged_box_by_its_border():
-    assert "existing: 'unchanged'" in renderer("legend")
+def test_a_diagram_link_opens_a_chapter_a_line_or_an_address():
+    link = renderer("diagramLink")
+
+    assert "'#tour-'" in link
+    assert "'data-open': w.path" in link
+    assert "https?:" in link
+
+
+def test_the_page_draws_no_generated_graph_of_its_own():
+    shell = SHELL.read_text()
+
+    assert "function relationsFigure" not in shell
+    assert "function moduleMap" not in shell
+    assert "figureHtml(d.relations)" in shell
+    assert shell.count("figureHtml(C.moduleMap)") == 2
+
+
+def test_figures_appear_only_where_they_explain_something():
+    shell = SHELL.read_text()
+
+    assert "In pictures" not in shell
+    assert "function vPictures" not in shell
+    assert "function allFigures" not in shell
+
+
+def test_the_page_names_every_view_that_draws_a_figure():
+    views = renderer("figureViews")
+
+    assert "'overview'" in views
+    assert "'design'" in views
+    assert "'tour-' + ch.id" in views
+    assert "figureViews: () =>" in SHELL.read_text()
+
+
+def test_the_page_draws_only_comparisons_and_raw_svg_itself():
+    shell = SHELL.read_text()
+
+    for gone in (
+        "function figTree",
+        "function figMatrix",
+        "function figTimeline",
+    ):
+        assert gone not in shell, gone
+    assert "const FIGURES = { svg: figSvg, compare: figCompare };" in shell
+
+
+def test_a_figure_whose_notation_draws_itself_is_drawn_from_its_spec():
+    body = renderer("figureBody")
+
+    assert "DiagramKit.NOTATIONS" in body
+    assert "htmlOf(f, { resolveLink: diagramLink })" in renderer("figSelfDrawn")
+
+
+def test_a_view_can_have_any_diagram_laid_out_and_drawn_in_the_page():
+    shell = SHELL.read_text()
+    drawn = renderer("liveDiagram")
+
+    assert "diagram: liveDiagram, drawInto" in shell
+    assert "DiagramKit.live" in drawn
+    assert "live.problemsIn(spec)" in drawn
+    assert "await live.laidOut(spec)" in drawn
+    assert "figureHtml(" in drawn
+
+
+def test_a_diagram_that_cannot_be_drawn_says_why_where_it_would_be():
+    drawn = renderer("liveDiagram")
+
+    assert "built without the layout engine" in drawn
+    assert "fig-error" in drawn
+
+
+def test_an_element_being_drawn_into_says_so_until_it_is_done():
+    into = renderer("drawInto")
+
+    assert "data-drawing" in into
+    assert "removeAttribute('data-drawing')" in into
+
+
+def test_the_page_names_its_custom_views():
+    assert "customViews: () =>" in SHELL.read_text()
+
+
+def test_a_drawing_too_wide_for_half_the_row_is_given_the_whole_row():
+    layout = renderer("figureHtml")
+    spans = renderer("spansTheRow")
+
+    assert "spansTheRow(f)" in layout
+    assert "f.wide" in spans
+    assert "f.scene.width > WIDEST_IN_HALF_A_ROW" in spans
+    assert "const WIDEST_IN_HALF_A_ROW = " in SHELL.read_text()
+
+
+def test_a_drawing_wider_than_its_row_shrinks_to_fit_within_a_limit():
+    shell = SHELL.read_text()
+
+    assert "--natural-width:${f.scene.width}px" in renderer("figDiagram")
+    assert (
+        "max-width: 100%" in shell[shell.index(".fig-scroll svg.dk {") :][:200]
+    )
+    assert "min-width: calc(var(--natural-width) * .6)" in shell
+
+
+def test_a_comparison_names_each_side_once():
+    side = renderer("figCompare")
+
+    assert "withoutItsSide(sub.title, label)" in side
+    stripped = renderer("withoutItsSide")
+    assert "[:\u2014\u2013-]" in stripped
+
+
+def test_views_use_the_width_of_the_screen_and_prose_keeps_a_readable_measure():
+    shell = SHELL.read_text()
+    view = shell[shell.index("\n.view {") :].split("\n")[1]
+
+    assert "max-width" not in view
+    assert ".md > :is(p, ul, ol, blockquote" in shell
+    assert (
+        "max-width: 72ch" in shell[shell.index(".md > :is(p, ul, ol") :][:160]
+    )
+
+
+def test_a_stop_with_a_wide_figure_shows_it_across_the_row_above_its_code():
+    stop = chapter_layout_of_stops()
+
+    assert "spansTheRow(s.figure)" in stop
+    assert '<div class="stop-figure">' in stop
+    assert stop.index('class="stop-figure"') < stop.index("codeSlice(")
+    shell = SHELL.read_text()
+    assert ".stop-figure, .stop-head { grid-column: 1 / -1; }" in shell
+
+
+def chapter_layout_of_stops():
+    shell = SHELL.read_text()
+    start = shell.index("const stops = (ch.stops")
+    return shell[start : shell.index("const ba = ", start)]

@@ -146,7 +146,14 @@ def test_a_ledger_range_must_contain_its_call(tmp_path, script):
 
 def test_a_ledger_range_inside_its_file_is_accepted(tmp_path, script):
     build = script("build")
-    row = {"id": "L1", "file": "src/core.rs", "line": 2, "start": 1, "end": 3}
+    row = {
+        "id": "L1",
+        "file": "src/core.rs",
+        "line": 2,
+        "start": 1,
+        "end": 3,
+        "anchor": "c",
+    }
 
     _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
 
@@ -199,24 +206,14 @@ def test_both_layouts_carry_the_review_coverage_model(tmp_path, script):
         assert html.index("ReviewCoverage") < html.index("window.APP")
 
 
-def test_both_layouts_carry_the_graph_focus_model(tmp_path, script):
+def test_both_layouts_carry_the_prose_references_model(tmp_path, script):
     build = script("build")
 
     page = build.standalone(PAGE, {}, {}, [], {}, "t")
     build.hosted(PAGE, tmp_path, {}, {}, [], "t")
 
     for html in (page, (tmp_path / "index.html").read_text()):
-        assert html.index("GraphFocus") < html.index("window.APP")
-
-
-def test_both_layouts_carry_the_graph_routes_model(tmp_path, script):
-    build = script("build")
-
-    page = build.standalone(PAGE, {}, {}, [], {}, "t")
-    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
-
-    for html in (page, (tmp_path / "index.html").read_text()):
-        assert html.index("GraphRoutes") < html.index("window.APP")
+        assert html.index("ProseReferences") < html.index("window.APP")
 
 
 def test_the_standalone_page_is_a_complete_document(script):

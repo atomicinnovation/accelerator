@@ -1,0 +1,30 @@
+{
+  "id": "claim-lifecycle",
+  "kind": "state-machine",
+  "title": "A claim protects its version until it has gone unrefreshed for the whole window",
+  "caption": "Only start-up refreshes a claim, and only a prune ends one. The choice after a prune is where a version is kept or lost, so the guard on it is the line to check.",
+  "states": [
+    { "id": "start", "kind": "initial" },
+    {
+      "id": "claimed", "label": "Claimed", "status": "new", "link": "https://example.test/version_claims.rs#L45",
+      "states": [
+        { "id": "begin", "kind": "initial" },
+        { "id": "fresh", "label": "Fresh", "entry": "write mtime = now", "do": "protect the version", "status": "new" },
+        { "id": "ageing", "label": "Ageing", "do": "protect the version", "status": "new" }
+      ]
+    },
+    { "id": "check", "kind": "choice" },
+    { "id": "orphaned", "label": "Orphaned", "exit": "unlink the claim", "status": "new", "tone": "risk" },
+    { "id": "end", "kind": "final" }
+  ],
+  "transitions": [
+    { "from": "start", "to": "claimed", "action": "create the claim" },
+    { "from": "begin", "to": "fresh" },
+    { "from": "fresh", "to": "ageing", "event": "after(CLAIM_WINDOW / 10)" },
+    { "from": "ageing", "to": "fresh", "event": "start-up", "action": "refresh", "status": "new" },
+    { "from": "claimed", "to": "check", "event": "prune" },
+    { "from": "check", "to": "orphaned", "guard": "age > CLAIM_WINDOW", "tone": "risk" },
+    { "from": "check", "to": "claimed", "guard": "else" },
+    { "from": "orphaned", "to": "end", "event": "swept" }
+  ]
+}

@@ -19,14 +19,15 @@ edit the repository and never run a command that changes it.
 file you write must follow it exactly. `{skill dir}/examples/chapter-version-claims.json`
 shows the standard expected of a chapter.
 
-**Read for the design first.** The reviewer needs to understand how this
-change is designed more than what any one line does. Before you read
-line by line, work out each chapter's design: which abstractions it
+**Read for the design first** (contract, "Design before lines"). Before you
+read line by line, work out each chapter's design: which abstractions it
 introduces or reshapes, what each is responsible for, what it depends on,
 which way the dependencies run, and which decisions it embodies, each with
 the alternative it was chosen over, why, and what it costs. Compare it with
 how the rest of the codebase does the same kind of thing. Record these as
-the chapter's `abstractions` and `decisions`. Then choose stops as evidence
+the chapter's `abstractions` and `decisions`, and say how each abstraction
+is related to each collaborator (`implements`, `extends`, `owns`, `holds`
+or `uses`): the page draws them as a class diagram. Then choose stops as evidence
 for that design: where a responsibility lives, where a decision is enforced,
 where a boundary is crossed. Do not walk every hunk.
 
@@ -38,16 +39,12 @@ what it hands on to, and which other chapter or stop it connects to. The
 together, in order, and read them back: they should tell the chapter's story
 on their own. A `fit` that only restates the `note` has missed the point.
 
-**Draw first, write second.** A reviewer understands a diagram at a glance
-and needs three readings of the paragraph that says the same thing, so
-figures are the most valuable part of what you produce. For each chapter,
-decide the figures before you write any prose: what the change introduces (a
-flow), the order things happen in (a sequence), what it leaves on disk or in
-state (a tree), the decision it makes (a matrix), the windows it reasons
-about (a timeline), and what is different (a comparison). Open every chapter
-with at least one figure, and usually two or three. Give a stop a figure
-whenever its point is structural. Then write only what the figures cannot
-say: why the design is this way, what could go wrong, and what to check.
+**Draw first, write second** (contract, "Pictures first"). For each chapter,
+decide the figures before you write any prose, choosing from the contract's
+kinds. Open every chapter with at least one figure, and usually two or
+three. Give a stop a figure whenever its point is structural. Then write
+only what the figures cannot say: why the design is this way, what could go
+wrong, and what to check.
 
 **Sources** (read-only):
 
@@ -96,21 +93,52 @@ boundaries, responsibilities, dependencies or a decision, and `implementation`
 when a line is wrong. Raise design concerns of your own in `ownNotes`. Matter most: {ids that bear on the merge decision, and the
 precise question for each}.
 
-**Figures**: follow the contract's Figures section. One idea per figure,
-named in its title. Use the code's own names and real values, keep each one
-small enough to read at a glance, mark what the PR adds or removes with
-`tone`, and put `where` on every box, step or path that has a home in the
-code. Write captions that say what to notice.
+**Figures**: follow the contract's Figures section, including what makes a
+figure worth its space. Choose each figure by the question it answers, from
+the guide at `{skill dir}/../draw-diagram/reference/choosing.md`: it sets
+each kind against its neighbours and says which views go together. The
+contract's "Choosing a figure" adds the two kinds only this page draws.
+
+Each is described in the contract's "Diagrams the kit draws" and in its
+notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`
+(for a `class-diagram`, `draw-class-diagram`, and so on). Put a `link` on
+every element and relationship that has a home in the code. Write a
+label as plain text: a diagram shows no code spans, so leave backticks
+out.
+
+Give every abstraction and decision an id that starts with your chapter's
+id (`a-claims-fresh-versions`, `d-claims-heartbeat`): ids are unique
+across the page, and the design pass and other chapters name some of the
+same things.
 
 **Writing**: follow the contract's writing rules. One term per concept,
 reusing the code's own names: {domain terms already established}. Record
 anything you could not verify as unverified rather than guessing.
 
+**Anchors**: give every stop and every ledger row an `anchor`, following the
+contract's Anchors section: a piece of one line copied exactly from the
+`head/` copy (the `base/` copy for a stop with `side: "old"`) that no other
+line of that file contains. A stop's anchor is on its `start` line; when
+that line is a comment, an attribute or not distinctive, anchor on a later
+line of the range and name it in `anchorLine`. A ledger row's anchor is on
+its `line`. Copy, never retype: the build compares the text.
+
+**Citations**: every `where`, `pinnedBy` and `tests` entry must name a
+changed file by its full repository path, and a test by the name it is
+declared with. Refer to another stop by its id in backticks and to another
+chapter as chapter `<id>`: the page turns both into links, and the build
+reports any that do not resolve. Stops other passes write are named
+`<chapter id>-s<n>`; name one only if you were told it exists, and otherwise
+name its chapter.
+
 **Before you finish**, run `python3 -m json.tool <file> > /dev/null` on every
-JSON file you wrote. Check at least five `start`/`end` and ledger `line`,
-`start` and `end` values, and three figure `where` values, against the `head/` copies, and
-confirm that every chapter you wrote has a figure and at least one
-abstraction or decision.
+JSON file you wrote. Use only the values the contract lists for a field
+that has a list (`risk`, `level`, `verdict`, `triage`, `tone` and the
+rest): the build rejects any other. Check at least five `start`/`end` and ledger `line`,
+`start` and `end` values, and three figure `where` values, against the
+`head/` copies. Confirm that every stop and ledger row has an anchor that
+appears on its line, and that every chapter you wrote has a figure and at
+least one abstraction or decision.
 
 **Your final message** (at most 150 words): the files you wrote, the
 design each chapter describes in one sentence, the figures in each, anything
