@@ -775,7 +775,7 @@ the env var.
 | Variable               | Default | Effect                                                                                                                                    |
 |------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | `ACCELERATOR_PUP_MODE` | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`.                         |
-| `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented (profraw-only clean, then `cargo llvm-cov nextest --no-clean`, then a totals line) to plain `cargo nextest run` (faster inner loop). |
+| `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented (profraw-only clean, then `cargo llvm-cov nextest --no-report`, then a totals line) to plain `cargo nextest run` (faster inner loop). |
 
 ### Permission tests under root
 
