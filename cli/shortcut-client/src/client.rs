@@ -1069,7 +1069,7 @@ const fn pages(ceiling: Ceiling) -> Option<usize> {
     }
 }
 
-fn page_detail(failure: &PageError) -> String {
+pub(crate) fn page_detail(failure: &PageError) -> String {
     match failure {
         PageError::Refused(received) => explain(received, &[]),
         PageError::Unusable(what) => what.clone(),
