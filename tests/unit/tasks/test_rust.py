@@ -6,7 +6,13 @@ from invoke import Context, Exit
 
 from tasks import public_api, pup
 from tasks.shared import rust
-from tasks.shared.paths import CLI_DIR, cli_member_manifests
+from tasks.shared.cargo_metadata import Package, workspace_packages
+from tasks.shared.coverage import parse_totals
+from tasks.shared.paths import (
+    CLI_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+    cli_member_manifests,
+)
 from tasks.shared.rust import RUST_NIGHTLY
 from tasks.test import cli as test_cli
 
@@ -101,42 +107,122 @@ class TestPupCheck:
 # ── test:unit:cli leaf branches ───────────────────────────────────────
 
 
-class TestTestUnitCli:
-    def _command(self, ctx: MagicMock) -> str:
-        return ctx.run.call_args.args[0]
+EXPORT = (
+    Path(__file__).parent / "fixtures/coverage/llvm-cov-summary.json"
+).read_text()
 
-    def test_instrumented_by_default(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ):
+
+def _passed(stdout: str = EXPORT) -> MagicMock:
+    return MagicMock(exited=0, stdout=stdout)
+
+
+def _failed() -> MagicMock:
+    return MagicMock(exited=1, stdout="")
+
+
+class TestTestUnitCli:
+    @pytest.fixture
+    def lane(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
         monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        test_cli.run(ctx)
-        command = self._command(ctx)
-        assert command.startswith("cargo llvm-cov nextest")
-        assert "--summary-only" in command
+        m = MagicMock(spec=Context)
+        m.run.return_value = _passed()
+        return m
+
+    def _commands(self, lane: MagicMock) -> list[str]:
+        return [call.args[0] for call in lane.run.call_args_list]
+
+    def test_clears_profile_data_then_tests_then_reports(self, lane: MagicMock):
+        test_cli.run(lane)
+
+        clean, tests, report = self._commands(lane)
+        assert clean.startswith("cargo llvm-cov clean")
+        assert "--profraw-only" in clean
+        assert tests.startswith("cargo llvm-cov nextest")
+        for flag in (
+            "--no-clean",
+            "--no-report",
+            "--exclude accelerator-visualiser",
+            "--all-features",
+        ):
+            assert flag in tests
+        assert report.startswith("cargo llvm-cov report")
+        for flag in ("--json", "--summary-only"):
+            assert flag in report
+        assert "features" not in report, (
+            "cargo llvm-cov 0.8.7 rejects feature flags on `report`"
+        )
+        for command in (clean, tests, report):
+            assert f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}" in command
+
+    def test_only_the_report_output_is_captured(self, lane: MagicMock):
+        test_cli.run(lane)
+
+        captured = [
+            call.args[0].startswith("cargo llvm-cov report")
+            for call in lane.run.call_args_list
+            if call.kwargs.get("hide") == "out"
+        ]
+        assert captured == [True]
+
+    def test_prints_the_totals_line(
+        self, lane: MagicMock, capsys: pytest.CaptureFixture[str]
+    ):
+        test_cli.run(lane)
+
+        out = capsys.readouterr().out
+        assert parse_totals(EXPORT).summary_line() in out
+        assert '"files"' not in out
+        assert "{" not in out
 
     def test_plain_nextest_when_coverage_off(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+        self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
-        test_cli.run(ctx)
-        command = self._command(ctx)
+        test_cli.run(lane)
+
+        [command] = self._commands(lane)
         assert command.startswith("cargo nextest run")
         assert "llvm-cov" not in command
 
-    def test_carries_no_coverage_threshold(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        test_cli.run(ctx)
-        assert "--fail-under" not in self._command(ctx)
+    def test_carries_no_coverage_threshold(self, lane: MagicMock):
+        test_cli.run(lane)
 
-    def test_raises_when_inner_tests_fail(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+        assert not any("--fail-under" in c for c in self._commands(lane))
+
+    def test_failing_plain_nextest_fails_the_task(
+        self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
     ):
-        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        ctx.run.return_value = MagicMock(exited=1)
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        lane.run.return_value = _failed()
         with pytest.raises(Exit):
-            test_cli.run(ctx)
+            test_cli.run(lane)
+
+    def test_failing_profile_clean_stops_before_the_tests(
+        self, lane: MagicMock
+    ):
+        lane.run.side_effect = [_failed()]
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 1
+
+    def test_failing_tests_stop_before_the_report(self, lane: MagicMock):
+        lane.run.side_effect = [_passed(), _failed()]
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 2
+
+    def test_failing_report_fails_the_task(self, lane: MagicMock):
+        lane.run.side_effect = [_passed(), _passed(), _failed()]
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+
+    def test_unreadable_report_fails_the_task(self, lane: MagicMock):
+        lane.run.side_effect = [_passed(), _passed(), _passed("not json")]
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+
+    def test_docstring_names_the_stale_binary_remedy(self):
+        assert "cargo llvm-cov clean --workspace" in test_cli.run.body.__doc__
 
 
 # ── The surface-pin coverage guard ────────────────────────────────────
@@ -215,6 +301,42 @@ class TestPinnedCrateCoverage:
             f"pinned with no committed snapshot: {sorted(missing)} — "
             "regenerate with `mise run public-api:update`"
         )
+
+
+# ── The report-scope guard ────────────────────────────────────────────
+
+
+def _dependents_of(crate: str, packages: list[Package]) -> set[str]:
+    return {
+        package["name"]
+        for package in packages
+        if any(dep["name"] == crate for dep in package["dependencies"])
+    }
+
+
+def _package(name: str, *dependencies: dict) -> Package:
+    return {"name": name, "dependencies": list(dependencies)}
+
+
+class TestVisualiserHasNoDependents:
+    def test_no_workspace_member_depends_on_the_visualiser(self):
+        dependents = _dependents_of(test_cli._VISUALISER, workspace_packages())
+        assert not dependents, (
+            f"{sorted(dependents)} depend on {test_cli._VISUALISER}; "
+            "`cargo llvm-cov report` cannot exclude a package, so a dependent "
+            "would pull the visualiser into test:unit:cli's coverage totals"
+        )
+
+    @pytest.mark.parametrize("kind", [None, "dev", "build"])
+    def test_the_guard_finds_a_dependent(self, kind: str | None):
+        packages = [
+            _package("widget", {"name": test_cli._VISUALISER, "kind": kind})
+        ]
+        assert _dependents_of(test_cli._VISUALISER, packages) == {"widget"}
+
+    def test_the_guard_ignores_other_dependencies(self):
+        packages = [_package("widget", {"name": "kernel", "kind": None})]
+        assert _dependents_of(test_cli._VISUALISER, packages) == set()
 
 
 # ── public_api.check() / public_api.update() leaf branches ────────────
