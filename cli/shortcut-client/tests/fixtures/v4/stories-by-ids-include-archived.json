@@ -1,0 +1,33 @@
+{
+  "body": {
+    "current_items": 2,
+    "current_page": 1,
+    "entities": [
+      {
+        "id": 16,
+        "team": {
+          "app_url": "https://app.shortcut.com/scratch-workspace/team/00000000-0000-4000-8000-000000000002",
+          "entity_type": "team:slim",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "Team 1",
+          "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002"
+        },
+        "updated_at": "2026-11-14T08:21:36.770Z"
+      },
+      {
+        "id": 14,
+        "team": {
+          "app_url": "https://app.shortcut.com/scratch-workspace/team/00000000-0000-4000-8000-000000000002",
+          "entity_type": "team:slim",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "Team 1",
+          "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002"
+        },
+        "updated_at": "2026-11-14T08:21:36.121Z"
+      }
+    ],
+    "total_items": 2,
+    "total_pages": 1
+  },
+  "status": 200
+}
