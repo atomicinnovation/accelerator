@@ -5,7 +5,7 @@ title: "Remove Repeated Work from the Rust Test Lanes Implementation Plan"
 date: "2026-11-13T17:25:00+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0363"
 parent: "work-item:0363"
 derived_from: ["codebase-research:2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes"]
@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T09:36:51+00:00"
+last_updated: "2026-11-14T10:51:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -199,6 +199,14 @@ mutations in turn (`MAX_BYTES / 2`, `MAX_BYTES * 2`, `MAX_FILES = 2`,
 `MAX_FILES` mutations are expected to pass. That is the red state the
 rewrite must turn green.
 
+Revert each mutation by rewriting the file, not by moving back a copy taken
+earlier. A copy keeps its old modification time, so cargo doesn't rebuild
+and the next run tests the mutated binary.
+
+Outcome: all four mutations passed the unchanged tests, not only the
+`MAX_FILES` ones. The old tests sized their writes as `MAX_BYTES + 64 KiB`,
+so halving or doubling the cap scaled the writes with it.
+
 #### 2. Rewrite the three tests
 
 **File**: `cli/visualiser/server/src/log.rs`
@@ -320,7 +328,7 @@ How each mutation is caught:
 
 | Mutation | Failing assertion |
 |---|---|
-| `MAX_BYTES / 2` | segment sizes are 2.5 MiB (tests 1 and 2) |
+| `MAX_BYTES / 2` | segment sizes are 2.5 MiB (tests 1 and 2); test 3: 4 files, not 3 |
 | `MAX_BYTES * 2` | test 1: no rotation, so the size list is empty and the active segment is 5 MiB + 64 KiB; test 2: `[10 MiB, 10 MiB]`; test 3: 2 files, not 3 |
 | `MAX_FILES = 2` | 2 segments kept, not 3 (test 2) |
 | `MAX_FILES = 4` | 4 segments kept, not 3 (test 2) |
