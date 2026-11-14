@@ -14,6 +14,7 @@ pub mod filter;
 pub mod new_entity;
 pub mod paging;
 pub mod paths;
+pub mod reference;
 pub mod shortcut_key;
 pub mod team_key;
 pub mod transport;
