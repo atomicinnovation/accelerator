@@ -7,13 +7,16 @@
 //!
 //! `records_the_v4_facts` writes Shortcut's raw answers to the gitignored
 //! `tests/captures/`. A person sanitises those into `tests/fixtures/v4/`,
-//! which `evidence_hygiene.rs` guards. Everything the run creates is archived
-//! before it ends.
+//! which `evidence_hygiene.rs` guards. `the_conformance_set_holds_live` runs
+//! the port's contract for a story subject and an epic subject, and writes
+//! the reduced records to `tests/evidence/contract-run.txt`. Everything a run
+//! creates is archived before it ends.
 
 #![allow(clippy::expect_used, clippy::panic, clippy::too_many_lines)]
 
 mod support;
 
+use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -23,6 +26,7 @@ use config::credentials::TokenSource;
 use serde_json::json;
 use serde_json::Value;
 use shortcut_client::catalogue::StateType;
+use shortcut_client::classify::Operation;
 use shortcut_client::discovery::discover;
 use shortcut_client::paths::Paths;
 use shortcut_client::paths::PRODUCTION_BASE;
@@ -32,10 +36,29 @@ use shortcut_client::transport::Resend;
 use shortcut_client::transport::Transport;
 use shortcut_client::Credentials;
 use shortcut_client::Method;
+use shortcut_client::ShortcutClient;
+use shortcut_client::ShortcutKey;
 use shortcut_client::Url;
+use tracker::BodyDialect;
+use tracker::CreatePreview;
+use tracker::Discovery;
+use tracker::ExternalId;
+use tracker::FetchOutcome;
+use tracker::Located;
+use tracker::RemoteIssue;
+use tracker::RemoteTracker;
+use tracker::ScopeError;
+use tracker::SearchScope;
+use tracker::TrackerError;
+use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 use tracker_support::ClockJitter;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
+use tracker_test_support::contract::a_failing_read_is_retryable;
+use tracker_test_support::contract::run_all;
+use tracker_test_support::contract::timed_conformance;
+use tracker_test_support::contract::ContractSubject;
 
 const TOKEN: &str = "ACCELERATOR_SHORTCUT_TOKEN";
 const TEAM_KEY: &str = "ACCELERATOR_SHORTCUT_TEAM_KEY";
@@ -433,4 +456,200 @@ fn records_the_v4_facts() {
             entry.path().display()
         );
     }
+}
+
+/// The live client, recording every entity it creates so the run can archive
+/// them when it ends.
+struct Archiving {
+    client: ShortcutClient,
+    created: RefCell<Vec<ExternalId>>,
+}
+
+impl Archiving {
+    fn archive_all(&self) {
+        for id in self.created.borrow().iter() {
+            let key = ShortcutKey::parse(id.as_str()).expect("a created key");
+            self.client
+                .write(
+                    Operation::Update,
+                    &Method::PATCH,
+                    &self.client.paths().entity(key),
+                    &json!({"archived": true}),
+                    Resend::WhileRetryable,
+                )
+                .unwrap_or_else(|error| panic!("archive {id}: {error}"));
+        }
+    }
+}
+
+impl BodyDialect for Archiving {
+    fn is_wire_document(&self, body: &str) -> bool {
+        self.client.is_wire_document(body)
+    }
+}
+
+impl RemoteTracker for Archiving {
+    fn create(
+        &self,
+        title: &str,
+        body: &str,
+        kind: &str,
+    ) -> Result<ExternalId, TrackerError> {
+        let created = self.client.create(title, body, kind)?;
+        self.created.borrow_mut().push(created.clone());
+        Ok(created)
+    }
+
+    fn update(
+        &self,
+        id: &ExternalId,
+        title: Option<&str>,
+        body: &str,
+    ) -> Result<(), TrackerError> {
+        self.client.update(id, title, body)
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.client.retitle(id, title)
+    }
+
+    fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
+        self.client.show(id)
+    }
+
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        self.client.locate(id)
+    }
+
+    fn fetch_all(
+        &self,
+        ids: &[ExternalId],
+    ) -> Result<FetchOutcome, TrackerError> {
+        self.client.fetch_all(ids)
+    }
+
+    fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        self.client.search(scope)
+    }
+
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, ScopeError> {
+        self.client.resolve_scope(scope)
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        self.client.enumerate_visible_entities()
+    }
+
+    fn preview_create(
+        &self,
+        kind: &str,
+    ) -> Result<CreatePreview, TrackerError> {
+        self.client.preview_create(kind)
+    }
+
+    fn validate_update(
+        &self,
+        id: &ExternalId,
+        title: Option<&str>,
+        body: Option<&str>,
+    ) -> ValidationOutcome {
+        self.client.validate_update(id, title, body)
+    }
+}
+
+struct LiveSubject {
+    tracker: Archiving,
+    kind: &'static str,
+    missing: ExternalId,
+}
+
+impl ContractSubject for LiveSubject {
+    fn tracker(&self) -> &dyn RemoteTracker {
+        &self.tracker
+    }
+
+    fn unaccountable_id(&self) -> ExternalId {
+        self.missing.clone()
+    }
+
+    fn unreadable_id(&self) -> ExternalId {
+        self.missing.clone()
+    }
+
+    fn can_nominate_indeterminate(&self) -> bool {
+        false
+    }
+
+    fn can_induce_truncation(&self) -> bool {
+        false
+    }
+
+    fn preview_kind(&self) -> String {
+        self.kind.to_owned()
+    }
+}
+
+fn live_subject(kind: &'static str, missing: &str) -> LiveSubject {
+    let token = required(TOKEN);
+    let team_key = required(TEAM_KEY);
+    let base = Url::parse(PRODUCTION_BASE).expect("parses");
+    let deadline = Deadline::starting_now(Duration::from_secs(600));
+    let (_, discovered) =
+        discover(&transport(&token), &base, &deadline).expect("discovers");
+    LiveSubject {
+        tracker: Archiving {
+            client: ShortcutClient::new(
+                transport(&token),
+                base,
+                discovered.catalogue,
+                Some(team_key),
+            ),
+            created: RefCell::new(Vec::new()),
+        },
+        kind,
+        missing: ExternalId::new(missing.to_owned()),
+    }
+}
+
+#[test]
+fn the_conformance_set_holds_live() {
+    opted_in();
+    let mut records = Vec::new();
+    for (kind, missing) in [("", "sc-999999999"), ("epic", "epic-999999999")] {
+        let subject = live_subject(kind, missing);
+        let ids = vec![subject.unaccountable_id()];
+
+        let executed = run_all(&subject, &ids).expect("the gate is open");
+        assert_eq!(executed, 8, "the {kind:?} subject ran every property");
+        a_failing_read_is_retryable(&subject).expect("the gate is open");
+        let timed =
+            timed_conformance(&subject, &ids).expect("the gate is open");
+        assert!(!timed.is_empty(), "the {kind:?} subject recorded nothing");
+        records.extend(timed);
+
+        subject.tracker.archive_all();
+    }
+
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/evidence");
+    std::fs::create_dir_all(&evidence).expect("the evidence directory");
+    let date = std::env::var("ACCELERATOR_TRACKER_CONTRACT_DATE").ok();
+    let rendered = tracker_test_support::evidence::render(
+        "shortcut",
+        date.as_deref(),
+        &records,
+    );
+    tracker_test_support::evidence::is_reduced(&rendered).unwrap_or_else(
+        |violations| panic!("unreduced evidence: {violations:?}"),
+    );
+    std::fs::write(evidence.join("contract-run.txt"), rendered)
+        .expect("write the evidence");
 }
