@@ -110,7 +110,7 @@ impl core::marker::StructuralPartialEq for work::draft_id::DraftIdExhausted
 pub const work::draft_id::ALPHABET: &[u8; 32]
 pub trait work::draft_id::SuffixDraws
 pub fn work::draft_id::SuffixDraws::draw(&mut self) -> [u8; 6]
-pub fn work::draft_id::is_token_safe(scheme: &corpus::work_item_id::WorkItemIdScheme, id: &str) -> bool
+pub fn work::draft_id::is_token_safe(scheme: &work::id_scheme::IdScheme, id: &str) -> bool
 pub fn work::draft_id::mint_draft_id(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity]) -> core::result::Result<work::draft_id::DraftId, work::draft_id::DraftIdExhausted>
 pub fn work::draft_id::mint_draft_ids(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity], count: usize) -> core::result::Result<alloc::vec::Vec<work::draft_id::DraftId>, work::draft_id::DraftIdExhausted>
 pub mod work::filter
@@ -124,7 +124,7 @@ pub work::filter::Filter::term: core::option::Option<alloc::string::String>
 impl work::filter::Filter
 pub const fn work::filter::Filter::is_empty(&self) -> bool
 pub const fn work::filter::Filter::is_title_only(&self) -> bool
-pub fn work::filter::Filter::matches(&self, item: &work::filter::WorkItemView<'_>, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
+pub fn work::filter::Filter::matches(&self, item: &work::filter::WorkItemView<'_>, scheme: &work::id_scheme::IdScheme) -> bool
 impl core::clone::Clone for work::filter::Filter
 pub fn work::filter::Filter::clone(&self) -> work::filter::Filter
 impl core::default::Default for work::filter::Filter
@@ -143,7 +143,7 @@ pub fn work::filter::WorkItemView<'a>::clone(&self) -> work::filter::WorkItemVie
 impl<'a> core::fmt::Debug for work::filter::WorkItemView<'a>
 pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
-pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
+pub fn work::filter::canonical_reference(raw: &str, scheme: &work::id_scheme::IdScheme) -> alloc::string::String
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
 pub mod work::hierarchy
 pub enum work::hierarchy::BatchOrder<'a>
@@ -172,6 +172,190 @@ impl<'a> core::marker::StructuralPartialEq for work::hierarchy::HierarchyNode<'a
 pub fn work::hierarchy::children_of<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::map::BTreeMap<&'a str, alloc::vec::Vec<usize>>
 pub fn work::hierarchy::cyclic_members<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::set::BTreeSet<&'a str>
 pub fn work::hierarchy::parents_first<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> work::hierarchy::BatchOrder<'a>
+pub mod work::id_pattern
+pub enum work::id_pattern::KeyError
+pub work::id_pattern::KeyError::BadKeyValue(alloc::string::String)
+impl core::clone::Clone for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::clone(&self) -> work::id_pattern::KeyError
+impl core::cmp::Eq for work::id_pattern::KeyError
+impl core::cmp::PartialEq for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::eq(&self, other: &work::id_pattern::KeyError) -> bool
+impl core::error::Error for work::id_pattern::KeyError
+impl core::fmt::Debug for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::KeyError
+pub fn work::id_pattern::KeyError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::KeyError
+pub enum work::id_pattern::PatternError
+pub work::id_pattern::PatternError::AdjacentTokens
+pub work::id_pattern::PatternError::BadFormatSpec(alloc::string::String)
+pub work::id_pattern::PatternError::DigitBesideToken
+pub work::id_pattern::PatternError::Empty
+pub work::id_pattern::PatternError::HostileChar(char)
+pub work::id_pattern::PatternError::NestedBrace(usize)
+pub work::id_pattern::PatternError::NoNumberToken
+pub work::id_pattern::PatternError::RepeatedToken
+pub work::id_pattern::PatternError::TrackerNotSoleToken
+pub work::id_pattern::PatternError::UnclosedToken(usize)
+pub work::id_pattern::PatternError::UnknownToken(alloc::string::String)
+pub work::id_pattern::PatternError::UnmatchedBrace(usize)
+pub work::id_pattern::PatternError::WidthOverflow(usize)
+impl core::clone::Clone for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::clone(&self) -> work::id_pattern::PatternError
+impl core::cmp::Eq for work::id_pattern::PatternError
+impl core::cmp::PartialEq for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::eq(&self, other: &work::id_pattern::PatternError) -> bool
+impl core::error::Error for work::id_pattern::PatternError
+impl core::fmt::Debug for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::PatternError
+pub fn work::id_pattern::PatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::PatternError
+pub struct work::id_pattern::IdKey(_)
+impl work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::as_str(&self) -> &str
+pub fn work::id_pattern::IdKey::parse(text: &str) -> core::result::Result<Self, work::id_pattern::KeyError>
+impl core::clone::Clone for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::clone(&self) -> work::id_pattern::IdKey
+impl core::cmp::Eq for work::id_pattern::IdKey
+impl core::cmp::PartialEq for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::eq(&self, other: &work::id_pattern::IdKey) -> bool
+impl core::fmt::Debug for work::id_pattern::IdKey
+pub fn work::id_pattern::IdKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdKey
+pub struct work::id_pattern::IdParts
+impl work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::digits(&self) -> &str
+pub fn work::id_pattern::IdParts::key(&self) -> core::option::Option<&str>
+pub const fn work::id_pattern::IdParts::number(&self) -> u64
+pub fn work::id_pattern::IdParts::parse(pattern: &work::id_pattern::IdPattern, text: &str) -> core::option::Option<Self>
+pub fn work::id_pattern::IdParts::parse_prefix(pattern: &work::id_pattern::IdPattern, filename: &str) -> core::option::Option<(Self, usize)>
+pub fn work::id_pattern::IdParts::same_id(&self, other: &Self) -> bool
+impl core::clone::Clone for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::clone(&self) -> work::id_pattern::IdParts
+impl core::cmp::Eq for work::id_pattern::IdParts
+impl core::cmp::PartialEq for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::eq(&self, other: &work::id_pattern::IdParts) -> bool
+impl core::fmt::Debug for work::id_pattern::IdParts
+pub fn work::id_pattern::IdParts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdParts
+pub struct work::id_pattern::IdPattern
+impl work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::as_str(&self) -> &str
+pub fn work::id_pattern::IdPattern::cap(&self) -> core::option::Option<u64>
+pub fn work::id_pattern::IdPattern::describe(&self) -> alloc::string::String
+pub fn work::id_pattern::IdPattern::is_tracker_owned(&self) -> bool
+pub fn work::id_pattern::IdPattern::parse(text: &str) -> core::result::Result<Self, work::id_pattern::PatternError>
+pub fn work::id_pattern::IdPattern::read_exact(&self, text: &str) -> core::option::Option<work::id_pattern::IdParts>
+pub fn work::id_pattern::IdPattern::references_key(&self) -> bool
+pub fn work::id_pattern::IdPattern::render(&self, key: core::option::Option<&work::id_pattern::IdKey>, number: u64) -> core::result::Result<alloc::string::String, work::id_pattern::MissingKey>
+impl core::clone::Clone for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::clone(&self) -> work::id_pattern::IdPattern
+impl core::cmp::Eq for work::id_pattern::IdPattern
+impl core::cmp::PartialEq for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::eq(&self, other: &work::id_pattern::IdPattern) -> bool
+impl core::fmt::Debug for work::id_pattern::IdPattern
+pub fn work::id_pattern::IdPattern::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::IdPattern
+pub struct work::id_pattern::MissingKey
+impl core::clone::Clone for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::clone(&self) -> work::id_pattern::MissingKey
+impl core::cmp::Eq for work::id_pattern::MissingKey
+impl core::cmp::PartialEq for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::eq(&self, other: &work::id_pattern::MissingKey) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::from(_: work::id_pattern::MissingKey) -> Self
+impl core::convert::From<work::id_pattern::MissingKey> for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey) -> Self
+impl core::error::Error for work::id_pattern::MissingKey
+impl core::fmt::Debug for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_pattern::MissingKey
+pub fn work::id_pattern::MissingKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_pattern::MissingKey
+impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
+pub const work::id_pattern::TRACKER_TOKEN: &str
+pub fn work::id_pattern::escaped(text: &str) -> alloc::string::String
+pub mod work::id_scheme
+pub enum work::id_scheme::CanonicaliseError
+pub work::id_scheme::CanonicaliseError::EmptyInput
+pub work::id_scheme::CanonicaliseError::MissingKey
+pub work::id_scheme::CanonicaliseError::NoMatch
+pub work::id_scheme::CanonicaliseError::UnrecognisedIdShape(alloc::string::String)
+impl core::clone::Clone for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::clone(&self) -> work::id_scheme::CanonicaliseError
+impl core::cmp::Eq for work::id_scheme::CanonicaliseError
+impl core::cmp::PartialEq for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::eq(&self, other: &work::id_scheme::CanonicaliseError) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::from(_: work::id_pattern::MissingKey) -> Self
+impl core::error::Error for work::id_scheme::CanonicaliseError
+impl core::fmt::Debug for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_scheme::CanonicaliseError
+pub fn work::id_scheme::CanonicaliseError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_scheme::CanonicaliseError
+pub enum work::id_scheme::IdOwnership
+pub work::id_scheme::IdOwnership::Local
+pub work::id_scheme::IdOwnership::Tracker
+impl core::clone::Clone for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::clone(&self) -> work::id_scheme::IdOwnership
+impl core::cmp::Eq for work::id_scheme::IdOwnership
+impl core::cmp::PartialEq for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::eq(&self, other: &work::id_scheme::IdOwnership) -> bool
+impl core::fmt::Debug for work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_scheme::IdOwnership
+impl core::marker::StructuralPartialEq for work::id_scheme::IdOwnership
+pub enum work::id_scheme::TrackerIntegrationError
+pub work::id_scheme::TrackerIntegrationError::TrackerNeedsJiraOrLinear
+impl core::clone::Clone for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::clone(&self) -> work::id_scheme::TrackerIntegrationError
+impl core::cmp::Eq for work::id_scheme::TrackerIntegrationError
+impl core::cmp::PartialEq for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::eq(&self, other: &work::id_scheme::TrackerIntegrationError) -> bool
+impl core::error::Error for work::id_scheme::TrackerIntegrationError
+impl core::fmt::Debug for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::id_scheme::TrackerIntegrationError
+pub fn work::id_scheme::TrackerIntegrationError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_scheme::TrackerIntegrationError
+impl core::marker::StructuralPartialEq for work::id_scheme::TrackerIntegrationError
+pub struct work::id_scheme::IdScheme
+impl work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::canonicalise(&self, input: &str) -> core::result::Result<alloc::string::String, work::id_scheme::CanonicaliseError>
+pub fn work::id_scheme::IdScheme::holds(&self, held: &str, id: &work::id_pattern::IdParts) -> bool
+pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::IdScheme::is_any_key_id_token(&self, token: &str) -> bool
+pub fn work::id_scheme::IdScheme::is_canonical_id_token(&self, token: &str) -> bool
+pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
+pub const fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
+pub fn work::id_scheme::IdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
+pub fn work::id_scheme::IdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::IdScheme::numeric() -> Self
+pub fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
+pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
+pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
+pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
+pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<(work::id_pattern::IdParts, usize)>
+impl core::clone::Clone for work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::clone(&self) -> work::id_scheme::IdScheme
+impl core::cmp::Eq for work::id_scheme::IdScheme
+impl core::cmp::PartialEq for work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::eq(&self, other: &work::id_scheme::IdScheme) -> bool
+impl core::default::Default for work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::default() -> Self
+impl core::fmt::Debug for work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_scheme::IdScheme
+impl corpus::id_convention::IdConvention for work::id_scheme::IdScheme
+pub fn work::id_scheme::IdScheme::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
+pub fn work::id_scheme::IdScheme::is_id(&self, token: &str) -> bool
+pub fn work::id_scheme::IdScheme::slug_start(&self, stem: &str) -> core::option::Option<usize>
+pub const work::id_scheme::TRACKER_TOKEN: &str
+pub fn work::id_scheme::check_tracker_integration(pattern: &work::id_pattern::IdPattern, supports_tracker_ids: bool) -> core::result::Result<(), work::id_scheme::TrackerIntegrationError>
+pub fn work::id_scheme::is_tracker_owned_token(token: &str) -> bool
 pub mod work::identity
 pub enum work::identity::IdentityField
 pub work::identity::IdentityField::Alias
@@ -216,6 +400,8 @@ pub work::identity::ItemIdentity::aliases: alloc::vec::Vec<alloc::string::String
 pub work::identity::ItemIdentity::external_id: core::option::Option<alloc::string::String>
 pub work::identity::ItemIdentity::id: alloc::string::String
 pub work::identity::ItemIdentity::path: std::path::PathBuf
+impl work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::fields_matching(&self, matches: impl core::ops::function::Fn(&str) -> bool) -> alloc::vec::Vec<work::identity::IdentityField>
 impl core::clone::Clone for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
 impl core::cmp::Eq for work::identity::ItemIdentity
@@ -225,7 +411,9 @@ impl core::fmt::Debug for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::identity::ItemIdentity
 pub fn work::identity::holder_of<'a>(candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
+pub fn work::identity::holder_of_under<'a>(scheme: &work::id_scheme::IdScheme, candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
 pub fn work::identity::linker_of<'a>(key: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
+pub fn work::identity::linker_of_under<'a>(scheme: &work::id_scheme::IdScheme, candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
 pub fn work::identity::resolve_identity<'a>(token: &str, items: &'a [work::identity::ItemIdentity]) -> work::identity::IdentityResolution<'a>
 pub mod work::identity_run
 pub enum work::identity_run::IdentityRunAttempt
@@ -376,25 +564,37 @@ pub fn work::inventory::ConflictedPaths::is_conflicted(&self, path: &std::path::
 pub trait work::inventory::NamesWorkItem
 pub fn work::inventory::NamesWorkItem::work_item_named(&self, file_name: &str) -> core::option::Option<alloc::string::String>
 pub fn work::inventory::identify(listing: &work::work_item_files::WorkItemListing, names: &dyn work::inventory::NamesWorkItem, conflicted: &dyn work::inventory::ConflictedPaths) -> work::inventory::IdentifiedCorpus
+pub mod work::legacy_ids
+pub struct work::legacy_ids::LegacyNumericIds
+impl corpus::linkage_ids::LinkageIds for work::legacy_ids::LegacyNumericIds
+pub fn work::legacy_ids::LegacyNumericIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn work::legacy_ids::LegacyNumericIds::is_bare_id(&self, token: &str) -> bool
+pub fn work::legacy_ids::references_key(pattern: &str) -> bool
 pub mod work::next_number
 pub enum work::next_number::AllocationError
+pub work::next_number::AllocationError::InvalidProject(work::id_pattern::KeyError)
 pub work::next_number::AllocationError::MissingKey
 pub work::next_number::AllocationError::Overflow
 pub work::next_number::AllocationError::Overflow::cap: u64
 pub work::next_number::AllocationError::Overflow::highest: u64
 pub work::next_number::AllocationError::Overflow::highest_file: core::option::Option<alloc::string::String>
+pub work::next_number::AllocationError::Overflow::numbers_held: u64
 pub work::next_number::AllocationError::Overflow::partial: alloc::vec::Vec<alloc::string::String>
 pub work::next_number::AllocationError::ProjectUnused
+impl work::next_number::AllocationError
+pub fn work::next_number::AllocationError::message(&self, pattern: &work::id_pattern::IdPattern, work_dir: &std::path::Path) -> alloc::string::String
 impl core::clone::Clone for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::clone(&self) -> work::next_number::AllocationError
 impl core::cmp::Eq for work::next_number::AllocationError
 impl core::cmp::PartialEq for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::eq(&self, other: &work::next_number::AllocationError) -> bool
+impl core::convert::From<work::id_pattern::MissingKey> for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey) -> Self
 impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
-pub fn work::next_number::allocate(scheme: &corpus::work_item_id::WorkItemIdScheme, project: core::option::Option<&str>, count: u32, filenames: &[alloc::string::String], scanner: &dyn corpus::work_item_id::IdScanner) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
-pub fn work::next_number::allocate_above(scheme: &corpus::work_item_id::WorkItemIdScheme, floor: u64, count: u32) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocate(scheme: &work::id_scheme::IdScheme, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&work::id_pattern::IdKey>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
 pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc::string::String
@@ -402,6 +602,9 @@ pub fn work::normalise::trim_lines(content: &str) -> alloc::string::String
 pub mod work::own_identity
 pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, work_item_id: core::option::Option<&str>) -> bool
 pub fn work::own_identity::own_identity_fallback_field(field: &str) -> core::option::Option<&'static str>
+pub mod work::path_component
+pub fn work::path_component::is_one_path_component(text: &str) -> bool
+pub fn work::path_component::is_relative_path_of_components(text: &str) -> bool
 pub mod work::promotion
 pub enum work::promotion::NotPromoted
 pub work::promotion::NotPromoted::AdoptConflictsWithRecordedKey
@@ -611,7 +814,7 @@ pub enum work::rekey::classify::Classification
 pub work::rekey::classify::Classification::Draft
 pub work::rekey::classify::Classification::Sequenced(u64)
 pub work::rekey::classify::Classification::TrackerKey
-pub work::rekey::classify::Classification::Unclassifiable
+pub work::rekey::classify::Classification::Unclassifiable(work::rekey::sequence::Unclassified)
 impl core::clone::Clone for work::rekey::classify::Classification
 pub fn work::rekey::classify::Classification::clone(&self) -> work::rekey::classify::Classification
 impl core::cmp::Eq for work::rekey::classify::Classification
@@ -621,9 +824,22 @@ impl core::fmt::Debug for work::rekey::classify::Classification
 pub fn work::rekey::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::rekey::classify::Classification
 impl core::marker::StructuralPartialEq for work::rekey::classify::Classification
-pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity) -> work::rekey::classify::Classification
+pub enum work::rekey::classify::Unclassified
+pub work::rekey::classify::Unclassified::AmbiguousDigitRuns
+pub work::rekey::classify::Unclassified::NoNumber
+pub work::rekey::classify::Unclassified::NotOnePathComponent
+impl core::clone::Clone for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
+impl core::cmp::Eq for work::rekey::sequence::Unclassified
+impl core::cmp::PartialEq for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::eq(&self, other: &work::rekey::sequence::Unclassified) -> bool
+impl core::fmt::Debug for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::rekey::sequence::Unclassified
+impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
+pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::IdScheme) -> work::rekey::classify::Classification
 pub mod work::rekey::collision
-pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity]) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity], scheme: &work::id_scheme::IdScheme) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::creation_date
 pub struct work::rekey::creation_date::CreationDate(_)
 impl work::rekey::creation_date::CreationDate
@@ -684,8 +900,8 @@ impl core::marker::StructuralPartialEq for work::rekey::fingerprint::Staleness
 pub struct work::rekey::fingerprint::IdentityFingerprint
 impl work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::items(&self) -> impl core::iter::traits::iterator::Iterator<Item = &work::identity::ItemIdentity>
-pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &corpus::work_item_id::WorkItemIdScheme, items: &[work::identity::ItemIdentity]) -> Self
-pub fn work::rekey::fingerprint::IdentityFingerprint::scheme(&self) -> corpus::work_item_id::WorkItemIdScheme
+pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &work::id_scheme::IdScheme, items: &[work::identity::ItemIdentity]) -> Self
+pub const fn work::rekey::fingerprint::IdentityFingerprint::scheme(&self) -> &work::id_scheme::IdScheme
 pub fn work::rekey::fingerprint::IdentityFingerprint::staleness_since(&self, earlier: &Self) -> core::option::Option<work::rekey::fingerprint::Staleness>
 impl core::clone::Clone for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::clone(&self) -> work::rekey::fingerprint::IdentityFingerprint
@@ -723,12 +939,13 @@ impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::keys_to_refresh(candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::tracker_key::TrackerKey>, work::rekey::outcome::NotRekeyed>
-pub fn work::rekey::mapping::numeric_mapping(scheme: &corpus::work_item_id::WorkItemIdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
-pub fn work::rekey::mapping::tracker_mapping(candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::numeric_mapping(scheme: &work::id_scheme::IdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::tracker_mapping(scheme: &work::id_scheme::IdScheme, candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed
 pub work::rekey::outcome::NotRekeyed::Collision
 pub work::rekey::outcome::NotRekeyed::Collision::first: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::Collision::linked: core::option::Option<work::rekey::outcome::LinkedClash>
 pub work::rekey::outcome::NotRekeyed::Collision::second: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::Collision::target: alloc::string::String
 pub work::rekey::outcome::NotRekeyed::CorpusInaccessible
@@ -767,7 +984,9 @@ pub work::rekey::outcome::NotRekeyed::StateUnwritable(alloc::string::String)
 pub work::rekey::outcome::NotRekeyed::SyncUnfinished(alloc::vec::Vec<work::rekey::outcome::SyncBlocker>)
 pub work::rekey::outcome::NotRekeyed::TargetExists(std::path::PathBuf)
 pub work::rekey::outcome::NotRekeyed::TrackerUnreachable(alloc::string::String)
-pub work::rekey::outcome::NotRekeyed::Unclassifiable(std::path::PathBuf)
+pub work::rekey::outcome::NotRekeyed::Unclassifiable
+pub work::rekey::outcome::NotRekeyed::Unclassifiable::cause: work::rekey::outcome::UnclassifiableCause
+pub work::rekey::outcome::NotRekeyed::Unclassifiable::item: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::WorkingCopyUnprobeable(alloc::string::String)
 impl work::rekey::outcome::NotRekeyed
 pub const fn work::rekey::outcome::NotRekeyed::code(&self) -> &'static str
@@ -801,6 +1020,24 @@ pub fn work::rekey::outcome::SyncBlocker::eq(&self, other: &work::rekey::outcome
 impl core::fmt::Debug for work::rekey::outcome::SyncBlocker
 pub fn work::rekey::outcome::SyncBlocker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::outcome::SyncBlocker
+pub enum work::rekey::outcome::UnclassifiableCause
+pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns
+pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::example: core::option::Option<alloc::string::String>
+pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey
+pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey::external_id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::NoNumber
+pub work::rekey::outcome::UnclassifiableCause::NoNumber::id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::NotOnePathComponent
+pub work::rekey::outcome::UnclassifiableCause::NotOnePathComponent::id: alloc::string::String
+impl core::clone::Clone for work::rekey::outcome::UnclassifiableCause
+pub fn work::rekey::outcome::UnclassifiableCause::clone(&self) -> work::rekey::outcome::UnclassifiableCause
+impl core::cmp::Eq for work::rekey::outcome::UnclassifiableCause
+impl core::cmp::PartialEq for work::rekey::outcome::UnclassifiableCause
+pub fn work::rekey::outcome::UnclassifiableCause::eq(&self, other: &work::rekey::outcome::UnclassifiableCause) -> bool
+impl core::fmt::Debug for work::rekey::outcome::UnclassifiableCause
+pub fn work::rekey::outcome::UnclassifiableCause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::UnclassifiableCause
 pub struct work::rekey::outcome::Holder
 pub work::rekey::outcome::Holder::command: core::option::Option<alloc::string::String>
 pub work::rekey::outcome::Holder::pid: u32
@@ -812,6 +1049,17 @@ pub fn work::rekey::outcome::Holder::eq(&self, other: &work::rekey::outcome::Hol
 impl core::fmt::Debug for work::rekey::outcome::Holder
 pub fn work::rekey::outcome::Holder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::outcome::Holder
+pub struct work::rekey::outcome::LinkedClash
+pub work::rekey::outcome::LinkedClash::external_id: alloc::string::String
+pub work::rekey::outcome::LinkedClash::shared_key: core::option::Option<alloc::string::String>
+impl core::clone::Clone for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::clone(&self) -> work::rekey::outcome::LinkedClash
+impl core::cmp::Eq for work::rekey::outcome::LinkedClash
+impl core::cmp::PartialEq for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::eq(&self, other: &work::rekey::outcome::LinkedClash) -> bool
+impl core::fmt::Debug for work::rekey::outcome::LinkedClash
+pub fn work::rekey::outcome::LinkedClash::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::LinkedClash
 pub fn work::rekey::outcome::unreverted_listing(unreverted: &work::rekey::write_set::Unreverted) -> alloc::vec::Vec<alloc::string::String>
 pub mod work::rekey::partly_applied
 pub fn work::rekey::partly_applied::partly_applied(items: &[work::identity::ItemIdentity]) -> alloc::vec::Vec<std::path::PathBuf>
@@ -885,8 +1133,33 @@ pub const work::rekey::run_plan::RUN_PLAN_SCHEMA: u32
 pub fn work::rekey::run_plan::preview_lines(entries: &[work::rekey::entry::RekeyEntry]) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result::Result<(), work::rekey::run_plan::Unreadability>
 pub mod work::rekey::sequence
-pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
-pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
+pub enum work::rekey::sequence::Unclassified
+pub work::rekey::sequence::Unclassified::AmbiguousDigitRuns
+pub work::rekey::sequence::Unclassified::NoNumber
+pub work::rekey::sequence::Unclassified::NotOnePathComponent
+impl core::clone::Clone for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
+impl core::cmp::Eq for work::rekey::sequence::Unclassified
+impl core::cmp::PartialEq for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::eq(&self, other: &work::rekey::sequence::Unclassified) -> bool
+impl core::fmt::Debug for work::rekey::sequence::Unclassified
+pub fn work::rekey::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::rekey::sequence::Unclassified
+impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
+pub struct work::rekey::sequence::ExistingId
+pub work::rekey::sequence::ExistingId::key: core::option::Option<alloc::string::String>
+pub work::rekey::sequence::ExistingId::number: u64
+impl core::clone::Clone for work::rekey::sequence::ExistingId
+pub fn work::rekey::sequence::ExistingId::clone(&self) -> work::rekey::sequence::ExistingId
+impl core::cmp::Eq for work::rekey::sequence::ExistingId
+impl core::cmp::PartialEq for work::rekey::sequence::ExistingId
+pub fn work::rekey::sequence::ExistingId::eq(&self, other: &work::rekey::sequence::ExistingId) -> bool
+impl core::fmt::Debug for work::rekey::sequence::ExistingId
+pub fn work::rekey::sequence::ExistingId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::sequence::ExistingId
+pub fn work::rekey::sequence::existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::option::Option<work::rekey::sequence::ExistingId>
+pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &work::id_scheme::IdScheme) -> bool
+pub fn work::rekey::sequence::read_existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::result::Result<work::rekey::sequence::ExistingId, work::rekey::sequence::Unclassified>
 pub mod work::rekey::write_set
 pub enum work::rekey::write_set::StartState
 pub work::rekey::write_set::StartState::Absent
@@ -972,6 +1245,105 @@ pub fn work::rekey::write_set::WriteSet::default() -> work::rekey::write_set::Wr
 impl core::fmt::Debug for work::rekey::write_set::WriteSet
 pub fn work::rekey::write_set::WriteSet::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::write_set::WriteSet
+pub mod work::requested_id
+pub enum work::requested_id::Holding
+pub work::requested_id::Holding::Field(work::identity::IdentityField)
+pub work::requested_id::Holding::Filename
+impl core::clone::Clone for work::requested_id::Holding
+pub fn work::requested_id::Holding::clone(&self) -> work::requested_id::Holding
+impl core::cmp::Eq for work::requested_id::Holding
+impl core::cmp::PartialEq for work::requested_id::Holding
+pub fn work::requested_id::Holding::eq(&self, other: &work::requested_id::Holding) -> bool
+impl core::fmt::Debug for work::requested_id::Holding
+pub fn work::requested_id::Holding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::requested_id::Holding
+impl core::marker::StructuralPartialEq for work::requested_id::Holding
+pub enum work::requested_id::ProjectRemedy
+pub work::requested_id::ProjectRemedy::DropBoth
+pub work::requested_id::ProjectRemedy::DropProject
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId::example: core::option::Option<alloc::string::String>
+pub work::requested_id::ProjectRemedy::WriteKeyIntoId::project_is_a_key: bool
+impl core::clone::Clone for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::clone(&self) -> work::requested_id::ProjectRemedy
+impl core::cmp::Eq for work::requested_id::ProjectRemedy
+impl core::cmp::PartialEq for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::eq(&self, other: &work::requested_id::ProjectRemedy) -> bool
+impl core::fmt::Debug for work::requested_id::ProjectRemedy
+pub fn work::requested_id::ProjectRemedy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::ProjectRemedy
+pub enum work::requested_id::Proposal
+pub work::requested_id::Proposal::Corrected
+pub work::requested_id::Proposal::Corrected::id: work::requested_id::RequestedId
+pub work::requested_id::Proposal::Corrected::key_differs: bool
+pub work::requested_id::Proposal::Exact(work::requested_id::RequestedId)
+pub work::requested_id::Proposal::OtherKey(work::requested_id::RequestedId)
+impl core::clone::Clone for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::clone(&self) -> work::requested_id::Proposal
+impl core::cmp::Eq for work::requested_id::Proposal
+impl core::cmp::PartialEq for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::eq(&self, other: &work::requested_id::Proposal) -> bool
+impl core::fmt::Debug for work::requested_id::Proposal
+pub fn work::requested_id::Proposal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::Proposal
+pub enum work::requested_id::RequestedIdRefusal
+pub work::requested_id::RequestedIdRefusal::DraftReserved
+pub work::requested_id::RequestedIdRefusal::DraftReserved::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::DraftReserved::shape: work::requested_id::ExampleShape
+pub work::requested_id::RequestedIdRefusal::PatternMismatch
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::correction: core::option::Option<alloc::string::String>
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::PatternMismatch::shape: work::requested_id::ExampleShape
+pub work::requested_id::RequestedIdRefusal::Taken
+pub work::requested_id::RequestedIdRefusal::Taken::held: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::Taken::holder: std::path::PathBuf
+pub work::requested_id::RequestedIdRefusal::Taken::holding: work::requested_id::Holding
+pub work::requested_id::RequestedIdRefusal::Taken::requested: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::TrackerOwned
+pub work::requested_id::RequestedIdRefusal::TrackerOwned::pattern: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::WithProject
+pub work::requested_id::RequestedIdRefusal::WithProject::pattern: alloc::string::String
+pub work::requested_id::RequestedIdRefusal::WithProject::remedy: work::requested_id::ProjectRemedy
+impl work::requested_id::RequestedIdRefusal
+pub const fn work::requested_id::RequestedIdRefusal::code(&self) -> &'static str
+pub fn work::requested_id::RequestedIdRefusal::relative_to(self, root: &std::path::Path) -> Self
+impl core::clone::Clone for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::clone(&self) -> work::requested_id::RequestedIdRefusal
+impl core::cmp::Eq for work::requested_id::RequestedIdRefusal
+impl core::cmp::PartialEq for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::eq(&self, other: &work::requested_id::RequestedIdRefusal) -> bool
+impl core::error::Error for work::requested_id::RequestedIdRefusal
+impl core::fmt::Debug for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::requested_id::RequestedIdRefusal
+pub fn work::requested_id::RequestedIdRefusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::RequestedIdRefusal
+pub struct work::requested_id::ExampleShape
+pub work::requested_id::ExampleShape::description: alloc::string::String
+pub work::requested_id::ExampleShape::first: core::option::Option<alloc::string::String>
+pub work::requested_id::ExampleShape::pattern: alloc::string::String
+impl core::clone::Clone for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::clone(&self) -> work::requested_id::ExampleShape
+impl core::cmp::Eq for work::requested_id::ExampleShape
+impl core::cmp::PartialEq for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::eq(&self, other: &work::requested_id::ExampleShape) -> bool
+impl core::fmt::Debug for work::requested_id::ExampleShape
+pub fn work::requested_id::ExampleShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::ExampleShape
+pub struct work::requested_id::RequestedId
+impl work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::admit(requested: &str, project: core::option::Option<&str>, scheme: &work::id_scheme::IdScheme) -> core::result::Result<Self, work::requested_id::RequestedIdRefusal>
+pub fn work::requested_id::RequestedId::as_str(&self) -> &str
+pub fn work::requested_id::RequestedId::propose(requested: &str, scheme: &work::id_scheme::IdScheme) -> core::result::Result<work::requested_id::Proposal, work::requested_id::RequestedIdRefusal>
+pub fn work::requested_id::RequestedId::refuse_if_taken(&self, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::requested_id::RequestedIdRefusal>
+impl core::clone::Clone for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::clone(&self) -> work::requested_id::RequestedId
+impl core::cmp::Eq for work::requested_id::RequestedId
+impl core::cmp::PartialEq for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::eq(&self, other: &work::requested_id::RequestedId) -> bool
+impl core::fmt::Debug for work::requested_id::RequestedId
+pub fn work::requested_id::RequestedId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::requested_id::RequestedId
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
@@ -1024,8 +1396,8 @@ pub fn work::resolve::TaggedCandidate::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::StructuralPartialEq for work::resolve::TaggedCandidate
 pub trait work::resolve::DirectoryLister
 pub fn work::resolve::DirectoryLister::filenames(&self) -> alloc::vec::Vec<alloc::string::String>
-pub fn work::resolve::classify_input(input: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> work::resolve::InputClass
-pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &corpus::work_item_id::WorkItemIdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
+pub fn work::resolve::classify_input(input: &str, scheme: &work::id_scheme::IdScheme) -> work::resolve::InputClass
+pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &work::id_scheme::IdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
 pub mod work::retirement
 pub enum work::retirement::RetirementCauseKind
 pub work::retirement::RetirementCauseKind::ChangedSinceSnapshot
@@ -1057,6 +1429,8 @@ impl core::fmt::Debug for work::retirement::RetirementFailure
 pub fn work::retirement::RetirementFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::retirement::RetirementFailure
 pub enum work::retirement::RetirementRefusal
+pub work::retirement::RetirementRefusal::IdNotOnePathComponent
+pub work::retirement::RetirementRefusal::IdNotOnePathComponent::id: alloc::string::String
 pub work::retirement::RetirementRefusal::IdTaken
 pub work::retirement::RetirementRefusal::IdTaken::field: work::identity::IdentityField
 pub work::retirement::RetirementRefusal::IdTaken::holder: std::path::PathBuf
@@ -1182,7 +1556,7 @@ pub fn work::retirement::RetirementRecord::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
 pub const work::retirement::RECOVERY_PARENT: &str
 pub const work::retirement::RETIREMENT_INCOMPLETE: &str
-pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
+pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, scheme: &work::id_scheme::IdScheme, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
 pub struct work::section_diff::ComparableItem<'a>
@@ -1553,7 +1927,7 @@ pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_chan
 impl core::fmt::Debug for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
-pub fn work::sync::key_change::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::key_change::decide_key_change(ownership: work::id_scheme::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub fn work::sync::key_change::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
@@ -1708,6 +2082,8 @@ pub enum work::sync::push_precondition::MarkerState<'a>
 pub work::sync::push_precondition::MarkerState::Absent
 pub work::sync::push_precondition::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::push_precondition::MarkerState::Unreadable
+impl<'a> work::sync::push_precondition::MarkerState<'a>
+pub const fn work::sync::push_precondition::MarkerState<'a>::of<E>(parsed: &'a core::result::Result<core::option::Option<work::sync::push_precondition::PendingPush>, E>) -> Self
 pub enum work::sync::push_precondition::OrderPrecondition<C>
 pub work::sync::push_precondition::OrderPrecondition::Adopt(tracker::ExternalId)
 pub work::sync::push_precondition::OrderPrecondition::AdoptIfMarkerKeyMovedHere
@@ -1809,6 +2185,7 @@ impl core::marker::StructuralPartialEq for work::sync::push_precondition::Reques
 pub fn work::sync::push_precondition::order_precondition<C>(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, order: &work::sync::push_precondition::PendingPushOrder, corpus_carrier: &dyn core::ops::function::Fn(&tracker::ExternalId) -> core::option::Option<C>) -> work::sync::push_precondition::OrderPrecondition<C>
 pub fn work::sync::push_precondition::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::push_precondition::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
+pub const fn work::sync::push_precondition::unfinished_push(marker: &work::sync::push_precondition::MarkerState<'_>) -> core::option::Option<work::sync::push_precondition::RefusalReason>
 pub mod work::sync::state
 pub enum work::sync::state::SyncState
 pub work::sync::state::SyncState::Conflict
@@ -2048,6 +2425,8 @@ pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
 pub work::sync::MarkerState::Unreadable
+impl<'a> work::sync::push_precondition::MarkerState<'a>
+pub const fn work::sync::push_precondition::MarkerState<'a>::of<E>(parsed: &'a core::result::Result<core::option::Option<work::sync::push_precondition::PendingPush>, E>) -> Self
 pub enum work::sync::OrderPrecondition<C>
 pub work::sync::OrderPrecondition::Adopt(tracker::ExternalId)
 pub work::sync::OrderPrecondition::AdoptIfMarkerKeyMovedHere
@@ -2459,7 +2838,7 @@ pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64,
 pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
-pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
+pub fn work::sync::decide_key_change(ownership: work::id_scheme::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub fn work::sync::is_move(requested: &tracker::ExternalId, answered: &tracker::ExternalId) -> bool
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
@@ -2470,6 +2849,7 @@ pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) 
 pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
 pub fn work::sync::resolve_pending_push_token(raw: &str) -> core::option::Option<core::result::Result<work::sync::push_precondition::PendingPushOrder, work::sync::push_precondition::NotATrackerKey>>
+pub const fn work::sync::unfinished_push(marker: &work::sync::push_precondition::MarkerState<'_>) -> core::option::Option<work::sync::push_precondition::RefusalReason>
 pub mod work::tags
 pub enum work::tags::TagAction
 pub work::tags::TagAction::Add
@@ -2620,3 +3000,4 @@ pub fn work::work_item_files::WorkItemFiles::files(&self) -> core::result::Resul
 pub fn work::work_item_files::WorkItemFiles::listing(&self) -> core::result::Result<work::work_item_files::WorkItemListing, kernel::Error>
 pub fn work::work_item_files::identities(files: &[work::work_item_files::WorkItemFile]) -> alloc::vec::Vec<work::identity::ItemIdentity>
 pub fn work::work_item_files::identity_of(file: &work::work_item_files::WorkItemFile) -> core::option::Option<work::identity::ItemIdentity>
+pub fn work::work_item_files::is_md_filename(name: &str) -> bool

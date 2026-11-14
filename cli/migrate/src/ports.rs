@@ -9,6 +9,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use corpus::LinkageIds;
+
 use crate::interactive::Decision;
 use crate::interactive::Transformation;
 use crate::run_base::RunBase;
@@ -250,6 +252,31 @@ pub trait MigrationContext {
         ))
     }
 
+    /// The frozen legacy work-item ID reads typed linkage makes. Only
+    /// migration 0007 calls this, so it defaults to an error.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when this context does not implement it.
+    fn legacy_linkage(&self) -> Result<&dyn LinkageIds, MigrationError> {
+        Err(MigrationError::new(
+            "legacy_linkage is not implemented by this context",
+        ))
+    }
+
+    /// Whether `pattern` names the work-item key token. Only migration 0009
+    /// calls this, so it defaults to an error.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when this context does not implement it.
+    fn pattern_references_key(
+        &self,
+        _pattern: &str,
+    ) -> Result<bool, MigrationError> {
+        Err(MigrationError::new(
+            "pattern_references_key is not implemented by this context",
+        ))
+    }
+
     /// Runs `accelerator corpus frontmatter validate` in-process (no
     /// subprocess) over `files` — an empty slice validates the whole
     /// configured corpus, matching the CLI's own "no `--dir`/`--file`"
@@ -463,6 +490,29 @@ pub trait SyncBaselines {
         integrations_root: &Path,
         pre_migration: &[(PathBuf, String)],
     ) -> Result<usize, MigrationError>;
+}
+
+/// Work-item identity, answered by the work context.
+pub trait WorkItemIdentity {
+    /// `raw` in canonical form under `pattern`, with `key` read only when
+    /// the pattern names the key token.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when `pattern` or `key` is malformed, or `raw` is
+    /// not an ID under them.
+    fn canonicalise(
+        &self,
+        raw: &str,
+        pattern: &str,
+        key: Option<&str>,
+    ) -> Result<String, MigrationError>;
+
+    /// Whether `pattern` names the key token, read leniently enough that a
+    /// malformed pattern may still name it.
+    fn references_key(&self, pattern: &str) -> bool;
+
+    /// The legacy work-item ID reads typed linkage was written against.
+    fn legacy_linkage(&self) -> &dyn LinkageIds;
 }
 
 /// One migration's interactive session log, bound to its own path at

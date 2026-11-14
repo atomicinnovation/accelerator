@@ -1,17 +1,12 @@
 //! Input classification and the candidate-search cascade.
-//!
-//! Both stages avoid `corpus_adapters::work_item_pattern` (which needs the
-//! `regex` crate) deliberately: `work`'s own import-restriction rule
-//! (`work_domain_imports_only_permitted` in `cli/pup.ron`) keeps this crate
-//! dependency-free, so pattern matching here is a small, regex-free,
-//! greedy token-walker — sufficient for the DSL's own grammar, since
-//! adjacent dynamic tokens are already forbidden by the pattern grammar,
-//! so a digit or letter run never needs to backtrack against what follows
-//! it.
-
-use corpus::WorkItemIdScheme;
 
 use crate::draft_id::DraftId;
+use crate::id_pattern::DigitWidth;
+use crate::id_pattern::IdPattern;
+use crate::id_pattern::LiteralCase;
+use crate::id_pattern::Walk;
+use crate::id_scheme::IdScheme;
+use crate::work_item_files::is_md_filename;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputClass {
@@ -46,130 +41,29 @@ pub trait DirectoryLister {
     fn filenames(&self) -> Vec<String>;
 }
 
-enum Segment {
-    Literal(String),
-    Key,
-    Number,
+struct FullIdMatch<'a> {
+    key: Option<&'a str>,
 }
 
-/// A regex-free, best-effort walk of `pattern`'s tokens into literal and
-/// dynamic segments. Malformed tokens collapse to an empty segment list
-/// (nothing can ever match), matching how an already-invalid pattern would
-/// never reach this code in practice (callers validate the pattern first).
-fn segments(pattern: &str) -> Vec<Segment> {
-    let chars: Vec<char> = pattern.chars().collect();
-    let len = chars.len();
-    let mut out = Vec::new();
-    let mut literal = String::new();
-    let mut i = 0;
-    while i < len {
-        let ch = chars[i];
-        let next = chars.get(i + 1).copied();
-        if ch == '{' && next == Some('{') {
-            literal.push('{');
-            i += 2;
-            continue;
-        }
-        if ch == '}' && next == Some('}') {
-            literal.push('}');
-            i += 2;
-            continue;
-        }
-        if ch == '{' {
-            let Some(close_offset) =
-                chars[i + 1..].iter().position(|&c| c == '}')
-            else {
-                return Vec::new();
-            };
-            let close = i + 1 + close_offset;
-            let token: String = chars[i + 1..close].iter().collect();
-            if !literal.is_empty() {
-                out.push(Segment::Literal(std::mem::take(&mut literal)));
-            }
-            if corpus::is_key_token(&token) {
-                out.push(Segment::Key);
-            } else if token == "number" || token.starts_with("number:") {
-                out.push(Segment::Number);
-            } else {
-                return Vec::new();
-            }
-            i = close + 1;
-            continue;
-        }
-        literal.push(ch);
-        i += 1;
-    }
-    if !literal.is_empty() {
-        out.push(Segment::Literal(literal));
-    }
-    out
+/// `input` read as a full ID under `pattern`: literals as written, and a
+/// number of any width.
+fn match_full_id<'a>(
+    input: &'a str,
+    pattern: &IdPattern,
+) -> Option<FullIdMatch<'a>> {
+    let walk = Walk {
+        literals: LiteralCase::Exact,
+        digits: DigitWidth::Any,
+    };
+    pattern
+        .walk(input, walk)
+        .map(|reading| FullIdMatch { key: reading.key })
 }
 
-struct FullIdMatch {
-    key: Option<String>,
-}
-
-/// Greedily matches `input` against `pattern`'s segments. A `{key}` segment
-/// consumes the maximal `[A-Za-z][A-Za-z0-9]*` run; a `{number...}` segment
-/// consumes the maximal digit run; a literal segment must match exactly. No
-/// backtracking — sufficient given the DSL's own grammar (see module docs).
-fn match_full_id(input: &str, pattern: &str) -> Option<FullIdMatch> {
-    let segments = segments(pattern);
-    if segments.is_empty() {
-        return None;
-    }
-    let mut rest = input;
-    let mut key = None;
-    let mut number = None;
-    for segment in &segments {
-        match segment {
-            Segment::Literal(text) => {
-                rest = rest.strip_prefix(text.as_str())?;
-            }
-            Segment::Key => {
-                let mut end = 0;
-                for (index, c) in rest.char_indices() {
-                    let ok = if index == 0 {
-                        c.is_ascii_alphabetic()
-                    } else {
-                        c.is_ascii_alphanumeric()
-                    };
-                    if !ok {
-                        break;
-                    }
-                    end = index + c.len_utf8();
-                }
-                if end == 0 {
-                    return None;
-                }
-                key = Some(rest[..end].to_owned());
-                rest = &rest[end..];
-            }
-            Segment::Number => {
-                let end = rest
-                    .char_indices()
-                    .take_while(|(_, c)| c.is_ascii_digit())
-                    .last()
-                    .map_or(0, |(index, c)| index + c.len_utf8());
-                if end == 0 {
-                    return None;
-                }
-                number = Some(rest[..end].to_owned());
-                rest = &rest[end..];
-            }
-        }
-    }
-    if !rest.is_empty() || number.is_none() {
-        return None;
-    }
-    Some(FullIdMatch { key })
-}
-
-/// Classifies `input` as one of path / full ID / bare number / invalid.
 /// Classifies a raw user input into the shape the search cascade dispatches
 /// on.
 #[must_use]
-pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
+pub fn classify_input(input: &str, scheme: &IdScheme) -> InputClass {
     if input.is_empty() {
         return InputClass::Invalid;
     }
@@ -181,19 +75,16 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
     if DraftId::parse(input).is_some() {
         return InputClass::FullId;
     }
-    if scheme.id_pattern == corpus::TRACKER_TOKEN
-        && corpus::is_tracker_key(input)
-    {
+    let pattern = scheme.pattern();
+    if pattern.is_tracker_owned() && tracker::is_tracker_key(input) {
         return InputClass::FullId;
     }
 
-    let pattern_has_key = corpus::references_key(&scheme.id_pattern);
+    let pattern_has_key = pattern.references_key();
     let all_digits = input.chars().all(|c| c.is_ascii_digit());
 
-    if let Some(matched) = match_full_id(input, &scheme.id_pattern) {
-        if pattern_has_key
-            && matched.key.as_deref().is_some_and(|p| !p.is_empty())
-        {
+    if let Some(matched) = match_full_id(input, pattern) {
+        if pattern_has_key && matched.key.is_some() {
             return InputClass::FullId;
         }
         if all_digits {
@@ -207,26 +98,10 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
     InputClass::Invalid
 }
 
-fn is_md_filename(name: &str) -> bool {
-    name.rsplit('.')
-        .next()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-        && name.contains('.')
-}
-
 fn is_draft_prefix(prefix: &str) -> bool {
     DraftId::PREFIX
         .strip_suffix('-')
         .is_some_and(|draft| prefix.eq_ignore_ascii_case(draft))
-}
-
-fn width_with_default(scheme: &WorkItemIdScheme) -> usize {
-    let width = scheme.canonical_digit_width();
-    if width == 0 {
-        4
-    } else {
-        width
-    }
 }
 
 fn add_candidate(
@@ -245,13 +120,21 @@ fn add_candidate(
 
 fn resolve_full_id(
     input: &str,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
-    let prefix = format!("{input}-");
+    let canonical = scheme.canonicalise(input).ok();
+    let prefixes: Vec<String> = std::iter::once(input)
+        .chain(canonical.as_deref())
+        .map(|id| format!("{id}-"))
+        .collect();
     let mut matches: Vec<String> = lister
         .filenames()
         .into_iter()
-        .filter(|f| f.starts_with(&prefix) && is_md_filename(f))
+        .filter(|f| {
+            is_md_filename(f)
+                && prefixes.iter().any(|prefix| f.starts_with(prefix))
+        })
         .collect();
     matches.sort();
     match matches.len() {
@@ -273,15 +156,15 @@ fn resolve_full_id(
 
 fn resolve_bare_number(
     input: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     let filenames = lister.filenames();
-    let pattern_has_key = corpus::references_key(&scheme.id_pattern);
+    let pattern_has_key = scheme.pattern().references_key();
     let mut candidates: Vec<TaggedCandidate> = Vec::new();
 
-    if pattern_has_key && scheme.key.is_some() {
-        if let Some(full_id) = scheme.canonicalise_id(input) {
+    if pattern_has_key && scheme.key().is_some() {
+        if let Ok(full_id) = scheme.canonicalise(input) {
             let prefix = format!("{full_id}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -296,8 +179,7 @@ fn resolve_bare_number(
     }
 
     if input.len() <= 4 {
-        if let Some(legacy_padded) = WorkItemIdScheme::pad_legacy_number(input)
-        {
+        if let Some(legacy_padded) = IdScheme::pad_legacy_number(input) {
             let prefix = format!("{legacy_padded}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -308,7 +190,7 @@ fn resolve_bare_number(
     }
 
     if !pattern_has_key {
-        if let Some(full_id) = scheme.canonicalise_id(input) {
+        if let Ok(full_id) = scheme.canonicalise(input) {
             let prefix = format!("{full_id}-");
             for f in &filenames {
                 if f.starts_with(&prefix) && is_md_filename(f) {
@@ -319,7 +201,7 @@ fn resolve_bare_number(
     }
 
     if pattern_has_key {
-        let width = width_with_default(scheme);
+        let width = scheme.pattern().width().unwrap_or(4);
         if let Ok(number) = input.parse::<u64>() {
             let padded = format!("{number:0width$}");
             let marker = format!("-{padded}-");
@@ -364,11 +246,11 @@ fn resolve_bare_number(
 pub fn resolve(
     input: &str,
     class: SearchClass,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     lister: &dyn DirectoryLister,
 ) -> ResolveOutcome {
     match class {
-        SearchClass::FullId => resolve_full_id(input, lister),
+        SearchClass::FullId => resolve_full_id(input, scheme, lister),
         SearchClass::BareNumber => resolve_bare_number(input, scheme, lister),
     }
 }
@@ -381,7 +263,10 @@ mod tests {
     use super::{
         classify_input, resolve, InputClass, ResolveOutcome, SearchClass,
     };
-    use corpus::WorkItemIdScheme;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
+    use crate::id_scheme::TRACKER_TOKEN;
 
     struct FakeLister(Vec<&'static str>);
 
@@ -391,18 +276,23 @@ mod tests {
         }
     }
 
-    fn numeric() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{number:04d}".to_owned(),
-            key: None,
-        }
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.map(|key| {
+                IdKey::parse(key)
+                    .unwrap_or_else(|error| unreachable!("{error}"))
+            }),
+        )
     }
 
-    fn project_scheme(default_project: Option<&str>) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{project}-{number:04d}".to_owned(),
-            key: default_project.map(str::to_owned),
-        }
+    fn numeric() -> IdScheme {
+        IdScheme::numeric()
+    }
+
+    fn project_scheme(default_project: Option<&str>) -> IdScheme {
+        scheme("{project}-{number:04d}", default_project)
     }
 
     #[test]
@@ -433,10 +323,7 @@ mod tests {
 
     #[test]
     fn classify_full_id_and_bare_number_under_key_pattern() {
-        let scheme = WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some("PP".to_owned()),
-        };
+        let scheme = scheme("{key}-{number:04d}", Some("PP"));
         assert_eq!(classify_input("PP-0042", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
         assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
@@ -456,10 +343,7 @@ mod tests {
 
     #[test]
     fn a_tracker_key_is_a_full_id_under_the_tracker_pattern() {
-        let scheme = WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        };
+        let scheme = scheme(TRACKER_TOKEN, None);
         assert_eq!(classify_input("ENG-999", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
         assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
@@ -494,6 +378,51 @@ mod tests {
             candidates.iter().map(|c| c.path.as_str()).collect();
         paths.sort_unstable();
         assert_eq!(paths, vec!["0042-bar.md", "0042-foo.md"]);
+    }
+
+    fn resolved_full_id(
+        pattern: &str,
+        key: Option<&str>,
+        input: &str,
+        filenames: Vec<&'static str>,
+    ) -> ResolveOutcome {
+        let scheme = scheme(pattern, key);
+        assert_eq!(classify_input(input, &scheme), InputClass::FullId);
+        resolve(input, SearchClass::FullId, &scheme, &FakeLister(filenames))
+    }
+
+    #[test]
+    fn a_full_id_resolves_under_a_bare_number_token() {
+        assert_eq!(
+            resolved_full_id("a.{number}", None, "a.0042", vec!["a.0042-a.md"]),
+            ResolveOutcome::Single("a.0042-a.md".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_full_id_resolves_under_a_six_digit_key_pattern() {
+        assert_eq!(
+            resolved_full_id(
+                "{key}-{number:06d}",
+                Some("PP"),
+                "PP-000042",
+                vec!["PP-000042-a.md"]
+            ),
+            ResolveOutcome::Single("PP-000042-a.md".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_short_full_id_resolves_to_its_padded_item() {
+        assert_eq!(
+            resolved_full_id(
+                "{key}-{number:04d}",
+                Some("PP"),
+                "PROJ-42",
+                vec!["PROJ-0042-x.md", "PROJ-0043-y.md"]
+            ),
+            ResolveOutcome::Single("PROJ-0042-x.md".to_owned())
+        );
     }
 
     #[test]

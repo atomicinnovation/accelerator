@@ -5,14 +5,12 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use corpus::WorkItemIdScheme;
-
+use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityFingerprint {
-    id_pattern: String,
-    key: Option<String>,
+    scheme: IdScheme,
     items: BTreeMap<PathBuf, ItemIdentity>,
 }
 
@@ -24,10 +22,9 @@ pub enum Staleness {
 
 impl IdentityFingerprint {
     #[must_use]
-    pub fn of(scheme: &WorkItemIdScheme, items: &[ItemIdentity]) -> Self {
+    pub fn of(scheme: &IdScheme, items: &[ItemIdentity]) -> Self {
         Self {
-            id_pattern: scheme.id_pattern.clone(),
-            key: scheme.key.clone(),
+            scheme: scheme.clone(),
             items: items
                 .iter()
                 .map(|item| (item.path.clone(), item.clone()))
@@ -36,11 +33,8 @@ impl IdentityFingerprint {
     }
 
     #[must_use]
-    pub fn scheme(&self) -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: self.id_pattern.clone(),
-            key: self.key.clone(),
-        }
+    pub const fn scheme(&self) -> &IdScheme {
+        &self.scheme
     }
 
     pub fn items(&self) -> impl Iterator<Item = &ItemIdentity> {
@@ -52,7 +46,7 @@ impl IdentityFingerprint {
     /// found at.
     #[must_use]
     pub fn staleness_since(&self, earlier: &Self) -> Option<Staleness> {
-        if self.id_pattern != earlier.id_pattern || self.key != earlier.key {
+        if self.scheme != earlier.scheme {
             return Some(Staleness::SchemeChanged);
         }
         let changed: Vec<PathBuf> = self
@@ -76,19 +70,25 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use corpus::WorkItemIdScheme;
-
     use super::IdentityFingerprint;
     use super::Staleness;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
     use crate::identity::ItemIdentity;
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: "{key}-{number:04d}".to_owned(),
-            key: Some("ACC".to_owned()),
-        }
+    fn scheme_of(pattern: &str, key: &str) -> IdScheme {
+        IdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse(key).ok(),
+        )
+    }
+
+    fn scheme() -> IdScheme {
+        scheme_of("{key}-{number:04d}", "ACC")
     }
 
     fn item(path: &str, id: &str) -> ItemIdentity {
@@ -165,14 +165,8 @@ mod tests {
     #[test]
     fn a_changed_scheme_is_stale_as_a_scheme_change() {
         let earlier = IdentityFingerprint::of(&scheme(), &corpus());
-        let rekeyed = WorkItemIdScheme {
-            key: Some("XYZ".to_owned()),
-            ..scheme()
-        };
-        let widened = WorkItemIdScheme {
-            id_pattern: "{key}-{number:05d}".to_owned(),
-            ..scheme()
-        };
+        let rekeyed = scheme_of("{key}-{number:04d}", "XYZ");
+        let widened = scheme_of("{key}-{number:05d}", "ACC");
         for changed in [rekeyed, widened] {
             assert_eq!(
                 IdentityFingerprint::of(&changed, &corpus())

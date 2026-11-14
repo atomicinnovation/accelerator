@@ -1,10 +1,9 @@
 //! Conjunctive filtering of work items by their domain attributes.
 //!
-//! The parent filter compares references for equality through
-//! `corpus::WorkItemIdScheme`, so `42`, `0042` and `work-item:0042` all name
-//! the same parent.
+//! The parent filter compares references by their identity key, so `42`,
+//! `0042` and `work-item:0042` all name the same parent.
 
-use corpus::WorkItemIdScheme;
+use crate::id_scheme::IdScheme;
 
 /// The attributes a [`Filter`] matches on, borrowed from a scanned item.
 #[derive(Debug, Clone, Copy)]
@@ -55,11 +54,7 @@ impl Filter {
     /// canonicalises both sides of the parent comparison so differing id forms
     /// that name the same work item compare equal.
     #[must_use]
-    pub fn matches(
-        &self,
-        item: &WorkItemView<'_>,
-        scheme: &WorkItemIdScheme,
-    ) -> bool {
+    pub fn matches(&self, item: &WorkItemView<'_>, scheme: &IdScheme) -> bool {
         matches_scalar(self.status.as_deref(), item.status)
             && matches_scalar(self.kind.as_deref(), item.kind)
             && matches_scalar(self.priority.as_deref(), item.priority)
@@ -68,11 +63,7 @@ impl Filter {
             && matches_title(self.term.as_deref(), item.title)
     }
 
-    fn matches_parent(
-        &self,
-        actual: Option<&str>,
-        scheme: &WorkItemIdScheme,
-    ) -> bool {
+    fn matches_parent(&self, actual: Option<&str>, scheme: &IdScheme) -> bool {
         let Some(wanted) = self.parent.as_deref() else {
             return true;
         };
@@ -100,24 +91,27 @@ pub fn strip_reference_prefix(raw: &str) -> &str {
     raw.split_once(':').map_or(raw, |(_, rest)| rest).trim()
 }
 
-/// Canonicalises a raw work-item reference to its comparable id under `scheme`,
-/// falling back to the bare token when the scheme cannot canonicalise it.
+/// A raw work-item reference as its identity key under `scheme`, falling
+/// back to the bare token when it names no ID.
 #[must_use]
-pub fn canonical_reference(raw: &str, scheme: &WorkItemIdScheme) -> String {
+pub fn canonical_reference(raw: &str, scheme: &IdScheme) -> String {
     let bare = strip_reference_prefix(raw);
-    scheme
-        .canonicalise_id(bare)
-        .unwrap_or_else(|| bare.to_owned())
+    scheme.identity_key(bare).unwrap_or_else(|| bare.to_owned())
 }
 
 #[cfg(test)]
+// DSL pattern strings such as "{key}" are literal token markers, not format
+// args.
+#[allow(clippy::literal_string_with_formatting_args)]
 mod tests {
     use super::Filter;
     use super::WorkItemView;
-    use corpus::WorkItemIdScheme;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     #[derive(Default)]
@@ -237,6 +231,24 @@ mod tests {
         let matched = selected(&items, &filter);
         assert_eq!(matched.len(), 1);
         assert_eq!(matched[0].title.as_deref(), Some("child"));
+    }
+
+    #[test]
+    fn a_parent_filter_ignores_key_case_and_padding() {
+        let keyed = IdScheme::new(
+            IdPattern::parse("{key}-{number:04d}")
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse("PP").ok(),
+        );
+        let child = Item {
+            parent: Some("work-item:PP-0042".to_owned()),
+            ..Item::default()
+        };
+        let filter = Filter {
+            parent: Some("pp-42".to_owned()),
+            ..Filter::default()
+        };
+        assert!(filter.matches(&child.view(), &keyed));
     }
 
     #[test]

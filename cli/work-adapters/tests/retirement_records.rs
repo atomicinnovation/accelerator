@@ -115,3 +115,22 @@ fn a_malformed_record_is_reported_rather_than_skipped() {
         Err(StoreError::Validation { .. })
     ));
 }
+
+#[test]
+fn a_record_whose_ids_are_not_one_path_component_is_unreadable() {
+    let state = tempfile::tempdir().unwrap();
+    let dir = state.path().join("retirement-records");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("x.json"),
+        "{\"schema\":1,\"old\":\"..\",\"new\":\"ENG-1\",\
+         \"recovery_dir\":\"retirement-recovery/x\"}",
+    )
+    .unwrap();
+    let records = FileRetirementRecords::new(state.path(), &PlainWrite);
+
+    assert!(matches!(
+        records.outstanding(),
+        Err(StoreError::Validation { .. })
+    ));
+}

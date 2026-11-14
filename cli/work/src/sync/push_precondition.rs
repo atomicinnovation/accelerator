@@ -42,6 +42,18 @@ pub enum MarkerState<'a> {
     Present(&'a PendingPush),
 }
 
+impl<'a> MarkerState<'a> {
+    /// The state of a marker as parsed from disk, whatever its parse error.
+    #[must_use]
+    pub const fn of<E>(parsed: &'a Result<Option<PendingPush>, E>) -> Self {
+        match parsed {
+            Err(_) => Self::Unreadable,
+            Ok(None) => Self::Absent,
+            Ok(Some(marker)) => Self::Present(marker),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefusalReason {
     MarkerUnreadable,
@@ -121,6 +133,22 @@ pub enum PushPrecondition {
     Refuse(RefusalReason),
 }
 
+/// The refusal a marker forces whatever the request: an earlier attempt
+/// whose outcome is unknown, or a marker that cannot be read.
+#[must_use]
+pub const fn unfinished_push(
+    marker: &MarkerState<'_>,
+) -> Option<RefusalReason> {
+    match marker {
+        MarkerState::Unreadable => Some(RefusalReason::MarkerUnreadable),
+        MarkerState::Present(PendingPush::Attempted { .. }) => {
+            Some(RefusalReason::PriorAttemptUnknownOutcome)
+        }
+        MarkerState::Absent
+        | MarkerState::Present(PendingPush::Created { .. }) => None,
+    }
+}
+
 /// Decides whether a `create --push` attempt may proceed.
 ///
 /// `corpus_carries` reports whether a work item on disk already carries a
@@ -134,29 +162,23 @@ pub fn push_precondition(
     request_digest: &str,
     corpus_carries: &dyn Fn(&ExternalId) -> bool,
 ) -> PushPrecondition {
-    match marker {
-        MarkerState::Absent => PushPrecondition::Proceed,
-        MarkerState::Unreadable => {
-            PushPrecondition::Refuse(RefusalReason::MarkerUnreadable)
-        }
-        MarkerState::Present(PendingPush::Attempted { .. }) => {
-            PushPrecondition::Refuse(RefusalReason::PriorAttemptUnknownOutcome)
-        }
-        MarkerState::Present(PendingPush::Created {
-            request,
-            external_id,
-        }) => {
-            if request.digest != request_digest {
-                return PushPrecondition::Refuse(
-                    RefusalReason::FingerprintMismatch,
-                );
-            }
-            if corpus_carries(external_id) {
-                PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
-            } else {
-                PushPrecondition::ReuseId(external_id.clone())
-            }
-        }
+    if let Some(reason) = unfinished_push(marker) {
+        return PushPrecondition::Refuse(reason);
+    }
+    let MarkerState::Present(PendingPush::Created {
+        request,
+        external_id,
+    }) = marker
+    else {
+        return PushPrecondition::Proceed;
+    };
+    if request.digest != request_digest {
+        return PushPrecondition::Refuse(RefusalReason::FingerprintMismatch);
+    }
+    if corpus_carries(external_id) {
+        PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
+    } else {
+        PushPrecondition::ReuseId(external_id.clone())
     }
 }
 
@@ -245,6 +267,7 @@ mod tests {
     use super::order_precondition;
     use super::push_precondition;
     use super::resolve_pending_push_token;
+    use super::unfinished_push;
     use super::MarkerState;
     use super::NotATrackerKey;
     use super::OrderPrecondition;
@@ -473,6 +496,26 @@ mod tests {
     }
 
     #[test]
+    fn a_marker_reads_as_absent_unreadable_or_present() {
+        let marker = PendingPush::Attempted {
+            request: fingerprint("d"),
+        };
+        let absent: Result<Option<PendingPush>, ()> = Ok(None);
+        let unreadable: Result<Option<PendingPush>, ()> = Err(());
+        let present: Result<Option<PendingPush>, ()> = Ok(Some(marker.clone()));
+
+        assert!(matches!(MarkerState::of(&absent), MarkerState::Absent));
+        assert!(matches!(
+            MarkerState::of(&unreadable),
+            MarkerState::Unreadable
+        ));
+        assert!(matches!(
+            MarkerState::of(&present),
+            MarkerState::Present(read) if *read == marker
+        ));
+    }
+
+    #[test]
     fn absent_proceeds() {
         assert_eq!(
             push_precondition(&MarkerState::Absent, "d", &|_| false),
@@ -523,6 +566,28 @@ mod tests {
             push_precondition(&MarkerState::Present(&marker), "d", &|_| true),
             PushPrecondition::Refuse(RefusalReason::AlreadyWritten)
         );
+    }
+
+    #[test]
+    fn an_unfinished_push_needs_no_digest() {
+        let attempted = PendingPush::Attempted {
+            request: fingerprint("d"),
+        };
+        let created = PendingPush::Created {
+            request: fingerprint("d"),
+            external_id: ExternalId::new("ENG-1".to_owned()),
+        };
+
+        assert_eq!(
+            unfinished_push(&MarkerState::Present(&attempted)),
+            Some(RefusalReason::PriorAttemptUnknownOutcome)
+        );
+        assert_eq!(
+            unfinished_push(&MarkerState::Unreadable),
+            Some(RefusalReason::MarkerUnreadable)
+        );
+        assert_eq!(unfinished_push(&MarkerState::Absent), None);
+        assert_eq!(unfinished_push(&MarkerState::Present(&created)), None);
     }
 
     #[test]

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
+use work::id_scheme::IdScheme;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,10 +25,10 @@ pub struct Config {
     pub log_path: PathBuf,
     pub doc_paths: HashMap<String, PathBuf>,
     pub templates: HashMap<String, TemplateTiers>,
-    /// Work-item ID pattern configuration. Absent from pre-Phase-2
-    /// configs; treated as the numeric default when missing.
-    #[serde(default)]
-    pub work_item: Option<RawWorkItemConfig>,
+    /// The work-item ID scheme composed in-process; never deserialised.
+    /// `None` is the numeric default.
+    #[serde(skip)]
+    pub work_item: Option<IdScheme>,
     /// Kanban column keys. Absent → seven template-status defaults.
     /// An empty list is rejected at boot.
     #[serde(default)]
@@ -58,79 +59,29 @@ pub struct KanbanColumn {
     pub label: String,
 }
 
-/// Deserializable form of the work-item ID configuration, built in-process by
-/// the composer. `key` is the local ID prefix (`work.key`), populated only when
-/// `id_pattern` references the prefix token.
-#[derive(Debug, Clone, Deserialize)]
-pub struct RawWorkItemConfig {
-    pub scan_regex: String,
-    #[serde(default = "default_id_pattern")]
-    pub id_pattern: String,
-    #[serde(default)]
-    pub key: Option<String>,
-}
-
-fn default_id_pattern() -> String {
-    "{number:04d}".to_string()
-}
-
-/// Runtime work-item ID configuration: the shared corpus id scheme plus its
-/// compiled scan regex, resolved once at boot. The admission predicates
-/// (`extract_id`/`normalise_id`/`is_canonical_id_token`) delegate to
-/// `corpus::WorkItemIdScheme`; no id convention lives here.
+/// The work-item ID scheme the server reads IDs through, resolved once at
+/// boot.
+#[derive(Debug, Clone, Default)]
 pub struct WorkItemConfig {
-    scheme: corpus::WorkItemIdScheme,
-    scanner: corpus_adapters::RegexScanner,
-}
-
-impl std::fmt::Debug for WorkItemConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkItemConfig")
-            .field("scheme", &self.scheme)
-            .finish_non_exhaustive()
-    }
+    scheme: IdScheme,
 }
 
 impl WorkItemConfig {
-    pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
-        let scanner = corpus_adapters::RegexScanner::compile(&raw.scan_regex)
-            .map_err(|source| ConfigError::InvalidScanRegex {
-            pattern: raw.scan_regex.clone(),
-            source,
-        })?;
-        Ok(Self {
-            scheme: corpus::WorkItemIdScheme {
-                id_pattern: raw.id_pattern,
-                key: raw.key,
-            },
-            scanner,
-        })
+    #[must_use]
+    pub const fn new(scheme: IdScheme) -> Self {
+        Self { scheme }
     }
 
-    /// Fallback used when `work_item` is absent from config (pre-Phase-2
-    /// launchers). Behaves identically to the default `{number:04d}` pattern.
+    /// Used when `work_item` is absent from config: the `{number:04d}`
+    /// pattern.
     #[must_use]
     pub fn default_numeric() -> Self {
-        // Compile-time-constant regex literal cannot fail to compile.
-        #[allow(clippy::expect_used)]
-        let scanner = corpus_adapters::RegexScanner::compile("^([0-9]+)-")
-            .expect("numeric scan regex is a valid literal");
-        Self {
-            scheme: corpus::WorkItemIdScheme::numeric(),
-            scanner,
-        }
+        Self::new(IdScheme::numeric())
     }
 
-    /// The shared id scheme (pattern + project code) driving admission.
     #[must_use]
-    pub fn scheme(&self) -> &corpus::WorkItemIdScheme {
+    pub const fn scheme(&self) -> &IdScheme {
         &self.scheme
-    }
-
-    /// The compiled scan regex, as a `corpus::IdScanner`.
-    #[must_use]
-    pub fn scanner(&self) -> &corpus_adapters::RegexScanner {
-        &self.scanner
     }
 
     #[must_use]
@@ -139,36 +90,34 @@ impl WorkItemConfig {
     }
 
     #[must_use]
-    pub fn extract_id(&self, filename: &str) -> Option<String> {
-        self.scheme.extract_id(filename, &self.scanner)
-    }
-
-    #[must_use]
     pub fn normalise_id(&self, raw: &str) -> Option<String> {
         self.scheme.normalise_id(raw)
     }
-}
 
-impl Default for WorkItemConfig {
-    fn default() -> Self {
-        Self::default_numeric()
+    /// The key every spelling of one work item joins on.
+    #[must_use]
+    pub fn identity_key(&self, reference: &str) -> Option<String> {
+        self.scheme.identity_key(reference)
     }
 }
 
 #[cfg(test)]
 impl WorkItemConfig {
     pub fn with_pattern_for_test(prefix: &str, width: usize) -> Self {
-        let raw = format!("^({}-[0-9]{{{}}})-", regex::escape(prefix), width);
-        Self {
-            scanner: corpus_adapters::RegexScanner::compile(&raw).unwrap(),
-            scheme: corpus::WorkItemIdScheme {
-                // Use the literal `{project}` placeholder so `id_pattern`
-                // lookups behave like production configs.
-                id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-                key: Some(prefix.to_string()),
-            },
-        }
+        Self::new(scheme_for_test(
+            &format!("{{project}}-{{number:0{width}d}}"),
+            Some(prefix),
+        ))
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+pub fn scheme_for_test(pattern: &str, key: Option<&str>) -> IdScheme {
+    IdScheme::new(
+        work::id_pattern::IdPattern::parse(pattern).unwrap(),
+        key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
+    )
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -333,11 +282,6 @@ impl Config {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("invalid work-item scan regex '{pattern}': {source}")]
-    InvalidScanRegex {
-        pattern: String,
-        source: regex::Error,
-    },
     #[error("visualiser.kanban_columns must not be empty")]
     EmptyKanbanColumns,
     #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
@@ -352,79 +296,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn work_item_config_from_raw_compiles_valid_regex() {
-        let raw = RawWorkItemConfig {
-            scan_regex: "^([0-9]+)-".to_string(),
-            id_pattern: "{number:04d}".to_string(),
-            key: None,
-        };
-        assert!(WorkItemConfig::from_raw(raw).is_ok());
-    }
-
-    #[test]
-    fn work_item_config_from_raw_rejects_invalid_regex() {
-        let raw = RawWorkItemConfig {
-            scan_regex: "([unclosed".to_string(),
-            id_pattern: "{number:04d}".to_string(),
-            key: None,
-        };
-        let err =
-            WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
-        assert!(matches!(err, ConfigError::InvalidScanRegex { .. }));
-    }
-
-    #[test]
-    fn work_item_config_extract_id_default_pattern() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.extract_id("0001-foo.md").as_deref(), Some("0001"));
-        assert_eq!(cfg.extract_id("0042-bar-baz.md").as_deref(), Some("0042"));
-        assert_eq!(cfg.extract_id("malformed.md"), None);
-        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
-    }
-
-    #[test]
-    fn work_item_config_extract_id_project_pattern() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        })
-        .unwrap();
-        assert_eq!(
-            cfg.extract_id("PROJ-0042-foo.md").as_deref(),
-            Some("PROJ-0042")
-        );
-        assert_eq!(
-            cfg.extract_id("PROJ-1-short.md").as_deref(),
-            Some("PROJ-1")
-        );
-        assert_eq!(cfg.extract_id("PROJ-0042.md"), None);
-        assert_eq!(cfg.extract_id("malformed.md"), None);
-    }
-
-    #[test]
-    fn work_item_config_extract_id_fallback_for_legacy_files() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        })
-        .unwrap();
-        // Bare-numeric file that doesn't match the project pattern:
-        // admitted via fallback keyed as PROJ-<digits>.
-        assert_eq!(cfg.extract_id("0042-foo.md").as_deref(), Some("PROJ-0042"));
-        assert_eq!(cfg.extract_id("0001-bar.md").as_deref(), Some("PROJ-0001"));
-    }
-
-    #[test]
-    fn work_item_config_extract_id_no_fallback_without_project_code() {
-        let cfg = WorkItemConfig::default_numeric();
-        // Default pattern: bare-numeric files go through primary, not fallback.
-        // Non-numeric prefixes are rejected.
-        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
-    }
-
-    #[test]
     fn normalise_id_passes_prefixed_form_through_unchanged() {
         let cfg = WorkItemConfig::default_numeric();
         assert_eq!(cfg.normalise_id("ENG-0042").as_deref(), Some("ENG-0042"));
@@ -433,12 +304,10 @@ mod tests {
 
     #[test]
     fn normalise_id_applies_project_code_to_bare_digits() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^ENG-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("ENG".to_string()),
-        })
-        .unwrap();
+        let cfg = WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some("ENG"),
+        ));
         assert_eq!(cfg.normalise_id("42").as_deref(), Some("ENG-42"));
         assert_eq!(cfg.normalise_id("0042").as_deref(), Some("ENG-0042"));
     }
@@ -448,12 +317,10 @@ mod tests {
         // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"` in a
         // workspace whose local ID prefix is "ENG" passes through verbatim —
         // the workspace's prefix is NOT re-applied.
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^ENG-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("ENG".to_string()),
-        })
-        .unwrap();
+        let cfg = WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some("ENG"),
+        ));
         assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
     }
 
@@ -502,11 +369,10 @@ mod tests {
 
     #[test]
     fn default_impl_matches_default_numeric() {
-        let a: WorkItemConfig = WorkItemConfig::default();
-        let b = WorkItemConfig::default_numeric();
-        assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
-        assert_eq!(a.scheme().key, b.scheme().key);
-        assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
+        assert_eq!(
+            WorkItemConfig::default().scheme(),
+            WorkItemConfig::default_numeric().scheme()
+        );
     }
 
     #[test]

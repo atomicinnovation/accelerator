@@ -31,7 +31,6 @@ use ::config::Key;
 use config_adapters::credentials::SystemEnvironment;
 use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
 use config_adapters::TrackedConfigFile;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
@@ -39,6 +38,7 @@ use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
+use work::id_scheme::IdScheme;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
 use work::inventory::CorpusInventory;
@@ -374,7 +374,7 @@ struct Orders {
 fn parse_orders(
     raw: &[(String, String)],
     integration: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<Orders, String> {
     let mut orders = Orders {
         resolutions: BTreeMap::new(),
@@ -993,7 +993,7 @@ fn dossier_path(dir: &Path, id: &str) -> PathBuf {
 fn retire_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     authority: &DossierAuthority<'_>,
 ) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -1055,7 +1055,7 @@ fn persist_dossiers(
     store: &dyn SyncStore,
     dossiers: &[ConflictDossier],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = Vec::new();
@@ -1096,7 +1096,7 @@ fn partially_resolved_dossiers(
     console: &mut Console<'_>,
     ids: &[String],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Vec<StaleDossier> {
     ids.iter()
         .filter(|id| is_token_safe(scheme, id))
@@ -1117,7 +1117,7 @@ fn persist_conflict_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
     report: &RunReport,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = partially_resolved_dossiers(
@@ -2075,7 +2075,7 @@ impl Refusal {
 struct PreparedSync {
     integration: String,
     repo_root: PathBuf,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     discarding: BTreeSet<String>,
     roots: ValidatedRoots,
     integration_state: BoundedRoot,
@@ -2113,8 +2113,8 @@ fn prepare_sync(
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
-    let scheme =
-        crate::config::resolve_scheme(config).map_err(Refusal::error)?;
+    let scheme = crate::config::announced_scheme_with_key(config)
+        .map_err(Refusal::error)?;
     let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
         .map_err(Refusal::usage)?;
     let (work, integrations) =
@@ -2135,7 +2135,7 @@ fn prepare_sync(
 
     let orders = parse_orders(&args.resolutions, &integration, &scheme)
         .map_err(Refusal::usage)?;
-    let names = ConfiguredNames::for_scheme(&scheme).map_err(Refusal::error)?;
+    let names = ConfiguredNames::for_scheme(&scheme);
     let (conflicts, conflicts_unread) =
         VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
     if let Some(warning) = conflicts_unread {
@@ -2286,7 +2286,7 @@ fn sync_request<'a>(
 }
 
 fn ids_to_discard(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     named: &[String],
 ) -> Result<BTreeSet<String>, String> {
     named
@@ -2311,7 +2311,7 @@ struct RunAssembly<'a> {
     repo_root: &'a Path,
     tracker: &'a dyn tracker::RemoteTracker,
     identity_run: &'a IdentityRunGuard,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     roots: &'a ValidatedRoots,
 }
 
@@ -2399,7 +2399,7 @@ struct FinishedRunContext<'a> {
     corpus: &'a [LocalItem],
     workspace: &'a IdentityWorkspace,
     work_dir: &'a Path,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     discarding: &'a BTreeSet<String>,
     finaliser: &'a dyn RunFinaliser,
     dossier_store: &'a dyn SyncStore,
@@ -2559,14 +2559,15 @@ fn report_stopped_run(
     clippy::unwrap_used,
     clippy::unnecessary_wraps,
     clippy::unimplemented,
-    clippy::panic
+    clippy::panic,
+    clippy::literal_string_with_formatting_args
 )]
 mod tests {
     use crate::finished_run::StaleDossier;
     use crate::finished_run::StaleDossierCause;
-    use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
+    use work::id_scheme::IdScheme;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
@@ -2623,8 +2624,8 @@ mod tests {
         assert!(!unbounded_gate_fires(Ceiling::Unlimited, false, false));
     }
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     fn target_item(dir: &Path, id: &str, external: Option<&str>) -> LocalItem {
@@ -2676,8 +2677,7 @@ mod tests {
             );
             super::work_files::discover_corpus(
                 &self.work_dir,
-                &super::work_files::ConfiguredNames::for_scheme(&scheme())
-                    .expect("the scheme compiles"),
+                &super::work_files::ConfiguredNames::for_scheme(&scheme()),
                 &conflicts,
             )
             .expect("discover items")
@@ -5266,11 +5266,12 @@ mod tests {
         );
     }
 
-    fn tracker_scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        }
+    fn tracker_scheme() -> IdScheme {
+        IdScheme::new(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .expect("the tracker pattern"),
+            None,
+        )
     }
 
     #[test]
@@ -6101,6 +6102,7 @@ mod tests {
                 producer: "create-work-item".to_owned(),
                 body_file: None,
                 push: true,
+                id: None,
                 dry_run: false,
             },
             &StubRegistry(Rc::clone(tracker)),

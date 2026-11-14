@@ -6,21 +6,18 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::IdOwnership;
-use corpus::WorkItemIdScheme;
-use corpus_adapters::compile_scan_regex;
-use corpus_adapters::RegexScanner;
+use corpus::IdConvention as _;
 use tracker::ExternalId;
 use vcs::status::ChangeType;
 use vcs::RepositoryProbe;
 use vcs::VcsKind;
 use vcs::VcsReporter;
 use work::draft_id::DraftId;
+use work::id_scheme::IdScheme;
 use work::inventory::identify;
 use work::inventory::ConflictedPaths;
 use work::inventory::CorpusInventory;
 use work::inventory::NamesWorkItem;
-use work::tracker_key::TrackerKey;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::sync::apply::FailureClass;
@@ -32,33 +29,15 @@ use work_adapters::sync::report::RunFailure;
 /// Names work items from filenames as the configured id scheme lays them
 /// out, drafts included.
 pub struct ConfiguredNames {
-    scheme: WorkItemIdScheme,
-    scanner: Option<RegexScanner>,
+    scheme: IdScheme,
 }
 
 impl ConfiguredNames {
-    /// # Errors
-    ///
-    /// When the scheme's scan pattern does not compile.
-    pub fn for_scheme(scheme: &WorkItemIdScheme) -> Result<Self, String> {
-        let scanner = match scheme.ownership() {
-            IdOwnership::Tracker => None,
-            IdOwnership::Local => Some(
-                compile_scan_regex(
-                    &scheme.id_pattern,
-                    scheme.key.as_deref().unwrap_or(""),
-                )
-                .map_err(|error| error.to_string())
-                .and_then(|pattern| {
-                    RegexScanner::compile(&pattern)
-                        .map_err(|error| error.to_string())
-                })?,
-            ),
-        };
-        Ok(Self {
+    #[must_use]
+    pub fn for_scheme(scheme: &IdScheme) -> Self {
+        Self {
             scheme: scheme.clone(),
-            scanner,
-        })
+        }
     }
 }
 
@@ -77,10 +56,7 @@ impl NamesWorkItem for ConfiguredNames {
         if DraftId::parse(&two_parts).is_some() {
             return Some(two_parts);
         }
-        self.scanner.as_ref().map_or_else(
-            || TrackerKey::parse(&two_parts).map(|_| two_parts.clone()),
-            |scanner| self.scheme.extract_id(file_name, scanner),
-        )
+        self.scheme.id_in_filename(file_name)
     }
 }
 
@@ -201,12 +177,14 @@ pub fn discover_corpus(
 mod tests {
     use std::path::Path;
 
-    use corpus::WorkItemIdScheme;
     use vcs::log::LogReport;
     use vcs::status::StatusReport;
     use vcs::VcsKind;
     use vcs::VcsReporter;
     use vcs_adapters::library::InProcessProbe;
+    use work::id_pattern::IdKey;
+    use work::id_pattern::IdPattern;
+    use work::id_scheme::IdScheme;
     use work::inventory::ConflictedPaths;
     use work::inventory::NamesWorkItem;
 
@@ -214,11 +192,10 @@ mod tests {
     use super::VcsConflicts;
 
     fn names(id_pattern: &str, key: Option<&str>) -> ConfiguredNames {
-        ConfiguredNames::for_scheme(&WorkItemIdScheme {
-            id_pattern: id_pattern.to_owned(),
-            key: key.map(str::to_owned),
-        })
-        .expect("the pattern compiles")
+        ConfiguredNames::for_scheme(&IdScheme::new(
+            IdPattern::parse(id_pattern).expect("the pattern parses"),
+            key.map(|key| IdKey::parse(key).expect("the key parses")),
+        ))
     }
 
     #[test]
@@ -246,15 +223,6 @@ mod tests {
             );
             assert_eq!(scheme.work_item_named("README.md"), None);
         }
-    }
-
-    #[test]
-    fn a_scan_pattern_that_does_not_compile_is_refused() {
-        assert!(ConfiguredNames::for_scheme(&WorkItemIdScheme {
-            id_pattern: "{number:zz}".to_owned(),
-            key: None,
-        })
-        .is_err());
     }
 
     struct FailingReporter;

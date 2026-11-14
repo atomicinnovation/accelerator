@@ -67,6 +67,15 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::pending_push;
 
+static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
+    std::sync::LazyLock::new(|| {
+        work::id_scheme::IdScheme::new(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            None,
+        )
+    });
+
 const DRAFT_ID: &str = "draft-k7mq3x";
 const DRAFT: &str = "meta/work/drafts/draft-k7mq3x-add-search.md";
 const KEY: &str = "REC-1";
@@ -283,6 +292,7 @@ fn promote_reading(
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -324,6 +334,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -720,6 +731,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -1427,6 +1439,7 @@ fn promoted_waiting(
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,

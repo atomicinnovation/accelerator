@@ -2,7 +2,7 @@
 name: create-work-item
 description: Interactively create a well-formed work item. Use when capturing a
   feature, bug, task, spike, or epic as a structured work item in meta/work/.
-argument-hint: "[topic or existing work item path/number]"
+argument-hint: "[topic] [--id <ID>] | [existing work item path/number]"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator work *)
@@ -74,11 +74,76 @@ different things — populate each deliberately:
   substantive scope or meaning interpretation a reviewer should be aware
   of.
 
+## Identity-run refusals
+
+`accelerator work id check`, `accelerator work id next` and
+`accelerator work create` (with or without `--push`) refuse before reading or
+writing anything while an `accelerator work rekey` run is unfinished or
+another identity command is running. Before any other branch on a non-zero
+exit from one of them, check its stderr for these codes; in every case
+nothing was written:
+
+- `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
+  run `/rekey-work-items` to finish or undo it. Stop.
+- `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
+  suggesting the re-key be finished. Stop.
+- `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
+  retry once it ends.
+
 ## Step 0: Parameter Check
 
 When this command is invoked:
 
-1. **If an argument was provided**:
+1. **Requested ID**. Recognise `--id <ID>` or `--id=<ID>` only as the
+   argument's leading or trailing tokens (`--id 0400 dark mode` or
+   `dark mode --id 0400`), and take them out before anything else. Anywhere
+   else, the whole argument is the topic: `add --id <ID> to accelerator work
+   create` requests no ID.
+
+   When an ID was requested, the remainder is the topic. Never pass it to
+   `accelerator work resolve`; enrich-existing mode is unavailable. With no
+   remainder, ask the user what the work item is about.
+
+   Before any command carries an ID, whether from the argument or from
+   *Requested ID recovery*, check it for a `'`. Every command passes the ID
+   single-quoted, so an ID holding one can never be passed: say an ID cannot
+   contain a single quote and go to *Requested ID recovery* without running a
+   command.
+
+   Settle the ID, with `--` so a request starting with `-` is read as the ID:
+
+   ```
+   accelerator work id check -- '<ID>'
+   ```
+
+   Apply *Identity-run refusals* first, then branch on its result:
+
+   - **Exit 0, `exact\t<id>`** — use `<id>` with no question, saying which ID
+     will be used ("Using 0400").
+   - **Exit 0, `other-key\t<id>\t<key>`** — use `<id>` with no question,
+     saying which ID will be used and that its key differs from the
+     configured `<key>`.
+   - **Exit 0, `corrected\t<id>` or `corrected\t<id>\t<key>`** — propose
+     `<id>` exactly as printed, saying that its key differs from the
+     configured `<key>` when the line names one ("Use PO-0400? Its key PO
+     differs from the configured PP."). Continue only on confirmation; a
+     declined proposal goes to *Requested ID recovery*.
+   - With each of these three, add that automatic numbering continues above
+     the highest number already used (per key under a key pattern), so an ID
+     above it moves the sequence there.
+   - **Exit 1, `E_ID_TRACKER_OWNED`** — relay stderr verbatim, then offer only
+     automatic allocation, through the normal `{tracker}` flow, or
+     cancelling, and wait.
+   - **Exit 1, `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` or
+     `E_ID_TAKEN`** — relay stderr verbatim and go to *Requested ID
+     recovery*.
+   - **Any other non-zero exit** — relay stderr verbatim and abort.
+
+   Never decide an ID's shape or read its key yourself; `work id check` does.
+   The settled ID is the item's ID from here on. Continue to topic-string
+   handling below with the remainder as the topic.
+
+2. **If an argument without a requested ID was provided**:
 
    First, **try to resolve the argument as a reference to an existing
    work item** by invoking the resolver:
@@ -93,9 +158,11 @@ When this command is invoked:
 
    - **Exit 0** (single match): the resolver echoes the absolute path on
      stdout. Continue to frontmatter validation below.
-   - **Exit 1** (input invalid — neither path, full ID, nor bare number):
+   - **Exit 1** with a stderr line starting `E_RESOLVE_INVALID:` (neither
+     path, full ID, nor bare number; a deprecation warning may precede it):
      proceed to topic-string handling below; treat the argument as a
-     topic.
+     topic. Any other exit 1, such as `E_WORK_ID_PATTERN_INVALID`, is a
+     configuration error: relay stderr verbatim and stop.
    - **Exit 2** (ambiguous match): the resolver lists every candidate
      with a source-category tag (`legacy`, `project-prepended`,
      `pattern-shape`, or a project code). Present the list to the user
@@ -152,7 +219,7 @@ When this command is invoked:
      specific description before proceeding to Step 1.
    - If clear, proceed directly to Step 1.
 
-2. **If no argument was provided**, respond with:
+3. **If no argument was provided**, respond with:
 
 ```
 I'll help you create a well-specified work item through a collaborative conversation.
@@ -164,9 +231,40 @@ I'll ask a few questions to understand the problem space, do some research, then
 work with you to shape a thoroughly reasoned work item.
 ```
 
-Then wait for the user's input. Apply the same vagueness check to their
-response — if still vague, ask a clarifying question before proceeding to
-Step 1.
+Unless **ID pattern** is `{tracker}`, add: "Start your reply with
+`--id <ID>`, shaped like `<ID pattern>`, to choose the ID yourself, for
+example when other branches have unmerged items; a short number is proposed
+in full." Substitute the **ID pattern** value, since the user never sees the
+injected line.
+
+Then wait for the user's input. Run *Requested ID* recognition on that first
+reply. Apply the same vagueness check to the topic — if still vague, ask a
+clarifying question before proceeding to Step 1.
+
+### Requested ID recovery
+
+This applies after a declined proposal or an `E_ID_*` refusal from the CLI,
+in Step 0 before drafting or in Step 5 after it.
+
+Use the `AskUserQuestion` tool with three options:
+
+1. **Name another ID** — ask for the ID in plain text.
+2. **Allocate automatically** — let the CLI number the item.
+3. **Cancel** — after drafting, print the approved draft.
+
+After an `E_ID_TRACKER_OWNED` refusal, offer only **Allocate automatically**
+and **Cancel**. Never choose for the user; wait for their answer.
+
+A new ID is checked for a `'`, then settled through `work id check` exactly
+as in *Requested ID*. **Allocate automatically** after drafting calls
+`accelerator work id next` (none under `{tracker}`) and states the new
+projected ID. Either way, resume where the skill stopped, with the approved
+draft unchanged and no question asked again:
+
+- from Step 0, continue to drafting;
+- from Step 5 step 6.3, re-run the step 6 create, with the new `--id` or none;
+- from Step 5 step 7.1, re-run the push-gate dry-run;
+- from Step 5 step 7.3, re-run the dry-run, then the `--push` create.
 
 ## Step 1: Gather Business Context
 
@@ -363,7 +461,7 @@ requirements, etc.) applies equally to existing and proposed content.
 
 1. **Draft a complete work item** from the agreed proposal using the template
    structure loaded at the top of this skill. Use `NNNN` as the placeholder
-   work item number throughout. Do NOT call `accelerator work next-number` at this step.
+   work item number throughout. Do NOT call `accelerator work id next` at this step.
 
 2. **Kind-specific content placement**:
    - story/epic: open the `Summary` section with a user story statement —
@@ -396,7 +494,7 @@ changes before I write it to disk:
 6. **Continue to challenge** during the review loop — flag untestable criteria,
    vague requirements, or gaps surfaced by research that remain unaddressed.
    Iterate until the user explicitly approves. **`accelerator work
-   next-number` is never called during this loop.**
+   id next` is never called during this loop.**
 
 ### In enrich-existing mode
 
@@ -423,28 +521,42 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-**A re-key in progress.** `accelerator work next-number` and
-`accelerator work create` (with or without `--push`) refuse before reading or
-writing anything while an `accelerator work rekey` run is unfinished. Before
-any other branch on a non-zero exit from one of them, check its stderr for
-these codes; in every case nothing was written:
-
-- `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
-  run `/rekey-work-items` to finish or undo it. Stop.
-- `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
-  suggesting the re-key be finished. Stop.
-- `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
-  retry once it ends.
+Apply *Identity-run refusals* to every `accelerator work id next` and
+`accelerator work create` call below.
 
 Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
 assigns the key on a push, and `accelerator work create` mints the draft ID
 itself, so its first stdout line is the only path to report.
 
-1. **Call `accelerator work next-number`** to get the next full ID under the
+**For a requested ID** settled in Step 0:
+
+- Skip steps 1–3: never call `accelerator work id next`, and skip the
+  path-existence check, which the CLI's collision check supersedes. The
+  projected ID is the settled ID.
+- Every create in steps 6, 7.1 and 7.3 carries `--id='<id>'`, single-quoted,
+  and never `--project`.
+- In 6.3, 7.1 and 7.3, exit 1 with `E_ID_TRACKER_OWNED`,
+  `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` or `E_ID_TAKEN` means: relay
+  stderr verbatim, write nothing, and go to *Requested ID recovery*. Never
+  save locally instead.
+- In 7.1 and 7.3, exit 1 with `E_PUSH_PENDING` or
+  `E_PUSH_MARKER_UNREADABLE`, and in 7.3 also `E_PUSH_FINGERPRINT_MISMATCH`
+  or `E_PUSH_ALREADY_WRITTEN`, means: relay stderr verbatim, since it names
+  the marker file and its remedy, and print the approved draft. Offer no
+  recovery choice and suggest no re-run.
+- Any other exit 1 from 6.3, 7.1 or 7.3 means: relay stderr verbatim and
+  abort. "Save locally" stays for the tracker-selection exits of 7.1
+  (exit 0 with an `unresolvable` project, exit 70, and the non-1 exits).
+- Every abort after Step 4 prints the approved draft, with a line saying the
+  user can re-run `/create-work-item`, as **Cancel** does.
+
+Creates without a requested ID are unchanged.
+
+1. **Call `accelerator work id next`** to get the next full ID under the
    configured pattern:
 
 ```
-accelerator work next-number
+accelerator work id next
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
@@ -497,7 +609,7 @@ concurrently. Please re-run /create-work-item.
      [--tag <value>]... [--block "work-item:NNNN"]... \
      [--blocked-by "work-item:NNNN"]... \
      [--derived-from "plan:NNNN"]... [--relates-to <ref>]... \
-     [--source "issue-research:NNNN"] [--project <code>]
+     [--source "issue-research:NNNN"] [--project <code>] [--id='<id>']
    ```
 
       Include each bracketed flag only when that field has a value —
@@ -509,7 +621,9 @@ concurrently. Please re-run /create-work-item.
       create` never writes it (nothing to sync yet); this matches today's
       behaviour of omitting it from a fresh draft.
    3. If the command exits non-zero, surface its stderr message verbatim
-      and abort — do not retry and do not attempt a manual `Write`.
+      and abort — do not retry and do not attempt a manual `Write`. For a
+      requested ID, the branches under **For a requested ID** above come
+      first.
       Otherwise its stdout is the path of the written file. Skip to
       step 8.
 
@@ -524,12 +638,13 @@ concurrently. Please re-run /create-work-item.
 
       ```
       accelerator work create "<title>" <kind> <priority> \
-        --push --dry-run --body-file <body-tmp>
+        --push --dry-run --body-file <body-tmp> [--id='<id>']
       ```
 
       It resolves the tracker from **Active integration**, contacts it to
       resolve the fields, writes **nothing**, and creates **no** remote issue.
-      Branch on its exit and the line it prints on stdout:
+      For a requested ID, the branches under **For a requested ID** above
+      come first. Then branch on its exit and the line it prints on stdout:
 
       - **Exit 0, jira** → `jira\t<issue type>\t<type source>\t<project>\t<project source>`.
         Render the type and project with their sources. A `<project source>` of
@@ -554,7 +669,7 @@ concurrently. Please re-run /create-work-item.
       Every "save locally" above is the step 6 `accelerator work create`
       call with no `--push`, so under `{tracker}` it writes a draft that
       `/sync-work-items` promotes later. Never write the file with the
-      `Write` tool, and never call `accelerator work next-number` for it.
+      `Write` tool, and never call `accelerator work id next` for it.
 
       Then, when a push is still on the table:
 
@@ -581,8 +696,12 @@ concurrently. Please re-run /create-work-item.
       ```
       accelerator work create "<title>" <kind> <priority> \
         --status draft --author "<resolved author>" --producer create-work-item \
-        --push --body-file <body-tmp> [--parent …] [--tag …]… [linkage flags…]
+        --push --body-file <body-tmp> [--parent …] [--tag …]… [linkage flags…] \
+        [--id='<id>']
       ```
+
+      For a requested ID, the branches under **For a requested ID** above
+      come before the outcome table.
 
       This is **one** call that creates the remote issue and writes the local
       file atomically — the retryable/terminal decision, the retry, and the
@@ -653,7 +772,7 @@ Work item created: `<path>`
 
 ### In enrich-existing mode
 
-1. Do **not** call `accelerator work next-number`. The target path is the
+1. Do **not** call `accelerator work id next`. The target path is the
    resolved `existing_work_item_path` cached in Step 0.
 
 2. **At-write identity-swap check** (best-effort guard): immediately before
@@ -745,7 +864,12 @@ completing.
 ## Quality Guidelines
 
 - Never write a file without explicit user approval.
-- Never call `accelerator work next-number` before the user approves the draft.
+- Never call `accelerator work id next` before the user approves the draft.
+- Never call `accelerator work id next` for a requested ID unless the user
+  chooses automatic allocation.
+- Never decide an ID's shape or read its key yourself; `accelerator work id
+  check` does.
+- Never pass `--id` and `--project` together.
 - The slug must be a meaningful kebab-case title, not raw input text.
 - Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
@@ -802,9 +926,9 @@ using the cached immutable `id` (the full ID produced by the configured
 pattern, never a placeholder; sourced from `work_item_id` on legacy
 files) and the title as confirmed or replaced in Step 3.
 
-**Script avoidance** (enrich-existing mode): `accelerator work
-next-number` is never called. The number is already cached. The path-existence guard in Step 5
-does not apply — overwrite is the intended behaviour once the at-write
+**Script avoidance** (enrich-existing mode): `accelerator work id next` is
+never called. The number is already cached. The path-existence guard in Step
+5 does not apply — overwrite is the intended behaviour once the at-write
 identity-swap check passes.
 
 - `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00` format
@@ -840,7 +964,7 @@ identity-swap check passes.
   industry standards, external technology, or otherwise. When in doubt,
   prefer to spawn research — over-asking is cheaper than producing a
   vague or poorly-grounded proposal.
-- If `accelerator work next-number` exits non-zero, abort and surface the
+- If `accelerator work id next` exits non-zero, abort and surface the
   error message verbatim.
 
 !`accelerator config instructions create-work-item --fail-safe`

@@ -1,5 +1,4 @@
-//! CLI-boundary tests for `work canonicalise-id`, cross-checked against the
-//! `work-item-canonicalise-id.golden` fixture.
+//! CLI-boundary tests for `work id canonicalise`.
 
 // The `{project}`/`{number:04d}` DSL tokens in test literals are not
 // formatting args.
@@ -16,7 +15,7 @@ fn scratch_repo(
     project: &str,
 ) -> Result<tempfile::TempDir, TestError> {
     let dir = tempfile::Builder::new()
-        .prefix("work-cli-canonicalise-id-")
+        .prefix("work-cli-id-canonicalise-")
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".accelerator"))?;
     let config = format!(
@@ -28,7 +27,7 @@ fn scratch_repo(
 
 fn run(dir: &Path, input: &str) -> Result<std::process::Output, TestError> {
     Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
-        .args(["canonicalise-id", input])
+        .args(["id", "canonicalise", input])
         .current_dir(dir)
         .output()?)
 }
@@ -82,7 +81,7 @@ fn bare_number_under_a_project_pattern_with_project_configured(
 #[test]
 fn bare_number_under_a_key_pattern_honours_work_key() -> Result<(), TestError> {
     let dir = tempfile::Builder::new()
-        .prefix("work-cli-canonicalise-id-key-")
+        .prefix("work-cli-id-canonicalise-key-")
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".accelerator"))?;
     fs::write(
@@ -149,6 +148,20 @@ fn unrecognised_id_shape_is_rejected() -> Result<(), TestError> {
         stderr.trim(),
         "E_PATTERN_BAD_FORMAT_SPEC: input 'not-an-id' is not a recognised \
          ID shape"
+    );
+    Ok(())
+}
+
+#[test]
+fn canonicalise_keeps_its_error_codes_for_a_malformed_pattern(
+) -> Result<(), TestError> {
+    let repo = scratch_repo("{number:4d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "E_PATTERN_BAD_FORMAT_SPEC: {number} format spec '4d' must match 0Nd \
+         (rule 4)"
     );
     Ok(())
 }

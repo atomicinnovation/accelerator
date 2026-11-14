@@ -1,5 +1,7 @@
 //! CLI-boundary tests for `work create`.
 
+#![allow(clippy::literal_string_with_formatting_args)]
+
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -28,6 +30,18 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
         .current_dir(dir.path())
         .status()?;
     assert!(name_status.success());
+    Ok(dir)
+}
+
+fn scratch_repo_with_work_config(
+    work_body: &str,
+) -> Result<tempfile::TempDir, TestError> {
+    let dir = scratch_repo()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
     Ok(dir)
 }
 
@@ -338,5 +352,232 @@ fn the_author_comes_from_the_jj_identity_when_no_flag_is_given(
         content.contains("last_updated_by: \"Fixture\""),
         "{content}"
     );
+    Ok(())
+}
+
+const KEYED: &str = "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n";
+
+fn created_path(output: &std::process::Output) -> Result<String, TestError> {
+    assert!(output.status.success(), "{output:?}");
+    Ok(String::from_utf8(output.stdout.clone())?.trim().to_owned())
+}
+
+fn work_items(repo: &Path) -> Result<Vec<String>, TestError> {
+    let mut names: Vec<String> = fs::read_dir(repo.join("meta/work"))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    names.sort();
+    Ok(names)
+}
+
+#[test]
+fn create_counts_a_lower_case_key_in_the_configured_keys_sequence(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(KEYED)?;
+    for (number, slug) in (1..=10).zip('a'..='j') {
+        fs::write(
+            repo.path()
+                .join(format!("meta/work/PP-{number:04}-{slug}.md")),
+            "",
+        )?;
+    }
+    fs::write(repo.path().join("meta/work/pp-0500-b.md"), "")?;
+
+    let output = run(repo.path(), &["create", "Probe", "task", "low"])?;
+
+    assert!(created_path(&output)?.ends_with("meta/work/PP-0501-probe.md"));
+    Ok(())
+}
+
+#[test]
+fn create_under_a_project_counts_that_keys_sequence_ignoring_case(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(KEYED)?;
+    fs::write(repo.path().join("meta/work/xy-0400-a.md"), "")?;
+
+    let output = run(
+        repo.path(),
+        &["create", "Probe", "task", "low", "--project", "XY"],
+    )?;
+
+    assert!(created_path(&output)?.ends_with("meta/work/XY-0401-probe.md"));
+    Ok(())
+}
+
+#[test]
+fn a_hostile_project_or_pattern_is_refused_before_anything_is_written(
+) -> Result<(), TestError> {
+    let refusals = [
+        (
+            KEYED,
+            vec!["--project", "../x"],
+            "Error: E_WORK_KEY_INVALID: --project '../x': key value '../x' \
+             must match [A-Za-z][A-Za-z0-9]* (rule 5)",
+        ),
+        (
+            "  id_pattern: \"../{number:04d}\"\n",
+            vec![],
+            "Error: E_WORK_ID_PATTERN_INVALID: work.id_pattern \
+             '../{number:04d}': literal '/' is forbidden in patterns (rule 2)",
+        ),
+        (
+            "  id_pattern: \"x'{number:04d}\"\n",
+            vec![],
+            "Error: E_WORK_ID_PATTERN_INVALID: work.id_pattern \
+             'x\\'{number:04d}': literal '\\'' is forbidden in patterns \
+             (rule 2)",
+        ),
+    ];
+    for (config, extra, reason) in refusals {
+        let repo = scratch_repo_with_work_config(config)?;
+        let mut args = vec!["create", "Probe", "task", "low"];
+        args.extend(extra);
+
+        let output = run(repo.path(), &args)?;
+
+        assert_eq!(output.status.code(), Some(1), "{config}");
+        let stderr = String::from_utf8(output.stderr)?;
+        assert!(stderr.starts_with(reason), "{config}: {stderr}");
+        assert!(work_items(repo.path())?.is_empty(), "{config}");
+    }
+    Ok(())
+}
+
+#[test]
+fn allocation_under_a_key_followed_by_a_letter_continues_the_sequence(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}v{number:03d}\"\n  key: PP\n",
+    )?;
+    fs::write(repo.path().join("meta/work/PPv001-a.md"), "")?;
+
+    let output = run(repo.path(), &["create", "Probe", "task", "low"])?;
+
+    assert!(created_path(&output)?.ends_with("meta/work/PPv002-probe.md"));
+    Ok(())
+}
+
+#[test]
+fn allocation_keeps_the_patterns_literal_text() -> Result<(), TestError> {
+    let repo =
+        scratch_repo_with_work_config("  id_pattern: \"v{number:03d}\"\n")?;
+
+    let first = run(repo.path(), &["create", "First", "task", "low"])?;
+    let second = run(repo.path(), &["create", "Second", "task", "low"])?;
+
+    assert!(created_path(&first)?.ends_with("meta/work/v001-first.md"));
+    assert!(created_path(&second)?.ends_with("meta/work/v002-second.md"));
+    Ok(())
+}
+
+#[test]
+fn a_malformed_pattern_refuses_before_the_author_or_directory(
+) -> Result<(), TestError> {
+    let bare = tempfile::tempdir()?;
+    fs::create_dir_all(bare.path().join(".accelerator"))?;
+    fs::write(
+        bare.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+
+    let output = run(bare.path(), &["create", "Probe", "task", "low"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(!bare.path().join("meta/work").exists());
+    Ok(())
+}
+
+const DEPRECATION: &str = "'work.default_project_code' is deprecated";
+
+#[test]
+fn the_deprecation_notice_is_printed_once_per_command() -> Result<(), TestError>
+{
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: PP\n",
+    )?;
+
+    let created = run(repo.path(), &["create", "Probe", "task", "low"])?;
+    let listed = run(repo.path(), &["list"])?;
+
+    for output in [created, listed] {
+        assert!(output.status.success(), "{output:?}");
+        let stderr = String::from_utf8(output.stderr)?;
+        assert_eq!(stderr.matches(DEPRECATION).count(), 1, "{stderr}");
+    }
+    Ok(())
+}
+
+fn work_dir_listing(repo: &Path) -> Result<Vec<PathBuf>, TestError> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(repo.join("meta/work"))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect();
+    entries.sort();
+    Ok(entries)
+}
+
+#[test]
+fn a_refused_id_exits_1_with_its_code_on_stderr_and_writes_nothing(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let before = work_dir_listing(repo.path())?;
+
+    let output = run(
+        repo.path(),
+        &["create", "Probe", "task", "low", "--id", "400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.starts_with("Error: E_ID_PATTERN_MISMATCH:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("{number:04d}"), "{stderr}");
+    assert_eq!(work_dir_listing(repo.path())?, before);
+    Ok(())
+}
+
+#[test]
+fn a_taken_id_exits_1_naming_the_holder() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/work/0400-other.md"), "")?;
+
+    let output = run(
+        repo.path(),
+        &["create", "Probe", "task", "low", "--id", "0400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("E_ID_TAKEN"), "{stderr}");
+    assert!(stderr.contains("0400-other.md"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn create_batch_with_an_id_is_an_unrecognised_argument() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    let before = work_dir_listing(repo.path())?;
+
+    let output = run(
+        repo.path(),
+        &["create-batch", "--manifest", "m.json", "--id", "0400"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("--id"), "{stderr}");
+    assert_eq!(work_dir_listing(repo.path())?, before);
     Ok(())
 }

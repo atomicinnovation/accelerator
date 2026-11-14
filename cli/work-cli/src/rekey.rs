@@ -9,10 +9,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use vcs::guarded_working_copy::GUARDED_SCOPES;
 use vcs::RepositoryProbe;
+use work::id_scheme::IdScheme;
 use work::identity_run::waiting_line;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::mapping::RefreshedKeys;
@@ -176,7 +176,7 @@ const fn skipped_by_force(action: RekeyAction) -> &'static str {
 struct Located {
     root: PathBuf,
     work_dir: PathBuf,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     integration: Option<String>,
     integrations_root: PathBuf,
 }
@@ -188,7 +188,7 @@ fn locate(
     let root = config_adapters::FileConfigStore::discover_root(start);
     Ok(Located {
         work_dir: crate::config::resolve_work_dir(config, &root)?,
-        scheme: crate::config::resolve_scheme(config)?,
+        scheme: crate::config::announced_scheme_with_key(config)?,
         integration: crate::config::configured_override(
             config,
             "work.integration",

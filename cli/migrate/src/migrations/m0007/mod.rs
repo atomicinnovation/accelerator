@@ -25,11 +25,14 @@ mod quote;
 mod rewrite;
 mod schema;
 mod status_map;
+#[cfg(test)]
+mod test_ids;
 
 use std::path::PathBuf;
 
 use corpus::doc_type::DocTypeKey;
 use corpus::linkage::Band;
+use corpus::LinkageIds;
 
 use crate::interactive::Decision;
 use crate::interactive::InteractiveMigration;
@@ -123,6 +126,7 @@ fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
     let table = linkage_table(&ctx.doc_type_dirs(), ctx.root());
+    let ids = ctx.legacy_linkage().map_err(|error| error.to_string())?;
     let files = corpus_files(ctx, &table)?;
 
     let refusals = prepass::precondition_prepass(&files, &table);
@@ -164,6 +168,7 @@ fn run_mechanical(
             relpath,
             repo_name: &repo_name,
             table: &table,
+            ids,
         };
         let (rewritten, diagnostics) = rewrite::rewrite(content, &input);
         for diagnostic in &diagnostics {
@@ -195,7 +200,8 @@ fn run_mechanical(
             .to_owned()
     })?;
 
-    let transformations = emit_linkage_transformations(ctx, &files, &table);
+    let transformations =
+        emit_linkage_transformations(ctx, &files, &table, ids);
     Ok(transformations)
 }
 
@@ -203,6 +209,7 @@ fn emit_linkage_transformations(
     ctx: &dyn MigrationContext,
     files: &[(String, String)],
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
 ) -> Vec<Transformation> {
     let index = ctx.corpus_index();
     let mut transformations = Vec::new();
@@ -213,7 +220,7 @@ fn emit_linkage_transformations(
             continue;
         };
         for record in
-            corpus::linkage::parse_document(linkage_type, content, table)
+            corpus::linkage::parse_document(linkage_type, content, table, ids)
         {
             if record.key.is_empty() || record.target_ref.is_empty() {
                 continue;

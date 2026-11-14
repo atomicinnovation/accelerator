@@ -54,6 +54,15 @@ use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 
+static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
+    std::sync::LazyLock::new(|| {
+        work::id_scheme::IdScheme::new(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            None,
+        )
+    });
+
 type TestError = Box<dyn std::error::Error>;
 
 const DRAFT: &str = "meta/work/drafts/draft-k7mq3x-add-search.md";
@@ -401,7 +410,7 @@ impl<'a> Harness<'a> {
             corpus_files(&RealFs, &RealFs, self.status.as_ref(), &self.roots)?;
         let items =
             identities(&FilesystemWorkItemFiles::new(&self.work_dir).files()?);
-        plan_retirement(&promotion(), &self.work_dir, &items, &corpus)
+        plan_retirement(&promotion(), &TRACKER, &self.work_dir, &items, &corpus)
             .map_err(|refusal| format!("{refusal:?}").into())
     }
 
@@ -469,6 +478,7 @@ impl<'a> Harness<'a> {
             layout: CorpusLayout {
                 roots: &self.roots,
                 work_dir: &self.work_dir,
+                scheme: &TRACKER,
             },
             walker: &RealFs,
             status: self.status.as_ref(),

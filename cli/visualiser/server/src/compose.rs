@@ -8,21 +8,20 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use config::{
-    resolve_with_deprecated_fallback, ConfigAccess, ConfigError, Key, Level,
-    ReadTemplate, Resolved, Source,
+    ConfigAccess, ConfigError, Key, Level, ReadTemplate, Resolved, Source,
 };
 use config_adapters::{FileConfigStore, LegacyPolicy};
+use work::id_scheme::IdScheme;
+use work_adapters::config::{read_scheme, require_key, SchemeError};
 
-use corpus_adapters::work_item_pattern;
-
-use crate::config::{Config, RawWorkItemConfig, TemplateTiers};
+use crate::config::{Config, TemplateTiers};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ComposeError {
     #[error("configuration error: {0}")]
     Config(#[from] ConfigError),
-    #[error("invalid work-item id pattern: {0}")]
-    Pattern(#[from] work_item_pattern::PatternError),
+    #[error(transparent)]
+    Scheme(#[from] SchemeError),
 }
 
 /// Inputs the runtime supplies that are not config keys: the working directory
@@ -194,30 +193,14 @@ fn resolve_templates(
     Ok(map)
 }
 
+/// The serving process only reads, so it skips the tracker-integration
+/// check a writer makes, and it has no terminal to show a deprecation on.
 fn resolve_work_item(
     service: &impl ConfigAccess,
-) -> Result<RawWorkItemConfig, ComposeError> {
-    let id_pattern = service
-        .effective_nonempty(&Key::parse("work.id_pattern")?, None)?
-        .rendered();
-    let prefix = resolve_with_deprecated_fallback(
-        service,
-        "work.key",
-        "work.default_project_code",
-        None,
-    )?;
-    let key = corpus::references_key(&id_pattern)
-        .then_some(prefix.value)
-        .flatten();
-    let scan_regex = work_item_pattern::compile_scan_regex(
-        &id_pattern,
-        key.as_deref().unwrap_or(""),
-    )?;
-    Ok(RawWorkItemConfig {
-        scan_regex,
-        id_pattern,
-        key,
-    })
+) -> Result<IdScheme, ComposeError> {
+    let scheme = read_scheme(service)?.scheme;
+    require_key(&scheme)?;
+    Ok(scheme)
 }
 
 /// Resolve the kanban columns to an explicit list, `None` when the key is

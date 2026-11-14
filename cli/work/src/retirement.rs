@@ -15,10 +15,13 @@ use corpus::StoreError;
 
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
-use crate::identity::holder_of;
-use crate::identity::linker_of;
+use crate::id_pattern::escaped;
+use crate::id_scheme::IdScheme;
+use crate::identity::holder_of_under;
+use crate::identity::linker_of_under;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
+use crate::path_component::is_one_path_component;
 use crate::show::read_field_raw;
 use crate::tracker_key::TrackerKey;
 use crate::work_item_files::frontmatter_of;
@@ -176,6 +179,9 @@ pub enum RetirementRefusal {
     },
     TargetExists(PathBuf),
     ItemNotFound(String),
+    IdNotOnePathComponent {
+        id: String,
+    },
 }
 
 /// `path` relative to `root` when it lies under it, else as it is.
@@ -201,6 +207,9 @@ impl RetirementRefusal {
                 Self::TargetExists(relative_to(path, root))
             }
             Self::ItemNotFound(id) => Self::ItemNotFound(id),
+            Self::IdNotOnePathComponent { id } => {
+                Self::IdNotOnePathComponent { id }
+            }
         }
     }
 
@@ -211,6 +220,7 @@ impl RetirementRefusal {
             Self::KeyLinked { .. } => "key-linked",
             Self::TargetExists(_) => "target-exists",
             Self::ItemNotFound(_) => "item-not-found",
+            Self::IdNotOnePathComponent { .. } => "id-not-one-path-component",
         }
     }
 
@@ -237,6 +247,11 @@ impl RetirementRefusal {
             Self::ItemNotFound(id) => {
                 format!("cannot retire {id}: no work item has that id")
             }
+            Self::IdNotOnePathComponent { id } => format!(
+                "cannot retire {old_id} for {new_id}: '{}' is not one path \
+                 component",
+                escaped(id)
+            ),
         }
     }
 }
@@ -346,7 +361,7 @@ fn is_interrupted_target(item: &ItemIdentity, r: &Retirement<'_>) -> bool {
 }
 
 fn shape_of(id: &str) -> IdShape {
-    if DraftId::parse(id).is_some() || corpus::is_tracker_key(id) {
+    if DraftId::parse(id).is_some() || tracker::is_tracker_key(id) {
         IdShape::Distinctive
     } else {
         IdShape::NumericOnly
@@ -362,7 +377,10 @@ fn file_name(path: &Path) -> String {
 /// The filename after its leading ID, so a retired file keeps its title.
 fn slug_after(id: &str, path: &Path) -> String {
     let name = file_name(path);
-    let stem = name.strip_suffix(".md").unwrap_or(&name);
+    let stem = name
+        .rsplit_once('.')
+        .filter(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+        .map_or(name.as_str(), |(stem, _)| stem);
     let without_id = stem
         .get(..id.len())
         .filter(|prefix| same_id(prefix, id))
@@ -444,15 +462,24 @@ fn directory_of(path: &Path) -> &Path {
 
 /// # Errors
 ///
-/// A [`RetirementRefusal`] when no item holds `old_id`, another item already
-/// holds `new_id` or is linked to `new_external_id`, or a file other than an
-/// interrupted retirement's already occupies the target path.
+/// A [`RetirementRefusal`] when either ID is not one path component, no item
+/// holds `old_id`, another item already holds `new_id` or is linked to
+/// `new_external_id`, or a file other than an interrupted retirement's
+/// already occupies the target path.
 pub fn plan_retirement(
     retirement: &Retirement<'_>,
+    scheme: &IdScheme,
     work_dir: &Path,
     items: &[ItemIdentity],
     corpus: &[CorpusFile],
 ) -> Result<RetirementPlan, RetirementRefusal> {
+    for id in [retirement.old_id, retirement.new_id] {
+        if !is_one_path_component(id) {
+            return Err(RetirementRefusal::IdNotOnePathComponent {
+                id: id.to_owned(),
+            });
+        }
+    }
     let retiring = items
         .iter()
         .find(|item| same_id(&item.id, retirement.old_id));
@@ -472,7 +499,7 @@ pub fn plan_retirement(
             ))
         }
     };
-    refuse_collisions(retirement, items, retiring, interrupted)?;
+    refuse_collisions(retirement, scheme, items, retiring, interrupted)?;
 
     let to = interrupted.map_or_else(
         || destination_of(retirement, &from, work_dir),
@@ -599,6 +626,7 @@ fn retired_from(
 
 fn refuse_collisions(
     retirement: &Retirement<'_>,
+    scheme: &IdScheme,
     items: &[ItemIdentity],
     retiring: Option<&ItemIdentity>,
     interrupted: Option<&ItemIdentity>,
@@ -611,7 +639,7 @@ fn refuse_collisions(
         .filter(|item| !is_party(item))
         .cloned()
         .collect();
-    if let Some(held) = holder_of(retirement.new_id, &others) {
+    if let Some(held) = holder_of_under(scheme, retirement.new_id, &others) {
         return Err(RetirementRefusal::IdTaken {
             holder: held.item.path.clone(),
             field: held.field,
@@ -619,7 +647,7 @@ fn refuse_collisions(
     }
     if let Some(linker) = retirement
         .new_external_id
-        .and_then(|key| linker_of(key, &others))
+        .and_then(|key| linker_of_under(scheme, key, &others))
     {
         return Err(RetirementRefusal::KeyLinked {
             holder: linker.path.clone(),
@@ -839,6 +867,10 @@ mod tests {
     use super::RetirementPlan;
     use super::RetirementRefusal;
     use crate::dirtiness::Dirtiness;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
+    use crate::id_scheme::TRACKER_TOKEN;
     use crate::identity::IdentityField;
     use crate::work_item_files::identities;
     use crate::work_item_files::WorkItemFile;
@@ -886,7 +918,23 @@ mod tests {
         }
     }
 
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::new(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.and_then(|key| IdKey::parse(key).ok()),
+        )
+    }
+
     fn plan(
+        retirement: &Retirement<'_>,
+        corpus: &[CorpusFile],
+    ) -> Result<RetirementPlan, RetirementRefusal> {
+        plan_under(&scheme(TRACKER_TOKEN, None), retirement, corpus)
+    }
+
+    fn plan_under(
+        scheme: &IdScheme,
         retirement: &Retirement<'_>,
         corpus: &[CorpusFile],
     ) -> Result<RetirementPlan, RetirementRefusal> {
@@ -900,7 +948,7 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
         );
-        plan_retirement(retirement, work_dir(), &items, corpus)
+        plan_retirement(retirement, scheme, work_dir(), &items, corpus)
     }
 
     #[test]
@@ -1537,6 +1585,69 @@ mod tests {
                 field: IdentityField::Id,
             })
         );
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn a_retirement_target_held_at_another_width_is_taken() {
+        let corpus = [
+            numbered_item(),
+            work_item("/repo/meta/work/pp-42-other.md", "id: \"pp-42\"\n", "O"),
+        ];
+
+        assert_eq!(
+            plan_under(
+                &scheme("{key}-{number:04d}", Some("PP")),
+                &Retirement::renumbering("0042", "PP-0042"),
+                &corpus,
+            ),
+            Err(RetirementRefusal::IdTaken {
+                holder: PathBuf::from("/repo/meta/work/pp-42-other.md"),
+                field: IdentityField::Id,
+            })
+        );
+    }
+
+    #[test]
+    fn a_promotion_proceeds_beside_an_alias_at_another_width() {
+        let corpus = [
+            draft(),
+            work_item(
+                "/repo/meta/work/ENG-1-other.md",
+                "id: \"ENG-1\"\naliases: [\"PP-0900\"]\n",
+                "O",
+            ),
+        ];
+
+        assert!(plan(&promotion(), &corpus).is_ok());
+    }
+
+    #[test]
+    fn retirement_refuses_an_id_that_is_not_one_path_component() {
+        for (old_id, new_id, refused) in [
+            ("draft-k7mq3x", "..", ".."),
+            ("draft-k7mq3x", "a/b", "a/b"),
+            ("draft-k7mq3x", "", ""),
+            ("../x", "PP-900", "../x"),
+        ] {
+            let retirement = Retirement {
+                old_id,
+                new_id,
+                new_external_id: None,
+            };
+            let refusal = plan(&retirement, &[draft()]);
+            assert_eq!(
+                refusal,
+                Err(RetirementRefusal::IdNotOnePathComponent {
+                    id: refused.to_owned()
+                }),
+                "{old_id} {new_id}"
+            );
+            assert_eq!(
+                refusal.err().map(|refusal| refusal.keyword()),
+                Some("id-not-one-path-component")
+            );
+        }
     }
 
     #[test]

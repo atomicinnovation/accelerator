@@ -1,6 +1,8 @@
-//! The composed `MigrationContext`: config access for doc-type directories,
-//! the bounded atomic write every migration's mutation routes through, and
-//! the injected corpus and sync-baseline capabilities.
+//! The composed `MigrationContext`.
+//!
+//! It holds config access for doc-type directories, the bounded atomic write
+//! every migration's mutation routes through, and the injected corpus,
+//! work-item identity and sync-baseline capabilities.
 
 use std::cell::OnceCell;
 use std::fs;
@@ -32,7 +34,7 @@ pub struct Capabilities<'a> {
     pub walker: &'a dyn corpus::scan::CorpusWalker,
     pub reader: &'a dyn corpus::scan::FileReader,
     pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
-    pub canonicaliser: &'a dyn corpus::work_item_id::WorkItemIdCanonicaliser,
+    pub identity: &'a dyn migrate::ports::WorkItemIdentity,
     pub sync_baselines: &'a dyn migrate::ports::SyncBaselines,
     pub version_control: Option<VersionControlled<'a>>,
 }
@@ -118,6 +120,7 @@ impl MigrationContext for FileMigrationContext<'_> {
             FileCorpusIndex::build(
                 &self.linkage_table(),
                 self.capabilities.walker,
+                self.capabilities.identity.legacy_linkage(),
             )
         })
     }
@@ -264,11 +267,25 @@ impl MigrationContext for FileMigrationContext<'_> {
             .unwrap_or_else(|| "{number:04d}".to_owned());
         let project =
             MigrationContext::config_value(self, "work.default_project_code")?
-                .unwrap_or_default();
-        self.capabilities
-            .canonicaliser
-            .canonicalise(bare_number, &pattern, &project)
-            .map_err(|error| MigrationError::new(error.to_string()))
+                .filter(|project| !project.is_empty());
+        self.capabilities.identity.canonicalise(
+            bare_number,
+            &pattern,
+            project.as_deref(),
+        )
+    }
+
+    fn legacy_linkage(
+        &self,
+    ) -> Result<&dyn corpus::LinkageIds, MigrationError> {
+        Ok(self.capabilities.identity.legacy_linkage())
+    }
+
+    fn pattern_references_key(
+        &self,
+        pattern: &str,
+    ) -> Result<bool, MigrationError> {
+        Ok(self.capabilities.identity.references_key(pattern))
     }
 
     fn validate_frontmatter(

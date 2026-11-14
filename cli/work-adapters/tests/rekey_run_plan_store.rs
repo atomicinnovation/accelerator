@@ -11,9 +11,11 @@ use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
 use corpus::StoreError;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use work::draft_id::DraftId;
+use work::id_pattern::IdKey;
+use work::id_pattern::IdPattern;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::identity_run::RunPlanGate;
 use work::identity_run::RunPlanStatus as _;
@@ -95,11 +97,12 @@ impl AtomicWrite for RecordingWrite {
     }
 }
 
-fn scheme() -> WorkItemIdScheme {
-    WorkItemIdScheme {
-        id_pattern: "{key}-{number:04d}".to_owned(),
-        key: Some("ACC".to_owned()),
-    }
+fn scheme() -> IdScheme {
+    IdScheme::new(
+        IdPattern::parse("{key}-{number:04d}")
+            .unwrap_or_else(|error| unreachable!("{error}")),
+        IdKey::parse("ACC").ok(),
+    )
 }
 
 fn identity(
@@ -266,6 +269,71 @@ fn a_malformed_plan_is_unreadable_naming_the_file() -> Result<(), TestError> {
         Err(UnreadablePlan { ref path, cause: Unreadability::Malformed(_) })
             if *path == repo.plan_path()
     ));
+    Ok(())
+}
+
+fn schema_one_plan_with(original: &str, tampered: &str) -> String {
+    include_str!("fixtures/rekey/run-plan-schema-1.json")
+        .replacen(original, tampered, 1)
+}
+
+fn assert_malformed(repo: &Repo) {
+    let loaded = repo.store().load();
+    assert!(
+        matches!(
+            loaded,
+            Err(UnreadablePlan {
+                cause: Unreadability::Malformed(_),
+                ..
+            })
+        ),
+        "{loaded:?}"
+    );
+}
+
+#[test]
+fn a_stored_pattern_that_no_longer_parses_is_malformed() -> Result<(), TestError>
+{
+    let repo = Repo::new()?;
+    write_plan(
+        &repo,
+        &schema_one_plan_with(
+            "\"id_pattern\": \"{key}-{number:04d}\"",
+            "\"id_pattern\": \"{number:4d}\"",
+        ),
+    )?;
+
+    assert_malformed(&repo);
+    Ok(())
+}
+
+#[test]
+fn a_run_plan_with_a_path_escaping_target_is_unreadable(
+) -> Result<(), TestError> {
+    let tamperings = [
+        ("\"id\": \"ACC-0042\" }", "\"id\": \"../../x-0001\" }"),
+        ("\"id\": \"ACC-0042\" }", "\"id\": \"/tmp/x\" }"),
+        ("{ \"old\": \"0042\"", "{ \"old\": \"../x\""),
+        ("{ \"old\": \"0042\"", "{ \"old\": \"a/b\""),
+        ("\"path\": \"meta/notes/forced.md\"", "\"path\": \"../x\""),
+        ("\"path\": \"meta/notes/forced.md\"", "\"path\": \"/tmp/x\""),
+        (
+            "\"path\": \"meta/work/0042-search.md\",\n        \"id\"",
+            "\"path\": \"../x\",\n        \"id\"",
+        ),
+    ];
+    for (original, tampered) in tamperings {
+        let plan = schema_one_plan_with(original, tampered);
+        assert_ne!(
+            plan,
+            include_str!("fixtures/rekey/run-plan-schema-1.json"),
+            "{tampered}"
+        );
+        let repo = Repo::new()?;
+        write_plan(&repo, &plan)?;
+
+        assert_malformed(&repo);
+    }
     Ok(())
 }
 
