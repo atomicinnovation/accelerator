@@ -64,6 +64,10 @@ by the guide at `{skill dir}/../draw-diagram/reference/choosing.md`, link
 each element to its chapter, and mark what the change adds `new`. Write the `summary` last, in 3–5 sentences,
 naming the key abstractions in bold.
 
+Give every abstraction and decision an id that starts `a-design-` or
+`d-design-`: ids are unique across the page, and the chapters name some of
+the same things.
+
 **Before you finish**, validate the JSON with `python3 -m json.tool`, and check
 every `where` against the `head/` copies.
 

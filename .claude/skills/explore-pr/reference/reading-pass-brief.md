@@ -94,16 +94,22 @@ when a line is wrong. Raise design concerns of your own in `ownNotes`. Matter mo
 precise question for each}.
 
 **Figures**: follow the contract's Figures section, including what makes a
-figure worth its space, and put `where` on every box, step or path that has
-a home in the code. Choose each figure by the question it answers, from
+figure worth its space. Choose each figure by the question it answers, from
 the guide at `{skill dir}/../draw-diagram/reference/choosing.md`: it sets
 each kind against its neighbours and says which views go together. The
-contract's "Choosing a figure" adds the four kinds only this page draws.
+contract's "Choosing a figure" adds the two kinds only this page draws.
 
 Each is described in the contract's "Diagrams the kit draws" and in its
 notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`
 (for a `class-diagram`, `draw-class-diagram`, and so on). Put a `link` on
-every element and relationship that has a home in the code.
+every element and relationship that has a home in the code. Write a
+label as plain text: a diagram shows no code spans, so leave backticks
+out.
+
+Give every abstraction and decision an id that starts with your chapter's
+id (`a-claims-fresh-versions`, `d-claims-heartbeat`): ids are unique
+across the page, and the design pass and other chapters name some of the
+same things.
 
 **Writing**: follow the contract's writing rules. One term per concept,
 reusing the code's own names: {domain terms already established}. Record
