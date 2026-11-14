@@ -2,10 +2,15 @@
 Usage: accelerator-shortcut <COMMAND>
 
 Commands:
-  show    Show a story or an epic as JSON
-  search  Search the base team's stories, rendering a JSON envelope
-  init    Verify the token, list teams, or discover the workspace's workflows
-  help    Print this message or the help of the given subcommand(s)
+  show        Show a story or an epic as JSON
+  search      Search the base team's stories, rendering a JSON envelope
+  create      Create a story or an epic from a work item or an explicit title
+  update      Update a story's or an epic's fields
+  comment     Comment on a story or an epic
+  transition  Move a story to a named state of its workflow
+  attach      Attach a link to a story
+  init        Verify the token, list teams, or discover the workspace's workflows
+  help        Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -37,6 +42,91 @@ Options:
       --limit <LIMIT>  Print at most this many stories
   -q, --quiet          Print no notices on stderr
   -h, --help           Print help
+
+=== accelerator-shortcut create --help ===
+Create a story or an epic from a work item or an explicit title
+
+Usage: accelerator-shortcut create [OPTIONS] [FILE]
+
+Arguments:
+  [FILE]  A work-item file whose title, kind and body seed the entity
+
+Options:
+      --title <TITLE>          The story's title, when there is no work-item file
+      --body-file <BODY_FILE>  A Markdown body file, when there is no work-item file
+  -q, --quiet                  Print no notices on stderr
+  -h, --help                   Print help
+
+=== accelerator-shortcut update --help ===
+Update a story's or an epic's fields
+
+Usage: accelerator-shortcut update [OPTIONS] <REFERENCE>
+
+Arguments:
+  <REFERENCE>  `sc-<id>`, `epic-<id>`, or a story or epic URL in this workspace
+
+Options:
+      --title <TITLE>              
+      --description <DESCRIPTION>  
+      --state <STATE>              A state of the story's workflow. Stories only
+      --owner <OWNER>              A member's mention name
+      --estimate <ESTIMATE>        The story's points. Stories only
+  -q, --quiet                      Print no notices on stderr
+  -h, --help                       Print help
+
+=== accelerator-shortcut comment --help ===
+Comment on a story or an epic
+
+Usage: accelerator-shortcut comment <COMMAND>
+
+Commands:
+  add   Add a Markdown comment
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-shortcut comment add --help ===
+Add a Markdown comment
+
+Usage: accelerator-shortcut comment add [OPTIONS] <REFERENCE>
+
+Arguments:
+  <REFERENCE>  `sc-<id>`, `epic-<id>`, or a story or epic URL in this workspace
+
+Options:
+      --body <BODY>            
+      --body-file <BODY_FILE>  
+  -q, --quiet                  Print no notices on stderr
+  -h, --help                   Print help
+
+=== accelerator-shortcut transition --help ===
+Move a story to a named state of its workflow
+
+Usage: accelerator-shortcut transition [OPTIONS] <REFERENCE> [STATE]
+
+Arguments:
+  <REFERENCE>  `sc-<id>`, or a story URL in this workspace
+  [STATE]      The target state name, positional or as `--state`
+
+Options:
+      --state <STATE>  
+  -q, --quiet          Print no notices on stderr
+  -h, --help           Print help
+
+=== accelerator-shortcut attach --help ===
+Attach a link to a story
+
+Usage: accelerator-shortcut attach [OPTIONS] <REFERENCE>
+
+Arguments:
+  <REFERENCE>  `sc-<id>`, or a story URL in this workspace
+
+Options:
+      --url <URL>    An https URL to link
+      --file <FILE>  Not supported yet: Shortcut file upload is not built
+  -q, --quiet        Print no notices on stderr
+  -h, --help         Print help
 
 === accelerator-shortcut init --help ===
 Verify the token, list teams, or discover the workspace's workflows

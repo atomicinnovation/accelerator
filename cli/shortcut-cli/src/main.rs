@@ -6,6 +6,8 @@ mod context;
 mod exit_codes;
 mod keywords;
 mod team_key_writeback;
+mod work_item;
+mod write_flows;
 
 use std::process::ExitCode;
 
@@ -293,8 +295,8 @@ fn report_team_key(
     }
 }
 
-fn client_or_report() -> Result<ShortcutClient, ExitCode> {
-    let client = context::build_client(Intent::Read).map_err(reported)?;
+fn client_or_report(intent: Intent) -> Result<ShortcutClient, ExitCode> {
+    let client = context::build_client(intent).map_err(reported)?;
     if let Some(notice) = client.notice() {
         eprintln!("{notice}");
     }
@@ -317,7 +319,7 @@ fn run_show(args: &ShowArgs) -> ExitCode {
         Ok(reference) => reference,
         Err(refusal) => return refused_reference(&refusal),
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(client) => client,
         Err(code) => return code,
     };
@@ -377,7 +379,7 @@ fn show_found(
 }
 
 fn run_search(args: &SearchArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(client) => client,
         Err(code) => return code,
     };
@@ -480,5 +482,10 @@ fn main() -> ExitCode {
         Command::Init { action } => run_init(action),
         Command::Show(args) => run_show(&args),
         Command::Search(args) => run_search(&args),
+        Command::Create(args) => write_flows::create(&args),
+        Command::Update(args) => write_flows::update(&args),
+        Command::Comment { action } => write_flows::comment(action),
+        Command::Transition(args) => write_flows::transition(args),
+        Command::Attach(args) => write_flows::attach(&args),
     }
 }

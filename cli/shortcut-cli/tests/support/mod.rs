@@ -53,6 +53,29 @@ pub fn seed_catalogue(dir: &Path) {
     .expect("write catalogue");
 }
 
+/// The same catalogue with a second "To Do" in the story's workflow.
+pub fn seed_ambiguous_catalogue(dir: &Path) {
+    seed_catalogue(dir);
+    let path = dir.join(CATALOGUE);
+    let text = std::fs::read_to_string(&path).expect("read catalogue");
+    let doubled = text.replace(
+        r#""position": 1}]}]}"#,
+        r#""position": 1},
+               {"id": 500000008, "name": "To do", "type": "started",
+                "position": 2}]}]}"#,
+    );
+    assert_ne!(doubled, text, "the seed catalogue changed shape");
+    std::fs::write(&path, doubled).expect("write catalogue");
+}
+
+pub fn sent_json(
+    server: &MockHTTPServer,
+    key: &http_test_support::RequestKey,
+) -> serde_json::Value {
+    let body = server.last_body(key).expect("a request was sent");
+    serde_json::from_slice(&body).expect("the body is JSON")
+}
+
 pub fn scenario(name: &str) -> Scenario {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios")

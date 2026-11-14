@@ -23,6 +23,9 @@ use shortcut_client::cache::CacheError;
 use shortcut_client::catalogue::CatalogueError;
 use shortcut_client::client::ReadFailure;
 use shortcut_client::discovery::DiscoveryError;
+use shortcut_client::story_state::StateRefusal;
+use shortcut_client::writes::OwnerRefusal;
+use shortcut_client::writes::WriteError;
 use shortcut_client::ClientError;
 use tracker::TrackerError;
 
@@ -56,6 +59,30 @@ pub const SEARCH_CAP_HIT: u8 = 79;
 pub const SHOW_BAD_REFERENCE: u8 = 80;
 pub const SHOW_FOREIGN_WORKSPACE: u8 = 81;
 pub const SHOW_NOT_FOUND: u8 = 82;
+
+pub const COMMENT_NO_BODY: u8 = 91;
+
+pub const CREATE_NO_TITLE: u8 = 100;
+pub const CREATE_BAD_FRONTMATTER: u8 = 101;
+pub const CREATE_ALREADY_SYNCED: u8 = 102;
+pub const CREATE_NO_BODY_FILE: u8 = 103;
+pub const CREATE_WRITEBACK_FAILED: u8 = 107;
+
+pub const UPDATE_NO_FIELDS: u8 = 111;
+pub const OWNER_UNKNOWN: u8 = 115;
+pub const OWNER_AMBIGUOUS: u8 = 116;
+
+pub const TRANSITION_NO_STATE: u8 = 121;
+pub const STATE_UNKNOWN: u8 = 122;
+pub const STATE_AMBIGUOUS: u8 = 123;
+pub const STATE_NO_WORKFLOW: u8 = 124;
+
+pub const ATTACH_NO_URL: u8 = 131;
+pub const ATTACH_BAD_URL: u8 = 134;
+
+pub const WRITE_NOT_APPLIED: u8 = 140;
+pub const WRITE_MAY_HAVE_APPLIED: u8 = 141;
+pub const WRITE_REFUSED: u8 = 142;
 
 #[must_use]
 pub const fn for_client(error: &ClientError) -> u8 {
@@ -136,6 +163,37 @@ pub const fn for_search(error: &TrackerError) -> u8 {
         TrackerError::Retryable { .. } | TrackerError::Terminal { .. } => {
             SEARCH_FAILED
         }
+    }
+}
+
+/// A refused write is a usage error when the caller named the wrong kind of
+/// entity, and its own code otherwise.
+#[must_use]
+pub const fn for_write(error: &WriteError) -> u8 {
+    match error {
+        WriteError::NotAStory(_) => USAGE,
+        WriteError::NotHttps(_) => ATTACH_BAD_URL,
+        WriteError::State(StateRefusal::Unknown { .. }) => STATE_UNKNOWN,
+        WriteError::State(StateRefusal::Ambiguous { .. }) => STATE_AMBIGUOUS,
+        WriteError::State(StateRefusal::WorkflowMissing { .. }) => {
+            STATE_NO_WORKFLOW
+        }
+        WriteError::Owner(OwnerRefusal::Unknown { .. }) => OWNER_UNKNOWN,
+        WriteError::Owner(OwnerRefusal::Ambiguous { .. }) => OWNER_AMBIGUOUS,
+        WriteError::Read(failure) => for_read(failure),
+        WriteError::Tracker(error) => for_tracker_write(error),
+    }
+}
+
+/// What a retry of a failed write would repeat: nothing landed, it may have
+/// landed, or Shortcut refused it outright.
+#[must_use]
+pub const fn for_tracker_write(error: &TrackerError) -> u8 {
+    match error {
+        TrackerError::Retryable { .. } => WRITE_NOT_APPLIED,
+        TrackerError::Terminal { .. } => WRITE_MAY_HAVE_APPLIED,
+        TrackerError::Rejected { .. } => WRITE_REFUSED,
+        TrackerError::Unconfigured { .. } => NO_TEAM_KEY,
     }
 }
 

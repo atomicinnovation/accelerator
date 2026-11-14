@@ -3,9 +3,14 @@
 #[path = "../src/keywords.rs"]
 mod keywords;
 
+use keywords::Attach;
+use keywords::Comment;
+use keywords::Create;
 use keywords::Init;
 use keywords::Search;
 use keywords::Show;
+use keywords::Transition;
+use keywords::Update;
 
 #[test]
 fn the_keyword_set_is_exactly_the_committed_surface() {
@@ -23,6 +28,14 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
                 Search::CapHit.keyword(),
             ],
         ),
+        (
+            "create",
+            vec![Create::Created.keyword(), Create::WritebackFailed.keyword()],
+        ),
+        ("update", vec![Update::Updated.keyword()]),
+        ("comment", vec![Comment::Added.keyword()]),
+        ("transition", vec![Transition::Transitioned.keyword()]),
+        ("attach", vec![Attach::Attached.keyword()]),
         (
             "init",
             vec![
@@ -43,6 +56,11 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
         [
             "show: found,not-found",
             "search: results,empty,truncated,cap-hit",
+            "create: created,writeback-failed",
+            "update: updated",
+            "comment: added",
+            "transition: transitioned",
+            "attach: attached",
             "init: verified,listed,discovered",
         ]
     );
