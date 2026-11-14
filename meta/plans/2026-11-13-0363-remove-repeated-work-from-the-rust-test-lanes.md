@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T14:42:02+00:00"
+last_updated: "2026-11-14T15:01:38+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -37,7 +37,28 @@ phases, each of which can be merged on its own:
    goes beyond 0363's scope, at the user's request, and reverses the
    report-only stance of the 0162 plan.
 
+## Progress
+
+As of 2026-11-14:
+
+- **Phase 1: complete.** Every success criterion is met.
+- **Phase 2: complete.** Every success criterion is met, including both CI
+  `test-unit` legs. Two of its planned flags turned out to be invalid in
+  cargo-llvm-cov 0.8.7, and the implementation departs from the plan for
+  each. The outcome notes in Phase 2 record both.
+- **Phases 1 and 2 are in review together as PR #216** (branch
+  `0363-remove-repeated-rust-test-work`). The PR's one red check, the
+  Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
+  runner image. That is outside this plan.
+- **Phase 3: planned, not started.** It was added after Phase 2, at the
+  user's request.
+- **Phase 4: planned, not started.** The CI totals it needs are recorded at
+  the end of Phase 2.
+
 ## Current State Analysis
+
+This section describes the code before Phase 1. Phases 1 and 2 have since
+replaced what it describes; see Progress.
 
 **Coverage lane.** `tasks/test/cli.py:43-50` runs one command,
 `cargo llvm-cov nextest {_MANIFEST} --summary-only`, streams it, and raises
@@ -80,6 +101,23 @@ segment.
   dev-dependency. Phase 2 adds a guard test, built on
   `tasks/shared/cargo_metadata.workspace_packages()`, that fails if any
   member depends on the visualiser by any kind of dependency.
+- Found while implementing Phase 2, cargo-llvm-cov 0.8.7 rejects two flag
+  combinations the plan first relied on. `nextest` refuses `--no-clean`
+  beside `--no-report`, and `--no-report` alone already skips the full
+  clean. `report` refuses every feature flag, although its `--help` lists
+  them. It reads the objects already built, so it needs none.
+- Found while planning Phase 3, `cargo llvm-cov show-env` sets no
+  `CARGO_TARGET_DIR`. A cargo command run in its environment reads the plain
+  `cli/target/debug` build unless the target directory is set explicitly.
+  Unit hashes are the same in both directories, because cargo-llvm-cov adds
+  its flags through `RUSTC_WRAPPER`, so the mistake is silent.
+- `ubuntu-latest` moved to the Ubuntu 26.04 image during Phase 2's CI run.
+  Ubuntu reports 7,400 tests to macOS's 7,401, and totals 0.01 lower on
+  lines and regions.
+- `research-cli/tests/arxiv_pacing.rs`
+  (`a_killed_calls_request_still_spaces_the_next`) is timing-sensitive. It
+  failed once on Ubuntu (2.963 s against a 3 s minimum) and passed on a
+  rerun.
 - `ACCELERATOR_TEST_SKIP_PERMISSION_TESTS` only skips the permission tests
   when the process ignores permissions, that is, when it runs as root
   (`cli/store/src/test_support.rs:27-43`). CI never sets it. A run that
@@ -1021,8 +1059,11 @@ On engywook:
 - [ ] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
       180 s (median of three), and its sweep step costs no more than 5 s,
       timed on its own after a lane run.
-- [ ] The first lane run sweeps the 2.28 GB of superseded entries the probe
-      found. The next run compiles nothing (no `Compiling` line), sweeps
+- [ ] The first lane run sweeps the superseded entries a probe finds just
+      before it. A re-probe on 2026-11-14 still found 2.28 GB after
+      `cargo llvm-cov clean --workspace` and a lane run, because a full
+      clean removes only workspace members' artefacts. The rest are
+      third-party and restricted-run artefacts. The next run compiles nothing (no `Compiling` line), sweeps
       0 entries, and prints the same totals line.
 - [ ] Dependency bump, repeated from Phase 2: after the bumped lane,
       `du -sh cli/target/llvm-cov-target` is within 1G of its size after
@@ -1050,10 +1091,11 @@ permission tests. They can be raised over time.
 
 Collect each metric's total from four runs:
 
-- the two CI legs recorded at the end of Phase 2;
+- the two CI legs recorded at the end of Phase 2 (macOS lines 94.19%,
+  functions 93.57%, regions 92.88%; Ubuntu 94.18%, 93.57%, 92.87%);
 - a warm local run on engywook;
 - a run as root in a disposable x86_64 Linux container (matching
-  `ubuntu-latest`), so that root-owned artefacts never land in the working
+  `ubuntu-latest`, which is Ubuntu 26.04 since Phase 2's CI run), so that root-owned artefacts never land in the working
   `cli/target`. Inside it, `mise install` provisions the repo's pinned
   toolchain, then
   `ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1 mise run --skip-deps test:unit:cli`
@@ -1260,14 +1302,16 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 ## Performance Considerations
 
-- The coverage lane is expected to drop from about 247 s to about 160 s warm.
-  The target is under 180 s.
-- `log::tests` is expected to drop from about 42 sys-CPU-s per lib pass to
-  under 2 CPU-s. It runs twice in `test:unit:visualiser`. libtest runs the
+- The coverage lane was expected to drop from about 247 s to about 160 s
+  warm, with a target of under 180 s. Measured on a busy engywook, it went
+  from 268.63 s to 174.39 s (median of three).
+- `log::tests` was expected to drop from about 42 sys-CPU-s per lib pass to
+  under 2 CPU-s. Measured, it went from 30.59 to 0.14 CPU-s under
+  `cargo test`, and from 35.86 to 0.39 under `cargo nextest run`. It runs twice in `test:unit:visualiser`. libtest runs the
   tests as threads, so the lane's wall-clock saving is smaller than its CPU
   saving.
-- The profraw-only clean deletes about 9,200 profile files left by the
-  previous run. Its cost is timed on its own in Phase 2.
+- The profraw-only clean deletes about 10,300 profile files left by the
+  previous run, in 1.30 s.
 - Skipping the full clean keeps instrumented binaries across runs. Phase 2's
   dependency-bump check confirms that superseded binaries neither change the
   totals nor slow the report, but they cost disk: 11G grew to 18G. Phase 3's
@@ -1277,9 +1321,10 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 ## Migration Notes
 
-- `cli/target/llvm-cov-target` holds about 10,288 leftover `*.profraw` files.
-  The first profraw-only clean removes them. Measurements of the stale-profile
-  control need a deliberately seeded, different, wider prior run.
+- The 10,288 leftover `*.profraw` files in `cli/target/llvm-cov-target` were
+  removed by the first full-clean run of Phase 2's before figures.
+  Measurements of the stale-profile control need a deliberately seeded,
+  different, wider prior run, which Phase 2's `kernel` control used.
 - Rollback: each phase is a self-contained revert.
 - 0365's timings must be taken after Phases 1 and 2 have landed. 0370 counts
   this item as landed once both halves (Phase 1, and Phases 2 to 4) have
