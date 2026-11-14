@@ -1221,10 +1221,10 @@ Parameterise the corpus hash tests over `Integration::Shortcut`. Add cases:
 
 #### Automated Verification
 
-- [ ] Work CLI tests pass: `cargo nextest run -p accelerator-work`
-- [ ] Work adapter tests pass: `cargo nextest run -p work-adapters`
-- [ ] Crate-dependency tests pass: `mise run test:unit:tasks`
-- [ ] Full run passes: `mise run`
+- [x] Work CLI tests pass: `cargo nextest run -p accelerator-work`
+- [x] Work adapter tests pass: `cargo nextest run -p work-adapters`
+- [x] Crate-dependency tests pass: `mise run test:unit:tasks`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
@@ -1241,6 +1241,23 @@ Parameterise the corpus hash tests over `Integration::Shortcut`. Add cases:
       untracked remote during discovery.
 - [ ] Pushing with a read-only token reports a retryable failure for each
       item, naming the read-only scope.
+
+#### Implementation notes
+
+- The engine plans a create from a local item only through a pending-push
+  marker, so a sync never sends `create` for a plain unlinked item. The 403
+  case therefore pushes a linked story: the client classes the refused
+  `PATCH` as retryable, nothing lands, and the failure names the read scope.
+  `accelerator work create` is the path that sends a Shortcut `create`.
+- The finaliser choice moved into `heals_the_linear_catalogue`, so the test
+  that pins "Shortcut gets no finaliser" has a function to call.
+- The test scrub now removes Shortcut's two token variables, so a developer's
+  real token cannot reach the network from the default suite.
+- The three corpus cases take their expected hashes from a Python
+  implementation of the projection and the line trim, not from the Rust
+  code they check.
+- A mutation that searched by team key instead of uuid was caught by the
+  discovery case.
 
 ---
 
