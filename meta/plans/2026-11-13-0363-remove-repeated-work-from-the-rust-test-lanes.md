@@ -333,13 +333,13 @@ rotation.
 
 #### Automated Verification:
 
-- [ ] The visualiser lib suite passes in both feature sets:
+- [x] The visualiser lib suite passes in both feature sets:
       `mise run test:unit:visualiser`
-- [ ] The Rust lints pass: `mise run server:check` and `mise run cli:check`
+- [x] The Rust lints pass: `mise run server:check` and `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] Each of the four mutations, applied alone and then reverted, fails at
+- [x] Each of the four mutations, applied alone and then reverted, fails at
       least one of the three rotation tests in the way the mutation table
       predicts:
       `cargo nextest run -p accelerator-visualiser --lib --manifest-path cli/Cargo.toml --no-default-features --features dev-frontend log::tests`
@@ -347,7 +347,7 @@ rotation.
       `cargo test … log::tests` command above shows user + sys under 2 CPU-s
       (median of three). The PR description records both runners' before and
       after figures.
-- [ ] `log.rs` has no new comments.
+- [x] `log.rs` has no new comments.
 
 ---
 
