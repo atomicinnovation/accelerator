@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T17:12:00+00:00"
+last_updated: "2026-11-14T18:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -50,10 +50,10 @@ As of 2026-11-14:
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 3: implemented, not yet merged.** It was added after Phase 2, at
-  the user's request. Every local criterion is met. CI has not run it yet.
-  Two
-  findings, each settled with the user, widened it beyond the plan: the
+- **Phase 3: complete, in review in PR #216.** It was added after Phase 2,
+  at the user's request. Every success criterion is met, including both CI
+  `test-unit` legs. Two findings, each settled with the user, widened it
+  beyond the plan: the
   sweep recovers the hash of each binary cargo reports only by its uplifted
   copy, and it also sweeps `incremental`. The outcome notes in Phase 3
   record both.
@@ -1148,7 +1148,18 @@ On engywook:
       - Recorded 2026-11-14, before the `incremental` sweep: the restricted
         run compiled 12 units, and the next lane compiled nothing and swept
         192 entries (85.19 MB).
-- [ ] In CI, both `test-unit` legs print the sweep line and pass.
+- [x] In CI, both `test-unit` legs print the sweep line and pass.
+      - Recorded 2026-11-14 on PR #216. Each leg's first run swept the stale
+        artefacts its restored cache held:
+        - `macos-26-arm64`: 7,401 tests passed,
+          `coverage: lines 94.19%, functions 93.57%, regions 92.88%`,
+          `swept 2195 superseded artefacts (4.34 GB)`. The first attempt
+          failed before the cli lane finished, on a vitest worker timeout
+          in `test:unit:frontend` after all 2,615 frontend tests had passed,
+          and passed on a rerun.
+        - `ubuntu-26.04`: 7,400 tests passed,
+          `coverage: lines 94.18%, functions 93.57%, regions 92.87%`,
+          `swept 1981 superseded artefacts (5.48 GB)`.
 
 ---
 
