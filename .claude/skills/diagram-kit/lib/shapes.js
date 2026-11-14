@@ -109,6 +109,34 @@
     nameBesideOf: node => (node.label ? { text: node.label, width: Math.ceil(widthOf(node.label, 'name')) + 2, height: 15 } : null),
   };
 
+  const DEPTH = 8;
+  const cuboid = {
+    holdsOthers: true, nameOffsetOf: boundary.nameOffsetOf,
+    frameOf: node => ({ padding: { top: 36 + DEPTH, left: 14, bottom: 14, right: 14 + DEPTH }, minimumWidth: boundary.frameOf(node).minimumWidth + DEPTH }),
+  };
+  const cuboidbox = {
+    holdsOthers: false,
+    sizeOf: node => ({
+      width: Math.ceil(Math.max(96, widthOf(node.label ?? node.id, 'title') + 28, node.stereotype ? widthOf(`«${node.stereotype}»`, 'stereotype') + 28 : 0)) + DEPTH + linkRoom(node),
+      height: 32 + (node.stereotype ? 14 : 0) + DEPTH,
+    }),
+  };
+
+  const ELEMENT_LIMIT = 220;
+  const element = {
+    holdsOthers: false,
+    descriptionOf: (node, width) => (node.description ? blockOf(node.description, 'detail', width - 28) : null),
+    sizeOf(node) {
+      const described = node.description ? blockOf(node.description, 'detail', ELEMENT_LIMIT) : null;
+      const widest = Math.max(widthOf(node.label ?? node.id, 'title'), node.type ? widthOf(`[${node.type}]`, 'stereotype') : 0, described ? described.width : 0);
+      const width = Math.ceil(Math.max(150, widest + 28)) + linkRoom(node);
+      const fitted = element.descriptionOf(node, width);
+      return { width, height: 12 + 15 + (node.type ? 14 : 0) + (fitted ? 6 + fitted.height : 0) + 10 };
+    },
+  };
+  const HEAD_ROOM = 18;
+  const person = { holdsOthers: false, descriptionOf: element.descriptionOf, sizeOf: node => { const size = element.sizeOf(node); return { width: size.width, height: size.height + HEAD_ROOM }; } };
+
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
   const STEP_TEXT_LIMIT = 220, QUESTION_LIMIT = 130;
@@ -134,9 +162,9 @@
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, boundary, frame, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
-  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT };
+  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

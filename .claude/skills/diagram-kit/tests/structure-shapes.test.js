@@ -80,3 +80,38 @@ test('a ball\'s name is put beside the flow, so the lines through the ball do no
   const right = (await joined('right')).nodes.find(each => each.id === 'i');
   assert.ok(right.labelBox.y >= right.y + right.height, 'the name is not below the ball');
 });
+
+test('a deployment node that holds others is a box with depth, with room for its name on the front', () => {
+  assert.equal(SHAPES.cuboid.holdsOthers, true);
+  const frame = SHAPES.cuboid.frameOf({ stereotype: 'device', label: 'laptop' });
+  assert.deepEqual([frame.padding.top, frame.padding.right], [44, 22]);
+  const node = drawn({ id: 'n', shape: 'cuboid', stereotype: 'device', label: 'laptop', x: 10, y: 20, width: 200, height: 120 });
+  assert.match(node, /<rect class="body" x="10" y="28" width="192" height="112"\/><path class="face" d="M10 28 L18 20 H210 L202 28 Z M202 28 L210 20 V132 L202 140 Z"\/>/);
+  assert.match(node, /<text class="stereotype" x="24" y="48" text-anchor="start">«device»<\/text><text class="title" x="[\d.]+" y="48" text-anchor="start">laptop<\/text>/);
+});
+
+test('a deployment node that holds nothing is a small box with depth and its name in the middle', () => {
+  const size = SHAPES.cuboidbox.sizeOf({ label: 'cdn', stereotype: 'device' });
+  assert.ok(size.width >= widthOf('«device»', 'stereotype') + 36);
+  assert.equal(size.height, 32 + 14 + 8);
+  const node = drawn({ id: 'n', shape: 'cuboidbox', stereotype: 'device', label: 'cdn', x: 10, y: 20, width: 108, height: 54 });
+  assert.match(node, /<rect class="body" x="10" y="28" width="100" height="46"\/><path class="face"/);
+  assert.match(node, /<text class="stereotype" x="60" y="45" text-anchor="middle">«device»<\/text><text class="title" x="60" y="62" text-anchor="middle">cdn<\/text>/);
+});
+
+test('an element says its name, what kind of thing it is, and what it is for', () => {
+  const size = SHAPES.element.sizeOf({ label: 'Launcher', type: 'Container: Rust', description: 'Resolves a version and runs its sub-binary.' });
+  assert.ok(size.width >= 150 && size.width <= 250);
+  const lines = SHAPES.element.descriptionOf({ description: 'Resolves a version and runs its sub-binary.' }, size.width).lines.length;
+  assert.equal(size.height, 12 + 15 + 14 + 6 + lines * 14 + 10);
+  const element = drawn({ id: 'e', shape: 'element', label: 'Launcher', type: 'Container: Rust', description: 'Runs it.', muted: true, x: 10, y: 20, width: 180, height: 71 });
+  assert.match(element, /^<g class="node element leaf muted"/);
+  assert.match(element, /<rect class="body" x="10" y="20" width="180" height="71" rx="7"\/><text class="title" x="100" y="43" text-anchor="middle">Launcher<\/text><text class="stereotype" x="100" y="57" text-anchor="middle">\[Container: Rust\]<\/text><text class="detail" x="100" y="77" text-anchor="middle">Runs it\.<\/text>/);
+});
+
+test('a person is an element with a head above it', () => {
+  const plain = SHAPES.element.sizeOf({ label: 'Operator', type: 'Person' }), person = SHAPES.person.sizeOf({ label: 'Operator', type: 'Person' });
+  assert.equal(person.height, plain.height + 18);
+  const drawnPerson = drawn({ id: 'p', shape: 'person', label: 'Operator', type: 'Person', x: 10, y: 20, width: 150, height: 69 });
+  assert.match(drawnPerson, /<rect class="body" x="10" y="38" width="150" height="51" rx="7"\/><circle class="head" cx="85" cy="32" r="12"\/><text class="title" x="85" y="61" text-anchor="middle">Operator<\/text>/);
+});

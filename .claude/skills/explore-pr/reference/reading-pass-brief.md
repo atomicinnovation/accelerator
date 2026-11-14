@@ -100,6 +100,10 @@ a home in the code. Choose the figure by the question it answers:
 | How do these types relate? | `class-diagram` |
 | What does this look like in one case? | `object-diagram` |
 | What is the domain made of, and where are its boundaries? | `domain-model` |
+| What are the replaceable parts, and through what do they plug together? | `component-diagram` |
+| How is the source organised, and which part may use which? | `package-diagram` |
+| What runs or lives where? | `deployment-diagram` |
+| What is the system, who uses it, and what is it made of? | `c4-diagram` |
 | What depends on what? | `dependency-graph` |
 | What happens, in what order, between whom? | `sequence-diagram` |
 | What states can this be in, and what moves it? | `state-machine` |

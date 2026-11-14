@@ -53,8 +53,11 @@ not repeat them: {chapter ids, titles and one-line scopes}.
 **Then draw it.** `figures`: which way the dependencies run as a
 `dependency-graph` (contract, "Diagrams the kit draws"), grouped by layer,
 with what the change adds marked `new`; the central abstractions and how
-they relate as a `class-diagram`, or as a `domain-model` when the change
-is about the domain's aggregates and their boundaries; the architecture as a layered `flow` (entry
+they relate as a `class-diagram`, a `component-diagram` when the parts
+meet through interfaces, or a `domain-model` when the change is about the
+domain's aggregates and their boundaries; a `c4-diagram` or a
+`deployment-diagram` when the change adds or moves something that runs or
+is stored on its own; the architecture as a layered `flow` (entry
 points at the top, ports at the bottom, new parts toned `new`, each box
 linked to its chapter), and a `compare` of before and after when the change
 reshapes something that existed. Write the `summary` last, in 3–5 sentences,

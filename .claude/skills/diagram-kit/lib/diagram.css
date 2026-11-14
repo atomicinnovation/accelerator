@@ -65,6 +65,17 @@
 .dk .node.ball .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.ball.s-new .body { stroke: var(--accent); }
 .dk .outside { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.dk .node.cuboid > .body { fill: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); }
+.dk .node .face { fill: var(--panel-2); stroke: var(--rule); stroke-width: 1.3; stroke-linejoin: round; }
+.dk .node.s-new > .face { stroke: var(--accent); }
+.dk .node.s-changed > .face { stroke: var(--warn); }
+.dk .node.person .head { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.dk .node.person.s-new .head { stroke: var(--accent); stroke-width: 1.9; }
+.dk .node.muted > .body, .dk .node.muted .head { fill: var(--panel-2); }
+.dk .node.muted .title { fill: var(--ink-2); }
+.dk .node.element.t-risk > .body, .dk .node.person.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .captions text { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
+.dk .node.person .head { stroke: var(--ink-3); }
 .dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }

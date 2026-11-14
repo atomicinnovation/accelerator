@@ -126,3 +126,15 @@ test('the last corner before a head is tightened to leave the head a straight ru
   assert.equal(roundedPath([[0, 0], [0, 20], [8, 20]], 6, 9), 'M0 0 L0 20 L8 20');
   assert.equal(roundedPath([[0, 0], [0, 20], [30, 20]], 6, 9), 'M0 0 L0 14 Q0 20 6 20 L30 20');
 });
+
+test('what a group is called is written again over the edges, so an arrow never hides it', () => {
+  const at = marker => svg.indexOf(marker);
+  const captions = svg.slice(at('<g class="captions"'), svg.indexOf('</g>', at('<g class="captions"')));
+  assert.match(captions, /^<g class="captions" aria-hidden="true"><text class="heading"[^>]*>LAUNCH<\/text>$/);
+  assert.ok(at('data-edge="prune-&gt;clock"') < at('<g class="captions"'));
+  assert.ok(at('<g class="captions"') < at('data-node="cli"'));
+});
+
+test('a scene with no groups has no captions to write again', () => {
+  assert.doesNotMatch(svgOf({ width: 10, height: 10, nodes: [{ id: 'a', shape: 'box', label: 'a', x: 0, y: 0, width: 10, height: 10 }], edges: [] }, {}), /captions/);
+});

@@ -2,7 +2,7 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { blockOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
-  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT } = inNode ? require('./shapes.js') : root.DiagramKit;
+  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM } = inNode ? require('./shapes.js') : root.DiagramKit;
 
   const MARGIN = 8;
   const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5, HOLLOW_LENGTH = 12, HOLLOW_HALF_WIDTH = 6, DIAMOND_LENGTH = 14, DIAMOND_HALF_WIDTH = 5;
@@ -14,7 +14,7 @@
   const escaped = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tidyNumber = number => Math.round(number * 100) / 100;
   const tidy = number => String(tidyNumber(number));
-  const marks = item => `${STATUSES[item.status] ? ` s-${item.status}` : ''}${TONES[item.tone] ? ` t-${item.tone}` : ''}`;
+  const marks = item => `${item.muted ? ' muted' : ''}${STATUSES[item.status] ? ` s-${item.status}` : ''}${TONES[item.tone] ? ` t-${item.tone}` : ''}`;
 
   function addressOnly(reference) {
     return /^(https?:|#)/.test(String(reference)) ? { href: String(reference), label: `Open ${reference}` } : null;
@@ -50,6 +50,20 @@
     return (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${words}</a>` : words) + untold(node, target);
   }
 
+  function facesOf(node) {
+    const left = node.x, top = node.y, right = node.x + node.width, bottom = node.y + node.height, inner = right - DEPTH, lower = top + DEPTH;
+    return `<path class="face" d="M${tidy(left)} ${tidy(lower)} L${tidy(left + DEPTH)} ${tidy(top)} H${tidy(right)} L${tidy(inner)} ${tidy(lower)} Z `
+      + `M${tidy(inner)} ${tidy(lower)} L${tidy(right)} ${tidy(top)} V${tidy(bottom - DEPTH)} L${tidy(inner)} ${tidy(bottom)} Z"/>`;
+  }
+
+  function elementWords(node, top, target) {
+    const centre = node.x + node.width / 2, described = SHAPES.element.descriptionOf(node, node.width);
+    const name = textOf(blockOf(node.label ?? node.id, 'title'), 'title', centre, top + 23, 'middle');
+    return (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name)
+      + (node.type ? textOf(blockOf(`[${node.type}]`, 'stereotype'), 'stereotype', centre, top + 37, 'middle') : '')
+      + (described ? textOf(described, 'detail', centre, top + 27 + (node.type ? 14 : 0) + 6 + 10, 'middle') : '') + untold(node, target);
+  }
+
   const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice', bar: 'the bar', flowfinal: 'the end of this flow' };
 
   const DRAWN = {
@@ -70,6 +84,24 @@
         + listed + (target ? linkControl({ ...node, height: head }, target) : '') + untold(node, target);
     },
     frame: (node, target) => DRAWN.boundary(node, target, 3),
+    cuboid(node, target) {
+      const front = { ...node, y: node.y + DEPTH, width: node.width - DEPTH, height: node.height - DEPTH };
+      const name = plainText(node.label ?? node.id, 'title', front.x + 14 + SHAPES.cuboid.nameOffsetOf(node), front.y + 20);
+      return `<rect class="body" ${rectOf(front)}/>${facesOf(node)}` + (node.stereotype ? plainText(`«${node.stereotype}»`, 'stereotype', front.x + 14, front.y + 20) : '')
+        + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
+    cuboidbox(node, target) {
+      const front = { ...node, y: node.y + DEPTH, width: node.width - DEPTH, height: node.height - DEPTH }, centre = front.x + front.width / 2;
+      const nameAt = front.y + 20 + (node.stereotype ? 14 : 0);
+      const name = textOf(blockOf(node.label ?? node.id, 'title'), 'title', centre, nameAt, 'middle');
+      return `<rect class="body" ${rectOf(front)}/>${facesOf(node)}` + (node.stereotype ? textOf(blockOf(`«${node.stereotype}»`, 'stereotype'), 'stereotype', centre, front.y + 17, 'middle') : '')
+        + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
+    element: (node, target) => bodyOf(node, 7) + elementWords(node, node.y, target),
+    person(node, target) {
+      const box = { ...node, y: node.y + HEAD_ROOM, height: node.height - HEAD_ROOM };
+      return bodyOf(box, 7) + `<circle class="head" cx="${tidy(node.x + node.width / 2)}" cy="${tidy(node.y + 12)}" r="12"/>` + elementWords(node, box.y, target);
+    },
     package(node, target) {
       const tab = SHAPES.package.tabWidthOf(node), right = node.x + node.width, bottom = node.y + node.height, under = node.y + TAB_HEIGHT;
       const name = plainText(node.label ?? node.id, 'title', node.x + 12, node.y + 16);
@@ -273,13 +305,18 @@
     return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${ends}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
   }
 
+  function captionsOf(markup) {
+    const words = (markup.match(/<text[^>]*>.*?<\/text>/g) || []).join('');
+    return words ? `<g class="captions" aria-hidden="true">${words}</g>` : '';
+  }
+
   function svgOf(scene, { uid = 'diagram', title = '', resolveLink = addressOnly } = {}) {
     const width = scene.width + 2 * MARGIN, height = scene.height + 2 * MARGIN;
     const isBehind = node => node.behind || SHAPES[node.shape].holdsOthers;
     const holders = scene.nodes.filter(isBehind), leaves = scene.nodes.filter(node => !isBehind(node));
     const draw = nodes => nodes.map(node => nodeMarkup(node, resolveLink)).join('');
     return `<svg class="dk" data-graph="${escaped(uid)}" xmlns="http://www.w3.org/2000/svg" width="${tidy(width)}" height="${tidy(height)}" viewBox="${-MARGIN} ${-MARGIN} ${tidy(width)} ${tidy(height)}" role="img" aria-label="${escaped(title)}">`
-      + `${draw(holders)}${scene.edges.map(edge => edgeMarkup(edge, resolveLink)).join('')}${draw(leaves)}</svg>`;
+      + `${draw(holders)}${scene.edges.map(edge => edgeMarkup(edge, resolveLink)).join('')}${captionsOf(draw(holders))}${draw(leaves)}</svg>`;
   }
 
   function legendOf(scene) {
