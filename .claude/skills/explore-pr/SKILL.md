@@ -152,7 +152,7 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | `scripts/extract_commits.py` | `data/commits.json`: each commit's hunks, every changed line traced onto the whole diff |
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
-| `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked |
+| `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
 | `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
@@ -355,7 +355,10 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   without a figure, or a figure naming a node or actor that does not exist
   is a defect to fix, not a warning to note. A stop or ledger line outside
   its file, or a ledger range that misses its call, is a content error; a
-  file without a summary renders as skim. So is any citation that does not
+  file without a summary renders as skim. So is a stop or ledger row with no
+  anchor, or whose anchor is not on its line: the range points at other code
+  than its note describes, so correct it against the code (`--reanchor`
+  applies an unambiguous move). So is any citation that does not
   resolve: a `where` or test reference outside its file, matching several
   files or not found, a `chapter` that does not exist, or prose naming a
   stop or chapter that does not exist. Fix each against the code; never
@@ -404,10 +407,22 @@ follow-up work items for findings triaged *follow-up*.
 ## Re-running
 
 The workspace is reused. If the PR's head moved since `explore.json` was
-written, export and extract again, rebuild, and let the warnings show which
-stops and ledger rows moved. Re-run only the passes whose chapters own files
-that changed (`files*.json` maps each file to its chapter), then refresh the
-overview. An unchanged head needs only the steps the user asks for.
+written, export and extract again, then run
+`python3 {skill dir}/scripts/build.py {workspace} --reanchor`. Every stop
+and ledger row quotes the code it stands on (content model, "Anchors"), so
+this moves each one whose code merely shifted and warns about each whose
+code is gone or ambiguous. Then decide what to re-read from what it reports
+and from the files that changed (`files*.json` maps each file to its
+chapter):
+
+- a chapter none of whose files changed needs nothing;
+- a chapter whose stops and rows all held or moved, and whose changed hunks
+  fall outside every stop and row, needs only its new hunks checked for
+  something a stop should now cover;
+- a chapter with an anchor that was not found, or a changed hunk inside a
+  stop or row, needs its pass re-run.
+
+Then refresh the design and the overview if the shape of the change moved. An unchanged head needs only the steps the user asks for.
 
 ## Report
 

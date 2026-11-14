@@ -146,7 +146,14 @@ def test_a_ledger_range_must_contain_its_call(tmp_path, script):
 
 def test_a_ledger_range_inside_its_file_is_accepted(tmp_path, script):
     build = script("build")
-    row = {"id": "L1", "file": "src/core.rs", "line": 2, "start": 1, "end": 3}
+    row = {
+        "id": "L1",
+        "file": "src/core.rs",
+        "line": 2,
+        "start": 1,
+        "end": 3,
+        "anchor": "c",
+    }
 
     _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
 

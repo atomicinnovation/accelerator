@@ -1,6 +1,7 @@
 """Assemble an explore-pr page from a workspace.
 
 Usage: build.py WORKSPACE [--out FILE] [--hosted DIR] [--page FILE]
+       [--reanchor]
 
 WORKSPACE holds `explore.json` (the manifest), `content/*.json`,
 `data/diff.json`, `data/commits.json` and `views/*.js`. By default the
@@ -9,7 +10,9 @@ views inlined, that opens from `file://`. `--hosted DIR` writes the split
 layout a static host or a claude.ai artifact serves instead: `index.html`,
 `content.json`, `diff.json` and, when the workspace has them,
 `commits.json`, with the libraries loaded from their CDNs. `--page`
-replaces the bundled page shell with a workspace copy.
+replaces the bundled page shell with a workspace copy. `--reanchor` first
+moves every stop and ledger row whose anchor now sits on one other line of
+its file, rewriting the content files that hold them.
 """
 
 import argparse
@@ -271,6 +274,160 @@ def ledger_warnings(row: dict, diff: dict) -> list[str]:
     if not start <= call <= end:
         return [f"{name}: lines {start}-{end} do not contain line {call}"]
     return []
+
+
+def side_lines(entry: dict, side: str) -> dict[int, str]:
+    """Return the text of every line the diff holds on one side of a file."""
+    lines = {}
+    for hunk in entry.get("hunks", []):
+        old, new = hunk["o"], hunk["n"]
+        for line in hunk["l"]:
+            if side == "new" and line[0] != "-":
+                lines[new] = line[1:]
+            if side == "old" and line[0] != "+":
+                lines[old] = line[1:]
+            old += line[0] != "+"
+            new += line[0] != "-"
+    return lines
+
+
+def spaced_evenly(text: str) -> str:
+    return " ".join(text.split())
+
+
+def lines_holding(anchor: str, lines: dict[int, str]) -> list[int]:
+    sought = spaced_evenly(anchor)
+    return [
+        number
+        for number, text in lines.items()
+        if sought in spaced_evenly(text)
+    ]
+
+
+def stop_anchorage(stop: dict) -> dict:
+    return {
+        "name": f"stop {stop['id']}",
+        "side": stop.get("side", "new"),
+        "line": stop.get("anchorLine", stop["start"]),
+        "moves": ("start", "end", "anchorLine"),
+        "span": ("start", "end"),
+    }
+
+
+def ledger_anchorage(row: dict) -> dict:
+    return {
+        "name": f"ledger {row['id']}",
+        "side": "new",
+        "line": row["line"],
+        "moves": ("line", "start", "end"),
+        "span": ("line", "line"),
+    }
+
+
+def anchored_items(chapters: list[dict], ledger: list[dict]) -> Iterator:
+    for chapter in chapters:
+        for stop in chapter.get("stops", []):
+            yield stop, stop_anchorage(stop)
+    for row in ledger:
+        yield row, ledger_anchorage(row)
+
+
+def new_home(item: dict, anchorage: dict, diff: dict) -> int | None:
+    """Return the one line an anchor has moved to, if it has moved to one."""
+    anchor = item.get("anchor", "")
+    if not spaced_evenly(anchor) or item["file"] not in diff:
+        return None
+    lines = side_lines(diff[item["file"]], anchorage["side"])
+    found = lines_holding(anchor, lines)
+    moved = len(found) == 1 and found[0] != anchorage["line"]
+    return found[0] if moved else None
+
+
+def anchor_problem(item: dict, anchorage: dict, diff: dict) -> str | None:
+    line, anchor = anchorage["line"], item.get("anchor", "")
+    if not spaced_evenly(anchor):
+        return f"no anchor; quote the code on line {line}"
+    first, last = (item[key] for key in anchorage["span"])
+    if not first <= line <= last:
+        return f"anchor line {line} is outside its lines {first}-{last}"
+    if item["file"] not in diff:
+        return None
+    lines = side_lines(diff[item["file"]], anchorage["side"])
+    found = lines_holding(anchor, lines)
+    if line in found:
+        return None
+    if len(found) == 1:
+        return (
+            f"anchor moved from line {line} to line {found[0]} "
+            f"({found[0] - line:+d}); re-anchor it"
+        )
+    if found:
+        places = ", ".join(map(str, found))
+        return (
+            f"anchor is not on line {line} but on lines {places}; "
+            "choose a line only it has"
+        )
+    return (
+        f"anchor not found in {item['file']}; the code changed, so re-read it"
+    )
+
+
+def anchor_warnings(model: dict, diff: dict) -> list[str]:
+    """Return a warning for every stop and ledger row its code has left."""
+    problems = [
+        (anchorage["name"], anchor_problem(item, anchorage, diff))
+        for item, anchorage in anchored_items(
+            model["chapters"], model["ledger"]
+        )
+    ]
+    return [f"{name}: {problem}" for name, problem in problems if problem]
+
+
+def moved_with_its_anchor(
+    item: dict, anchorage: dict, diff: dict
+) -> str | None:
+    """Shift an item onto its anchor's new line; return what was done."""
+    home = new_home(item, anchorage, diff)
+    if home is None:
+        return None
+    shift = home - anchorage["line"]
+    for key in anchorage["moves"]:
+        if key in item:
+            item[key] += shift
+    first, last = (item[key] for key in anchorage["span"])
+    place = f"line {first}" if first == last else f"lines {first}-{last}"
+    return f"{anchorage['name']}: moved {shift:+d} to {place}"
+
+
+def reanchor(workspace: Path) -> list[str]:
+    """Move every stop and ledger row whose anchor has one new home."""
+    diff = load_json(workspace / "data/diff.json", {})
+    content = workspace / "content"
+    report = []
+    for path in sorted(content.glob("chapter-*.json")):
+        chapter = json.loads(path.read_text())
+        moves = [
+            moved_with_its_anchor(item, anchorage, diff)
+            for item, anchorage in anchored_items([chapter], [])
+        ]
+        report += rewritten(path, chapter, moves)
+    for path in sorted(content.glob("ledger*.json")):
+        rows = json.loads(path.read_text())
+        moves = [
+            moved_with_its_anchor(item, anchorage, diff)
+            for item, anchorage in anchored_items([], rows)
+        ]
+        report += rewritten(path, rows, moves)
+    return report
+
+
+def rewritten(path: Path, content: object, moves: list) -> list[str]:
+    made = [move for move in moves if move]
+    if made:
+        path.write_text(
+            json.dumps(content, indent=2, ensure_ascii=False) + "\n"
+        )
+    return made
 
 
 def finding_references(model: dict) -> list[tuple[str, str]]:
@@ -732,6 +889,7 @@ def check(model: dict, diff: dict) -> list[str]:
     ]
     for row in model["ledger"]:
         warnings += ledger_warnings(row, diff)
+    warnings += anchor_warnings(model, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
     warnings += reference_warnings(model, diff)
@@ -839,8 +997,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--out", type=Path)
     parser.add_argument("--hosted", type=Path)
     parser.add_argument("--page", type=Path)
+    parser.add_argument("--reanchor", action="store_true")
     args = parser.parse_args(argv)
     workspace = args.workspace
+    if args.reanchor:
+        for move in reanchor(workspace):
+            print(f"reanchored {move}")
     content, warnings = assemble(workspace)
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)

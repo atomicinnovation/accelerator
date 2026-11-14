@@ -106,6 +106,14 @@ code. Write captions that say what to notice.
 reusing the code's own names: {domain terms already established}. Record
 anything you could not verify as unverified rather than guessing.
 
+**Anchors**: give every stop and every ledger row an `anchor`, following the
+contract's Anchors section: a piece of one line copied exactly from the
+`head/` copy (the `base/` copy for a stop with `side: "old"`) that no other
+line of that file contains. A stop's anchor is on its `start` line; when
+that line is a comment, an attribute or not distinctive, anchor on a later
+line of the range and name it in `anchorLine`. A ledger row's anchor is on
+its `line`. Copy, never retype: the build compares the text.
+
 **Citations**: every `where`, `pinnedBy` and `tests` entry must name a
 changed file by its full repository path, and a test by the name it is
 declared with. Refer to another stop by its id in backticks and to another
@@ -116,9 +124,10 @@ name its chapter.
 
 **Before you finish**, run `python3 -m json.tool <file> > /dev/null` on every
 JSON file you wrote. Check at least five `start`/`end` and ledger `line`,
-`start` and `end` values, and three figure `where` values, against the `head/` copies, and
-confirm that every chapter you wrote has a figure and at least one
-abstraction or decision.
+`start` and `end` values, and three figure `where` values, against the
+`head/` copies. Confirm that every stop and ledger row has an anchor that
+appears on its line, and that every chapter you wrote has a figure and at
+least one abstraction or decision.
 
 **Your final message** (at most 150 words): the files you wrote, the
 design each chapter describes in one sentence, the figures in each, anything

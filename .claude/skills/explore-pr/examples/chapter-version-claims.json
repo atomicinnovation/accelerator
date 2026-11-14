@@ -324,6 +324,8 @@
   "stops": [
     {
       "id": "claims-s1",
+      "anchor": "pub const AGE_BACKSTOP: Duration",
+      "anchorLine": 7,
       "file": "cli/launcher/src/launch/outbound/resolve/retention_windows.rs",
       "side": "new",
       "start": 1,
@@ -336,6 +338,8 @@
     },
     {
       "id": "claims-s2",
+      "anchor": "pub fn launcher_id() -> String {",
+      "anchorLine": 16,
       "file": "cli/launcher/src/launch/outbound/resolve/retention/mod.rs",
       "side": "new",
       "start": 13,
@@ -391,6 +395,8 @@
     },
     {
       "id": "claims-s3",
+      "anchor": "pub struct VersionClaim<'a> {",
+      "anchorLine": 24,
       "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
       "side": "new",
       "start": 18,

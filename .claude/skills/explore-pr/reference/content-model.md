@@ -130,6 +130,33 @@ unchanged file cannot be checked or opened: the page shows it as plain text
 and the build reports it as *not a changed file; unverified*. Keep one only
 when the point cannot be made from a changed file, and verify it by hand.
 
+## Anchors
+
+Line numbers alone go stale without anyone noticing: a range a few lines off
+still falls inside its file, and when the PR's head moves every stop below
+the edit points at other code. So each stop and ledger row quotes the code
+it stands on. The `anchor` is a piece of one line, copied from the code and
+never retyped or paraphrased, that no other line of the file contains: a
+signature, a constant's declaration, the call a ledger row is about. Spacing
+is ignored. A stop's anchor sits on its `start` line, or on `anchorLine`
+when the range opens on a comment, an attribute or a line that is not
+distinctive; a ledger row's sits on its `line`.
+
+The build compares each anchor with the code and warns when:
+
+- there is none: every stop and ledger row needs one;
+- it is on one other line of the file: the code moved, and the warning gives
+  the shift. `build.py --reanchor` applies every such move, shifting
+  `start`, `end`, `anchorLine` and `line` together and rewriting the content
+  files;
+- it is on several lines: choose a line only that code has;
+- it is nowhere in the file: the code changed, so read it again and rewrite
+  the stop or row.
+
+Re-anchoring restores the position, not the prose. A stop that moved cleanly
+may still describe lines that were edited, so after a head move check each
+moved stop's range against the new diff before trusting its note.
+
 ## `explore.json`
 
 ```jsonc
@@ -236,6 +263,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "risks": [{ "level": "high|medium|low", "text": "md", "where": "path:line", "refs": ["R1-06"] }],
   "stops": [{                                 // the tour, in reading order; 6–12
     "id": "claims-s1", "file": "path", "side": "new", "start": 120, "end": 160,
+    "anchor": "fn claim_version(",            // code copied from the anchor line; see Anchors
+    "anchorLine": 124,                        // optional: the line it is on; defaults to start
     "title": "≤ 8 words",
     "fit": "md, 1–3 sentences: where this code sits in the change as a whole: the abstraction or decision it carries, what reaches it and what it hands on to, and which other chapter or stop it connects to; shown before the note",
     "note": "md, 2–5 sentences: what it does, why it is shaped this way, what could go wrong",
@@ -258,7 +287,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 `examples/chapter-version-claims.json` is a real chapter at the expected
 standard: three chapter figures (a timeline, a sequence and a tree), three
 abstractions, two decisions with their alternatives and costs, a figure on a
-stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
+stop, an anchor on every stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
 every hunk; ranges of 10–60 lines read best. A stop may sit on unchanged lines
 of a changed file when the change cannot be understood without them.
 
@@ -355,6 +384,7 @@ external side effects — whatever this PR can do that is hard to undo.
 {
   "id": "L-tree-01",
   "file": "path", "line": 561,                // head line of the call
+  "anchor": "fs::remove_dir_all(",            // code copied from that line; see Anchors
   "start": 548, "end": 563,                   // optional: the call and the guards read with it; defaults to line
   "op": "unlink",                             // short operation name; counted in the lede
   "subject": "≤ 15 words: what is affected",
