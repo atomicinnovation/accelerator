@@ -481,8 +481,10 @@ overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 `stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
 `ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
-`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each record carries `target`, `kind`, `status`,
-`note`, `label`, `where` and `updatedAt`. Hosted on claude.ai, records live in
+`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each
+record carries `target`, `kind`, `status`, `note`, `label`, `where`,
+`updatedAt`, the `head` its verdict was given at and, for a stop, ledger row
+or file, the lines it `claimed` there. Hosted on claude.ai, records live in
 the artifact's `reviews` collection, with `/` in a target written as `~2f`.
 Opened as a file, they live in the browser's local storage under
 `explore-pr:<repo>#<number>`.
@@ -505,3 +507,27 @@ rewrites or removes, a line removed after an earlier commit added it, and a
 change a later commit restores are **superseded**: they can be read and
 marked, but are not counted. `assets/review-coverage.js` is the model; **Your
 notes** ends with the lines still to read.
+
+### When the head moves
+
+A verdict is about the code as it stood at one head. Each build keeps its
+diff in `data/heads/<head>.json`, and the page carries a `lineage` from every
+earlier head it finds there: for each file, which changed lines still stand
+unchanged and where they are now. A verdict recorded at an earlier head then
+claims only the lines that survive, at their new places, so:
+
+- a line added or rewritten since is unread again, in every view;
+- a stop, ledger row or file whose lines changed since its verdict says so
+  under its control, as does a chapter any of whose files changed, and the
+  overall and design verdicts when any file changed;
+- a banner counts the verdicts recorded before the head moved, and **Your
+  notes** marks each one;
+- line marks move with their lines;
+- giving the verdict again records it at the current head. Adding a note
+  does not.
+
+A commit's verdict needs none of this: its lines are traced onto whatever the
+whole diff now is. A verdict from a head with no kept diff claims no lines,
+and one recorded before heads were kept counts as given at the current head.
+`pr.head` in `explore.json` names the head, so keep it current and never
+delete `data/heads/`.

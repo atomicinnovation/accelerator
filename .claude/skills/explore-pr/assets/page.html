@@ -182,6 +182,7 @@ table.data tr:last-child td { border-bottom: 0; }
 .ro .seg button, .ro textarea { pointer-events: none; opacity: .75; }
 .ctl.via .seg button.t-ok[aria-pressed="false"] { border-style: dashed; border-color: var(--ok); color: var(--ok); }
 .via-note { font-size: 11.5px; color: var(--ink-3); }
+.since-note { font-size: 11.5px; color: var(--warn); }
 
 /* Banners */
 .banner { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; color: var(--ink-2); }
@@ -598,7 +599,7 @@ const Store = {
   put(target, kind, patch, meta) {
     if (!this.canWrite) return;
     const cur = this.get(target);
-    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, updatedAt: new Date().toISOString() };
+    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...headOfVerdict(target, cur, patch), updatedAt: new Date().toISOString() };
     this.docs.set(target, doc);
     this.version++;
     if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
@@ -627,6 +628,29 @@ const Store = {
   },
 };
 
+function headOfVerdict(target, cur, patch) {
+  if (!('status' in patch) && !('lines' in patch) && cur.head) return { head: cur.head, claimed: cur.claimed || [] };
+  const claim = READING_CLAIM[target];
+  const claimed = claim && window.ReviewCoverage && D && D[claim.path] ? ReviewCoverage.claimedLines(claim, D[claim.path]) : [];
+  return { head: C.pr.head || '', claimed };
+}
+const recordedEarlier = doc => !!(doc.head && C.pr.head && doc.head !== C.pr.head);
+function sinceText(target, cur = Store.get(target)) {
+  if (!cur.status || !recordedEarlier(cur) || !window.ReviewCoverage) return '';
+  const at = `Recorded at ${shortSha(cur.head)}`;
+  const claim = READING_CLAIM[target];
+  if (claim) {
+    const lines = D && D[claim.path] ? ReviewCoverage.changedSince(claim, cur, C.pr.head, C.lineage, D[claim.path]) : 0;
+    return lines ? `${at}; ${plural(lines, 'line')} of it changed since and ${lines === 1 ? 'is' : 'are'} unread again` : '';
+  }
+  const chapter = target.startsWith('chapter:') ? target.slice('chapter:'.length) : null;
+  const paths = C.files.filter(f => !chapter || f.chapter === chapter).map(f => f.path);
+  const files = ReviewCoverage.filesChangedSince(paths, cur.head, C.pr.head, C.lineage).length;
+  if (!files) return '';
+  if (chapter) return `${at}; ${plural(files, 'file')} of this chapter changed since`;
+  return target === 'decision' || target.startsWith('design') ? `${at}, before the pull request moved; ${plural(files, 'file')} changed since` : '';
+}
+const currentMarks = doc => (recordedEarlier(doc) ? ReviewCoverage.carriedOver(doc.lines, ((C.lineage || {})[doc.head] || {})[doc.target.slice('lines:'.length)]) : doc.lines || []);
 function ctl(target, kind, meta, opts = {}) {
   const k = KINDS[kind];
   const cur = Store.get(target);
@@ -638,6 +662,7 @@ function ctl(target, kind, meta, opts = {}) {
       <button type="button" class="note-toggle" data-note-toggle aria-expanded="${noteOpen}">${noteOpen ? 'Note' : '+ Note'}</button>
     </div>
     <span class="via-note" data-via-note hidden></span>
+    <span class="since-note" data-since-note hidden></span>
     <textarea data-note placeholder="Your note: what to change, what to ask, what you checked" ${noteOpen ? '' : 'hidden'} aria-label="Note">${esc(cur.note || '')}</textarea>
   </div>`;
 }
@@ -683,6 +708,8 @@ function refreshControls() {
     box.classList.toggle('via', via.length > 0);
     const viaNote = $('[data-via-note]', box);
     if (viaNote) { viaNote.hidden = !via.length; viaNote.textContent = via.length ? `Read via ${via.join(', ')}` : ''; }
+    const since = sinceText(box.dataset.ctl, cur), sinceNote = $('[data-since-note]', box);
+    if (sinceNote) { sinceNote.hidden = !since; sinceNote.textContent = since; }
     $$('.seg button[data-v]', box).forEach(b => b.setAttribute('aria-pressed', String(cur.status === b.dataset.v)));
     const ta = $('textarea', box);
     if (ta && document.activeElement !== ta && ta.value !== (cur.note || '')) { ta.value = cur.note || ''; if (cur.note) { ta.hidden = false; } }
@@ -697,6 +724,7 @@ function refreshControls() {
 
 function onStateChange() {
   if (!C) return;
+  renderBanner();
   refreshControls();
   renderMeters();
   renderRail();
@@ -710,6 +738,11 @@ function renderBanner() {
   if (Store.mode === 'local') html = `<strong>Notes are saved in this browser only.</strong> To share them, open <a href="#notes">Your notes</a> and copy them as Markdown.`;
   else if (Store.mode === 'db' && !Store.canWrite) html = `<strong>Read-only.</strong> You can read the review but only the artifact's owner records verdicts and notes.`;
   else if (Store.mode === 'db' && !Store.reachable) html = `<strong>Saved notes can't be reached yet.</strong> What you see may be out of date; new notes are kept and sent when the store answers.`;
+  const earlier = [...Store.docs.values()].filter(d => d.status && recordedEarlier(d));
+  if (earlier.length) {
+    const heads = [...new Set(earlier.map(d => shortSha(d.head)))].join(', ');
+    html += `${html ? '<br>' : ''}<strong>The pull request has moved since you reviewed it.</strong> ${plural(earlier.length, 'verdict')} ${earlier.length === 1 ? 'was' : 'were'} recorded at ${esc(heads)}, before ${esc(shortSha(C.pr.head))}. Lines changed since are unread again in <a href="#files">All files</a>, and each verdict whose code changed says so.`;
+  }
   el.innerHTML = html;
   el.hidden = !html;
 }
@@ -840,9 +873,10 @@ function recordedClaims() {
   if (!window.ReviewCoverage) return [];
   const at = `${Store.version}:${COMMITS.length}`;
   if (claimsMemo.at === at) return claimsMemo.claims;
-  const verdicts = READING_CLAIMS.filter(c => Store.get(c.by.target).status);
+  const verdicts = READING_CLAIMS.filter(c => Store.get(c.by.target).status)
+    .map(c => ReviewCoverage.standingClaim(c, Store.get(c.by.target), C.pr.head, C.lineage));
   const marks = [...Store.docs.values()].filter(d => d.kind === 'lines' && (d.lines || []).length)
-    .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), d.lines, { target: d.target, label: MARKED }));
+    .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), currentMarks(d), { target: d.target, label: MARKED }));
   const commits = COMMITS.filter(c => Store.get('commit:' + c.sha).status)
     .flatMap(c => ReviewCoverage.commitClaims(c, { target: 'commit:' + c.sha, label: 'Commit ' + shortSha(c.sha) }));
   claimsMemo = { at, claims: [...verdicts, ...marks, ...commits] };
@@ -943,7 +977,7 @@ function markRows(rows, marked) {
   });
   for (const [path, sides] of groups) {
     const target = 'lines:' + path;
-    let lines = Store.get(target).lines || [];
+    let lines = currentMarks({ lines: [], ...Store.get(target), target });
     for (const side of ['new', 'old']) if (sides[side].length) lines = ReviewCoverage.withLinesMarked(lines, side, sides[side], marked);
     Store.put(target, 'lines', { lines, status: lines.length ? 'marked' : '' }, { label: `Lines you marked in ${path}`, where: path });
   }
@@ -2117,13 +2151,13 @@ function notesMarkdown() {
   const docs = [...Store.docs.values()].filter(d => d.status || d.note);
   const label = (kind, s) => (KINDS[kind]?.opts.find(o => o[0] === s) || [s, s])[1];
   const dec = Store.get('decision');
-  let out = `# PR ${C.pr.number} review notes\n\nVerdict: ${dec.status ? label('decision', dec.status) : 'undecided'}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
+  let out = `# PR ${C.pr.number} review notes\n\n${C.pr.head ? `Head: ${shortSha(C.pr.head)}\n\n` : ''}Verdict: ${dec.status ? label('decision', dec.status) : 'undecided'}${recordedEarlier(dec) ? ` (recorded at ${shortSha(dec.head)}, before the pull request moved)` : ''}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
   const section = (title, kinds, order) => {
     const ds = docs.filter(d => kinds.includes(d.kind) && d.target !== 'decision');
     if (!ds.length) return;
     out += `\n## ${title}\n\n`;
     const sorted = ds.sort((a, b) => (order ? order.indexOf(a.status) - order.indexOf(b.status) : 0) || String(a.target).localeCompare(String(b.target)));
-    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
+    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${recordedEarlier(d) ? ` — recorded at ${shortSha(d.head)}, before the pull request moved` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
   };
   section('Design decisions', ['design'], ['disagree', 'question', 'agree', '']);
   section('Findings', ['finding'], ['block', 'fix-now', 'follow-up', 'reject', '']);

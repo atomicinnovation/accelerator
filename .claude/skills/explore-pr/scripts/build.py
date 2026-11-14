@@ -21,6 +21,7 @@ import json
 import re
 import sys
 from collections.abc import Iterator
+from difflib import SequenceMatcher
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
@@ -410,6 +411,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "layers": [{"id": x["id"], "label": x["label"]} for x in layers],
         "pathAliases": manifest.get("pathAliases", []),
         "commits": commit_summaries(commits),
+        "lineage": lineage_from_earlier_heads(
+            workspace, pr.get("head", ""), diff
+        ),
     }
     faults += mistyped_fields(model)
     faults += malformed_parts(model)
@@ -612,6 +616,92 @@ def rewritten(path: Path, content: object, moves: list) -> list[str]:
             json.dumps(content, indent=2, ensure_ascii=False) + "\n"
         )
     return made
+
+
+def changed_numbers(entry: dict, side: str) -> set[int]:
+    return {
+        int(key.partition(":")[2])
+        for key in changed_keys(entry)
+        if key.startswith(f"{side}:")
+    }
+
+
+def as_runs(pairs: list[tuple[int, int]]) -> list[list[int]]:
+    runs: list[list[int]] = []
+    for then, now in pairs:
+        last = runs[-1] if runs else None
+        if last and (last[0] + last[2], last[1] + last[2]) == (then, now):
+            last[2] += 1
+        else:
+            runs.append([then, now, 1])
+    return runs
+
+
+def carried_lines(
+    earlier: dict, current: dict, side: str
+) -> tuple[list[list[int]], bool]:
+    """Return where each changed line still stands, and whether all do."""
+    then, now = side_lines(earlier, side), side_lines(current, side)
+    then_numbers, now_numbers = sorted(then), sorted(now)
+    aligned = SequenceMatcher(
+        None,
+        [then[number] for number in then_numbers],
+        [now[number] for number in now_numbers],
+        autojunk=False,
+    )
+    changed_then = changed_numbers(earlier, side)
+    changed_now = changed_numbers(current, side)
+    carried = [
+        (then_numbers[start_then + step], now_numbers[start_now + step])
+        for start_then, start_now, size in aligned.get_matching_blocks()
+        for step in range(size)
+        if then_numbers[start_then + step] in changed_then
+        and now_numbers[start_now + step] in changed_now
+    ]
+    every_line_stands = len(carried) == len(changed_then) == len(changed_now)
+    return as_runs(carried), every_line_stands
+
+
+def file_lineage(earlier: dict, current: dict) -> str | dict:
+    if earlier.get("hunks") == current.get("hunks"):
+        return "same"
+    new, new_stands = carried_lines(earlier, current, "new")
+    old, old_stands = carried_lines(earlier, current, "old")
+    return {"new": new, "old": old, "changed": not (new_stands and old_stands)}
+
+
+def lineage_of(earlier: dict, current: dict) -> dict:
+    """Map each file's changed lines at an earlier head onto this one."""
+    return {
+        path: file_lineage(earlier[path], entry)
+        for path, entry in current.items()
+        if path in earlier
+    }
+
+
+COMMIT_NAME = re.compile(r"[0-9A-Za-z._-]+")
+
+
+def heads_dir(workspace: Path) -> Path:
+    return workspace / "data/heads"
+
+
+def remember_head(workspace: Path) -> None:
+    """Keep this head's diff, so a later head can carry verdicts over."""
+    manifest = read_content(workspace / "explore.json", dict, []) or {}
+    head = manifest.get("pr", {}).get("head")
+    diff = workspace / "data/diff.json"
+    if isinstance(head, str) and COMMIT_NAME.fullmatch(head) and diff.exists():
+        heads_dir(workspace).mkdir(parents=True, exist_ok=True)
+        (heads_dir(workspace) / f"{head}.json").write_text(diff.read_text())
+
+
+def lineage_from_earlier_heads(workspace: Path, head: str, diff: dict) -> dict:
+    return {
+        kept.stem: lineage_of(json.loads(kept.read_text()), diff)
+        for kept in sorted(heads_dir(workspace).glob("*.json"))
+        if kept.stem != head
+    }
 
 
 def finding_references(model: dict) -> list[tuple[str, str]]:
@@ -1338,6 +1428,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.reanchor:
         for move in reanchor(workspace):
             print(f"reanchored {move}")
+    remember_head(workspace)
     content, remarks = assemble(workspace)
     notes = [remark for remark in remarks if isinstance(remark, Note)]
     warnings = [remark for remark in remarks if not isinstance(remark, Note)]

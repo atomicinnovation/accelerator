@@ -141,7 +141,7 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | Path | Purpose |
 |---|---|
 | `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, sequence, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
-| `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, inlined into every build |
+| `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
 | `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
 | `assets/graph-focus.js` | Traces a graph's arrows, outbound and inbound, from every box the reviewer has pressed (touch, mouse or keyboard); pressing a box again drops it and Esc clears them all, inlined into every build |
@@ -153,7 +153,7 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, screenshots |
+| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
 
@@ -414,8 +414,12 @@ follow-up work items for findings triaged *follow-up*.
 
 ## Re-running
 
-The workspace is reused. If the PR's head moved since `explore.json` was
-written, export and extract again, then run
+The workspace is reused, and must be: `data/heads/` holds the diff at every
+head the page was built for, which is what lets the reviewer's verdicts
+survive a moved head (content model, "When the head moves"). If the PR's
+head moved since `explore.json` was written, export and extract again, set
+`pr.head` (and `pr.base`, if the merge base moved) in `explore.json` to the
+new commits, then run
 `python3 {skill dir}/scripts/build.py {workspace} --reanchor`. Every stop
 and ledger row quotes the code it stands on (content model, "Anchors"), so
 this moves each one whose code merely shifted and warns about each whose
@@ -430,7 +434,13 @@ chapter):
 - a chapter with an anchor that was not found, or a changed hunk inside a
   stop or row, needs its pass re-run.
 
-Then refresh the design and the overview if the shape of the change moved. An unchanged head needs only the steps the user asks for.
+Then refresh the design and the overview if the shape of the change moved.
+Publish the hosted page to the same artifact, never a new one: the
+reviewer's records live with it. Tell the reviewer what they will see: lines
+changed since their review are unread again, and each verdict whose code
+changed says which head it was recorded at.
+
+An unchanged head needs only the steps the user asks for.
 
 ## Report
 

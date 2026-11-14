@@ -12,7 +12,10 @@
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
 // opened by link and in one picked from the file list. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
-// stop's link opens its chapter at that stop.
+// stop's link opens its chapter at that stop. It also records a file verdict,
+// pretends it was given at an earlier head, and checks that rewritten lines are
+// unread again and announced, that untouched ones stay read, and that only a
+// new verdict, not a note, moves the record to this head.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -307,6 +310,41 @@ const REFERENCES_PROBE = `(async () => {
   return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
 })()`;
 
+const HEADS_PROBE = `(async () => {
+  const api = window.ExplorePR.api, store = api.store, content = api.content;
+  const settle = () => new Promise(r => setTimeout(r, 500));
+  const file = content.files.find(f => window.ReviewCoverage.changedLinesOf((api.diff || {})[f.path]).length);
+  if (!file || !content.pr.head) return { skipped: 'no head, or no file with a changed line' };
+  const path = file.path, target = 'file:' + path, earlier = 'earlier-head';
+  const bar = () => document.querySelector('[data-coverage-of="' + CSS.escape(path) + '"]');
+  const since = () => document.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"] [data-since-note]');
+  const recordedAt = (head, lineage) => {
+    content.lineage = { ...(content.lineage || {}), [earlier]: { [path]: lineage } };
+    store.docs.set(target, { ...store.get(target), head });
+    store.version++;
+    api.rerender();
+  };
+  store.put(target, 'file', { status: 'ok' }, {});
+  const saved = store.get(target);
+  const stamped = saved.head === content.pr.head && Array.isArray(saved.claimed) && saved.claimed.length > 0;
+  api.openFile(path); await settle();
+  const readAtHead = +bar().dataset.read;
+  recordedAt(earlier, { new: [], old: [], changed: true }); api.openFile(path); await settle();
+  const rewrittenUnread = readAtHead > 0 && +bar().dataset.read === 0;
+  const marked = !!since() && !since().hidden && since().textContent.includes(earlier.slice(0, 7));
+  const banner = document.querySelector('#store-banner');
+  const announced = !!banner && !banner.hidden && /moved/.test(banner.textContent);
+  recordedAt(earlier, 'same'); api.openFile(path); await settle();
+  const untouchedCarried = +bar().dataset.read === readAtHead && !!since() && since().hidden;
+  store.put(target, 'file', { note: 'checked' }, {});
+  const noteKeepsHead = store.get(target).head === earlier;
+  store.put(target, 'file', { status: 'issue' }, {});
+  const verdictRestamps = store.get(target).head === content.pr.head;
+  store.put(target, 'file', { status: '', note: '' }, {});
+  delete content.lineage[earlier];
+  return { stamped, rewrittenUnread, marked, announced, untouchedCarried, noteKeepsHead, verdictRestamps };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -359,6 +397,7 @@ async function main() {
     report.arrows = await cdp.evaluate(ARROWS_PROBE);
     report.press = await cdp.evaluate(PRESS_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
+    report.heads = await cdp.evaluate(HEADS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -390,7 +429,9 @@ async function main() {
   const pressHolds = !!press.skipped || !!(press.touch && press.mouse && press.additive && press.pressAwayKeeps && press.untoggleOne && press.escapeClears && press.linkNavigates && press.linkLeavesTraceAlone);
   const references = report.references || {};
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
-  report.ok = referencesHold && pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const heads = report.heads || {};
+  const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
+  report.ok = headsHold && referencesHold && pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
