@@ -1,6 +1,6 @@
 """Guard the repointed integration skills' outcome contract.
 
-Two invariants the jira/linear cutover depends on, checked together because both
+Two invariants every provider's skills depend on, checked together because both
 parse the same ``skills/integrations/*/SKILL.md`` bodies:
 
 - **keyword parity** — every outcome keyword a body branches on exists in the
