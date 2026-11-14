@@ -933,6 +933,18 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_preview_renders_its_type_and_team_with_their_sources() {
+        let preview = CreatePreview {
+            project: FieldResolution::Resolved("Team 1".to_owned()),
+            issue_type: FieldResolution::Resolved("feature".to_owned()),
+        };
+        assert_eq!(
+            render_create_preview("shortcut", &preview),
+            "shortcut\tfeature\tconfigured\tTeam 1\tconfigured"
+        );
+    }
+
+    #[test]
     fn a_transport_failure_previews_as_retryable_not_a_block() {
         let registry = FixedRegistry::holding(
             RecordingTracker::holding(Vec::new()).failing_preview(retryable()),
