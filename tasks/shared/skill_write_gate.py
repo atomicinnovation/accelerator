@@ -20,6 +20,9 @@ _MUTATION_VERBS: dict[str, frozenset[str]] = {
         {"create", "update", "comment", "transition", "attach"}
     ),
     "jira": frozenset({"create", "update", "comment", "transition", "attach"}),
+    "shortcut": frozenset(
+        {"create", "update", "comment", "transition", "attach"}
+    ),
 }
 
 _CONFIRM = re.compile(r"to confirm", re.IGNORECASE)
