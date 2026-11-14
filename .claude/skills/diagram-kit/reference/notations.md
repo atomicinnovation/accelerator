@@ -28,6 +28,13 @@ module.exports = {
 - **`remarksOn`** is for what a reviewer should not have to find by eye: a
   cycle, an unreachable state, a relationship that breaks a rule.
 
+## Running in a page
+
+`bin/diagram.js bundle` carries every notation into a browser, with the
+modules it requires. Require only the kit's `lib/` modules and files
+beside the notation; a notation that requires anything else (`node:fs`, a
+package) cannot be carried, and the bundle refuses it by name.
+
 ## A notation that draws itself
 
 A notation whose figure is better as HTML than as a laid-out drawing (a

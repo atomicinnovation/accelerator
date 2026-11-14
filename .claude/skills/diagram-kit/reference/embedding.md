@@ -37,6 +37,28 @@ modules above, and draw it from its spec:
 const markup = DiagramKit.NOTATIONS[spec.kind].htmlOf(spec, { resolveLink });
 ```
 
+## Laying out in the page
+
+A page that must draw a diagram it could not know when it was built (one a
+reader's input decides) carries the layout engine:
+
+```bash
+node <kit>/bin/diagram.js bundle --out kit.js
+```
+
+Inline `kit.js` after the modules above. It adds `DiagramKit.live`, the
+whole kit with every notation:
+
+```js
+const problems = DiagramKit.live.problemsIn(spec);   // as at build time
+const scene = await DiagramKit.live.laidOut(spec);   // a promise: layout takes a moment
+const figure = DiagramKit.live.figureOf(spec, scene, { resolveLink });
+```
+
+The bundle is about 1.9 MB, nearly all of it the layout engine, so carry
+it only on a page that needs it. A notation it carries may require the
+kit's modules and its own files, and nothing a browser lacks.
+
 The page supplies the colours: `lib/diagram.css` uses the custom properties
 that `lib/tokens.css` defines (`--panel`, `--ink`, `--rule`, `--accent`,
 `--ok`, `--warn`, `--bad` and the three font stacks). A page with its own

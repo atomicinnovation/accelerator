@@ -4,6 +4,7 @@
 //        diagram.js render SPEC.json --out FILE.html|FILE.svg
 //
 //        diagram.js prepare SPECS.json
+//        diagram.js bundle [--out KIT.js]
 //
 // SPEC.json is one diagram, or a list of them. `check` reports every problem
 // and exits 1 if there is one. `layout` writes where every node and edge
@@ -18,8 +19,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { kitWith, svgOf, standalonePage, standaloneSvg } = require('../lib/index.js');
 const { legendOf } = require('../lib/render.js');
+const { browserBundle } = require('../lib/bundle.js');
 
-const USAGE = 'usage: diagram.js check|layout|render|prepare SPEC.json [--out FILE] [--notations DIR]';
+const USAGE = 'usage: diagram.js check|layout|render|prepare SPEC.json [--out FILE] [--notations DIR]\n       diagram.js bundle [--out FILE] [--notations DIR]';
 
 function parsed(argv) {
   const options = { positional: [] };
@@ -57,6 +59,11 @@ async function prepared(kit, diagram) {
 
 async function main(argv) {
   const { positional: [command, file], out, notations } = parsed(argv);
+  if (command === 'bundle') {
+    const bundle = browserBundle(notations ? path.resolve(notations) : undefined);
+    if (out) fs.writeFileSync(out, bundle); else process.stdout.write(bundle);
+    return 0;
+  }
   if (!['check', 'layout', 'render', 'prepare'].includes(command) || !file) { console.error(USAGE); return 2; }
   const kit = kitWith(notations ? path.resolve(notations) : undefined);
   const diagrams = diagramsIn(file);
