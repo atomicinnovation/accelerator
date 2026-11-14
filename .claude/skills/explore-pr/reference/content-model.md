@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "class-diagram|object-diagram|domain-model|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -346,6 +346,7 @@ Every figure has:
 | `class-diagram` | How types relate: what implements, extends, owns, holds or uses what | A UML class diagram: classes with stereotypes, attributes and operations, and the six relationships with multiplicities and roles; drawn by the diagram kit |
 | `object-diagram` | One case at one moment: a worked example, an edge case, what is on disk | A UML object diagram: named instances with their values, and the links between them; drawn by the diagram kit |
 | `domain-model` | The domain a change models and its boundaries | Aggregates as boundaries around their root, entities and value objects, with services, repositories and events beside them; the kit remarks on a broken aggregate rule |
+| `context-map` | Whose model sets the terms between bounded contexts | Contexts joined by upstream and downstream relationships and the pattern each side follows; the kit remarks on a strategic smell |
 | `component-diagram` | The replaceable parts and the interfaces they plug together through | A UML component diagram: components, subsystems, and provided and required interfaces; drawn by the diagram kit |
 | `package-diagram` | How the source is organised and which package may use which | A UML package diagram: nested folders with dependencies, imports, accesses and merges; drawn by the diagram kit |
 | `deployment-diagram` | What runs or lives where, and what crosses a boundary | A UML deployment diagram: nested nodes, the artefacts on them, communication paths; drawn by the diagram kit |

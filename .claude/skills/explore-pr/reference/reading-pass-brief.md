@@ -100,6 +100,7 @@ a home in the code. Choose the figure by the question it answers:
 | How do these types relate? | `class-diagram` |
 | What does this look like in one case? | `object-diagram` |
 | What is the domain made of, and where are its boundaries? | `domain-model` |
+| Whose model sets the terms between contexts? | `context-map` |
 | What are the replaceable parts, and through what do they plug together? | `component-diagram` |
 | How is the source organised, and which part may use which? | `package-diagram` |
 | What runs or lives where? | `deployment-diagram` |
