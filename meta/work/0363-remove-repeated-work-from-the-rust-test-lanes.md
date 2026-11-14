@@ -96,7 +96,7 @@ switching that task to `--test '*'`.
 1. Replace the coverage lane's full clean with this sequence, keeping
    instrumentation both locally and in CI:
    1. `cargo llvm-cov clean --profraw-only`
-   2. `cargo llvm-cov nextest --no-clean --no-report`
+   2. `cargo llvm-cov nextest --no-report`
    3. `cargo llvm-cov report --json --summary-only`
 
    Never use bare `--no-clean`. The `ACCELERATOR_COVERAGE=off` escape hatch
@@ -246,6 +246,10 @@ source changes since.
   `data[0].totals`, beside those per-file summaries. The task captures the
   export, extracts the line, function and region percentages from
   `data[0].totals` and prints them as the totals line.
+- cargo-llvm-cov 0.8.7 rejects `--no-clean` beside `--no-report`, because
+  `--no-report` already skips the full clean. Step 2 therefore passes
+  `--no-report` alone. `report` likewise rejects feature flags; it reads the
+  objects already built, so it needs none.
 - Merging a second copy of the same run's profiles leaves percentages
   unchanged, which is why the coverage-equality criterion seeds a
   different, wider prior run.
