@@ -10,7 +10,6 @@ is not shown.
 |---|---|
 | Overview | The change at a glance as a figure, the design in brief, a verdict control, what stands in the way of merging, what changes, breaking changes before and after, accepted risks, CI |
 | Design | The design summary and architecture figures; key abstractions with an automatic diagram of how they collaborate; design decisions (chosen over what, why, at what cost) with agree, question or disagree controls; fit with the existing architecture's principles; where the next change goes |
-| In pictures | Every figure on the page in reading order: the change, understood visually before it is read |
 | Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
 | Guided tour | Chapters by design concept in reading order, each opening with its figures, then the terms it uses, then what it adds to the design; code at every stop as the evidence, each placed in the change before it is explained; invariants with the tests that pin them; a sign-off question per chapter |
 | Ledger | Every call site of the PR's riskiest class of operation: what guards it, what is held, what races it, what pins it |

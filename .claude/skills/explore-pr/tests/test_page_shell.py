@@ -137,3 +137,20 @@ def test_the_page_draws_no_generated_graph_of_its_own():
 
 def test_the_legend_explains_an_unchanged_box_by_its_border():
     assert "existing: 'unchanged'" in renderer("legend")
+
+
+def test_figures_appear_only_where_they_explain_something():
+    shell = SHELL.read_text()
+
+    assert "In pictures" not in shell
+    assert "function vPictures" not in shell
+    assert "function allFigures" not in shell
+
+
+def test_the_page_names_every_view_that_draws_a_figure():
+    views = renderer("figureViews")
+
+    assert "'overview'" in views
+    assert "'design'" in views
+    assert "'tour-' + ch.id" in views
+    assert "figureViews: () =>" in SHELL.read_text()

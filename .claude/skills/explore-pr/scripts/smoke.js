@@ -162,7 +162,7 @@ const ARROWS_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 150));
   const crooked = [];
   let checked = 0;
-  for (const route of ['overview', 'design', 'pictures']) {
+  for (const route of window.ExplorePR.figureViews()) {
     location.hash = route; await settle();
     for (const path of document.querySelectorAll('svg path[marker-end]')) {
       if (!path.getTotalLength) continue;
@@ -352,8 +352,7 @@ const DIAGRAMS_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 300));
   const seen = {};
   let tracing = { skipped: 'no diagram with an arrow' };
-  for (const route of ['design', 'pictures', 'overview']) {
-    if (!window.ExplorePR.routes().includes(route)) continue;
+  for (const route of window.ExplorePR.figureViews()) {
     location.hash = route; await settle();
     if (!document.querySelector('svg.dk')) continue;
     const checked = await ${DRAWING_CHECKS};
@@ -394,6 +393,11 @@ const UNFOLD_PROBE = `(async () => {
   return { file: folded.path, afterOpening, afterPicking };
 })()`;
 
+async function wholePage(cdp) {
+  const { result: { cssContentSize: size } } = await cdp.send('Page.getLayoutMetrics');
+  return { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: size.width, height: size.height, scale: 1 } };
+}
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -409,12 +413,14 @@ async function main() {
     for (let i = 0; i < 50 && !(await cdp.evaluate('!!(window.ExplorePR && window.ExplorePR.routes().length)')); i++) await sleep(100);
     const routes = await cdp.evaluate('window.ExplorePR ? window.ExplorePR.routes() : []');
     if (options.shots) fs.mkdirSync(options.shots, { recursive: true });
-    for (const route of routes) {
+    const figureViews = await cdp.evaluate('window.ExplorePR.figureViews()');
+    const chapters = figureViews.filter(view => !routes.includes(view));
+    for (const route of [...routes, ...chapters]) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
       await sleep(700);
       report.routes[route] = await cdp.evaluate(`({ heading: (document.querySelector('main h1') || {}).textContent || null, unresolvedSlices: document.querySelectorAll('[data-pending-slice]').length, highlighted: document.querySelectorAll('[class^="hljs-"]').length })`);
       if (options.shots) {
-        const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const shot = await cdp.send('Page.captureScreenshot', figureViews.includes(route) ? await wholePage(cdp) : { format: 'png' });
         fs.writeFileSync(path.join(options.shots, `${route}.png`), Buffer.from(shot.result.data, 'base64'));
       }
     }

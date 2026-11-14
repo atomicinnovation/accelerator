@@ -272,8 +272,8 @@ settle it. Then write `content/overview.json`:
 - `whatChanges`: one bullet per concept.
 - `paths`: two or three ways through the page sized to the agreed goal,
   each with an honest time and numbered steps that name the views. The first
-  is always **understand the design**: Design, then In pictures, then each
-  chapter's figures and design section, in about half an hour.
+  is always **understand the design**: Design, then each chapter's figures
+  and design section, in about half an hour.
 
 ### 9. Build and verify
 
@@ -294,10 +294,11 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
 - Read the **Design** screenshot as the reviewer will: could someone who
   reads only that view explain the change's shape, its key decisions and
   where the next change goes? If not, the design content is not done.
-- Look at every figure in the **In pictures** screenshot: each must be legible
-  at a glance, make one point, and have nothing overlapping. Split a figure
-  that tries to say two things; shorten labels that wrap. Then look at the
-  overview, one chapter and each custom view, and at the overview at phone
+- Look at every figure where it is shown: the overview, Design and each
+  chapter's screenshot (`tour-<id>.png`) are taken at full height. Each
+  figure must be legible at a glance, make one point, and have nothing
+  overlapping. Split a figure that tries to say two things; shorten labels
+  that wrap. Then look at each custom view, and at the overview at phone
   width. Fix what is visibly wrong once, then stop.
 - Spot-check five stops and three ledger rows against the code yourself.
   Fix them, and say what you checked.

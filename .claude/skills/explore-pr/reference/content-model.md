@@ -320,7 +320,8 @@ of a changed file when the change cannot be understood without them.
 ## Figures
 
 The page draws seven kinds of figure from data, laid out and coloured for
-light and dark themes, and gathers every one into the **In pictures** view.
+light and dark themes, each shown where it explains something: in the
+overview, the Design view, its chapter or its stop.
 Pressing boxes in a flow (or the module map) traces their arrows, those they
 send in one colour and those they receive in another, and dims the rest;
 pressing a box again drops it from the trace, and Esc clears it. A box with a
