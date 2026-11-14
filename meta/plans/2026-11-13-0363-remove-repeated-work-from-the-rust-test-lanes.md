@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T18:30:00+00:00"
+last_updated: "2026-11-14T23:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -56,8 +56,11 @@ As of 2026-11-14:
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 4: planned, not started.** The CI totals it needs are recorded at
-  the end of Phase 2.
+- **Phase 4: implemented, awaiting the full local run and CI.** The floors
+  are lines 92, functions 92 and regions 91, from the four runs recorded in
+  Phase 4. The root run needed `--no-fail-fast`, because 28 tests that seal
+  paths by hand fail as root; Phase 4's outcome notes record this and the
+  other departures from its recipe.
 
 ## Current State Analysis
 
@@ -1285,6 +1288,32 @@ a floor of 76. Record the four totals lines and the resulting floors in the
 PR description. Beside each line, record its OS, architecture and
 `cargo llvm-cov --version`.
 
+Outcome, recorded 2026-11-14, every run on cargo-llvm-cov 0.8.7:
+
+| Run                                        | Lines  | Functions | Regions |
+|--------------------------------------------|--------|-----------|---------|
+| CI `macos-26-arm64`                        | 94.19% | 93.57%    | 92.88%  |
+| CI `ubuntu-26.04` (x86_64)                 | 94.18% | 93.57%    | 92.87%  |
+| Local, macOS 26.3 arm64 (engywook)         | 94.19% | 93.57%    | 92.88%  |
+| Root, Ubuntu 26.04.1 x86_64 container      | 93.96% | 93.43%    | 92.62%  |
+| **Floor**                                  | **92** | **92**    | **91**  |
+
+The root run departs from the plan's recipe in three ways, each settled with
+the user:
+
+- `ACCELERATOR_TEST_SKIP_PERMISSION_TESTS` guards only `store::test_support`'s
+  `ReadOnlyDir` and `UnreadableFile`. Twenty-eight other tests seal paths by
+  hand and fail as root, so the lane's fail-fast nextest stopped at 110 of
+  7,400 tests and never reached the report. The root totals come from the
+  lane's three steps run by hand with `--no-fail-fast`: 7,372 passed, 28
+  failed, 2 skipped. The README's recipe records this form. Guarding those
+  tests is left to a follow-up work item.
+- Colima's Docker disk had 18G free, too little for the toolchains and the
+  instrumented build, so the container's `/work` and `/root` were bind-mounted
+  from a throwaway host directory outside the repository, deleted afterwards.
+- Ubuntu 26.04's GNU `tar` fails with `ENOSYS` under Rosetta, so mise was
+  installed from its raw release binary instead of `mise.run`.
+
 #### 2. Floor judgement (tests first)
 
 **File**: `tests/unit/tasks/test_coverage.py`
@@ -1427,17 +1456,21 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 #### Automated Verification:
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_coverage.py tests/unit/tasks/test_rust.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
+- [x] The build-system checks pass: `mise run build-system:check`
 - [ ] The full local run passes: `mise run`
 - [ ] Both CI `test-unit` legs pass with the floor in force.
 
 #### Manual Verification:
 
-- [ ] Temporarily raising one floor above the local total makes
+- [x] Temporarily raising one floor above the local total makes
       `mise run --skip-deps test:unit:cli` fail with a message naming that
       metric, after printing the totals line. Revert the change afterwards.
+      - Recorded 2026-11-14 with the regions floor at 99: the lane exited 1
+        with `coverage below COVERAGE_FLOOR in tasks/test/cli.py: regions
+        92.88% (floor 99%)`, after printing the totals line and the sweep
+        line. The floor was restored to 91.
 
 ---
 
