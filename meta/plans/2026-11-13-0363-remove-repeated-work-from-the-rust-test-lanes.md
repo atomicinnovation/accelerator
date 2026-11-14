@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T11:51:40+00:00"
+last_updated: "2026-11-14T12:39:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -690,7 +690,7 @@ On engywook:
         92.88%`, as did the old lane's text table. One of the three timed
         runs read regions 92.89%, so the totals can move by 0.01 between
         identical runs.
-- [ ] Stale binaries: after a full lane run, bump one dependency of a
+- [x] Stale binaries: after a full lane run, bump one dependency of a
       workspace member in `cli/Cargo.lock` (`cargo update -p <crate>
       --precise <adjacent version>`) so that member's test binaries get new
       hashes, then rerun the lane. Its totals line equals the line from a run
@@ -699,7 +699,16 @@ On engywook:
       `du -sh cli/target/llvm-cov-target` is recorded before and after.
       Restore the lockfile afterwards. If the totals differ, stop and revisit
       the "no fingerprint-triggered clean" decision before Phase 3.
-- [ ] After a full lane run, these restricted commands are run by hand. The
+      - Recorded 2026-11-14 with `smallvec` 1.15.2 → 1.15.1, which sits
+        under `gix` and so under `vcs-adapters` and the launcher. The bumped
+        lane and the bumped lane straight after a full clean both read
+        `coverage: lines 94.19%, functions 93.57%, regions 92.88%`. With
+        the superseded binaries present the report took a median of 4.27 s
+        over five runs, against 4.06 s straight after a full clean.
+        `llvm-cov-target` grew from 11G to 18G and was 12G after the full
+        clean, so superseded binaries cost disk, not time or accuracy. The
+        lockfile was restored with `jj restore` and the lane rerun.
+- [x] After a full lane run, these restricted commands are run by hand. The
       nextest command takes `-p kernel` in place of `--workspace --exclude`,
       because `--workspace` would override `-p`:
 
@@ -715,6 +724,12 @@ On engywook:
       after `cargo llvm-cov clean --workspace`. Control: after a fresh full
       run, running the restricted nextest and report with bare `--no-clean`
       and no profraw clean gives different `kernel` totals.
+      - Recorded 2026-11-14: `kernel` read lines 77.99%, functions 84.38%
+        and regions 75.59% both after a lane run and straight after
+        `cargo llvm-cov clean --workspace`. The control, with no profraw
+        clean after a fresh full run, read lines 89.94%, functions 96.88%
+        and regions 86.22%. Its nextest step used `--no-report` alone,
+        which keeps old profiles exactly as bare `--no-clean` does.
 - [x] After two consecutive lane runs, `cli/target/llvm-cov-target` holds at
       least one `*.profraw` file, and every one has a modification time
       later than the second run's start.
