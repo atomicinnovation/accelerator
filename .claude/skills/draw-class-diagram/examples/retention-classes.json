@@ -1,0 +1,32 @@
+{
+  "id": "retention-classes",
+  "kind": "class-diagram",
+  "title": "Retention knows the disk and the clock only as traits",
+  "caption": "Every type that decides what to keep depends on the Disk and Clock traits, never on FsDisk or SystemClock. That is what lets the prune be tested against an in-memory disk and a clock that can be set.",
+  "classes": [
+    { "id": "Retention", "stereotype": "trait", "operations": ["+ keep(entry): Verdict"] },
+    {
+      "id": "VersionClaims", "status": "new", "link": "https://example.test/version_claims.rs#L18",
+      "attributes": ["- root: PathBuf", { "text": "+ CLAIM_WINDOW: Duration", "static": true }],
+      "operations": ["+ claim(version, launcher_id): Result<()>", "+ fresh_versions(): FreshVersions"]
+    },
+    { "id": "Prune", "status": "new", "tone": "risk", "operations": ["+ run(): Report", "- remove(tree): Result<()>"] },
+    { "id": "VersionClaim", "name": "VersionClaim<'a>", "status": "new", "attributes": ["+ version: &'a str", "+ launcher_id: &'a str"], "operations": ["- name(): String"] },
+    { "id": "FreshVersions", "status": "new", "attributes": ["- versions: HashSet<String>"] },
+    { "id": "Disk", "stereotype": "trait", "operations": ["+ lstat(path): Metadata", "+ write(path, bytes)", "+ remove_dir_all(path)"] },
+    { "id": "Clock", "stereotype": "trait", "operations": ["+ now(): SystemTime"] },
+    { "id": "FsDisk", "stereotype": "struct" },
+    { "id": "SystemClock", "stereotype": "struct" }
+  ],
+  "relationships": [
+    { "from": "VersionClaims", "to": "Retention", "kind": "realisation", "status": "new" },
+    { "from": "Prune", "to": "Retention", "kind": "dependency", "label": "asks", "status": "new" },
+    { "from": "VersionClaims", "to": "VersionClaim", "kind": "composition", "fromMultiplicity": "1", "toMultiplicity": "0..*", "toRole": "claims", "status": "new" },
+    { "from": "VersionClaims", "to": "FreshVersions", "kind": "dependency", "label": "builds", "status": "new" },
+    { "from": "VersionClaims", "to": "Disk", "kind": "association", "navigable": true, "toRole": "disk", "status": "new" },
+    { "from": "VersionClaims", "to": "Clock", "kind": "association", "navigable": true, "toRole": "clock", "status": "new" },
+    { "from": "Prune", "to": "Disk", "kind": "association", "navigable": true, "toRole": "disk", "status": "new", "tone": "risk" },
+    { "from": "FsDisk", "to": "Disk", "kind": "realisation" },
+    { "from": "SystemClock", "to": "Clock", "kind": "realisation" }
+  ]
+}

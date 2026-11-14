@@ -2,16 +2,18 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { blockOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
-  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE } = inNode ? require('./shapes.js') : root.DiagramKit;
+  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE } = inNode ? require('./shapes.js') : root.DiagramKit;
 
   const MARGIN = 8;
-  const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5;
+  const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5, HOLLOW_LENGTH = 12, HOLLOW_HALF_WIDTH = 6, DIAMOND_LENGTH = 14, DIAMOND_HALF_WIDTH = 5;
+  const END_LABEL_GAP = 12;
   const CORNER = 6;
   const STATUSES = { new: 'new in this change', changed: 'changed', removed: 'removed', existing: 'unchanged' };
   const TONES = { risk: 'risk', ok: 'safe' };
 
   const escaped = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const tidy = number => String(Math.round(number * 100) / 100);
+  const tidyNumber = number => Math.round(number * 100) / 100;
+  const tidy = number => String(tidyNumber(number));
   const marks = item => `${STATUSES[item.status] ? ` s-${item.status}` : ''}${TONES[item.tone] ? ` t-${item.tone}` : ''}`;
 
   function addressOnly(reference) {
@@ -45,6 +47,22 @@
   const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice' };
 
   const DRAWN = {
+    classifier(node, target) {
+      const centre = node.x + (node.width - (target ? LINK_CONTROL_WIDTH : 0)) / 2, right = node.x + node.width;
+      const head = SHAPES.classifier.headHeightOf(node), nameAt = node.y + 20 + (node.stereotype ? 14 : 0);
+      const centred = (text, role, cls, baseline) => textOf(blockOf(text, role), cls, centre, baseline, 'middle');
+      let top = node.y + head, listed = '';
+      for (const members of node.compartments || []) {
+        listed += `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(top)}" x2="${tidy(right)}" y2="${tidy(top)}"/>`
+          + members.map((member, i) => textOf(blockOf(typeof member === 'string' ? member : member.text, 'name'), `member${member.static ? ' static' : ''}`, node.x + 10, top + 17 + i * MEMBER_LINE, 'start')).join('');
+        top += SHAPES.classifier.compartmentHeightOf(members);
+      }
+      return bodyOf(node, 3)
+        + (node.stereotype ? centred(`«${node.stereotype}»`, 'stereotype', 'stereotype', node.y + 17) : '')
+        + centred(node.label ?? node.id, 'title', `title${node.underlined ? ' underlined' : ''}`, nameAt)
+        + (node.abstract ? centred('{abstract}', 'stereotype', 'stereotype', nameAt + 14) : '')
+        + listed + (target ? linkControl({ ...node, height: head }, target) : '') + untold(node, target);
+    },
     state(node, target) {
       const centre = node.x + (node.width - (target ? LINK_CONTROL_WIDTH : 0)) / 2, activities = node.activities || [];
       const listed = activities.map((activity, i) => plainText(activity, 'detail', node.x + 12, node.y + 48 + i * ACTIVITY_LINE)).join('');
@@ -132,23 +150,46 @@
     return `${path} L${tidy(last[0])} ${tidy(last[1])}`;
   }
 
+  const unitFrom = (from, to) => { const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1; return [(to[0] - from[0]) / length, (to[1] - from[1]) / length]; };
+
   function headOf(kind, points) {
     if (!kind || kind === 'none' || points.length < 2) return { path: '', cut: 0 };
-    const tip = points[points.length - 1], from = points[points.length - 2];
-    const length = Math.hypot(tip[0] - from[0], tip[1] - from[1]) || 1;
-    const along = [(tip[0] - from[0]) / length, (tip[1] - from[1]) / length];
-    const base = [tip[0] - along[0] * HEAD_LENGTH, tip[1] - along[1] * HEAD_LENGTH];
-    const wings = [-1, 1].map(side => [base[0] - along[1] * HEAD_HALF_WIDTH * side, base[1] + along[0] * HEAD_HALF_WIDTH * side])
+    const tip = points[points.length - 1], along = unitFrom(points[points.length - 2], tip);
+    const [long, half] = kind === 'hollow' ? [HOLLOW_LENGTH, HOLLOW_HALF_WIDTH] : [HEAD_LENGTH, HEAD_HALF_WIDTH];
+    const base = [tip[0] - along[0] * long, tip[1] - along[1] * long];
+    const wings = [-1, 1].map(side => [base[0] - along[1] * half * side, base[1] + along[0] * half * side])
       .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     const strokes = `M${tidy(wings[0][0])} ${tidy(wings[0][1])} L${tidy(tip[0])} ${tidy(tip[1])} L${tidy(wings[1][0])} ${tidy(wings[1][1])}`;
-    return kind === 'open' ? { path: strokes, cut: 0 } : { path: `${strokes} Z`, cut: HEAD_LENGTH };
+    return kind === 'open' ? { path: strokes, cut: 0 } : { path: `${strokes} Z`, cut: long };
   }
 
-  function shortened(points, cut) {
-    if (!cut) return points;
-    const tip = points[points.length - 1], from = points[points.length - 2];
-    const length = Math.hypot(tip[0] - from[0], tip[1] - from[1]) || 1;
-    return [...points.slice(0, -1), [tip[0] - (tip[0] - from[0]) * cut / length, tip[1] - (tip[1] - from[1]) * cut / length]];
+  function tailOf(kind, points) {
+    if (!kind || kind === 'none' || points.length < 2) return { path: '', cut: 0 };
+    const start = points[0], along = unitFrom(start, points[1]);
+    const middle = [start[0] + along[0] * DIAMOND_LENGTH / 2, start[1] + along[1] * DIAMOND_LENGTH / 2];
+    const far = [start[0] + along[0] * DIAMOND_LENGTH, start[1] + along[1] * DIAMOND_LENGTH];
+    const side = sign => [middle[0] + sign * along[1] * DIAMOND_HALF_WIDTH, middle[1] - sign * along[0] * DIAMOND_HALF_WIDTH];
+    const corners = [start, side(1), far, side(-1)].map(([x, y]) => `${tidy(x)} ${tidy(y)}`);
+    return { path: `M${corners.join(' L')} Z`, cut: DIAMOND_LENGTH };
+  }
+
+  function endLabelAt(point, next, clearance, side = 1) {
+    const along = unitFrom(point, next), reach = clearance + END_LABEL_GAP;
+    if (along[0] === 0) return { x: point[0] + 7 * side, y: tidyNumber(point[1] + along[1] * reach + 4), anchor: side > 0 ? 'start' : 'end' };
+    return { x: tidyNumber(point[0] + along[0] * (clearance + 6)), y: point[1] + (side > 0 ? -6 : 13), anchor: along[0] > 0 ? 'start' : 'end' };
+  }
+
+  function shortened(points, cut, tailCut = 0) {
+    const trimmed = points.map(point => [...point]);
+    if (cut) {
+      const tip = trimmed[trimmed.length - 1], along = unitFrom(trimmed[trimmed.length - 2], tip);
+      trimmed[trimmed.length - 1] = [tip[0] - along[0] * cut, tip[1] - along[1] * cut];
+    }
+    if (tailCut) {
+      const along = unitFrom(trimmed[0], trimmed[1]);
+      trimmed[0] = [trimmed[0][0] + along[0] * tailCut, trimmed[0][1] + along[1] * tailCut];
+    }
+    return trimmed;
   }
 
   function edgeLabelMarkup(edge, target) {
@@ -160,13 +201,21 @@
     return `<rect x="${tidy(x)}" y="${tidy(y)}" width="${tidy(width)}" height="${tidy(height)}" rx="9"/>${opened(textOf(block, 'edge-text', x + width / 2, y + (height - block.height) / 2 + 11, 'middle'))}`;
   }
 
+  function endText(text, point, next, clearance, side) {
+    if (!text) return '';
+    const { x, y, anchor } = endLabelAt(point, next, clearance, side);
+    return textOf(blockOf(text, 'end'), 'end', x, y, anchor);
+  }
+
   function edgeMarkup(edge, resolveLink) {
     if (edge.points.length < 2) return '';
     const target = edge.link ? resolveLink(edge.link) : null;
-    const head = headOf(edge.head, edge.points);
-    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut), CORNER, head.path ? HEAD_LENGTH - head.cut : 0)}"/>`;
-    const arrow = head.path ? `<path class="head ${edge.head}" d="${head.path}"/>` : '';
-    return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
+    const head = headOf(edge.head, edge.points), tail = tailOf(edge.tail, edge.points);
+    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut, tail.cut), CORNER, head.path ? Math.max(HEAD_LENGTH - head.cut, 0) : 0)}"/>`;
+    const arrow = (tail.path ? `<path class="tail ${edge.tail}" d="${tail.path}"/>` : '') + (head.path ? `<path class="head ${edge.head}" d="${head.path}"/>` : '');
+    const ends = endText(edge.fromLabel, edge.points[0], edge.points[1], tail.cut, -1)
+      + endText(edge.toLabel, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2], head.path ? Math.max(head.cut, HEAD_LENGTH) : 0, 1);
+    return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${ends}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
   }
 
   function svgOf(scene, { uid = 'diagram', title = '', resolveLink = addressOnly } = {}) {
@@ -187,7 +236,7 @@
     return keys.length ? `<div class="dk-legend">${keys.join('')}</div>` : '';
   }
 
-  const api = { svgOf, legendOf, roundedPath, headOf };
+  const api = { svgOf, legendOf, roundedPath, headOf, tailOf, endLabelAt };
   if (inNode) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

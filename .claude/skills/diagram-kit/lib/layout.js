@@ -51,8 +51,9 @@
   function layoutEdgeOf(edge, known) {
     for (const end of [edge.from, edge.to]) if (!known.has(end)) throw new Error(`edge ${edge.id}: no node "${end}"`);
     const label = edge.label ? blockOf(edge.label, 'edge', EDGE_LABEL_LIMIT) : null;
+    const [source, target] = edge.against ? [edge.to, edge.from] : [edge.from, edge.to];
     return {
-      id: edge.id, sources: [edge.from], targets: [edge.to],
+      id: edge.id, sources: [source], targets: [target],
       labels: label ? [{ text: edge.label, width: Math.ceil(label.width) + 12, height: label.height + 4 }] : [],
     };
   }
@@ -69,7 +70,7 @@
         'elk.edgeRouting': 'ORTHOGONAL',
         'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
         'elk.layered.edgeLabels.sideSelection': 'ALWAYS_UP',
-        'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+        'elk.layered.cycleBreaking.strategy': 'GREEDY_MODEL_ORDER',
         'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
         ...SPACING,
       },
@@ -110,16 +111,19 @@
     const route = laidNode => {
       for (const each of laidNode.edges || []) {
         const [left, top] = origins.get(each.container) || [0, 0];
-        const points = (each.sections || []).flatMap(section => [section.startPoint, ...(section.bendPoints || []), section.endPoint])
+        const said = (scene.edges || []).find(edge => edge.id === each.id);
+        const routed = (each.sections || []).flatMap(section => [section.startPoint, ...(section.bendPoints || []), section.endPoint])
           .map(point => [settled(left + point.x), settled(top + point.y)]);
+        const points = said.against ? routed.reverse() : routed;
         const [label] = each.labels || [];
         const labelBox = label ? { x: settled(left + label.x), y: settled(top + label.y), width: label.width, height: label.height } : null;
-        const said = (scene.edges || []).find(edge => edge.id === each.id);
         if (points.length) {
           points[0] = onOutline(placedById.get(said.from), points[0]);
           points[points.length - 1] = onOutline(placedById.get(said.to), points[points.length - 1]);
         }
-        edges.push({ ...said, points: withRoomForHead(points), labelBox });
+        const hasTail = said.tail && said.tail !== 'none';
+        const roomy = withRoomForHead(points);
+        edges.push({ ...said, points: hasTail ? withRoomForHead([...roomy].reverse()).reverse() : roomy, labelBox });
       }
       (laidNode.children || []).forEach(route);
     };

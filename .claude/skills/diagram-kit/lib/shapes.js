@@ -62,14 +62,34 @@
     }),
   };
 
+  const MEMBER_LINE = 15;
+  const memberText = member => (typeof member === 'string' ? member : member.text);
+  const classifier = {
+    holdsOthers: false,
+    headHeightOf: node => 32 + (node.stereotype ? 14 : 0) + (node.abstract ? 14 : 0),
+    compartmentHeightOf: members => 11 + members.length * MEMBER_LINE,
+    sizeOf(node) {
+      const compartments = node.compartments || [];
+      const widest = Math.max(
+        widthOf(node.label ?? node.id, 'title') + 28,
+        node.stereotype ? widthOf(`«${node.stereotype}»`, 'stereotype') + 28 : 0,
+        ...compartments.flat().map(member => widthOf(memberText(member), 'name') + 20),
+      );
+      return {
+        width: Math.ceil(Math.max(96, widest)) + linkRoom(node),
+        height: classifier.headHeightOf(node) + compartments.reduce((sum, members) => sum + classifier.compartmentHeightOf(members), 0),
+      };
+    },
+  };
+
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting,
-    state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
-  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE };
+  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

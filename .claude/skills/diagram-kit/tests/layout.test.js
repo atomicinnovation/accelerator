@@ -183,3 +183,16 @@ test('an arrow whose earlier run cannot spare the room is left as the engine rou
   const tight = [[10, 46], [10, 40], [30, 40], [30, 34]];
   assert.deepEqual(bent(tight), tight);
 });
+
+test('an arrow from something written later to something written earlier still points with the flow', async () => {
+  const scene = await laidOut({ nodes: [{ id: 'needed', shape: 'box', label: 'needed' }, { id: 'needing', shape: 'box', label: 'needing' }], edges: [{ id: 'e', from: 'needing', to: 'needed' }] });
+  const at = id => scene.nodes.find(each => each.id === id);
+  assert.ok(at('needing').y < at('needed').y);
+});
+
+test('where arrows run in a cycle, what is written first comes first', async () => {
+  const ring = { nodes: ['b', 'a', 'c'].map(id => ({ id, shape: 'box', label: id })), edges: [['a', 'b'], ['b', 'c'], ['c', 'a']].map(([from, to]) => ({ id: `${from}${to}`, from, to })) };
+  const scene = await laidOut(ring);
+  const top = [...scene.nodes].sort((x, y) => x.y - y.y)[0];
+  assert.equal(top.id, 'b');
+});

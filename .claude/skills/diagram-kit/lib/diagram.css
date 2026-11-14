@@ -30,6 +30,17 @@
 .dk .node.box.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.group.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
 
+.dk .title, .dk .member { font-family: var(--f-mono); }
+.dk .stereotype, .dk .end { font-family: var(--f-body); font-size: 11px; fill: var(--ink-3); }
+.dk .end { fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.dk .underlined, .dk .member.static { text-decoration: underline; }
+.dk .node.classifier .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.classifier.s-new .rule { stroke: var(--accent); }
+.dk .node.classifier.s-changed .rule { stroke: var(--warn); }
+.dk .node.classifier.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .edge .head.hollow, .dk .edge .tail.diamond { fill: var(--panel); }
+.dk .edge .tail { stroke: currentColor; stroke-width: 1.4; fill: none; stroke-linejoin: round; }
+.dk .edge .tail.filled-diamond { fill: currentColor; }
 .dk .node.state .rule, .dk .node.composite .rule { stroke: var(--rule); stroke-width: 1.2; }
 .dk .node.state.s-new .rule, .dk .node.composite.s-new .rule { stroke: var(--accent); }
 .dk .node.composite .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
