@@ -343,10 +343,13 @@ rotation.
       least one of the three rotation tests in the way the mutation table
       predicts:
       `cargo nextest run -p accelerator-visualiser --lib --manifest-path cli/Cargo.toml --no-default-features --features dev-frontend log::tests`
-- [ ] On engywook, idle, with the lib binary prebuilt (`--no-run`), the timed
+- [x] On engywook, idle, with the lib binary prebuilt (`--no-run`), the timed
       `cargo test … log::tests` command above shows user + sys under 2 CPU-s
       (median of three). The PR description records both runners' before and
       after figures.
+      - Recorded 2026-11-14, user + sys median of three, with IntelliJ busy
+        on one core and a 5-minute load average of 11 to 18: `cargo nextest
+        run` 35.86 → 0.39 CPU-s, `cargo test` 30.59 → 0.14 CPU-s.
 - [x] `log.rs` has no new comments.
 
 ---
