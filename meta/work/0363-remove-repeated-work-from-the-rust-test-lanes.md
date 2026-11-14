@@ -253,6 +253,9 @@ source changes since.
 - Merging a second copy of the same run's profiles leaves percentages
   unchanged, which is why the coverage-equality criterion seeds a
   different, wider prior run.
+- The sweep of superseded instrumented artefacts goes beyond this item's
+  original scope. It was added at the user's request, to bound the disk
+  growth that skipping the full clean causes.
 
 ## Drafting Notes
 

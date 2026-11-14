@@ -1,4 +1,6 @@
 import os
+import shutil
+from pathlib import Path
 
 from invoke import Context, Exit, task
 
@@ -7,7 +9,16 @@ from tasks.shared.coverage import (
     CoverageTotals,
     parse_totals,
 )
-from tasks.shared.paths import CLI_WORKSPACE_CARGO_TOML
+from tasks.shared.instrumented_build import (
+    Sweep,
+    UnitListing,
+    parse_build_environment,
+    superseded_entries,
+)
+from tasks.shared.paths import (
+    CLI_INSTRUMENTED_BUILD_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+)
 from tasks.shared.rust import coverage_enabled
 
 # The visualiser server is a workspace member but keeps its own dedicated test
@@ -19,6 +30,7 @@ _VISUALISER = "accelerator-visualiser"
 _WORKSPACE = f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}"
 _MANIFEST = f"{_WORKSPACE} --workspace --exclude {_VISUALISER} --all-features"
 _PERMISSION_SKIP = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
+_INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
 
 
 @task
@@ -28,6 +40,9 @@ def run(context: Context) -> None:
     The instrumented run skips cargo-llvm-cov's full clean, which rebuilds
     every crate, and clears only the previous run's profile data: profiles
     left over from an earlier run would be merged into this run's totals.
+    After the report it deletes instrumented artefacts the current build no
+    longer uses, which a dependency or toolchain change would otherwise leave
+    behind.
     The totals are reported, not enforced. If instrumented binaries are
     suspected stale, run `cargo llvm-cov clean --workspace` and rerun.
     ACCELERATOR_COVERAGE=off drops to plain nextest for a faster loop.
@@ -60,6 +75,7 @@ def _run_instrumented(context: Context) -> None:
     _clear_previous_profile_data(context)
     _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
     print(_report_totals(context).summary_line())
+    _sweep_superseded_artefacts(context)
 
 
 def _clear_previous_profile_data(context: Context) -> None:
@@ -91,3 +107,65 @@ def _report_totals(context: Context) -> CoverageTotals:
         return parse_totals(result.stdout)
     except CoverageReportError as error:
         raise Exit(f"cargo llvm-cov: {error}", code=1) from error
+
+
+def _sweep_superseded_artefacts(context: Context) -> None:
+    listing = _list_units(context)
+    if listing.rebuilt:
+        raise Exit(
+            f"cargo llvm-cov: listing the units rebuilt {listing.rebuilt}; "
+            "its environment no longer matches the instrumented build, so "
+            "nothing was swept",
+            code=1,
+        )
+    if not listing.live_hashes:
+        raise Exit(
+            "cargo llvm-cov: the unit listing found no units, so nothing "
+            "was swept",
+            code=1,
+        )
+    swept = superseded_entries(_INSTRUMENTED_BUILD, listing.live_hashes)
+    freed = sum(map(_remove, swept))
+    print(Sweep(entries=len(swept), freed_bytes=freed).summary_line())
+
+
+def _list_units(context: Context) -> UnitListing:
+    environment = context.run(
+        f"cargo llvm-cov show-env {_WORKSPACE}",
+        warn=True,
+        hide="out",
+        pty=False,
+    )
+    if environment.exited != 0:
+        raise Exit(
+            "cargo llvm-cov: reading the build environment failed", code=1
+        )
+    listing = context.run(
+        f"cargo test {_MANIFEST} --no-run --message-format=json",
+        warn=True,
+        hide="out",
+        pty=False,
+        env={
+            **parse_build_environment(environment.stdout),
+            "CARGO_TARGET_DIR": str(_INSTRUMENTED_BUILD.parent),
+        },
+    )
+    if listing.exited != 0:
+        raise Exit(
+            "cargo llvm-cov: listing the instrumented units failed", code=1
+        )
+    return UnitListing.parse(listing.stdout)
+
+
+def _remove(entry: Path) -> int:
+    if entry.is_dir() and not entry.is_symlink():
+        freed = sum(
+            file.lstat().st_size
+            for file in entry.rglob("*")
+            if not file.is_dir()
+        )
+        shutil.rmtree(entry)
+        return freed
+    freed = entry.lstat().st_size
+    entry.unlink()
+    return freed

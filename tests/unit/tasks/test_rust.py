@@ -110,9 +110,23 @@ class TestPupCheck:
 EXPORT = (
     Path(__file__).parent / "fixtures/coverage/llvm-cov-summary.json"
 ).read_text()
+UNITS = (
+    Path(__file__).parent / "fixtures/coverage/cargo-units.jsonl"
+).read_text()
+BUILD_ENVIRONMENT = (
+    "LLVM_PROFILE_FILE='/workspace/cli/target/cli-%p-%16m.profraw'\n"
+    "RUSTC_WRAPPER=/opt/bin/cargo-llvm-cov\n"
+)
+LIVE_ARTEFACT = "deps/libsmallvec-0e524c8a43f44c11.rlib"
+SUPERSEDED_ARTEFACT = "deps/libsmallvec-3d4b3aa50bf88d80.rlib"
+
+REPORT = "cargo llvm-cov report"
+SHOW_ENV = "cargo llvm-cov show-env"
+UNIT_LISTING = "cargo test"
+_OUTPUTS = {REPORT: EXPORT, SHOW_ENV: BUILD_ENVIRONMENT, UNIT_LISTING: UNITS}
 
 
-def _passed(stdout: str = EXPORT) -> MagicMock:
+def _passed(stdout: str = "") -> MagicMock:
     return MagicMock(exited=0, stdout=stdout)
 
 
@@ -120,21 +134,55 @@ def _failed() -> MagicMock:
     return MagicMock(exited=1, stdout="")
 
 
+def _responding(override: tuple[str, MagicMock] | None = None):
+    def respond(command: str, **_kwargs) -> MagicMock:
+        if override and command.startswith(override[0]):
+            return override[1]
+        for prefix, stdout in _OUTPUTS.items():
+            if command.startswith(prefix):
+                return _passed(stdout)
+        return _passed()
+
+    return respond
+
+
+def _failing_at(prefix: str, result: MagicMock | None = None):
+    return _responding((prefix, result or _failed()))
+
+
 class TestTestUnitCli:
     @pytest.fixture
-    def lane(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    def build_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> Path:
+        build_dir = tmp_path / "llvm-cov-target" / "debug"
+        for artefact in (LIVE_ARTEFACT, SUPERSEDED_ARTEFACT):
+            (build_dir / artefact).parent.mkdir(parents=True, exist_ok=True)
+            (build_dir / artefact).write_bytes(b"x" * 1_500)
+        monkeypatch.setattr(test_cli, "_INSTRUMENTED_BUILD", build_dir)
+        return build_dir
+
+    @pytest.fixture
+    def lane(
+        self, monkeypatch: pytest.MonkeyPatch, build_dir: Path
+    ) -> MagicMock:
         monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
         m = MagicMock(spec=Context)
-        m.run.return_value = _passed()
+        m.run.side_effect = _responding()
         return m
 
     def _commands(self, lane: MagicMock) -> list[str]:
         return [call.args[0] for call in lane.run.call_args_list]
 
-    def test_clears_profile_data_then_tests_then_reports(self, lane: MagicMock):
+    def _swept_nothing(self, build_dir: Path) -> bool:
+        return (build_dir / SUPERSEDED_ARTEFACT).exists()
+
+    def test_clears_profile_data_then_tests_reports_and_sweeps(
+        self, lane: MagicMock
+    ):
         test_cli.run(lane)
 
-        clean, tests, report = self._commands(lane)
+        clean, tests, report, show_env, listing = self._commands(lane)
         assert clean.startswith("cargo llvm-cov clean")
         assert "--profraw-only" in clean
         assert tests.startswith("cargo llvm-cov nextest")
@@ -148,24 +196,42 @@ class TestTestUnitCli:
             "cargo llvm-cov 0.8.7 rejects --no-clean beside --no-report, "
             "which already skips the full clean"
         )
-        assert report.startswith("cargo llvm-cov report")
+        assert report.startswith(REPORT)
         for flag in ("--json", "--summary-only"):
             assert flag in report
         assert "features" not in report, (
             "cargo llvm-cov 0.8.7 rejects feature flags on `report`"
         )
-        for command in (clean, tests, report):
+        assert show_env == f"cargo llvm-cov show-env {test_cli._WORKSPACE}"
+        assert listing == (
+            f"cargo test {test_cli._MANIFEST} --no-run --message-format=json"
+        )
+        for command in (clean, tests, report, show_env, listing):
             assert f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}" in command
 
-    def test_only_the_report_output_is_captured(self, lane: MagicMock):
+    def test_the_unit_listing_runs_in_the_instrumented_environment(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        test_cli.run(lane)
+
+        listing = lane.run.call_args_list[4]
+        assert listing.kwargs["env"] == {
+            "LLVM_PROFILE_FILE": "/workspace/cli/target/cli-%p-%16m.profraw",
+            "RUSTC_WRAPPER": "/opt/bin/cargo-llvm-cov",
+            "CARGO_TARGET_DIR": str(build_dir.parent),
+        }
+
+    def test_only_the_report_and_listing_output_is_captured(
+        self, lane: MagicMock
+    ):
         test_cli.run(lane)
 
         captured = [
-            call.args[0].startswith("cargo llvm-cov report")
+            call.args[0].split(" --")[0]
             for call in lane.run.call_args_list
             if call.kwargs.get("hide") == "out"
         ]
-        assert captured == [True]
+        assert captured == [REPORT, SHOW_ENV, UNIT_LISTING]
 
     def test_prints_the_totals_line(
         self, lane: MagicMock, capsys: pytest.CaptureFixture[str]
@@ -177,8 +243,33 @@ class TestTestUnitCli:
         assert '"files"' not in out
         assert "{" not in out
 
+    def test_sweeps_superseded_entries_and_keeps_live_ones(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        test_cli.run(lane)
+
+        assert (build_dir / LIVE_ARTEFACT).exists()
+        assert not (build_dir / SUPERSEDED_ARTEFACT).exists()
+        assert "swept 1 superseded artefacts (1.50 kB)" in (
+            capsys.readouterr().out
+        )
+
+    def test_the_sweep_runs_after_the_totals_line(
+        self, lane: MagicMock, capsys: pytest.CaptureFixture[str]
+    ):
+        test_cli.run(lane)
+
+        out = capsys.readouterr().out
+        assert out.index("coverage:") < out.index("swept")
+
     def test_plain_nextest_when_coverage_off(
-        self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
         test_cli.run(lane)
@@ -186,6 +277,7 @@ class TestTestUnitCli:
         [command] = self._commands(lane)
         assert command.startswith("cargo nextest run")
         assert "llvm-cov" not in command
+        assert self._swept_nothing(build_dir)
 
     def test_carries_no_coverage_threshold(self, lane: MagicMock):
         test_cli.run(lane)
@@ -196,33 +288,66 @@ class TestTestUnitCli:
         self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
-        lane.run.return_value = _failed()
+        lane.run.side_effect = _failing_at("cargo nextest run")
         with pytest.raises(Exit):
             test_cli.run(lane)
 
     def test_failing_profile_clean_stops_before_the_tests(
         self, lane: MagicMock
     ):
-        lane.run.side_effect = [_failed()]
+        lane.run.side_effect = _failing_at("cargo llvm-cov clean")
         with pytest.raises(Exit):
             test_cli.run(lane)
         assert lane.run.call_count == 1
 
     def test_failing_tests_stop_before_the_report(self, lane: MagicMock):
-        lane.run.side_effect = [_passed(), _failed()]
+        lane.run.side_effect = _failing_at("cargo llvm-cov nextest")
         with pytest.raises(Exit):
             test_cli.run(lane)
         assert lane.run.call_count == 2
 
-    def test_failing_report_fails_the_task(self, lane: MagicMock):
-        lane.run.side_effect = [_passed(), _passed(), _failed()]
+    def test_failing_report_stops_before_the_sweep(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = _failing_at(REPORT)
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 3
+        assert self._swept_nothing(build_dir)
+
+    def test_unreadable_report_fails_the_task(self, lane: MagicMock):
+        lane.run.side_effect = _failing_at(REPORT, _passed("not json"))
         with pytest.raises(Exit):
             test_cli.run(lane)
 
-    def test_unreadable_report_fails_the_task(self, lane: MagicMock):
-        lane.run.side_effect = [_passed(), _passed(), _passed("not json")]
+    @pytest.mark.parametrize("failing", [SHOW_ENV, UNIT_LISTING])
+    def test_a_failing_unit_listing_step_fails_the_task(
+        self, lane: MagicMock, build_dir: Path, failing: str
+    ):
+        lane.run.side_effect = _failing_at(failing)
         with pytest.raises(Exit):
             test_cli.run(lane)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_listing_that_rebuilt_units_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        rebuilt = UNITS.replace('"fresh":true', '"fresh":false', 2)
+        lane.run.side_effect = _failing_at(UNIT_LISTING, _passed(rebuilt))
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert "rebuilt 2" in str(exc_info.value)
+        assert "no longer matches the instrumented build" in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_listing_with_no_units_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = _failing_at(UNIT_LISTING, _passed(""))
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert "no units" in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
 
     def test_docstring_names_the_stale_binary_remedy(self):
         assert "cargo llvm-cov clean --workspace" in test_cli.run.body.__doc__
