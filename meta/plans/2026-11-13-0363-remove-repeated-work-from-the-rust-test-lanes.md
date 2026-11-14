@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T12:39:15+00:00"
+last_updated: "2026-11-14T13:58:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -22,7 +22,7 @@ schema_version: 1
 
 ## Overview
 
-Two Rust test lanes repeat work on every run. This plan removes it in three
+Two Rust test lanes repeat work on every run. This plan removes it in four
 phases, each of which can be merged on its own:
 
 1. The visualiser's `log::tests` rotation tests reach the 5 MiB cap in a few
@@ -30,7 +30,10 @@ phases, each of which can be merged on its own:
 2. `test:unit:cli` replaces cargo-llvm-cov's full clean with a profraw-only
    clean, runs nextest with `--no-report`, then reports the totals
    as a single line.
-3. `test:unit:cli` fails when any total falls below a coverage floor. This
+3. `test:unit:cli` deletes the instrumented artefacts its build no longer
+   uses, bounding the disk growth that skipping the full clean causes. This
+   goes beyond 0363's scope, at the user's request.
+4. `test:unit:cli` fails when any total falls below a coverage floor. This
    goes beyond 0363's scope, at the user's request, and reverses the
    report-only stance of the 0162 plan.
 
@@ -121,6 +124,11 @@ segment.
 - The clean, nextest and report commands share one manifest-path
   fragment, and a guard test fails if any workspace member depends on
   `accelerator-visualiser`.
+- After the report, the task deletes every artefact in
+  `llvm-cov-target/debug/{deps,build,.fingerprint}` whose unit the current
+  build does not use, and prints how many it swept and their size. A unit
+  listing that fails, finds no units or rebuilds any unit deletes nothing
+  and fails the task.
 - With `ACCELERATOR_COVERAGE=off`, the task runs only `cargo nextest run`.
 - The docstring names `cargo llvm-cov clean --workspace` as the remedy for
   suspected stale instrumented binaries.
@@ -130,6 +138,9 @@ segment.
 - Not dropping instrumentation locally. `default` mirrors CI.
 - Not adding `--ignore-filename-regex` for the visualiser to `report`. The
   Phase 2 guard test keeps visualiser objects out of `llvm-cov-target`.
+- Not sweeping `llvm-cov-target/debug/incremental`, and not turning off
+  incremental compilation for the instrumented build. Its 2.4G is all in
+  use, and turning it off would slow rebuilds after edits.
 - Not scheduling a periodic or fingerprint-triggered full clean. A Phase 2
   manual check confirms that a dependency bump leaves the totals unchanged.
   The remedy for stale binaries is the manual one named in the docstring and
@@ -149,16 +160,18 @@ segment.
 
 ## Implementation Approach
 
-Phase 1 changes only Rust test code, and Phases 2 and 3 change only the
-Python task tree, so Phase 1 is independent of the other two. Phase 3 builds
-on Phase 2's parsed totals. Each phase follows red-green-refactor:
+Phase 1 changes only Rust test code, and Phases 2 to 4 change only the
+Python task tree, so Phase 1 is independent of the others. Phases 3 and 4
+build on Phase 2's task sequence, and Phase 4 on its parsed totals. Each
+phase follows red-green-refactor:
 
 - Phase 1's red step proves the current tests miss the mutations, then that
   the new ones catch them. Production code doesn't change there.
-- Phases 2 and 3 write failing pytest cases first. Domain logic (parsing
-  totals, judging them against a floor) lives in a pure module,
-  `tasks/shared/coverage.py`. The task body only runs the commands and turns
-  failures into `Exit`.
+- Phases 2 to 4 write failing pytest cases first. Domain logic lives in
+  pure modules: parsing totals and judging them against a floor in
+  `tasks/shared/coverage.py`, and judging which instrumented artefacts are
+  superseded in `tasks/shared/instrumented_build.py`. The task body only
+  runs the commands and turns failures into `Exit`.
 
 Take the "before" timings for each phase on engywook before applying that
 phase.
@@ -431,7 +444,7 @@ no workspace crate and ran all 7,401 tests. The nextest step passes
 **File**: `tasks/shared/coverage.py` (new)
 
 The totals are held already rounded to the two decimals the totals line
-shows, so Phase 3's floor judges the same figure a developer reads.
+shows, so Phase 4's floor judges the same figure a developer reads.
 
 ```python
 """Coverage totals from a cargo-llvm-cov summary export."""
@@ -531,7 +544,7 @@ Repoint `test_raises_when_inner_tests_fail` at the coverage-off path and
 rename it `test_failing_plain_nextest_fails_the_task`: with
 `ACCELERATOR_COVERAGE=off` and the one call exiting 1, `Exit` is raised. Keep
 `test_carries_no_coverage_threshold` in this phase. It asserts that no
-command contains `--fail-under` across all calls, and Phase 3 keeps it
+command contains `--fail-under` across all calls, and Phase 4 keeps it
 because the floor is applied in Python.
 
 **File**: `tests/unit/tasks/test_rust.py`
@@ -698,7 +711,7 @@ On engywook:
       Its report step takes within a second of the earlier timing.
       `du -sh cli/target/llvm-cov-target` is recorded before and after.
       Restore the lockfile afterwards. If the totals differ, stop and revisit
-      the "no fingerprint-triggered clean" decision before Phase 3.
+      the "no fingerprint-triggered clean" decision before Phase 4.
       - Recorded 2026-11-14 with `smallvec` 1.15.2 → 1.15.1, which sits
         under `gix` and so under `vcs-adapters` and the launcher. The bumped
         lane and the bumped lane straight after a full clean both read
@@ -741,11 +754,279 @@ On engywook:
 - [ ] In CI, the `test-unit` job on both `ubuntu-latest` and `macos-latest`
       runs the three `cargo llvm-cov` steps and prints the totals line. The
       report's stderr has no mismatched-data or missing-object warnings.
-      Record both legs' lines for Phase 3.
+      Record both legs' lines for Phase 4.
 
 ---
 
-## Phase 3: Coverage floor
+## Phase 3: Sweep superseded instrumented artefacts
+
+### Overview
+
+Skipping the full clean leaves superseded instrumented artefacts in
+`cli/target/llvm-cov-target` whenever a dependency, feature or toolchain
+change gives a unit a new hash: Phase 2's `smallvec` bump grew the
+directory from 11G to 18G. After the report, ask cargo for the units the
+lane's build uses, and delete every artefact in `deps`, `build` and
+`.fingerprint` whose unit hash is not among them. This goes beyond 0363's
+scope, at the user's request.
+
+### Changes Required:
+
+#### 1. The before figures (already recorded)
+
+A read-only probe on 2026-11-14, warm, after a lane run on the restored
+lockfile:
+
+- With `cargo llvm-cov show-env`'s environment and
+  `CARGO_TARGET_DIR=cli/target/llvm-cov-target`,
+  `cargo test --manifest-path cli/Cargo.toml --workspace --exclude accelerator-visualiser --all-features --no-run --message-format=json`
+  took 1.12 s, reported all 905 units fresh and compiled nothing.
+- Its units carry 934 distinct hashes. Outside them, `deps` held 2,443
+  entries (2.28 GB), `build` 2 and `.fingerprint` 106. `incremental` held
+  none: its 2.4G is all in use.
+
+`show-env` sets no `CARGO_TARGET_DIR`. Without one the listing reads the
+plain `cli/target/debug` build and still looks right, because
+cargo-llvm-cov adds its flags through `RUSTC_WRAPPER`, which leaves unit
+hashes unchanged. The listing must therefore set `CARGO_TARGET_DIR` itself.
+
+#### 2. Live units and superseded entries (tests first)
+
+**File**: `tests/unit/tasks/fixtures/coverage/cargo-units.jsonl` (new)
+**Changes**: Real lines from the probe's capture: one library artefact, one
+test executable, one build-script compile, one `build-script-executed`
+message, and one non-JSON line. The checkout prefix is replaced with
+`/workspace`.
+
+**File**: `tests/unit/tasks/test_instrumented_build.py` (new)
+
+- `UnitListing.parse` on the fixture gives the hashes of every
+  `compiler-artifact` filename and executable and every
+  `build-script-executed` out-dir, ignoring the non-JSON line, and counts no
+  rebuilt units.
+- A `compiler-artifact` message with `"fresh": false` is counted as
+  rebuilt.
+- `superseded_entries` over a `tmp_path` tree returns, from `deps`, `build`
+  and `.fingerprint`, exactly the entries whose name carries a 16-hex unit
+  hash that is not live. Live entries, entries with no hash, and anything
+  in `incremental` or at the build directory's top level are kept. Files
+  and directories (`*.dSYM`, `build/<pkg>-<hash>`) are both returned.
+- The hash is read from the name's last `-<16 hex>` group, followed by `.`
+  or the end of the name, so `libsmallvec-<hash>.rlib`, `kernel-<hash>`
+  and `kernel-<hash>.d` all parse.
+- `superseded_entries` with no live hashes raises `ValueError`, so a
+  listing that yields nothing can never empty the build directory.
+- `parse_build_environment` on `show-env`'s plain output gives a mapping
+  with single quotes removed (`LLVM_PROFILE_FILE='…'`) and unquoted values
+  kept as is.
+
+**File**: `tasks/shared/instrumented_build.py` (new)
+
+```python
+"""Which artefacts in the instrumented build the current lane still uses."""
+
+import dataclasses
+import json
+import re
+import shlex
+from collections.abc import Iterable, Mapping
+from pathlib import Path
+
+_UNIT_HASH = re.compile(r"-([0-9a-f]{16})(?=\.|$)")
+_SWEPT = ("deps", "build", ".fingerprint")
+
+
+@dataclasses.dataclass(frozen=True)
+class UnitListing:
+    live_hashes: frozenset[str]
+    rebuilt: int
+
+    @classmethod
+    def parse(cls, messages: str) -> "UnitListing":
+        hashes: set[str] = set()
+        rebuilt = 0
+        for message in _json_messages(messages):
+            if message.get("reason") == "compiler-artifact":
+                rebuilt += not message["fresh"]
+                hashes.update(_hashes(_artefact_paths(message)))
+            elif message.get("reason") == "build-script-executed":
+                hashes.update(_hashes([message["out_dir"]]))
+        return cls(frozenset(hashes), rebuilt)
+
+
+def superseded_entries(build_dir: Path, live: frozenset[str]) -> list[Path]:
+    if not live:
+        raise ValueError("no live units, so nothing can be judged superseded")
+    return [
+        entry
+        for swept in _SWEPT
+        if (build_dir / swept).is_dir()
+        for entry in sorted((build_dir / swept).iterdir())
+        if (unit := _unit_hash(entry.name)) and unit not in live
+    ]
+
+
+def parse_build_environment(text: str) -> Mapping[str, str]:
+    return {
+        key: "".join(shlex.split(value))
+        for key, _, value in (
+            line.partition("=") for line in text.splitlines() if "=" in line
+        )
+    }
+```
+
+The private helpers (`_json_messages`, `_artefact_paths`, `_hashes`,
+`_unit_hash`) do what their names say. `_unit_hash` returns the last match
+of `_UNIT_HASH` in an entry's name, or `None`. A path in a message
+contributes every hash in its components, so `build/<pkg>-<hash>/out`
+keeps `build/<pkg>-<hash>` live.
+
+#### 3. The sweep step (tests first)
+
+**File**: `tests/unit/tasks/test_rust.py`
+**Changes**: The `lane` fixture's `run` dispatches on the command: the
+report returns `EXPORT`, `show-env` returns a small plain-format
+environment, the unit listing returns the `cargo-units.jsonl` fixture, and
+every other command returns empty output. `test_cli._INSTRUMENTED_BUILD`
+is monkeypatched to a `tmp_path` tree.
+
+- `test_clears_profile_data_then_tests_then_reports` becomes
+  `test_clears_profile_data_then_tests_reports_and_sweeps`: five commands in
+  order, the fourth `cargo llvm-cov show-env {_WORKSPACE}` and the fifth
+  `cargo test {_MANIFEST} --no-run --message-format=json`.
+- `test_the_unit_listing_runs_in_the_instrumented_environment`: the fifth
+  call's `env` holds the parsed `show-env` values and
+  `CARGO_TARGET_DIR` set to `test_cli._INSTRUMENTED_BUILD.parent`.
+- `test_only_the_report_and_listing_output_is_captured`: replaces
+  `test_only_the_report_output_is_captured`. The report, `show-env` and the
+  listing pass `hide="out"`; the clean and nextest steps stream.
+- `test_sweeps_superseded_entries_and_keeps_live_ones`: in the `tmp_path`
+  tree, an entry whose hash is in the fixture survives, one whose hash is
+  not is gone, and stdout names how many entries were swept and their
+  total size.
+- `test_the_sweep_runs_after_the_totals_line`: the totals line is printed
+  before the sweep line.
+- `test_a_failing_unit_listing_fails_the_task` and
+  `test_a_failing_build_environment_fails_the_task`: either exiting 1
+  raises `Exit` and deletes nothing.
+- `test_a_listing_that_rebuilt_units_sweeps_nothing`: a listing with a
+  `"fresh": false` unit raises `Exit` naming the count and saying that its
+  environment no longer matches the instrumented build, and deletes
+  nothing. The listing runs after nextest, so a rebuild means the two
+  builds disagree and the live set describes the wrong one.
+- The failing-step tests from Phase 2 keep their call counts: a failing
+  report stops before `show-env`.
+
+**File**: `tasks/shared/paths.py`
+
+```python
+CLI_INSTRUMENTED_BUILD_DIR = CLI_TARGET_DIR / "llvm-cov-target" / "debug"
+```
+
+**File**: `tasks/test/cli.py`
+
+```python
+_INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
+
+
+def _run_instrumented(context: Context) -> None:
+    _clear_previous_profile_data(context)
+    _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
+    print(_report_totals(context).summary_line())
+    _sweep_superseded_artefacts(context)
+
+
+def _sweep_superseded_artefacts(context: Context) -> None:
+    listing = _list_units(context)
+    if listing.rebuilt:
+        raise Exit(
+            f"cargo llvm-cov: listing the units rebuilt {listing.rebuilt}; "
+            "its environment no longer matches the instrumented build, so "
+            "nothing was swept",
+            code=1,
+        )
+    swept = superseded_entries(_INSTRUMENTED_BUILD, listing.live_hashes)
+    freed = sum(map(_remove, swept))
+    print(f"swept {len(swept)} superseded artefacts ({freed / 1e9:.2f} GB)")
+
+
+def _list_units(context: Context) -> UnitListing:
+    environment = context.run(
+        f"cargo llvm-cov show-env {_WORKSPACE}",
+        warn=True,
+        hide="out",
+        pty=False,
+    )
+    if environment.exited != 0:
+        raise Exit("cargo llvm-cov: reading the build environment failed")
+    listing = context.run(
+        f"cargo test {_MANIFEST} --no-run --message-format=json",
+        warn=True,
+        hide="out",
+        pty=False,
+        env={
+            **parse_build_environment(environment.stdout),
+            "CARGO_TARGET_DIR": str(_INSTRUMENTED_BUILD.parent),
+        },
+    )
+    if listing.exited != 0:
+        raise Exit("cargo llvm-cov: listing the instrumented units failed")
+    return UnitListing.parse(listing.stdout)
+```
+
+`_remove` deletes a file or directory tree and returns the bytes freed.
+The listing passes `_MANIFEST` unchanged, so it resolves the same packages
+and features as the nextest step; the sequence test pins that both
+commands carry it.
+
+Docstring: add, after the sentence on the profraw-only clean, "After the
+report it deletes instrumented artefacts the current build no longer uses,
+which a dependency or toolchain change would otherwise leave behind."
+
+#### 4. Descriptions
+
+**File**: `mise.toml` (`test:unit:cli` description): add "sweeps
+superseded artefacts" after "prints a totals line".
+
+**File**: `tasks/README.md:778`: add "then a sweep of superseded
+artefacts" after "then a totals line".
+
+**File**: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`:
+add a note that the sweep was added beyond the item's original scope, at
+the user's request, to bound the disk growth that skipping the full clean
+causes.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] The tests pass:
+      `uv run pytest tests/unit/tasks/test_instrumented_build.py tests/unit/tasks/test_coverage.py tests/unit/tasks/test_rust.py tests/unit/tasks/test_nextest_filter.py -v`
+- [ ] The build-system checks pass: `mise run build-system:check`
+- [ ] The full local run passes: `mise run`
+
+#### Manual Verification:
+
+On engywook:
+
+- [ ] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
+      180 s (median of three), and its sweep step costs no more than 5 s,
+      timed on its own after a lane run.
+- [ ] The first lane run sweeps the 2.28 GB of superseded entries the probe
+      found. The next run compiles nothing (no `Compiling` line), sweeps
+      0 entries, and prints the same totals line.
+- [ ] Dependency bump, repeated from Phase 2: after the bumped lane,
+      `du -sh cli/target/llvm-cov-target` is within 1G of its size after
+      `cargo llvm-cov clean --workspace` and a lane run on the same
+      lockfile, and the totals equal. Restore the lockfile afterwards.
+- [ ] After a restricted `-p kernel` run (Phase 2's commands), the next lane
+      sweeps the restricted run's artefacts and compiles nothing for its own
+      build.
+- [ ] In CI, both `test-unit` legs print the sweep line and pass.
+
+---
+
+## Phase 4: Coverage floor
 
 ### Overview
 
@@ -863,6 +1144,7 @@ def _run_instrumented(context: Context) -> None:
     _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
     totals = _report_totals(context)
     print(totals.summary_line())
+    _sweep_superseded_artefacts(context)
     _enforce_floor(totals)
 
 
@@ -942,6 +1224,10 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   shared manifest and feature fragments, capture only on the report, early
   stops on each failing step, a failing off-path run, the docstring remedy,
   and floor enforcement isolated from the production floor values.
+- `tests/unit/tasks/test_instrumented_build.py`: live unit hashes from a
+  trimmed real `cargo test --message-format=json` capture, rebuilt-unit
+  counting, superseded entries in `deps`, `build` and `.fingerprint` only,
+  refusal with no live units, and `show-env` parsing.
 - `tests/unit/tasks/test_rust.py::TestVisualiserHasNoDependents`: no member
   depends on the visualiser in the resolved `cargo metadata`, the guard
   catches each dependency kind, and it ignores other dependencies.
@@ -958,7 +1244,9 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 2. Phase 2 timing (whole lane and each step), totals-equality, `kernel`
    control, stale-binary dependency-bump and profraw-freshness checks
    (above).
-3. Phase 3 floor selection across the four runs, and the deliberate-shortfall
+3. Phase 3 sweep timing, the first-run and steady-state sweeps, the
+   dependency-bump disk check and the restricted-run sweep (above).
+4. Phase 4 floor selection across the four runs, and the deliberate-shortfall
    check (above).
 
 ## Performance Considerations
@@ -973,7 +1261,8 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   previous run. Its cost is timed on its own in Phase 2.
 - Skipping the full clean keeps instrumented binaries across runs. Phase 2's
   dependency-bump check confirms that superseded binaries neither change the
-  totals nor slow the report.
+  totals nor slow the report, but they cost disk: 11G grew to 18G. Phase 3's
+  sweep bounds that for about 1 s of unit listing plus the deletion.
 - The report step adds a JSON export of a few MB that is captured in memory.
   Its cost is the same as today's report (about 4 s).
 
@@ -984,7 +1273,7 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   control need a deliberately seeded, different, wider prior run.
 - Rollback: each phase is a self-contained revert.
 - 0365's timings must be taken after Phases 1 and 2 have landed. 0370 counts
-  this item as landed once both halves (Phase 1, and Phases 2 and 3) have
+  this item as landed once both halves (Phase 1, and Phases 2 to 4) have
   landed or been abandoned.
 
 ## References
