@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/api/v4/whoami",
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"message\": \"Unauthorized\", \"tag\": \"unauthorized\"}"
+      }
+    }
+  ]
+}
