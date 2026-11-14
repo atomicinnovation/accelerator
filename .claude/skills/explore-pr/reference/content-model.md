@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "class-diagram|object-diagram|domain-model|component-diagram|package-diagram|deployment-diagram|c4-diagram|dependency-graph|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -350,6 +350,7 @@ Every figure has:
 | `package-diagram` | How the source is organised and which package may use which | A UML package diagram: nested folders with dependencies, imports, accesses and merges; drawn by the diagram kit |
 | `deployment-diagram` | What runs or lives where, and what crosses a boundary | A UML deployment diagram: nested nodes, the artefacts on them, communication paths; drawn by the diagram kit |
 | `c4-diagram` | The big picture: who uses the system, what it works with, and its containers | A C4 context or container diagram; drawn by the diagram kit |
+| `entity-relationship-diagram` | What is stored and how it relates; what a migration changes | A crow's foot diagram: entities with their attributes, types and keys, and how many at each end of every relationship; drawn by the diagram kit |
 | `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
 | `state-machine` | A lifecycle: the states one thing can be in and what moves it between them | A UML state machine: states with `entry`, `do` and `exit`, transitions labelled `event [guard] / action`, initial and final states, choices, composite states; drawn by the diagram kit |
 | `activity-diagram` | What is done, in what order, and by whom; what runs in parallel | A UML activity diagram: actions, decisions and merges, forks and joins, in swimlanes when it has partitions; drawn by the diagram kit |

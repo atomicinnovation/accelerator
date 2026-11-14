@@ -19,6 +19,8 @@ const DRAWING_CHECKS = `(async () => {
         const lies = boxes.find(box => box.node !== node && overlap(boxOf(text), box.body, 2));
         if (lies) problems.push('node ' + node.getAttribute('data-node') + ': its name lies on node ' + lies.id);
       }
+      const written = [...node.querySelectorAll('text')].map(boxOf);
+      if (written.some((a, i) => written.slice(i + 1).some(b => overlap(a, b, 3)))) problems.push('node ' + node.getAttribute('data-node') + ': two pieces of its text overlap');
       for (const text of node.querySelectorAll('text:not(.outside)')) {
         const outside = beyond(boxOf(text), body);
         if (outside > 0) problems.push('node ' + node.getAttribute('data-node') + ': text runs ' + outside + 'px outside its box');

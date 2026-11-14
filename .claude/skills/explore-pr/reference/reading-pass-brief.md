@@ -104,6 +104,7 @@ a home in the code. Choose the figure by the question it answers:
 | How is the source organised, and which part may use which? | `package-diagram` |
 | What runs or lives where? | `deployment-diagram` |
 | What is the system, who uses it, and what is it made of? | `c4-diagram` |
+| What is stored, and what does this change do to the schema? | `entity-relationship-diagram` |
 | What depends on what? | `dependency-graph` |
 | What happens, in what order, between whom? | `sequence-diagram` |
 | What states can this be in, and what moves it? | `state-machine` |

@@ -65,6 +65,7 @@ async function main(argv) {
     process.stdout.write(`${JSON.stringify({ kinds: kit.kinds(), diagrams: each })}\n`);
     return 0;
   }
+  if (!diagrams.length) throw new Refused(`${path.basename(file)}: no diagrams in it`);
   refuseProblems(kit, diagrams);
   if (command === 'check') return 0;
   const scenes = [];

@@ -58,3 +58,11 @@ test('the check can keep a picture of each diagram', needsChrome, () => {
   assert.equal(status, 0);
   assert.ok(fs.statSync(path.join(shots, 'd1.png')).size > 1000);
 });
+
+const overwritten = html => html.replace(/(data-node="a"[^>]*><rect class="body"[^>]*\/>)(<text class="name"[^>]*>[^<]*<\/text>)/, '$1$2$2');
+
+test('one piece of a node\'s text written over another fails the check', needsChrome, () => {
+  const { status, report } = checked(page(overwritten));
+  assert.equal(status, 1);
+  assert.ok(report.diagrams[0].problems.includes('node a: two pieces of its text overlap'), JSON.stringify(report.diagrams[0].problems));
+});

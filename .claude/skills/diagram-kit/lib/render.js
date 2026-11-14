@@ -2,7 +2,7 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { blockOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
-  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM } = inNode ? require('./shapes.js') : root.DiagramKit;
+  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM, ROW_LINE } = inNode ? require('./shapes.js') : root.DiagramKit;
 
   const MARGIN = 8;
   const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5, HOLLOW_LENGTH = 12, HOLLOW_HALF_WIDTH = 6, DIAMOND_LENGTH = 14, DIAMOND_HALF_WIDTH = 5;
@@ -84,6 +84,15 @@
         + listed + (target ? linkControl({ ...node, height: head }, target) : '') + untold(node, target);
     },
     frame: (node, target) => DRAWN.boundary(node, target, 3),
+    entity(node, target) {
+      const right = node.x + node.width, centre = node.x + (node.width - (target ? LINK_CONTROL_WIDTH : 0)) / 2, keys = SHAPES.entity.keyColumnOf(node);
+      const cell = (text, cls, row, x, anchor) => (text ? textOf(blockOf(text, cls === 'key' ? 'key' : 'name'), `${cls}${STATUSES[row.status] ? ` s-${row.status}` : ''}`, x, 0, anchor) : '');
+      const rows = (node.rows || []).map((row, i) => [cell(row.key, 'key', row, node.x + 8, 'start'), cell(row.name, 'column', row, node.x + 8 + keys, 'start'), cell(row.type, 'type', row, right - 8, 'end')]
+        .join('').replace(/ y="0"/g, ` y="${tidy(node.y + 47 + i * ROW_LINE)}"`)).join('');
+      return bodyOf(node, 3) + textOf(blockOf(node.label ?? node.id, 'title'), 'title', centre, node.y + 20, 'middle')
+        + ((node.rows || []).length ? `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 30)}" x2="${tidy(right)}" y2="${tidy(node.y + 30)}"/>${rows}` : '')
+        + (target ? linkControl({ ...node, height: 30 }, target) : '') + untold(node, target);
+    },
     cuboid(node, target) {
       const front = { ...node, y: node.y + DEPTH, width: node.width - DEPTH, height: node.height - DEPTH };
       const name = plainText(node.label ?? node.id, 'title', front.x + 14 + SHAPES.cuboid.nameOffsetOf(node), front.y + 20);
@@ -259,6 +268,19 @@
     return { path: `M${corners.join(' L')} Z`, cut: DIAMOND_LENGTH };
   }
 
+  const CROWS = ['one', 'zero-or-one', 'one-or-many', 'zero-or-many'];
+  const CROW_REACH = 20;
+
+  function crowAt(kind, at, towards) {
+    const along = unitFrom(at, towards), across = [-along[1], along[0]];
+    const out = distance => [at[0] + along[0] * distance, at[1] + along[1] * distance];
+    const spot = ([x, y]) => `${tidy(x)} ${tidy(y)}`;
+    const bar = distance => { const [x, y] = out(distance); return `M${spot([x + across[0] * 6, y + across[1] * 6])} L${spot([x - across[0] * 6, y - across[1] * 6])}`; };
+    const ring = distance => { const [x, y] = out(distance); return `M${spot([x - 4, y])} a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0`; };
+    const foot = `M${spot(out(10))} L${spot([at[0] + across[0] * 6, at[1] + across[1] * 6])} M${spot(out(10))} L${spot([at[0] - across[0] * 6, at[1] - across[1] * 6])}`;
+    return { one: `${bar(8)} ${bar(12)}`, 'zero-or-one': `${bar(7)} ${ring(16)}`, 'one-or-many': `${foot} ${bar(14)}`, 'zero-or-many': `${foot} ${ring(16)}` }[kind];
+  }
+
   function endLabelAt(point, next, clearance, side = 1) {
     const along = unitFrom(point, next), reach = clearance + END_LABEL_GAP;
     if (along[0] === 0) return { x: point[0] + 7 * side, y: tidyNumber(point[1] + along[1] * reach + 4), anchor: side > 0 ? 'start' : 'end' };
@@ -297,11 +319,15 @@
   function edgeMarkup(edge, resolveLink) {
     if (edge.points.length < 2) return '';
     const target = edge.link ? resolveLink(edge.link) : null;
-    const head = headOf(edge.head, edge.points), tail = tailOf(edge.tail, edge.points);
-    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut, tail.cut), CORNER, head.path ? Math.max(HEAD_LENGTH - head.cut, 0) : 0)}"/>`;
-    const arrow = (tail.path ? `<path class="tail ${edge.tail}" d="${tail.path}"/>` : '') + (head.path ? `<path class="head ${edge.head}" d="${head.path}"/>` : '');
-    const ends = endText(edge.fromLabel, edge.fromLabelBox, edge.points[0], edge.points[1], tail.cut, -1)
-      + endText(edge.toLabel, edge.toLabelBox, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2], head.path ? Math.max(head.cut, HEAD_LENGTH) : 0, 1);
+    const last = edge.points.length - 1;
+    const crowed = (kind, end, at, towards) => (CROWS.includes(kind) ? { path: crowAt(kind, at, towards), cut: 0, crow: true, cls: `${end} crow`, clear: CROW_REACH } : null);
+    const head = crowed(edge.head, 'head', edge.points[last], edge.points[last - 1]) ?? headOf(edge.head, edge.points);
+    const tail = crowed(edge.tail, 'tail', edge.points[0], edge.points[1]) ?? tailOf(edge.tail, edge.points);
+    const straight = head.crow ? CROW_REACH : head.path ? Math.max(HEAD_LENGTH - head.cut, 0) : 0;
+    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut, tail.cut), CORNER, straight)}"/>`;
+    const arrow = (tail.path ? `<path class="${tail.cls ?? `tail ${edge.tail}`}" d="${tail.path}"/>` : '') + (head.path ? `<path class="${head.cls ?? `head ${edge.head}`}" d="${head.path}"/>` : '');
+    const ends = endText(edge.fromLabel, edge.fromLabelBox, edge.points[0], edge.points[1], tail.clear ?? tail.cut, -1)
+      + endText(edge.toLabel, edge.toLabelBox, edge.points[last], edge.points[last - 1], head.clear ?? (head.path ? Math.max(head.cut, HEAD_LENGTH) : 0), 1);
     return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${ends}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
   }
 
@@ -328,7 +354,7 @@
     return keys.length ? `<div class="dk-legend">${keys.join('')}</div>` : '';
   }
 
-  const api = { svgOf, legendOf, roundedPath, headOf, tailOf, endLabelAt };
+  const api = { svgOf, legendOf, roundedPath, headOf, tailOf, endLabelAt, crowAt };
   if (inNode) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

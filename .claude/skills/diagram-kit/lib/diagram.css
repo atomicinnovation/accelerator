@@ -76,6 +76,16 @@
 .dk .node.element.t-risk > .body, .dk .node.person.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .captions text { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
 .dk .node.person .head { stroke: var(--ink-3); }
+.dk .node.entity.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.dk .node.entity .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.entity.s-new .rule { stroke: var(--accent); }
+.dk .node.entity.s-changed .rule { stroke: var(--warn); }
+.dk .key { font-family: var(--f-body); font-size: 10px; font-weight: 600; fill: var(--ink-3); }
+.dk .type { fill: var(--ink-3); }
+.dk .node.entity text.s-new { fill: var(--accent); }
+.dk .node.entity text.s-changed { fill: var(--warn); }
+.dk .node.entity text.s-removed { fill: var(--bad); text-decoration: line-through; }
+.dk .edge .crow { stroke: currentColor; stroke-width: 1.4; fill: var(--panel); stroke-linecap: round; }
 .dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }

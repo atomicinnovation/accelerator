@@ -138,9 +138,10 @@
           points[points.length - 1] = onOutline(placedById.get(said.to), points[points.length - 1]);
         }
         const hasTail = said.tail && said.tail !== 'none';
+        const crowed = [said.head, said.tail].some(kind => /^(one|zero-or-one|one-or-many|zero-or-many)$/.test(kind || ''));
         const roomy = withRoomForHead(points);
         const ends = { ...(fromLabelBox ? { fromLabelBox } : {}), ...(toLabelBox ? { toLabelBox } : {}) };
-        edges.push({ ...said, points: hasTail ? withRoomForHead([...roomy].reverse()).reverse() : roomy, labelBox, ...ends });
+        edges.push({ ...said, points: hasTail || crowed ? withRoomForHead([...roomy].reverse()).reverse() : roomy, labelBox, ...ends });
       }
       (laidNode.children || []).forEach(route);
     };

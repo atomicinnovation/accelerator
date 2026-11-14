@@ -111,3 +111,10 @@ test('preparing an empty list says which kinds can be drawn', () => {
   const result = run(workdir([]), 'prepare', 'spec.json');
   assert.deepEqual(JSON.parse(result.stdout), { kinds: ['boxes'], diagrams: [] });
 });
+
+test('rendering a file with no diagrams in it is refused, not a crash', () => {
+  const result = run(workdir([]), 'render', 'spec.json', '--out', 'out.html');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /^warning: spec\.json: no diagrams in it/);
+  assert.doesNotMatch(result.stderr, /at .*\.js:\d+/);
+});

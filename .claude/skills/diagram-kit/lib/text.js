@@ -13,6 +13,7 @@
     guard: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
     stereotype: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
     end: { face: 'sans-400', size: 11, lineHeight: 14, letterSpacing: 0 },
+    key: { face: 'sans-600', size: 10, lineHeight: 14, letterSpacing: 0 },
   };
 
   function roleOf(role) {

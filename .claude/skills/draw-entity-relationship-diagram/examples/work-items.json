@@ -1,0 +1,51 @@
+{
+  "id": "work-items-schema",
+  "kind": "entity-relationship-diagram",
+  "title": "A sync run records what it did to each work item, once per tracker",
+  "caption": "The new sync_change table hangs off a sync run and names the work item it touched. Its key is the run and the item together, so one run cannot record the same item twice; remote_key is new on work_item and may be empty until the first push.",
+  "entities": [
+    {
+      "id": "tracker",
+      "attributes": [
+        { "name": "id", "type": "integer", "key": "primary" },
+        { "name": "kind", "type": "text" },
+        { "name": "base_url", "type": "text" }
+      ]
+    },
+    {
+      "id": "work_item", "status": "changed",
+      "attributes": [
+        { "name": "id", "type": "text", "key": "primary" },
+        { "name": "tracker_id", "type": "integer", "key": "foreign" },
+        { "name": "title", "type": "text" },
+        { "name": "status", "type": "text" },
+        { "name": "remote_key", "type": "text", "key": "unique", "nullable": true, "status": "new" }
+      ]
+    },
+    {
+      "id": "sync_run", "status": "new",
+      "attributes": [
+        { "name": "id", "type": "integer", "key": "primary" },
+        { "name": "tracker_id", "type": "integer", "key": "foreign" },
+        { "name": "started_at", "type": "timestamp" },
+        { "name": "finished_at", "type": "timestamp", "nullable": true }
+      ]
+    },
+    {
+      "id": "sync_change", "status": "new", "tone": "risk",
+      "attributes": [
+        { "name": "sync_run_id", "type": "integer", "key": ["primary", "foreign"] },
+        { "name": "work_item_id", "type": "text", "key": ["primary", "foreign"] },
+        { "name": "direction", "type": "text" },
+        { "name": "before", "type": "json", "nullable": true },
+        { "name": "after", "type": "json", "nullable": true }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "tracker", "to": "work_item", "label": "tracks", "fromCardinality": "one", "toCardinality": "zero-or-many", "identifying": false },
+    { "from": "tracker", "to": "sync_run", "label": "is synced by", "fromCardinality": "one", "toCardinality": "zero-or-many", "identifying": false, "status": "new" },
+    { "from": "sync_run", "to": "sync_change", "label": "records", "fromCardinality": "one", "toCardinality": "zero-or-many", "status": "new" },
+    { "from": "work_item", "to": "sync_change", "label": "is changed by", "fromCardinality": "one", "toCardinality": "zero-or-many", "status": "new" }
+  ]
+}

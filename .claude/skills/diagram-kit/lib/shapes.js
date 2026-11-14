@@ -137,6 +137,24 @@
   const HEAD_ROOM = 18;
   const person = { holdsOthers: false, descriptionOf: element.descriptionOf, sizeOf: node => { const size = element.sizeOf(node); return { width: size.width, height: size.height + HEAD_ROOM }; } };
 
+  const ROW_LINE = 16, KEY_COLUMN = 26;
+  const entity = {
+    holdsOthers: false,
+    keyColumnOf(node) {
+      const keys = (node.rows || []).filter(row => row.key).map(row => widthOf(row.key, 'key'));
+      return keys.length ? Math.max(KEY_COLUMN, Math.ceil(Math.max(...keys)) + 10) : 0;
+    },
+    sizeOf(node) {
+      const rows = node.rows || [];
+      const widest = column => Math.max(0, ...rows.map(row => widthOf(row[column] ?? '', 'name')));
+      const table = rows.length ? 8 + entity.keyColumnOf(node) + widest('name') + 16 + widest('type') + 8 : 0;
+      return {
+        width: Math.ceil(Math.max(96, widthOf(node.label ?? node.id, 'title') + 28, table)) + linkRoom(node),
+        height: 30 + (rows.length ? 8 + rows.length * ROW_LINE : 0),
+      };
+    },
+  };
+
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
   const STEP_TEXT_LIMIT = 220, QUESTION_LIMIT = 130;
@@ -162,9 +180,9 @@
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, entity, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
-  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM };
+  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM, ROW_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);
