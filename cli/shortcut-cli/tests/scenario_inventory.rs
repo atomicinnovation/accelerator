@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-const EXPECTED_SCENARIO_COUNT: usize = 10;
+const EXPECTED_SCENARIO_COUNT: usize = 21;
 
 fn test_sources(dir: &Path, corpus: &mut String) {
     for entry in std::fs::read_dir(dir).expect("read tests dir") {

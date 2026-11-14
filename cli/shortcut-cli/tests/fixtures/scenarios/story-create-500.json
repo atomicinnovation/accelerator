@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/api/v4/scratch-workspace/stories",
+      "response": {
+        "status": 500,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"message\": \"boom\"}"
+      }
+    }
+  ]
+}

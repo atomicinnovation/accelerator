@@ -69,3 +69,75 @@ impl Init {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum Create {
+    Created,
+    WritebackFailed,
+}
+
+impl Create {
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Created => "created",
+            Self::WritebackFailed => "writeback-failed",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Update {
+    Updated,
+}
+
+impl Update {
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Updated => "updated",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Comment {
+    Added,
+}
+
+impl Comment {
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Added => "added",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Transition {
+    Transitioned,
+}
+
+impl Transition {
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Transitioned => "transitioned",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Attach {
+    Attached,
+}
+
+impl Attach {
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Attached => "attached",
+        }
+    }
+}

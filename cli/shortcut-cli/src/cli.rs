@@ -1,5 +1,7 @@
 //! The `accelerator-shortcut` command surface.
 
+use std::path::PathBuf;
+
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -17,6 +19,19 @@ pub enum Command {
     Show(ShowArgs),
     /// Search the base team's stories, rendering a JSON envelope.
     Search(SearchArgs),
+    /// Create a story or an epic from a work item or an explicit title.
+    Create(CreateArgs),
+    /// Update a story's or an epic's fields.
+    Update(UpdateArgs),
+    /// Comment on a story or an epic.
+    Comment {
+        #[command(subcommand)]
+        action: CommentAction,
+    },
+    /// Move a story to a named state of its workflow.
+    Transition(TransitionArgs),
+    /// Attach a link to a story.
+    Attach(AttachArgs),
     /// Verify the token, list teams, or discover the workspace's workflows.
     Init {
         #[command(subcommand)]
@@ -81,6 +96,85 @@ impl SearchArgs {
         })
         .collect()
     }
+}
+
+#[derive(Args)]
+pub struct CreateArgs {
+    /// A work-item file whose title, kind and body seed the entity.
+    pub file: Option<PathBuf>,
+    /// The story's title, when there is no work-item file.
+    #[arg(long)]
+    pub title: Option<String>,
+    /// A Markdown body file, when there is no work-item file.
+    #[arg(long)]
+    pub body_file: Option<PathBuf>,
+    #[command(flatten)]
+    pub quiet: Quiet,
+}
+
+#[derive(Args)]
+pub struct UpdateArgs {
+    /// `sc-<id>`, `epic-<id>`, or a story or epic URL in this workspace.
+    pub reference: String,
+    #[arg(long)]
+    pub title: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    /// A state of the story's workflow. Stories only.
+    #[arg(long)]
+    pub state: Option<String>,
+    /// A member's mention name.
+    #[arg(long)]
+    pub owner: Option<String>,
+    /// The story's points. Stories only.
+    #[arg(long)]
+    pub estimate: Option<i64>,
+    #[command(flatten)]
+    pub quiet: Quiet,
+}
+
+#[derive(Subcommand)]
+pub enum CommentAction {
+    /// Add a Markdown comment.
+    Add(CommentAddArgs),
+}
+
+#[derive(Args)]
+pub struct CommentAddArgs {
+    /// `sc-<id>`, `epic-<id>`, or a story or epic URL in this workspace.
+    pub reference: String,
+    #[arg(long)]
+    pub body: Option<String>,
+    #[arg(long)]
+    pub body_file: Option<PathBuf>,
+    #[command(flatten)]
+    pub quiet: Quiet,
+}
+
+#[derive(Args)]
+pub struct TransitionArgs {
+    /// `sc-<id>`, or a story URL in this workspace.
+    pub reference: String,
+    /// The target state name, positional or as `--state`.
+    pub state: Option<String>,
+    #[arg(long = "state", value_name = "STATE")]
+    pub state_flag: Option<String>,
+    #[command(flatten)]
+    pub quiet: Quiet,
+}
+
+#[derive(Args)]
+pub struct AttachArgs {
+    /// `sc-<id>`, or a story URL in this workspace.
+    pub reference: String,
+    /// An https URL to link.
+    #[arg(long)]
+    pub url: Option<String>,
+    /// Not supported yet: Shortcut file upload is not built.
+    #[arg(long)]
+    pub file: Option<PathBuf>,
+    #[command(flatten)]
+    pub quiet: Quiet,
 }
 
 #[derive(Subcommand)]
