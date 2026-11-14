@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T18:05:00+00:00"
+last_updated: "2026-11-14T18:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -46,23 +46,22 @@ As of 2026-11-14:
   `test-unit` legs. Two of its planned flags turned out to be invalid in
   cargo-llvm-cov 0.8.7, and the implementation departs from the plan for
   each. The outcome notes in Phase 2 record both.
-- **Phases 1 and 2 are in review together as PR #216** (branch
+- **Phase 3: complete.** It was added after Phase 2, at the user's
+  request. Every success criterion is met, including both CI `test-unit`
+  legs. Two findings, each settled with the user, widened it beyond the
+  plan: the sweep recovers the hash of each binary cargo reports only by its
+  uplifted copy, and it also sweeps `incremental`. The outcome notes in
+  Phase 3 record both.
+- **Phases 1 to 3 are in review together as PR #216** (branch
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 3: complete, in review in PR #216.** It was added after Phase 2,
-  at the user's request. Every success criterion is met, including both CI
-  `test-unit` legs. Two findings, each settled with the user, widened it
-  beyond the plan: the
-  sweep recovers the hash of each binary cargo reports only by its uplifted
-  copy, and it also sweeps `incremental`. The outcome notes in Phase 3
-  record both.
 - **Phase 4: planned, not started.** The CI totals it needs are recorded at
   the end of Phase 2.
 
 ## Current State Analysis
 
-This section describes the code before Phase 1. Phases 1 and 2 have since
+This section describes the code before Phase 1. Phases 1 to 3 have since
 replaced what it describes; see Progress.
 
 **Coverage lane.** `tasks/test/cli.py:43-50` runs one command,
@@ -129,6 +128,9 @@ segment.
 - `ubuntu-latest` moved to the Ubuntu 26.04 image during Phase 2's CI run.
   Ubuntu reports 7,400 tests to macOS's 7,401, and totals 0.01 lower on
   lines and regions.
+- On macOS CI, `test:unit:frontend` can fail with vitest's
+  `Timeout calling "onTaskUpdate"` after every frontend test has passed. It
+  failed Phase 3's first macOS `test-unit` attempt and passed on a rerun.
 - `research-cli/tests/arxiv_pacing.rs`
   (`a_killed_calls_request_still_spaces_the_next`) is timing-sensitive. It
   failed once on Ubuntu (2.963 s against a 3 s minimum) and passed on a
@@ -166,16 +168,20 @@ segment.
   `MAX_BYTES`, or setting `MAX_FILES` to 2 or 4, fails at least one test.
 - With coverage on, `test:unit:cli` runs exactly these commands in order:
   `cargo llvm-cov clean --profraw-only`,
-  `cargo llvm-cov nextest … --no-report`, then
-  `cargo llvm-cov report … --json --summary-only` (captured). It prints one
-  line, `coverage: lines NN.NN%, functions NN.NN%, regions NN.NN%`, and no
+  `cargo llvm-cov nextest … --no-report`,
+  `cargo llvm-cov report … --json --summary-only` (captured), then
+  `cargo llvm-cov show-env` and
+  `cargo test … --no-run --message-format=json` (both captured) to list
+  the build's units. It prints one line,
+  `coverage: lines NN.NN%, functions NN.NN%, regions NN.NN%`, and no
   per-file rows or JSON.
 - A failing clean, nextest run or report, or an export with no usable totals,
   fails the task. A total below its floor fails the task with a message that
   names each shortfall, where the floor is set, and the
   `cargo llvm-cov clean --workspace` remedy.
-- The clean, nextest and report commands share one manifest-path
-  fragment, and a guard test fails if any workspace member depends on
+- The clean, nextest, report and `show-env` commands share one
+  manifest-path fragment, the unit listing uses the nextest step's packages
+  and features, and a guard test fails if any workspace member depends on
   `accelerator-visualiser`.
 - After the report, the task deletes every artefact in
   `llvm-cov-target/debug/{deps,build,.fingerprint}` whose unit the current
@@ -832,8 +838,9 @@ Skipping the full clean leaves superseded instrumented artefacts in
 change gives a unit a new hash: Phase 2's `smallvec` bump grew the
 directory from 11G to 18G. After the report, ask cargo for the units the
 lane's build uses, and delete every artefact in `deps`, `build` and
-`.fingerprint` whose unit hash is not among them. This goes beyond 0363's
-scope, at the user's request.
+`.fingerprint` whose unit hash is not among them, and every superseded
+`incremental` directory. This goes beyond 0363's scope, at the user's
+request.
 
 ### Changes Required:
 
@@ -848,7 +855,8 @@ lockfile:
   took 1.12 s, reported all 905 units fresh and compiled nothing.
 - Its units carry 934 distinct hashes. Outside them, `deps` held 2,443
   entries (2.28 GB), `build` 2 and `.fingerprint` 106. `incremental` held
-  none: its 2.4G is all in use.
+  none: its 2.4G was all in use. A dependency bump later showed that it
+  grows too (see the outcome notes in section 2).
 
 `show-env` sets no `CARGO_TARGET_DIR`. Without one the listing reads the
 plain `cli/target/debug` build and still looks right, because
@@ -859,18 +867,23 @@ hashes unchanged. The listing must therefore set `CARGO_TARGET_DIR` itself.
 
 **File**: `tests/unit/tasks/fixtures/coverage/cargo-units.jsonl` (new)
 **Changes**: Real lines from the probe's capture: one library artefact, one
-test executable, one build-script compile, one `build-script-executed`
-message, and one non-JSON line. The checkout prefix is replaced with
-`/workspace`.
+test executable, one `bin` target, one build-script compile, one
+`build-script-executed` message, and one non-JSON line. The checkout prefix
+is replaced with `/workspace` and the home registry prefix with `/cargo`.
 
 **File**: `tests/unit/tasks/test_instrumented_build.py` (new)
 
 - `UnitListing.parse` on the fixture gives the hashes of every
   `compiler-artifact` filename and executable and every
-  `build-script-executed` out-dir, ignoring the non-JSON line, and counts no
-  rebuilt units.
-- A `compiler-artifact` message with `"fresh": false` is counted as
+  `build-script-executed` out-dir, ignoring the non-JSON line. It keeps the
+  `bin` target's hash-free path as `uplifted`, counts one unit for each
+  crate, and counts no rebuilt units. With no messages it has no live units.
+- Each `compiler-artifact` message with `"fresh": false` is counted as
   rebuilt.
+- `live_units` adds to the hashed units the hash of the `deps` file an
+  uplifted binary is byte-identical to. A same-crate file whose content
+  differs, or an identical file of another crate, is not its twin. An
+  uplifted binary with no twin raises `UnmatchedUpliftError` naming it.
 - `superseded_entries` over a `tmp_path` tree returns, from `deps`, `build`
   and `.fingerprint`, exactly the entries whose name carries a 16-hex unit
   hash that is not live. Live entries, entries with no hash, and anything
@@ -881,42 +894,82 @@ message, and one non-JSON line. The checkout prefix is replaced with
   and `kernel-<hash>.d` all parse.
 - `superseded_entries` with no live hashes raises `ValueError`, so a
   listing that yields nothing can never empty the build directory.
+- `superseded_incremental` keeps, for each crate, as many of its most
+  recently modified `incremental` directories as the crate has units,
+  reading the crate name before the last hyphen. It sweeps every directory
+  of a crate with no units, returns nothing when there is no `incremental`,
+  and raises `ValueError` with no units.
+- `Sweep.summary_line()` names the entry count and the space freed in a
+  decimal unit: `0 B`, `999 B`, `1.50 kB`, `2.28 GB`.
 - `parse_build_environment` on `show-env`'s plain output gives a mapping
   with single quotes removed (`LLVM_PROFILE_FILE='…'`) and unquoted values
-  kept as is.
+  kept as is, ignoring lines that set nothing.
 
 **File**: `tasks/shared/instrumented_build.py` (new)
 
 ```python
 """Which artefacts in the instrumented build the current lane still uses."""
 
-import dataclasses
-import json
-import re
-import shlex
-from collections.abc import Iterable, Mapping
-from pathlib import Path
-
 _UNIT_HASH = re.compile(r"-([0-9a-f]{16})(?=\.|$)")
 _SWEPT = ("deps", "build", ".fingerprint")
+_INCREMENTAL = "incremental"
+
+
+class UnmatchedUpliftError(Exception): ...
 
 
 @dataclasses.dataclass(frozen=True)
 class UnitListing:
     live_hashes: frozenset[str]
+    uplifted: frozenset[Path]
+    crates: Mapping[str, int]
     rebuilt: int
 
     @classmethod
-    def parse(cls, messages: str) -> "UnitListing":
+    def parse(cls, messages: str) -> UnitListing:
         hashes: set[str] = set()
+        uplifted: set[Path] = set()
+        crates: Counter[str] = Counter()
         rebuilt = 0
         for message in _json_messages(messages):
             if message.get("reason") == "compiler-artifact":
                 rebuilt += not message["fresh"]
-                hashes.update(_hashes(_artefact_paths(message)))
+                crates[_crate_name(message["target"]["name"])] += 1
+                for path in _artefact_paths(message):
+                    if path_hashes := _hashes([path]):
+                        hashes.update(path_hashes)
+                    else:
+                        uplifted.add(Path(path))
             elif message.get("reason") == "build-script-executed":
                 hashes.update(_hashes([message["out_dir"]]))
-        return cls(frozenset(hashes), rebuilt)
+        return cls(frozenset(hashes), frozenset(uplifted), crates, rebuilt)
+
+
+@dataclasses.dataclass(frozen=True)
+class Sweep:
+    entries: int
+    freed_bytes: int
+
+    def summary_line(self) -> str:
+        return (
+            f"swept {self.entries} superseded artefacts "
+            f"({_size(self.freed_bytes)})"
+        )
+
+
+def live_units(listing: UnitListing) -> frozenset[str]:
+    """Add the hash of each uplifted artefact's twin in deps.
+
+    cargo reports a binary only by the hash-free copy it uplifts out of deps,
+    so the unit's hash is recovered from the deps file that copy matches.
+    """
+    twins = {path: _twin_hash(path) for path in listing.uplifted}
+    unmatched = sorted(path.name for path, unit in twins.items() if not unit)
+    if unmatched:
+        raise UnmatchedUpliftError(
+            f"no build in deps matches {', '.join(unmatched)}"
+        )
+    return listing.live_hashes | {unit for unit in twins.values() if unit}
 
 
 def superseded_entries(build_dir: Path, live: frozenset[str]) -> list[Path]:
@@ -931,6 +984,31 @@ def superseded_entries(build_dir: Path, live: frozenset[str]) -> list[Path]:
     ]
 
 
+def superseded_incremental(
+    build_dir: Path, crates: Mapping[str, int]
+) -> list[Path]:
+    """Keep, for each crate, as many of its newest sessions as it has units.
+
+    An incremental directory is named for rustc's crate id, which cargo never
+    reports, so it cannot be matched to its unit by hash.
+    """
+    if not crates:
+        raise ValueError("no live units, so nothing can be judged superseded")
+    incremental = build_dir / _INCREMENTAL
+    if not incremental.is_dir():
+        return []
+    by_crate: dict[str, list[Path]] = {}
+    for session in incremental.iterdir():
+        by_crate.setdefault(session.name.rpartition("-")[0], []).append(session)
+    return sorted(
+        stale
+        for crate, sessions in by_crate.items()
+        for stale in sorted(sessions, key=_modified, reverse=True)[
+            crates.get(crate, 0) :
+        ]
+    )
+
+
 def parse_build_environment(text: str) -> Mapping[str, str]:
     return {
         key: "".join(shlex.split(value))
@@ -941,45 +1019,41 @@ def parse_build_environment(text: str) -> Mapping[str, str]:
 ```
 
 The private helpers (`_json_messages`, `_artefact_paths`, `_hashes`,
-`_unit_hash`) do what their names say. `_unit_hash` returns the last match
-of `_UNIT_HASH` in an entry's name, or `None`. A path in a message
-contributes every hash in its components, so `build/<pkg>-<hash>/out`
-keeps `build/<pkg>-<hash>` live.
+`_crate_name`, `_modified`, `_unit_hash`, `_size`) do what their names say.
+`_unit_hash` returns the last match of `_UNIT_HASH` in an entry's name, or
+`None`. A path in a message contributes every hash in its components, so
+`build/<pkg>-<hash>/out` keeps `build/<pkg>-<hash>` live. `_crate_name`
+turns a target name into its crate name (`-` to `_`). `_twin_hash` looks in
+the uplifted file's sibling `deps` for a file named exactly
+`<crate>-<16 hex>` that `filecmp.cmp(..., shallow=False)` finds identical,
+and returns its hash. `_size` formats bytes in decimal units.
 
-Outcome: the plan's live set swept every live binary. cargo reports a
-`bin` target only by its uplifted, hash-free copy, so the first lane after
-the sweep relinked 14 crates' 19 binaries and swept them again (1,622
-entries, 927 MB), and every later run would repeat that. With the user's
-agreement:
-
-- `UnitListing` also keeps the hash-free artefact paths (`uplifted`) and
-  counts the units of each crate (`crates`).
-- `live_units(listing)` adds, for each uplifted binary, the hash of the
-  `deps/<crate>-<hash>` file it is byte-identical to (`filecmp`, size
-  first). A binary with no such twin raises `UnmatchedUpliftError`, which
-  the task turns into `Exit` before deleting anything. Content matching
-  holds whether cargo hard-links or copies.
-- `superseded_incremental(build_dir, crates)` keeps, for each crate name
-  in `incremental`, as many of its most recently modified directories as
-  the crate has units, and returns the rest. It refuses an empty count, as
-  `superseded_entries` refuses an empty live set. A misjudged directory
-  costs only one non-incremental rebuild of its crate.
-- `Sweep(entries, freed_bytes).summary_line()` formats the sweep line with
-  a decimal unit (`0 B`, `1.50 kB`, `2.28 GB`), so small test trees show
-  a size.
-
-The fixture gained the real `accelerator-verify` bin line. Its home
-registry prefix is replaced with `/cargo` as well as the checkout prefix
-with `/workspace`.
+Outcome: the plan's first design took its live set from message paths
+alone, and the sweep then deleted every live binary. cargo reports a `bin`
+target only by its uplifted, hash-free copy, so the lane after the first
+sweep relinked 14 crates' 19 binaries and swept them again (1,622 entries,
+927 MB), and every later run would have repeated that. A repeated
+dependency bump then showed `incremental` growing by about 3G per bump.
+With the user's agreement, the design gained `uplifted` and `live_units`
+for the binaries, `crates` and `superseded_incremental` for `incremental`,
+and `Sweep` so a small test tree shows a size. Matching a binary by content
+holds whether cargo hard-links or copies; on macOS it copies. A misjudged
+`incremental` directory costs only one non-incremental rebuild of its
+crate.
 
 #### 3. The sweep step (tests first)
 
 **File**: `tests/unit/tasks/test_rust.py`
 **Changes**: The `lane` fixture's `run` dispatches on the command: the
 report returns `EXPORT`, `show-env` returns a small plain-format
-environment, the unit listing returns the `cargo-units.jsonl` fixture, and
-every other command returns empty output. `test_cli._INSTRUMENTED_BUILD`
-is monkeypatched to a `tmp_path` tree.
+environment, the unit listing returns the `cargo-units.jsonl` fixture with
+its `/workspace` build directory rewritten to a `tmp_path` tree, and every
+other command returns empty output. `test_cli._INSTRUMENTED_BUILD` is
+monkeypatched to that tree, which holds a live and a superseded `deps`
+entry, the uplifted `accelerator-verify` and its twin, and a live and a
+superseded `incremental` directory. Phase 2's step-failure tests use the
+same responder, failing one command by its prefix, in place of
+`side_effect` lists.
 
 - `test_clears_profile_data_then_tests_then_reports` becomes
   `test_clears_profile_data_then_tests_reports_and_sweeps`: five commands in
@@ -991,22 +1065,28 @@ is monkeypatched to a `tmp_path` tree.
 - `test_only_the_report_and_listing_output_is_captured`: replaces
   `test_only_the_report_output_is_captured`. The report, `show-env` and the
   listing pass `hide="out"`; the clean and nextest steps stream.
-- `test_sweeps_superseded_entries_and_keeps_live_ones`: in the `tmp_path`
-  tree, an entry whose hash is in the fixture survives, one whose hash is
-  not is gone, and stdout names how many entries were swept and their
-  total size.
+- `test_sweeps_superseded_entries_and_keeps_live_ones`: the live entry, the
+  binary's twin and the live `incremental` directory survive, the
+  superseded entry and `incremental` directory are gone, and stdout reads
+  `swept 2 superseded artefacts (1.50 kB)`.
 - `test_the_sweep_runs_after_the_totals_line`: the totals line is printed
   before the sweep line.
-- `test_a_failing_unit_listing_fails_the_task` and
-  `test_a_failing_build_environment_fails_the_task`: either exiting 1
-  raises `Exit` and deletes nothing.
-- `test_a_listing_that_rebuilt_units_sweeps_nothing`: a listing with a
-  `"fresh": false` unit raises `Exit` naming the count and saying that its
+- `test_a_failing_unit_listing_step_fails_the_task` (parametrised over
+  `show-env` and the listing): either exiting 1 raises `Exit` and deletes
+  nothing.
+- `test_a_listing_that_rebuilt_units_sweeps_nothing`: a listing with
+  `"fresh": false` units raises `Exit` naming the count and saying that its
   environment no longer matches the instrumented build, and deletes
   nothing. The listing runs after nextest, so a rebuild means the two
   builds disagree and the live set describes the wrong one.
-- The failing-step tests from Phase 2 keep their call counts: a failing
-  report stops before `show-env`.
+- `test_a_listing_with_no_units_sweeps_nothing` and
+  `test_a_binary_without_a_twin_sweeps_nothing`: each raises `Exit` and
+  deletes nothing; the second names the binary.
+- `test_failing_report_fails_the_task` becomes
+  `test_failing_report_stops_before_the_sweep`: three calls, nothing
+  deleted. The other Phase 2 failing-step tests keep their call counts, and
+  `test_plain_nextest_when_coverage_off` also checks that nothing is
+  deleted.
 
 **File**: `tasks/shared/paths.py`
 
@@ -1036,9 +1116,23 @@ def _sweep_superseded_artefacts(context: Context) -> None:
             "nothing was swept",
             code=1,
         )
-    swept = superseded_entries(_INSTRUMENTED_BUILD, listing.live_hashes)
+    if not listing.live_hashes:
+        raise Exit(
+            "cargo llvm-cov: the unit listing found no units, so nothing "
+            "was swept",
+            code=1,
+        )
+    try:
+        live = live_units(listing)
+    except UnmatchedUpliftError as error:
+        raise Exit(
+            f"cargo llvm-cov: {error}, so nothing was swept", code=1
+        ) from error
+    swept = superseded_entries(
+        _INSTRUMENTED_BUILD, live
+    ) + superseded_incremental(_INSTRUMENTED_BUILD, listing.crates)
     freed = sum(map(_remove, swept))
-    print(f"swept {len(swept)} superseded artefacts ({freed / 1e9:.2f} GB)")
+    print(Sweep(entries=len(swept), freed_bytes=freed).summary_line())
 
 
 def _list_units(context: Context) -> UnitListing:
@@ -1049,7 +1143,9 @@ def _list_units(context: Context) -> UnitListing:
         pty=False,
     )
     if environment.exited != 0:
-        raise Exit("cargo llvm-cov: reading the build environment failed")
+        raise Exit(
+            "cargo llvm-cov: reading the build environment failed", code=1
+        )
     listing = context.run(
         f"cargo test {_MANIFEST} --no-run --message-format=json",
         warn=True,
@@ -1061,7 +1157,9 @@ def _list_units(context: Context) -> UnitListing:
         },
     )
     if listing.exited != 0:
-        raise Exit("cargo llvm-cov: listing the instrumented units failed")
+        raise Exit(
+            "cargo llvm-cov: listing the instrumented units failed", code=1
+        )
     return UnitListing.parse(listing.stdout)
 ```
 
@@ -1073,13 +1171,6 @@ commands carry it.
 Docstring: add, after the sentence on the profraw-only clean, "After the
 report it deletes instrumented artefacts the current build no longer uses,
 which a dependency or toolchain change would otherwise leave behind."
-
-Outcome: the task also fails, deleting nothing, on a listing with no
-units and on an uplifted binary with no twin, with tests for both. The
-lane fixture rewrites the fixture's `/workspace` build directory to the
-`tmp_path` tree and seeds an uplifted binary, its twin, and a live and a
-superseded `incremental` directory. Phase 2's step-failure tests use a
-command-dispatching responder instead of `side_effect` lists.
 
 #### 4. Descriptions
 
@@ -1359,9 +1450,11 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   and malformed exports, and floor judgement at, above and below each
   metric's own floor.
 - `tests/unit/tasks/test_rust.py::TestTestUnitCli`: command order, flags and
-  shared manifest and feature fragments, capture only on the report, early
-  stops on each failing step, a failing off-path run, the docstring remedy,
-  and floor enforcement isolated from the production floor values.
+  shared manifest and feature fragments, capture on the report and the unit
+  listing only, the listing's environment, the sweep and its line, early
+  stops on each failing step with nothing deleted, a failing off-path run,
+  the docstring remedy, and floor enforcement isolated from the production
+  floor values.
 - `tests/unit/tasks/test_instrumented_build.py`: live unit hashes from a
   trimmed real `cargo test --message-format=json` capture, rebuilt-unit
   counting, uplifted binaries made live through their byte-identical
@@ -1386,7 +1479,8 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
    control, stale-binary dependency-bump and profraw-freshness checks
    (above).
 3. Phase 3 sweep timing, the first-run and steady-state sweeps, the
-   dependency-bump disk check and the restricted-run sweep (above).
+   dependency-bump disk check, the restricted-run sweep and the CI sweep
+   lines (above).
 4. Phase 4 floor selection across the four runs, and the deliberate-shortfall
    check (above).
 
