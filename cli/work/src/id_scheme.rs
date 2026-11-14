@@ -323,8 +323,8 @@ impl IdScheme {
     }
 
     /// A held `id`, alias or `external_id` read as an ID under this scheme:
-    /// through the pattern, or as a bare legacy number under `work.key`;
-    /// under `{tracker}`, a tracker key as written.
+    /// through the pattern, or as a bare number; under `{tracker}`, a
+    /// tracker key as written.
     #[must_use]
     pub fn read_held(&self, value: &str) -> Option<IdParts> {
         if self.pattern.is_tracker_owned() {
@@ -333,15 +333,20 @@ impl IdScheme {
                 .then(|| IdParts::of(Some(key), digits))
                 .flatten();
         }
-        IdParts::parse(&self.pattern, value)
-            .or_else(|| self.legacy_under_own_key(value))
+        IdParts::parse(&self.pattern, value).or_else(|| self.bare_number(value))
     }
 
-    fn legacy_under_own_key(&self, digits: &str) -> Option<IdParts> {
-        let key = self.key.as_ref()?;
-        is_digits(digits)
-            .then(|| IdParts::of(Some(key.as_str()), digits))
-            .flatten()
+    /// A bare number read as the pattern's number: under `work.key` when
+    /// the pattern has a key token, which then needs one.
+    fn bare_number(&self, digits: &str) -> Option<IdParts> {
+        if !is_digits(digits) {
+            return None;
+        }
+        if self.pattern.references_key() {
+            IdParts::of(Some(self.key.as_ref()?.as_str()), digits)
+        } else {
+            IdParts::of(None, digits)
+        }
     }
 
     /// The ID leading `filename`, read as [`Self::read_held`] reads a value,
@@ -360,7 +365,7 @@ impl IdScheme {
         }
         IdParts::parse_prefix(&self.pattern, filename).or_else(|| {
             let (digits, slug_start) = legacy_prefix(filename)?;
-            Some((self.legacy_under_own_key(digits)?, slug_start))
+            Some((self.bare_number(digits)?, slug_start))
         })
     }
 
@@ -723,6 +728,23 @@ mod tests {
         assert_eq!(identity(&underscored, "PP-42"), None);
         assert_eq!(identity(&underscored, "PP-0042"), None);
         assert_eq!(identity(&underscored, "pp_42").as_deref(), Some("PP_0042"));
+    }
+
+    #[test]
+    fn a_bare_number_reads_alike_in_every_reading_under_a_literal_pattern() {
+        let versioned = scheme("v{number:03d}", None);
+        let held = versioned.read_held("1").map(|parts| parts.number());
+        assert_eq!(held, Some(1));
+        assert_eq!(identity(&versioned, "1").as_deref(), Some("v001"));
+        assert_eq!(canonical(&versioned, "1").as_deref(), Ok("v001"));
+        assert_eq!(
+            versioned
+                .read_held_prefix("0001-x.md")
+                .map(|(parts, _)| parts.number()),
+            Some(1)
+        );
+        let v001 = versioned.read_held("v001").unwrap();
+        assert!(versioned.holds("1", &v001));
     }
 
     #[test]

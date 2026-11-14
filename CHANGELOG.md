@@ -199,6 +199,12 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **A work item whose IDs cannot be read is refused.** The commands that
+  refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
+  (exit 4), a file whose name does not start with its `id` and a slug, such
+  as `0400.md`, and a file naming an ID in `aliases` or `external_id` with
+  no `id`. A file with no frontmatter, or naming no ID, is not a work item
+  and is left alone.
 - **`work.id_pattern` no longer accepts brace escapes, a wider literal
   alphabet or a digit beside a token.** Support for `{{` and `}}` as escaped
   braces is removed, literal text is limited to ASCII letters, digits, `.`,
@@ -228,6 +234,15 @@
   sequence. A repository holding mixed-case keys may see a higher next
   number, and a caller that records or predicts allocated numbers should
   expect it.
+- **Allocation steps over every number an item holds.** `work create`,
+  `work create-batch` and `work id next` count a number held in an item's
+  `id`, `aliases` or `external_id`, drafts included, not only its filename,
+  so allocation never hands out an ID `work create --id` would refuse as
+  taken.
+- **A bare number reads as the pattern's number everywhere.** Under a
+  keyless pattern with literal text such as `v{number:03d}`, `1` held in an
+  `id`, alias or `external_id` now holds `v001` for the taken rule and
+  allocation, as it already did for joins and `work id canonicalise`.
 - **Allocation counts a legacy bare-number item in the configured key's
   sequence.** Under a `{key}` pattern, `work create`, `work create-batch` and
   `work id next` read `0400-x.md` as `work.key`'s `0400`, so beside

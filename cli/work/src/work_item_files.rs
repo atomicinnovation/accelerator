@@ -109,11 +109,11 @@ pub(crate) fn frontmatter_of(content: &str) -> Option<&str> {
     None
 }
 
-fn nonempty_field(frontmatter: &str, field: &str) -> Option<String> {
+pub(crate) fn nonempty_field(frontmatter: &str, field: &str) -> Option<String> {
     read_field_raw(frontmatter, field).filter(|value| !value.trim().is_empty())
 }
 
-fn list_field(frontmatter: &str, field: &str) -> Vec<String> {
+pub(crate) fn list_field(frontmatter: &str, field: &str) -> Vec<String> {
     match read_field_raw(frontmatter, field) {
         Some(inline) if !inline.is_empty() => {
             crate::tags::parse_current_tags(&inline)

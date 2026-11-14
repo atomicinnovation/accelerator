@@ -402,6 +402,7 @@ pub work::identity::ItemIdentity::external_id: core::option::Option<alloc::strin
 pub work::identity::ItemIdentity::id: alloc::string::String
 pub work::identity::ItemIdentity::path: std::path::PathBuf
 impl work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::fields_holding(&self, scheme: &work::id_scheme::IdScheme, id: &work::id_pattern::IdParts) -> alloc::vec::Vec<work::identity::IdentityField>
 pub fn work::identity::ItemIdentity::fields_matching(&self, matches: impl core::ops::function::Fn(&str) -> bool) -> alloc::vec::Vec<work::identity::IdentityField>
 impl core::clone::Clone for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
@@ -594,7 +595,7 @@ pub fn work::next_number::AllocationError::from(_: work::id_pattern::MissingKey)
 impl core::fmt::Debug for work::next_number::AllocationError
 pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::next_number::AllocationError
-pub fn work::next_number::allocate(scheme: &work::id_scheme::IdScheme, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, filenames: &[alloc::string::String]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub fn work::next_number::allocate(scheme: &work::id_scheme::IdScheme, key: core::option::Option<&work::id_pattern::IdKey>, count: u32, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
 pub fn work::next_number::allocation_key(pattern: &work::id_pattern::IdPattern, project: core::option::Option<&str>, configured: core::option::Option<&work::id_pattern::IdKey>) -> core::result::Result<core::option::Option<work::id_pattern::IdKey>, work::next_number::AllocationError>
 pub mod work::normalise
 pub const work::normalise::IGNORE_KEYS: &[&str]
@@ -2980,6 +2981,36 @@ impl core::marker::StructuralPartialEq for work::update::UpdateError
 pub const work::update::LIST_FIELDS: &[&str]
 pub fn work::update::mutate_list(current: &[alloc::string::String], action: work::update::ListAction, value: &str) -> work::update::ListMutation
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
+pub mod work::well_formed
+pub enum work::well_formed::Malformation
+pub work::well_formed::Malformation::NoId
+pub work::well_formed::Malformation::NoSlug
+impl core::clone::Clone for work::well_formed::Malformation
+pub fn work::well_formed::Malformation::clone(&self) -> work::well_formed::Malformation
+impl core::cmp::Eq for work::well_formed::Malformation
+impl core::cmp::PartialEq for work::well_formed::Malformation
+pub fn work::well_formed::Malformation::eq(&self, other: &work::well_formed::Malformation) -> bool
+impl core::fmt::Debug for work::well_formed::Malformation
+pub fn work::well_formed::Malformation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::well_formed::Malformation
+impl core::marker::StructuralPartialEq for work::well_formed::Malformation
+pub struct work::well_formed::MalformedItem
+impl work::well_formed::MalformedItem
+pub const work::well_formed::MalformedItem::CODE: &'static str
+pub const fn work::well_formed::MalformedItem::malformation(&self) -> work::well_formed::Malformation
+pub fn work::well_formed::MalformedItem::relative_to(self, root: &std::path::Path) -> Self
+impl core::clone::Clone for work::well_formed::MalformedItem
+pub fn work::well_formed::MalformedItem::clone(&self) -> work::well_formed::MalformedItem
+impl core::cmp::Eq for work::well_formed::MalformedItem
+impl core::cmp::PartialEq for work::well_formed::MalformedItem
+pub fn work::well_formed::MalformedItem::eq(&self, other: &work::well_formed::MalformedItem) -> bool
+impl core::error::Error for work::well_formed::MalformedItem
+impl core::fmt::Debug for work::well_formed::MalformedItem
+pub fn work::well_formed::MalformedItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::well_formed::MalformedItem
+pub fn work::well_formed::MalformedItem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::well_formed::MalformedItem
+pub fn work::well_formed::refuse_malformed(files: &[work::work_item_files::WorkItemFile]) -> core::result::Result<(), work::well_formed::MalformedItem>
 pub mod work::work_item_files
 pub enum work::work_item_files::ReadFailure
 pub work::work_item_files::ReadFailure::Io(alloc::string::String)

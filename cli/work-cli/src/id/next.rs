@@ -11,11 +11,9 @@ use work::draft_id::mint_draft_ids;
 use work::next_number::allocate;
 use work::next_number::allocation_key;
 use work::next_number::AllocationError;
-use work::resolve::DirectoryLister;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::draft_id::RandomSuffixDraws;
-use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::locate_work_items;
@@ -98,8 +96,11 @@ pub fn run(
         return mint_drafts(&work_dir, count);
     }
 
-    let filenames = FilesystemLister::new(&work_dir).filenames();
-    match allocate(&scheme, key.as_ref(), count, &filenames) {
+    let listing = match FilesystemWorkItemFiles::new(&work_dir).listing() {
+        Ok(listing) => listing,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
+    match allocate(&scheme, key.as_ref(), count, &listing) {
         Ok(ids) => RunOutcome::Allocated(ids),
         Err(error) => {
             let message = error.message(pattern, shown_dir);

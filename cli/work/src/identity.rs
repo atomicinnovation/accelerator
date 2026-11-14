@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use crate::id_pattern::IdParts;
 use crate::id_scheme::IdScheme;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,6 +63,18 @@ impl ItemIdentity {
             fields.push(IdentityField::ExternalId);
         }
         fields
+    }
+
+    /// The fields holding `id` under `scheme`'s taken rule: each naming
+    /// the same ID at any width or key case. Which of them a caller counts
+    /// is the caller's: `external_id` links an item, it does not name one.
+    #[must_use]
+    pub fn fields_holding(
+        &self,
+        scheme: &IdScheme,
+        id: &IdParts,
+    ) -> Vec<IdentityField> {
+        self.fields_matching(|held| scheme.holds(held, id))
     }
 
     fn fields_naming(&self, token: &str) -> Vec<IdentityField> {
@@ -140,7 +153,7 @@ pub fn holder_of_under<'a>(
         return holder_of(candidate, items);
     };
     items.iter().find_map(|item| {
-        item.fields_matching(|held| scheme.holds(held, &id))
+        item.fields_holding(scheme, &id)
             .into_iter()
             .find(|field| *field != IdentityField::ExternalId)
             .map(|field| IdentityMatch { item, field })
@@ -158,9 +171,8 @@ pub fn linker_of_under<'a>(
         return linker_of(candidate, items);
     };
     items.iter().find(|item| {
-        item.external_id
-            .as_deref()
-            .is_some_and(|linked| scheme.holds(linked, &id))
+        item.fields_holding(scheme, &id)
+            .contains(&IdentityField::ExternalId)
     })
 }
 

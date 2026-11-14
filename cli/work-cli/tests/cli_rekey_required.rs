@@ -145,3 +145,38 @@ fn rekey_converges_a_diverged_corpus() -> Result<(), TestError> {
     assert!(listed.status.success(), "{listed:?}");
     Ok(())
 }
+
+#[test]
+fn every_id_command_refuses_a_malformed_item() -> Result<(), TestError> {
+    let commands: &[&[&str]] = &[
+        &["create", "Fresh item", "task", "medium"],
+        &["id", "next"],
+        &["id", "check", "PP_0400"],
+        &["list"],
+        &["resolve", "PP_0001"],
+    ];
+    for args in commands {
+        let repo = diverged_repo()?;
+        fs::remove_file(repo.path().join(OFF_PATTERN_ITEM))?;
+        fs::write(
+            repo.path().join("meta/work/PP_0001.md"),
+            "---\nid: \"PP_0001\"\ntitle: \"Slugless\"\n---\n",
+        )?;
+        let before = work_files(repo.path());
+
+        let output = run(repo.path(), args)?;
+
+        let stderr = String::from_utf8(output.stderr)?;
+        assert_eq!(output.status.code(), Some(4), "{args:?}: {stderr}");
+        assert!(
+            stderr.contains(
+                "E_WORK_ITEM_MALFORMED: meta/work/PP_0001.md has `id` \
+                 'PP_0001' but its filename does not start with its `id` and \
+                 a slug."
+            ),
+            "{args:?}: {stderr}"
+        );
+        assert_eq!(work_files(repo.path()), before, "{args:?}");
+    }
+    Ok(())
+}

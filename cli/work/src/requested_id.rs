@@ -214,7 +214,10 @@ impl RequestedId {
     fn field_holding(&self, file: &WorkItemFile) -> Option<(Holding, String)> {
         let identity = identity_of(file)?;
         let holds = |value: &str| self.scheme.holds(value, &self.parts);
-        let field = identity.fields_matching(holds).into_iter().next()?;
+        let field = identity
+            .fields_holding(&self.scheme, &self.parts)
+            .into_iter()
+            .next()?;
         let held = match field {
             IdentityField::Id => Some(identity.id),
             IdentityField::Alias => {

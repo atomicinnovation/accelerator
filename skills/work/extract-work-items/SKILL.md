@@ -356,6 +356,8 @@ every case nothing was written:
 - `E_REKEY_REQUIRED` (exit 4) — some items are not yet under the IDs
   `work.id_pattern` gives them, such as after the pattern changed: tell the
   user to run `/rekey-work-items` to converge them, then retry. Stop.
+- `E_WORK_ITEM_MALFORMED` (exit 4) — relay the named file and its remedy
+  (rename it after its `id`, or give it an `id`). Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends.
 

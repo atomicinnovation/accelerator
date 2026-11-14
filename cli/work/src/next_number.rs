@@ -10,7 +10,10 @@ use crate::id_pattern::IdPattern;
 use crate::id_pattern::KeyError;
 use crate::id_pattern::MissingKey;
 use crate::id_scheme::IdScheme;
+use crate::work_item_files::identity_of;
 use crate::work_item_files::is_md_filename;
+use crate::work_item_files::WorkItemListing;
+use crate::work_item_files::DRAFTS_DIRECTORY;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AllocationError {
@@ -127,10 +130,13 @@ pub fn allocation_key(
     )
 }
 
-/// Allocates `count` sequential IDs following the highest number `key`
-/// already holds among `filenames`, ignoring the key's letter case.
+/// Allocates `count` sequential IDs above the highest number `key` holds.
 ///
-/// A file named by a bare legacy number counts under the scheme's own key.
+/// A number is held in `listing`, ignoring the key's letter case, in a
+/// file's name or in its `id`, an alias or its `external_id`, so an
+/// allocated ID is never one the taken rule finds held.
+///
+/// A bare number counts under the scheme's own key.
 ///
 /// # Errors
 ///
@@ -142,7 +148,7 @@ pub fn allocate(
     scheme: &IdScheme,
     key: Option<&IdKey>,
     count: u32,
-    filenames: &[String],
+    listing: &WorkItemListing,
 ) -> Result<Vec<String>, AllocationError> {
     let pattern = scheme.pattern();
     if pattern.references_key() && key.is_none() {
@@ -152,24 +158,16 @@ pub fn allocate(
         (Some(held), Some(key)) => held.eq_ignore_ascii_case(key.as_str()),
         (held, key) => held.is_none() && key.is_none(),
     };
-    let held: Vec<(u64, &String)> = filenames
-        .iter()
-        .filter(|filename| is_md_filename(filename))
-        .filter_map(|filename| {
-            scheme
-                .read_held_prefix(filename)
-                .map(|(parts, _)| parts)
-                .filter(in_sequence)
-                .map(|parts| (parts.number(), filename))
-        })
+    let held: Vec<(u64, String)> = held_numbers(scheme, listing)
+        .into_iter()
+        .filter(|(parts, _)| in_sequence(parts))
+        .map(|(parts, holder)| (parts.number(), holder))
         .collect();
     let (highest, highest_file) = held
         .iter()
-        .max_by_key(|(number, filename)| {
-            (*number, std::cmp::Reverse(*filename))
-        })
-        .map_or((0, None), |(number, filename)| {
-            (*number, Some((*filename).clone()))
+        .max_by_key(|(number, holder)| (*number, std::cmp::Reverse(holder)))
+        .map_or((0, None), |(number, holder)| {
+            (*number, Some(holder.clone()))
         });
     let numbers_held = held
         .iter()
@@ -192,6 +190,64 @@ pub fn allocate(
         },
         other => other,
     })
+}
+
+/// Every number a listed file holds, with the file as the work directory
+/// names it.
+fn held_numbers(
+    scheme: &IdScheme,
+    listing: &WorkItemListing,
+) -> Vec<(IdParts, String)> {
+    let paths = listing
+        .files
+        .iter()
+        .map(|file| (file.path.as_path(), Some(file)))
+        .chain(
+            listing
+                .unreadable
+                .iter()
+                .map(|file| (file.path.as_path(), None)),
+        );
+    let mut held = Vec::new();
+    for (path, file) in paths {
+        let holder = holder_name(path);
+        let named = path
+            .file_name()
+            .map(|name| name.to_string_lossy())
+            .filter(|name| is_md_filename(name))
+            .and_then(|name| scheme.read_held_prefix(&name))
+            .map(|(parts, _)| parts);
+        let fields = file.and_then(identity_of).map_or_else(Vec::new, |item| {
+            std::iter::once(item.id)
+                .chain(item.aliases)
+                .chain(item.external_id)
+                .filter_map(|value| scheme.read_held(&value))
+                .collect()
+        });
+        held.extend(
+            named
+                .into_iter()
+                .chain(fields)
+                .map(|parts| (parts, holder.clone())),
+        );
+    }
+    held
+}
+
+fn holder_name(path: &Path) -> String {
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let in_drafts = path
+        .parent()
+        .and_then(Path::file_name)
+        .is_some_and(|parent| parent == DRAFTS_DIRECTORY);
+    if in_drafts {
+        format!("{DRAFTS_DIRECTORY}/{name}")
+    } else {
+        name
+    }
 }
 
 fn allocate_above(
@@ -228,6 +284,12 @@ fn allocate_above(
 // args.
 #[allow(clippy::unwrap_used, clippy::literal_string_with_formatting_args)]
 mod tests {
+    use std::path::PathBuf;
+
+    use crate::work_item_files::ReadFailure;
+    use crate::work_item_files::UnreadableFile;
+    use crate::work_item_files::WorkItemFile;
+    use crate::work_item_files::WorkItemListing;
     use std::path::Path;
 
     use super::{allocate, allocate_above, allocation_key, AllocationError};
@@ -250,13 +312,76 @@ mod tests {
         IdScheme::numeric()
     }
 
-    fn names(filenames: &[&str]) -> Vec<String> {
-        filenames.iter().map(|name| (*name).to_owned()).collect()
+    fn names(filenames: &[&str]) -> WorkItemListing {
+        WorkItemListing {
+            files: filenames
+                .iter()
+                .map(|name| WorkItemFile {
+                    path: PathBuf::from("/work").join(name),
+                    content: String::new(),
+                })
+                .collect(),
+            unreadable: Vec::new(),
+        }
+    }
+
+    fn item(path: &str, frontmatter: &str) -> WorkItemFile {
+        WorkItemFile {
+            path: PathBuf::from("/work").join(path),
+            content: format!("---\n{frontmatter}\n---\n"),
+        }
+    }
+
+    #[test]
+    fn allocation_steps_over_every_number_an_item_holds() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let listing = WorkItemListing {
+            files: vec![
+                item("PP-0001-a.md", "id: \"PP-0001\"\naliases: [\"PP-0040\"]"),
+                item(
+                    "PP-0002-b.md",
+                    "id: \"PP-0002\"\nexternal_id: \"PP-0050\"",
+                ),
+                item(
+                    "drafts/draft-k7mq3x-c.md",
+                    "id: \"draft-k7mq3x\"\naliases: [\"PP-0060\"]",
+                ),
+            ],
+            unreadable: vec![UnreadableFile {
+                path: PathBuf::from("/work/PP-0070-d.md"),
+                reason: ReadFailure::Undecodable,
+            }],
+        };
+        assert_eq!(
+            allocate(&keyed, Some(&key("PP")), 1, &listing),
+            Ok(vec!["PP-0071".to_owned()])
+        );
+    }
+
+    #[test]
+    fn overflow_names_a_draft_holder_under_the_drafts_directory() {
+        let listing = WorkItemListing {
+            files: vec![item(
+                "drafts/draft-k7mq3x-c.md",
+                "id: \"draft-k7mq3x\"\naliases: [\"9999\"]",
+            )],
+            unreadable: Vec::new(),
+        };
+        let result = allocate(&numeric(), None, 1, &listing);
+        assert!(
+            matches!(
+                &result,
+                Err(AllocationError::Overflow { highest_file, .. })
+                    if highest_file.as_deref()
+                        == Some("drafts/draft-k7mq3x-c.md")
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
     fn allocates_the_next_sequential_id_from_an_empty_corpus() {
-        let result = allocate(&numeric(), None, 1, &[]);
+        let result = allocate(&numeric(), None, 1, &names(&[]));
         assert_eq!(result, Ok(vec!["0001".to_owned()]));
     }
 
@@ -282,7 +407,12 @@ mod tests {
     #[test]
     fn missing_key_is_rejected() {
         assert_eq!(
-            allocate(&scheme("{project}-{number:04d}", None), None, 1, &[]),
+            allocate(
+                &scheme("{project}-{number:04d}", None),
+                None,
+                1,
+                &names(&[])
+            ),
             Err(AllocationError::MissingKey)
         );
     }
@@ -437,7 +567,7 @@ mod tests {
         );
     }
 
-    fn exhausted(scheme: &IdScheme, filenames: &[String]) -> String {
+    fn exhausted(scheme: &IdScheme, filenames: &WorkItemListing) -> String {
         let error = allocate(scheme, None, 1, filenames).unwrap_err();
         error.message(scheme.pattern(), Path::new("meta/work"))
     }
@@ -466,7 +596,10 @@ mod tests {
             .map(|number| format!("{number:02}-item.md"))
             .collect();
 
-        let message = exhausted(&scheme("{number:02d}", None), &filenames);
+        let filenames: Vec<&str> =
+            filenames.iter().map(String::as_str).collect();
+        let message =
+            exhausted(&scheme("{number:02d}", None), &names(&filenames));
 
         assert!(message.contains("number space exhausted"), "{message}");
         assert!(!message.contains("lower"), "{message}");
@@ -477,7 +610,7 @@ mod tests {
     fn overflowed(
         scheme: &IdScheme,
         count: u32,
-        filenames: &[String],
+        filenames: &WorkItemListing,
     ) -> String {
         let error = allocate(scheme, None, count, filenames).unwrap_err();
         error.message(scheme.pattern(), Path::new("meta/work"))
@@ -496,7 +629,8 @@ mod tests {
 
     #[test]
     fn a_request_beyond_the_cap_of_an_empty_directory_names_no_file() {
-        let message = overflowed(&scheme("{number:02d}", None), 100, &[]);
+        let message =
+            overflowed(&scheme("{number:02d}", None), 100, &names(&[]));
 
         assert_eq!(
             message,

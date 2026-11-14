@@ -31,4 +31,5 @@ pub mod tags;
 pub mod template_hints;
 pub mod tracker_key;
 pub mod update;
+pub mod well_formed;
 pub mod work_item_files;

@@ -39,7 +39,7 @@ use work::next_number::allocation_key;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::requested_id::RequestedId;
-use work::resolve::DirectoryLister;
+use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
 pub use work_adapters::creation::blocked_remedy;
 use work_adapters::creation::create_local_item;
@@ -59,7 +59,7 @@ use work_adapters::creation::LocalId;
 use work_adapters::creation::NewItem;
 pub use work_adapters::creation::PushReport;
 use work_adapters::draft_id::RandomSuffixDraws;
-use work_adapters::filesystem::FilesystemLister;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion::promote;
 use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
@@ -193,9 +193,11 @@ pub fn allocate_id(
     };
     let key =
         allocation_key(pattern, project, scheme.key()).map_err(refused)?;
-    let filenames = FilesystemLister::new(work_dir).filenames();
+    let listing = FilesystemWorkItemFiles::new(work_dir)
+        .listing()
+        .map_err(|error| error.to_string())?;
     let allocated =
-        allocate(scheme, key.as_ref(), 1, &filenames).map_err(refused)?;
+        allocate(scheme, key.as_ref(), 1, &listing).map_err(refused)?;
     allocated
         .into_iter()
         .next()
@@ -1822,7 +1824,7 @@ mod tests {
             ),
             (
                 PushingRepo::new,
-                "meta/work/drafts/draft-k7mq3x-x.md",
+                "meta/work/drafts/0400-x.md",
                 "---\nid: \"0400\"\n---\n",
                 "0400",
                 "its id '0400'",
