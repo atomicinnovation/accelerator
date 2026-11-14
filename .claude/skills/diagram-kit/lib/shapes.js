@@ -91,6 +91,24 @@
     }),
   };
 
+  const frame = { holdsOthers: true, nameOffsetOf: boundary.nameOffsetOf, frameOf: boundary.frameOf };
+
+  const TAB_HEIGHT = 22;
+  const packageShape = {
+    holdsOthers: true,
+    tabWidthOf: node => Math.ceil(widthOf(node.label ?? node.id, 'title')) + 24,
+    frameOf: node => ({ padding: { top: TAB_HEIGHT + 16, left: 14, bottom: 14, right: 14 }, minimumWidth: packageShape.tabWidthOf(node) + 28 + linkRoom(node) }),
+  };
+  const folder = {
+    holdsOthers: false,
+    sizeOf: node => ({ width: Math.ceil(Math.max(96, widthOf(node.label ?? node.id, 'title') + 28)) + linkRoom(node), height: 50 }),
+  };
+  const ball = {
+    holdsOthers: false, outline: 'disc',
+    sizeOf: () => ({ width: 16, height: 16 }),
+    nameBesideOf: node => (node.label ? { text: node.label, width: Math.ceil(widthOf(node.label, 'name')) + 2, height: 15 } : null),
+  };
+
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
   const STEP_TEXT_LIMIT = 220, QUESTION_LIMIT = 130;
@@ -116,9 +134,9 @@
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, boundary, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, boundary, frame, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
-  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE };
+  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

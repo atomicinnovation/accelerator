@@ -35,7 +35,10 @@
 
   function layoutNodeOf(node, direction) {
     const shape = shapeOf(node);
-    if (!shape.holdsOthers) return { id: node.id, ...shape.sizeOf(node) };
+    if (!shape.holdsOthers) {
+      const beside = shape.nameBesideOf ? shape.nameBesideOf(node) : null;
+      return { id: node.id, ...shape.sizeOf(node), ...(beside ? { labels: [beside], layoutOptions: { 'elk.nodeLabels.placement': direction === 'DOWN' ? 'OUTSIDE V_CENTER H_RIGHT' : 'OUTSIDE V_BOTTOM H_CENTER' } } : {}) };
+    }
     const { padding, minimumWidth: width } = shape.frameOf(node);
     return {
       id: node.id,
@@ -110,7 +113,9 @@
         const { node, parent, depth } = said.get(each.id);
         const { children, ...own } = node;
         origins.set(each.id, [x, y]);
-        nodes.push({ ...own, parent, depth, x: settled(x), y: settled(y), width: settled(each.width), height: settled(each.height) });
+        const [beside] = each.children && each.children.length ? [] : each.labels || [];
+        const labelBox = beside ? { labelBox: { x: settled(x + beside.x), y: settled(y + beside.y), width: beside.width, height: beside.height } } : {};
+        nodes.push({ ...own, parent, depth, x: settled(x), y: settled(y), width: settled(each.width), height: settled(each.height), ...labelBox });
         place(each, x, y);
       }
     };

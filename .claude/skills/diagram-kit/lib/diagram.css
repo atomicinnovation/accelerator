@@ -57,6 +57,14 @@
 .dk .node.process .message, .dk .node.terminator .message, .dk .node.io .message, .dk .node.subprocess .message, .dk .node.decision .message { fill: var(--ink); }
 .dk .node.t-risk > path.body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.process.t-risk > .body, .dk .node.terminator.t-risk > .body, .dk .node.subprocess.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.frame > .body, .dk .node.package > .body { fill: color-mix(in srgb, var(--panel-2) 45%, transparent); }
+.dk .node.frame .title, .dk .node.frame .stereotype { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
+.dk .node.package .rule, .dk .node.folder .rule { stroke: var(--rule); stroke-width: 1.3; fill: none; }
+.dk .node.package.s-new .rule, .dk .node.folder.s-new .rule { stroke: var(--accent); }
+.dk .node.package.s-changed .rule, .dk .node.folder.s-changed .rule { stroke: var(--warn); }
+.dk .node.ball .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
+.dk .node.ball.s-new .body { stroke: var(--accent); }
+.dk .outside { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
 .dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }

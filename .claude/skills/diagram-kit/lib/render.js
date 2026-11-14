@@ -2,7 +2,7 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { blockOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
-  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE } = inNode ? require('./shapes.js') : root.DiagramKit;
+  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT } = inNode ? require('./shapes.js') : root.DiagramKit;
 
   const MARGIN = 8;
   const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5, HOLLOW_LENGTH = 12, HOLLOW_HALF_WIDTH = 6, DIAMOND_LENGTH = 14, DIAMOND_HALF_WIDTH = 5;
@@ -69,9 +69,29 @@
         + (node.abstract ? centred('{abstract}', 'stereotype', 'stereotype', nameAt + 14) : '')
         + listed + (target ? linkControl({ ...node, height: head }, target) : '') + untold(node, target);
     },
-    boundary(node, target) {
+    frame: (node, target) => DRAWN.boundary(node, target, 3),
+    package(node, target) {
+      const tab = SHAPES.package.tabWidthOf(node), right = node.x + node.width, bottom = node.y + node.height, under = node.y + TAB_HEIGHT;
+      const name = plainText(node.label ?? node.id, 'title', node.x + 12, node.y + 16);
+      return `<path class="body" d="M${tidy(node.x)} ${tidy(node.y)} H${tidy(node.x + tab)} V${tidy(under)} H${tidy(right)} V${tidy(bottom)} H${tidy(node.x)} Z"/>`
+        + `<path class="rule" d="M${tidy(node.x)} ${tidy(under)} H${tidy(node.x + tab)}"/>`
+        + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
+    folder(node, target) {
+      const tab = 42, lip = 10, right = node.x + node.width, bottom = node.y + node.height;
+      const name = textOf(blockOf(node.label ?? node.id, 'title'), 'title', node.x + node.width / 2, node.y + 34, 'middle');
+      return `<path class="body" d="M${tidy(node.x)} ${tidy(node.y)} H${tidy(node.x + tab)} V${tidy(node.y + lip)} H${tidy(right)} V${tidy(bottom)} H${tidy(node.x)} Z"/>`
+        + `<path class="rule" d="M${tidy(node.x)} ${tidy(node.y + lip)} H${tidy(node.x + tab)}"/>`
+        + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
+    ball(node, target) {
+      const name = node.label && node.labelBox ? textOf(blockOf(node.label, 'name'), 'name outside', node.labelBox.x, node.labelBox.y + 11, 'start') : '';
+      return `<circle class="body" cx="${tidy(node.x + node.width / 2)}" cy="${tidy(node.y + node.height / 2)}" r="${tidy(node.width / 2)}"/>`
+        + (target && name ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
+    boundary(node, target, radius = 10) {
       const name = plainText(node.label ?? node.id, 'title', node.x + 14 + SHAPES.boundary.nameOffsetOf(node), node.y + 20);
-      return bodyOf(node, 10) + (node.stereotype ? plainText(`«${node.stereotype}»`, 'stereotype', node.x + 14, node.y + 20) : '')
+      return bodyOf(node, radius) + (node.stereotype ? plainText(`«${node.stereotype}»`, 'stereotype', node.x + 14, node.y + 20) : '')
         + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
     },
     state(node, target) {

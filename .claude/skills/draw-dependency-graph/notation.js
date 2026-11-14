@@ -1,4 +1,5 @@
 const { markProblems } = require('../diagram-kit/lib/notations.js');
+const { cyclesIn, loopThrough } = require('../diagram-kit/lib/graphs.js');
 
 const DIRECTIONS = ['down', 'right'];
 
@@ -54,47 +55,6 @@ function problemsIn(spec) {
   const reduce = spec.reduce == null || typeof spec.reduce === 'boolean' ? [] : ['reduce must be true or false'];
   const { problems, known } = moduleProblems(spec.modules);
   return [...direction, ...reduce, ...problems, ...dependencyProblems(spec.dependencies || [], known)];
-}
-
-function cyclesIn(dependencies) {
-  const needs = new Map();
-  for (const { from, to } of dependencies) {
-    for (const end of [from, to]) if (!needs.has(end)) needs.set(end, []);
-    needs.get(from).push(to);
-  }
-  const order = new Map(), lowest = new Map(), stack = [], onStack = new Set(), knots = [];
-  const visit = module => {
-    order.set(module, order.size);
-    lowest.set(module, order.get(module));
-    stack.push(module);
-    onStack.add(module);
-    for (const needed of needs.get(module)) {
-      if (!order.has(needed)) { visit(needed); lowest.set(module, Math.min(lowest.get(module), lowest.get(needed))); }
-      else if (onStack.has(needed)) lowest.set(module, Math.min(lowest.get(module), order.get(needed)));
-    }
-    if (lowest.get(module) !== order.get(module)) return;
-    const knot = [];
-    let member;
-    do { member = stack.pop(); onStack.delete(member); knot.push(member); } while (member !== module);
-    if (knot.length > 1 || needs.get(module).includes(module)) knots.push(new Set(knot));
-  };
-  for (const module of needs.keys()) if (!order.has(module)) visit(module);
-  return knots;
-}
-
-function loopThrough(knot, dependencies) {
-  const start = dependencies.find(({ from }) => knot.has(from)).from;
-  const walk = (module, path) => {
-    for (const { from, to } of dependencies) {
-      if (from !== module || !knot.has(to)) continue;
-      if (to === start) return [...path, to];
-      if (path.includes(to)) continue;
-      const found = walk(to, [...path, to]);
-      if (found) return found;
-    }
-    return null;
-  };
-  return walk(start, [start]);
 }
 
 const isMarked = dependency => ['status', 'tone', 'label', 'kind'].some(mark => dependency[mark] != null);

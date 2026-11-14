@@ -15,7 +15,11 @@ const DRAWING_CHECKS = `(async () => {
     const boxes = [...svg.querySelectorAll('.node.leaf')].map(node => ({ id: node.getAttribute('data-node'), node, body: boxOf(node.querySelector('.body')) }));
     for (const node of svg.querySelectorAll('.node')) {
       const body = boxOf(node.querySelector('.body'));
-      for (const text of node.querySelectorAll('text')) {
+      for (const text of node.querySelectorAll('text.outside')) {
+        const lies = boxes.find(box => box.node !== node && overlap(boxOf(text), box.body, 2));
+        if (lies) problems.push('node ' + node.getAttribute('data-node') + ': its name lies on node ' + lies.id);
+      }
+      for (const text of node.querySelectorAll('text:not(.outside)')) {
         const outside = beyond(boxOf(text), body);
         if (outside > 0) problems.push('node ' + node.getAttribute('data-node') + ': text runs ' + outside + 'px outside its box');
       }
