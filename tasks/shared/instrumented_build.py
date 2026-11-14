@@ -1,6 +1,7 @@
 """Which artefacts in the instrumented build the current lane still uses."""
 
 import dataclasses
+import filecmp
 import json
 import re
 import shlex
@@ -13,22 +14,31 @@ _SWEPT = ("deps", "build", ".fingerprint")
 _SIZE_UNITS = ("kB", "MB", "GB", "TB")
 
 
+class UnmatchedUpliftError(Exception): ...
+
+
 @dataclasses.dataclass(frozen=True)
 class UnitListing:
     live_hashes: frozenset[str]
+    uplifted: frozenset[Path]
     rebuilt: int
 
     @classmethod
     def parse(cls, messages: str) -> UnitListing:
         hashes: set[str] = set()
+        uplifted: set[Path] = set()
         rebuilt = 0
         for message in _json_messages(messages):
             if message.get("reason") == "compiler-artifact":
                 rebuilt += not message["fresh"]
-                hashes.update(_hashes(_artefact_paths(message)))
+                for path in _artefact_paths(message):
+                    if path_hashes := _hashes([path]):
+                        hashes.update(path_hashes)
+                    else:
+                        uplifted.add(Path(path))
             elif message.get("reason") == "build-script-executed":
                 hashes.update(_hashes([message["out_dir"]]))
-        return cls(frozenset(hashes), rebuilt)
+        return cls(frozenset(hashes), frozenset(uplifted), rebuilt)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -41,6 +51,21 @@ class Sweep:
             f"swept {self.entries} superseded artefacts "
             f"({_size(self.freed_bytes)})"
         )
+
+
+def live_units(listing: UnitListing) -> frozenset[str]:
+    """Add the hash of each uplifted artefact's twin in deps.
+
+    cargo reports a binary only by the hash-free copy it uplifts out of deps,
+    so the unit's hash is recovered from the deps file that copy matches.
+    """
+    twins = {path: _twin_hash(path) for path in listing.uplifted}
+    unmatched = sorted(path.name for path, unit in twins.items() if not unit)
+    if unmatched:
+        raise UnmatchedUpliftError(
+            f"no build in deps matches {', '.join(unmatched)}"
+        )
+    return listing.live_hashes | {unit for unit in twins.values() if unit}
 
 
 def superseded_entries(build_dir: Path, live: frozenset[str]) -> list[Path]:
@@ -86,6 +111,16 @@ def _hashes(paths: Iterable[str]) -> set[str]:
         for component in Path(path).parts
         for unit in _UNIT_HASH.findall(component)
     }
+
+
+def _twin_hash(uplifted: Path) -> str | None:
+    crate = uplifted.name.replace("-", "_")
+    twin = re.compile(rf"{re.escape(crate)}-([0-9a-f]{{16}})")
+    for candidate in sorted((uplifted.parent / "deps").glob(f"{crate}-*")):
+        match = twin.fullmatch(candidate.name)
+        if match and filecmp.cmp(uplifted, candidate, shallow=False):
+            return match[1]
+    return None
 
 
 def _unit_hash(name: str) -> str | None:
