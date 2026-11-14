@@ -3,17 +3,23 @@
 //        diagram.js layout SPEC.json [--out SCENE.json]
 //        diagram.js render SPEC.json --out FILE.html|FILE.svg
 //
+//        diagram.js prepare SPECS.json
+//
 // SPEC.json is one diagram, or a list of them. `check` reports every problem
 // and exits 1 if there is one. `layout` writes where every node and edge
 // goes. `render` writes a page that opens offline, or one drawing as SVG.
+// `prepare` is for a page that embeds diagrams: for each one it prints the
+// problems, the laid-out scene, the legend and the remarks, and it fails
+// only if the file cannot be read.
 // `--notations DIR` reads the draw-* skills under DIR instead of the ones
 // beside this kit.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { kitWith, svgOf, standalonePage, standaloneSvg } = require('../lib/index.js');
+const { legendOf } = require('../lib/render.js');
 
-const USAGE = 'usage: diagram.js check|layout|render SPEC.json [--out FILE] [--notations DIR]';
+const USAGE = 'usage: diagram.js check|layout|render|prepare SPEC.json [--out FILE] [--notations DIR]';
 
 function parsed(argv) {
   const options = { positional: [] };
@@ -40,11 +46,25 @@ function refuseProblems(kit, diagrams) {
   if (problems.length) throw new Refused(problems.join('\n'));
 }
 
+async function prepared(kit, diagram) {
+  const id = diagram && typeof diagram.id === 'string' ? diagram.id : null;
+  const problems = kit.faultsIn(diagram);
+  if (problems.length) return { id, problems, scene: null, legend: '', remarks: [] };
+  const scene = await kit.laidOut(diagram);
+  return { id, problems, scene, legend: legendOf(scene), remarks: kit.remarksOn(diagram) };
+}
+
 async function main(argv) {
   const { positional: [command, file], out, notations } = parsed(argv);
-  if (!['check', 'layout', 'render'].includes(command) || !file) { console.error(USAGE); return 2; }
+  if (!['check', 'layout', 'render', 'prepare'].includes(command) || !file) { console.error(USAGE); return 2; }
   const kit = kitWith(notations ? path.resolve(notations) : undefined);
   const diagrams = diagramsIn(file);
+  if (command === 'prepare') {
+    const each = [];
+    for (const diagram of diagrams) each.push(await prepared(kit, diagram));
+    process.stdout.write(`${JSON.stringify({ kinds: kit.kinds(), diagrams: each })}\n`);
+    return 0;
+  }
   refuseProblems(kit, diagrams);
   if (command === 'check') return 0;
   const scenes = [];

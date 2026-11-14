@@ -56,7 +56,7 @@ def renderer(name):
     return shell[start : shell.index("\n}\n", start)]
 
 
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
+@pytest.mark.parametrize("name", ["figFlow"])
 def test_a_graph_names_each_node_and_the_ends_of_each_edge(name):
     body = renderer(name)
     shell = SHELL.read_text()
@@ -69,7 +69,7 @@ def test_a_graph_names_each_node_and_the_ends_of_each_edge(name):
 
 @pytest.mark.parametrize(
     ("name", "marks_itself"),
-    [("moduleMap", "data-graph="), ("figFlow", "edges.length > 0)")],
+    [("figFlow", "edges.length > 0)")],
 )
 def test_a_graph_with_edges_marks_its_svg_for_tracing(name, marks_itself):
     assert marks_itself in renderer(name)
@@ -81,7 +81,7 @@ def test_a_figure_explains_tracing_once_however_many_graphs_it_draws():
     assert "traceHint" in renderer("figureHtml")
 
 
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
+@pytest.mark.parametrize("name", ["figFlow"])
 def test_a_linked_box_navigates_only_from_its_own_link_control(name):
     body = renderer(name)
 
@@ -89,7 +89,7 @@ def test_a_linked_box_navigates_only_from_its_own_link_control(name):
     assert '<a href="#tour-' not in body
 
 
-@pytest.mark.parametrize("name", ["figFlow", "moduleMap"])
+@pytest.mark.parametrize("name", ["figFlow"])
 def test_a_graph_routes_its_arrows_through_the_router(name):
     body = renderer(name)
 
@@ -98,7 +98,7 @@ def test_a_graph_routes_its_arrows_through_the_router(name):
 
 
 def test_the_page_starts_tracing_graphs_once_it_loads():
-    assert "GraphFocus.attach(document)" in SHELL.read_text()
+    assert "DiagramKit.attachTracing(document)" in SHELL.read_text()
 
 
 def test_rendered_markdown_links_its_chapter_and_stop_references():
@@ -110,16 +110,29 @@ def test_rendered_markdown_links_its_chapter_and_stop_references():
     assert markdown.count("return ") == markdown.count("return linked(") + 1
 
 
-def test_only_the_page_built_abstraction_diagram_rearranges_its_rows():
-    assert "arrange: true" in renderer("relationsFigure")
-    assert "f.arrange" in renderer("figFlow")
+def test_a_figure_the_kit_laid_out_is_drawn_by_the_kit():
+    assert "'scene' in f ? figDiagram" in renderer("figureBody")
+    drawing = renderer("figDiagram")
+
+    assert "DiagramKit.svgOf(f.scene" in drawing
+    assert "resolveLink: diagramLink" in drawing
 
 
-def test_every_box_in_the_abstraction_diagram_names_its_kind():
-    body = renderer("relationsFigure")
+def test_a_diagram_link_opens_a_chapter_a_line_or_an_address():
+    link = renderer("diagramLink")
 
-    assert "sub: 'existing'" not in body
-    assert "collaboratorKinds" in body
+    assert "'#tour-'" in link
+    assert "'data-open': w.path" in link
+    assert "https?:" in link
+
+
+def test_the_page_draws_no_generated_graph_of_its_own():
+    shell = SHELL.read_text()
+
+    assert "function relationsFigure" not in shell
+    assert "function moduleMap" not in shell
+    assert "figureHtml(d.relations)" in shell
+    assert shell.count("figureHtml(C.moduleMap)") == 2
 
 
 def test_the_legend_explains_an_unchanged_box_by_its_border():

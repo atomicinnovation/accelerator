@@ -15,13 +15,16 @@
 // stop's link opens its chapter at that stop. It also records a file verdict,
 // pretends it was given at an earlier head, and checks that rewritten lines are
 // unread again and announced, that untouched ones stay read, and that only a
-// new verdict, not a note, moves the record to this head.
+// new verdict, not a note, moves the record to this head. Every diagram the
+// kit drew is put through the kit's own checks: text inside its box, no box
+// across another or across an arrow, tracing, and a linked box opening its link.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { DRAWING_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
 
 const CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -176,7 +179,7 @@ const ARROWS_PROBE = `(async () => {
   let measured = 0, crossings = 0;
   for (const route of ['overview', 'design']) {
     location.hash = route; await settle();
-    for (const svg of document.querySelectorAll('svg[data-graph]')) {
+    for (const svg of document.querySelectorAll('svg.fd[data-graph]')) {
       const boxes = [...svg.querySelectorAll('[data-node] > rect')].map(el => ['x', 'y', 'width', 'height'].map(k => +el.getAttribute(k)));
       const runs = [];
       for (const path of svg.querySelectorAll('path[data-to]')) {
@@ -219,7 +222,7 @@ const ARROWS_PROBE = `(async () => {
 const PRESS_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 150));
   location.hash = 'design'; await settle();
-  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]') && each.querySelector('.node-link'));
+  const svg = [...document.querySelectorAll('svg.fd[data-graph]')].find(each => each.querySelector('[data-from]') && each.querySelector('.node-link'));
   if (!svg) return { skipped: 'no linked graph with edges on the design view' };
   const link = svg.querySelector('.node-link');
   const node = link.closest('[data-node]');
@@ -265,7 +268,7 @@ const PRESS_PROBE = `(async () => {
 const GRAPH_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 150));
   location.hash = 'design'; await settle();
-  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]'));
+  const svg = [...document.querySelectorAll('svg.fd[data-graph]')].find(each => each.querySelector('[data-from]'));
   if (!svg) return { skipped: 'no graph with edges on the design view' };
   const edge = svg.querySelector('path[data-from]');
   const node = svg.querySelector('[data-node="' + CSS.escape(edge.getAttribute('data-from')) + '"]');
@@ -278,7 +281,7 @@ const GRAPH_PROBE = `(async () => {
   const outward = getComputedStyle(edge).stroke;
   target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   const released = !svg.classList.contains('tracing') && !edge.classList.contains('traced-out');
-  const graphs = [...document.querySelectorAll('svg[data-graph]')];
+  const graphs = [...document.querySelectorAll('svg.fd[data-graph]')];
   const labelsOnTop = graphs.every(g => {
     const order = [...g.querySelectorAll('path.edge, .elabel')];
     const lastPath = order.map(el => el.matches('path.edge')).lastIndexOf(true);
@@ -345,6 +348,31 @@ const HEADS_PROBE = `(async () => {
   return { stamped, rewrittenUnread, marked, announced, untouchedCarried, noteKeepsHead, verdictRestamps };
 })()`;
 
+const DIAGRAMS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const seen = {};
+  let tracing = { skipped: 'no diagram with an arrow' };
+  for (const route of ['design', 'pictures', 'overview']) {
+    if (!window.ExplorePR.routes().includes(route)) continue;
+    location.hash = route; await settle();
+    if (!document.querySelector('svg.dk')) continue;
+    const checked = await ${DRAWING_CHECKS};
+    checked.diagrams.forEach(each => { seen[each.id] = each.problems; });
+    const traced = await ${TRACING_CHECK};
+    if (!traced.skipped) tracing = traced;
+    const link = document.querySelector('svg.dk .node-link');
+    if (link && !('linkOpens' in seen)) {
+      const before = location.hash;
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await settle();
+      seen.linkOpens = location.hash !== before || !!document.querySelector('#file-pane');
+    }
+  }
+  const { linkOpens = null, ...problems } = seen;
+  if (!Object.keys(problems).length) return { skipped: 'no kit diagram on the page' };
+  return { problems, tracing, linkOpens };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -398,6 +426,7 @@ async function main() {
     report.press = await cdp.evaluate(PRESS_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
+    report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -431,7 +460,10 @@ async function main() {
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
   const heads = report.heads || {};
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
-  report.ok = headsHold && referencesHold && pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const diagrams = report.diagrams || {};
+  const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
+  const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
+  report.ok = diagramsHold && headsHold && referencesHold && pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

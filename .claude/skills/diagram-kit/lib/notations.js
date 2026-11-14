@@ -26,7 +26,7 @@
       byKind.set(notation.kind, notation);
     }
 
-    function ownProblems(spec) {
+    function faultsIn(spec) {
       if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return ['must be an object'];
       if (typeof spec.id !== 'string' || !spec.id.trim()) return ['no id'];
       if (!spec.kind) return ['no kind'];
@@ -38,7 +38,7 @@
 
     function problemsIn(spec) {
       const id = spec && typeof spec.id === 'string' && spec.id.trim() ? spec.id : '?';
-      return ownProblems(spec).map(problem => `diagram ${id}: ${problem}`);
+      return faultsIn(spec).map(problem => `diagram ${id}: ${problem}`);
     }
 
     async function laidOutSpec(spec) {
@@ -47,8 +47,10 @@
       return laidOut(byKind.get(spec.kind).sceneOf(spec));
     }
 
+    const remarksOn = spec => (byKind.get(spec.kind).remarksOn || (() => []))(spec);
+
     function remarksMarkup(spec) {
-      const remarks = (byKind.get(spec.kind).remarksOn || (() => []))(spec);
+      const remarks = remarksOn(spec);
       return remarks.length ? `<ul class="dk-remarks">${remarks.map(remark => `<li>${escaped(remark)}</li>`).join('')}</ul>` : '';
     }
 
@@ -59,7 +61,7 @@
         + `${remarksMarkup(spec)}${spec.caption ? `<p class="dk-caption">${escaped(spec.caption)}</p>` : ''}</figure>`;
     }
 
-    return { kinds: () => [...byKind.keys()], problemsIn, laidOut: laidOutSpec, figureOf };
+    return { kinds: () => [...byKind.keys()], faultsIn, problemsIn, remarksOn, laidOut: laidOutSpec, figureOf };
   }
 
   const api = { notations, markProblems, STATUSES, TONES };

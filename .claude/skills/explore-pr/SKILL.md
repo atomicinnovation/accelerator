@@ -289,7 +289,8 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   yourself. The content model lists what is checked ("What the build
   requires", "References the build checks", "Anchors").
 - The smoke check must report `"ok": true`. It needs Chrome or Chromium and
-  Node 22; if neither is available, say the page was not rendered.
+  Node 22; if neither is available, say the page was not rendered. The
+  build itself needs Node 22 to lay out diagrams.
 - Read the **Design** screenshot as the reviewer will: could someone who
   reads only that view explain the change's shape, its key decisions and
   where the next change goes? If not, the design content is not done.

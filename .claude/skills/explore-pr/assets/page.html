@@ -351,15 +351,6 @@ details[open] > summary { margin-bottom: 8px; }
 .report { font-family: var(--f-mono); font-size: 12.5px; background: var(--panel-2); border-radius: 8px; padding: 12px 14px; white-space: pre-wrap; overflow-x: auto; }
 
 /* Module map */
-.modmap { width: 100%; height: auto; display: block; }
-.modmap text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.modmap .lay { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
-.modmap .sub { font-family: var(--f-body); font-size: 10.5px; fill: var(--ink-3); }
-.modmap rect.box { fill: var(--panel); stroke: var(--rule); stroke-width: 1.2; }
-.modmap rect.box.new { stroke: var(--accent); stroke-width: 1.6; }
-.modmap .edge { stroke: var(--ink-3); stroke-width: 1.2; fill: none; }
-.modmap .arrow { fill: var(--ink-3); }
-.modmap .band { fill: var(--panel-2); }
 
 .tok { color: var(--ink-3); }
 .empty { padding: 28px; text-align: center; color: var(--ink-3); border: 1px dashed var(--rule); border-radius: 10px; }
@@ -667,7 +658,7 @@ function ctl(target, kind, meta, opts = {}) {
   </div>`;
 }
 
-GraphFocus.attach(document);
+DiagramKit.attachTracing(document);
 document.addEventListener('click', e => {
   const b = e.target.closest('.ctl .seg button');
   if (!b) return;
@@ -1266,10 +1257,6 @@ function figFlow(f, uid) {
     n.w = Math.max(96, Math.min(250, Math.max(textWidth(plain(n.label)), n.sub ? textWidth(plain(n.sub), SANS_SMALL) : 0) + 28)) + n.link;
     n.h = n.sub ? 46 : 32;
   });
-  if (f.arrange) {
-    const arranged = GraphRoutes.orderRows(rows.map(r => (r || []).map(n => n.id)), edges);
-    arranged.forEach((ids, i) => { if (rows[i]) rows[i] = ids.map(id => byId[id]); });
-  }
   const labelCol = layerIds.length ? 128 : 0, gap = 22;
   const rowW = rows.map(r => (r || []).reduce((s, n) => s + n.w, 0) + Math.max(0, (r || []).length - 1) * gap);
   const rowH = rows.map(r => Math.max(32, ...(r || []).map(n => n.h)));
@@ -1442,8 +1429,19 @@ function figCompare(f) {
 
 const FIGURES = { flow: figFlow, sequence: figSequence, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
 let figureSeq = 0;
+function diagramLink(link) {
+  if (link.startsWith('chapter:')) return { href: '#tour-' + link.slice('chapter:'.length), label: 'Open its chapter' };
+  const w = parseWhere(link);
+  if (w) return { href: '#files', label: `Open ${link}`, attributes: { 'data-open': w.path, 'data-line': w.line } };
+  return /^(https?:|#)/.test(link) ? { href: link, label: `Open ${link}` } : null;
+}
+function figDiagram(f) {
+  if (!f.scene) return '<div class="fig-error">This diagram could not be laid out. The build names what is wrong with it.</div>';
+  const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
+  return `<div class="fig-scroll">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${remarks}`;
+}
 function figureBody(f) {
-  const draw = FIGURES[f && f.kind];
+  const draw = f && 'scene' in f ? figDiagram : FIGURES[f && f.kind];
   if (!draw) return `<div class="fig-error">No renderer for a figure of kind “${esc(f && f.kind)}”.</div>`;
   try { return draw(f, ++figureSeq); } catch (e) { return `<div class="fig-error">This figure could not be drawn: ${esc(e.message)}</div>`; }
 }
@@ -1495,21 +1493,6 @@ function abstractionCard({ item: a, chapters }) {
   </article>`;
 }
 const collaboratorName = c => (typeof c === 'string' ? c : c.name || '');
-function relationsFigure(items) {
-  const nodes = new Map();
-  items.forEach(({ item, chapters }) => nodes.set(plain(item.name), { id: plain(item.name), label: plain(item.name), sub: item.kind, tone: { new: 'new', changed: 'changed', removed: 'removed', existing: 'existing' }[item.status], where: item.where, chapter: chapters[0] && chapters[0].id }));
-  if (nodes.size < 2 || nodes.size > 16) return '';
-  const edges = [];
-  let extra = 0;
-  items.forEach(({ item }) => (item.collaborators || []).forEach(c => {
-    const name = plain(collaboratorName(c));
-    if (!nodes.has(name)) { if (extra >= 6) return; extra++; nodes.set(name, { id: name, label: name, sub: (C.collaboratorKinds || {})[name] || '', tone: 'existing' }); }
-    edges.push({ from: plain(item.name), to: name });
-  }));
-  if (!edges.length) return '';
-  return figureHtml({ id: 'design-relations', kind: 'flow', title: 'How the abstractions work together', nodes: [...nodes.values()], edges, wide: true, arrange: true,
-    caption: 'Drawn from each abstraction\'s collaborators: an arrow points from an abstraction to one it uses. Each box\'s border says whether it is new, changed, removed or unchanged; ↗ on a box opens its code.' });
-}
 function decisionCard({ item: d, chapter }) {
   const chip = d.assessment ? `<span class="chip ${ASSESS_CHIP[d.assessment] || 'c-none'}">${esc(d.assessment)}</span>` : '';
   return `<article class="finding decision" id="dec-${esc(d.id || '')}">
@@ -1540,11 +1523,11 @@ function vDesign() {
   const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
   return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
     ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
-    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${relationsFigure(abstractions)}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
+    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${d.relations ? figureHtml(d.relations) : ''}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
     ${decisions.length ? `<section class="section"><h2>Design decisions ${count(decisions.length)}</h2><p class="small muted">What was chosen, over what, why, and at what cost. Whether you agree with these matters more than any single line.</p><div class="stack">${decisions.map(decisionCard).join('')}</div></section>` : ''}
     ${(d.principles || []).length ? `<section class="section"><h2>Fit with the existing architecture</h2>${principlesTable(d.principles)}</section>` : ''}
     ${(d.extension || []).length ? `<section class="section"><h2>Where the next change goes</h2>${extensionTable(d.extension)}</section>` : ''}
-    ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div></section>` : ''}
+    ${C.moduleMap ? `<section class="section"><div class="figs">${figureHtml(C.moduleMap)}</div></section>` : ''}
     <section class="panel stack"><div class="eyebrow">Your view of the design</div><div class="md" style="font-size:16px">${md(d.signOff || 'Is this the right shape for the problem, and would you be content to own and extend it?')}</div>${ctl('design-overall', 'chapter', { label: 'The design as a whole' }, { noteOpen: true })}</section>`;
 }
 
@@ -1609,7 +1592,7 @@ function vOverview() {
 
   ${o.whatChanges ? `<section class="section"><h2>What changes</h2><div class="md prose">${md(o.whatChanges)}</div></section>` : ''}
 
-  ${C.moduleMap ? `<section class="section"><h2>${esc(C.moduleMap.title || 'How the modules fit')}</h2><div class="panel">${moduleMap()}</div><p class="small muted">${esc(C.moduleMap.caption || 'Arrows point from caller to dependency. Outlined boxes are new in this PR. ↗ on a box opens its chapter.')}</p></section>` : ''}
+  ${C.moduleMap ? `<section class="section"><div class="figs">${figureHtml(C.moduleMap)}</div></section>` : ''}
 
   ${(C.breaking || []).length ? `<section class="section"><h2>Breaking changes <span class="muted small" style="font-family:var(--f-body);font-weight:400">${C.breaking.length}</span></h2><div class="ba">${breaking}</div></section>` : ''}
 
@@ -1630,37 +1613,6 @@ document.addEventListener('click', e => {
   findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: a.dataset.jumpFinding };
   if (location.hash !== '#findings') location.hash = 'findings'; else render();
 });
-
-function moduleMap() {
-  const nodes = C.moduleMap.nodes, edges = C.moduleMap.edges, layers = C.moduleMap.layers;
-  const W = 940, rowH = 92, top = 16, boxH = 46;
-  const H = top + layers.length * rowH;
-  const pos = {};
-  layers.forEach((L, li) => {
-    const ns = nodes.filter(n => n.layer === L.id);
-    const gap = 16, avail = W - 150 - 10;
-    const bw = Math.min(200, (avail - gap * (ns.length - 1)) / ns.length);
-    const totalW = ns.length * bw + (ns.length - 1) * gap;
-    let x = 150 + (avail - totalW) / 2;
-    ns.forEach(n => { pos[n.id] = { x, y: top + li * rowH + 18, w: bw, h: boxH }; x += bw + gap; });
-  });
-  let svg = `<svg class="modmap" data-graph="modmap" style="${traceStyle('ah-modmap')}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Module dependency map"><defs>${arrowheads('ah-modmap')}</defs>`;
-  layers.forEach((L, li) => { const y = top + li * rowH; svg += `<rect class="band" x="0" y="${y + 6}" width="${W}" height="${rowH - 12}" rx="8" opacity=".55"/><text class="lay" x="14" y="${y + 30}">${esc(L.label)}</text><text class="sub" x="14" y="${y + 46}">${esc(L.sub || '')}</text>`; });
-  const rankOf = Object.fromEntries(nodes.map(n => [n.id, layers.findIndex(L => L.id === n.layer)]));
-  const boxes = nodes.filter(n => pos[n.id]).map(n => routeBox(n.id, rankOf[n.id], pos[n.id], linkTarget(n) ? NODE_LINK_W : 0));
-  const downward = edges.filter(([a, b]) => pos[a] && pos[b] && rankOf[b] > rankOf[a]).map(([from, to]) => ({ from, to }));
-  const gapTop = g => top + g * rowH + 18 + boxH;
-  const routes = GraphRoutes.draw(GraphRoutes.plan(boxes, downward), boxes, { gapTop, gapBottom: g => top + (g + 1) * rowH + 18 });
-  downward.forEach(({ from, to }, i) => {
-    svg += `<path class="edge" data-from="${esc(from)}" data-to="${esc(to)}" d="${routes[i].d}" marker-end="url(#ah-modmap)"/>`;
-  });
-  nodes.forEach(n => {
-    const p = pos[n.id];
-    const inner = `<rect class="box${n.isNew ? ' new' : ''}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="7"/><text x="${p.x + 10}" y="${p.y + 19}">${esc(n.label)}</text><text class="sub" x="${p.x + 10}" y="${p.y + 35}">${esc(n.sub || '')}</text>`;
-    svg += `<g class="mnode" ${nodeAttrs(n.id, n.label)}>${inner}${nodeLink(n, p.x + p.w, p.y, p.h)}${nodeFrame(n, p, ` box${n.isNew ? ' new' : ''}`)}</g>`;
-  });
-  return `<div style="overflow-x:auto">${svg}</svg></div>`;
-}
 
 /* Attention map */
 let mapSize = 'all';

@@ -31,7 +31,7 @@ rebuilding them. Paths are relative to the skill directory.
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
 | `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
-| `assets/graph-focus.js` | Traces a graph's arrows, outbound and inbound, from every box the reviewer has pressed (touch, mouse or keyboard); pressing a box again drops it and Esc clears them all, inlined into every build |
+| `../diagram-kit/` | The diagram kit, a skill beside this one: it checks and lays out every diagram of a kind a `draw-*` skill draws when the page is built, and its renderer, stylesheet and tracing are inlined into every build. Tracing follows a graph's arrows, outbound and inbound, from every box the reviewer has pressed; pressing a box again drops it and Esc clears them all |
 | `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
 | `scripts/export_trees.py` | Base and head copies of every changed file, through the GitHub API |
 | `scripts/extract_diff.py` | `data/diff.json` from those trees |

@@ -343,7 +343,8 @@ Every figure has:
 
 | Kind | Draw it for | Shape |
 |---|---|---|
-| `flow` | Architecture, call graphs, data flow, what depends on what | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
+| `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
+| `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
 | `sequence` | Protocols, start-up order, lock ordering, races, retries | Actors across, numbered messages down, notes over actors |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
 | `matrix` | Decision tables, permission and configuration matrices, gates | Rows by columns, each cell a short outcome with a tone |
@@ -387,6 +388,34 @@ Every figure has:
 // svg
 { "kind": "svg", "svg": "<svg viewBox='0 0 600 200'>…</svg>" }
 ```
+
+### Diagrams the kit draws
+
+A figure whose `kind` is a notation one of the `draw-*` skills draws is
+written in that notation's own terms, checked and laid out by the diagram
+kit when the page is built, and drawn by the kit's renderer. Today that is
+`dependency-graph`; each further notation replaces a use of `flow` or
+`sequence`, so prefer a kit diagram wherever one fits.
+
+- Write it as the notation's reference says:
+  `../draw-dependency-graph/reference/notation.md` beside this skill. It
+  takes the same `id`, `title`, `caption` and `wide` as any figure.
+- Every element may carry a `status` (`new`, `changed`, `removed`,
+  `existing`), a `tone` (`risk`, `ok`) and a `link`.
+- A `link` is where the element lives: `path:line` opens the file,
+  `chapter:<id>` opens a chapter, and a web address opens as it is. The
+  build checks a `path:line` and a chapter exactly as it checks a `where`.
+- Anything the kit finds wrong with a diagram is a build warning naming
+  the figure, and the figure is not drawn until it is fixed.
+- A dependency graph with more than about twice as many dependencies as
+  modules should set `"reduce": true`.
+
+The Design view's diagram of how the abstractions work together and the
+module map are dependency graphs the build writes for you, from the
+abstractions' `collaborators` and from `modmap.json`.
+
+The build needs Node 22 to lay diagrams out. Without it, the build warns
+and no kit diagram is drawn.
 
 What makes a figure worth its space:
 
@@ -467,7 +496,7 @@ can be mapped to the same shape:
 [{ "n": 1, "label": "…", "phase": "4", "note": "md or null",
    "tests": [{ "ref": "name as written", "hits": [{ "name": "…", "file": "…", "line": 10 }] }] }]
 
-// modmap.json — ≤ 12 nodes; edges point from caller to callee and run down the layers
+// modmap.json — ≤ 12 nodes; edges point from caller to callee; drawn as a dependency graph, a group per layer
 { "title": "How the modules fit", "caption": "…",
   "layers": [{ "id": "entry", "label": "Entry", "sub": "…" }],
   "nodes": [{ "id": "start_up", "layer": "entry", "label": "start_up", "sub": "…", "isNew": true, "chapter": "identity" }],

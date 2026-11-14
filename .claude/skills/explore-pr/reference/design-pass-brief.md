@@ -50,7 +50,9 @@ not repeat them: {chapter ids, titles and one-line scopes}.
    exactly where each would go. This is what the reviewer needs to own the
    code.
 
-**Then draw it.** `figures`: the architecture as a layered `flow` (entry
+**Then draw it.** `figures`: which way the dependencies run as a
+`dependency-graph` (contract, "Diagrams the kit draws"), grouped by layer,
+with what the change adds marked `new`; the architecture as a layered `flow` (entry
 points at the top, ports at the bottom, new parts toned `new`, each box
 linked to its chapter), and a `compare` of before and after when the change
 reshapes something that existed. Write the `summary` last, in 3–5 sentences,

@@ -273,7 +273,7 @@ def test_a_module_map_box_linked_to_a_missing_chapter_is_reported(
 
     warnings = warnings_for(tmp_path, script, [chapter()], modmap=modmap)
 
-    assert about(warnings, "module map", "nodes[m]", "missing chapter nope")
+    assert about(warnings, "module map", "modules[m]", "missing chapter nope")
 
 
 def test_prose_naming_a_stop_that_exists_raises_nothing(tmp_path, script):

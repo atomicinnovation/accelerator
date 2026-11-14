@@ -16,10 +16,14 @@ its file, rewriting the content files that hold them.
 """
 
 import argparse
+import base64
 import html
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from collections.abc import Iterator
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -28,8 +32,19 @@ ASSETS = Path(__file__).resolve().parent.parent / "assets"
 DATA_MARKER = "<!-- explore-pr:data -->"
 VIEWS_MARKER = "<!-- explore-pr:views -->"
 MODELS_MARKER = "<!-- explore-pr:models -->"
+KIT = ASSETS.parent.parent / "diagram-kit"
+KIT_MODULES = (
+    "lib/font-metrics.js",
+    "lib/text.js",
+    "lib/shapes.js",
+    "lib/render.js",
+    "lib/trace.js",
+)
+KIT_FONT_FAMILIES = {
+    "ibm-plex-sans": "IBM Plex Sans",
+    "jetbrains-mono": "JetBrains Mono",
+}
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
-GRAPH_FOCUS_MODEL = ASSETS / "graph-focus.js"
 GRAPH_ROUTES_MODEL = ASSETS / "graph-routes.js"
 PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
@@ -423,6 +438,12 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     model["collaboratorKinds"] = collaborator_kinds(
         model["design"], model["chapters"]
     )
+    relations = abstraction_relations(model)
+    if relations:
+        model["design"]["relations"] = relations
+    if model["moduleMap"]:
+        model["moduleMap"] = module_map_graph(model["moduleMap"])
+    faults += kit_warnings(model)
     summarised = {entry["path"] for entry in summaries}
     warnings = faults + check(model, diff) + commit_warnings(commits, diff)
     warnings += [
@@ -431,6 +452,184 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         if path not in summarised
     ]
     return model, warnings
+
+
+def without_blanks(item: dict) -> dict:
+    return {key: value for key, value in item.items() if value is not None}
+
+
+def abstraction_relations(model: dict) -> dict | None:
+    """Return the graph of which key abstraction uses which, if any does."""
+    declared = {
+        abstraction_name(entry["item"]): entry
+        for entry in model["keyAbstractions"]
+    }
+    if not 2 <= len(declared) <= MOST_ABSTRACTIONS_DRAWN:
+        return None
+    modules = {
+        name: without_blanks(
+            {
+                "id": name,
+                "detail": entry["item"].get("kind"),
+                "status": entry["item"].get("status"),
+                "link": f"{CHAPTER_LINK}{entry['chapters'][0]}"
+                if entry["chapters"]
+                else entry["item"].get("where"),
+            }
+        )
+        for name, entry in declared.items()
+    }
+    uses: dict[tuple[str, str], dict] = {}
+    for name, entry in declared.items():
+        for collaborator in entry["item"]["collaborators"]:
+            used = collaborator.replace("`", "").strip()
+            others = len(modules) - len(declared)
+            if used not in modules and others >= MOST_OTHERS_DRAWN:
+                continue
+            modules.setdefault(
+                used,
+                without_blanks(
+                    {
+                        "id": used,
+                        "detail": model["collaboratorKinds"].get(used),
+                        "status": "existing",
+                    }
+                ),
+            )
+            uses[name, used] = {"from": name, "to": used}
+    if not uses:
+        return None
+    return {
+        "id": "design-relations",
+        "kind": "dependency-graph",
+        "title": "How the abstractions work together",
+        "caption": "Drawn from each abstraction's collaborators: an arrow "
+        "points from an abstraction to one it uses. Each box's border says "
+        "whether it is new, changed, removed or unchanged; ↗ on a box opens "
+        "the chapter that explains it.",
+        "wide": True,
+        "modules": list(modules.values()),
+        "dependencies": list(uses.values()),
+    }
+
+
+MOST_ABSTRACTIONS_DRAWN = 16
+MOST_OTHERS_DRAWN = 6
+
+
+MODULE_MAP_CAPTION = (
+    "Arrows point from a module to what it depends on. Outlined boxes are "
+    "new in this PR. ↗ on a box opens its chapter."
+)
+
+
+def module_map_graph(modmap: dict) -> dict:
+    """Return a module map as the dependency graph that draws it."""
+
+    def module(node: dict) -> dict:
+        chapter = node.get("chapter")
+        return without_blanks(
+            {
+                "id": node.get("id"),
+                "label": node.get("label"),
+                "detail": node.get("sub"),
+                "status": "new" if node.get("isNew") else None,
+                "link": f"{CHAPTER_LINK}{chapter}" if chapter else None,
+            }
+        )
+
+    nodes = [n for n in modmap.get("nodes", []) if isinstance(n, dict)]
+    layers = [x for x in modmap.get("layers", []) if isinstance(x, dict)]
+    layered = {layer.get("id") for layer in layers}
+    groups = [
+        {
+            "id": f"layer:{layer.get('id')}",
+            "label": layer.get("label") or layer.get("id"),
+            "modules": [
+                module(n) for n in nodes if n.get("layer") == layer.get("id")
+            ],
+        }
+        for layer in layers
+    ]
+    loose = [module(n) for n in nodes if n.get("layer") not in layered]
+    pairs = [e for e in modmap.get("edges", []) if isinstance(e, list)]
+    return without_blanks(
+        {
+            "id": "module-map",
+            "kind": "dependency-graph",
+            "title": modmap.get("title") or "How the modules fit",
+            "caption": modmap.get("caption") or MODULE_MAP_CAPTION,
+            "wide": True,
+            "modules": [g for g in groups if g["modules"]] + loose,
+            "dependencies": [
+                {"from": pair[0], "to": pair[1]}
+                for pair in pairs
+                if len(pair) == len(("from", "to"))
+            ],
+        }
+    )
+
+
+def kit_figures(model: dict) -> list[tuple[str, dict]]:
+    """Return every figure of a kind this page does not draw itself."""
+    placed = [
+        (where, figure)
+        for where, top in placed_figures(model)
+        for figure in flattened(top)
+        if figure.get("kind") not in FIGURE_KINDS
+    ]
+    generated = [
+        ("design", model["design"].get("relations")),
+        ("module map", model["moduleMap"]),
+    ]
+    return placed + [(where, f) for where, f in generated if f]
+
+
+def prepared_by_the_kit(figures: list[dict]) -> dict:
+    """Have the diagram kit check and lay out every figure."""
+    node = shutil.which("node")
+    if not node:
+        return {"failure": "node is needed to lay out diagrams"}
+    with tempfile.TemporaryDirectory() as scratch:
+        specs = Path(scratch) / "diagrams.json"
+        specs.write_text(json.dumps(figures))
+        run = subprocess.run(
+            [node, str(KIT / "bin/diagram.js"), "prepare", str(specs)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if run.returncode != 0:
+        reason = (run.stderr.strip().splitlines() or ["no output"])[-1]
+        return {"failure": f"the diagram kit failed: {reason}"}
+    return json.loads(run.stdout)
+
+
+def kit_warnings(model: dict) -> list[str]:
+    """Lay out every kit diagram in place; return a warning for each problem."""
+    figures = kit_figures(model)
+    if not figures:
+        return []
+    answer = prepared_by_the_kit([figure for _, figure in figures])
+    if "failure" in answer:
+        return [f"diagrams: {answer['failure']}"]
+    drawn = sorted([*FIGURE_KINDS, *answer["kinds"]])
+    warnings = []
+    for (where, figure), prepared in zip(
+        figures, answer["diagrams"], strict=True
+    ):
+        figure["scene"] = prepared["scene"]
+        figure["legend"] = prepared["legend"]
+        figure["remarks"] = prepared["remarks"]
+        name = f"{where}: figure {figure.get('id', '?')}"
+        if figure.get("kind") not in answer["kinds"]:
+            warnings.append(
+                f'{name}: no figure of kind "{figure.get("kind")}"; '
+                f"kinds are: {', '.join(drawn)}"
+            )
+            continue
+        warnings += [f"{name}: {problem}" for problem in prepared["problems"]]
+    return warnings
 
 
 def stop_warnings(chapter: dict, diff: dict) -> list[str]:
@@ -815,9 +1014,6 @@ def figure_warnings(model: dict) -> list[str]:
             name, kind = figure.get("id", "?"), figure.get("kind")
             ids.append(name)
             if kind not in FIGURE_KINDS:
-                warnings.append(
-                    f"{where}: figure {name} has unknown kind {kind}"
-                )
                 continue
             problems = KIND_PROBLEMS.get(kind, lambda _: [])(figure)
             warnings += [f"{where}: figure {name} {p}" for p in problems]
@@ -948,12 +1144,16 @@ def design_warnings(model: dict) -> list[str]:
 
 LOCATION = re.compile(r"^([^:\s]+):(\d+)(?:-(\d+))?")
 LOCATION_KEYS = ("where", "changelog")
+CHAPTER_LINK = "chapter:"
 CHAPTER_RUN = re.compile(
     r"\bchapters?\s+((?:`[^`]+`(?:\s*,\s*|\s*,?\s+(?:and|or|to|through)\s+)?)+)",
     re.IGNORECASE,
 )
 CHAPTER_NAMED = re.compile(r"`([^`]+)`\s+chapters?\b", re.IGNORECASE)
 REFERENCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
+
+LAID_OUT_BY_THE_KIT = ("scene", "legend", "remarks")
 
 
 def sources(model: dict) -> list[tuple[str, object]]:
@@ -974,7 +1174,8 @@ def located(value: object, trail: str = "") -> Iterator[tuple[str, object]]:
     if isinstance(value, dict):
         yield trail, value
         for key, child in value.items():
-            yield from located(child, within(trail, key))
+            if key not in LAID_OUT_BY_THE_KIT:
+                yield from located(child, within(trail, key))
     elif isinstance(value, list):
         for position, child in enumerate(value):
             name = (
@@ -1267,7 +1468,19 @@ def item_problems(
     named = item.get("chapter")
     if isinstance(named, str) and named not in chapters:
         problems.append((trail, f"names missing chapter {named}"))
+    problems.append((trail, link_problem(item.get("link"), diff, chapters)))
     return [at(where, problem) for where, problem in problems if problem]
+
+
+def link_problem(link: object, diff: dict, chapters: set[str]) -> str | None:
+    if not isinstance(link, str):
+        return None
+    if link.startswith(CHAPTER_LINK):
+        named = link.removeprefix(CHAPTER_LINK)
+        return None if named in chapters else f"names missing chapter {named}"
+    return (
+        location_problem("link", link, diff) if LOCATION.match(link) else None
+    )
 
 
 def reference_warnings(model: dict, diff: dict) -> list[str]:
@@ -1341,13 +1554,30 @@ def with_views(page: str, views: list[str]) -> str:
 
 def with_page_models(page: str) -> str:
     models = (
+        *(KIT / module for module in KIT_MODULES),
         COVERAGE_MODEL,
-        GRAPH_FOCUS_MODEL,
         GRAPH_ROUTES_MODEL,
         PROSE_REFERENCES_MODEL,
     )
+    styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)
-    return page.replace(MODELS_MARKER, scripts)
+    return page.replace(MODELS_MARKER, styles + scripts)
+
+
+def embedded_fonts() -> str:
+    """Return the faces diagrams are sized for, so they need no network."""
+    faces = []
+    for font in sorted((KIT / "vendor/fonts").glob("*.woff2")):
+        family, weight = re.fullmatch(
+            r"(.+)-latin-(\d+)-normal", font.stem
+        ).groups()
+        data = base64.b64encode(font.read_bytes()).decode()
+        faces.append(
+            f'@font-face{{font-family:"{KIT_FONT_FAMILIES[family]}";'
+            f"font-weight:{weight};font-display:block;"
+            f'src:url(data:font/woff2;base64,{data}) format("woff2")}}'
+        )
+    return f"<style>{''.join(faces)}</style>"
 
 
 def standalone(
@@ -1370,7 +1600,9 @@ def standalone(
     if commits:
         data += inline_json("__EXPLORE_COMMITS", commits)
     page = with_views(page.replace(DATA_MARKER, data), views)
-    page = with_page_models(page)
+    page = with_page_models(
+        page.replace(MODELS_MARKER, embedded_fonts() + MODELS_MARKER)
+    )
     head, separator, body = page.partition("</style>")
     if not separator:
         head, body = "", page

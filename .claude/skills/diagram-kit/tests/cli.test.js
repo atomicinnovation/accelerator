@@ -89,3 +89,25 @@ test('an unknown command explains how the tool is used', () => {
   assert.equal(result.status, 2);
   assert.match(result.stderr, /usage: diagram\.js/);
 });
+
+test('preparing a list of diagrams lays out the sound ones and reports the rest, without failing', () => {
+  const dir = workdir([SPEC, { ...SPEC, id: 'd2', title: '' }, { id: 'd3', kind: 'blobs', title: 't' }, { ...SPEC, id: 'd4', boxes: [...SPEC.boxes, { id: 'c', label: 'gamma' }] }]);
+  const result = run(dir, 'prepare', 'spec.json');
+  assert.equal(result.status, 0, result.stderr);
+  const prepared = JSON.parse(result.stdout);
+  assert.deepEqual(prepared.kinds, ['boxes']);
+  assert.deepEqual(prepared.diagrams.map(each => each.id), ['d1', 'd2', 'd3', 'd4']);
+  const [sound, untitled, unknown, remarked] = prepared.diagrams;
+  assert.deepEqual(sound.problems, []);
+  assert.deepEqual(sound.scene.nodes.map(node => node.id), ['a', 'b']);
+  assert.match(sound.legend, /new in this change/);
+  assert.deepEqual(untitled.problems, ['no title; say the point the diagram makes']);
+  assert.equal(untitled.scene, null);
+  assert.match(unknown.problems[0], /^no notation draws kind "blobs"/);
+  assert.deepEqual(remarked.remarks, ['More than two boxes.']);
+});
+
+test('preparing an empty list says which kinds can be drawn', () => {
+  const result = run(workdir([]), 'prepare', 'spec.json');
+  assert.deepEqual(JSON.parse(result.stdout), { kinds: ['boxes'], diagrams: [] });
+});
