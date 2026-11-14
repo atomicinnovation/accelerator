@@ -106,3 +106,33 @@ fn an_already_linked_work_item_is_refused_unsent() {
     assert_eq!(output.status.code(), Some(102));
     assert_eq!(server.hits(&RequestKey::post(STORIES)), 0);
 }
+
+#[test]
+fn a_work_item_file_with_a_title_flag_is_refused_unsent() {
+    let server = support::serving(&["story-create-201"]);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+    let item = dir.path().join("0043.md");
+    let linked = "---\ntitle: \"Linked\"\nexternal_id: \"sc-9\"\n---\n\nBody\n";
+    std::fs::write(&item, linked).expect("write");
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &[
+            "create",
+            item.to_str().expect("utf-8"),
+            "--title",
+            "Another",
+        ],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        support::stderr(&output)
+    );
+    assert_eq!(server.hits(&RequestKey::post(STORIES)), 0);
+    assert_eq!(std::fs::read_to_string(&item).expect("read"), linked);
+}

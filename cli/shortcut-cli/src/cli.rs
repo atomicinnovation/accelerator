@@ -101,6 +101,7 @@ impl SearchArgs {
 #[derive(Args)]
 pub struct CreateArgs {
     /// A work-item file whose title, kind and body seed the entity.
+    #[arg(conflicts_with_all = ["title", "body_file"])]
     pub file: Option<PathBuf>,
     /// The story's title, when there is no work-item file.
     #[arg(long)]
