@@ -39,6 +39,10 @@ KIT_MODULES = (
     "lib/shapes.js",
     "lib/render.js",
     "lib/trace.js",
+    "lib/html.js",
+    "../draw-matrix/notation.js",
+    "../draw-tree/notation.js",
+    "../draw-timeline/notation.js",
 )
 KIT_FONT_FAMILIES = {
     "ibm-plex-sans": "IBM Plex Sans",
@@ -622,8 +626,9 @@ def kit_warnings(model: dict) -> list[str]:
     for (where, figure), prepared in zip(
         figures, answer["diagrams"], strict=True
     ):
-        figure["scene"] = prepared["scene"]
-        figure["legend"] = prepared["legend"]
+        if not prepared.get("selfDrawn"):
+            figure["scene"] = prepared["scene"]
+            figure["legend"] = prepared["legend"]
         figure["remarks"] = prepared["remarks"]
         name = f"{where}: figure {figure.get('id', '?')}"
         if figure.get("kind") not in answer["kinds"]:
@@ -928,7 +933,7 @@ def finding_references(model: dict) -> list[tuple[str, str]]:
     return references
 
 
-FIGURE_KINDS = frozenset({"tree", "matrix", "timeline", "compare", "svg"})
+FIGURE_KINDS = frozenset({"compare", "svg"})
 NO_LONGER_DRAWN = {
     "flow": "write it as a block-diagram, or as the kind "
     "draw-diagram/reference/choosing.md names for what it shows",
@@ -959,25 +964,6 @@ def flattened(figure: dict) -> list[dict]:
     return [figure, *nested]
 
 
-def matrix_problems(figure: dict) -> list[str]:
-    labels, columns = figure.get("rows", []), len(figure.get("cols", []))
-    cells = figure.get("cells", [])
-    problems = []
-    if len(cells) != len(labels):
-        problems.append(f"has {len(cells)} rows of cells for {len(labels)}")
-    problems += [
-        f"row {number} does not have {columns} cells"
-        for number, row in enumerate(cells, 1)
-        if not isinstance(row, list) or len(row) != columns
-    ]
-    return problems
-
-
-KIND_PROBLEMS = {
-    "matrix": matrix_problems,
-}
-
-
 def figure_warnings(model: dict) -> list[str]:
     """Return warnings for missing, malformed or duplicated figures."""
     warnings = []
@@ -991,10 +977,6 @@ def figure_warnings(model: dict) -> list[str]:
                     f"{where}: figure {name}: {kind} is no longer drawn; "
                     f"{NO_LONGER_DRAWN[kind]}"
                 )
-            if kind not in FIGURE_KINDS:
-                continue
-            problems = KIND_PROBLEMS.get(kind, lambda _: [])(figure)
-            warnings += [f"{where}: figure {name} {p}" for p in problems]
     warnings += [
         f"duplicate figure id {name}"
         for name in sorted(set(ids))

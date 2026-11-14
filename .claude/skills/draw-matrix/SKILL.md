@@ -2,10 +2,10 @@
 name: draw-matrix
 description: Draw a matrix — a table of rows by columns in which each cell
   is a short outcome with a tone — as a page. Use when the user wants to see
-  which case gets which outcome across two dimensions: a decision table, a
-  permission or configuration matrix, what each combination of inputs does,
-  a compatibility or support grid; asks for a matrix or decision table; or
-  when another skill needs one as a figure.
+  which case gets which outcome across two dimensions, such as a decision
+  table, a permission or configuration matrix, what each combination of
+  inputs does, or a compatibility grid; asks for a matrix or decision
+  table; or when another skill needs one as a figure.
 argument-hint: "[what to draw, e.g. what each root does at each trigger]"
 allowed-tools:
   - Bash(accelerator config *)

@@ -24,7 +24,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { DRAWING_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
+const { DRAWING_CHECKS, SELF_DRAWN_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
 
 const CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -219,9 +219,9 @@ const DIAGRAMS_PROBE = `(async () => {
   let tracing = { skipped: 'no diagram with an arrow' };
   for (const route of window.ExplorePR.figureViews()) {
     location.hash = route; await settle();
-    if (!document.querySelector('svg.dk')) continue;
+    if (!document.querySelector('svg.dk, .dk-drawn')) continue;
     const checked = await ${DRAWING_CHECKS};
-    checked.diagrams.forEach(each => { seen[each.id] = each.problems; });
+    [...checked.diagrams, ...${SELF_DRAWN_CHECKS}].forEach(each => { seen[each.id] = each.problems; });
     const traced = await ${TRACING_CHECK};
     if (!traced.skipped) tracing = traced;
     const link = document.querySelector('svg.dk .node-link');

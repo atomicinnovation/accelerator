@@ -334,14 +334,11 @@ lifecycle, a schema change, anything that handles a secret, a parser or a
 change in how code is organised. Read it before sketching a chapter's
 figures.
 
-Four kinds are this page's own, and the guide does not cover them:
+Two kinds are this page's own, and the guide does not cover them:
 
-- `compare`: the same part of the system before and after. The overview
-  usually opens with one.
-- `matrix`: which case gets which outcome, across two dimensions.
-- `tree`: what is on disk, in a config or in a module tree, and what the
-  change adds, removes or leaves behind.
-- `timeline`: windows, ages and thresholds on one scale.
+- `compare`: the same part of the system before and after, as two figures
+  of any kind side by side. The overview usually opens with one.
+- `svg`: the rare picture nothing else draws.
 
 `flow`, the page's old boxes and arrows, is no longer drawn, and the build
 warns about one. What it showed is a `block-diagram`, or better the kind
@@ -385,28 +382,13 @@ Every figure has:
 | `railroad-diagram` | What a grammar, a command line or a pattern accepts | One track per rule: terminals and references to rules joined by rail, with branches for choices, bypasses for optional parts and loops for repeats; drawn by the diagram kit |
 | `block-diagram` | How a few things connect when no kind above fits: a derivation, a pipeline of transformations | Named boxes, optionally grouped, joined by labelled arrows; it has no rules of its own, so reach for it last; drawn by the diagram kit |
 | `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
-| `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
-| `matrix` | Decision tables, permission and configuration matrices, gates | Rows by columns, each cell a short outcome with a tone |
-| `timeline` | Ages, windows, timeouts, backoff, ordering in time | An axis (linear or log) with spans in lanes and labelled marks |
+| `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented listing with added, removed, changed and kept states; drawn by the diagram kit |
+| `matrix` | Decision tables, permission and configuration matrices, gates | A table of rows by columns, each cell a short outcome with a tone; drawn by the diagram kit |
+| `timeline` | Ages, windows, timeouts, backoff, ordering in time | An axis (linear or log) with spans in lanes and labelled marks; drawn by the diagram kit |
 | `compare` | Anything the PR changes shape: before on the left, after on the right | Two figures side by side |
 | `svg` | The rare picture none of the above can draw | Inline SVG you write; use `currentColor` and `var(--ink)`, `var(--accent)`, `var(--bad)`, `var(--ok)` so it works in both themes |
 
 ```jsonc
-// tree
-{ "kind": "tree", "root": "<root>/claims/",
-  "items": [{ "path": "sub/dir/name", "state": "added|removed|changed|kept", "note": "md", "where": "path:line" }] }
-
-// matrix
-{ "kind": "matrix", "rowLabel": "Root", "colLabel": "Trigger",
-  "rows": ["Default", "Relocated"], "cols": ["Start-up", "Cold path"],
-  "cells": [["no claim", { "text": "prune, `Try`", "tone": "ok|warn|bad|info|none" }], ["…", "…"]] }
-
-// timeline (values in one unit; ticks name them)
-{ "kind": "timeline", "scale": "log|linear", "from": 60, "to": 5184000,
-  "ticks": [{ "at": 3600, "label": "1 h" }],
-  "spans": [{ "from": 60, "to": 120960, "label": "young", "tone": "info|ok|warn|bad|none" }],
-  "marks": [{ "at": 1728000, "label": "1.24.0", "tone": "bad" }] }
-
 // compare
 { "kind": "compare", "before": { /* any figure */ }, "after": { /* any figure */ } }
 
@@ -428,6 +410,9 @@ are the kinds in the table above that say "drawn by the diagram kit".
   class diagram, `../draw-class-diagram/reference/notation.md`. A kit
   diagram takes the same `id`, `title`, `caption` and `wide` as any
   figure.
+- A `matrix` and a `tree` are drawn as a table and a listing, in HTML, so
+  they reflow and scroll as text does; a `timeline` is a drawing. In a
+  tree's items, write `link` where this page once took `where`.
 - A sequence diagram is one scenario written as a call tree: a call holds,
   as its `steps`, what its receiver does before answering, and its `reply`
   if what comes back matters.

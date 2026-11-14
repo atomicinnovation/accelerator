@@ -77,7 +77,7 @@ def test_the_evals_are_well_formed_and_cover_choosing_a_depth():
 
 
 GUIDE = "draw-diagram/reference/choosing.md"
-KIND_DRAWN = re.compile(r"module\.exports = \{ kind: '([a-z0-9-]+)'")
+KIND_DRAWN = re.compile(r"= \{ kind: '([a-z0-9-]+)'")
 
 
 def kinds_the_kit_draws():

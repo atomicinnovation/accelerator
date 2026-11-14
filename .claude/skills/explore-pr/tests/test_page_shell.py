@@ -119,3 +119,22 @@ def test_the_page_names_every_view_that_draws_a_figure():
     assert "'design'" in views
     assert "'tour-' + ch.id" in views
     assert "figureViews: () =>" in SHELL.read_text()
+
+
+def test_the_page_draws_only_comparisons_and_raw_svg_itself():
+    shell = SHELL.read_text()
+
+    for gone in (
+        "function figTree",
+        "function figMatrix",
+        "function figTimeline",
+    ):
+        assert gone not in shell, gone
+    assert "const FIGURES = { svg: figSvg, compare: figCompare };" in shell
+
+
+def test_a_figure_whose_notation_draws_itself_is_drawn_from_its_spec():
+    body = renderer("figureBody")
+
+    assert "DiagramKit.NOTATIONS" in body
+    assert "htmlOf(f, { resolveLink: diagramLink })" in renderer("figSelfDrawn")

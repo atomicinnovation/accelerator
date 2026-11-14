@@ -2,11 +2,10 @@ import json
 
 DIFF = {"src/a.rs": {"status": "added", "add": 1, "del": 0, "hunks": []}}
 FIGURE = {
-    "id": "f-tree",
-    "kind": "tree",
+    "id": "f-drawing",
+    "kind": "svg",
     "title": "Shape",
-    "root": "src/",
-    "items": [{"path": "a.rs", "state": "added"}],
+    "svg": "<svg viewBox='0 0 1 1'/>",
 }
 ABSTRACTION = {
     "id": "a-store",

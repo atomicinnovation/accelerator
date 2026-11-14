@@ -55,3 +55,13 @@ for (const skill of notations) {
     }
   });
 }
+
+for (const skill of ['diagram-kit', ...drawing]) {
+  test(`the description of ${skill} is one a loader reads to its end`, () => {
+    const frontMatter = fs.readFileSync(path.join(SKILLS, skill, 'SKILL.md'), 'utf8').split('\n---')[0];
+    const description = frontMatter.slice(frontMatter.indexOf('description:') + 'description:'.length).split(/\n[a-z-]+:/)[0];
+
+    assert.doesNotMatch(description, /:\s/);
+    assert.ok(description.trim().length > 80);
+  });
+}

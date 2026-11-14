@@ -26,7 +26,7 @@ rebuilding them. Paths are relative to the skill directory.
 
 | Path | Purpose |
 |---|---|
-| `assets/page.html` | The page shell: every core view including Design, figure renderers (tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
+| `assets/page.html` | The page shell: every core view including Design, the two figures the page draws itself (a comparison of two others, and raw SVG); every other figure is drawn by the diagram kit, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
 | `../diagram-kit/` | The diagram kit, a skill beside this one: it checks and lays out every diagram of a kind a `draw-*` skill draws when the page is built, and its renderer, stylesheet and tracing are inlined into every build. Tracing follows a graph's arrows, outbound and inbound, from every box the reviewer has pressed; pressing a box again drops it and Esc clears them all |

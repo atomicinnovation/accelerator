@@ -166,7 +166,7 @@
           "path": "1.24.0.0123456789abcdef",
           "state": "removed",
           "note": "20 d old: goes after the last 1.24.0 entry",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
         },
         {
           "path": "1.24.0.9c4b1e0f2a7d5e83",

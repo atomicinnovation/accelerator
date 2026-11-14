@@ -16,22 +16,17 @@ STOP = {
     "anchor": "fn a()",
     "fit": "f",
 }
-TREE = {
-    "id": "f1",
-    "kind": "tree",
-    "root": "src/",
-    "items": [{"path": "a.rs", "state": "added"}],
-}
+DRAWING = {"id": "f1", "kind": "svg", "svg": "<svg viewBox='0 0 1 1'/>"}
 SOUND_CHAPTER = {
     "id": "first",
     "title": "First",
-    "figures": [TREE],
+    "figures": [DRAWING],
     "decisions": [{"id": "d1", "decision": "d"}],
     "stops": [STOP],
 }
 SOUND = {
     "chapter-first": SOUND_CHAPTER,
-    "overview": {"figures": [dict(TREE, id="f0")]},
+    "overview": {"figures": [dict(DRAWING, id="f0")]},
     "design": {"summary": "s"},
     "files": [{"path": "src/core.rs", "summary": "s", "risk": "high"}],
 }
@@ -333,7 +328,7 @@ def test_a_figure_built_of_the_wrong_kinds_is_reported_not_fatal(
     assert any(
         "figures[f4]: cols must be a list; ignored" in w for w in warnings
     )
-    assert any("figure f4 row 1" in w for w in warnings)
+    assert any("figure f4: cols must be a list" in w for w in warnings)
 
 
 def test_a_field_given_as_null_is_treated_as_absent(tmp_path, script):

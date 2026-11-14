@@ -54,12 +54,12 @@ const DRAWING_CHECKS = `(async () => {
 const SELF_DRAWN_CHECKS = `(() => {
   const boxOf = element => { const b = element.getBoundingClientRect(); return { left: b.left, top: b.top, right: b.right, bottom: b.bottom }; };
   const overlap = (a, b, slack = 1) => a.left < b.right - slack && b.left < a.right - slack && a.top < b.bottom - slack && b.top < a.bottom - slack;
-  return [...document.querySelectorAll('figure.dk-figure')].filter(figure => figure.querySelector('.dk-drawn')).map(figure => {
+  return [...document.querySelectorAll('figure')].filter(figure => figure.querySelector('.dk-drawn')).map(figure => {
     const problems = [];
     const labels = [...figure.querySelectorAll('.dk-drawn svg text')].map(boxOf);
     if (labels.some((a, i) => labels.slice(i + 1).some(b => overlap(a, b)))) problems.push('two of its labels overlap');
     if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 && figure.scrollWidth > figure.clientWidth + 1) problems.push('it runs wider than the page');
-    return { id: figure.id.replace(/^diagram-/, ''), selfDrawn: true, problems };
+    return { id: figure.id.replace(/^(diagram|fig)-/, ''), selfDrawn: true, problems };
   });
 })()`;
 

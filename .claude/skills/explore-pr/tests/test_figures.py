@@ -2,12 +2,11 @@ import json
 
 DIFF = {"src/a.rs": {"status": "added", "add": 1, "del": 0, "hunks": []}}
 
-TREE = {
-    "id": "f-tree",
-    "kind": "tree",
+DRAWING = {
+    "id": "f-drawing",
+    "kind": "svg",
     "title": "What is left behind",
-    "root": "src/",
-    "items": [{"path": "a.rs", "state": "added"}],
+    "svg": "<svg viewBox='0 0 1 1'/>",
 }
 MISFIT = {
     "kind": "matrix",
@@ -31,7 +30,7 @@ def workspace(root, chapters, overview=None):
             json.dumps(chapter)
         )
     (root / "content/overview.json").write_text(
-        json.dumps(overview or {"figures": [dict(TREE, id="f-over")]})
+        json.dumps(overview or {"figures": [dict(DRAWING, id="f-over")]})
     )
     return root
 
@@ -55,7 +54,7 @@ def test_an_overview_without_a_figure_is_reported(tmp_path, script):
     warnings = warnings_for(
         tmp_path,
         script,
-        [{"id": "c", "title": "C", "figures": [TREE]}],
+        [{"id": "c", "title": "C", "figures": [DRAWING]}],
         overview={"lede": "words only"},
     )
 
@@ -64,7 +63,7 @@ def test_an_overview_without_a_figure_is_reported(tmp_path, script):
 
 def test_a_well_formed_figure_raises_no_figure_warning(tmp_path, script):
     warnings = warnings_for(
-        tmp_path, script, [{"id": "c", "title": "C", "figures": [TREE]}]
+        tmp_path, script, [{"id": "c", "title": "C", "figures": [DRAWING]}]
     )
 
     assert not [w for w in warnings if "figure" in w]
@@ -105,7 +104,7 @@ def test_figures_inside_a_comparison_and_on_a_stop_are_checked(
         "id": "f-cmp",
         "kind": "compare",
         "title": "Before and after",
-        "before": dict(TREE, id="f-before"),
+        "before": dict(DRAWING, id="f-before"),
         "after": broken,
     }
     stop = {
@@ -113,7 +112,7 @@ def test_figures_inside_a_comparison_and_on_a_stop_are_checked(
         "file": "src/a.rs",
         "start": 1,
         "end": 1,
-        "figure": dict(TREE, id="f-stop", kind="cloud"),
+        "figure": dict(DRAWING, id="f-stop", kind="cloud"),
     }
     chapter = {"id": "c", "title": "C", "figures": [compare], "stops": [stop]}
 
@@ -125,13 +124,13 @@ def test_figures_inside_a_comparison_and_on_a_stop_are_checked(
 
 def test_a_figure_id_used_twice_is_reported(tmp_path, script):
     chapters = [
-        {"id": "c1", "title": "C1", "figures": [TREE]},
-        {"id": "c2", "title": "C2", "figures": [TREE]},
+        {"id": "c1", "title": "C1", "figures": [DRAWING]},
+        {"id": "c2", "title": "C2", "figures": [DRAWING]},
     ]
 
     warnings = warnings_for(tmp_path, script, chapters)
 
-    assert any("duplicate figure id f-tree" in w for w in warnings)
+    assert any("duplicate figure id f-drawing" in w for w in warnings)
 
 
 def test_a_flow_is_reported_as_a_kind_the_page_no_longer_draws(

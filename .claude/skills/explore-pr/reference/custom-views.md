@@ -50,7 +50,7 @@ view looks and behaves like the rest of the page:
 | Member | Use |
 |---|---|
 | `content`, `diff` | The assembled content model and the diff (`diff` may be null while it loads) |
-| `figure(spec)` | A tree, matrix or timeline from the content model, rendered as HTML, so a view can draw one from the state it computes. A diagram the kit draws (a dependency graph, a sequence diagram) is laid out when the page is built, so a view cannot yet draw one from state it computes in the browser |
+| `figure(spec)` | A `matrix`, `tree` or `timeline`, written as its notation's reference says, rendered as HTML, so a view can draw one from the state it computes. A diagram with boxes and arrows (a dependency graph, a sequence diagram) is laid out when the page is built, so a view cannot yet draw one from state it computes in the browser |
 | `md(text, inline)`, `esc(text)` | Markdown and HTML escaping |
 | `codeSlice(path, start, end, side)` | A highlighted diff slice with links to the file view |
 | `locBtn(path, line)`, `whereBtn('path:line')`, `testRef('path::name')` | Links that open the file view at a line |

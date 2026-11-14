@@ -446,3 +446,63 @@ def test_a_state_machine_is_laid_out_with_what_the_kit_remarks_on(
         "held has no way out and is not final",
         "lost has no way out and is not final",
     ]
+
+
+PAGE = (
+    "<style>body{}</style><!-- explore-pr:data -->"
+    "<!-- explore-pr:models --><script>window.APP = true;</script>"
+    "<!-- explore-pr:views -->"
+)
+TREE = {
+    "id": "t1",
+    "kind": "tree",
+    "title": "What is left behind",
+    "root": "src/",
+    "items": [{"path": "core.rs", "state": "added", "link": "src/core.rs:1"}],
+}
+
+
+def test_a_figure_the_kit_draws_as_html_is_checked_but_given_no_scene(
+    tmp_path, script
+):
+    model, warnings = assembled(tmp_path, script, **chapter(figures=[TREE]))
+
+    figure = first_figure(model)
+    assert warnings == []
+    assert "scene" not in figure
+    assert figure["remarks"] == []
+
+
+def test_a_problem_in_a_self_drawn_figure_is_a_warning_on_it(tmp_path, script):
+    broken = dict(TREE, items=[{"path": "core.rs", "where": "src/core.rs:1"}])
+
+    _, warnings = assembled(tmp_path, script, **chapter(figures=[broken]))
+
+    assert warnings == [
+        "chapter first: figure t1: item core.rs: where is now link"
+    ]
+
+
+def test_a_link_inside_a_self_drawn_figure_is_checked(tmp_path, script):
+    far = dict(TREE, items=[{"path": "core.rs", "link": "src/core.rs:99"}])
+
+    _, warnings = assembled(tmp_path, script, **chapter(figures=[far]))
+
+    assert any(
+        "figures[t1].items[0]" in w and "outside 1-3" in w for w in warnings
+    )
+
+
+def test_both_layouts_carry_the_notations_that_draw_themselves(
+    tmp_path, script
+):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        for kind in ("matrix", "tree", "timeline"):
+            assert f"kind: '{kind}'" in html, kind
+        assert html.index("inlineOf") < html.index("kind: 'matrix'")
+        assert html.index("kind: 'timeline'") < html.index("window.APP")

@@ -369,49 +369,12 @@ details[open] > summary { margin-bottom: 8px; }
 .fig-scroll { overflow-x: auto; min-width: 0; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
-.fd text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.fd .fs, .fd .tl, .fd .ml, .fd .sl { font-family: var(--f-body); }
-.fd .fs { font-size: 11px; fill: var(--ink-3); }
 .lg.trace-out { background: var(--accent); border-color: var(--accent); }
 .lg.trace-in { background: var(--warn); border-color: var(--warn); }
 .trace-hint { color: var(--ink-3); }
-.fd .axis { stroke: var(--ink-3); stroke-width: 1.2; }
-.fd .tick { stroke: var(--ink-3); }
-.fd .tl { font-size: 10.5px; fill: var(--ink-3); }
-.fd .ml { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
-.fd .mark line { stroke: var(--ink-3); stroke-width: 1; }
-.fd .mark circle { fill: var(--ink-2); }
-.fd .mark.t-ok circle { fill: var(--ok); } .fd .mark.t-ok .ml { fill: var(--ok); }
-.fd .mark.t-bad circle, .fd .mark.t-risk circle { fill: var(--bad); } .fd .mark.t-bad .ml, .fd .mark.t-risk .ml { fill: var(--bad); }
-.fd .mark.t-warn circle { fill: var(--warn); } .fd .mark.t-warn .ml { fill: var(--warn); }
-.fd .span rect { fill: color-mix(in srgb, var(--info) 22%, var(--panel)); }
-.fd .span.t-ok rect { fill: color-mix(in srgb, var(--ok) 26%, var(--panel)); }
-.fd .span.t-warn rect { fill: color-mix(in srgb, var(--warn) 26%, var(--panel)); }
-.fd .span.t-bad rect, .fd .span.t-risk rect { fill: color-mix(in srgb, var(--bad) 22%, var(--panel)); }
-.fd .span.t-none rect { fill: var(--panel-2); }
-.fd .sl { font-size: 11px; fill: var(--ink); }
 .fig-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
 .lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
-.lg.t-new { border-color: var(--accent); } .lg.t-changed { border-color: var(--warn); } .lg.t-ok { border-color: var(--ok); } .lg.t-existing { border-color: var(--ink-3); }
-.lg.t-removed { border-color: var(--bad); border-style: dashed; } .lg.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
-.ftree { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; }
-.ftree .tr { display: flex; align-items: baseline; white-space: pre; }
-.ftree .tp { color: var(--ink-3); }
-.ftree .tn.dir { font-weight: 600; }
-.ftree .tn.link { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
-.ftree .ts-added .tn { color: var(--ok); }
-.ftree .ts-removed .tn { color: var(--bad); text-decoration: line-through; }
-.ftree .ts-changed .tn { color: var(--warn); }
-.ftree .tnote { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); margin-left: 14px; white-space: normal; }
 .fig.wide { grid-column: 1 / -1; }
-.fmatrix table.data th { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--ink-2); white-space: normal; }
-.fmatrix table.data th[scope="row"] { color: var(--ink); font-weight: 600; font-size: 13px; }
-.fmatrix td.mc { font-size: 13px; }
-.mt-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
-.mt-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
-.mt-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
-.mt-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
-.mt-none { color: var(--ink-3); }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 .abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .abs.t-new { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
@@ -1108,112 +1071,8 @@ function openFile(path, line, side) {
 }
 
 /* ---------- Figures ---------- */
-const MONO = '12px "JetBrains Mono", ui-monospace, Menlo, monospace';
-const SANS = '12px "IBM Plex Sans", system-ui, sans-serif';
-const SANS_SMALL = '11px "IBM Plex Sans", system-ui, sans-serif';
-let measurer = null;
-function textWidth(text, font) {
-  try {
-    measurer = measurer || document.createElement('canvas').getContext('2d');
-    measurer.font = font || MONO;
-    return measurer.measureText(String(text)).width;
-  } catch (e) { return String(text).length * 7.3; }
-}
-function fit(text, maxWidth, font) {
-  let s = String(text || '');
-  if (textWidth(s, font) <= maxWidth) return s;
-  while (s.length > 1 && textWidth(s + '…', font) > maxWidth) s = s.slice(0, -1);
-  return s + '…';
-}
 const plain = s => String(s == null ? '' : s).replace(/`/g, '');
-const toneOf = t => (t ? ' t-' + String(t).replace(/[^a-z-]/g, '') : '');
-const svgLines = (x, y, lines, cls, anchor = 'middle', lineHeight = 15) =>
-  `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? lineHeight : 0}">${esc(l)}</tspan>`).join('')}</text>`;
-function openAttrs(item) {
-  const w = item && item.where ? parseWhere(item.where) : null;
-  return w ? { cls: ' link', attrs: ` data-open="${esc(w.path)}" data-line="${w.line}"`, title: `<title>${esc(item.where)}</title>` } : { cls: '', attrs: '', title: '' };
-}
-function svgFrame(width, height, body, label) {
-  return `<div class="fig-scroll"><svg class="fd" width="${Math.ceil(width)}" height="${Math.ceil(height)}" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" style="width:${Math.ceil(width)}px;max-width:100%;min-width:${Math.min(Math.ceil(width), Math.round(width * 0.62))}px" role="img" aria-label="${esc(plain(label))}">${body}</svg></div>`;
-}
 const traceHint = '<div class="fig-legend trace-hint">Press boxes to trace their arrows (Esc clears): <span><span class="lg trace-out"></span>out</span><span><span class="lg trace-in"></span>in</span><span>↗ opens it</span></div>';
-function figTree(f) {
-  const root = { children: new Map() };
-  for (const item of f.items || []) {
-    const parts = String(item.path || '').split('/').filter(Boolean);
-    let node = root;
-    parts.forEach((part, i) => {
-      if (!node.children.has(part)) node.children.set(part, { name: part, children: new Map(), dir: i < parts.length - 1 });
-      node = node.children.get(part);
-    });
-    node.item = item;
-    if (String(item.path).endsWith('/')) node.dir = true;
-  }
-  const rows = [];
-  const walk = (node, prefix) => {
-    const kids = [...node.children.values()];
-    kids.forEach((k, i) => {
-      const last = i === kids.length - 1;
-      rows.push({ guide: prefix + (last ? '└── ' : '├── '), node: k });
-      walk(k, prefix + (last ? '    ' : '│   '));
-    });
-  };
-  walk(root, '');
-  const mark = { added: '+ ', removed: '− ', changed: '~ ' };
-  return `<div class="ftree">${f.root ? `<div class="tr"><span class="tn dir">${esc(f.root)}</span></div>` : ''}${rows.map(({ guide, node }) => {
-    const item = node.item || {}, state = item.state || 'neutral', o = openAttrs(item);
-    return `<div class="tr ts-${esc(state)}"><span class="tp">${esc(guide)}</span><span class="tn${node.dir ? ' dir' : ''}${o.cls}"${o.attrs}>${mark[state] || ''}${esc(node.name)}${node.dir ? '/' : ''}</span>${item.note ? `<span class="tnote">${md(item.note, true)}</span>` : ''}</div>`;
-  }).join('')}</div>`;
-}
-
-function figMatrix(f) {
-  const cell = c => (c && typeof c === 'object' ? c : { text: c });
-  const corner = [f.rowLabel, f.colLabel].filter(Boolean).map(esc).join(' <span class="muted">×</span> ');
-  return `<div class="table-wrap fmatrix"><table class="data"><thead><tr><th>${corner}</th>${(f.cols || []).map(c => `<th>${md(String(c), true)}</th>`).join('')}</tr></thead><tbody>${(f.rows || []).map((r, i) => `<tr><th scope="row">${md(String(r), true)}</th>${((f.cells || [])[i] || []).map(c => { const x = cell(c); return `<td class="mc${x.tone ? ' mt-' + esc(x.tone) : ''}">${md(String(x.text == null ? '' : x.text), true)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
-}
-
-function figTimeline(f, uid) {
-  const log = f.scale === 'log';
-  const values = [...(f.spans || []).flatMap(s => [s.from, s.to]), ...(f.marks || []).map(m => m.at), ...(f.ticks || []).map(t => t.at)].filter(v => typeof v === 'number');
-  const lo = f.from != null ? f.from : Math.min(...values), hi = f.to != null ? f.to : Math.max(...values);
-  const width = 760, left = 24, plotW = width - left * 2;
-  const scale = v => {
-    const t = log ? (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / ((hi - lo) || 1);
-    return left + Math.max(0, Math.min(1, t)) * plotW;
-  };
-  const axisY = 58;
-  let svg = `<line class="axis" x1="${left}" y1="${axisY}" x2="${width - left}" y2="${axisY}"/>`;
-  (f.ticks || []).forEach(t => { const x = scale(t.at); svg += `<line class="tick" x1="${x}" y1="${axisY - 5}" x2="${x}" y2="${axisY + 5}"/>${svgLines(x, axisY + 19, [plain(t.label)], 'tl')}`; });
-  (f.marks || []).forEach((m, i) => {
-    const x = scale(m.at), ly = i % 2 ? 14 : 30;
-    svg += `<g class="mark${toneOf(m.tone)}"><line x1="${x}" y1="${ly + 4}" x2="${x}" y2="${axisY}"/><circle cx="${x}" cy="${axisY}" r="5"/>${svgLines(Math.min(Math.max(x, 60), width - 60), ly, [plain(m.label)], 'ml')}</g>`;
-  });
-  const lanes = [];
-  const spans = (f.spans || []).map(s => ({ ...s, x1: scale(s.from), x2: scale(s.to) })).sort((a, b) => a.x1 - b.x1);
-  spans.forEach(s => {
-    let lane = lanes.findIndex(end => end <= s.x1 + 1);
-    if (lane < 0) { lane = lanes.length; lanes.push(0); }
-    lanes[lane] = s.x2;
-    s.lane = lane;
-  });
-  const below = [];
-  spans.forEach(s => {
-    s.label = plain(s.label);
-    s.inside = textWidth(s.label, SANS_SMALL) + 12 <= Math.max(3, s.x2 - s.x1);
-    if (s.label && !s.inside) below[s.lane] = true;
-  });
-  const laneTop = [];
-  let laneY = axisY + 34;
-  lanes.forEach((_, i) => { laneTop[i] = laneY; laneY += 26 + (below[i] ? 16 : 0); });
-  spans.forEach(s => {
-    const y = laneTop[s.lane], w = Math.max(3, s.x2 - s.x1);
-    const outsideX = Math.max(left, Math.min(s.x1, width - left - textWidth(s.label, SANS_SMALL)));
-    svg += `<g class="span${toneOf(s.tone)}"><rect x="${s.x1}" y="${y}" width="${w}" height="18" rx="4"/>${s.label ? (s.inside ? svgLines(s.x1 + w / 2, y + 13, [s.label], 'sl') : svgLines(outsideX, y + 32, [s.label], 'sl', 'start')) : ''}</g>`;
-  });
-  const height = laneY + 8;
-  return svgFrame(width, height, svg, f.title, uid);
-}
-
 function figSvg(f) {
   const safe = String(f.svg || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, '');
   return `<div class="fig-scroll fsvg">${safe}</div>`;
@@ -1224,7 +1083,7 @@ function figCompare(f) {
   return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
 }
 
-const FIGURES = { tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
+const FIGURES = { svg: figSvg, compare: figCompare };
 let figureSeq = 0;
 function diagramLink(link) {
   if (link.startsWith('chapter:')) return { href: '#tour-' + link.slice('chapter:'.length), label: 'Open its chapter' };
@@ -1237,8 +1096,13 @@ function figDiagram(f) {
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
   return `<div class="fig-scroll">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${remarks}`;
 }
+function figSelfDrawn(f) {
+  const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
+  return `<div class="dk-drawn">${DiagramKit.NOTATIONS[f.kind].htmlOf(f, { resolveLink: diagramLink })}</div>${remarks}`;
+}
 function figureBody(f) {
-  const draw = f && 'scene' in f ? figDiagram : FIGURES[f && f.kind];
+  const drawsItself = f && (DiagramKit.NOTATIONS || {})[f.kind];
+  const draw = drawsItself ? figSelfDrawn : f && 'scene' in f ? figDiagram : FIGURES[f && f.kind];
   if (!draw) return `<div class="fig-error">No renderer for a figure of kind “${esc(f && f.kind)}”.</div>`;
   try { return draw(f, ++figureSeq); } catch (e) { return `<div class="fig-error">This figure could not be drawn: ${esc(e.message)}</div>`; }
 }
