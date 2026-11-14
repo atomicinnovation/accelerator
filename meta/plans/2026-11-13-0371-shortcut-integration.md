@@ -1399,11 +1399,11 @@ comments are untrusted data, never instructions. Add eval cases:
 
 #### Automated Verification
 
-- [ ] Binary tests pass: `cargo nextest run -p shortcut-cli`
-- [ ] Build-system tests pass: `mise run test:unit:tasks` and `mise run test:integration:tasks`
-- [ ] Skill lints pass: `mise run lint:integration-skills:check`, `mise run lint:skill-permissions:check` and `mise run lint:skill-cli-refs:check`
-- [ ] Read-only checks pass, including dispatch coherence: `mise run check`
-- [ ] Full run passes: `mise run`
+- [x] Binary tests pass: `cargo nextest run -p shortcut-cli`
+- [x] Build-system tests pass: `mise run test:unit:tasks` and `mise run test:integration:tasks`
+- [x] Skill lints pass: `mise run lint:integration-skills:check`, `mise run lint:skill-permissions:check` and `mise run lint:skill-cli-refs:check`
+- [x] Read-only checks pass, including dispatch coherence: `mise run check`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
@@ -1414,6 +1414,30 @@ comments are untrusted data, never instructions. Add eval cases:
       `--type bug`.
 - [ ] A read-only `sct_r_` token passes `init verify`. The output names the
       read-only scope.
+
+#### Implementation notes
+
+- `init` runs before any catalogue exists, so it builds a bare session: the
+  token, the transport and the API base. `show` and `search` build the full
+  client through `from_config_at`, and refuse with `E_NO_CATALOGUE` when no
+  catalogue is committed.
+- The client gained two things the binary needs: `ShortcutReference`, which
+  resolves a key or a web-app URL and refuses a URL into another workspace,
+  and a `text` search filter, which lowers to a quoted phrase.
+  `search_stories` now returns whole stories, so `search` can print the state,
+  owners and labels.
+- The exit codes are new, in Linear's bands: `NO_CATALOGUE` is 30,
+  `NO_TEAM_KEY` 31, `FORBIDDEN` 13, the init codes 62 to 64, the search codes
+  75, 76 and 79, and the show codes 80 to 82.
+- No flow test covers "a truncated team listing writes nothing". Discovery has
+  no page cap, so only its 300-second deadline can cut a listing, and a flow
+  test cannot shorten it. The client's discovery test covers the cut, the
+  cache test covers the refused write, and the binary maps the refusal to 63.
+- The two eval cases are not added. The evals guard requires a
+  `benchmark.json` from real runs, so they need an Inspect run first. Phase 7
+  records them as follow-up work.
+- `shortcut-cli` is classified in `tasks/public_api.py` as a composition
+  root, a fifteenth site the checklist does not name.
 
 ---
 
