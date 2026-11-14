@@ -107,15 +107,45 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
-    fn count_segments(dir: &std::path::Path) -> usize {
-        std::fs::read_dir(dir)
+    const ROTATION_CAP: u64 = 5 * 1024 * 1024;
+    const RETAINED_SEGMENTS: usize = 3;
+    const OVERSHOOT: u64 = 64 * 1024;
+
+    fn write_past_the_cap(
+        writer: &mut FileRotate<AppendCount>,
+        rotations: usize,
+    ) {
+        let past_the_cap = vec![b'x'; (ROTATION_CAP + OVERSHOOT) as usize];
+        for _ in 0..rotations {
+            writer.write_all(&past_the_cap).unwrap();
+        }
+        writer.flush().unwrap();
+    }
+
+    fn log_segments(dir: &Path) -> Vec<std::fs::DirEntry> {
+        let mut segments: Vec<_> = std::fs::read_dir(dir)
             .unwrap()
-            .filter_map(std::result::Result::ok)
+            .flatten()
             .filter(|e| {
-                let s = e.file_name().to_string_lossy().into_owned();
-                s.starts_with("server.log.")
+                e.file_name().to_string_lossy().starts_with("server.log")
             })
-            .count()
+            .collect();
+        segments.sort_by_key(std::fs::DirEntry::file_name);
+        segments
+    }
+
+    fn rotated_segments(dir: &Path) -> Vec<std::fs::DirEntry> {
+        log_segments(dir)
+            .into_iter()
+            .filter(|e| e.file_name() != "server.log")
+            .collect()
+    }
+
+    fn rotated_segment_sizes(dir: &Path) -> Vec<u64> {
+        rotated_segments(dir)
+            .iter()
+            .map(|e| e.metadata().unwrap().len())
+            .collect()
     }
 
     #[test]
@@ -124,25 +154,11 @@ mod tests {
         let path = dir.path().join("server.log");
         let mut writer = make_writer(&path).unwrap();
 
-        let line = b"x\n";
-        let target = MAX_BYTES + 64 * 1024;
-        let mut written = 0usize;
-        while written < target {
-            writer.write_all(line).unwrap();
-            written += line.len();
-        }
-        writer.flush().unwrap();
+        write_past_the_cap(&mut writer, 1);
         drop(writer);
 
-        assert!(path.exists(), "active log must exist");
-        let rotated = count_segments(dir.path());
-        assert_eq!(rotated, 1, "expected exactly one rotated segment");
-
-        let active_len = std::fs::metadata(&path).unwrap().len() as usize;
-        assert!(
-            active_len < MAX_BYTES,
-            "active segment ({active_len}B) should be under cap ({MAX_BYTES}B) post-rotation"
-        );
+        assert_eq!(rotated_segment_sizes(dir.path()), vec![ROTATION_CAP]);
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), OVERSHOOT);
     }
 
     #[test]
@@ -150,21 +166,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("server.log");
         let mut writer = make_writer(&path).unwrap();
-        let line = b"x\n";
-        for _ in 0..5 {
-            let mut written = 0usize;
-            while written < MAX_BYTES + 64 * 1024 {
-                writer.write_all(line).unwrap();
-                written += line.len();
-            }
-            writer.flush().unwrap();
-        }
+
+        write_past_the_cap(&mut writer, 5);
         drop(writer);
 
-        let rotated = count_segments(dir.path());
-        assert!(
-            rotated <= MAX_FILES,
-            "rotated segment count ({rotated}) must not exceed MAX_FILES ({MAX_FILES})",
+        assert_eq!(
+            rotated_segment_sizes(dir.path()),
+            vec![ROTATION_CAP; RETAINED_SEGMENTS]
         );
     }
 
@@ -174,25 +182,20 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("server.log");
         let mut writer = make_writer(&path).unwrap();
-        let line = b"x\n";
-        let mut written = 0usize;
-        while written < MAX_BYTES + 64 * 1024 {
-            writer.write_all(line).unwrap();
-            written += line.len();
-        }
-        writer.flush().unwrap();
+        let rotations = 2;
+
+        write_past_the_cap(&mut writer, rotations);
         drop(writer);
 
-        for entry in std::fs::read_dir(dir.path()).unwrap().flatten() {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            if !name.starts_with("server.log") {
-                continue;
-            }
-            let meta = entry.metadata().unwrap();
-            let mode = meta.permissions().mode() & 0o777;
+        let segments = log_segments(dir.path());
+        assert_eq!(segments.len(), rotations + 1);
+        for segment in segments {
+            let mode = segment.metadata().unwrap().permissions().mode();
             assert_eq!(
-                mode, 0o600,
-                "{name} must be owner-only (mode 0o600), got 0o{mode:o}",
+                mode & 0o777,
+                0o600,
+                "{:?} must be owner-only",
+                segment.file_name()
             );
         }
     }
@@ -221,7 +224,7 @@ mod tests {
         writer.write_all(b"trigger\n").unwrap();
         writer.flush().unwrap();
         drop(writer);
-        assert!(count_segments(dir.path()) >= 1);
+        assert!(!rotated_segments(dir.path()).is_empty());
     }
 
     #[test]
