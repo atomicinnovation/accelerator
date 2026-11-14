@@ -121,7 +121,9 @@ def test_a_diagram_inside_a_comparison_or_on_a_stop_is_laid_out(
         "start": 1,
         "end": 3,
         "anchor": "fn a()",
+        "carries": ["d1"],
         "fit": "f",
+        "why": "w",
         "figure": graph(id="g-stop"),
     }
 

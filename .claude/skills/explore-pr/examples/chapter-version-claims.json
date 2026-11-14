@@ -314,6 +314,7 @@
   ],
   "risks": [
     {
+      "id": "claims-r1",
       "level": "medium",
       "text": "A claim whose `lstat` fails for any reason is silently dropped while the listing stays `Read`, so that version reads as unclaimed and its aged entries go. It needs `claims/` to lose its search bit while staying readable, or I/O errors; the cost is a re-fetch, not data loss.",
       "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:138",
@@ -323,6 +324,7 @@
       ]
     },
     {
+      "id": "claims-r2",
       "level": "medium",
       "text": "Launchers built before this change write no claims, so every claim-aware prune evicts their entries once they are 1 h old, and they cannot re-resolve a vanished entry. Only 1.24.0 pre-releases ship a launcher (v1.23.0 has no `cli/` or `bin/accelerator`), so the exposure is pre-release users with `ACCELERATOR_CACHE_DIR` set.",
       "where": "CHANGELOG.md:920",
@@ -342,9 +344,29 @@
       "start": 1,
       "end": 27,
       "title": "The windows every prune shares",
-      "fit": "The clock the whole retention design runs on: claims are written against `CLAIM_WINDOW`, `FreshVersions` keeps what falls inside it, and both single-file and tree prune age their entries by `AGE_BACKSTOP`. Every later stop either writes a claim or reads one against these windows.",
-      "note": "`AGE_BACKSTOP` (1 h), `CLAIM_WINDOW` (14 days) and `REFRESH_FRACTION` (10) sit in a leaf module so single-file and tree prune share them without importing each other. `is_aged` is `>=` the backstop, false for an unknown mtime and age zero for a future one, so clock trouble can only keep. Claims use the opposite edge: a claim exactly at the window is stale, because `FreshVersions::within` tests `<`.",
-      "check": "`is_aged` is the age test for entries and residue at `single_file.rs:391`, `residue.rs:78` and `residue.rs:122`; confirm no other duration is hard-coded in `retention/`.",
+      "carries": [
+        "d-claim-heartbeat",
+        "a-fresh-versions"
+      ],
+      "fit": "The clock the retention design runs on. Every later stop either writes a claim or reads one against these windows, so the numbers behind the heartbeat decision (refresh after 1.4 days, protect for 14) are meant to be set here and nowhere else.",
+      "why": "The windows sit in a leaf module so that single-file and tree prune share them without importing each other: two copies could drift into two retention policies. Every comparison is biased to keep. An unknown mtime never ages and a future one is age zero, so clock trouble can only keep entries, never remove them.",
+      "risk": "The two edges are deliberately opposite: an entry exactly at the backstop is aged, while a claim exactly at the window is already stale, because `FreshVersions::within` tests `<`. Normalising either edge changes what a prune deletes without any error.",
+      "checks": [
+        {
+          "question": "Is any other duration hard-coded in `retention/`?",
+          "problem": "A literal number of seconds outside this module. `is_aged` should be the only age test for entries and residue, as it is at `single_file.rs:391`, `residue.rs:78` and `residue.rs:122`."
+        },
+        {
+          "question": "Does a test pin each edge: an entry exactly at the backstop, and a claim exactly at the window?",
+          "problem": "Either edge unpinned, so swapping `>=` for `>` or `<` for `<=` would still pass."
+        }
+      ],
+      "focus": [
+        {
+          "line": 25,
+          "why": "`>=`, so an entry exactly one hour old is aged; the claim window uses the opposite edge."
+        }
+      ],
       "findings": []
     },
     {
@@ -356,9 +378,25 @@
       "start": 13,
       "end": 29,
       "title": "Launcher id: one claim per install",
-      "fit": "Carries the decision to claim per install rather than per version: the id becomes the `<launcher-id>` half of every `VersionClaim` name, so a prune sees one claim per install of a version and can tell a live install from a removed one.",
-      "note": "The id hashes the launcher's own path, which is content-addressed, so two installs of one version write distinct claims and one's refresh never masks the other's absence. If `current_exe()` fails, the seed falls back to the version string and such installs share a claim. Only the claim name's shape crosses versions; each launcher only ever writes its own id.",
-      "findings": [],
+      "carries": [
+        "d-claim-per-install",
+        "a-version-claim"
+      ],
+      "fit": "Where claiming per install rather than per version is made real: this id is the `<launcher-id>` half of every `VersionClaim` name, so a prune can tell a live install of a version from a removed one.",
+      "why": "The launcher's own path is content-addressed, so hashing it gives two installs of one version distinct claims with no registry and no lock, and one install's refresh can never mask the other's absence. Only the shape of the claim name crosses versions; each launcher only ever writes its own id.",
+      "risk": "If the launcher cannot find its own path, the seed falls back to the version string and every such install of that version shares one claim. Per-install protection then degrades to per-version with nothing reported. It errs towards keeping: a live install's refresh keeps a removed twin's entries alive.",
+      "checks": [
+        {
+          "question": "Can `current_exe()` fail on a platform the launcher ships for?",
+          "problem": "A supported platform where it fails routinely: the per-install decision is not in force there, and no test or message would say so."
+        }
+      ],
+      "focus": [
+        {
+          "line": 21,
+          "why": "The fallback seed: every install of this version that takes it writes the same claim."
+        }
+      ],
       "figure": {
         "id": "claims-s2-f",
         "kind": "block-diagram",
@@ -403,7 +441,8 @@
             "to": "claim"
           }
         ]
-      }
+      },
+      "findings": []
     },
     {
       "id": "claims-s3",
@@ -414,9 +453,29 @@
       "start": 18,
       "end": 31,
       "title": "Claim path and the version it names",
-      "fit": "Where a claim's name meets the rest of the root: `claim_running_version` writes this path at start-up, and `FreshVersions` reads the `<version>` half back to decide which launcher entries a prune keeps. It is the seam between writing claims and honouring them.",
-      "note": "`<version>` is `CARGO_PKG_VERSION`, but `bin/accelerator` names launcher entries from `plugin.json`'s version (`bin/accelerator:141`). Launcher-entry protection therefore assumes the two strings match. `tasks/version.py:75-88` writes both together, and the entrypoint A/B/C test fails if the running launcher entry is pruned.",
-      "check": "Is lockstep between `plugin.json` and the `cli/` workspace version enforced anywhere besides `tasks/version.py`?",
+      "carries": [
+        "a-version-claim",
+        "a-fresh-versions"
+      ],
+      "fit": "The seam between writing claims and honouring them: start-up writes this name, and a prune reads the `<version>` half back to decide which launcher entries to keep. `VersionClaim` is the one place that knows the name's shape.",
+      "why": "The claim names its version from `CARGO_PKG_VERSION`, but `bin/accelerator` names launcher entries from `plugin.json`'s version (`bin/accelerator:141`). Nothing in these lines connects the two: protecting a launcher entry rests on the two strings matching, which `tasks/version.py:75-88` arranges by writing both together.",
+      "risk": "If the two versions ever differ, a launcher's claim names a version no launcher entry carries, so its own entry reads as unclaimed and goes once it is an hour old. The entrypoint A/B/C test fails if the running launcher entry is pruned, but only for the versions it is run with.",
+      "checks": [
+        {
+          "question": "Is lockstep between `plugin.json` and the `cli/` workspace version enforced anywhere besides `tasks/version.py`?",
+          "problem": "Nothing fails when the two differ, so a hand-edited version bump ships a launcher that prunes its own entry."
+        }
+      ],
+      "focus": [
+        {
+          "line": 25,
+          "why": "Filled from `CARGO_PKG_VERSION`; launcher entries are named from `plugin.json` instead."
+        },
+        {
+          "line": 31,
+          "why": "This shape is a contract between releases: changing it strands every existing claim."
+        }
+      ],
       "findings": []
     }
   ],

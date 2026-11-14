@@ -304,7 +304,7 @@ STOP = {
     "start": 1,
     "end": 1,
     "title": "The store",
-    "note": "Writes one record.",
+    "why": "A recorded write is the only way a test can see the order.",
 }
 
 
@@ -317,7 +317,7 @@ def test_a_stop_that_does_not_place_itself_in_the_change_is_reported(
         [chapter("c", abstractions=[ABSTRACTION], stops=[STOP])],
     )
 
-    assert any("stop c-s1" in w and "bigger picture" in w for w in warnings)
+    assert any("stop c-s1" in w and "role it plays" in w for w in warnings)
 
 
 def test_a_stop_that_places_itself_in_the_change_raises_nothing(
@@ -331,4 +331,4 @@ def test_a_stop_that_places_itself_in_the_change_raises_nothing(
         [chapter("c", abstractions=[ABSTRACTION], stops=[stop])],
     )
 
-    assert not [w for w in warnings if "bigger picture" in w]
+    assert not [w for w in warnings if "role it plays" in w]

@@ -165,6 +165,19 @@ def test_reanchoring_moves_a_stop_with_its_anchor(tmp_path, script):
     assert stops_of(root) == [stop(start=5, end=7, anchor="fn b()")]
 
 
+def test_reanchoring_moves_the_lines_to_focus_on_with_their_stop(
+    tmp_path, script
+):
+    focus = [{"line": 3, "why": "The claim."}]
+    moved = stop(start=2, end=4, anchor="fn b()", focus=focus)
+    root = workspace(tmp_path, stops=[moved])
+
+    script("build").reanchor(root)
+
+    [shifted] = stops_of(root)
+    assert shifted["focus"] == [{"line": 6, "why": "The claim."}]
+
+
 def test_reanchoring_moves_an_anchor_line_with_its_stop(tmp_path, script):
     moved = stop(start=4, end=6, anchor="fn c()", anchorLine=5)
     root = workspace(tmp_path, stops=[moved])
