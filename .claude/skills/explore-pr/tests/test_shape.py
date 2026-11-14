@@ -193,26 +193,12 @@ def test_an_entry_that_is_not_an_object_is_reported_and_left_out(
 
 def test_a_figure_part_without_an_id_is_reported_and_left_out(tmp_path, script):
     flow = dict(FLOW, nodes=[*FLOW["nodes"], {"label": "C"}])
-    sequence = {
-        "id": "f2",
-        "kind": "sequence",
-        "actors": [{"id": "x", "label": "X"}, {"label": "Y"}],
-        "steps": [{"from": "x", "to": "x", "label": "l"}],
-    }
 
-    model, warnings = assembled(
-        tmp_path, script, **chapter(figures=[flow, sequence])
-    )
+    model, warnings = assembled(tmp_path, script, **chapter(figures=[flow]))
 
-    figures = model["chapters"][0]["figures"]
-    assert len(figures[0]["nodes"]) == 2
-    assert len(figures[1]["actors"]) == 1
+    assert len(model["chapters"][0]["figures"][0]["nodes"]) == 2
     assert (
         "chapter first: figures[f1]: nodes entry 3 has no id; left out"
-        in warnings
-    )
-    assert (
-        "chapter first: figures[f2]: actors entry 2 has no id; left out"
         in warnings
     )
 

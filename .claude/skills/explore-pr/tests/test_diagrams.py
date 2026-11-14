@@ -281,3 +281,68 @@ def test_only_the_standalone_page_embeds_the_fonts_diagrams_are_sized_for(
     assert standalone.count("src:url(data:font/woff2;base64,") == 4
     assert 'font-family:"JetBrains Mono"' in standalone
     assert "data:font/woff2" not in (tmp_path / "index.html").read_text()
+
+
+SEQUENCE = {
+    "id": "s1",
+    "kind": "sequence-diagram",
+    "title": "Core asks the port",
+    "participants": [{"id": "core"}, {"id": "port"}],
+    "steps": [
+        {
+            "from": "core",
+            "to": "port",
+            "label": "read()",
+            "reply": "bytes",
+            "link": "src/core.rs:2",
+            "steps": [
+                {"from": "port", "to": "port", "label": "retry"},
+                {"note": "At most once.", "over": ["port"]},
+            ],
+        }
+    ],
+}
+
+
+def test_a_sequence_diagram_is_laid_out_by_the_kit(tmp_path, script):
+    model, warnings = assembled(tmp_path, script, **chapter(figures=[SEQUENCE]))
+
+    scene = first_figure(model)["scene"]
+    assert warnings == []
+    assert [edge["label"] for edge in scene["edges"]] == [
+        "1: read()",
+        "2: retry",
+        "bytes",
+    ]
+
+
+def test_a_link_on_a_message_is_checked_however_deep_it_is(tmp_path, script):
+    nested = SEQUENCE["steps"][0]["steps"][0]
+    deep = {
+        **SEQUENCE,
+        "steps": [
+            {
+                **SEQUENCE["steps"][0],
+                "steps": [{**nested, "link": "src/core.rs:40"}],
+            }
+        ],
+    }
+
+    _, warnings = assembled(tmp_path, script, **chapter(figures=[deep]))
+
+    assert warnings == [
+        "chapter first: figures[s1].steps[0].steps[0]: link src/core.rs:40 "
+        "is outside 1-3 of src/core.rs"
+    ]
+
+
+def test_the_sequence_figure_this_page_once_drew_is_pointed_at_its_successor(
+    tmp_path, script
+):
+    old = {"id": "f-old", "kind": "sequence", "title": "t", "actors": []}
+
+    _, warnings = assembled(tmp_path, script, **chapter(figures=[old]))
+
+    (warning,) = warnings
+    assert 'no figure of kind "sequence"' in warning
+    assert "sequence-diagram" in warning

@@ -73,9 +73,9 @@
     },
     {
       "id": "claims-f2",
-      "kind": "sequence",
+      "kind": "sequence-diagram",
       "title": "Start-up claims the version before any lookup",
-      "actors": [
+      "participants": [
         {
           "id": "launcher",
           "label": "launcher start-up"
@@ -94,47 +94,54 @@
           "from": "launcher",
           "to": "claims",
           "label": "lstat 1.26.0.c0ffee00c0ffee00",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45"
+          "reply": "mtime",
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:45"
         },
         {
-          "over": [
-            "launcher",
-            "claims"
-          ],
-          "note": "Valid and younger than 1.4 d: stop here. Nothing else is written."
+          "fragment": "break",
+          "guard": "valid and younger than 1.4 d",
+          "steps": [
+            {
+              "note": "Stop here. Nothing else is written.",
+              "over": [
+                "launcher",
+                "claims"
+              ]
+            }
+          ]
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "mkdir with mode 0700; EEXIST is fine",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:71"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:71"
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "refuse unless only this user can write to it",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:77",
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:77",
           "tone": "risk"
         },
         {
           "from": "launcher",
           "to": "claims",
           "label": "create with O_NOFOLLOW, mtime = now",
-          "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:83"
+          "link": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:83"
         },
         {
+          "note": "Any failure is logged at debug level only; the command carries on.",
           "over": [
             "launcher",
             "claims",
             "root"
-          ],
-          "note": "Any failure is logged at debug level only; the command carries on."
+          ]
         },
         {
           "from": "launcher",
           "to": "root",
           "label": "find the sub-binary (warm dispatch)",
-          "where": "cli/launcher/src/launch/start_up.rs:78"
+          "link": "cli/launcher/src/launch/start_up.rs:78"
         }
       ],
       "caption": "Step 4 checks the directory by path and then writes through the path; review-1 raised that as a time-of-check gap (R1-30)."

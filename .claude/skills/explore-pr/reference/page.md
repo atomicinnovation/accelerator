@@ -27,7 +27,7 @@ rebuilding them. Paths are relative to the skill directory.
 
 | Path | Purpose |
 |---|---|
-| `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, sequence, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
+| `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
 | `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |

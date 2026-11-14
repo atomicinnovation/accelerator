@@ -123,7 +123,7 @@ the content, and leaves out what it cannot:
   ledger row has `id`, `file` and `line`; a file summary has `path`; a
   finding, a finding check and an accepted risk have an `id`. Line numbers
   are whole numbers, not text;
-- a flow's nodes and layers and a sequence's actors each have an `id`, and a
+- a flow's nodes and layers each have an `id`, and a
   collaborator given as an object has a `name`;
 - a field holds the kind of value shown here: text for an `id`, `file`,
   `where` or `anchor`, a whole number for a line, a list of ids for
@@ -311,7 +311,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 ```
 
 `examples/chapter-version-claims.json` is a real chapter at the expected
-standard: three chapter figures (a timeline, a sequence and a tree), three
+standard: three chapter figures (a timeline, a sequence diagram and a tree), three
 abstractions, two decisions with their alternatives and costs, a figure on a
 stop, an anchor on every stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
 every hunk; ranges of 10–60 lines read best. A stop may sit on unchanged lines
@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "flow|sequence|tree|matrix|timeline|compare|svg",
+  "kind": "dependency-graph|sequence-diagram|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -345,7 +345,7 @@ Every figure has:
 |---|---|---|
 | `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
 | `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
-| `sequence` | Protocols, start-up order, lock ordering, races, retries | Actors across, numbered messages down, notes over actors |
+| `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
 | `matrix` | Decision tables, permission and configuration matrices, gates | Rows by columns, each cell a short outcome with a tone |
 | `timeline` | Ages, windows, timeouts, backoff, ordering in time | An axis (linear or log) with spans in lanes and labelled marks |
@@ -359,13 +359,6 @@ Every figure has:
   "nodes": [{ "id": "a", "label": "start_up", "sub": "identify, claim", "layer": "entry",
               "tone": "new|changed|removed|risk|ok", "where": "path:line", "chapter": "identity" }],
   "edges": [{ "from": "a", "to": "b", "label": "Try", "tone": "risk", "dashed": true }] }
-
-// sequence
-{ "kind": "sequence",
-  "actors": [{ "id": "launcher", "label": "launcher" }],
-  "steps": [{ "from": "launcher", "to": "claims", "label": "lstat the claim", "where": "path:line", "tone": "risk" },
-            { "over": ["launcher", "claims"], "note": "Young enough: stop here.", "tone": "risk" },
-            { "from": "launcher", "to": "launcher", "label": "retries once" }] }
 
 // tree
 { "kind": "tree", "root": "<root>/claims/",
@@ -393,13 +386,17 @@ Every figure has:
 
 A figure whose `kind` is a notation one of the `draw-*` skills draws is
 written in that notation's own terms, checked and laid out by the diagram
-kit when the page is built, and drawn by the kit's renderer. Today that is
-`dependency-graph`; each further notation replaces a use of `flow` or
-`sequence`, so prefer a kit diagram wherever one fits.
+kit when the page is built, and drawn by the kit's renderer. Today those
+are `dependency-graph` and `sequence-diagram`; each further notation
+replaces a use of `flow`, so prefer a kit diagram wherever one fits.
 
-- Write it as the notation's reference says:
-  `../draw-dependency-graph/reference/notation.md` beside this skill. It
-  takes the same `id`, `title`, `caption` and `wide` as any figure.
+- Write it as the notation's reference says, in the skill beside this one:
+  `../draw-dependency-graph/reference/notation.md` or
+  `../draw-sequence-diagram/reference/notation.md`. It takes the same `id`,
+  `title`, `caption` and `wide` as any figure.
+- A sequence diagram is one scenario written as a call tree: a call holds,
+  as its `steps`, what its receiver does before answering, and its `reply`
+  if what comes back matters.
 - Every element may carry a `status` (`new`, `changed`, `removed`,
   `existing`), a `tone` (`risk`, `ok`) and a `link`.
 - A `link` is where the element lives: `path:line` opens the file,
@@ -422,8 +419,8 @@ What makes a figure worth its space:
 - **One idea per figure**, stated in its title. Two ideas make two figures.
 - **The code's own names** on boxes, actors and paths, and real values on
   axes and in cells: `CLAIM_WINDOW` at 14 d, not "the window".
-- **Small enough to read at a glance**: up to about 12 nodes, 8 actors, 10
-  steps, 6 columns. Split anything bigger.
+- **Small enough to read at a glance**: up to about 12 nodes, 8
+  participants, 20 messages, 6 columns. Split anything bigger.
 - **Tone marks what changed**: `new` for what the PR adds, `changed`,
   `removed`, and `risk` for where it can go wrong. The page draws a legend.
 - **`where` on everything that has a home in the code**, so a click opens it.

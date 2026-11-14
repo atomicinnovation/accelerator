@@ -1,7 +1,8 @@
 # Custom views
 
 Pictures carry this page. The figure kinds in `reference/content-model.md`
-(flow, sequence, tree, matrix, timeline, comparison) draw most of what a PR
+(dependency graph, sequence diagram, flow, tree, matrix, timeline,
+comparison) draw most of what a PR
 needs, and every chapter opens with them. A custom view is the next step up:
 a picture the reviewer can operate. What makes a page worth opening is usually
 a view only this PR could have: a simulator of its decision procedure, a
@@ -49,7 +50,7 @@ view looks and behaves like the rest of the page:
 | Member | Use |
 |---|---|
 | `content`, `diff` | The assembled content model and the diff (`diff` may be null while it loads) |
-| `figure(spec)` | Any figure from the content model, rendered as HTML, so a view can draw a flow, sequence, tree, matrix or timeline from the state it computes |
+| `figure(spec)` | A flow, tree, matrix or timeline from the content model, rendered as HTML, so a view can draw one from the state it computes. A diagram the kit draws (a dependency graph, a sequence diagram) is laid out when the page is built, so a view cannot yet draw one from state it computes in the browser |
 | `md(text, inline)`, `esc(text)` | Markdown and HTML escaping |
 | `codeSlice(path, start, end, side)` | A highlighted diff slice with links to the file view |
 | `locBtn(path, line)`, `whereBtn('path:line')`, `testRef('path::name')` | Links that open the file view at a line |

@@ -169,9 +169,7 @@ OBJECT_LISTS = {
 FIGURE_PARTS = {
     "nodes": "id",
     "layers": "id",
-    "actors": "id",
     "edges": None,
-    "steps": None,
 }
 
 
@@ -925,7 +923,7 @@ def finding_references(model: dict) -> list[tuple[str, str]]:
 
 
 FIGURE_KINDS = frozenset(
-    {"flow", "sequence", "tree", "matrix", "timeline", "compare", "svg"}
+    {"flow", "tree", "matrix", "timeline", "compare", "svg"}
 )
 
 
@@ -971,19 +969,6 @@ def flow_problems(figure: dict) -> list[str]:
     return problems
 
 
-def sequence_problems(figure: dict) -> list[str]:
-    actors = {actor["id"] for actor in figure.get("actors", [])}
-    named: list[str] = []
-    for step in figure.get("steps", []):
-        named += step.get("over", [])
-        named += [step[end] for end in ("from", "to") if end in step]
-    return [
-        f"step names missing actor {actor}"
-        for actor in dict.fromkeys(map(str, named))
-        if actor not in actors
-    ]
-
-
 def matrix_problems(figure: dict) -> list[str]:
     labels, columns = figure.get("rows", []), len(figure.get("cols", []))
     cells = figure.get("cells", [])
@@ -1000,7 +985,6 @@ def matrix_problems(figure: dict) -> list[str]:
 
 KIND_PROBLEMS = {
     "flow": flow_problems,
-    "sequence": sequence_problems,
     "matrix": matrix_problems,
 }
 
@@ -1242,7 +1226,7 @@ def malformed_parts(model: dict) -> list[str]:
             if not isinstance(item, dict):
                 continue
             where = at(source, trail)
-            if item.get("kind") in ("flow", "sequence"):
+            if item.get("kind") == "flow":
                 for part, name in FIGURE_PARTS.items():
                     if part in item:
                         item[part] = entries_with(

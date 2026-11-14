@@ -83,26 +83,6 @@ def test_a_flow_edge_to_a_missing_node_is_reported(tmp_path, script):
     assert any("f-flow" in w and "ghost" in w for w in warnings)
 
 
-def test_a_sequence_step_naming_a_missing_actor_is_reported(tmp_path, script):
-    sequence = {
-        "id": "f-seq",
-        "kind": "sequence",
-        "title": "Order of events",
-        "actors": [{"id": "client", "label": "Client"}],
-        "steps": [
-            {"from": "client", "to": "server", "label": "request"},
-            {"over": ["client", "db"], "note": "waits"},
-        ],
-    }
-
-    warnings = warnings_for(
-        tmp_path, script, [{"id": "c", "title": "C", "figures": [sequence]}]
-    )
-
-    assert any("f-seq" in w and "server" in w for w in warnings)
-    assert any("f-seq" in w and "db" in w for w in warnings)
-
-
 def test_a_matrix_whose_cells_do_not_fit_its_axes_is_reported(tmp_path, script):
     matrix = {
         "id": "f-mx",

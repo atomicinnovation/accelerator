@@ -371,12 +371,11 @@ details[open] > summary { margin-bottom: 8px; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
 .fd text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.fd .fs, .fd .fs-msg, .fd .fs-note, .fd .lay, .fd .tl, .fd .ml, .fd .sl, .fd .elabel text { font-family: var(--f-body); }
+.fd .fs, .fd .lay, .fd .tl, .fd .ml, .fd .sl, .fd .elabel text { font-family: var(--f-body); }
 .fd .fs { font-size: 11px; fill: var(--ink-3); }
-.fd .fs-msg, .fd .fs-note { font-size: 12px; fill: var(--ink-2); }
 .fd .lay { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
 .fd .band { fill: var(--panel-2); opacity: .6; }
-.fd .fnode rect, .fd .actor rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.fd .fnode rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
 .fd .t-new rect { stroke: var(--accent); stroke-width: 1.9; }
 .fd .t-changed rect { stroke: var(--warn); stroke-width: 1.9; }
 .fd .t-ok rect { stroke: var(--ok); stroke-width: 1.9; }
@@ -386,12 +385,11 @@ details[open] > summary { margin-bottom: 8px; }
 .fd .t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .fd .link { cursor: pointer; }
 .fd .link:hover rect { stroke: var(--accent); stroke-width: 2.2; }
-.fd .step.link:hover .fs-msg { fill: var(--accent); }
-.fd .edge, .fd .msg { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
-.fd .edge.t-new, .fd .msg.t-new { stroke: var(--accent); }
-.fd .edge.t-risk, .fd .msg.t-risk, .fd .edge.t-removed, .fd .msg.t-removed { stroke: var(--bad); }
-.fd .edge.t-changed, .fd .msg.t-changed { stroke: var(--warn); }
-.fd .edge.t-ok, .fd .msg.t-ok { stroke: var(--ok); }
+.fd .edge { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
+.fd .edge.t-new { stroke: var(--accent); }
+.fd .edge.t-risk, .fd .edge.t-removed { stroke: var(--bad); }
+.fd .edge.t-changed { stroke: var(--warn); }
+.fd .edge.t-ok { stroke: var(--ok); }
 .fd .dashed { stroke-dasharray: 5 4; }
 .fd .arrow { fill: var(--ink-3); }
 svg[data-graph] { --edge-out: var(--accent); --edge-in: var(--warn); }
@@ -421,11 +419,6 @@ svg[data-graph].tracing .traced rect { stroke-width: 2.4; }
 @media (prefers-reduced-motion: reduce) { svg[data-graph] .edge, svg[data-graph] .elabel, svg[data-graph] [data-node] { transition: none; } }
 .fd .elabel rect { fill: var(--panel); stroke: var(--rule); }
 .fd .elabel text { font-size: 11px; fill: var(--ink-2); }
-.fd .life { stroke: var(--rule); stroke-width: 1.3; stroke-dasharray: 4 4; }
-.fd .snote rect { fill: color-mix(in srgb, var(--warn) 9%, var(--panel)); stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
-.fd .snote.t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); }
-.fd .snum circle { fill: var(--accent-soft); }
-.fd .snum text { font-family: var(--f-body); font-size: 10px; font-weight: 600; fill: var(--accent); text-anchor: middle; }
 .fd .axis { stroke: var(--ink-3); stroke-width: 1.2; }
 .fd .tick { stroke: var(--ink-3); }
 .fd .tl { font-size: 10.5px; fill: var(--ink-3); }
@@ -1171,16 +1164,6 @@ function textWidth(text, font) {
     return measurer.measureText(String(text)).width;
   } catch (e) { return String(text).length * 7.3; }
 }
-function wrapText(text, maxWidth, font) {
-  const lines = [];
-  let line = '';
-  for (const word of String(text || '').split(/\s+/).filter(Boolean)) {
-    const next = line ? line + ' ' + word : word;
-    if (line && textWidth(next, font) > maxWidth) { lines.push(line); line = word; } else line = next;
-  }
-  if (line) lines.push(line);
-  return lines.length ? lines : [''];
-}
 function fit(text, maxWidth, font) {
   let s = String(text || '');
   if (textWidth(s, font) <= maxWidth) return s;
@@ -1296,50 +1279,6 @@ function figFlow(f, uid) {
   return svgFrame(width, height, svg, f.title, uid, edges.length > 0) + legend(nodes.map(n => n.tone).concat(edges.map(e => e.tone)));
 }
 
-function figSequence(f, uid) {
-  const actors = f.actors || [];
-  const index = Object.fromEntries(actors.map((a, i) => [a.id, i]));
-  const spans = (f.steps || []).filter(s => !s.over && index[s.from] != null && index[s.to] != null).map(s => (Math.min(320, textWidth(plain(s.label), SANS) + 32)) / Math.max(1, Math.abs(index[s.to] - index[s.from])));
-  const colW = Math.max(150, ...actors.map(a => textWidth(plain(a.label)) + 44), ...spans);
-  const left = 36;
-  const width = left + actors.length * colW + 16;
-  const cx = i => left + i * colW + colW / 2;
-  const top = 12, headH = 34;
-  let y = top + headH + 22, body = '', n = 0;
-  for (const s of f.steps || []) {
-    if (s.over) {
-      const cols = s.over.map(a => index[a]).filter(i => i != null);
-      if (!cols.length) continue;
-      const x1 = cx(Math.min(...cols)) - colW / 2 + 12, x2 = cx(Math.max(...cols)) + colW / 2 - 12;
-      const lines = wrapText(plain(s.note), x2 - x1 - 20, SANS);
-      const h = lines.length * 15 + 14;
-      body += `<g class="snote${toneOf(s.tone)}"><rect x="${x1}" y="${y}" width="${x2 - x1}" height="${h}" rx="6"/>${svgLines((x1 + x2) / 2, y + 19, lines, 'fs-note')}</g>`;
-      y += h + 14;
-      continue;
-    }
-    const a = index[s.from], b = index[s.to];
-    if (a == null || b == null) continue;
-    n++;
-    const o = openAttrs(s);
-    if (a === b) {
-      const x = cx(a), lines = wrapText(plain(s.label), colW - 28, SANS);
-      const top2 = y, loopY = y + lines.length * 15 + 2;
-      body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines(x + 10, top2 + 11, lines, 'fs-msg', 'start')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="${GraphRoutes.roundedPath([[x, loopY], [x + 32, loopY], [x + 32, loopY + 20], [x + 2, loopY + 20]])}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${loopY + 10}" r="9"/><text x="18" y="${loopY + 14}">${n}</text></g></g>`;
-      y = loopY + 36;
-      continue;
-    }
-    const x1 = cx(a), x2 = cx(b);
-    const lines = wrapText(plain(s.label), Math.abs(x2 - x1) - 24, SANS);
-    const arrowY = y + lines.length * 15 + 4;
-    body += `<g class="step${o.cls}"${o.attrs}>${o.title}${svgLines((x1 + x2) / 2, y + 11, lines, 'fs-msg')}<path class="msg${toneOf(s.tone)}${s.dashed ? ' dashed' : ''}" d="M${x1} ${arrowY} L${x2 - Math.sign(x2 - x1) * (2 + ARROWHEAD)} ${arrowY}" marker-end="url(#ah-${uid})"/><g class="snum"><circle cx="18" cy="${arrowY}" r="9"/><text x="18" y="${arrowY + 4}">${n}</text></g></g>`;
-    y = arrowY + 20;
-  }
-  const height = y + 6;
-  const lifelines = actors.map((a, i) => `<line class="life" x1="${cx(i)}" y1="${top + headH}" x2="${cx(i)}" y2="${height - 6}"/>`).join('');
-  const heads = actors.map((a, i) => `<g class="actor${toneOf(a.tone)}"><rect x="${cx(i) - (colW - 24) / 2}" y="${top}" width="${colW - 24}" height="${headH}" rx="7"/>${svgLines(cx(i), top + 21, [fit(plain(a.label), colW - 36)], 'fl')}</g>`).join('');
-  return svgFrame(width, height, lifelines + heads + body, f.title, uid);
-}
-
 function figTree(f) {
   const root = { children: new Map() };
   for (const item of f.items || []) {
@@ -1427,7 +1366,7 @@ function figCompare(f) {
   return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
 }
 
-const FIGURES = { flow: figFlow, sequence: figSequence, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
+const FIGURES = { flow: figFlow, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
 let figureSeq = 0;
 function diagramLink(link) {
   if (link.startsWith('chapter:')) return { href: '#tour-' + link.slice('chapter:'.length), label: 'Open its chapter' };
@@ -1447,7 +1386,7 @@ function figureBody(f) {
 }
 function figureHtml(f, opts = {}) {
   if (!f) return '';
-  const wide = f.wide || ['compare', 'sequence', 'timeline'].includes(f.kind);
+  const wide = f.wide || ['compare', 'sequence-diagram', 'timeline'].includes(f.kind);
   const body = figureBody(f);
   return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}${body.includes('data-graph=') ? traceHint : ''}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}${opts.from ? `<div class="fig-from small">${opts.from}</div>` : ''}</figure>`;
 }
