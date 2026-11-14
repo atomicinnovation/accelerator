@@ -602,7 +602,13 @@ def prepared_by_the_kit(figures: list[dict]) -> dict:
         specs = Path(scratch) / "diagrams.json"
         specs.write_text(json.dumps(figures))
         run = subprocess.run(
-            [node, str(KIT / "bin/diagram.js"), "prepare", str(specs)],
+            [
+                node,
+                str(KIT / "bin/diagram.js"),
+                "prepare",
+                str(specs),
+                "--legend",
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -630,6 +636,7 @@ def kit_warnings(model: dict) -> list[str]:
             figure["scene"] = prepared["scene"]
             figure["legend"] = prepared["legend"]
         figure["remarks"] = prepared["remarks"]
+        figure["symbols"] = prepared.get("symbols", "")
         name = f"{where}: figure {figure.get('id', '?')}"
         if figure.get("kind") not in answer["kinds"]:
             warnings.append(
@@ -1146,7 +1153,7 @@ CHAPTER_NAMED = re.compile(r"`([^`]+)`\s+chapters?\b", re.IGNORECASE)
 REFERENCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
-LAID_OUT_BY_THE_KIT = ("scene", "legend", "remarks")
+LAID_OUT_BY_THE_KIT = ("scene", "legend", "remarks", "symbols")
 
 
 def sources(model: dict) -> list[tuple[str, object]]:

@@ -351,6 +351,12 @@ in one colour and those it receives in another, and dims the rest; pressing
 a box again drops it from the trace, and Esc clears it. A box with a `link`
 opens it from its own ↗ control, not from the box.
 
+Under every figure the kit draws is a legend, closed until the reviewer
+opens it: what each symbol of that notation means, drawn as it appears in
+the figure, with the symbols the figure does not use behind a switch, and
+how to trace and open things. The build writes it. So a caption never
+needs to explain the notation: it says what to notice.
+
 Every figure has:
 
 ```jsonc

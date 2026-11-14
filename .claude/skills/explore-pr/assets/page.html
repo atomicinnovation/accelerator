@@ -369,11 +369,6 @@ details[open] > summary { margin-bottom: 8px; }
 .fig-scroll { overflow-x: auto; min-width: 0; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
-.lg.trace-out { background: var(--accent); border-color: var(--accent); }
-.lg.trace-in { background: var(--warn); border-color: var(--warn); }
-.trace-hint { color: var(--ink-3); }
-.fig-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
-.lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
 .fig.wide { grid-column: 1 / -1; }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 .abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
@@ -1072,7 +1067,6 @@ function openFile(path, line, side) {
 
 /* ---------- Figures ---------- */
 const plain = s => String(s == null ? '' : s).replace(/`/g, '');
-const traceHint = '<div class="fig-legend trace-hint">Press boxes to trace their arrows (Esc clears): <span><span class="lg trace-out"></span>out</span><span><span class="lg trace-in"></span>in</span><span>↗ opens it</span></div>';
 function figSvg(f) {
   const safe = String(f.svg || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, '');
   return `<div class="fig-scroll fsvg">${safe}</div>`;
@@ -1094,11 +1088,11 @@ function diagramLink(link) {
 function figDiagram(f) {
   if (!f.scene) return '<div class="fig-error">This diagram could not be laid out. The build names what is wrong with it.</div>';
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
-  return `<div class="fig-scroll">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${remarks}`;
+  return `<div class="fig-scroll">${DiagramKit.svgOf(f.scene, { uid: f.id, title: plain(f.title), resolveLink: diagramLink })}</div>${f.legend || ''}${f.symbols || ''}${remarks}`;
 }
 function figSelfDrawn(f) {
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
-  return `<div class="dk-drawn">${DiagramKit.NOTATIONS[f.kind].htmlOf(f, { resolveLink: diagramLink })}</div>${remarks}`;
+  return `<div class="dk-drawn">${DiagramKit.NOTATIONS[f.kind].htmlOf(f, { resolveLink: diagramLink })}</div>${f.symbols || ''}${remarks}`;
 }
 async function liveDiagram(spec) {
   const live = DiagramKit.live;
@@ -1106,7 +1100,7 @@ async function liveDiagram(spec) {
   const problems = live.problemsIn(spec);
   if (problems.length) return `<div class="fig-error">This diagram could not be drawn:<ul>${problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>`;
   const scene = await live.laidOut(spec);
-  return figureHtml({ ...spec, ...(scene ? { scene, legend: DiagramKit.legendOf(scene) } : {}), remarks: live.remarksOn(spec) });
+  return figureHtml({ ...spec, ...(scene ? { scene, legend: DiagramKit.legendOf(scene) } : {}), remarks: live.remarksOn(spec), symbols: live.symbolsOf(spec, scene) });
 }
 async function drawInto(element, spec) {
   element.setAttribute('data-drawing', '');
@@ -1123,7 +1117,7 @@ function figureHtml(f, opts = {}) {
   if (!f) return '';
   const wide = f.wide || ['compare', 'sequence-diagram', 'timeline'].includes(f.kind);
   const body = figureBody(f);
-  return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}${body.includes('data-graph=') ? traceHint : ''}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}</figure>`;
+  return `<figure class="fig${opts.compact ? ' compact' : ''}${wide && !opts.compact ? ' wide' : ''}" id="fig-${esc(f.id || '')}">${f.title ? `<figcaption class="fig-title">${md(f.title, true)}</figcaption>` : ''}<div class="fig-body">${body}</div>${f.caption ? `<div class="fig-caption md small">${md(f.caption)}</div>` : ''}</figure>`;
 }
 function figureViews() {
   const drawn = [];

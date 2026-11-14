@@ -54,8 +54,17 @@ def renderer(name):
     return shell[start : shell.index("\n}\n", start)]
 
 
-def test_a_figure_explains_tracing_once_however_many_graphs_it_draws():
-    assert "traceHint" in renderer("figureHtml")
+def test_how_to_use_a_figure_is_said_in_its_legend_not_by_the_page():
+    shell = SHELL.read_text()
+
+    assert "traceHint" not in shell
+    assert "trace-hint" not in shell
+
+
+def test_a_figure_shows_what_the_kit_wrote_about_its_symbols():
+    assert "f.symbols || ''" in renderer("figDiagram")
+    assert "f.symbols || ''" in renderer("figSelfDrawn")
+    assert "symbols: live.symbolsOf(spec, scene)" in renderer("liveDiagram")
 
 
 def test_the_page_lays_out_and_routes_no_graph_of_its_own():

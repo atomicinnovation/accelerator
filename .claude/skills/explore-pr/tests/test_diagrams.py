@@ -543,3 +543,34 @@ def test_a_view_may_ask_for_a_diagram_by_either_call(script):
     assert build.draws_diagrams(["api.diagram(spec).then(show)"])
     assert build.draws_diagrams(["x", "api.drawInto(el, spec)"])
     assert not build.draws_diagrams(["api.figure(spec)", "diagramOf(spec)"])
+
+
+def test_every_kit_figure_carries_a_legend_of_what_its_symbols_mean(
+    tmp_path, script
+):
+    model, warnings = assembled(
+        tmp_path, script, **chapter(figures=[GRAPH, TREE])
+    )
+
+    graph_figure, tree_figure = model["chapters"][0]["figures"]
+    assert warnings == []
+    for figure in (graph_figure, tree_figure, model["overview"]["figures"][0]):
+        assert figure["symbols"].startswith('<details class="dk-symbols">')
+    assert "Depends on" in graph_figure["symbols"]
+    assert "Directory" in tree_figure["symbols"]
+
+
+def test_a_legend_an_author_writes_is_replaced_by_the_kits(tmp_path, script):
+    forged = graph(symbols="<script>alert(1)</script>")
+
+    model, _ = assembled(tmp_path, script, **chapter(figures=[forged]))
+
+    assert "alert" not in first_figure(model)["symbols"]
+
+
+def test_a_figure_with_a_problem_has_no_legend(tmp_path, script):
+    broken = graph(dependencies=[{"from": "core", "to": "nowhere"}])
+
+    model, _ = assembled(tmp_path, script, **chapter(figures=[broken]))
+
+    assert not first_figure(model).get("symbols")
