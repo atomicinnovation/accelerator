@@ -7,6 +7,8 @@
 
 #![allow(dead_code, clippy::expect_used)]
 
+pub mod client;
+
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
