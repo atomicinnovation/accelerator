@@ -5972,6 +5972,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "sha2",
+ "shortcut-client",
  "similar",
  "store",
  "tempfile",
