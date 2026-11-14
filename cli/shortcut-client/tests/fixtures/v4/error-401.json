@@ -1,0 +1,7 @@
+{
+  "body": {
+    "message": "Unauthorized",
+    "tag": "unauthorized"
+  },
+  "status": 401
+}

@@ -1,0 +1,15 @@
+{
+  "body": {
+    "errors": {
+      "limit": [
+        "not",
+        [
+          "An integer between 1 and 100",
+          250
+        ]
+      ]
+    },
+    "message": "The request included invalid or missing parameters."
+  },
+  "status": 400
+}
