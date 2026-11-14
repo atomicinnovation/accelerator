@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 config = { path = "../config" }
+remote-projection = { path = "../remote-projection" }
 store = { path = "../store" }
 tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }
@@ -30,5 +31,6 @@ tracker-support = { path = "../tracker-support" }
 [dev-dependencies]
 config-adapters = { path = "../config-adapters" }
 http-test-support = { path = "../http-test-support" }
+serde_json = { workspace = true }
 tracker-test-support = { path = "../tracker-test-support" }
 tempfile = { workspace = true }

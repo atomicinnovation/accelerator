@@ -34,6 +34,13 @@ pub enum ClientError {
     ForeignPage { url: String },
     #[error("the TLS stack could not be initialised: {detail}")]
     TlsUnavailable { detail: String },
+    #[error(
+        "E_NO_CATALOGUE: there is no Shortcut catalogue.json. Pull the one a \
+         teammate committed, or run /accelerator:init-shortcut"
+    )]
+    NoCatalogue,
+    #[error("{0}")]
+    Catalogue(crate::cache::CacheError),
     #[error("{key} could not be read: {detail}")]
     ConfigUnreadable { key: String, detail: String },
 }
