@@ -3,11 +3,13 @@
 //! No ADF layer: Shortcut stores Markdown, so a body passes through verbatim
 //! in both directions.
 
+pub mod attach;
 pub mod auth;
 pub mod cache;
 pub mod catalogue;
 pub mod classify;
 pub mod client;
+pub mod comment;
 pub mod discovery;
 pub mod error;
 pub mod filter;
@@ -16,10 +18,13 @@ pub mod paging;
 pub mod paths;
 pub mod reference;
 pub mod shortcut_key;
+pub mod story_state;
 pub mod team_key;
+pub mod transition;
 pub mod transport;
 pub mod update;
 pub mod workspace;
+pub mod writes;
 
 pub use crate::auth::Credentials;
 pub use crate::client::ShortcutClient;
