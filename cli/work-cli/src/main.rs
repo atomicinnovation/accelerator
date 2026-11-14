@@ -528,12 +528,16 @@ fn run_sync(args: &cli::SyncArgs) -> ExitCode {
     let integration =
         crate::config::effective_nonempty(service, "work.integration").ok();
     let finaliser: &dyn finaliser::RunFinaliser =
-        if integration.as_deref() == Some("linear") {
+        if heals_the_linear_catalogue(integration.as_deref()) {
             &linear
         } else {
             &finaliser::NoFinaliser
         };
     sync::run_sync(&start, service, args, &registry, finaliser)
+}
+
+fn heals_the_linear_catalogue(integration: Option<&str>) -> bool {
+    integration == Some("linear")
 }
 
 fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
@@ -637,5 +641,18 @@ fn main() -> ExitCode {
         Command::Sync(args) => run_sync(&args),
         Command::Promote(args) => run_promote(&args),
         Command::Rekey(args) => run_rekey(&args),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::heals_the_linear_catalogue;
+
+    #[test]
+    fn only_a_linear_sync_heals_a_catalogue() {
+        assert!(heals_the_linear_catalogue(Some("linear")));
+        assert!(!heals_the_linear_catalogue(Some("shortcut")));
+        assert!(!heals_the_linear_catalogue(Some("jira")));
+        assert!(!heals_the_linear_catalogue(None));
     }
 }
