@@ -241,9 +241,11 @@ source changes since.
   stale-profile case. Stale instrumented binaries remain possible, but cargo
   rebuilds any whose sources change, so the residual risk is left to the
   manual full clean.
-- `cargo llvm-cov report --json --summary-only` emits the export's
-  `totals` object only. The task extracts the line, function and region
-  percentages from it and prints them as the totals line.
+- `cargo llvm-cov report --json --summary-only` drops the per-line
+  segments but still lists a summary for every file. The totals sit at
+  `data[0].totals`, beside those per-file summaries. The task captures the
+  export, extracts the line, function and region percentages from
+  `data[0].totals` and prints them as the totals line.
 - Merging a second copy of the same run's profiles leaves percentages
   unchanged, which is why the coverage-equality criterion seeds a
   different, wider prior run.
