@@ -24,7 +24,7 @@
     {
       "id": 2,
       "prompt": "/explore-pr 170",
-      "expected_output": "Fetches the pull request's metadata, reconnoitres its scale, CI, prior reviews and context, summarises what it found, and then asks the shape questions — goal, PR-specific custom views (including the ledger's subject) and delivery — in a single question set with a recommended default for each, before exporting files or spawning reading passes. The summary already names the figures that would explain the change, such as a before/after of the part of the system it reshapes.",
+      "expected_output": "Fetches the pull request's metadata, reconnoitres its scale, CI, prior reviews and context, summarises what it found, and then asks the shape questions — goal, depth, PR-specific custom views (including the ledger's subject) and delivery — in a single question set with a recommended default for each, before exporting files or spawning reading passes. The summary already names the figures that would explain the change, such as a before/after of the part of the system it reshapes.",
       "files": [],
       "assertions": [
         {
@@ -34,7 +34,7 @@
           "text": "proposes custom views specific to this pull request rather than a generic list"
         },
         {
-          "text": "asks about goal, custom views and delivery in one question set, each with a recommended option"
+          "text": "asks about goal, depth, custom views and delivery in one question set, each with a recommended option"
         },
         {
           "text": "does not spawn reading passes before the shape is agreed"
@@ -44,6 +44,9 @@
         },
         {
           "text": "opens its summary with the change's design (abstractions, responsibilities, dependency direction) before scale and line counts"
+        },
+        {
+          "text": "recommends a depth (quick, standard or deep) from the change's size and risk, and states its cost as the number of subagents, the lines each reads and the views left out, without quoting token or time figures"
         }
       ]
     },
@@ -73,23 +76,23 @@
     {
       "id": 4,
       "prompt": "/explore-pr 88 just a quick page, I only need to decide whether to merge",
-      "expected_output": "For a small pull request (under about 800 changed lines) reads the change itself instead of spawning reading passes, takes the merge decision as the agreed goal without asking about it again, and still builds, smoke-checks and delivers a page whose overview opens with a figure and whose every chapter opens with at least one. It writes the design summary before any chapter, even though it reads the change itself.",
+      "expected_output": "Takes 'just a quick page' as the quick depth and the merge decision as the goal, asking about neither again. Reads the change itself with no reading passes or design pass, skips the per-commit export and custom views, writes the design summary before one to four chapters, and still builds, smoke-checks and delivers a page whose overview and every chapter open with a figure, whose stops are anchored, and whose build exits 0.",
       "files": [],
       "assertions": [
         {
-          "text": "does not ask about the goal, which the argument already gives"
+          "text": "does not ask about the goal or the depth, which the argument already gives"
         },
         {
-          "text": "does not spawn reading passes for a small change"
+          "text": "does not spawn reading passes or a design pass"
         },
         {
-          "text": "runs the build and the smoke check before delivering"
+          "text": "does not run the commit export or build a custom view"
         },
         {
-          "text": "the build reports no chapter or overview without a figure"
+          "text": "writes design.json before any chapter, and every chapter names at least one abstraction or decision and opens with a figure"
         },
         {
-          "text": "writes design.json, and every chapter names at least one abstraction or decision"
+          "text": "runs the build to exit 0 and the smoke check before delivering"
         }
       ]
     },
@@ -124,6 +127,26 @@
         },
         {
           "text": "recommends starting with the Design view and the 'understand the design' path"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/explore-pr 529",
+      "expected_output": "For a pull request of about 2,500 added production lines with no dominant risky operation, recommends the standard depth and says what it costs before anything is spawned: a design pass and two or three reading passes of roughly 2,000 to 3,000 lines each, the ledger, at most one custom view. Offers quick and deep as the alternatives with what each adds or leaves out, and runs only what the chosen depth includes.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "recommends the standard depth and gives the reason from the change's size and risk"
+        },
+        {
+          "text": "states the number of subagents the recommended depth runs before spawning any"
+        },
+        {
+          "text": "describes what the quick and deep depths would leave out or add"
+        },
+        {
+          "text": "spawns no more reading passes and builds no more custom views than the chosen depth allows"
         }
       ]
     }

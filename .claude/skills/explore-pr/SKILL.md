@@ -78,13 +78,9 @@ pass reads first, and both are enforced by the build.
 ## What you build
 
 One page, built by `{skill dir}/scripts/build.py` from a workspace of JSON
-content: an overview, the Design view, every figure gathered In pictures, an
-attention map, a guided tour by design concept, a ledger of the riskiest
-operations, the change commit by commit, prior findings re-checked,
-criteria mapped to tests, annotated files, and the reviewer's notes, plus
-any view built for this PR alone. `{skill dir}/reference/page.md` lists what
-each view gives the reviewer and every bundled script and asset; read it
-when you need more than the steps below name.
+content. `{skill dir}/reference/page.md` lists what each view gives the
+reviewer and every bundled script and asset; read it when you need more
+than the steps below name.
 
 ## Initial response
 
@@ -148,8 +144,8 @@ Do this yourself; it is cheap and shapes everything after it.
   decision made. These become the overview's figure and each brief's.
 
 Tell the user what you found, briefly: the design of the change in two
-sentences, scale by layer, CI state, whether a prior review exists, and
-anything that already looks merge-relevant.
+sentences, scale by layer, CI state, whether a prior review exists,
+anything that already looks merge-relevant, and the depth you recommend.
 
 ### 3. Agree the shape with the user
 
@@ -157,12 +153,23 @@ Ask in one AskUserQuestion call, recommending a default for each. Skip any
 question the arguments already answer. Make each question stand on its own,
 naming the PR.
 
-- **Goal**: merge decision; owning the code; line-level audit. This sets
-  where the depth goes.
+- **Goal**: merge decision; owning the code; line-level audit.
+- **Depth**: how much reading the page is worth. Recommend one from the
+  reconnaissance, and say what it costs in the option's description: how
+  many subagents will run, about how many lines each reads, and which
+  views it leaves out.
+
+  | Depth | Recommend it for | What runs |
+  |---|---|---|
+  | **Quick** | Under about 800 added production lines, or a request for a quick page | No subagents: you read the change. Overview, Design and one to four chapters. No custom views or By commit; a ledger only if the change has a risky class of operation |
+  | **Standard** | Most pull requests, up to about 5,000 production lines | A design pass and two or three reading passes. The ledger, and at most one custom view |
+  | **Deep** | A larger change, one whose riskiest operations dominate it, or a line-level audit | A design pass and three to five reading passes. Every view, with the custom views agreed below |
+
 - **Interactive views** (multi-select): two to four candidates drawn from
   this PR (see `{skill dir}/reference/custom-views.md`), each described by
   what it lets the reviewer see or do. Include the ledger here, named for its
   subject. Static figures are not a question: every chapter gets them.
+  Leave this question out at quick depth.
 - **Delivery**: a hosted claude.ai artifact whose saved notes you can read
   back (only when the Artifact tool is available); a standalone HTML file that
   opens offline; or both. Note that hosting uploads code excerpts.
@@ -181,8 +188,10 @@ python3 {skill dir}/scripts/criteria_map.py {plan file} {workspace}/head {worksp
 ```
 
 The trees come from the merge base and head, so the diff matches GitHub's.
-The commit export makes a few API calls per commit. Skip the last two
-commands when there is no review or no criterion map; the criteria map
+The commit export makes a few API calls per commit: skip both commit
+commands at quick depth, and at standard depth for a pull request of more
+than about 50 commits. Skip the last two commands when there is no review or
+no criterion map; the criteria map
 resolves tests in the head tree, so a test the PR does not touch stays
 unresolved.
 
@@ -193,8 +202,9 @@ labels and facets.
 
 ### 5. Plan the chapters and the reading passes
 
-Partition the change by **design concept**, not by file, into 5–9 chapters
-in dependency order: what the change introduces first, what uses it next,
+Partition the change by **design concept**, not by file, into chapters in
+dependency order (one to four at quick depth, four to seven at standard,
+five to nine at deep): what the change introduces first, what uses it next,
 what triggers it last. A good chapter is about one abstraction or one
 decision, answers one question a reviewer would ask, and has a picture that
 answers most of it. For each chapter, name now the abstractions and decisions
@@ -202,9 +212,9 @@ it should explain and the figures it should open with, from step 2, so the
 briefs ask for them by name. Assign every changed file to exactly one pass,
 and every prior finding to the chapter it concerns.
 
-Group chapters into reading passes of roughly 2,000–3,000 lines of production
-code each; 3–5 passes suits a large PR. For a change under about 800 lines,
-read it yourself and skip the passes. Give a custom view's specification to
+Group chapters into the number of reading passes the agreed depth allows,
+each of roughly 2,000–3,000 lines of production code. At quick depth there
+are none: read the change yourself. Give a custom view's specification to
 the pass that reads the code it models, and the breaking-change and CI files
 to whichever pass is best placed to verify them.
 
@@ -214,9 +224,10 @@ Fill `{skill dir}/reference/reading-pass-brief.md` once per chapter pass, and
 `{skill dir}/reference/design-pass-brief.md` once for the design pass, which
 reads the whole change for its shape and writes `content/design.json`. Spawn
 them together, as general-purpose agents (they write files), in the
-background. Even for a change small enough to read yourself, write
-`design.json` before any chapter. The passes are the most expensive step, so
-brief them fully once rather than correcting them afterwards.
+background. At quick depth, write `design.json` yourself before any
+chapter, to the same contract: the principles hold at every depth, and so
+does the build. The passes are the most expensive step, so brief them fully
+once rather than correcting them afterwards.
 
 While they run, keep working:
 
@@ -229,11 +240,13 @@ While they run, keep working:
   whether the code matches the plan; the overview says so.
 - The custom views whose specifications are already settled.
 
-Tell the user what is running and roughly how long it takes.
+Tell the user what is running.
 
 ### 7. Build the custom views
 
-Follow `{skill dir}/reference/custom-views.md`. Each view goes in
+Build only the views the agreed depth and the user's answer call for: none
+at quick depth, at most one at standard. Follow
+`{skill dir}/reference/custom-views.md`. Each view goes in
 `{workspace}/views/<name>.js` and registers itself with
 `ExplorePR.registerView`. For a model of the code's behaviour, keep the engine
 pure, test it in node against every scenario in its specification, and read
