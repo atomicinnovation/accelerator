@@ -153,7 +153,7 @@ def test_a_link_inside_a_diagram_is_checked_like_any_citation(tmp_path, script):
     ]
 
 
-def test_the_abstractions_are_drawn_as_a_graph_of_what_uses_what(
+def test_the_abstractions_are_drawn_as_a_class_diagram_of_what_uses_what(
     tmp_path, script
 ):
     abstractions = [
@@ -174,20 +174,89 @@ def test_the_abstractions_are_drawn_as_a_graph_of_what_uses_what(
 
     relations = model["design"]["relations"]
     assert warnings == []
-    assert relations["kind"] == "dependency-graph"
+    assert relations["kind"] == "class-diagram"
     assert [
-        (m["id"], m.get("detail"), m.get("status"), m.get("link"))
-        for m in relations["modules"]
+        (c["id"], c.get("stereotype"), c.get("status"), c.get("link"))
+        for c in relations["classes"]
     ] == [
         ("Claims", "type", "new", "chapter:first"),
         ("Clock", "port", "existing", "chapter:first"),
         ("Disk", "port", "existing", None),
     ]
-    assert [(d["from"], d["to"]) for d in relations["dependencies"]] == [
-        ("Claims", "Clock"),
-        ("Claims", "Disk"),
+    assert [
+        (r["from"], r["to"], r["kind"]) for r in relations["relationships"]
+    ] == [
+        ("Claims", "Clock", "dependency"),
+        ("Claims", "Disk", "dependency"),
     ]
     assert relations["scene"]["nodes"]
+
+
+def related(relation):
+    return [
+        {
+            "id": "a1",
+            "name": "DiskStore",
+            "kind": "adapter",
+            "collaborators": [
+                {"name": "Store", "kind": "port", "relation": relation}
+            ],
+        },
+        {"id": "a2", "name": "Store", "kind": "port"},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("relation", "drawn_as"),
+    [
+        ("implements", "realisation"),
+        ("extends", "generalisation"),
+        ("owns", "composition"),
+        ("holds", "aggregation"),
+        ("uses", "dependency"),
+    ],
+)
+def test_a_collaborator_is_drawn_by_how_it_is_related(
+    tmp_path, script, relation, drawn_as
+):
+    model, warnings = assembled(
+        tmp_path, script, **chapter(abstractions=related(relation))
+    )
+
+    [relationship] = model["design"]["relations"]["relationships"]
+    assert warnings == []
+    assert (relationship["from"], relationship["to"]) == ("DiskStore", "Store")
+    assert relationship["kind"] == drawn_as
+
+
+def test_a_relation_the_page_has_no_word_for_is_reported(tmp_path, script):
+    _, warnings = assembled(
+        tmp_path, script, **chapter(abstractions=related("wraps"))
+    )
+
+    assert any(
+        'relation "wraps" is not one of implements, extends, owns, holds, uses'
+        in warning
+        for warning in warnings
+    )
+
+
+def test_two_declarations_that_disagree_keep_the_first_and_say_so(
+    tmp_path, script
+):
+    again = dict(related("uses")[0], id="a3")
+
+    model, warnings = assembled(
+        tmp_path,
+        script,
+        **chapter(abstractions=[*related("implements"), again]),
+    )
+
+    [relationship] = model["design"]["relations"]["relationships"]
+    assert relationship["kind"] == "realisation"
+    assert [type(w).__name__ for w in warnings] == ["Note"]
+    assert "DiskStore" in warnings[0] and "Store" in warnings[0]
+    assert "implements" in warnings[0] and "uses" in warnings[0]
 
 
 def test_abstractions_that_use_nothing_have_no_graph(tmp_path, script):

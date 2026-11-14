@@ -45,7 +45,7 @@ level:
   introduces or reshapes (types, traits, modules, ports, file formats,
   protocols), with their responsibilities and collaborators, and the
   `decisions` it embodies, each with the alternatives it was chosen over, why,
-  and at what cost. The page draws the abstractions' collaborations as a
+  and at what cost. The page draws how the abstractions relate as a class
   diagram automatically. The build warns about a chapter with neither.
   The Design view lists each abstraction once, merged by name across
   `design.json` and every chapter: the first declaration describes it, its
@@ -264,9 +264,11 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "kind": "type|trait|enum|module|port|adapter|function|file format|protocol",
     "status": "new|changed|removed|existing",
     "responsibility": "≤ 25 words: what it is for, in domain terms",
-    "collaborators": ["Clock", { "name": "Disk", "kind": "port" }],
-                                              // what it uses, drawn as arrows: an abstraction's
-                                              // name, or a name and kind for one that is not
+    "collaborators": ["Clock", { "name": "Disk", "kind": "port", "relation": "implements" }],
+                                              // what it relates to: an abstraction's name, or an
+                                              // object. "kind" is needed for one that is not an
+                                              // abstraction. "relation" is implements|extends|
+                                              // owns|holds|uses, and "uses" when left out
     "where": "path:line"
   }],
   "decisions": [{                             // design choices this chapter embodies
@@ -464,9 +466,22 @@ one fits.
   mistake in the figure or a finding about the code: settle which against
   the code, and raise a finding in `ownNotes` if it is true.
 
-The Design view's diagram of how the abstractions work together and the
-module map are dependency graphs the build writes for you, from the
-abstractions' `collaborators` and from `modmap.json`.
+The build writes two diagrams for you. The Design view's diagram of how
+the abstractions work together is a class diagram drawn from their
+`collaborators`: each abstraction is a class with its `kind` as the
+stereotype, and each collaborator's `relation` decides the line.
+
+| `relation` | Drawn as | Say it when |
+|---|---|---|
+| `implements` | A dashed line to a hollow triangle | The abstraction implements the collaborator: an adapter and its port, a type and its trait |
+| `extends` | A solid line to a hollow triangle | It is a more specific kind of the collaborator |
+| `owns` | A filled diamond on the abstraction | The collaborator is part of it and does not outlive it |
+| `holds` | A hollow diamond on the abstraction | It keeps the collaborator, which has a life of its own |
+| `uses` | A dashed arrow | It calls or depends on the collaborator; the default |
+
+Where two declarations of the same pair disagree, the first stands and the
+build notes it. The module map is a dependency graph drawn from
+`modmap.json`.
 
 The build needs Node 22 to lay diagrams out. Without it, the build warns
 and no kit diagram is drawn.

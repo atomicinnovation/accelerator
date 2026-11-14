@@ -25,7 +25,9 @@ introduces or reshapes, what each is responsible for, what it depends on,
 which way the dependencies run, and which decisions it embodies, each with
 the alternative it was chosen over, why, and what it costs. Compare it with
 how the rest of the codebase does the same kind of thing. Record these as
-the chapter's `abstractions` and `decisions`. Then choose stops as evidence
+the chapter's `abstractions` and `decisions`, and say how each abstraction
+is related to each collaborator (`implements`, `extends`, `owns`, `holds`
+or `uses`): the page draws them as a class diagram. Then choose stops as evidence
 for that design: where a responsibility lives, where a decision is enforced,
 where a boundary is crossed. Do not walk every hunk.
 

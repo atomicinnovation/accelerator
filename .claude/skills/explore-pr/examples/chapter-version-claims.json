@@ -200,7 +200,11 @@
       "status": "new",
       "responsibility": "The versions a prune must keep: every valid claim inside the window, plus the running version.",
       "collaborators": [
-        "Clock"
+        {
+          "name": "Clock",
+          "kind": "trait",
+          "relation": "uses"
+        }
       ],
       "where": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs:159"
     },

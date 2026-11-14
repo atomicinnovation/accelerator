@@ -436,7 +436,11 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     model["collaboratorKinds"] = collaborator_kinds(
         model["design"], model["chapters"]
     )
-    relations = abstraction_relations(model)
+    related, disagreements = collaborator_relations(
+        model["design"], model["chapters"]
+    )
+    faults += disagreements
+    relations = abstraction_relations(model, related)
     if relations:
         model["design"]["relations"] = relations
     if model["moduleMap"]:
@@ -456,19 +460,21 @@ def without_blanks(item: dict) -> dict:
     return {key: value for key, value in item.items() if value is not None}
 
 
-def abstraction_relations(model: dict) -> dict | None:
-    """Return the graph of which key abstraction uses which, if any does."""
+def abstraction_relations(
+    model: dict, related: dict[tuple[str, str], str]
+) -> dict | None:
+    """Return the class diagram of how the key abstractions relate, if any."""
     declared = {
         abstraction_name(entry["item"]): entry
         for entry in model["keyAbstractions"]
     }
     if not 2 <= len(declared) <= MOST_ABSTRACTIONS_DRAWN:
         return None
-    modules = {
+    classes = {
         name: without_blanks(
             {
                 "id": name,
-                "detail": entry["item"].get("kind"),
+                "stereotype": entry["item"].get("kind"),
                 "status": entry["item"].get("status"),
                 "link": f"{CHAPTER_LINK}{entry['chapters'][0]}"
                 if entry["chapters"]
@@ -477,37 +483,43 @@ def abstraction_relations(model: dict) -> dict | None:
         )
         for name, entry in declared.items()
     }
-    uses: dict[tuple[str, str], dict] = {}
+    relationships: dict[tuple[str, str], dict] = {}
     for name, entry in declared.items():
         for collaborator in entry["item"]["collaborators"]:
             used = collaborator.replace("`", "").strip()
-            others = len(modules) - len(declared)
-            if used not in modules and others >= MOST_OTHERS_DRAWN:
+            others = len(classes) - len(declared)
+            if used not in classes and others >= MOST_OTHERS_DRAWN:
                 continue
-            modules.setdefault(
+            classes.setdefault(
                 used,
                 without_blanks(
                     {
                         "id": used,
-                        "detail": model["collaboratorKinds"].get(used),
+                        "stereotype": model["collaboratorKinds"].get(used),
                         "status": "existing",
                     }
                 ),
             )
-            uses[name, used] = {"from": name, "to": used}
-    if not uses:
+            relationships[name, used] = {
+                "from": name,
+                "to": used,
+                "kind": DRAWN_AS.get(related.get((name, used)), "dependency"),
+            }
+    if not relationships:
         return None
     return {
         "id": "design-relations",
-        "kind": "dependency-graph",
+        "kind": "class-diagram",
         "title": "How the abstractions work together",
-        "caption": "Drawn from each abstraction's collaborators: an arrow "
-        "points from an abstraction to one it uses. Each box's border says "
-        "whether it is new, changed, removed or unchanged; ↗ on a box opens "
-        "the chapter that explains it.",
+        "caption": "Drawn from each abstraction's collaborators, as a class "
+        "diagram: a hollow triangle points at what is implemented or "
+        "extended, a diamond sits on what owns or holds, and a dashed arrow "
+        "points at what is used. Each box's border says whether it is new, "
+        "changed, removed or unchanged; ↗ on a box opens the chapter that "
+        "explains it.",
         "wide": True,
-        "modules": list(modules.values()),
-        "dependencies": list(uses.values()),
+        "classes": list(classes.values()),
+        "relationships": list(relationships.values()),
     }
 
 
@@ -1045,6 +1057,39 @@ def collaborator_kinds(design: dict, chapters: list[dict]) -> dict[str, str]:
     }
 
 
+def collaborator_relations(
+    design: dict, chapters: list[dict]
+) -> tuple[dict[tuple[str, str], str], list[Note]]:
+    """Return how each abstraction is related to each collaborator.
+
+    The first declaration of a pair stands; a later one that says otherwise
+    is noted.
+    """
+    related: dict[tuple[str, str], str] = {}
+    disagreements = []
+    for item in declared_abstractions(design, chapters):
+        for collaborator in item.get("collaborators", []):
+            pair = (
+                abstraction_name(item),
+                abstraction_name({"name": collaborator_name(collaborator)}),
+            )
+            said = (
+                collaborator.get("relation")
+                if isinstance(collaborator, dict)
+                else None
+            ) or "uses"
+            stands = related.setdefault(pair, said)
+            if stands != said:
+                disagreements.append(
+                    Note(
+                        f"abstraction {pair[0]}: collaborator {pair[1]} is "
+                        f"said to be both {stands} and {said}; drawn as "
+                        f"{stands}"
+                    )
+                )
+    return related, disagreements
+
+
 def key_abstractions(design: dict, chapters: list[dict]) -> list[dict]:
     """Each abstraction once, as first declared, with every chapter it is in."""
     declarations = [
@@ -1242,10 +1287,18 @@ def malformed_parts(model: dict) -> list[str]:
     return faults
 
 
+DRAWN_AS = {
+    "implements": "realisation",
+    "extends": "generalisation",
+    "owns": "composition",
+    "holds": "aggregation",
+    "uses": "dependency",
+}
 LEVELS_OF_CONCERN = ("major", "minor", "question")
 VOCABULARY = {
     ("stops", "side"): ("new", "old"),
     ("abstractions", "status"): ("new", "changed", "removed", "existing"),
+    ("collaborators", "relation"): tuple(DRAWN_AS),
     ("decisions", "assessment"): ("sound", "questionable", "unsound"),
     ("invariants", "holds"): ("yes", "partly", "unsure"),
     ("risks", "level"): ("high", "medium", "low"),
