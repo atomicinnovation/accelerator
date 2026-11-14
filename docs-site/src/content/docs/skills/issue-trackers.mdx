@@ -1,11 +1,11 @@
 ---
-title: 'Issue Trackers (Jira & Linear)'
+title: 'Issue Trackers (Jira, Linear & Shortcut)'
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components'
 
-Accelerator integrates with two remote issue trackers — **Jira** and
-**Linear** — through one shared pattern. Read skills (search, show)
+Accelerator integrates with three remote issue trackers — **Jira**,
+**Linear** and **Shortcut** — through one shared pattern. Read skills (search, show)
 auto-trigger on natural-language phrasing; write skills are slash-only
 and display a payload preview that you must explicitly confirm before
 any change reaches the tracker. Each integration keeps a team-shared
@@ -14,21 +14,22 @@ and treats the presence of an `external_id` on a work item as the signal
 that it is synced to the remote. Building on that signal,
 [`sync-work-items`](../reference/skills/work/sync-work-items.md)
 reconciles `meta/work/` against the tracker in batch. Select the active
-tracker with the `work.integration` key (`jira` or `linear`); when
+tracker with the `work.integration` key (`jira`, `linear` or
+`shortcut`); when
 unset, the work-management skills stay local with no external API calls.
 
-Both integrations ship the same eight skill shapes:
+All three integrations ship the same eight skill shapes:
 
-| Shape      | Jira                                                                                  | Linear                                                                                        |
-|------------|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| Initialise | [`init-jira`](../reference/skills/integrations/jira/init-jira.md)                       | [`init-linear`](../reference/skills/integrations/linear/init-linear.md)                           |
-| Search     | [`search-jira-issues`](../reference/skills/integrations/jira/search-jira-issues.md)     | [`search-linear-issues`](../reference/skills/integrations/linear/search-linear-issues.md)         |
-| Show       | [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md)           | [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)               |
-| Create     | [`create-jira-issue`](../reference/skills/integrations/jira/create-jira-issue.md)       | [`create-linear-issue`](../reference/skills/integrations/linear/create-linear-issue.md)           |
-| Update     | [`update-jira-issue`](../reference/skills/integrations/jira/update-jira-issue.md)       | [`update-linear-issue`](../reference/skills/integrations/linear/update-linear-issue.md)           |
-| Comment    | [`comment-jira-issue`](../reference/skills/integrations/jira/comment-jira-issue.md)     | [`comment-linear-issue`](../reference/skills/integrations/linear/comment-linear-issue.md)         |
-| Transition | [`transition-jira-issue`](../reference/skills/integrations/jira/transition-jira-issue.md) | [`transition-linear-issue`](../reference/skills/integrations/linear/transition-linear-issue.md) |
-| Attach     | [`attach-jira-issue`](../reference/skills/integrations/jira/attach-jira-issue.md)       | [`attach-linear-issue`](../reference/skills/integrations/linear/attach-linear-issue.md)           |
+| Shape      | Jira                                                                                  | Linear                                                                                        | Shortcut |
+|------------|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|---|
+| Initialise | [`init-jira`](../reference/skills/integrations/jira/init-jira.md)                       | [`init-linear`](../reference/skills/integrations/linear/init-linear.md)                           | [`init-shortcut`](../reference/skills/integrations/shortcut/init-shortcut.md) |
+| Search     | [`search-jira-issues`](../reference/skills/integrations/jira/search-jira-issues.md)     | [`search-linear-issues`](../reference/skills/integrations/linear/search-linear-issues.md)         | [`search-shortcut-stories`](../reference/skills/integrations/shortcut/search-shortcut-stories.md) |
+| Show       | [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md)           | [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)               | [`show-shortcut-story`](../reference/skills/integrations/shortcut/show-shortcut-story.md) |
+| Create     | [`create-jira-issue`](../reference/skills/integrations/jira/create-jira-issue.md)       | [`create-linear-issue`](../reference/skills/integrations/linear/create-linear-issue.md)           | [`create-shortcut-story`](../reference/skills/integrations/shortcut/create-shortcut-story.md) |
+| Update     | [`update-jira-issue`](../reference/skills/integrations/jira/update-jira-issue.md)       | [`update-linear-issue`](../reference/skills/integrations/linear/update-linear-issue.md)           | [`update-shortcut-story`](../reference/skills/integrations/shortcut/update-shortcut-story.md) |
+| Comment    | [`comment-jira-issue`](../reference/skills/integrations/jira/comment-jira-issue.md)     | [`comment-linear-issue`](../reference/skills/integrations/linear/comment-linear-issue.md)         | [`comment-shortcut-story`](../reference/skills/integrations/shortcut/comment-shortcut-story.md) |
+| Transition | [`transition-jira-issue`](../reference/skills/integrations/jira/transition-jira-issue.md) | [`transition-linear-issue`](../reference/skills/integrations/linear/transition-linear-issue.md) | [`transition-shortcut-story`](../reference/skills/integrations/shortcut/transition-shortcut-story.md) |
+| Attach     | [`attach-jira-issue`](../reference/skills/integrations/jira/attach-jira-issue.md)       | [`attach-linear-issue`](../reference/skills/integrations/linear/attach-linear-issue.md)           | [`attach-shortcut-story`](../reference/skills/integrations/shortcut/attach-shortcut-story.md) |
 
 Run the init skill once per project before the others: it verifies
 credentials and persists the team-shared catalogue under
@@ -101,6 +102,39 @@ fixes the workspace to a single team and caches that team with its
 workflow states — `catalogue.json` is committed and team-shared,
 `viewer.json` is gitignored and per-developer. Set
 `work.integration: linear` to enable auto-scoping.
+
+</TabItem>
+
+<TabItem label="Shortcut">
+
+The Shortcut skills talk to Shortcut's REST API v4, which stores Markdown
+as it is, so there is no conversion. Auth is **token-only**: a Shortcut
+API token belongs to one workspace and one member. Put it in the
+gitignored `.accelerator/config.local.md`, without a `Bearer` prefix:
+
+```yaml
+# .accelerator/config.local.md — do not commit
+---
+shortcut:
+  token_cmd: "op read op://Work/Shortcut/credential"  # or shortcut.token: …
+---
+```
+
+The same consent rules as Linear apply: `config.local.md` must be mode
+`0600` or stricter, and a `token_cmd` in the shared `config.md` is
+refused with `E_CONSENT_KEY_TEAM_LEVEL`.
+[`init-shortcut`](../reference/skills/integrations/shortcut/init-shortcut.md)
+writes every team and workflow to a committed `catalogue.json`, and sets
+the base team's mention name in `shortcut.team_key`. Set
+`work.integration: shortcut` to enable sync.
+
+Shortcut keys carry a prefix that names the entity: `sc-1234` for a
+story, Shortcut's own branch convention, and `epic-56` for an epic. A
+work item of kind `epic` syncs with a Shortcut epic; every other kind
+syncs with a story, its kind mapped to the story type. Shortcut calls the
+person on a story its **owner**, so the skills take `--owner` with a
+mention name; a story's points are `--estimate`. `attach` adds https
+links only: file upload is not built yet.
 
 </TabItem>
 

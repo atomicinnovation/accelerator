@@ -26,8 +26,8 @@ personal config file is treated as sensitive-by-convention as a whole
 (matching how SSH keys or `.netrc` are handled). Team values in `config.md`
 and the `ACCELERATOR_*` environment overrides still resolve, and a command
 fails with `E_LOCAL_PERMS_INSECURE` only when nothing usable remains.
-Commands that write — `migrate`, `work create`/`update`/`sync`, the Jira and
-Linear commands that write to the tracker, `config set` and
+Commands that write — `migrate`, `work create`/`update`/`sync`, the Jira,
+Linear and Shortcut commands that write to the tracker, `config set` and
 `config templates eject --force`/`reset --confirm` — refuse outright, because
 their writes would outlive the fix.
 
