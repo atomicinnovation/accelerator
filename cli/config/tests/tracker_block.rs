@@ -126,6 +126,46 @@ fn a_well_formed_linear_pull_block_validates() {
 }
 
 #[test]
+fn a_well_formed_shortcut_pull_block_validates() {
+    assert_eq!(
+        pull(
+            "shortcut",
+            vec![
+                ("additional_teams", seq(&["web"])),
+                (
+                    "filters",
+                    block(vec![
+                        ("label", seq(&["ux"])),
+                        ("state", seq(&["Ready"])),
+                        ("owner", seq(&["ada"])),
+                        ("type", seq(&["bug"])),
+                    ]),
+                ),
+                ("max_items", int(10)),
+            ],
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_shortcut_push_block_validates() {
+    assert_eq!(push("shortcut", vec![("max_items", int(5))]), Ok(()));
+}
+
+#[test]
+fn shortcut_all_teams_excludes_additional_teams() {
+    assert!(pull(
+        "shortcut",
+        vec![
+            ("all_teams", flag(true)),
+            ("additional_teams", seq(&["web"])),
+        ],
+    )
+    .is_err());
+}
+
+#[test]
 fn a_non_mapping_block_is_not_a_mapping() {
     for value in [scalar("oops"), seq(&["a"])] {
         assert_eq!(
@@ -154,6 +194,7 @@ fn an_unsupported_filter_key_lists_the_trackers_accepted_set() {
     for (scope, accepted) in [
         ("jira", &["label", "state", "assignee"][..]),
         ("linear", &["label", "state", "assignee", "project"][..]),
+        ("shortcut", &["label", "state", "owner", "type"][..]),
     ] {
         assert_eq!(
             pull(
@@ -657,7 +698,7 @@ fn every_pull_block_carries_a_scope_pair() {
 }
 
 #[test]
-fn the_catalogue_describes_pull_and_push_for_jira_and_linear() {
+fn the_catalogue_describes_pull_and_push_for_each_wired_tracker() {
     let described: Vec<(&str, BlockName)> = TRACKERS
         .0
         .iter()
@@ -668,8 +709,10 @@ fn the_catalogue_describes_pull_and_push_for_jira_and_linear() {
         [
             ("jira", BlockName::Pull),
             ("linear", BlockName::Pull),
+            ("shortcut", BlockName::Pull),
             ("jira", BlockName::Push),
             ("linear", BlockName::Push),
+            ("shortcut", BlockName::Push),
         ]
     );
 }

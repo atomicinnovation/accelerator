@@ -355,6 +355,17 @@ pub const TRACKERS: TrackerCatalogue = TrackerCatalogue(&[
         mutually_exclusive: &[("all_teams", "additional_teams")],
     },
     TrackerBlock {
+        scope: "shortcut",
+        label: "Shortcut",
+        name: BlockName::Pull,
+        fields: &pull_fields(
+            "additional_teams",
+            "all_teams",
+            &["label", "state", "owner", "type"],
+        ),
+        mutually_exclusive: &[("all_teams", "additional_teams")],
+    },
+    TrackerBlock {
         scope: "jira",
         label: "Jira",
         name: BlockName::Push,
@@ -364,6 +375,13 @@ pub const TRACKERS: TrackerCatalogue = TrackerCatalogue(&[
     TrackerBlock {
         scope: "linear",
         label: "Linear",
+        name: BlockName::Push,
+        fields: &[MAX_ITEMS],
+        mutually_exclusive: &[],
+    },
+    TrackerBlock {
+        scope: "shortcut",
+        label: "Shortcut",
         name: BlockName::Push,
         fields: &[MAX_ITEMS],
         mutually_exclusive: &[],
