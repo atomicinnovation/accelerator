@@ -3,6 +3,10 @@
 A notation is one `draw-<type>` skill beside this kit. The kit loads
 `draw-<type>/notation.js` from every such skill.
 
+Place each new notation in the guide to choosing a diagram, which
+`draw-diagram` keeps: the question it answers, and how to tell it from
+its neighbours. A test fails until the guide places every kind.
+
 ## What a notation exports
 
 ```js
