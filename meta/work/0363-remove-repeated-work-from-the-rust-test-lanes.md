@@ -256,6 +256,9 @@ source changes since.
 - The sweep of superseded instrumented artefacts goes beyond this item's
   original scope. It was added at the user's request, to bound the disk
   growth that skipping the full clean causes.
+- The coverage floor also goes beyond this item's original scope. It was
+  added at the user's request, and reverses the "No coverage gating"
+  decision in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 ## Drafting Notes
 
