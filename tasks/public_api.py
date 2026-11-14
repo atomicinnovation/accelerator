@@ -73,6 +73,7 @@ _EXEMPT_MEMBERS = {
     "collaboration-cli": _COMPOSITION_ROOT,
     "jira-cli": _COMPOSITION_ROOT,
     "linear-cli": _COMPOSITION_ROOT,
+    "shortcut-cli": _COMPOSITION_ROOT,
     "corpus-cli": _COMPOSITION_ROOT,
     "design-cli": _COMPOSITION_ROOT,
     "research-cli": _COMPOSITION_ROOT,

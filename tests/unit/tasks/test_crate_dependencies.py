@@ -445,6 +445,7 @@ _EXPECTED_DECLARATIONS = {
     "accelerator-migrate": ("composition-root", None, None, None),
     "jira-cli": ("composition-root", None, None, None),
     "linear-cli": ("composition-root", None, None, None),
+    "shortcut-cli": ("composition-root", None, None, None),
     "accelerator-design": ("composition-root", None, None, None),
     "accelerator-research": ("composition-root", None, None, None),
     "accelerator-visualiser": ("composition-root", None, None, None),

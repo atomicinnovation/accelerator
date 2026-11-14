@@ -1,0 +1,70 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/teams",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"app_url\": \"https://app.shortcut.com/scratch-workspace/team/00000000-0000-4000-8000-000000000002\", \"archived\": false, \"card_aging_mode\": null, \"card_aging_threshold_days\": null, \"color\": null, \"color_key\": null, \"created_at\": \"2026-11-13T21:29:16.980Z\", \"default_workflow\": {\"entity_type\": \"workflow:slim\", \"id\": 500000005, \"name\": \"Standard\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/workflows/500000005\"}, \"description\": \"\", \"entity_type\": \"team\", \"id\": \"00000000-0000-4000-8000-000000000002\", \"members\": {\"current_items\": 1, \"entities\": [{\"entity_type\": \"member:slim\", \"id\": \"00000000-0000-4000-8000-000000000001\", \"name\": \"member-2\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001\"}], \"list_url\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002/members\", \"total_items\": 1}, \"mention_name\": \"team-1\", \"name\": \"Team 1\", \"updated_at\": \"2026-11-13T21:29:16.980Z\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002\", \"workflows\": {\"current_items\": 1, \"entities\": [{\"entity_type\": \"workflow:slim\", \"id\": 500000005, \"name\": \"Standard\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/workflows/500000005\"}], \"list_url\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002/workflows\", \"total_items\": 1}}, {\"default_workflow\": {\"id\": 600}, \"id\": \"00000000-0000-4000-8000-000000000009\", \"mention_name\": \"web\", \"name\": \"Web\"}], \"next_page_url\": null}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002/workflows",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"id\": 500000005}], \"next_page_url\": null}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000009/workflows",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"id\": 600}], \"next_page_url\": null}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/workflows",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"id\": 500000005, \"name\": \"Standard\"}, {\"id\": 600, \"name\": \"Design\"}], \"next_page_url\": null}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/workflows/500000005/states",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"id\": 500000006, \"name\": \"Backlog\", \"position\": 1, \"type\": \"backlog\"}, {\"id\": 500000007, \"name\": \"To Do\", \"position\": 2, \"type\": \"unstarted\"}], \"next_page_url\": null}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/workflows/600/states",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"id\": 601, \"name\": \"Brief\", \"position\": 1, \"type\": \"unstarted\"}], \"next_page_url\": null}"
+      }
+    }
+  ]
+}

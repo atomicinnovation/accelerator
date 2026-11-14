@@ -1,0 +1,39 @@
+[package]
+name = "shortcut-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Manage Shortcut stories"
+
+[package.metadata.accelerator]
+role = "composition-root"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-shortcut"
+path = "src/main.rs"
+
+[features]
+# Admits a loopback API URL override so the integration tests can point the
+# binary at a mock. NEVER enabled in a release build — a compile guard and a
+# staged-binary byte scan both enforce that.
+test-loopback = []
+
+[dependencies]
+shortcut-client = { path = "../shortcut-client" }
+tracker = { path = "../tracker" }
+tracker-support = { path = "../tracker-support" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+vcs-adapters = { path = "../vcs-adapters" }
+serde_json = { workspace = true }
+clap = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+http-test-support = { path = "../http-test-support" }
+cli-test-support = { path = "../cli-test-support" }

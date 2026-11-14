@@ -1,0 +1,83 @@
+=== accelerator-shortcut --help ===
+Usage: accelerator-shortcut <COMMAND>
+
+Commands:
+  show    Show a story or an epic as JSON
+  search  Search the base team's stories, rendering a JSON envelope
+  init    Verify the token, list teams, or discover the workspace's workflows
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-shortcut show --help ===
+Show a story or an epic as JSON
+
+Usage: accelerator-shortcut show [OPTIONS] <REFERENCE>
+
+Arguments:
+  <REFERENCE>  `sc-<id>`, `epic-<id>`, or a story or epic URL in this workspace
+
+Options:
+      --comments <COMMENTS>  Include the most recent N comments
+  -q, --quiet                Print no notices on stderr
+  -h, --help                 Print help
+
+=== accelerator-shortcut search --help ===
+Search the base team's stories, rendering a JSON envelope
+
+Usage: accelerator-shortcut search [OPTIONS]
+
+Options:
+      --state <STATE>  A workflow state name
+      --owner <OWNER>  A member's mention name
+      --label <LABEL>  A label name
+      --type <TYPE>    A story type (feature, bug, chore) or a local kind
+      --text <TEXT>    A phrase the story's text holds
+      --limit <LIMIT>  Print at most this many stories
+  -q, --quiet          Print no notices on stderr
+  -h, --help           Print help
+
+=== accelerator-shortcut init --help ===
+Verify the token, list teams, or discover the workspace's workflows
+
+Usage: accelerator-shortcut init <COMMAND>
+
+Commands:
+  verify      Verify the token without printing it
+  list-teams  List the teams the token can see, by team key
+  discover    Discover every team and workflow, and write catalogue.json
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-shortcut init verify --help ===
+Verify the token without printing it
+
+Usage: accelerator-shortcut init verify [OPTIONS]
+
+Options:
+  -q, --quiet  Print no notices on stderr
+  -h, --help   Print help
+
+=== accelerator-shortcut init list-teams --help ===
+List the teams the token can see, by team key
+
+Usage: accelerator-shortcut init list-teams [OPTIONS]
+
+Options:
+  -q, --quiet  Print no notices on stderr
+  -h, --help   Print help
+
+=== accelerator-shortcut init discover --help ===
+Discover every team and workflow, and write catalogue.json
+
+Usage: accelerator-shortcut init discover [OPTIONS] --team <TEAM>
+
+Options:
+      --team <TEAM>  The base team's key: its mention name
+      --force        Replace a different `shortcut.team_key` already set
+  -q, --quiet        Print no notices on stderr
+  -h, --help         Print help
+
