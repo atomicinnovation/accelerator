@@ -278,6 +278,49 @@ impl ShortcutClient {
         scopes
     }
 
+    /// Every story `scope` discovers, as the v4 search returned it, once
+    /// each, and whether the discovery reached its end.
+    ///
+    /// # Errors
+    ///
+    /// [`TrackerError::Unconfigured`] for a filter or team the search cannot
+    /// use, and [`TrackerError::Retryable`] for a failed read.
+    pub fn search_stories(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<(Vec<Value>, Completeness), TrackerError> {
+        let filters =
+            SearchFilters::parse(&scope.filters).map_err(|refusal| {
+                TrackerError::Unconfigured {
+                    detail: refusal.to_string(),
+                }
+            })?;
+        let (uuids, whole_workspace) = match &scope.entities {
+            EntityScope::Keyed { base, additional } => (
+                base.iter().chain(additional).cloned().collect::<Vec<_>>(),
+                !additional.is_empty() && base.is_none(),
+            ),
+            EntityScope::WholeWorkspace => {
+                return Err(TrackerError::Unconfigured {
+                    detail: "a whole-workspace Shortcut search reaches the \
+                             client only after the engine enumerates its teams"
+                        .to_owned(),
+                });
+            }
+        };
+        let mut found = BTreeMap::new();
+        let mut completeness = Completeness::Complete;
+        for uuid in uuids {
+            completeness = completeness.merge(self.search_team(
+                &uuid,
+                &filters,
+                whole_workspace,
+                &mut found,
+            )?);
+        }
+        Ok((found.into_values().collect(), completeness))
+    }
+
     fn create_state(&self, team: &Team) -> Result<i64, TrackerError> {
         let workflow = team
             .default_workflow_id
@@ -463,7 +506,7 @@ impl ShortcutClient {
         uuid: &str,
         filters: &SearchFilters,
         whole_workspace: bool,
-        found: &mut BTreeMap<u64, RemoteTimestamp>,
+        found: &mut BTreeMap<u64, Value>,
     ) -> Result<Completeness, TrackerError> {
         let name = match self.read(&self.paths.team(uuid)) {
             Ok(team) => team
@@ -529,11 +572,7 @@ impl ShortcutClient {
                     );
                     continue;
                 }
-                let stamp = story
-                    .get("updated_at")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                found.insert(number, timestamp(stamp));
+                found.insert(number, story.clone());
             }
         }
         Ok(completeness)
@@ -774,43 +813,20 @@ impl RemoteTracker for ShortcutClient {
     }
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
-        let filters =
-            SearchFilters::parse(&scope.filters).map_err(|refusal| {
-                TrackerError::Unconfigured {
-                    detail: refusal.to_string(),
-                }
-            })?;
-        let (uuids, whole_workspace) = match &scope.entities {
-            EntityScope::Keyed { base, additional } => {
-                let base_only = additional.is_empty();
-                (
-                    base.iter().chain(additional).cloned().collect::<Vec<_>>(),
-                    !base_only && base.is_none(),
-                )
-            }
-            EntityScope::WholeWorkspace => {
-                return Err(TrackerError::Unconfigured {
-                    detail: "a whole-workspace Shortcut search reaches the client only \
-                             after the engine enumerates its teams"
-                        .to_owned(),
-                });
-            }
-        };
-        let mut found = BTreeMap::new();
-        let mut completeness = Completeness::Complete;
-        for uuid in uuids {
-            completeness = completeness.merge(self.search_team(
-                &uuid,
-                &filters,
-                whole_workspace,
-                &mut found,
-            )?);
-        }
+        let (stories, completeness) = self.search_stories(scope)?;
         Ok(Discovery {
-            found: found
-                .into_iter()
-                .map(|(number, stamp)| {
-                    (ExternalId::new(format!("sc-{number}")), stamp)
+            found: stories
+                .iter()
+                .filter_map(|story| {
+                    let number = story.get("id")?.as_u64()?;
+                    let stamp = story
+                        .get("updated_at")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
+                    Some((
+                        ExternalId::new(format!("sc-{number}")),
+                        timestamp(stamp),
+                    ))
                 })
                 .collect(),
             completeness,
