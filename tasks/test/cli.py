@@ -5,8 +5,10 @@ from pathlib import Path
 from invoke import Context, Exit, task
 
 from tasks.shared.coverage import (
+    CoverageFloor,
     CoverageReportError,
     CoverageTotals,
+    Metric,
     parse_totals,
 )
 from tasks.shared.instrumented_build import (
@@ -35,6 +37,10 @@ _MANIFEST = f"{_WORKSPACE} --workspace --exclude {_VISUALISER} --all-features"
 _PERMISSION_SKIP = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
 _INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
 
+COVERAGE_FLOOR = CoverageFloor(
+    {Metric.LINES: 92, Metric.FUNCTIONS: 92, Metric.REGIONS: 91}
+)
+
 
 @task
 def run(context: Context) -> None:
@@ -46,8 +52,11 @@ def run(context: Context) -> None:
     After the report it deletes instrumented artefacts the current build no
     longer uses, which a dependency or toolchain change would otherwise leave
     behind.
-    The totals are reported, not enforced. If instrumented binaries are
-    suspected stale, run `cargo llvm-cov clean --workspace` and rerun.
+    The totals must meet COVERAGE_FLOOR. Raise a floor as coverage improves;
+    never lower one to get a change through, except to reset the floors after
+    a Rust toolchain, llvm-tools or cargo-llvm-cov bump, by the rule in
+    tasks/README.md. If instrumented binaries are suspected stale, run
+    `cargo llvm-cov clean --workspace` and rerun.
     ACCELERATOR_COVERAGE=off drops to plain nextest for a faster loop.
 
     `--all-features` turns on the `test-loopback` and `test-support` features
@@ -77,8 +86,22 @@ def _announce_skipped_permission_tests() -> None:
 def _run_instrumented(context: Context) -> None:
     _clear_previous_profile_data(context)
     _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
-    print(_report_totals(context).summary_line())
+    totals = _report_totals(context)
+    print(totals.summary_line())
     _sweep_superseded_artefacts(context)
+    _enforce_floor(totals)
+
+
+def _enforce_floor(totals: CoverageTotals) -> None:
+    shortfalls = COVERAGE_FLOOR.shortfalls(totals)
+    if shortfalls:
+        raise Exit(
+            "coverage below COVERAGE_FLOOR in tasks/test/cli.py: "
+            + ", ".join(map(str, shortfalls))
+            + ". If nothing that affects coverage changed, run "
+            "`cargo llvm-cov clean --workspace` and rerun.",
+            code=1,
+        )
 
 
 def _clear_previous_profile_data(context: Context) -> None:

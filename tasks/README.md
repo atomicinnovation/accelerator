@@ -787,6 +787,28 @@ In a container that can only run as root, set
 `test:unit:cli` prints a one-line warning whenever it is set. CI must never set
 it: GitHub-hosted runners run as a non-root user.
 
+### Coverage floor
+
+`COVERAGE_FLOOR` in `tasks/test/cli.py` gates `test:unit:cli` whenever coverage
+is on: the lane fails when its line, function or region total falls below that
+metric's floor, after printing the totals line.
+
+To set the floors, collect each metric's total from four runs: both CI
+`test-unit` legs, a local run, and a run as root that skips the permission
+tests. Take the minimum of the four, subtract one percentage point, and round
+down to a whole percent. Record each run's OS, architecture and
+`cargo llvm-cov --version` beside its totals line. Make the root run in a
+disposable x86_64 Linux container, so that root-owned artefacts never land in
+the working `cli/target`: run `mise install`, then
+`ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1 mise run --skip-deps test:unit:cli`.
+
+Floors only go up. Raise one as coverage improves; never lower one to get a
+change through. The one exception is resetting every floor by the rule above
+after a Rust toolchain, llvm-tools or cargo-llvm-cov bump.
+
+If the floor trips and nothing that affects coverage changed, first run
+`cargo llvm-cov clean --workspace` and rerun the lane.
+
 ## Registering a dispatched sub-binary
 
 A **dispatched sub-binary** is a separate static binary the launcher fetches on

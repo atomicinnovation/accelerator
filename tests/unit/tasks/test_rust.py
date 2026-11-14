@@ -8,7 +8,7 @@ from invoke import Context, Exit
 from tasks import public_api, pup
 from tasks.shared import rust
 from tasks.shared.cargo_metadata import Package, workspace_packages
-from tasks.shared.coverage import parse_totals
+from tasks.shared.coverage import CoverageFloor, Metric, parse_totals
 from tasks.shared.paths import (
     CLI_DIR,
     CLI_WORKSPACE_CARGO_TOML,
@@ -186,6 +186,11 @@ class TestTestUnitCli:
         self, monkeypatch: pytest.MonkeyPatch, build_dir: Path
     ) -> MagicMock:
         monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
+        monkeypatch.setattr(
+            test_cli,
+            "COVERAGE_FLOOR",
+            CoverageFloor(dict.fromkeys(Metric, 0)),
+        )
         m = MagicMock(spec=Context)
         m.run.side_effect = _responding()
         return m
@@ -304,10 +309,49 @@ class TestTestUnitCli:
         assert "llvm-cov" not in command
         assert self._swept_nothing(build_dir)
 
-    def test_carries_no_coverage_threshold(self, lane: MagicMock):
+    def test_passes_no_threshold_flag_to_cargo_llvm_cov(self, lane: MagicMock):
         test_cli.run(lane)
 
         assert not any("--fail-under" in c for c in self._commands(lane))
+
+    def test_totals_below_the_floor_fail_the_task(
+        self,
+        lane: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        totals = parse_totals(EXPORT).percents
+        monkeypatch.setattr(
+            test_cli,
+            "COVERAGE_FLOOR",
+            CoverageFloor(
+                {
+                    **dict.fromkeys(Metric, 0),
+                    Metric.REGIONS: totals[Metric.REGIONS] + 1,
+                }
+            ),
+        )
+
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+
+        message = str(exc_info.value)
+        assert "regions" in message
+        assert "lines" not in message
+        assert "COVERAGE_FLOOR" in message
+        assert "cargo llvm-cov clean --workspace" in message
+        assert parse_totals(EXPORT).summary_line() in capsys.readouterr().out
+
+    def test_totals_at_the_floor_pass(
+        self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            test_cli,
+            "COVERAGE_FLOOR",
+            CoverageFloor(parse_totals(EXPORT).percents),
+        )
+
+        test_cli.run(lane)
 
     def test_failing_plain_nextest_fails_the_task(
         self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
