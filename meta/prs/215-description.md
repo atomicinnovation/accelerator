@@ -14,7 +14,7 @@ pr_number: 215
 tags: ["shortcut", "integrations", "sync"]
 revision: "ba5dd5390bd7e05f73ece2192e7cee6a8c42e3cd"
 repository: "accelerator"
-last_updated: "2026-11-14T12:25:13+00:00"
+last_updated: "2026-11-14T23:05:00+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
@@ -68,8 +68,10 @@ the Jira and Linear connectors.
       hold the CLI surface, the keywords, the exit codes, the stdout goldens
       and the stderr diagnostics.
 - [x] Nine `sync_run_real_client` cases drive the sync engine through the
-      real Shortcut client against a mock server. They cover push, pull,
-      conflict, discovery and a 403 on push.
+      real Shortcut client against a mock server. Eight run in Preview mode
+      and check how sync classifies push, pull, conflict and discovery. One
+      applies a push and checks the 403 failure. No case applies a
+      successful push or pull.
 - [x] Three corpus fixtures pin the sync hashes. An independent Python script
       produced the expected values.
 - [ ] Manual: push a work item and an epic item to a live workspace, pull an
