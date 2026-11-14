@@ -123,7 +123,9 @@ reports any that do not resolve. Stops other passes write are named
 name its chapter.
 
 **Before you finish**, run `python3 -m json.tool <file> > /dev/null` on every
-JSON file you wrote. Check at least five `start`/`end` and ledger `line`,
+JSON file you wrote. Use only the values the contract lists for a field
+that has a list (`risk`, `level`, `verdict`, `triage`, `tone` and the
+rest): the build rejects any other. Check at least five `start`/`end` and ledger `line`,
 `start` and `end` values, and three figure `where` values, against the
 `head/` copies. Confirm that every stop and ledger row has an anchor that
 appears on its line, and that every chapter you wrote has a figure and at

@@ -349,7 +349,14 @@ python3 {skill dir}/scripts/build.py {workspace}
 node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {workspace}/shots
 ```
 
-- Resolve every build warning, or know why it stands. A missing design
+- The build must exit 0. It writes the page either way, but exits 1 while a
+  `warning:` remains, and ends by counting what is left. A `note:` may
+  stand and does not fail it: a citation into a file the PR does not change
+  (check it yourself), and a changed file with no summary (shown as skim).
+  Content the page cannot use — a file that is not valid JSON, an item
+  missing its `id`, `file` or line numbers, a value outside its field's
+  vocabulary — is reported and left out, so fix it at its source and
+  rebuild. A missing design
   summary, a chapter with no abstraction or decision, a stop with no `fit`,
   a chapter or overview
   without a figure, or a figure naming a node or actor that does not exist
@@ -363,7 +370,8 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   files or not found, a `chapter` that does not exist, or prose naming a
   stop or chapter that does not exist. Fix each against the code; never
   delete a citation to silence its warning. A citation reported as *not a
-  changed file; unverified* may stand once you have checked it yourself.
+  changed file; unverified* is a note, and may stand once you have checked
+  it yourself.
 - The smoke check must report `"ok": true`. It needs Chrome or Chromium and
   Node 22; if neither is available, say the page was not rendered.
 - Read the **Design** screenshot as the reviewer will: could someone who

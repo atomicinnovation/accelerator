@@ -83,8 +83,160 @@ SKELETON_HEAD = (
 SKELETON_TAIL = "</body></html>\n"
 
 
+class Note(str):
+    """A remark that may stand: unlike a warning, it does not fail the build."""
+
+    __slots__ = ()
+
+
 def load_json(path: Path, default: object) -> object:
     return json.loads(path.read_text()) if path.exists() else default
+
+
+JSON_KINDS = {dict: "object", list: "array"}
+
+
+def read_content(path: Path, kind: type, faults: list[str]) -> object | None:
+    """Return a content file's value, or None when it is absent or unusable."""
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(path.read_text())
+    except json.JSONDecodeError as error:
+        faults.append(
+            f"{path.name}: not valid JSON: {error.msg} at line "
+            f"{error.lineno} column {error.colno}"
+        )
+        return None
+    if not isinstance(value, kind):
+        faults.append(f"{path.name}: must be a JSON {JSON_KINDS[kind]}")
+        return None
+    return value
+
+
+REQUIRED = {
+    "stop": {"id": str, "file": str, "start": int, "end": int},
+    "ledger row": {"id": str, "file": str, "line": int},
+    "file summary": {"path": str},
+    "finding": {"id": str},
+    "finding check": {"id": str},
+    "accepted risk": {"id": str},
+}
+OPTIONAL = {
+    "stop": {"anchorLine": int, "figure": dict},
+    "ledger row": {"start": int, "end": int},
+}
+DESCRIBED = {str: "text", int: "a whole number", dict: "an object"}
+OBJECT_LISTS = {
+    "chapter": (
+        "figures",
+        "abstractions",
+        "decisions",
+        "beforeAfter",
+        "domain",
+        "invariants",
+        "risks",
+        "stops",
+        "tests",
+        "findingChecks",
+        "ownNotes",
+    ),
+    "design": (
+        "figures",
+        "abstractions",
+        "decisions",
+        "principles",
+        "extension",
+    ),
+    "overview": ("figures", "paths"),
+}
+FIGURE_PARTS = {
+    "nodes": "id",
+    "layers": "id",
+    "actors": "id",
+    "edges": None,
+    "steps": None,
+}
+
+
+def is_a(value: object, expected: type) -> bool:
+    is_flag = isinstance(value, bool)
+    return isinstance(value, expected) and not (expected is int and is_flag)
+
+
+def shape_problem(kind: str, item: object) -> str | None:
+    if not isinstance(item, dict):
+        return "is not an object"
+    missing = [field for field in REQUIRED[kind] if field not in item]
+    if missing:
+        return f"has no {missing[0]}"
+    expected = {**REQUIRED[kind], **OPTIONAL.get(kind, {})}
+    mistyped = [
+        field
+        for field, wanted in expected.items()
+        if field in item and not is_a(item[field], wanted)
+    ]
+    if mistyped:
+        return f"{mistyped[0]} must be {DESCRIBED[expected[mistyped[0]]]}"
+    return None
+
+
+def well_formed(
+    kind: str, items: list, where: str, faults: list[str]
+) -> list[dict]:
+    """Keep the items a view can use; report each one that it cannot."""
+    kept = []
+    for position, item in enumerate(items, 1):
+        problem = shape_problem(kind, item)
+        if not problem:
+            kept.append(item)
+            continue
+        named = isinstance(item, dict) and isinstance(item.get("id"), str)
+        name = item["id"] if named else position
+        faults.append(f"{where}: {kind} {name} {problem}; left out")
+    return kept
+
+
+def entries_with(
+    name: str | None, entries: object, where: str, faults: list[str]
+) -> list:
+    """Keep a list's objects, and only those that carry the name it needs."""
+    if not isinstance(entries, list):
+        faults.append(f"{where} must be a list; left out")
+        return []
+    kept = []
+    for position, entry in enumerate(entries, 1):
+        if isinstance(entry, str) and name == "name":
+            kept.append(entry)
+        elif not isinstance(entry, dict):
+            faults.append(
+                f"{where} entry {position} is not an object; left out"
+            )
+        elif name and not isinstance(entry.get(name), str):
+            faults.append(f"{where} entry {position} has no {name}; left out")
+        else:
+            kept.append(entry)
+    return kept
+
+
+def with_lists_of_objects(
+    holder: dict, kind: str, where: str, faults: list[str]
+) -> dict:
+    for field in OBJECT_LISTS[kind]:
+        if field in holder:
+            holder[field] = entries_with(
+                None, holder[field], f"{where}: {field}", faults
+            )
+    return holder
+
+
+def well_formed_chapter(chapter: dict, faults: list[str]) -> dict:
+    where = f"chapter {chapter['id']}"
+    with_lists_of_objects(chapter, "chapter", where, faults)
+    for field, kind in (("stops", "stop"), ("findingChecks", "finding check")):
+        if field in chapter:
+            chapter[field] = well_formed(kind, chapter[field], where, faults)
+    return chapter
 
 
 def layer_of(path: str, layers: list[dict]) -> str:
@@ -107,20 +259,36 @@ def last_line(entry: dict, side: str) -> int:
     return last
 
 
-def ordered_chapters(manifest: dict, content: Path) -> list[dict]:
+def ordered_chapters(
+    manifest: dict, content: Path, faults: list[str]
+) -> list[dict]:
     available = {
         path.stem.removeprefix("chapter-"): path
         for path in sorted(content.glob("chapter-*.json"))
     }
     order = [name for name in manifest.get("chapters", []) if name in available]
     order += [name for name in available if name not in order]
-    return [json.loads(available[name].read_text()) for name in order]
+    chapters = []
+    for name in order:
+        chapter = read_content(available[name], dict, faults)
+        if chapter is None:
+            continue
+        if not isinstance(chapter.get("id"), str):
+            faults.append(
+                f"{available[name].name}: chapter has no id; left out"
+            )
+            continue
+        chapters.append(well_formed_chapter(chapter, faults))
+    return chapters
 
 
-def concatenated(content: Path, pattern: str) -> list[dict]:
+def concatenated(
+    content: Path, pattern: str, kind: str, faults: list[str]
+) -> list[dict]:
     rows: list[dict] = []
     for path in sorted(content.glob(pattern)):
-        rows += json.loads(path.read_text())
+        listed = read_content(path, list, faults) or []
+        rows += well_formed(kind, listed, path.name, faults)
     return rows
 
 
@@ -199,36 +367,52 @@ def commit_warnings(commits: dict, diff: dict) -> list[str]:
     return warnings
 
 
+def held(content: Path, name: str, kind: str, faults: list[str]) -> dict:
+    value = read_content(content / f"{name}.json", dict, faults) or {}
+    return with_lists_of_objects(value, kind, name, faults)
+
+
+def listed(content: Path, name: str, kind: str, faults: list[str]) -> list:
+    path = content / f"{name}.json"
+    rows = read_content(path, list, faults) or []
+    return well_formed(kind, rows, path.name, faults) if kind else rows
+
+
 def assemble(workspace: Path) -> tuple[dict, list[str]]:
     """Merge the workspace's content model; return it and its warnings."""
-    manifest = load_json(workspace / "explore.json", {})
+    faults: list[str] = []
+    manifest = read_content(workspace / "explore.json", dict, faults) or {}
     content = workspace / "content"
     diff = load_json(workspace / "data/diff.json", {})
     commits = load_json(workspace / "data/commits.json", {})
     layers = list(manifest.get("layers") or DEFAULT_LAYERS)
-    summaries = concatenated(content, "files*.json")
+    summaries = concatenated(content, "files*.json", "file summary", faults)
     pr = pr_details(manifest, diff)
     model = {
         "title": manifest.get("title") or f"PR {pr.get('number')} explorer",
         "pr": pr,
-        "overview": load_json(content / "overview.json", {}),
-        "design": load_json(content / "design.json", {}),
-        "chapters": ordered_chapters(manifest, content),
-        "ledger": concatenated(content, "ledger*.json"),
+        "overview": held(content, "overview", "overview", faults),
+        "design": held(content, "design", "design", faults),
+        "chapters": ordered_chapters(manifest, content, faults),
+        "ledger": concatenated(content, "ledger*.json", "ledger row", faults),
         "ledgerMeta": manifest.get("ledger", {}),
         "files": file_entries(diff, summaries, layers),
-        "findings": load_json(content / "findings.json", []),
+        "findings": listed(content, "findings", "finding", faults),
         "findingsMeta": manifest.get("findings", {}),
         "tourMeta": manifest.get("tour", {}),
-        "breaking": load_json(content / "breaking.json", []),
-        "ci": load_json(content / "ci.json", {"checks": []}),
-        "acceptedRisks": load_json(content / "accepted-risks.json", []),
-        "acs": load_json(content / "criteria.json", []),
-        "moduleMap": load_json(content / "modmap.json", None),
+        "breaking": listed(content, "breaking", "", faults),
+        "ci": read_content(content / "ci.json", dict, faults) or {"checks": []},
+        "acceptedRisks": listed(
+            content, "accepted-risks", "accepted risk", faults
+        ),
+        "acs": listed(content, "criteria", "", faults),
+        "moduleMap": read_content(content / "modmap.json", dict, faults),
         "layers": [{"id": x["id"], "label": x["label"]} for x in layers],
         "pathAliases": manifest.get("pathAliases", []),
         "commits": commit_summaries(commits),
     }
+    faults += mistyped_fields(model)
+    faults += malformed_parts(model)
     model["keyAbstractions"] = key_abstractions(
         model["design"], model["chapters"]
     )
@@ -236,9 +420,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         model["design"], model["chapters"]
     )
     summarised = {entry["path"] for entry in summaries}
-    warnings = check(model, diff) + commit_warnings(commits, diff)
+    warnings = faults + check(model, diff) + commit_warnings(commits, diff)
     warnings += [
-        f"{path}: no summary in files*.json; shown as skim"
+        Note(f"{path}: no summary in files*.json; shown as skim")
         for path in diff
         if path not in summarised
     ]
@@ -487,7 +671,7 @@ def flow_problems(figure: dict) -> list[str]:
         f"edge names missing node {end}"
         for edge in figure.get("edges", [])
         for end in (edge.get("from"), edge.get("to"))
-        if end not in nodes
+        if not isinstance(end, str) or end not in nodes
     ]
     if layers:
         problems += [
@@ -506,7 +690,7 @@ def sequence_problems(figure: dict) -> list[str]:
         named += [step[end] for end in ("from", "to") if end in step]
     return [
         f"step names missing actor {actor}"
-        for actor in dict.fromkeys(named)
+        for actor in dict.fromkeys(map(str, named))
         if actor not in actors
     ]
 
@@ -518,9 +702,9 @@ def matrix_problems(figure: dict) -> list[str]:
     if len(cells) != len(labels):
         problems.append(f"has {len(cells)} rows of cells for {len(labels)}")
     problems += [
-        f"row {number} has {len(row)} cells for {columns} columns"
+        f"row {number} does not have {columns} cells"
         for number, row in enumerate(cells, 1)
-        if len(row) != columns
+        if not isinstance(row, list) or len(row) != columns
     ]
     return problems
 
@@ -691,6 +875,7 @@ def sources(model: dict) -> list[tuple[str, object]]:
         ("breaking", model["breaking"]),
         ("accepted risks", model["acceptedRisks"]),
         ("module map", model["moduleMap"] or {}),
+        ("ci", model["ci"]),
     ]
 
 
@@ -712,6 +897,150 @@ def located(value: object, trail: str = "") -> Iterator[tuple[str, object]]:
         yield trail, value
 
 
+TEXT_FIELDS = (
+    "id",
+    "anchor",
+    "file",
+    "name",
+    "layer",
+    "chapter",
+    "where",
+    "changelog",
+    "kind",
+)
+WHOLE_NUMBER_FIELDS = ("line", "start", "end", "anchorLine")
+TEXT_LIST_FIELDS = ("findings", "refs", "pinnedBy", "over")
+LIST_FIELDS = ("rows", "cols", "cells", "tests", "items")
+
+
+def is_text_list(value: object) -> bool:
+    return isinstance(value, list) and all(isinstance(v, str) for v in value)
+
+
+FIELD_KINDS = (
+    (TEXT_FIELDS, "text", lambda value: isinstance(value, str)),
+    (WHOLE_NUMBER_FIELDS, "a whole number", lambda value: is_a(value, int)),
+    (TEXT_LIST_FIELDS, "a list of text", is_text_list),
+    (LIST_FIELDS, "a list", lambda value: isinstance(value, list)),
+)
+
+
+def mistyped_fields(model: dict) -> list[str]:
+    """Drop every field that is not the kind its name promises; report it."""
+    faults = []
+    for source, content in sources(model):
+        for trail, item in list(located(content)):
+            if not isinstance(item, dict):
+                continue
+            for fields, described, fits in FIELD_KINDS:
+                for field in fields:
+                    if field not in item or fits(item[field]):
+                        continue
+                    if item.pop(field) is None:
+                        continue
+                    problem = f"{field} must be {described}; ignored"
+                    faults.append(at(source, at(trail, problem)))
+    return faults
+
+
+def malformed_parts(model: dict) -> list[str]:
+    """Drop figure parts and collaborators the page cannot draw; report them."""
+    faults: list[str] = []
+    for source, content in sources(model):
+        for trail, item in list(located(content)):
+            if not isinstance(item, dict):
+                continue
+            where = at(source, trail)
+            if item.get("kind") in ("flow", "sequence"):
+                for part, name in FIGURE_PARTS.items():
+                    if part in item:
+                        item[part] = entries_with(
+                            name, item[part], f"{where}: {part}", faults
+                        )
+            if "collaborators" in item:
+                item["collaborators"] = entries_with(
+                    "name",
+                    item["collaborators"],
+                    f"{where}: collaborators",
+                    faults,
+                )
+    return faults
+
+
+LEVELS_OF_CONCERN = ("major", "minor", "question")
+VOCABULARY = {
+    ("stops", "side"): ("new", "old"),
+    ("abstractions", "status"): ("new", "changed", "removed", "existing"),
+    ("decisions", "assessment"): ("sound", "questionable", "unsound"),
+    ("invariants", "holds"): ("yes", "partly", "unsure"),
+    ("risks", "level"): ("high", "medium", "low"),
+    ("findingChecks", "verdict"): (
+        "confirmed",
+        "partly",
+        "disputed",
+        "unverified",
+    ),
+    ("findingChecks", "triage"): ("block", "fix-now", "follow-up", "drop"),
+    ("findingChecks", "level"): ("design", "implementation"),
+    ("ownNotes", "level"): LEVELS_OF_CONCERN,
+    ("concern", "level"): LEVELS_OF_CONCERN,
+    ("principles", "verdict"): ("holds", "strained", "broken"),
+    ("items", "state"): ("added", "removed", "changed", "kept"),
+    ("checks", "status"): ("pass", "fail", "cancelled", "skipped"),
+}
+TONES = (
+    "new",
+    "changed",
+    "removed",
+    "risk",
+    "ok",
+    "warn",
+    "bad",
+    "info",
+    "none",
+)
+RISK_TIERS = ("high", "medium", "low", "skim")
+SEVERITIES = ("critical", "major", "minor", "suggestion")
+COLLECTION = re.compile(r"([A-Za-z]+)(?:\[[^\[\]]*\])?$")
+
+
+def outside(field: str, value: object, allowed: tuple[str, ...]) -> str | None:
+    if value is None or value in allowed:
+        return None
+    return f'{field} "{value}" is not one of {", ".join(allowed)}'
+
+
+def vocabulary_of(trail: str, field: str) -> tuple[str, ...] | None:
+    if field == "tone":
+        return TONES
+    collection = COLLECTION.search(trail)
+    return VOCABULARY.get((collection[1], field)) if collection else None
+
+
+def vocabulary_warnings(model: dict) -> list[str]:
+    """Return a warning for every value its field has no word for."""
+    problems = [
+        (at(source, trail), outside(field, value, allowed))
+        for source, content in sources(model)
+        for trail, item in located(content)
+        if isinstance(item, dict)
+        for field, value in item.items()
+        if (allowed := vocabulary_of(trail, field))
+    ]
+    problems += [
+        (f"file {file['path']}", outside("risk", file.get("risk"), RISK_TIERS))
+        for file in model["files"]
+    ]
+    problems += [
+        (
+            f"finding {finding['id']}",
+            outside("severity", finding.get("severity"), SEVERITIES),
+        )
+        for finding in model["findings"]
+    ]
+    return [at(where, problem) for where, problem in problems if problem]
+
+
 def changed_files_named(path: str, diff: dict) -> list[str]:
     if path in diff:
         return [path]
@@ -725,7 +1054,7 @@ def length_of(entry: dict) -> int:
 def unresolved_file(reference: str, path: str, diff: dict) -> str | None:
     named = changed_files_named(path, diff)
     if not named:
-        return f"{reference} is in {path}, not a changed file; unverified"
+        return Note(f"{reference} is in {path}, not a changed file; unverified")
     if len(named) > 1:
         return f"{reference} matches more than one changed file: " + ", ".join(
             named
@@ -787,7 +1116,7 @@ def within(trail: str, part: str) -> str:
 
 
 def at(trail: str, problem: str) -> str:
-    return f"{trail}: {problem}" if trail else problem
+    return type(problem)(f"{trail}: {problem}") if trail else problem
 
 
 def tests_named_by(trail: str, item: dict) -> list[tuple[str, str | dict]]:
@@ -796,7 +1125,7 @@ def tests_named_by(trail: str, item: dict) -> list[tuple[str, str | dict]]:
     for position, test in enumerate(tests if isinstance(tests, list) else []):
         if isinstance(test, str):
             named.append((trail, test))
-        elif "file" in test:
+        elif isinstance(test, dict) and "file" in test:
             named.append((within(trail, f"tests[{position}]"), test))
     return named
 
@@ -867,7 +1196,7 @@ def reference_warnings(model: dict, diff: dict) -> list[str]:
                     at(trail, problem)
                     for problem in prose_problems(value, chapters, stops)
                 ]
-            warnings += [f"{source}: {problem}" for problem in problems]
+            warnings += [at(source, problem) for problem in problems]
     warnings += [
         f"file {file['path']}: names missing chapter {file['chapter']}"
         for file in model["files"]
@@ -893,6 +1222,7 @@ def check(model: dict, diff: dict) -> list[str]:
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
     warnings += reference_warnings(model, diff)
+    warnings += vocabulary_warnings(model)
     stop_ids = [s["id"] for c in model["chapters"] for s in c.get("stops", [])]
     ledger_ids = [row["id"] for row in model["ledger"]]
     for ids, kind in ((stop_ids, "stop"), (ledger_ids, "ledger row")):
@@ -991,7 +1321,12 @@ def view_sources(workspace: Path, manifest: dict) -> list[str]:
     return [path.read_text() for path in paths]
 
 
-def main(argv: list[str] | None = None) -> None:
+def counted(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Build the page; return 1 while a warning remains, and 0 otherwise."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--out", type=Path)
@@ -1003,10 +1338,17 @@ def main(argv: list[str] | None = None) -> None:
     if args.reanchor:
         for move in reanchor(workspace):
             print(f"reanchored {move}")
-    content, warnings = assemble(workspace)
+    content, remarks = assemble(workspace)
+    notes = [remark for remark in remarks if isinstance(remark, Note)]
+    warnings = [remark for remark in remarks if not isinstance(remark, Note)]
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
-    manifest = load_json(workspace / "explore.json", {})
+    for note in notes:
+        print(f"note: {note}", file=sys.stderr)
+    remaining = f"{counted(len(warnings), 'warning')}, "
+    remaining += counted(len(notes), "note")
+    status = 1 if warnings else 0
+    manifest = read_content(workspace / "explore.json", dict, []) or {}
     page_path = args.page or workspace / "page.html"
     if not page_path.exists():
         page_path = ASSETS / "page.html"
@@ -1018,8 +1360,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.hosted:
         hosted(page, args.hosted, content, diff, views, title, commits=commits)
         extra = ", commits.json" if commits else ""
-        print(f"wrote {args.hosted}/index.html, content.json, diff.json{extra}")
-        return
+        print(
+            f"wrote {args.hosted}/index.html, content.json, diff.json{extra}: "
+            f"{remaining}"
+        )
+        return status
     vendor = {
         name: (ASSETS / path).read_text()
         for name, (_, path) in LIBRARIES.items()
@@ -1034,9 +1379,10 @@ def main(argv: list[str] | None = None) -> None:
         f"wrote {out} ({out.stat().st_size / 1_048_576:.1f} MiB): "
         f"{len(content['chapters'])} chapters, {stops} stops, "
         f"{len(content['ledger'])} ledger rows, "
-        f"{len(content['findings'])} findings, {len(warnings)} warnings"
+        f"{len(content['findings'])} findings, {remaining}"
     )
+    return status
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -109,6 +109,31 @@ first and written second:
 - State only what was verified by reading the code. Mark the rest unverified,
   or make it a `question`.
 
+## What the build requires
+
+`scripts/build.py` exits 1 while any `warning:` remains, and prints each one
+with the file or item it concerns. A `note:` may stand and does not fail the
+build. Before it checks anything else, the build makes sure the page can use
+the content, and leaves out what it cannot:
+
+- every content file is valid JSON of the kind shown here: an object, or an
+  array for `ledger*`, `files*`, `findings`, `breaking`, `accepted-risks`
+  and `criteria`;
+- a chapter has an `id`; a stop has `id`, `file`, `start` and `end`; a
+  ledger row has `id`, `file` and `line`; a file summary has `path`; a
+  finding, a finding check and an accepted risk have an `id`. Line numbers
+  are whole numbers, not text;
+- a flow's nodes and layers and a sequence's actors each have an `id`, and a
+  collaborator given as an object has a `name`;
+- a field holds the kind of value shown here: text for an `id`, `file`,
+  `where` or `anchor`, a whole number for a line, a list of ids for
+  `findings`, `refs` and `pinnedBy`. A field of the wrong kind is reported
+  and ignored; `null` is read as absent;
+- a field whose values this document lists with `|` between them holds one
+  of those values: `side`, `status`, `assessment`, `holds`, `level`,
+  `verdict`, `triage`, `risk`, `severity`, `state`, a check's `status`, and
+  every `tone`. An abstraction's `kind` is free text.
+
 ## References the build checks
 
 Every citation must open something. `scripts/build.py` warns about:
@@ -127,8 +152,9 @@ Every citation must open something. `scripts/build.py` warns about:
 
 The workspace holds only the files the PR changes, so a citation into an
 unchanged file cannot be checked or opened: the page shows it as plain text
-and the build reports it as *not a changed file; unverified*. Keep one only
-when the point cannot be made from a changed file, and verify it by hand.
+and the build reports it in a note as *not a changed file; unverified*.
+Keep one only when the point cannot be made from a changed file, and verify
+it by hand.
 
 ## Anchors
 

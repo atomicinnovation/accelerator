@@ -209,6 +209,7 @@ const ARROWS_PROBE = `(async () => {
       }));
     }
   }
+  if (!checked && !measured) return { skipped: 'no graph with arrows on the page' };
   return { checked, crooked: crooked.slice(0, 5), straightAtBothEnds: checked > 0 && !crooked.length, measured, crossings, slanted: slanted.slice(0, 3), rightAngled: measured > 0 && !slanted.length, throughBoxes: throughBoxes.slice(0, 3), clearOfBoxes: !throughBoxes.length, sharedRuns: shared.length, noSharedRuns: !shared.length };
 })()`;
 
@@ -384,7 +385,7 @@ async function main() {
   const graph = report.graph || {};
   const graphHolds = !!graph.skipped || !!(graph.hoverLeavesAlone && graph.traced && graph.highlighted && graph.released && graph.labelsOnTop && graph.bordersOverLinks);
   const arrows = report.arrows || {};
-  const arrowsHold = !!(arrows.straightAtBothEnds && arrows.rightAngled && arrows.clearOfBoxes && arrows.noSharedRuns);
+  const arrowsHold = !!arrows.skipped || !!(arrows.straightAtBothEnds && arrows.rightAngled && arrows.clearOfBoxes && arrows.noSharedRuns);
   const press = report.press || {};
   const pressHolds = !!press.skipped || !!(press.touch && press.mouse && press.additive && press.pressAwayKeeps && press.untoggleOne && press.escapeClears && press.linkNavigates && press.linkLeavesTraceAlone);
   const references = report.references || {};
