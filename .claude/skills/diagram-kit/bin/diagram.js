@@ -12,6 +12,7 @@
 // `prepare` is for a page that embeds diagrams: for each one it prints the
 // problems, the laid-out scene, the legend and the remarks, and it fails
 // only if the file cannot be read.
+// `--legend` puts under each figure what its notation's symbols mean.
 // `--notations DIR` reads the draw-* skills under DIR instead of the ones
 // beside this kit.
 
@@ -21,13 +22,14 @@ const { kitWith, svgOf, standalonePage, standaloneSvg } = require('../lib/index.
 const { legendOf } = require('../lib/render.js');
 const { browserBundle } = require('../lib/bundle.js');
 
-const USAGE = 'usage: diagram.js check|layout|render|prepare SPEC.json [--out FILE] [--notations DIR]\n       diagram.js bundle [--out FILE] [--notations DIR]';
+const USAGE = 'usage: diagram.js check|layout|render|prepare SPEC.json [--out FILE] [--legend] [--notations DIR]\n       diagram.js bundle [--out FILE] [--notations DIR]';
 
 function parsed(argv) {
   const options = { positional: [] };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--out') options.out = argv[++i];
     else if (argv[i] === '--notations') options.notations = argv[++i];
+    else if (argv[i] === '--legend') options.legend = true;
     else options.positional.push(argv[i]);
   }
   return options;
@@ -48,17 +50,18 @@ function refuseProblems(kit, diagrams) {
   if (problems.length) throw new Refused(problems.join('\n'));
 }
 
-async function prepared(kit, diagram) {
+async function prepared(kit, diagram, legend) {
   const id = diagram && typeof diagram.id === 'string' ? diagram.id : null;
   const problems = kit.faultsIn(diagram);
   const selfDrawn = kit.drawsItself(diagram) ? { selfDrawn: true } : {};
   if (problems.length) return { id, problems, scene: null, legend: '', remarks: [], ...selfDrawn };
   const scene = await kit.laidOut(diagram);
-  return { id, problems, scene, legend: scene ? legendOf(scene) : '', remarks: kit.remarksOn(diagram), ...selfDrawn };
+  const symbols = legend ? { symbols: kit.symbolsOf(diagram, scene) } : {};
+  return { id, problems, scene, legend: scene ? legendOf(scene) : '', remarks: kit.remarksOn(diagram), ...selfDrawn, ...symbols };
 }
 
 async function main(argv) {
-  const { positional: [command, file], out, notations } = parsed(argv);
+  const { positional: [command, file], out, notations, legend } = parsed(argv);
   if (command === 'bundle') {
     const bundle = browserBundle(notations ? path.resolve(notations) : undefined);
     if (out) fs.writeFileSync(out, bundle); else process.stdout.write(bundle);
@@ -69,7 +72,7 @@ async function main(argv) {
   const diagrams = diagramsIn(file);
   if (command === 'prepare') {
     const each = [];
-    for (const diagram of diagrams) each.push(await prepared(kit, diagram));
+    for (const diagram of diagrams) each.push(await prepared(kit, diagram, legend));
     process.stdout.write(`${JSON.stringify({ kinds: kit.kinds(), diagrams: each })}\n`);
     return 0;
   }
@@ -91,7 +94,7 @@ async function main(argv) {
     if (diagrams.length !== 1) throw new Refused('an .svg holds one diagram; render a list to .html');
     fs.writeFileSync(out, standaloneSvg(svgOf(scenes[0], { uid: diagrams[0].id, title: diagrams[0].title })));
   } else {
-    fs.writeFileSync(out, standalonePage(diagrams[0].title, diagrams.map((diagram, i) => kit.figureOf(diagram, scenes[i]))));
+    fs.writeFileSync(out, standalonePage(diagrams[0].title, diagrams.map((diagram, i) => kit.figureOf(diagram, scenes[i], { legend }))));
   }
   console.log(`wrote ${out}`);
   return 0;

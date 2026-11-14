@@ -77,6 +77,9 @@ node {kit}/bin/diagram.js render {tmp directory}/diagrams/{id}.json --out {tmp d
 node {kit}/tools/check-page.js {tmp directory}/diagrams/{id}.html --shots {tmp directory}/diagrams/shots
 ```
 
+Add `--legend` to the render to put under the figure, closed until
+opened, what each symbol of this notation means.
+
 The render must exit 0 and the check must report `"ok": true`. Read any
 remark under the figure: it is either a mistake in the spec or a finding.
 Then look at the picture in `shots/`, and follow the rails for two or

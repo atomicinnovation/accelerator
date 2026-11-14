@@ -96,4 +96,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'c4-diagram', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'c4-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

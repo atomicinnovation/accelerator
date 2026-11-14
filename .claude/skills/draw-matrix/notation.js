@@ -46,7 +46,18 @@
     return `<div class="dk-table"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
 
-  const notation = { kind: 'matrix', problemsIn, htmlOf };
+  const cellsOf = spec => (Array.isArray(spec.cells) ? spec.cells.flat() : []).map(entryOf);
+  const toned = (tone, name, means) => ({ name, means, html: `<span class="dk-cell t-${tone}">outcome</span>`, usedIn: spec => cellsOf(spec).some(cell => cell.tone === tone) });
+  const symbols = [
+    { name: 'Cell', means: 'What happens for the case in its row under the condition in its column.', html: '<span class="dk-cell">outcome</span>', usedIn: () => true },
+    toned('ok', 'Safe', 'The safe or intended outcome.'),
+    toned('warn', 'Caution', 'It works, with something to be careful of.'),
+    toned('bad', 'Problem', 'It is wrong or dangerous, or is refused when it should not be.'),
+    toned('info', 'Worth noticing', 'Neither good nor bad, but not what a reader might assume.'),
+    toned('none', 'Nothing', 'Nothing happens in this case.'),
+  ];
+
+  const notation = { kind: 'matrix', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

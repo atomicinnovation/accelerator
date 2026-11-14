@@ -93,7 +93,18 @@
       + `<line class="axis" x1="${EDGE}" y1="${AXIS}" x2="${WIDTH - EDGE}" y2="${AXIS}"/>${ticks.join('')}${marks.join('')}${bars.join('')}</svg></div>`;
   }
 
-  const notation = { kind: 'timeline', problemsIn, htmlOf };
+  const drawn = marks => `<svg class="dk-timeline dk-sample" xmlns="http://www.w3.org/2000/svg" width="64" height="24" viewBox="0 0 64 24" aria-hidden="true">${marks}</svg>`;
+  const AXIS_SAMPLE = '<line class="axis" x1="2" y1="12" x2="62" y2="12"/>';
+  const hasTone = spec => [...listOf(spec.spans), ...listOf(spec.marks)].some(item => item.tone && item.tone !== 'none');
+  const symbols = [
+    { name: 'Axis', means: 'One scale for every value, in one unit. The ticks name the values that matter.', html: drawn(`${AXIS_SAMPLE}<g class="tick"><line x1="20" y1="7" x2="20" y2="17"/><line x1="44" y1="7" x2="44" y2="17"/></g>`), usedIn: () => true },
+    { name: 'Mark', means: 'One moment or value, with its name above it.', html: drawn(`${AXIS_SAMPLE}<g class="mark"><line x1="32" y1="3" x2="32" y2="12"/><circle cx="32" cy="12" r="5"/></g>`), usedIn: spec => listOf(spec.marks).length > 0 },
+    { name: 'Span', means: 'A stretch from one value to another. Spans that would overlap sit one under another.', html: drawn('<g class="span"><rect x="6" y="5" width="52" height="14" rx="4"/></g>'), usedIn: spec => listOf(spec.spans).length > 0 },
+    { name: 'Colour', means: 'Green is safe, amber a caution, red a problem and blue worth noticing.', html: drawn('<g class="span t-ok"><rect x="4" y="5" width="26" height="14" rx="4"/></g><g class="span t-bad"><rect x="34" y="5" width="26" height="14" rx="4"/></g>'), usedIn: hasTone },
+    { name: 'Logarithmic scale', means: 'Equal distances are equal ratios, so values of very different sizes fit on one axis.', html: drawn(`${AXIS_SAMPLE}<g class="tick"><line x1="8" y1="7" x2="8" y2="17"/><line x1="36" y1="7" x2="36" y2="17"/><line x1="50" y1="7" x2="50" y2="17"/><line x1="58" y1="7" x2="58" y2="17"/></g>`), usedIn: spec => spec.scale === 'log' },
+  ];
+
+  const notation = { kind: 'timeline', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

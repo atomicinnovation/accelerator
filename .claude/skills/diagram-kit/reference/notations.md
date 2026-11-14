@@ -28,6 +28,35 @@ module.exports = {
 - **`remarksOn`** is for what a reviewer should not have to find by eye: a
   cycle, an unreachable state, a relationship that breaks a rule.
 
+## Saying what the symbols mean
+
+A notation lists every symbol it can draw, in `symbols.js` beside it:
+
+```js
+module.exports = [
+  { name: 'Process', means: 'Something that reads, changes or forwards data.', node: { shape: 'bubble', label: 'Check it' } },
+  { name: 'Data flow', means: 'Data moves from the tail to the arrowhead.', edge: { line: 'solid', head: 'filled' } },
+  { name: 'External', means: 'Outside what is described.', node: { shape: 'element', label: 'Name', muted: true }, uses: node => Boolean(node.muted) },
+];
+```
+
+- `node` or `edge` is a sample the kit draws with its own renderer, so
+  the legend cannot differ from the drawing. A shape that holds others, or
+  has no size of its own, is given a `width` and `height`.
+- `means` is a sentence: what the symbol says in this notation, not how it
+  looks.
+- A symbol is shown as used when the diagram has a node of that shape, or
+  an edge with that line, head and tail. Give `uses` to say otherwise:
+  which nodes of the shape, or which edges, it stands for.
+- A notation that draws itself gives `html` for the sample and
+  `usedIn(spec)`.
+
+A legend is drawn only when asked for (`--legend`, or `legend: true` to
+`figureOf`). It is closed until opened, shows the symbols the diagram
+uses, keeps the rest behind a switch, and ends with how to use the
+diagram. Tests fail for a notation with no symbols, a shape it draws that
+no symbol explains, or anything in its example that none does.
+
 ## Running in a page
 
 `bin/diagram.js bundle` carries every notation into a browser, with the

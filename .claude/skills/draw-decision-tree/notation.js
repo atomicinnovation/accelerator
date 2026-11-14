@@ -71,4 +71,4 @@ function sceneOf(spec) {
   return { direction: spec.direction || 'down', nodes, edges };
 }
 
-module.exports = { kind: 'decision-tree', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'decision-tree', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

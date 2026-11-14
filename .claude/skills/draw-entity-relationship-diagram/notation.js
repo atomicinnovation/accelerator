@@ -106,4 +106,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'entity-relationship-diagram', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'entity-relationship-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

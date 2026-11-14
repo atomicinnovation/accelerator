@@ -128,4 +128,4 @@ function placedSceneOf(spec) {
   return partitions.length ? laidOutInLanes({ lanes: partitions, ...sceneOf(spec) }) : null;
 }
 
-module.exports = { kind: 'activity-diagram', problemsIn, sceneOf, placedSceneOf, remarksOn };
+module.exports = { kind: 'activity-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, placedSceneOf, remarksOn };

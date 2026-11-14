@@ -73,4 +73,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'object-diagram', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'object-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

@@ -360,12 +360,13 @@
     return words ? `<g class="captions" aria-hidden="true">${words}</g>` : '';
   }
 
-  function svgOf(scene, { uid = 'diagram', title = '', resolveLink = addressOnly } = {}) {
+  function svgOf(scene, { uid = 'diagram', title = '', resolveLink = addressOnly, sample = false } = {}) {
     const width = scene.width + 2 * MARGIN, height = scene.height + 2 * MARGIN;
     const isBehind = node => node.behind || SHAPES[node.shape].holdsOthers;
     const holders = scene.nodes.filter(isBehind), leaves = scene.nodes.filter(node => !isBehind(node));
     const draw = nodes => nodes.map(node => nodeMarkup(node, resolveLink)).join('');
-    return `<svg class="dk" data-graph="${escaped(uid)}" xmlns="http://www.w3.org/2000/svg" width="${tidy(width)}" height="${tidy(height)}" viewBox="${-MARGIN} ${-MARGIN} ${tidy(width)} ${tidy(height)}" role="img" aria-label="${escaped(title)}">`
+    const told = sample ? 'class="dk dk-sample"' : `class="dk" data-graph="${escaped(uid)}"`, read = sample ? 'aria-hidden="true"' : `role="img" aria-label="${escaped(title)}"`;
+    return `<svg ${told} xmlns="http://www.w3.org/2000/svg" width="${tidy(width)}" height="${tidy(height)}" viewBox="${-MARGIN} ${-MARGIN} ${tidy(width)} ${tidy(height)}" ${read}>`
       + `${draw(holders)}${scene.edges.map(edge => edgeMarkup(edge, resolveLink)).join('')}${captionsOf(draw(holders))}${draw(leaves)}</svg>`;
   }
 

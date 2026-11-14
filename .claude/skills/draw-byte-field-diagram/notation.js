@@ -111,4 +111,4 @@ function placedSceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'byte-field-diagram', problemsIn, sceneOf: placedSceneOf, placedSceneOf, remarksOn };
+module.exports = { kind: 'byte-field-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf: placedSceneOf, placedSceneOf, remarksOn };

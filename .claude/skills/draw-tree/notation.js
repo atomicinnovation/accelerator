@@ -62,7 +62,18 @@
     return `<div class="dk-tree">${head}${entriesOf(spec.items).map(row => rowOf(row, resolveLink)).join('')}</div>`;
   }
 
-  const notation = { kind: 'tree', problemsIn, htmlOf };
+  const sampleOf = (state, name) => `<span class="dk-tree"><span class="dk-row${state ? ` s-${state}` : ''}"><span class="dk-name${name.endsWith('/') ? ' dk-dir' : ''}">${escaped(`${MARKS[state] || ''}${name}`)}</span></span></span>`;
+  const inState = state => spec => listOf(spec.items).some(item => item.state === state);
+  const symbols = [
+    { name: 'Entry', means: 'A file, a key or a module at that place, with a note beside it on why it matters.', html: sampleOf(null, 'name'), usedIn: () => true },
+    { name: 'Directory', means: 'Something that holds other entries, in bold with a slash after its name.', html: sampleOf(null, 'name/'), usedIn: spec => listOf(spec.items).some(item => /\/./.test(item.path) || item.path.endsWith('/')) },
+    { name: 'Added', means: 'The change, or the operation shown, creates it.', html: sampleOf('added', 'name'), usedIn: inState('added') },
+    { name: 'Removed', means: 'The change, or the operation shown, removes it.', html: sampleOf('removed', 'name'), usedIn: inState('removed') },
+    { name: 'Changed', means: 'It is there before and after, with different contents.', html: sampleOf('changed', 'name'), usedIn: inState('changed') },
+    { name: 'Kept', means: 'It is there before and after, untouched.', html: sampleOf('kept', 'name'), usedIn: inState('kept') },
+  ];
+
+  const notation = { kind: 'tree', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -89,4 +89,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'package-diagram', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'package-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

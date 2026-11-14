@@ -10,7 +10,7 @@ const DRAWING_CHECKS = `(async () => {
   const boxOf = element => { const b = element.getBBox(); return { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height }; };
   const overlap = (a, b, slack = 1) => a.left < b.right - slack && b.left < a.right - slack && a.top < b.bottom - slack && b.top < a.bottom - slack;
   const beyond = (inner, outer) => Math.ceil(Math.max(outer.left - inner.left, inner.right - outer.right, outer.top - inner.top, inner.bottom - outer.bottom, 0));
-  const diagrams = [...document.querySelectorAll('svg.dk')].map(svg => {
+  const diagrams = [...document.querySelectorAll('svg.dk[data-graph]')].map(svg => {
     const problems = [];
     const boxes = [...svg.querySelectorAll('.node.leaf')].map(node => ({ id: node.getAttribute('data-node'), node, body: boxOf(node.querySelector('.body')) }));
     for (const node of svg.querySelectorAll('.node')) {
@@ -65,7 +65,7 @@ const SELF_DRAWN_CHECKS = `(() => {
 
 const TRACING_CHECK = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 120));
-  const svg = [...document.querySelectorAll('svg.dk')].find(each => each.querySelector('.edge'));
+  const svg = [...document.querySelectorAll('svg.dk[data-graph]')].find(each => each.querySelector('.edge'));
   if (!svg) return { skipped: 'no drawing with an arrow' };
   const from = svg.querySelector('.edge').getAttribute('data-from');
   const node = svg.querySelector('[data-node="' + CSS.escape(from) + '"] .body');

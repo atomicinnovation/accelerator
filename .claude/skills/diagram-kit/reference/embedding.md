@@ -12,6 +12,7 @@ const kit = kitWith();                      // the draw-* skills beside the kit
 const problems = kit.problemsIn(spec);      // report these; do not go on if any
 const scene = await kit.laidOut(spec);      // plain JSON: store it with the page
 const figure = kit.figureOf(spec, scene);   // or draw it now, as HTML
+const legend = kit.symbolsOf(spec, scene);  // what the notation's symbols mean, as HTML
 ```
 
 From another language, run `bin/diagram.js layout SPEC.json`, which prints

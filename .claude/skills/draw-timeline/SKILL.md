@@ -68,6 +68,9 @@ node {kit}/bin/diagram.js render {tmp directory}/diagrams/{id}.json --out {tmp d
 node {kit}/tools/check-page.js {tmp directory}/diagrams/{id}.html --shots {tmp directory}/diagrams/shots
 ```
 
+Add `--legend` to the render to put under the figure, closed until
+opened, what each symbol of this notation means.
+
 The render must exit 0 and the check must report `"ok": true`. Then look
 at the picture in `shots/`. The check needs Chrome or Chromium; without
 one, say the page was not checked.

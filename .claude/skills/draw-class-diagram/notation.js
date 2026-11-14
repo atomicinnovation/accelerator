@@ -132,4 +132,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'class-diagram', problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'class-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
