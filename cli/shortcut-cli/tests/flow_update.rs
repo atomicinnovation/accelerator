@@ -43,12 +43,10 @@ fn a_read_only_token_is_refused_naming_the_scope() {
         &["update", "sc-14", "--title", "New title"],
     );
 
-    assert!(!output.status.success());
-    assert!(
-        support::stderr(&output).contains("the token has only the"),
-        "{}",
-        support::stderr(&output)
-    );
+    let stderr = support::stderr(&output);
+    assert_eq!(output.status.code(), Some(140), "{stderr}");
+    assert!(stderr.starts_with("E_WRITE_NOT_APPLIED:"), "{stderr}");
+    assert!(stderr.contains("the token has only the"), "{stderr}");
 }
 
 #[test]

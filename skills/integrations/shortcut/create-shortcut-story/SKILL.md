@@ -82,7 +82,15 @@ Branch on the `outcome` keyword:
   file could not be written. Tell the user not to run this again, because a
   second run creates a duplicate, and to set `external_id` by hand.
 
-When stdout carries no JSON, nothing was created and the file is unchanged.
-Show the `E_*` line from stderr; it is safe to fix the cause and retry.
+When stdout carries no JSON, the create failed. Show the `E_*` line from
+stderr, then branch on its name:
+
+- **`E_WRITE_MAY_HAVE_APPLIED`**: the create may have gone through. Do not
+  run it again, because a second run can create a duplicate. Tell the user
+  to check Shortcut first, for example with
+  `/accelerator:search-shortcut-stories --text "<title>"`. If the story or
+  epic exists, tell them to set `external_id` by hand.
+- **Any other name**: nothing was created, and the file is unchanged. Fix the
+  cause, then retry.
 
 !`accelerator config instructions create-shortcut-story --fail-safe`

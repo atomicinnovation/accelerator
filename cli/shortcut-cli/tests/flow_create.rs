@@ -80,7 +80,9 @@ fn a_failed_create_leaves_the_work_item_unchanged() {
     let (output, before, item, server, _dir) =
         create(&["story-create-500"], "story");
 
-    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(141));
+    let stderr = support::stderr(&output);
+    assert!(stderr.starts_with("E_WRITE_MAY_HAVE_APPLIED:"), "{stderr}");
     assert_eq!(std::fs::read_to_string(item).expect("read"), before);
     assert_eq!(server.hits(&RequestKey::post(STORIES)), 1);
 }

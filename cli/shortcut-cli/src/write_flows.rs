@@ -12,6 +12,7 @@ use shortcut_client::ShortcutClient;
 use shortcut_client::ShortcutKey;
 use shortcut_client::StoryId;
 use tracker::RemoteTracker as _;
+use tracker::TrackerError;
 
 use crate::cli::AttachArgs;
 use crate::cli::CommentAction;
@@ -46,8 +47,16 @@ fn story_in(
 }
 
 fn failed(error: &WriteError) -> ExitCode {
+    if let WriteError::Tracker(error) = error {
+        return tracker_failed(error);
+    }
     eprintln!("{error}");
     ExitCode::from(exit_codes::for_write(error))
+}
+
+fn tracker_failed(error: &TrackerError) -> ExitCode {
+    eprintln!("{}: {error}", exit_codes::write_failure_name(error));
+    ExitCode::from(exit_codes::for_tracker_write(error))
 }
 
 fn report(
@@ -132,10 +141,7 @@ pub fn create(args: &CreateArgs) -> ExitCode {
     };
     let key = match client.create(&entity.title, &entity.body, &entity.kind) {
         Ok(key) => key,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::for_tracker_write(&error));
-        }
+        Err(error) => return tracker_failed(&error),
     };
     if let Some(file) = &args.file {
         if let Err(error) = work_item::link(file, key.as_str()) {

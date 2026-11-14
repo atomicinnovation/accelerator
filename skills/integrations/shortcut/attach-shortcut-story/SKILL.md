@@ -61,6 +61,8 @@ Run the bare launcher **directly** as an executable. Never prefix it with
 On the `attached` outcome, confirm the link was added. When stdout carries no
 JSON, show the `E_*` line from stderr. `E_ATTACH_BAD_URL` means the URL is not
 https, and `E_NOT_A_STORY` means the key names an epic; nothing is sent for
-either.
+either. `E_WRITE_MAY_HAVE_APPLIED` means the link may have been added. Before you retry, run
+`accelerator shortcut show <KEY>`, and check that `.entity.external_links`
+does not hold the URL.
 
 !`accelerator config instructions attach-shortcut-story --fail-safe`

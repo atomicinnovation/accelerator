@@ -197,6 +197,18 @@ pub const fn for_tracker_write(error: &TrackerError) -> u8 {
     }
 }
 
+/// The stderr name for each class of failed write, so a skill can tell a
+/// write that may have applied from one that provably did not.
+#[must_use]
+pub const fn write_failure_name(error: &TrackerError) -> &'static str {
+    match error {
+        TrackerError::Retryable { .. } => "E_WRITE_NOT_APPLIED",
+        TrackerError::Terminal { .. } => "E_WRITE_MAY_HAVE_APPLIED",
+        TrackerError::Rejected { .. } => "E_WRITE_REFUSED",
+        TrackerError::Unconfigured { .. } => "E_WRITE_UNCONFIGURED",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,6 +226,32 @@ mod tests {
         ];
         for (status, code) in rows {
             assert_eq!(for_status(status), code, "{status}");
+        }
+    }
+
+    #[test]
+    fn each_write_failure_class_has_its_own_code_and_name() {
+        let detail = || "boom".to_owned();
+        let rows = [
+            (
+                TrackerError::Retryable { detail: detail() },
+                WRITE_NOT_APPLIED,
+                "E_WRITE_NOT_APPLIED",
+            ),
+            (
+                TrackerError::Terminal { detail: detail() },
+                WRITE_MAY_HAVE_APPLIED,
+                "E_WRITE_MAY_HAVE_APPLIED",
+            ),
+            (
+                TrackerError::Rejected { detail: detail() },
+                WRITE_REFUSED,
+                "E_WRITE_REFUSED",
+            ),
+        ];
+        for (error, code, name) in rows {
+            assert_eq!(for_tracker_write(&error), code, "{error}");
+            assert_eq!(write_failure_name(&error), name, "{error}");
         }
     }
 

@@ -38,9 +38,14 @@ state or points. Each exits 2 for an epic key.
 
 Every subcommand prints one JSON document on stdout with a top-level
 `outcome` keyword, such as `found`, `created` or `transitioned`. Failures
-print an `E_*` line on stderr. For a failed write, the exit code says what a
-retry would repeat: 140 when Shortcut applied nothing, 141 when it may have
-applied the write, and 142 when it refused the request.
+print an `E_*` line on stderr. For a failed write, the name and the exit code
+say what a retry would repeat:
+
+| Name                       | Exit | Meaning                           |
+|----------------------------|------|-----------------------------------|
+| `E_WRITE_NOT_APPLIED`      | 140  | Shortcut applied nothing.         |
+| `E_WRITE_MAY_HAVE_APPLIED` | 141  | Shortcut may have applied it.     |
+| `E_WRITE_REFUSED`          | 142  | Shortcut refused the request.     |
 
 ## Local development
 
