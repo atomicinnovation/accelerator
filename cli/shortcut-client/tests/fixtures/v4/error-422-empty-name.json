@@ -1,0 +1,15 @@
+{
+  "body": {
+    "errors": {
+      "name": [
+        "not",
+        [
+          "Non-empty String",
+          ""
+        ]
+      ]
+    },
+    "message": "The request included invalid or missing parameters."
+  },
+  "status": 400
+}

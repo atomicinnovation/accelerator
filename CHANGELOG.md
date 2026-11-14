@@ -240,6 +240,15 @@
 
 ### Added
 
+- **Shortcut is a third issue tracker.** Set `work.integration: shortcut`
+  and run `/accelerator:init-shortcut` to sync work items with Shortcut
+  stories and epics through its REST API v4. A story's key is `sc-1234` and an
+  epic's is `epic-56`; a work item of kind `epic` syncs with an epic. Eight
+  skills mirror Linear's: `init-shortcut`, `show-shortcut-story`,
+  `search-shortcut-stories`, and the write skills `create-`, `update-`,
+  `comment-`, `transition-` and `attach-shortcut-story`. They run the new
+  `accelerator shortcut` sub-binary, which `ACCELERATOR_SHORTCUT_BIN`
+  overrides. `attach` adds https links only; file upload is not built yet.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a

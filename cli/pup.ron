@@ -310,6 +310,7 @@
                         "^tokio(::|$)",
                         "^jira_client(::|$)",
                         "^linear_client(::|$)",
+                        "^shortcut_client(::|$)",
                     ]),
                     severity: Error,
                 ),
@@ -331,6 +332,7 @@
                         "^work(::|$)",
                         "^work_adapters(::|$)",
                         "^linear_client(::|$)",
+                        "^shortcut_client(::|$)",
                     ]),
                     severity: Error,
                 ),
@@ -367,6 +369,7 @@
                         "^work(::|$)",
                         "^work_adapters(::|$)",
                         "^jira_client(::|$)",
+                        "^shortcut_client(::|$)",
                     ]),
                     severity: Error,
                 ),
@@ -380,6 +383,40 @@
         Module((
             name: "linear_client_io_lives_in_cache",
             matches: Module("^linear_client::(transport|upload|discovery)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::fs(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // shortcut-client is the only place Shortcut request construction
+        // lives, and it may reach neither the work domain nor a sibling provider.
+        Module((
+            name: "shortcut_client_is_the_only_shortcut_transport",
+            matches: Module("^shortcut_client($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^work(::|$)",
+                        "^work_adapters(::|$)",
+                        "^jira_client(::|$)",
+                        "^linear_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // The Shortcut mirror of linear_client_io_lives_in_cache: only `init
+        // discover` writes the catalogue, through the cache module's atomic
+        // write and lock, so the request-building modules stay off the disk.
+        Module((
+            name: "shortcut_client_io_lives_in_cache",
+            matches: Module("^shortcut_client::(transport|discovery|workspace)($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: None,
@@ -545,7 +582,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|shortcut_client|collaboration|github|migrate|migrate_adapters|network|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(

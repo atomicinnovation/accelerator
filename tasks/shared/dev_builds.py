@@ -11,12 +11,12 @@ from tasks.shared.paths import CLI_WORKSPACE_CARGO_TOML, DISPATCHED_SUBBINARIES
 # feature set rather than a plain debug build.
 _SERVER = "visualiser"
 
-_PACKAGES_NAMED_AFTER_THEIR_DIRECTORY = ("jira", "linear")
+_PACKAGES_NAMED_AFTER_THEIR_DIRECTORY = ("jira", "linear", "shortcut")
 
 # The feature admits a loopback API URL. Every debug build of these binaries
 # carries it, because two builds of one target/debug path with different
 # features would overwrite each other's binary.
-_LOOPBACK_SEAMED = ("jira", "linear", "research")
+_LOOPBACK_SEAMED = ("jira", "linear", "research", "shortcut")
 
 
 @dataclass(frozen=True)

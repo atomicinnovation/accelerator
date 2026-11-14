@@ -1488,6 +1488,7 @@ fn resolve_active_scope_key(
         "linear" => linear_client::auth::team_key(config, integrations_root)
             .ok()
             .flatten(),
+        "shortcut" => shortcut_client::auth::team_key(config).ok().flatten(),
         _ => {
             let legacy = crate::config::effective_nonempty(
                 config,
@@ -8866,6 +8867,36 @@ mod tests {
             assert_eq!(
                 resolve_active_scope_key(&config, "linear", &no_integrations()),
                 Some("ENG".to_owned())
+            );
+        }
+
+        #[test]
+        fn shortcut_scopes_from_its_team_key_not_the_legacy_key() {
+            let config = FakeConfig::with(&[
+                ("shortcut.team_key", "team-1"),
+                ("work.default_project_code", "TR"),
+            ]);
+            assert_eq!(
+                resolve_active_scope_key(
+                    &config,
+                    "shortcut",
+                    &no_integrations()
+                ),
+                Some("team-1".to_owned())
+            );
+        }
+
+        #[test]
+        fn shortcut_without_a_team_key_has_no_scope() {
+            let config =
+                FakeConfig::with(&[("work.default_project_code", "TR")]);
+            assert_eq!(
+                resolve_active_scope_key(
+                    &config,
+                    "shortcut",
+                    &no_integrations()
+                ),
+                None
             );
         }
 

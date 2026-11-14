@@ -113,6 +113,22 @@ fn trello_also_exits_72_not_73() -> Result<(), TestError> {
 }
 
 #[test]
+fn shortcut_without_a_catalogue_exits_74_naming_init() -> Result<(), TestError>
+{
+    let repo = scratch_repo(Some("shortcut"))?;
+    let output = run_with(
+        repo.path(),
+        &[],
+        &[("ACCELERATOR_SHORTCUT_TOKEN", "sct_rw_test")],
+    )?;
+    assert_eq!(output.status.code(), Some(74));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("'shortcut'"), "{stderr}");
+    assert!(stderr.contains("init-shortcut"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn preview_does_not_bypass_provider_selection() -> Result<(), TestError> {
     let repo = scratch_repo(Some("jira"))?;
     let output = run(repo.path(), &["--preview"])?;
@@ -408,6 +424,7 @@ fn the_scrubbed_set_is_derived_from_the_token_ladders() -> Result<(), TestError>
     for keys in [
         jira_client::auth::token_keys()?,
         linear_client::auth::token_keys()?,
+        shortcut_client::auth::token_keys()?,
     ] {
         for name in keys
             .plaintext
@@ -418,7 +435,7 @@ fn the_scrubbed_set_is_derived_from_the_token_ladders() -> Result<(), TestError>
             assert!(scrubbed.contains(&(*name).to_owned()), "{scrubbed:?}");
         }
     }
-    assert_eq!(scrubbed.len(), 4, "two token env names per provider");
+    assert_eq!(scrubbed.len(), 6, "two token env names per provider");
     Ok(())
 }
 

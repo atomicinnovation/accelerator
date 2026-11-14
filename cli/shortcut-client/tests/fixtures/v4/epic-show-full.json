@@ -1,0 +1,104 @@
+{
+  "body": {
+    "entity": {
+      "app_url": "https://app.shortcut.com/scratch-workspace/epic/17",
+      "archived": false,
+      "comments": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/comments",
+        "total_items": 0
+      },
+      "completed": false,
+      "completed_at": null,
+      "completed_at_override": null,
+      "created_at": "2026-11-14T08:21:39.277Z",
+      "deadline": null,
+      "description": "Contract body\n\nA paragraph that wraps across\n1. a line that starts with a digit\n\n- a list item\n- another, with `code` and a.dotted.token\n\n```\n    indented code\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n",
+      "entity_type": "epic",
+      "epic_state": {
+        "entity_type": "epic-state:slim",
+        "id": 500000002,
+        "name": "to do",
+        "type": "unstarted"
+      },
+      "external_id": null,
+      "followers": {
+        "current_items": 1,
+        "entities": [
+          {
+            "entity_type": "member:slim",
+            "id": "00000000-0000-4000-8000-000000000001",
+            "name": "member-2",
+            "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/followers",
+        "total_items": 1
+      },
+      "healths": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/healths",
+        "total_items": 0
+      },
+      "id": 17,
+      "labels": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/labels",
+        "total_items": 0
+      },
+      "mentioned_members": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/mentioned-members",
+        "total_items": 0
+      },
+      "mentioned_teams": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/mentioned-teams",
+        "total_items": 0
+      },
+      "name": "Contract epic",
+      "objectives": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/objectives",
+        "total_items": 0
+      },
+      "owners": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/owners",
+        "total_items": 0
+      },
+      "planned_start_date": null,
+      "requester": {
+        "entity_type": "member:slim",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "member-2",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001"
+      },
+      "started": false,
+      "started_at": null,
+      "started_at_override": null,
+      "stories": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/stories",
+        "total_items": 0
+      },
+      "teams": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/teams",
+        "total_items": 0
+      },
+      "updated_at": "2026-11-14T08:21:39.277Z",
+      "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17"
+    }
+  },
+  "status": 200
+}

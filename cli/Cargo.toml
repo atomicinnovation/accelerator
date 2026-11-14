@@ -39,6 +39,8 @@ members = [
     "jira-cli",
     "linear-client",
     "linear-cli",
+    "shortcut-client",
+    "shortcut-cli",
     "network",
     "design",
     "design-adapters",

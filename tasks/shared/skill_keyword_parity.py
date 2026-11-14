@@ -1,6 +1,6 @@
 """Doc-vs-binary keyword parity for the repointed integration skills.
 
-The jira/linear write and read bodies branch on a structured stdout *keyword*
+The provider write and read bodies branch on a structured stdout *keyword*
 rather than a bash exit integer. This guard binds the two
 representations: every outcome keyword a repointed ``SKILL.md`` body branches on
 must exist in the sub-binary's own declared keyword set (parsed from its
@@ -21,6 +21,7 @@ from tasks.shared.paths import REPO_ROOT
 _PROVIDERS: dict[str, Path] = {
     "linear": REPO_ROOT / "cli/linear-cli/src/keywords.rs",
     "jira": REPO_ROOT / "cli/jira-cli/src/keywords.rs",
+    "shortcut": REPO_ROOT / "cli/shortcut-cli/src/keywords.rs",
 }
 
 # A keyword literal in a `keyword(self)` projection: `=> "created",`.
@@ -39,7 +40,15 @@ _DROPPED_PREVIEW = re.compile(r"--print-payload|--describe")
 # Tokens that are backticked and lower-kebab but are never outcome keywords, so
 # a branch-cue line mentioning one is not a keyword reference to check.
 _NOT_KEYWORDS = frozenset(
-    {"outcome", "y", "n", "external_id", "init-linear", "init-jira"}
+    {
+        "outcome",
+        "y",
+        "n",
+        "external_id",
+        "init-linear",
+        "init-jira",
+        "init-shortcut",
+    }
 )
 
 

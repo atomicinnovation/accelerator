@@ -126,6 +126,7 @@ export default defineConfig({
             'internals',
             'corpus',
             'research',
+            'shortcut',
           ],
         },
       ],

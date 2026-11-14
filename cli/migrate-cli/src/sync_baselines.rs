@@ -76,6 +76,10 @@ mod tests {
     #[test]
     fn a_tracker_with_unknown_body_rules_has_none() {
         assert!(body_rules("trello").is_none());
+        assert!(
+            body_rules("shortcut").is_none(),
+            "no repository holds Shortcut baselines older than the migration"
+        );
     }
 
     #[test]

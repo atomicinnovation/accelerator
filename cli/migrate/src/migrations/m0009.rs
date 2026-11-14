@@ -457,7 +457,7 @@ mod tests {
 
     use super::{
         ensure_key, probe_value_in_content, remove_key, rewrite_one_key,
-        Migration, Migration0009,
+        scope_key_for, Migration, Migration0009,
     };
     use crate::ports::{
         CorpusIndex, DocTypeDir, MigrationContext, MigrationError,
@@ -556,6 +556,11 @@ mod tests {
 
     fn apply(ctx: &TestCtx) -> Result<ApplyOutcome, MigrationError> {
         Migration0009.apply(ctx)
+    }
+
+    #[test]
+    fn shortcut_has_no_legacy_scope_key_to_migrate() {
+        assert_eq!(scope_key_for("shortcut"), None);
     }
 
     #[test]

@@ -16,7 +16,7 @@ blocked_by: []                               # typed-linkage list: ["work-item:N
 derived_from: []                             # typed-linkage list: ["plan:NNNN", ...] or []
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
 source: ""                                   # typed-linkage ref: "issue-research:NNNN" or ""
-external_id: ""                              # remote tracker identifier (Jira/Linear key); may equal id or differ; presence = synced; omit when not linked
+external_id: ""                              # remote tracker identifier (Jira/Linear key, Shortcut sc-1234 or epic-56); may equal id or differ; presence = synced; omit when not linked
 aliases: []                                  # retired IDs of this item; omit when empty
 tags: []
 last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"

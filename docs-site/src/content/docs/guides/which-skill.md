@@ -41,10 +41,10 @@ unambiguous).
 | Change a work item's status or fields          | [`update-work-item`](../reference/skills/work/update-work-item.md)               |
 | Review a work item before planning             | [`review-work-item`](../reference/skills/work/review-work-item.md)               |
 | Stress-test a work item's scope and assumptions | [`stress-test-work-item`](../reference/skills/work/stress-test-work-item.md)    |
-| Sync work items with Jira or Linear            | [`sync-work-items`](../reference/skills/work/sync-work-items.md)                 |
+| Sync work items with a tracker                 | [`sync-work-items`](../reference/skills/work/sync-work-items.md)                 |
 | Re-key work items after changing the ID pattern | [`rekey-work-items`](../reference/skills/work/rekey-work-items.md)            |
 
-See [Sync work items with Jira or Linear](sync-work-items.md) for the
+See [Sync work items with Jira, Linear or Shortcut](sync-work-items.md) for the
 end-to-end setup.
 
 ## Recording decisions
@@ -79,6 +79,9 @@ See [Review a pull request](review-a-pr.md) for the review flow.
 | Search Jira issues                  | [`search-jira-issues`](../reference/skills/integrations/jira/search-jira-issues.md)           |
 | Look up a Linear issue              | [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)           |
 | Search Linear issues                | [`search-linear-issues`](../reference/skills/integrations/linear/search-linear-issues.md)     |
+| Connect a repo to Shortcut          | [`init-shortcut`](../reference/skills/integrations/shortcut/init-shortcut.md)                 |
+| Look up a Shortcut story            | [`show-shortcut-story`](../reference/skills/integrations/shortcut/show-shortcut-story.md)     |
+| Search Shortcut stories             | [`search-shortcut-stories`](../reference/skills/integrations/shortcut/search-shortcut-stories.md) |
 
 ## Design and visualisation
 

@@ -10,7 +10,7 @@ publish.workspace = true
 role = "domain"
 context = "tracker"
 kind = "shared"
-downstreams = ["work", "jira", "linear"]
+downstreams = ["work", "jira", "linear", "shortcut"]
 
 [lints]
 workspace = true

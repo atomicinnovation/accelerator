@@ -58,6 +58,10 @@ _EXEMPT_MEMBERS = {
         f"{_ADAPTER}. The mirror of jira-client: a provider surface one"
         " composition root wires, tracking Linear's API rather than the domain"
     ),
+    "shortcut-client": (
+        f"{_ADAPTER}. The third provider surface beside jira-client and"
+        " linear-client, tracking Shortcut's API rather than the domain"
+    ),
     "jira-client": (
         f"{_ADAPTER}. The provider surface it exposes is what one composition"
         " root wires, and it tracks Jira's API rather than the domain"
@@ -69,6 +73,7 @@ _EXEMPT_MEMBERS = {
     "collaboration-cli": _COMPOSITION_ROOT,
     "jira-cli": _COMPOSITION_ROOT,
     "linear-cli": _COMPOSITION_ROOT,
+    "shortcut-cli": _COMPOSITION_ROOT,
     "corpus-cli": _COMPOSITION_ROOT,
     "design-cli": _COMPOSITION_ROOT,
     "research-cli": _COMPOSITION_ROOT,
