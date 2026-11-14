@@ -1,6 +1,6 @@
 ---
-title: Sync Work Items with Jira or Linear
-description: How to connect a repository to Jira or Linear and keep
+title: Sync Work Items with Jira, Linear or Shortcut
+description: How to connect a repository to Jira, Linear or Shortcut and keep
   local work items and remote issues reconciled.
 ---
 
@@ -14,8 +14,9 @@ both directions.
 ## Prerequisites
 
 - `jq` installed (and `sha256sum` or `shasum` on the PATH).
-- A Jira Cloud API token (from id.atlassian.com) or a Linear personal
-  API key (`lin_api_…`).
+- A Jira Cloud API token (from id.atlassian.com), a Linear personal
+  API key (`lin_api_…`), or a Shortcut API token (from
+  app.shortcut.com/settings/account/api-tokens).
 
 <Steps>
 
@@ -43,6 +44,15 @@ both directions.
    Run
    [`init-linear`](../reference/skills/integrations/linear/init-linear.md)
    and pick the single team the repo is scoped to.
+
+   </TabItem>
+
+   <TabItem label="Shortcut">
+
+   Run
+   [`init-shortcut`](../reference/skills/integrations/shortcut/init-shortcut.md)
+   and pick the base team by its mention name. It writes every team and
+   workflow to a committed `catalogue.json`, and sets `shortcut.team_key`.
 
    </TabItem>
 
@@ -74,6 +84,17 @@ both directions.
    ---
    linear:
      token_cmd: "op read op://Private/linear/token"
+   ---
+   ```
+
+   </TabItem>
+
+   <TabItem label="Shortcut">
+
+   ```yaml
+   ---
+   shortcut:
+     token_cmd: "op read op://Private/shortcut/token"
    ---
    ```
 
@@ -112,6 +133,22 @@ both directions.
      default_project_code: "PROJ"
    ---
    ```
+
+   </TabItem>
+
+   <TabItem label="Shortcut">
+
+   ```yaml
+   ---
+   work:
+     integration: shortcut
+   shortcut:
+     team_key: your-team   # init-shortcut writes this
+   ---
+   ```
+
+   A work item of kind `epic` syncs with a Shortcut epic (`epic-56`);
+   every other kind syncs with a story (`sc-1234`).
 
    </TabItem>
 
@@ -208,7 +245,7 @@ resolved `local`.
 ## Let the tracker own IDs
 
 With `work.id_pattern: "{tracker}"` a work item's `id` is its Jira or
-Linear key, so `meta/work/ENG-42-add-search.md` is issue `ENG-42`. See
+Linear key (Shortcut keys are not supported here yet), so `meta/work/ENG-42-add-search.md` is issue `ENG-42`. See
 the [configuration cookbook](configuration-cookbook.md#let-the-tracker-own-work-item-ids)
 for the setting and its rules.
 
@@ -272,7 +309,8 @@ reached, even when the manifest is regenerated or reordered.
   offers to push each new item to the tracker as it is created. Under
   `{tracker}`, declining reads **No, save as draft**.
 - [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md) /
-  [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)
+  [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md) /
+  [`show-shortcut-story`](../reference/skills/integrations/shortcut/show-shortcut-story.md)
   and their search counterparts read the tracker directly without
   touching local state.
 

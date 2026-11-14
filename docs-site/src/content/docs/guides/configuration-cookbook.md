@@ -155,9 +155,10 @@ jira:
 ---
 ```
 
-For Linear, set `work.integration: linear`. The `init-jira` /
-`init-linear` skills walk through this interactively — see
-[Sync work items with Jira or Linear](sync-work-items.md).
+For Linear, set `work.integration: linear`; for Shortcut,
+`work.integration: shortcut`. The `init-jira`, `init-linear` and
+`init-shortcut` skills walk through this interactively — see
+[Sync work items with Jira, Linear or Shortcut](sync-work-items.md).
 
 ### Let the tracker own work-item IDs
 
@@ -176,7 +177,8 @@ is read:
 
 - `{tracker}` must be the only token in `work.id_pattern` —
   `"{tracker}-{number:04d}"` is rejected.
-- `work.integration` must be `jira` or `linear`.
+- `work.integration` must be `jira` or `linear`. Shortcut keys cannot be
+  work-item IDs yet.
 
 Under `{tracker}` an item pushed at creation takes the issue's key as
 its `id`; any other new item is saved as a draft in `meta/work/drafts/`
