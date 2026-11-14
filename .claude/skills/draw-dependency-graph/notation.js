@@ -51,8 +51,9 @@ function dependencyProblems(dependencies, known) {
 function problemsIn(spec) {
   if (!Array.isArray(spec.modules) || !spec.modules.length) return ['no modules'];
   const direction = spec.direction == null || DIRECTIONS.includes(spec.direction) ? [] : [`direction "${spec.direction}" is not one of ${DIRECTIONS.join(', ')}`];
+  const reduce = spec.reduce == null || typeof spec.reduce === 'boolean' ? [] : ['reduce must be true or false'];
   const { problems, known } = moduleProblems(spec.modules);
-  return [...direction, ...problems, ...dependencyProblems(spec.dependencies || [], known)];
+  return [...direction, ...reduce, ...problems, ...dependencyProblems(spec.dependencies || [], known)];
 }
 
 function cyclesIn(dependencies) {
@@ -96,10 +97,45 @@ function loopThrough(knot, dependencies) {
   return walk(start, [start]);
 }
 
+const isMarked = dependency => ['status', 'tone', 'label', 'kind'].some(mark => dependency[mark] != null);
+
+function reachedAnotherWay(dependency, dependencies) {
+  const seen = new Set(), ahead = [dependency.from];
+  while (ahead.length) {
+    const module = ahead.pop();
+    if (seen.has(module)) continue;
+    seen.add(module);
+    for (const other of dependencies) {
+      if (other === dependency || other.from !== module) continue;
+      if (other.to === dependency.to) return true;
+      ahead.push(other.to);
+    }
+  }
+  return false;
+}
+
+function impliedIn(spec) {
+  const dependencies = spec.dependencies || [];
+  if (!spec.reduce) return new Set();
+  const knots = cyclesIn(dependencies);
+  const inCycle = ({ from, to }) => knots.some(knot => knot.has(from) && knot.has(to));
+  const implied = new Set();
+  let drawn = dependencies;
+  for (const each of dependencies) {
+    if (isMarked(each) || inCycle(each) || !reachedAnotherWay(each, drawn)) continue;
+    implied.add(each);
+    drawn = drawn.filter(other => other !== each);
+  }
+  return implied;
+}
+
 function remarksOn(spec) {
   const dependencies = spec.dependencies || [], labels = new Map();
   everyModule(spec.modules, module => labels.set(module.id, labelOf(module)));
-  return cyclesIn(dependencies).map(knot => `Cycle: ${loopThrough(knot, dependencies).map(id => labels.get(id)).join(' → ')}`);
+  const cycles = cyclesIn(dependencies).map(knot => `Cycle: ${loopThrough(knot, dependencies).map(id => labels.get(id)).join(' → ')}`);
+  const implied = impliedIn(spec).size;
+  const reduced = implied === 1 ? ['1 dependency that a longer path implies is not drawn'] : [`${implied} dependencies that longer paths imply are not drawn`];
+  return implied ? [...cycles, ...reduced] : cycles;
 }
 
 function nodeOf(module) {
@@ -112,10 +148,11 @@ function sceneOf(spec) {
   const dependencies = spec.dependencies || [];
   const knots = cyclesIn(dependencies);
   const inCycle = ({ from, to }) => knots.some(knot => knot.has(from) && knot.has(to));
+  const implied = impliedIn(spec);
   return {
     direction: spec.direction || 'down',
     nodes: spec.modules.map(nodeOf),
-    edges: dependencies.map(dependency => ({
+    edges: dependencies.filter(dependency => !implied.has(dependency)).map(dependency => ({
       id: idOf(dependency, dependencies), from: dependency.from, to: dependency.to,
       label: dependency.label ?? dependency.kind, line: 'dashed', head: 'open',
       status: dependency.status, tone: dependency.tone ?? (inCycle(dependency) ? 'risk' : undefined), link: dependency.link,

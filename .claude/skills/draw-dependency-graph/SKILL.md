@@ -76,9 +76,10 @@ node {kit}/tools/check-page.js {tmp directory}/diagrams/{id}.html --shots {tmp d
 ```
 
 The render must exit 0 and the check must report `"ok": true`. Then look at
-the picture in `shots/`: if arrows are hard to follow, the graph is too
-fine-grained or shows too much. Coarsen it or split it in two, then draw
-it again. The check needs Chrome or Chromium; without one, say the page was
+the picture in `shots/`: if arrows are hard to follow, set `"reduce": true`
+(notation reference, "Reducing a dense graph") and draw it again. If they
+still are, the graph is too fine-grained or shows too much: coarsen it or
+split it in two. The check needs Chrome or Chromium; without one, say the page was
 not checked.
 
 ### 5. Deliver

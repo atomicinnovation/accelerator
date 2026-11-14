@@ -7,6 +7,7 @@
   "title": "Retention reaches disk and time only through ports",  // the point, not the topic
   "caption": "What to notice, in a sentence or two.",             // optional
   "direction": "down",                        // optional: "down" (default) or "right"
+  "reduce": true,                             // optional: leave out dependencies that longer paths imply
   "modules": [{
     "id": "retention",                        // unique among all modules, at every depth
     "label": "retention",                     // optional: the name shown; defaults to the id
@@ -40,6 +41,25 @@
   a tone of their own, and each cycle is listed under the figure by the
   modules it runs through.
 
+## Reducing a dense graph
+
+A module near the top of a codebase usually depends directly on most of what
+its own dependencies already bring in, and those arrows bury the ones that
+show the structure. With `"reduce": true` the graph leaves out every
+dependency that a longer path already implies: if `app` needs `adapters`
+and `adapters` needs `core`, the arrow from `app` to `core` is not drawn.
+The figure says how many were left out.
+
+Three kinds of dependency are always drawn: one inside a cycle, one that
+is the only way from one module to another, and one the author marked with
+a `status`, `tone`, `label` or `kind`. So mark a direct dependency that
+matters (the change under review added it, or it skips a layer it should
+go through) and it stays in the picture.
+
+Reduce a graph once it has more than about twice as many dependencies as
+modules. A reduced graph shows what reaches what, not every import: say so
+when it matters to the reader.
+
 ## Conventions
 
 - Use the code's own names for modules.
@@ -54,8 +74,8 @@
 
 `problemsIn` reports a graph with no modules; a module with no id or an id
 used twice; a dependency with no `from` or `to`, or naming a module the
-graph does not have; the same dependency written twice; and a `status`,
-`tone` or `direction` outside its list.
+graph does not have; the same dependency written twice; a `status`, `tone`
+or `direction` outside its list; and a `reduce` that is not true or false.
 
 ## What it leaves out
 

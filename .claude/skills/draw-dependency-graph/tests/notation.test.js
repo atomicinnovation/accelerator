@@ -130,6 +130,61 @@ test('marks outside their vocabulary are reported where they are', () => {
   ]);
 });
 
+const CHAIN = {
+  id: 'chain', kind: 'dependency-graph', title: 'A chain', reduce: true,
+  modules: [{ id: 'app' }, { id: 'adapters' }, { id: 'core' }, { id: 'kernel' }],
+  dependencies: [
+    { from: 'app', to: 'adapters' }, { from: 'adapters', to: 'core' }, { from: 'core', to: 'kernel' },
+    { from: 'app', to: 'core' }, { from: 'app', to: 'kernel' }, { from: 'adapters', to: 'kernel' },
+  ],
+};
+const drawn = spec => notation.sceneOf(spec).edges.map(each => each.id);
+
+test('a reduced graph leaves out each dependency that a longer path implies', () => {
+  assert.deepEqual(drawn(CHAIN), ['app->adapters', 'adapters->core', 'core->kernel']);
+});
+
+test('a graph is drawn in full unless it asks to be reduced', () => {
+  assert.equal(drawn({ ...CHAIN, reduce: false }).length, 6);
+  assert.equal(drawn({ ...CHAIN, reduce: undefined }).length, 6);
+});
+
+test('a reduced graph says how many dependencies it left out', () => {
+  assert.deepEqual(notation.remarksOn(CHAIN), ['3 dependencies that longer paths imply are not drawn']);
+  assert.deepEqual(notation.remarksOn({ ...CHAIN, dependencies: CHAIN.dependencies.slice(0, 4) }), ['1 dependency that a longer path implies is not drawn']);
+  assert.deepEqual(notation.remarksOn({ ...CHAIN, reduce: false }), []);
+});
+
+test('a dependency the author marked is drawn even when a longer path implies it', () => {
+  const marked = { ...CHAIN, dependencies: CHAIN.dependencies.map(each => (each.from === 'app' && each.to === 'kernel' ? { ...each, status: 'new' } : each)) };
+  assert.ok(drawn(marked).includes('app->kernel'));
+  for (const mark of [{ tone: 'ok' }, { label: 'directly' }, { kind: 'build' }]) {
+    const kept = { ...CHAIN, dependencies: CHAIN.dependencies.map(each => (each.from === 'app' && each.to === 'core' ? { ...each, ...mark } : each)) };
+    assert.ok(drawn(kept).some(id => id.startsWith('app->core')), JSON.stringify(mark));
+  }
+});
+
+test('a dependency inside a cycle is never left out', () => {
+  const knotted = { ...CHAIN, dependencies: [{ from: 'app', to: 'core' }, { from: 'core', to: 'kernel' }, { from: 'kernel', to: 'app' }, { from: 'app', to: 'kernel' }] };
+  assert.equal(drawn(knotted).length, 4);
+  assert.deepEqual(notation.remarksOn(knotted), ['Cycle: app → core → kernel → app']);
+});
+
+test('a dependency is not implied by a path that runs through itself', () => {
+  const looped = { ...CHAIN, dependencies: [{ from: 'app', to: 'core' }, { from: 'core', to: 'app' }, { from: 'app', to: 'kernel' }] };
+  assert.ok(drawn(looped).includes('app->kernel'));
+});
+
+test('of two dependencies out of a cycle that imply each other, one is still drawn', () => {
+  const led = { ...CHAIN, dependencies: [{ from: 'app', to: 'core' }, { from: 'core', to: 'app' }, { from: 'core', to: 'kernel' }, { from: 'app', to: 'kernel' }] };
+  assert.deepEqual(drawn(led), ['app->core', 'core->app', 'app->kernel']);
+  assert.equal(notation.remarksOn(led).at(-1), '1 dependency that a longer path implies is not drawn');
+});
+
+test('whether to reduce is yes or no', () => {
+  assert.deepEqual(problems({ reduce: 'yes' }), ['reduce must be true or false']);
+});
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { kitWith } = require('../../diagram-kit/lib/index.js');

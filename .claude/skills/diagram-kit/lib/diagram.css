@@ -11,7 +11,7 @@
 .dk-key.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); } .dk-key.t-ok { border-color: var(--ok); }
 .dk-key.trace-out { background: var(--accent); border-color: var(--accent); } .dk-key.trace-in { background: var(--warn); border-color: var(--warn); }
 .dk-remarks { margin: 0; padding: 0; list-style: none; font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); display: grid; gap: 2px; }
-.dk-remarks li::before { content: "▸ "; color: var(--bad); }
+.dk-remarks li::before { content: "▸ "; color: var(--ink-3); }
 
 .dk text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
 .dk .title { font-weight: 600; }
