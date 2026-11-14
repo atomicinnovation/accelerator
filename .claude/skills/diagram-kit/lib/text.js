@@ -22,18 +22,20 @@
     return ROLES[role];
   }
 
+  const withoutCodeMarks = text => String(text ?? '').replace(/`/g, '');
+
   function widthOf(text, role) {
     const { face, size, letterSpacing } = roleOf(role);
     const { usual, others } = FONT_METRICS[face];
     let ems = 0;
-    for (const character of String(text ?? '')) ems += (others[character] ?? usual) + letterSpacing;
+    for (const character of withoutCodeMarks(text)) ems += (others[character] ?? usual) + letterSpacing;
     return ems * size;
   }
 
   function wrapped(text, role, limit) {
     const lines = [];
     let line = '';
-    for (const word of String(text ?? '').split(/\s+/).filter(Boolean)) {
+    for (const word of withoutCodeMarks(text).split(/\s+/).filter(Boolean)) {
       const longer = line ? `${line} ${word}` : word;
       if (line && widthOf(longer, role) > limit) { lines.push(line); line = word; } else line = longer;
     }

@@ -54,3 +54,9 @@ test('a block is as wide as its widest line and as tall as its lines', () => {
 test('an unknown role is refused', () => {
   assert.throws(() => widthOf('x', 'banner'), /no text role "banner"/);
 });
+
+test('backticks, which mark code in prose, are neither measured nor kept in a drawing\'s text', () => {
+  assert.equal(widthOf('`relinks` takes every `Relink`', 'message'), widthOf('relinks takes every Relink', 'message'));
+  assert.deepEqual(blockOf('`relinks` takes every `Relink` entry out', 'message', 120).lines.join(' '), 'relinks takes every Relink entry out');
+  assert.deepEqual(blockOf('a ` alone', 'name').lines, ['a alone']);
+});
