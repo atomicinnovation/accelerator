@@ -90,6 +90,10 @@
 .dk .node.store .back { fill: var(--panel); stroke: none; }
 .dk .node.store.t-risk .back, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
 .dk .node.store.t-risk > .body, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.scale .body { fill: none; stroke: none; }
+.dk .node.field .break { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linejoin: round; paint-order: stroke; }
+.dk .node.field.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.field.muted .name { fill: var(--ink-3); }
 .dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }

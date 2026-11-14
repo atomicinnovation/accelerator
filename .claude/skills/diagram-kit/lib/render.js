@@ -163,6 +163,16 @@
     store: (node, target) => `<rect class="back" ${rectOf(node)}/>`
       + `<path class="body" d="M${tidy(node.x)} ${tidy(node.y)} H${tidy(node.x + node.width)} M${tidy(node.x)} ${tidy(node.y + node.height)} H${tidy(node.x + node.width)}"/>` + wordsIn(node, target),
     external: (node, target) => bodyOf(node, 0) + wordsIn(node, target),
+    field(node, target) {
+      const centre = node.x + node.width / 2, middle = node.y + node.height / 2, right = node.x + node.width;
+      const name = node.label ? textOf(blockOf(node.label, 'name'), 'name', centre, middle + (node.detail ? -2.5 : 4), 'middle') : '';
+      const zigzag = x => `M${tidy(x)} ${tidy(middle - 8)} l-4 4 l8 8 l-4 4`;
+      return bodyOf(node, 0) + (target && name ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name)
+        + (node.detail ? textOf(blockOf(node.detail, 'detail'), 'detail', centre, middle + 11.5, 'middle') : '')
+        + (node.broken ? `<path class="break" d="${zigzag(node.x)} ${zigzag(right)}"/>` : '') + untold(node, target);
+    },
+    scale: node => `<rect class="body" ${rectOf(node)}/>`
+      + textOf(blockOf(node.label, 'key'), 'key', node.align === 'end' ? node.x + node.width : node.x + node.width / 2, node.y + node.height / 2 + 3.5, node.align === 'end' ? 'end' : 'middle'),
     bar: node => `<rect class="body" ${rectOf(node)} rx="2"/>`,
     flowfinal(node) {
       const cx = node.x + node.width / 2, cy = node.y + node.height / 2, radius = node.width / 2, arm = radius * 0.7;

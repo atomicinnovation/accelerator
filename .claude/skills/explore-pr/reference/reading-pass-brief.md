@@ -113,6 +113,7 @@ a home in the code. Choose the figure by the question it answers:
 | What is done, in what order, by whom, and what in parallel? | `activity-diagram` |
 | What are the steps, with their loops and rejoining paths? | `flowchart` |
 | Which conditions lead to which outcome? | `decision-tree` |
+| How are the bits or bytes of this format laid out? | `byte-field-diagram` |
 
 Each is described in the contract's "Diagrams the kit draws" and in its
 notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`
