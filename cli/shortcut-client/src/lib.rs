@@ -9,6 +9,7 @@ pub mod catalogue;
 pub mod classify;
 pub mod discovery;
 pub mod error;
+pub mod filter;
 pub mod new_entity;
 pub mod paging;
 pub mod paths;
