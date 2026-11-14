@@ -6,6 +6,7 @@
 
   const DIRECTIONS = { down: 'DOWN', right: 'RIGHT' };
   const EDGE_LABEL_LIMIT = 180;
+  const HEAD_RUN = 16;
   const SPACING = {
     'elk.layered.spacing.nodeNodeBetweenLayers': '46',
     'elk.spacing.nodeNode': '26',
@@ -118,7 +119,7 @@
           points[0] = onOutline(placedById.get(said.from), points[0]);
           points[points.length - 1] = onOutline(placedById.get(said.to), points[points.length - 1]);
         }
-        edges.push({ ...said, points, labelBox });
+        edges.push({ ...said, points: withRoomForHead(points), labelBox });
       }
       (laidNode.children || []).forEach(route);
     };
@@ -126,6 +127,19 @@
     const inSceneOrder = new Map((scene.edges || []).map((edge, position) => [edge.id, position]));
     edges.sort((a, b) => inSceneOrder.get(a.id) - inSceneOrder.get(b.id));
     return { width: settled(laid.width), height: settled(laid.height), nodes, edges };
+  }
+
+  function withRoomForHead(points) {
+    if (points.length < 4) return points;
+    const [before, turn, corner, tip] = points.slice(-4);
+    const axis = corner[0] === tip[0] ? 1 : 0;
+    const lastRun = Math.abs(tip[axis] - corner[axis]), spare = Math.abs(turn[axis] - before[axis]);
+    const short = HEAD_RUN - lastRun;
+    const parallel = before[1 - axis] === turn[1 - axis] && turn[axis] === corner[axis];
+    if (short <= 0 || !parallel || spare - short < HEAD_RUN / 2) return points;
+    const away = Math.sign(corner[axis] - tip[axis]) * short;
+    const moved = point => (axis ? [point[0], settled(point[1] + away)] : [settled(point[0] + away), point[1]]);
+    return [...points.slice(0, -3), moved(turn), moved(corner), tip];
   }
 
   let engine = null;

@@ -346,3 +346,34 @@ def test_the_sequence_figure_this_page_once_drew_is_pointed_at_its_successor(
     (warning,) = warnings
     assert 'no figure of kind "sequence"' in warning
     assert "sequence-diagram" in warning
+
+
+def test_a_state_machine_is_laid_out_with_what_the_kit_remarks_on(
+    tmp_path, script
+):
+    machine = {
+        "id": "m1",
+        "kind": "state-machine",
+        "title": "A claim is held, then gone",
+        "states": [
+            {"id": "start", "kind": "initial"},
+            {"id": "held", "link": "src/core.rs:1"},
+            {"id": "lost"},
+        ],
+        "transitions": [{"from": "start", "to": "held"}],
+    }
+
+    model, warnings = assembled(tmp_path, script, **chapter(figures=[machine]))
+
+    figure = first_figure(model)
+    assert warnings == []
+    assert [node["shape"] for node in figure["scene"]["nodes"]] == [
+        "initial",
+        "state",
+        "state",
+    ]
+    assert figure["remarks"] == [
+        "lost cannot be reached",
+        "held has no way out and is not final",
+        "lost has no way out and is not final",
+    ]

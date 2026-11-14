@@ -120,3 +120,9 @@ test('the legend names each status and tone the scene uses, once', () => {
 test('a scene that marks nothing has no legend', () => {
   assert.equal(legendOf({ nodes: [{ id: 'a' }], edges: [] }), '');
 });
+
+test('the last corner before a head is tightened to leave the head a straight run', () => {
+  assert.equal(roundedPath([[0, 0], [0, 20], [12, 20]], 6, 9), 'M0 0 L0 17 Q0 20 3 20 L12 20');
+  assert.equal(roundedPath([[0, 0], [0, 20], [8, 20]], 6, 9), 'M0 0 L0 20 L8 20');
+  assert.equal(roundedPath([[0, 0], [0, 20], [30, 20]], 6, 9), 'M0 0 L0 14 Q0 20 6 20 L30 20');
+});

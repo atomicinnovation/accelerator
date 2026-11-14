@@ -116,12 +116,15 @@
     return `<g class="node ${node.shape}${leaf}${marks(node)}" ${told}>${DRAWN[node.shape](node, target)}</g>`;
   }
 
-  function roundedPath(points, radius = CORNER) {
+  function roundedPath(points, radius = CORNER, straightEnd = 0) {
     const lengthOf = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
     const towards = (from, to, distance) => { const length = lengthOf(from, to) || 1; return [from[0] + (to[0] - from[0]) * distance / length, from[1] + (to[1] - from[1]) * distance / length]; };
     let path = `M${tidy(points[0][0])} ${tidy(points[0][1])}`;
     for (let i = 1; i < points.length - 1; i++) {
-      const corner = points[i], r = Math.min(radius, lengthOf(points[i - 1], corner) / 2, lengthOf(corner, points[i + 1]) / 2);
+      const corner = points[i], isLast = i === points.length - 2;
+      const room = isLast && straightEnd ? lengthOf(corner, points[i + 1]) - straightEnd : lengthOf(corner, points[i + 1]) / 2;
+      const r = Math.max(0, Math.min(radius, lengthOf(points[i - 1], corner) / 2, room));
+      if (!r) { path += ` L${tidy(corner[0])} ${tidy(corner[1])}`; continue; }
       const before = towards(corner, points[i - 1], r), after = towards(corner, points[i + 1], r);
       path += ` L${tidy(before[0])} ${tidy(before[1])} Q${tidy(corner[0])} ${tidy(corner[1])} ${tidy(after[0])} ${tidy(after[1])}`;
     }
@@ -161,7 +164,7 @@
     if (edge.points.length < 2) return '';
     const target = edge.link ? resolveLink(edge.link) : null;
     const head = headOf(edge.head, edge.points);
-    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut))}"/>`;
+    const line = `<path class="line" d="${roundedPath(shortened(edge.points, head.cut), CORNER, head.path ? HEAD_LENGTH - head.cut : 0)}"/>`;
     const arrow = head.path ? `<path class="head ${edge.head}" d="${head.path}"/>` : '';
     return `<g class="edge${edge.line === 'dashed' ? ' dashed' : ''}${marks(edge)}" data-edge="${escaped(edge.id)}" data-from="${escaped(edge.from)}" data-to="${escaped(edge.to)}">${line}${arrow}${edgeLabelMarkup(edge, target)}${untold(edge, target)}</g>`;
   }

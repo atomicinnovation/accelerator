@@ -160,3 +160,26 @@ for (const direction of ['down', 'right']) {
     assert.equal(group.height, 34 + held.height + 14);
   });
 }
+
+const bent = (points, to = 'b') => {
+  const [first, ...rest] = points.map(([x, y]) => ({ x, y }));
+  const laid = { id: 'root', width: 200, height: 200, children: [{ id: 'a', x: 0, y: 100, width: 40, height: 20 }, { id: 'b', x: 20, y: 0, width: 40, height: 34 }],
+    edges: [{ id: 'e', container: 'root', sections: [{ startPoint: first, bendPoints: rest.slice(0, -1), endPoint: rest.at(-1) }] }] };
+  const scene = { nodes: [{ id: 'a', shape: 'box', label: 'a' }, { id: 'b', shape: 'box', label: 'b' }], edges: [{ id: 'e', from: 'a', to }] };
+  return positionedFrom(laid, scene).edges[0].points;
+};
+
+test('an arrow that turns just before it arrives is given a straight run for its head', () => {
+  assert.deepEqual(bent([[10, 100], [10, 40], [30, 40], [30, 34]]), [[10, 100], [10, 50], [30, 50], [30, 34]]);
+  assert.deepEqual(bent([[100, 60], [66, 60], [66, 20], [60, 20]]), [[100, 60], [76, 60], [76, 20], [60, 20]]);
+});
+
+test('an arrow with a long enough last run is left as the engine routed it', () => {
+  const routed = [[10, 100], [10, 60], [30, 60], [30, 34]];
+  assert.deepEqual(bent(routed), routed);
+});
+
+test('an arrow whose earlier run cannot spare the room is left as the engine routed it', () => {
+  const tight = [[10, 46], [10, 40], [30, 40], [30, 34]];
+  assert.deepEqual(bent(tight), tight);
+});

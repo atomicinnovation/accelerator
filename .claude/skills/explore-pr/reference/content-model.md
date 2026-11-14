@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "dependency-graph|sequence-diagram|flow|tree|matrix|timeline|compare|svg",
+  "kind": "dependency-graph|sequence-diagram|state-machine|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -344,6 +344,7 @@ Every figure has:
 | Kind | Draw it for | Shape |
 |---|---|---|
 | `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
+| `state-machine` | A lifecycle: the states one thing can be in and what moves it between them | A UML state machine: states with `entry`, `do` and `exit`, transitions labelled `event [guard] / action`, initial and final states, choices, composite states; drawn by the diagram kit |
 | `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
 | `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
@@ -387,12 +388,14 @@ Every figure has:
 A figure whose `kind` is a notation one of the `draw-*` skills draws is
 written in that notation's own terms, checked and laid out by the diagram
 kit when the page is built, and drawn by the kit's renderer. Today those
-are `dependency-graph` and `sequence-diagram`; each further notation
-replaces a use of `flow`, so prefer a kit diagram wherever one fits.
+are `dependency-graph`, `sequence-diagram` and `state-machine`; each
+further notation replaces a use of `flow`, so prefer a kit diagram wherever
+one fits.
 
 - Write it as the notation's reference says, in the skill beside this one:
-  `../draw-dependency-graph/reference/notation.md` or
-  `../draw-sequence-diagram/reference/notation.md`. It takes the same `id`,
+  `../draw-dependency-graph/reference/notation.md`,
+  `../draw-sequence-diagram/reference/notation.md` or
+  `../draw-state-machine/reference/notation.md`. It takes the same `id`,
   `title`, `caption` and `wide` as any figure.
 - A sequence diagram is one scenario written as a call tree: a call holds,
   as its `steps`, what its receiver does before answering, and its `reply`
@@ -406,6 +409,11 @@ replaces a use of `flow`, so prefer a kit diagram wherever one fits.
   the figure, and the figure is not drawn until it is fixed.
 - A dependency graph with more than about twice as many dependencies as
   modules should set `"reduce": true`.
+- A state machine describes one thing with a lifecycle. What the kit
+  remarks on under it (a state that cannot be reached or has no way out, a
+  choice with nothing to choose by) is either a mistake in the figure or a
+  finding about the code: settle which against the code, and raise a
+  finding in `ownNotes` if it is true.
 
 The Design view's diagram of how the abstractions work together and the
 module map are dependency graphs the build writes for you, from the
