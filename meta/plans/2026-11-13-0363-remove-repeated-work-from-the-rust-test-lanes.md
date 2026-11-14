@@ -56,7 +56,8 @@ As of 2026-11-14:
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 4: implemented; the full local run passes, CI is outstanding.** The floors
+- **Phase 4: complete.** Every success criterion is met, including both CI
+  `test-unit` legs. The floors
   are lines 92, functions 92 and regions 91, from the four runs recorded in
   Phase 4. The root run needed `--no-fail-fast`, because 28 tests that seal
   paths by hand fail as root; Phase 4's outcome notes record this and the
@@ -1467,7 +1468,21 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
         the bootstrap log before the child's stderr line reached it. That
         race is outside this plan; the test passed five times in isolation
         and in the rerun.
-- [ ] Both CI `test-unit` legs pass with the floor in force.
+- [x] Both CI `test-unit` legs pass with the floor in force.
+      - Recorded 2026-11-14 on PR #216, at `a5cfcfa0`, in two runs:
+        - `macos-26-arm64`: 7,401 tests passed,
+          `coverage: lines 94.19%, functions 93.57%, regions 92.89%` and
+          then `regions 92.88%`.
+        - `ubuntu-26.04`: 7,400 tests passed,
+          `coverage: lines 94.18%, functions 93.57%, regions 92.87%` both
+          times.
+        The run on the description commit above it failed twice on
+        macOS's `test:unit:frontend`, with every frontend test passing and
+        then `[vitest-worker]: Timeout calling "onTaskUpdate"`, before the
+        cli lane printed its totals. Its Ubuntu integration job failed once,
+        on the bootstrap's
+        `test_concurrent_cold_cache_slow_downloader_all_succeed`. Neither
+        touches this plan's code.
 
 #### Manual Verification:
 
