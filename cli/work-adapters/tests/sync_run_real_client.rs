@@ -2181,6 +2181,9 @@ fn shortcut_push_refused_403_is_retryable_and_nothing_landed(
         error.progress(),
         work_adapters::sync::apply::ItemProgress::NothingLanded
     );
-    assert!(error.to_string().contains("read"), "{error}");
+    assert!(
+        error.to_string().contains("the token has only the"),
+        "{error}"
+    );
     Ok(())
 }
