@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T13:58:09+00:00"
+last_updated: "2026-11-14T14:42:02+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -751,10 +751,19 @@ On engywook:
       `cargo llvm-cov` command and passes the same number of tests.
 - [x] A full `mise run` prints one `coverage:` line, with no per-file rows
       and no JSON.
-- [ ] In CI, the `test-unit` job on both `ubuntu-latest` and `macos-latest`
+- [x] In CI, the `test-unit` job on both `ubuntu-latest` and `macos-latest`
       runs the three `cargo llvm-cov` steps and prints the totals line. The
       report's stderr has no mismatched-data or missing-object warnings.
       Record both legs' lines for Phase 4.
+      - Recorded 2026-11-14 on PR #216, cargo-llvm-cov 0.8.7:
+        - `macos-26-arm64`: 7,401 tests passed,
+          `coverage: lines 94.19%, functions 93.57%, regions 92.88%`.
+        - `ubuntu-26.04` (x86_64): 7,400 tests passed,
+          `coverage: lines 94.18%, functions 93.57%, regions 92.87%`.
+          The first attempt failed on the timing-sensitive
+          `arxiv_pacing a_killed_calls_request_still_spaces_the_next`
+          (2.963 s against a 3 s minimum) and passed on a rerun on the same
+          image.
 
 ---
 
