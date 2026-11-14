@@ -139,12 +139,15 @@ class TestTestUnitCli:
         assert "--profraw-only" in clean
         assert tests.startswith("cargo llvm-cov nextest")
         for flag in (
-            "--no-clean",
             "--no-report",
             "--exclude accelerator-visualiser",
             "--all-features",
         ):
             assert flag in tests
+        assert "--no-clean" not in tests, (
+            "cargo llvm-cov 0.8.7 rejects --no-clean beside --no-report, "
+            "which already skips the full clean"
+        )
         assert report.startswith("cargo llvm-cov report")
         for flag in ("--json", "--summary-only"):
             assert flag in report

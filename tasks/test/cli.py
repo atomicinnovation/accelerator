@@ -58,9 +58,7 @@ def _announce_skipped_permission_tests() -> None:
 
 def _run_instrumented(context: Context) -> None:
     _clear_previous_profile_data(context)
-    _run_tests(
-        context, f"cargo llvm-cov nextest {_MANIFEST} --no-clean --no-report"
-    )
+    _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
     print(_report_totals(context).summary_line())
 
 
