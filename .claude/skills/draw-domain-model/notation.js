@@ -152,4 +152,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'domain-model', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'domain-model', name: 'Domain model (domain-driven design)', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

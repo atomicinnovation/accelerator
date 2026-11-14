@@ -126,4 +126,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'context-map', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'context-map', name: 'Context map (domain-driven design)', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

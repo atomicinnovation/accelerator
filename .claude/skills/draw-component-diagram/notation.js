@@ -115,4 +115,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'component-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'component-diagram', name: 'UML component diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

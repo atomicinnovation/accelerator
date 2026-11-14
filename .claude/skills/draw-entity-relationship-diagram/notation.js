@@ -106,4 +106,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'entity-relationship-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'entity-relationship-diagram', name: "Entity-relationship diagram (crow's foot)", symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

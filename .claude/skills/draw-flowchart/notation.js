@@ -114,4 +114,4 @@ function placedSceneOf(spec) {
   return lanes.length ? laidOutInLanes({ lanes, ...sceneOf(spec) }) : null;
 }
 
-module.exports = { kind: 'flowchart', symbols: require('./symbols.js'), problemsIn, sceneOf, placedSceneOf, remarksOn };
+module.exports = { kind: 'flowchart', name: 'Flowchart', symbols: require('./symbols.js'), problemsIn, sceneOf, placedSceneOf, remarksOn };

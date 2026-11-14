@@ -160,4 +160,4 @@ function placedSceneOf(spec) {
   return { width: widest + 1, height: top - BETWEEN_RULES + 1, nodes, edges: [] };
 }
 
-module.exports = { kind: 'railroad-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf: placedSceneOf, placedSceneOf, remarksOn };
+module.exports = { kind: 'railroad-diagram', name: 'Railroad (syntax) diagram', symbols: require('./symbols.js'), problemsIn, sceneOf: placedSceneOf, placedSceneOf, remarksOn };

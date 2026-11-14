@@ -80,4 +80,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'block-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'block-diagram', name: 'Block diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

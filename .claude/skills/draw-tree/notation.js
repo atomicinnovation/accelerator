@@ -73,7 +73,7 @@
     { name: 'Kept', means: 'It is there before and after, untouched.', html: sampleOf('kept', 'name'), usedIn: inState('kept') },
   ];
 
-  const notation = { kind: 'tree', symbols, problemsIn, htmlOf };
+  const notation = { kind: 'tree', name: 'Tree', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

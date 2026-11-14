@@ -174,4 +174,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'state-machine', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'state-machine', name: 'UML state machine diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

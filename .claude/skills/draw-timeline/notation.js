@@ -104,7 +104,7 @@
     { name: 'Logarithmic scale', means: 'Equal distances are equal ratios, so values of very different sizes fit on one axis.', html: drawn(`${AXIS_SAMPLE}<g class="tick"><line x1="8" y1="7" x2="8" y2="17"/><line x1="36" y1="7" x2="36" y2="17"/><line x1="50" y1="7" x2="50" y2="17"/><line x1="58" y1="7" x2="58" y2="17"/></g>`), usedIn: spec => spec.scale === 'log' },
   ];
 
-  const notation = { kind: 'timeline', symbols, problemsIn, htmlOf };
+  const notation = { kind: 'timeline', name: 'Timeline', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

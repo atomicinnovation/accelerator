@@ -126,4 +126,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'data-flow-diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'data-flow-diagram', name: 'Data flow diagram', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };

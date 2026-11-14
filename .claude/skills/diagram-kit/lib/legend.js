@@ -45,7 +45,7 @@
     const entry = (symbol, state) => `<li class="dk-${state}"><span class="dk-sample">${sampleOf(symbol)}</span><span class="dk-meaning"><b>${escaped(symbol.name)}</b> ${inlineOf(symbol.means)}</span></li>`;
     const used = symbols.filter(symbol => isUsed(symbol, spec, placed)), unused = symbols.filter(symbol => !used.includes(symbol));
     const more = unused.length ? `<label class="dk-more"><input type="checkbox"> Show the ${unused.length} ${unused.length === 1 ? 'symbol' : 'symbols'} this diagram does not use</label>` : '';
-    return `<details class="dk-symbols"><summary>Legend</summary><ul>${used.map(symbol => entry(symbol, 'used')).join('')}${unused.map(symbol => entry(symbol, 'unused')).join('')}</ul>${more}`
+    return `<details class="dk-symbols"><summary>Legend <span class="dk-notation">${escaped(notation.name || notation.kind)}</span></summary><ul>${used.map(symbol => entry(symbol, 'used')).join('')}${unused.map(symbol => entry(symbol, 'unused')).join('')}</ul>${more}`
       + `${usageOf(spec, placed).map(line => `<p class="dk-usage">${line}</p>`).join('')}</details>`;
   }
 

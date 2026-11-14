@@ -2,6 +2,7 @@ const { markProblems } = require('../../../lib/notations.js');
 
 module.exports = {
   kind: 'boxes',
+  name: 'Box diagram',
   problemsIn: spec => (spec.boxes || []).flatMap(box => markProblems(box, `box ${box.id}`)),
   sceneOf: spec => ({
     nodes: spec.boxes.map(box => ({ ...box, shape: 'box' })),

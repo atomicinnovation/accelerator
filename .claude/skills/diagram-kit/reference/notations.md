@@ -14,6 +14,7 @@ const { markProblems } = require('../diagram-kit/lib/notations.js');
 
 module.exports = {
   kind: 'dependency-graph',        // the spec's "kind"
+  name: 'Dependency graph',        // what a reader calls it; it heads the legend
   problemsIn(spec) { return []; }, // every problem, as text; never throws on purpose
   sceneOf(spec) { return scene; }, // only ever called with a spec that has no problems
   remarksOn(spec) { return []; },  // optional: findings shown under the figure

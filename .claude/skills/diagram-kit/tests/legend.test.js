@@ -24,7 +24,7 @@ function run(specs, ...args) {
 test('a legend is closed until it is asked for', async () => {
   const legend = kit.symbolsOf(BOXES, await kit.laidOut(BOXES));
 
-  assert.match(legend, /^<details class="dk-symbols"><summary>Legend<\/summary>/);
+  assert.match(legend, /^<details class="dk-symbols"><summary>Legend <span class="dk-notation">Box diagram<\/span><\/summary>/);
   assert.doesNotMatch(legend, /<details[^>]* open/);
 });
 
@@ -68,6 +68,12 @@ test('a notation that draws itself says which of its symbols a diagram uses', ()
   assert.deepEqual(named(kit.symbolsOf(WORDS, null)), [['used', 'Word'], ['unused', 'Link']]);
   assert.deepEqual(named(kit.symbolsOf({ ...WORDS, words: ['#one'] }, null)), [['used', 'Word'], ['used', 'Link']]);
   assert.match(kit.symbolsOf(WORDS, null), /<span class="dk-sample"><b>word<\/b><\/span>/);
+});
+
+test('a notation with no name of its own is named by its kind', async () => {
+  const unnamed = notations([{ ...require('./fixtures/draw-boxes/notation.js'), name: undefined }]);
+
+  assert.match(unnamed.symbolsOf(BOXES, await unnamed.laidOut(BOXES)), /<summary>Legend <span class="dk-notation">boxes<\/span><\/summary>/);
 });
 
 test('a notation with no symbols to explain has no legend', async () => {

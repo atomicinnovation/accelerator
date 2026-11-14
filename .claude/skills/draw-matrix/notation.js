@@ -57,7 +57,7 @@
     toned('none', 'Nothing', 'Nothing happens in this case.'),
   ];
 
-  const notation = { kind: 'matrix', symbols, problemsIn, htmlOf };
+  const notation = { kind: 'matrix', name: 'Matrix', symbols, problemsIn, htmlOf };
   if (inNode) module.exports = notation;
   else root.DiagramKit.NOTATIONS = Object.assign(root.DiagramKit.NOTATIONS || {}, { [notation.kind]: notation });
 })(typeof window !== 'undefined' ? window : globalThis);

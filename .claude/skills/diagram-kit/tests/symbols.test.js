@@ -26,6 +26,7 @@ for (const skill of skills) {
 
   test(`${skill} says what each of its symbols means`, () => {
     assert.ok(symbols.length > 0, 'no symbols');
+    assert.match(notation.name || '', /^[A-Z].{3,}/, 'no name to head its legend');
     for (const symbol of symbols) {
       assert.ok(symbol.name && symbol.means, `a symbol has no name or no meaning: ${JSON.stringify(symbol)}`);
       assert.equal(['node', 'edge', 'html'].filter(kind => symbol[kind]).length, 1, `${symbol.name} is not exactly one of a node, an edge or markup`);

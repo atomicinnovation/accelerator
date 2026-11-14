@@ -120,4 +120,4 @@ function sceneOf(spec) {
   };
 }
 
-module.exports = { kind: 'dependency-graph', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
+module.exports = { kind: 'dependency-graph', name: 'Dependency graph', symbols: require('./symbols.js'), problemsIn, sceneOf, remarksOn };
