@@ -799,8 +799,22 @@ tests. Take the minimum of the four, subtract one percentage point, and round
 down to a whole percent. Record each run's OS, architecture and
 `cargo llvm-cov --version` beside its totals line. Make the root run in a
 disposable x86_64 Linux container, so that root-owned artefacts never land in
-the working `cli/target`: run `mise install`, then
-`ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1 mise run --skip-deps test:unit:cli`.
+the working `cli/target`. Run `mise install` and
+`mise run deps:install:rust-components`, then the lane's steps by hand with
+`--no-fail-fast`:
+
+```sh
+cargo llvm-cov clean --profraw-only --manifest-path cli/Cargo.toml
+ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1 cargo llvm-cov nextest \
+  --manifest-path cli/Cargo.toml --workspace \
+  --exclude accelerator-visualiser --all-features --no-report --no-fail-fast
+cargo llvm-cov report --manifest-path cli/Cargo.toml --json --summary-only
+```
+
+The skip variable guards only `store::test_support`'s sealed directories and
+files. Other tests seal paths by hand and fail as root, so the lane itself
+stops before its report. Take the root run's totals from the report's
+`data[0].totals` whatever those failures, and list them beside its totals.
 
 Floors only go up. Raise one as coverage improves; never lower one to get a
 change through. The one exception is resetting every floor by the rule above
