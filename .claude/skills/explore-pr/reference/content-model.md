@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "dependency-graph|sequence-diagram|state-machine|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|dependency-graph|sequence-diagram|state-machine|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -343,6 +343,9 @@ Every figure has:
 
 | Kind | Draw it for | Shape |
 |---|---|---|
+| `class-diagram` | How types relate: what implements, extends, owns, holds or uses what | A UML class diagram: classes with stereotypes, attributes and operations, and the six relationships with multiplicities and roles; drawn by the diagram kit |
+| `object-diagram` | One case at one moment: a worked example, an edge case, what is on disk | A UML object diagram: named instances with their values, and the links between them; drawn by the diagram kit |
+| `domain-model` | The domain a change models and its boundaries | Aggregates as boundaries around their root, entities and value objects, with services, repositories and events beside them; the kit remarks on a broken aggregate rule |
 | `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
 | `state-machine` | A lifecycle: the states one thing can be in and what moves it between them | A UML state machine: states with `entry`, `do` and `exit`, transitions labelled `event [guard] / action`, initial and final states, choices, composite states; drawn by the diagram kit |
 | `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
@@ -388,11 +391,14 @@ Every figure has:
 A figure whose `kind` is a notation one of the `draw-*` skills draws is
 written in that notation's own terms, checked and laid out by the diagram
 kit when the page is built, and drawn by the kit's renderer. Today those
-are `dependency-graph`, `sequence-diagram` and `state-machine`; each
-further notation replaces a use of `flow`, so prefer a kit diagram wherever
-one fits.
+are `class-diagram`, `object-diagram`, `domain-model`, `dependency-graph`,
+`sequence-diagram` and `state-machine`; each further notation replaces a
+use of `flow`, so prefer a kit diagram wherever one fits.
 
-- Write it as the notation's reference says, in the skill beside this one:
+- Write it as the notation's reference says, in the skill beside this one
+  that is named for the kind: `../draw-class-diagram/reference/notation.md`,
+  `../draw-object-diagram/reference/notation.md`,
+  `../draw-domain-model/reference/notation.md`,
   `../draw-dependency-graph/reference/notation.md`,
   `../draw-sequence-diagram/reference/notation.md` or
   `../draw-state-machine/reference/notation.md`. It takes the same `id`,
@@ -409,9 +415,12 @@ one fits.
   the figure, and the figure is not drawn until it is fixed.
 - A dependency graph with more than about twice as many dependencies as
   modules should set `"reduce": true`.
-- A state machine describes one thing with a lifecycle. What the kit
-  remarks on under it (a state that cannot be reached or has no way out, a
-  choice with nothing to choose by) is either a mistake in the figure or a
+- A class diagram makes one point about a design with the types that
+  point needs; an object diagram shows one case at one moment; a domain
+  model shows aggregates and what crosses their boundaries.
+- What the kit remarks on under a figure (a state that cannot be reached,
+  a choice with nothing to choose by, a reference into an aggregate past
+  its root, a part with two owners) is either a mistake in the figure or a
   finding about the code: settle which against the code, and raise a
   finding in `ownNotes` if it is true.
 

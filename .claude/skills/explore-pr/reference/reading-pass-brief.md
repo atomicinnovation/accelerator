@@ -93,14 +93,21 @@ precise question for each}.
 
 **Figures**: follow the contract's Figures section, including what makes a
 figure worth its space, and put `where` on every box, step or path that has
-a home in the code. For what depends on what, write a `dependency-graph`;
-for the order things happen in, a `sequence-diagram` of one scenario; for
-the states one thing moves through, a `state-machine` (contract, "Diagrams
-the kit draws", and each notation's reference at
-`{skill dir}/../draw-<kind>/reference/notation.md`:
-`draw-dependency-graph`, `draw-sequence-diagram`, `draw-state-machine`).
-Put a `link` on every module, dependency, message, state and transition
-that has a home in the code.
+a home in the code. Choose the figure by the question it answers:
+
+| The question | Write a |
+|---|---|
+| How do these types relate? | `class-diagram` |
+| What does this look like in one case? | `object-diagram` |
+| What is the domain made of, and where are its boundaries? | `domain-model` |
+| What depends on what? | `dependency-graph` |
+| What happens, in what order, between whom? | `sequence-diagram` |
+| What states can this be in, and what moves it? | `state-machine` |
+
+Each is described in the contract's "Diagrams the kit draws" and in its
+notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`
+(for a `class-diagram`, `draw-class-diagram`, and so on). Put a `link` on
+every element and relationship that has a home in the code.
 
 **Writing**: follow the contract's writing rules. One term per concept,
 reusing the code's own names: {domain terms already established}. Record
