@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T15:01:38+00:00"
+last_updated: "2026-11-14T16:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -50,8 +50,13 @@ As of 2026-11-14:
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 3: planned, not started.** It was added after Phase 2, at the
-  user's request.
+- **Phase 3: implemented, not yet merged.** It was added after Phase 2, at
+  the user's request. Every local criterion is met except the lane timing,
+  which a busy host kept just above 180 s. CI has not run it yet. Two
+  findings, each settled with the user, widened it beyond the plan: the
+  sweep recovers the hash of each binary cargo reports only by its uplifted
+  copy, and it also sweeps `incremental`. The outcome notes in Phase 3
+  record both.
 - **Phase 4: planned, not started.** The CI totals it needs are recorded at
   the end of Phase 2.
 
@@ -111,6 +116,16 @@ segment.
   `cli/target/debug` build unless the target directory is set explicitly.
   Unit hashes are the same in both directories, because cargo-llvm-cov adds
   its flags through `RUSTC_WRAPPER`, so the mistake is silent.
+- Found while implementing Phase 3, cargo reports a `bin` target only by
+  the hash-free copy it uplifts out of `deps` (`debug/accelerator-verify`).
+  On macOS that copy is a byte-identical copy of the hashed
+  `deps/accelerator_verify-<hash>`, not a hard link. A live set built from
+  message paths alone misses all 19 binaries, and every run would relink
+  them.
+- Also found while implementing Phase 3, `incremental/<crate>-<id>` is named
+  for rustc's crate id, which cargo never reports. Each crate a dependency
+  bump rebuilds gets a new directory and keeps its old one, adding about 3G
+  per bump.
 - `ubuntu-latest` moved to the Ubuntu 26.04 image during Phase 2's CI run.
   Ubuntu reports 7,400 tests to macOS's 7,401, and totals 0.01 lower on
   lines and regions.
@@ -164,9 +179,12 @@ segment.
   `accelerator-visualiser`.
 - After the report, the task deletes every artefact in
   `llvm-cov-target/debug/{deps,build,.fingerprint}` whose unit the current
-  build does not use, and prints how many it swept and their size. A unit
-  listing that fails, finds no units or rebuilds any unit deletes nothing
-  and fails the task.
+  build does not use, counting a binary as live through the `deps` file its
+  uplifted copy matches. In `incremental` it keeps, for each crate, as many
+  of the newest directories as the crate has units. It prints how many
+  entries it swept and their size. A unit listing that fails, finds no
+  units, rebuilds any unit or has an uplifted binary with no matching
+  `deps` file deletes nothing and fails the task.
 - With `ACCELERATOR_COVERAGE=off`, the task runs only `cargo nextest run`.
 - The docstring names `cargo llvm-cov clean --workspace` as the remedy for
   suspected stale instrumented binaries.
@@ -176,9 +194,9 @@ segment.
 - Not dropping instrumentation locally. `default` mirrors CI.
 - Not adding `--ignore-filename-regex` for the visualiser to `report`. The
   Phase 2 guard test keeps visualiser objects out of `llvm-cov-target`.
-- Not sweeping `llvm-cov-target/debug/incremental`, and not turning off
-  incremental compilation for the instrumented build. Its 2.4G is all in
-  use, and turning it off would slow rebuilds after edits.
+- Not turning off incremental compilation for the instrumented build. It
+  would slow rebuilds after edits. Phase 3 sweeps superseded
+  `incremental` directories instead.
 - Not scheduling a periodic or fingerprint-triggered full clean. A Phase 2
   manual check confirms that a dependency bump leaves the totals unchanged.
   The remedy for stale binaries is the manual one named in the docstring and
@@ -928,6 +946,32 @@ of `_UNIT_HASH` in an entry's name, or `None`. A path in a message
 contributes every hash in its components, so `build/<pkg>-<hash>/out`
 keeps `build/<pkg>-<hash>` live.
 
+Outcome: the plan's live set swept every live binary. cargo reports a
+`bin` target only by its uplifted, hash-free copy, so the first lane after
+the sweep relinked 14 crates' 19 binaries and swept them again (1,622
+entries, 927 MB), and every later run would repeat that. With the user's
+agreement:
+
+- `UnitListing` also keeps the hash-free artefact paths (`uplifted`) and
+  counts the units of each crate (`crates`).
+- `live_units(listing)` adds, for each uplifted binary, the hash of the
+  `deps/<crate>-<hash>` file it is byte-identical to (`filecmp`, size
+  first). A binary with no such twin raises `UnmatchedUpliftError`, which
+  the task turns into `Exit` before deleting anything. Content matching
+  holds whether cargo hard-links or copies.
+- `superseded_incremental(build_dir, crates)` keeps, for each crate name
+  in `incremental`, as many of its most recently modified directories as
+  the crate has units, and returns the rest. It refuses an empty count, as
+  `superseded_entries` refuses an empty live set. A misjudged directory
+  costs only one non-incremental rebuild of its crate.
+- `Sweep(entries, freed_bytes).summary_line()` formats the sweep line with
+  a decimal unit (`0 B`, `1.50 kB`, `2.28 GB`), so small test trees show
+  a size.
+
+The fixture gained the real `accelerator-verify` bin line. Its home
+registry prefix is replaced with `/cargo` as well as the checkout prefix
+with `/workspace`.
+
 #### 3. The sweep step (tests first)
 
 **File**: `tests/unit/tasks/test_rust.py`
@@ -1030,6 +1074,13 @@ Docstring: add, after the sentence on the profraw-only clean, "After the
 report it deletes instrumented artefacts the current build no longer uses,
 which a dependency or toolchain change would otherwise leave behind."
 
+Outcome: the task also fails, deleting nothing, on a listing with no
+units and on an uplifted binary with no twin, with tests for both. The
+lane fixture rewrites the fixture's `/workspace` build directory to the
+`tmp_path` tree and seeds an uplifted binary, its twin, and a live and a
+superseded `incremental` directory. Phase 2's step-failure tests use a
+command-dispatching responder instead of `side_effect` lists.
+
 #### 4. Descriptions
 
 **File**: `mise.toml` (`test:unit:cli` description): add "sweeps
@@ -1047,10 +1098,10 @@ causes.
 
 #### Automated Verification:
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_instrumented_build.py tests/unit/tasks/test_coverage.py tests/unit/tasks/test_rust.py tests/unit/tasks/test_nextest_filter.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification:
 
@@ -1059,19 +1110,43 @@ On engywook:
 - [ ] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
       180 s (median of three), and its sweep step costs no more than 5 s,
       timed on its own after a lane run.
-- [ ] The first lane run sweeps the superseded entries a probe finds just
+      - Recorded 2026-11-14, not met on a busy host (1-minute load averages
+        of 26 to 66): three steady-state runs took 196.59 s, 184.05 s and
+        185.85 s, median 185.85 s, with nextest alone at 181.81 s, 172.05 s
+        and 174.92 s. The sweep step, timed on its own three times, took
+        2.81 s, 2.34 s and 2.26 s (before the `incremental` sweep, which
+        adds one directory listing), so it is not what keeps the lane
+        above 180 s. Rerun on a quiet host.
+- [x] The first lane run sweeps the superseded entries a probe finds just
       before it. A re-probe on 2026-11-14 still found 2.28 GB after
       `cargo llvm-cov clean --workspace` and a lane run, because a full
       clean removes only workspace members' artefacts. The rest are
       third-party and restricted-run artefacts. The next run compiles nothing (no `Compiling` line), sweeps
       0 entries, and prints the same totals line.
-- [ ] Dependency bump, repeated from Phase 2: after the bumped lane,
+      - Recorded 2026-11-14: a probe found 2,443 `deps`, 2 `build` and 106
+        `.fingerprint` entries outside the live set, and the first run swept
+        exactly those 2,551 (2.28 GB). Once binaries counted as live and
+        `incremental` was swept, the first run swept 380 `incremental`
+        directories (3.10 GB). The next run compiled nothing, swept 0 and
+        read `coverage: lines 94.19%, functions 93.57%, regions 92.88%`.
+- [x] Dependency bump, repeated from Phase 2: after the bumped lane,
       `du -sh cli/target/llvm-cov-target` is within 1G of its size after
       `cargo llvm-cov clean --workspace` and a lane run on the same
       lockfile, and the totals equal. Restore the lockfile afterwards.
-- [ ] After a restricted `-p kernel` run (Phase 2's commands), the next lane
+      - Recorded 2026-11-14 with `smallvec` 1.15.2 → 1.15.1. The bumped
+        lane rebuilt 88 crates, swept 26,554 entries (8.41 GB) and left
+        11G, as did a full clean and a lane on the bumped lockfile. Both
+        read `coverage: lines 94.19%, functions 93.57%, regions 92.88%`.
+        Before `incremental` was swept, the bumped lane left 14G, with
+        `incremental` at 5.3G against 3.3G. The lockfile was restored with
+        `jj restore`, and the next lane swept the bumped artefacts and was
+        back at 11G.
+- [x] After a restricted `-p kernel` run (Phase 2's commands), the next lane
       sweeps the restricted run's artefacts and compiles nothing for its own
       build.
+      - Recorded 2026-11-14, before the `incremental` sweep: the restricted
+        run compiled 12 units, and the next lane compiled nothing and swept
+        192 entries (85.19 MB).
 - [ ] In CI, both `test-unit` legs print the sweep line and pass.
 
 ---
@@ -1277,8 +1352,11 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   and floor enforcement isolated from the production floor values.
 - `tests/unit/tasks/test_instrumented_build.py`: live unit hashes from a
   trimmed real `cargo test --message-format=json` capture, rebuilt-unit
-  counting, superseded entries in `deps`, `build` and `.fingerprint` only,
-  refusal with no live units, and `show-env` parsing.
+  counting, uplifted binaries made live through their byte-identical
+  `deps` twin (and refused without one), superseded entries in `deps`,
+  `build` and `.fingerprint`, the newest `incremental` directories kept per
+  crate, refusal with no live units, the sweep line, and `show-env`
+  parsing.
 - `tests/unit/tasks/test_rust.py::TestVisualiserHasNoDependents`: no member
   depends on the visualiser in the resolved `cargo metadata`, the guard
   catches each dependency kind, and it ignores other dependencies.
@@ -1315,7 +1393,9 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 - Skipping the full clean keeps instrumented binaries across runs. Phase 2's
   dependency-bump check confirms that superseded binaries neither change the
   totals nor slow the report, but they cost disk: 11G grew to 18G. Phase 3's
-  sweep bounds that for about 1 s of unit listing plus the deletion.
+  sweep bounds that at the full-clean size (11G) for about 2.3 s per run:
+  the unit listing, comparing the 19 uplifted binaries with their twins,
+  and the deletion.
 - The report step adds a JSON export of a few MB that is captured in memory.
   Its cost is the same as today's report (about 4 s).
 
