@@ -251,6 +251,10 @@ run = "invoke build.cli-dev --group jira"
 description = "Build the debug accelerator-research sub-binary (cli/target/debug/accelerator-research)"
 run = "invoke build.cli-dev --group research"
 
+[tasks."build:cli:shortcut:dev"]
+description = "Build the debug accelerator-shortcut sub-binary (cli/target/debug/accelerator-shortcut)"
+run = "invoke build.cli-dev --group shortcut"
+
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
 depends = ["build:frontend"]

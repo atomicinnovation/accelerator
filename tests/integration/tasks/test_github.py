@@ -60,6 +60,7 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
             "init|fields|resolve-fields sub-binary."
         ),
         "research": "The research fetch sub-binary.",
+        "shortcut": "The shortcut init|show|search sub-binary.",
     }
 )
 
@@ -645,6 +646,7 @@ class TestBuilderSeams:
             "linear",
             "jira",
             "research",
+            "shortcut",
         )
 
 
