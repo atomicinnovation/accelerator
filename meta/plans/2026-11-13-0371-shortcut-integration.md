@@ -823,6 +823,38 @@ no "if the evidence shows" text when work on it begins. Decide:
 - whether `SECRET_SHAPES` needs a shape beyond `sct_`;
 - whether Shortcut rewrites Markdown in a way that changes meaning.
 
+#### Checkpoint decisions
+
+Recorded from a live run against a scratch workspace on 2026-11-14:
+
+- Shortcut stores and returns story and epic Markdown byte-for-byte, so no
+  rewrite cases exist.
+- `updated_at` is ISO 8601 UTC with milliseconds, such as
+  `2026-11-14T08:21:34.384Z`. The client keeps the bytes as received.
+- `GET /stories?ids=` returns only requested ids and omits absent ones.
+  `filter=include_archived` adds archived stories, which the default filter
+  drops, so every keyed read sends it.
+- `GET /epics` refuses an `ids` filter with 400, so `fetch_all` reads each
+  epic with its own `GET`.
+- A page `limit` above 100 is a 400.
+- A story search result carries its team's uuid at `team.id`.
+- `POST /epics` needs only `name` and `description`, and an epic has no single
+  team.
+- Error bodies are `{message, tag}` for 401, `{message}` for 404, and
+  `{message, errors}` for a validation 400. No 422 appeared.
+- `GET /teams/{uuid}` for an unknown uuid is a 404 `{message}`. During search
+  that is `Unconfigured`, naming the team and `init discover`.
+- Reading an epic's id as a story is a 404, which fits one id sequence shared
+  by stories and epics. The `epic-` prefix stays either way.
+- Repeating `external_links_add` keeps one link. `attach` stays
+  `OnlyWhenThrottled` regardless.
+- `-label:` negation works. The workspace had no labels, so the run could not
+  show whether repeated operators AND or OR. One search per value combination
+  is correct either way, so the client uses it.
+- An escaped `\"` inside a quoted value returned no result, which proves
+  nothing, so `filter.rs` refuses `"` and `\`.
+- `SECRET_SHAPES` needs nothing beyond `sct_`: every token seen had it.
+
 #### Implementation notes
 
 - `ShortcutClient::from_config` and its two no-request tests move to Phase 3,
@@ -848,14 +880,14 @@ no "if the evidence shows" text when work on it begins. Decide:
 
 #### Manual Verification
 
-- [ ] With a scratch workspace token,
+- [x] With a scratch workspace token,
       `ACCELERATOR_TRACKER_CONTRACT=1 cargo nextest run -p shortcut-client --test contract`
       passes and writes captures under `tests/captures/`.
-- [ ] Every fact in Section 10 has a recorded answer in the fixtures or in
+- [x] Every fact in Section 10 has a recorded answer in the fixtures or in
       the revised Phase 3.
-- [ ] Phase 3 holds no conditional text, and each Section 11 decision is
+- [x] Phase 3 holds no conditional text, and each Section 11 decision is
       written into it.
-- [ ] `jj status` shows no file under `tests/captures/`.
+- [x] `jj status` shows no file under `tests/captures/`.
 
 ---
 
@@ -889,9 +921,8 @@ which the client maps to `RemoteTimestamp::NotReported`.
 
 **File**: `cli/shortcut-client/src/client.rs`
 **Changes**: `BodyDialect` passes Markdown through, and `is_wire_document`
-returns `false`. If Phase 2 evidence shows meaning-changing rewrites, record
-them in `tracker_test_support::rewrite` as Shortcut cases. Then add a
-`shortcut_rewrites.rs` test in `work-adapters`, mirroring `linear_rewrites.rs`.
+returns `false`. The live run stored and returned a story and an epic
+description byte-for-byte, so Shortcut has no rewrite cases to record.
 
 #### 3. Port operations
 
@@ -901,12 +932,12 @@ Below, `{entity}` is `ShortcutKey::collection()`.
 
 | Operation | v4 request | Notes |
 |---|---|---|
-| `create` | `NewEntity::for_kind` picks `POST /epics` or `POST /stories` | `OnlyWhenThrottled`. A story gets `name`, `description`, `story_type`, `team_id` and `workflow_state_id`. The state is the first `unstarted` state, by `position`, of the team's default workflow. If that workflow has none, whoami's default state is used only if it belongs to that workflow; otherwise the result is `Unconfigured`. An epic gets the fields Phase 2 records. Returns `sc-<id>` or `epic-<id>`. |
+| `create` | `NewEntity::for_kind` picks `POST /epics` or `POST /stories` | `OnlyWhenThrottled`. A story gets `name`, `description`, `story_type`, `team_id` and `workflow_state_id`. The state is the first `unstarted` state, by `position`, of the team's default workflow. If that workflow has none, whoami's default state is used only if it belongs to that workflow; otherwise the result is `Unconfigured`. An epic gets `name` and `description` only; an epic has no single team. Returns `sc-<id>` or `epic-<id>`. |
 | `update` | `PATCH /{entity}/{id}` built from `UpdateFields` | `WhileRetryable`. Sends `description` always and `name` only when given. |
 | `retitle` | `PATCH /{entity}/{id}` built from `UpdateFields` with `name` only | `WhileRetryable`. |
 | `show` | `GET /{entity}/{id}?fields=id,name,description,updated_at,app_url` | Projects through `remote_projection`. Reports the requested key. |
 | `locate` | the same `GET` | 404 gives `Located::NotFound`. Ids never move, so a found entity keeps its requested key. |
-| `fetch_all` | per entity, the read strategy the Phase 2 checkpoint records | Story keys and epic keys go in separate chunks of 100. A map from numeric id to every requested `ExternalId` pairs each record with the ids it answers. After a complete read, an unanswered id is `absent`. After a partial read, or a response holding an unrequested id, unanswered ids are `indeterminate`. |
+| `fetch_all` | stories: `GET /stories?ids=…&filter=include_archived&limit=100&fields=id,updated_at`; epics: one `GET /epics/{id}?fields=id,updated_at` each, because `/epics` refuses an `ids` filter | Story keys and epic keys go in separate chunks of 100. A map from numeric id to every requested `ExternalId` pairs each record with the ids it answers. After a complete read, an unanswered id is `absent`. After a partial read, or a response holding an unrequested id, unanswered ids are `indeterminate`. |
 | `search` | for each team uuid in scope, `GET /teams/{uuid}`, then `GET /stories/search?query=…` | Stories only. The first request reads the team's current name, which `filter.rs` checks before it enters the query. Composes `team:"<name>"` plus the configured filters. Keeps only results whose team uuid matches, so a team that shares a name or a name prefix adds nothing. A dropped result does not count towards truncation. Flags truncation at the page cap or deadline. Under `all_teams`, a team whose name `filter.rs` refuses is skipped: the discovery is marked incomplete, and a `warn` names the team. For a configured team key, the same refusal is `Unconfigured`. |
 | `resolve_scope` | none | By the rules in Team identity: a base-only scope gets the uuid, and a broadened scope keeps its configured keys. Validates filters. Refusals are `ScopeError`. |
 | `enumerate_visible_entities` | `GET /teams` | One `VisibleEntity` per team, with the uuid as `identifier`. The `key` is the team key from `TeamKeys::over`, or the uuid for a colliding key. A listing cut short by the page cap or deadline is `Retryable`, never a partial `Ok`. |
@@ -934,7 +965,8 @@ Tests first, against the Phase 2 fixtures:
 - a deadline used up by the first chunk leaves the second chunk's ids
   `indeterminate`, on a fake clock with 101 ids;
 - with one `GET` per epic, a 404 for one epic gives `absent` for that epic
-  only (kept or removed by the checkpoint);
+  only;
+- every keyed story read sends `filter=include_archived`;
 - `create` picks the unstarted state by `position`, not by id;
 - `create` falls back to whoami's state only when it belongs to the team's
   workflow;
@@ -952,15 +984,15 @@ Tests first, against the Phase 2 fixtures:
   `Retryable`;
 - `search` with a 500 from `GET /teams/{uuid}` returns `Retryable`, never a
   partial `Ok`;
-- `search` with a 404 from `GET /teams/{uuid}` returns the class the
-  checkpoint records, naming the team;
+- `search` with a 404 from `GET /teams/{uuid}` returns `Unconfigured`,
+  naming the team and `accelerator shortcut init discover`;
 - under `all_teams`, `search` skips a team whose name `filter.rs` refuses,
   marks the discovery incomplete, and searches the other teams;
 - `search` keeps only results for the scoped team when another team shares
   its name;
 - a dropped result does not mark the search truncated;
 - `search` refuses a live team name that holds `"` or `\` with
-  `Unconfigured`, naming the team, when the checkpoint chose refusal;
+  `Unconfigured`, naming the team;
 - `enumerate_visible_entities` keys a null-mention team by display name, with
   the uuid as `identifier`;
 - `enumerate_visible_entities` keys both teams of a colliding pair by uuid;
@@ -995,21 +1027,20 @@ Tests first, against the Phase 2 fixtures:
 - Keep the meaning Jira and Linear give a filter. Values for one field are
   OR'd, as `jira-client/src/jql.rs:278-298` and
   `linear-client/src/filter.rs:402-408` do. Fields are AND'd.
-  - If the Phase 2 evidence shows an OR form, use it.
-  - Otherwise, run one search for each combination of positive values, and
+  - Run one search for each combination of positive values, and
     union the results, deduplicated by story id. A filter whose combinations
     exceed 10 searches per team is `ScopeError`, naming the count. The page
     cap and the deadline apply to all of a team's searches together. If any
     one search is truncated or runs out of time, the merged result is
     truncated.
-  - A negated (`~`) value lowers to the negation the evidence records, such as
-    `-label:"a"`. Negated values are AND'd, which needs no extra searches. If
+  - A negated (`~`) value lowers to `-<operator>:"<value>"`, which the live
+    run confirmed search accepts. Negated values are AND'd, which needs no extra searches. If
     search has no negation, a negated value is `ScopeError`.
 - `filter.rs` is the one place that checks a value before it enters a query.
-  It checks filter values, and the live team name `search` reads. It handles
-  `"` and `\` as the Phase 2 checkpoint decides: escape them, or refuse the
-  value. A refused team name names the team, and says to rename it in
-  Shortcut or to scope to another team.
+  It checks filter values, and the live team name `search` reads. It refuses
+  any value holding `"` or `\`, because the live run could not show that
+  search honours an escaped quote. A refused team name names the team, and
+  says to rename it in Shortcut or to scope to another team.
 - Validate a `state` against the workflows of the teams in scope, using each
   team's workflow ids from the catalogue. With `all_teams`, validate against
   every catalogued workflow. Refuse any other state, listing the valid states
@@ -1034,12 +1065,12 @@ Tests first:
 - `type: epic` is refused with `ScopeError`;
 - `label: [a, b]` returns the union of stories labelled `a` or `b`, with no
   story twice;
-- `label: [a, b]` with `state: [x, y]` runs four searches, if search has no
-  OR form;
+- `label: [a, b]` with `state: [x, y]` runs four searches;
 - a filter needing 11 searches per team is refused with `ScopeError`;
 - when one of four searches hits the page cap, the merged result is
   truncated;
-- `label: ~a` lowers to the recorded negation.
+- `label: ~a` lowers to `-label:"a"`;
+- a value holding `"` or `\` is refused with `ScopeError`.
 
 #### 5. Contract create kind
 
