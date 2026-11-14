@@ -23,6 +23,7 @@ use crate::json::Limits;
 pub enum Integration {
     Jira,
     Linear,
+    Shortcut,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,12 +32,14 @@ pub enum Op {
     Body,
 }
 
-/// Parses `--integration <string>`, accepting only `jira` and `linear`.
+/// Parses `--integration <string>`, accepting `jira`, `linear` and
+/// `shortcut`.
 #[must_use]
 pub fn parse_integration(value: &str) -> Option<Integration> {
     match value {
         "jira" => Some(Integration::Jira),
         "linear" => Some(Integration::Linear),
+        "shortcut" => Some(Integration::Shortcut),
         _ => None,
     }
 }
@@ -81,6 +84,14 @@ pub fn project(
             let description = string_at(remote_json, "/data/issue/description");
             format!("{title}\n{description}")
         }
+        (Integration::Shortcut, Op::Updated) => {
+            string_at(remote_json, "/entity/updated_at").to_owned()
+        }
+        (Integration::Shortcut, Op::Body) => {
+            let name = string_at(remote_json, "/entity/name");
+            let description = string_at(remote_json, "/entity/description");
+            format!("{name}\n{description}")
+        }
     }
 }
 
@@ -120,6 +131,14 @@ pub fn project_raw(
             let description = text("/data/issue/description");
             format!("{title}\n{description}")
         }
+        (Integration::Shortcut, Op::Updated) => {
+            text("/entity/updated_at").to_owned()
+        }
+        (Integration::Shortcut, Op::Body) => {
+            let name = text("/entity/name");
+            let description = text("/entity/description");
+            format!("{name}\n{description}")
+        }
     })
 }
 
@@ -147,8 +166,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        parse_integration, project, split_projected, Integration, Op,
-        ProjectedIssue,
+        parse_integration, project, project_raw, split_projected, Integration,
+        JsonError, Op, ProjectedIssue,
     };
 
     #[test]
@@ -210,6 +229,49 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_projects_a_story_or_an_epic_from_its_entity_envelope(
+    ) -> Result<(), JsonError> {
+        for remote in [
+            json!({"entity": {"entity_type": "story", "updated_at": "2026-11-14T08:21:34.384Z", "name": "Story title", "description": "Some *markdown*\n"}}),
+            json!({"entity": {"entity_type": "epic", "updated_at": "2026-11-14T08:21:34.384Z", "name": "Story title", "description": "Some *markdown*\n"}}),
+        ] {
+            assert_eq!(
+                project(Integration::Shortcut, Op::Updated, &remote),
+                "2026-11-14T08:21:34.384Z"
+            );
+            assert_eq!(
+                project(Integration::Shortcut, Op::Body, &remote),
+                "Story title\nSome *markdown*\n"
+            );
+            assert_eq!(
+                project_raw(
+                    Integration::Shortcut,
+                    Op::Body,
+                    &remote.to_string()
+                )?,
+                "Story title\nSome *markdown*\n"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn shortcut_without_an_updated_stamp_projects_an_empty_one(
+    ) -> Result<(), JsonError> {
+        let remote = json!({"entity": {"name": "t", "description": ""}});
+        assert_eq!(project(Integration::Shortcut, Op::Updated, &remote), "");
+        assert_eq!(
+            project_raw(
+                Integration::Shortcut,
+                Op::Updated,
+                &remote.to_string()
+            )?,
+            ""
+        );
+        Ok(())
+    }
+
+    #[test]
     fn missing_fields_are_empty_not_errors() {
         let remote = json!({});
         assert_eq!(project(Integration::Jira, Op::Updated, &remote), "");
@@ -220,6 +282,7 @@ mod tests {
     fn parse_integration_accepts_only_known_values() {
         assert_eq!(parse_integration("jira"), Some(Integration::Jira));
         assert_eq!(parse_integration("linear"), Some(Integration::Linear));
+        assert_eq!(parse_integration("shortcut"), Some(Integration::Shortcut));
         assert_eq!(parse_integration("bogus"), None);
     }
 
