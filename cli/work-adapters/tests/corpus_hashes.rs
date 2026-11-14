@@ -69,6 +69,30 @@ fn the_raw_reader_reproduces_every_linear_remote_hash() -> Result<(), TestError>
 }
 
 #[test]
+fn the_raw_reader_reproduces_every_shortcut_remote_hash(
+) -> Result<(), TestError> {
+    for name in [
+        "case-shortcut-markdown",
+        "case-shortcut-epic",
+        "case-shortcut-empty-description",
+    ] {
+        let (raw, expected) = case(name)?;
+        let projected = project_raw(Integration::Shortcut, Op::Body, &raw)?;
+        assert_eq!(
+            remote_hash(&projected),
+            expected["remote_hash"].as_str().expect("remote_hash"),
+            "case {name}"
+        );
+        assert_eq!(
+            project_raw(Integration::Shortcut, Op::Updated, &raw)?,
+            expected["updated"].as_str().expect("updated"),
+            "case {name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn the_absent_description_case_projects_the_literal_null(
 ) -> Result<(), TestError> {
     let (raw, _) = case("case-jira-no-description")?;
@@ -106,6 +130,9 @@ fn both_projection_entry_points_agree_on_the_whole_corpus(
         "case-jira-no-description",
         "case-linear-empty-description",
         "case-linear-markdown",
+        "case-shortcut-markdown",
+        "case-shortcut-epic",
+        "case-shortcut-empty-description",
     ] {
         let (raw, expected) = case(name)?;
         let integration = remote_projection::parse_integration(
