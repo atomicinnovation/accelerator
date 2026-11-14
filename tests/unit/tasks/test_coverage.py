@@ -4,9 +4,11 @@ from pathlib import Path
 import pytest
 
 from tasks.shared.coverage import (
+    CoverageFloor,
     CoverageReportError,
     CoverageTotals,
     Metric,
+    Shortfall,
     parse_totals,
 )
 
@@ -101,3 +103,63 @@ class TestCoverageTotals:
     def test_requires_every_metric(self):
         with pytest.raises(ValueError, match="regions"):
             CoverageTotals({Metric.LINES: 1.0, Metric.FUNCTIONS: 1.0})
+
+
+FLOOR = CoverageFloor(
+    {Metric.LINES: 70, Metric.FUNCTIONS: 80, Metric.REGIONS: 60}
+)
+
+
+def _totals(**overrides: float) -> CoverageTotals:
+    percents = {
+        Metric.LINES: 75.0,
+        Metric.FUNCTIONS: 85.0,
+        Metric.REGIONS: 65.0,
+    }
+    percents.update({Metric(name): value for name, value in overrides.items()})
+    return CoverageTotals(percents)
+
+
+class TestCoverageFloor:
+    def test_totals_above_every_floor_fall_short_of_none(self):
+        assert FLOOR.shortfalls(_totals()) == []
+
+    def test_totals_exactly_at_every_floor_fall_short_of_none(self):
+        assert (
+            FLOOR.shortfalls(_totals(lines=70, functions=80, regions=60)) == []
+        )
+
+    @pytest.mark.parametrize("metric", list(Metric))
+    def test_one_metric_below_its_own_floor_falls_short_once(
+        self, metric: Metric
+    ):
+        below = FLOOR.percents[metric] - 0.5
+
+        shortfalls = FLOOR.shortfalls(_totals(**{metric: below}))
+
+        assert shortfalls == [Shortfall(metric, below, FLOOR.percents[metric])]
+
+    def test_every_metric_below_falls_short_in_metric_order(self):
+        shortfalls = FLOOR.shortfalls(_totals(lines=1, functions=2, regions=3))
+
+        assert [shortfall.metric for shortfall in shortfalls] == list(Metric)
+
+    def test_a_shortfall_reads_as_its_total_against_its_floor(self):
+        assert str(Shortfall(Metric.LINES, 69.5, 70)) == (
+            "lines 69.50% (floor 70%)"
+        )
+
+    def test_requires_every_metric(self):
+        with pytest.raises(ValueError, match="functions"):
+            CoverageFloor({Metric.LINES: 70, Metric.REGIONS: 60})
+
+    @pytest.mark.parametrize("impossible", [-1, 100.5])
+    def test_rejects_a_floor_outside_zero_to_a_hundred(self, impossible: float):
+        with pytest.raises(ValueError, match="regions"):
+            CoverageFloor(
+                {
+                    Metric.LINES: 70,
+                    Metric.FUNCTIONS: 80,
+                    Metric.REGIONS: impossible,
+                }
+            )
