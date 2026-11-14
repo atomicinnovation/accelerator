@@ -88,7 +88,9 @@ nothing was written:
 - `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
   suggesting the re-key be finished. Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
-  retry once it ends.
+  retry once it ends. A `work create --push` in another session holds the
+  lock while it waits on the tracker, so the refusal can follow a wait of up
+  to 60 s.
 
 ## Step 0: Parameter Check
 

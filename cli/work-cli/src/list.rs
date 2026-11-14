@@ -570,16 +570,15 @@ pub fn run(
         Ok(dir) => dir,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
+    let scheme = match crate::config::announced_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
     if !work_dir.is_dir() {
         return RunOutcome::MissingDirectory {
             message: missing_directory_message(&work_dir),
         };
     }
-
-    let scheme = match crate::config::announced_scheme(config) {
-        Ok(scheme) => scheme,
-        Err(error) => return RunOutcome::Failed(error.to_string()),
-    };
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,

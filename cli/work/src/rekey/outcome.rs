@@ -603,7 +603,7 @@ fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
 }
 
 fn unclassifiable(item: &Path, cause: &UnclassifiableCause) -> String {
-    let item = item.display();
+    let item = shown(item);
     match cause {
         UnclassifiableCause::AmbiguousDigitRuns { id, .. } => format!(
             "{item} has `id` '{}', whose digit runs make its number ambiguous",
@@ -1155,5 +1155,19 @@ mod tests {
         for text in [ambiguous, no_number, escaping, unkeyed] {
             assert!(!text.contains("no numeric or tracker shape"), "{text}");
         }
+    }
+
+    #[test]
+    fn an_unclassifiable_item_path_is_escaped() {
+        let refusal = NotRekeyed::Unclassifiable {
+            item: path("meta/work/x\u{1b}[H.md"),
+            cause: UnclassifiableCause::NoNumber {
+                id: "notes".to_owned(),
+            },
+        }
+        .to_string();
+
+        assert!(!refusal.contains('\u{1b}'), "{refusal:?}");
+        assert!(refusal.contains("U+001B"), "{refusal:?}");
     }
 }

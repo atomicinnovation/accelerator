@@ -234,7 +234,7 @@ fn clustering_typed_linkage_is_pinned() {
     );
     let entries = vec![wi, plan, note];
 
-    let work_item_by_id: HashMap<String, PathBuf> = [(
+    let work_item_by_identity_key: HashMap<String, PathBuf> = [(
         "0040".to_string(),
         PathBuf::from("/repo/meta/work/0040-pipeline.md"),
     )]
@@ -244,7 +244,7 @@ fn clustering_typed_linkage_is_pinned() {
     let root = PathBuf::from("/repo");
     let ctx = ClusterContext::from_entries(
         &entries,
-        &work_item_by_id,
+        &work_item_by_identity_key,
         &plans_by_id,
         &root,
         &cfg,

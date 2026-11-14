@@ -186,6 +186,15 @@
   the JSON with Markdown (`jira show <key> --render-adf` prints a starting
   point) and sync, or resolve with `=remote` to discard local changes.
   Scripts that parse `work sync` exit codes need updating.
+- **`work.id_pattern` no longer accepts brace escapes, a wider literal
+  alphabet or a digit beside a token.** Support for `{{` and `}}` as escaped
+  braces is removed, literal text is limited to ASCII letters, digits, `.`,
+  `_` and `-`, and a literal digit may not sit after `{key}` or `{number}`
+  or before `{number}` (`v2{number:03d}` is refused). A width over 19 digits
+  and a repeated token are refused too. Every `work` command that reads the
+  ID scheme refuses such a pattern at start with `E_WORK_ID_PATTERN_INVALID`,
+  and nothing warns ahead of the upgrade; edit the pattern as the
+  `### Migrations` entry describes.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -787,8 +796,10 @@
   and its marker no longer have any effect.
 - **A `.MD` file is a work item like a `.md` one.** `work list`, `sync`,
   `promote` and `rekey` read it, as allocation and `work resolve` already
-  did, and `corpus frontmatter validate` and migrations walk it too. A
-  re-keyed `.MD` item is written back with a `.md` extension.
+  did. A re-keyed `.MD` item is written back with a `.md` extension.
+  `corpus frontmatter validate` and re-key and retirement reference
+  rewriting now read a `.MD` file of any doc type, so an invalid `.MD` plan
+  newly fails validation; migrations still rewrite only `.md` files.
 - **Every `work` command that reads the ID scheme refuses a malformed one
   at start, naming the setting.** `create`, `create-batch`, `id next`,
   `resolve`, `list`, `promote`, `rekey` and `sync` refuse a malformed
@@ -797,7 +808,8 @@
   value; an invalid `--project` gives `E_WORK_KEY_INVALID` too, an empty
   `--project ""` included, where it gave `E_PATTERN_MISSING_KEY`.
   `work id canonicalise` keeps its own codes. `work list` refuses where it
-  fell back to the default scheme.
+  fell back to the default scheme. `work create --dry-run` without `--id`
+  does not read the scheme, so it still previews under a malformed one.
 - **A short full ID is canonicalised through the pattern.** `work list`,
   `work resolve` and `work sync` read `PROJ-42` as `PROJ-0042`, and
   `work id canonicalise v1` gives `v001` under `v{number:03d}`. `work sync`
@@ -1052,7 +1064,10 @@
   `E_WORK_ID_PATTERN_INVALID: work.id_pattern '<value>': <reason>`.
   Migration 0002 reports the same for such a `{project}` pattern when legacy
   items remain to rename. Edit the pattern as the reason directs, then run
-  `/rekey-work-items` if existing items should follow it.
+  `/rekey-work-items` if existing items should follow it. Finish or
+  discard an interrupted re-key before upgrading: a run plan recorded under
+  such a pattern cannot be read (`E_REKEY_PLAN_UNREADABLE`), and the new
+  binary can only set it aside with `accelerator work rekey --discard`.
 - **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
   entry the run classifies is rewritten in one large diff, with no work-item
   file changed and nothing sent to the tracker; commit the result. A Jira file

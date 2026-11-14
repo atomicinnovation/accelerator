@@ -229,19 +229,25 @@ pub enum IdAction {
         #[arg(long, default_value_t = 1)]
         count: u32,
     },
-    /// Check an ID for a new work item, writing nothing. Prints
-    /// `exact\t<id>` when the ID is in the pattern's exact shape,
-    /// `other-key\t<id>\t<key>` when it is but its key differs from the
-    /// configured key, or `corrected\t<id>` when padding its number or
-    /// adding `work.key` makes it so; on either of the last two, a third
-    /// field names the configured key when the ID's key differs from it.
-    /// Pass the printed ID to `work create --id`. A request with no
-    /// correction is refused as typed; a correctable one is checked, and
-    /// refused if need be, in its corrected form, with the `E_ID_*` code
-    /// `work create --id` gives that form (see `exit_codes`).
-    /// A pass reserves nothing. An ID an interrupted `--push` create wrote
-    /// reports `E_ID_TAKEN`: that item is saved unsynced, so check the
-    /// tracker and reconcile it with `/sync-work-items`.
+    /// Check an ID for a new work item, writing nothing
+    ///
+    /// Prints one tab-separated verdict line:
+    ///
+    ///   exact      <id>          the ID is in the pattern's exact shape
+    ///   other-key  <id>  <key>   it is, but its key is not <key>, the
+    ///                            configured key
+    ///   corrected  <id>          padding its number or adding `work.key`
+    ///                            puts it in the exact shape
+    ///   corrected  <id>  <key>   as above, and its key is not <key>
+    ///
+    /// Pass <id> to `work create --id`. A request with no correction is
+    /// refused as typed; a correctable one is checked, and refused if need
+    /// be, in its corrected form, with the `E_ID_*` code `work create --id`
+    /// gives that form (see `exit_codes`). A pass reserves nothing. An ID an
+    /// interrupted `--push` create wrote reports `E_ID_TAKEN`: that item is
+    /// saved unsynced, so check the tracker and reconcile it with
+    /// `/sync-work-items`.
+    #[command(verbatim_doc_comment)]
     Check {
         /// The requested ID.
         id: String,

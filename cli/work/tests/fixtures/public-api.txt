@@ -82,6 +82,7 @@ impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
 pub mod work::draft_id
 pub struct work::draft_id::DraftId(_)
 impl work::draft_id::DraftId
+pub const work::draft_id::DraftId::LENGTH: usize
 pub const work::draft_id::DraftId::PREFIX: &'static str
 pub fn work::draft_id::DraftId::as_str(&self) -> &str
 pub fn work::draft_id::DraftId::parse(raw: &str) -> core::option::Option<Self>
@@ -1278,6 +1279,8 @@ pub work::requested_id::Proposal::Corrected::id: work::requested_id::RequestedId
 pub work::requested_id::Proposal::Corrected::key_differs: bool
 pub work::requested_id::Proposal::Exact(work::requested_id::RequestedId)
 pub work::requested_id::Proposal::OtherKey(work::requested_id::RequestedId)
+impl work::requested_id::Proposal
+pub fn work::requested_id::Proposal::id(&self) -> &work::requested_id::RequestedId
 impl core::clone::Clone for work::requested_id::Proposal
 pub fn work::requested_id::Proposal::clone(&self) -> work::requested_id::Proposal
 impl core::cmp::Eq for work::requested_id::Proposal

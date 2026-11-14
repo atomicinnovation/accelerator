@@ -745,7 +745,7 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     let mut rx = state.sse_hub.subscribe();
     let clusters = Arc::new(RwLock::new({
         let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
         let ctx =
             accelerator_visualiser::clusters::ClusterContext::from_entries(
@@ -833,7 +833,7 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let mut rx = state.sse_hub.subscribe();
     let clusters = Arc::new(RwLock::new({
         let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
         let ctx =
             accelerator_visualiser::clusters::ClusterContext::from_entries(

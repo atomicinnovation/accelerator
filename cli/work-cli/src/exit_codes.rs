@@ -189,7 +189,10 @@
 //! identity-run refusals and the config refusals above, writing nothing and
 //! sending no tracker request: `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`,
 //! `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` and `E_ID_TAKEN`, in that
-//! order. Each exits `1`, deliberately: `work create`'s other argument
+//! order. Under `--push`, the pending-push refusals (`E_PUSH_PENDING`,
+//! `E_PUSH_MARKER_UNREADABLE`, `E_PUSH_FINGERPRINT_MISMATCH`,
+//! `E_PUSH_ALREADY_WRITTEN`) come between `E_ID_PATTERN_MISMATCH` and
+//! `E_ID_TAKEN`. Each exits `1`, deliberately: `work create`'s other argument
 //! refusals (`E_PATTERN_*`, `E_WORK_*`) already do, although the `1` band
 //! reads "an internal error" and other collision refusals exit `4`.
 //! `work id check` gives the same refusals, exiting `1`, except

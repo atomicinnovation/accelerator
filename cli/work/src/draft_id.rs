@@ -18,6 +18,7 @@ pub struct DraftId(String);
 
 impl DraftId {
     pub const PREFIX: &'static str = "draft-";
+    pub const LENGTH: usize = Self::PREFIX.len() + SUFFIX_LENGTH;
 
     /// The lowercase form of `raw` when it is a draft ID: the prefix and six
     /// Crockford base-32 characters, at least one a letter, in any case.

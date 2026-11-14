@@ -106,6 +106,13 @@ fn list_output_is_unchanged_by_an_unreadable_file() -> Result<(), TestError> {
 }
 
 fn listed_under(work_body: &str) -> Result<std::process::Output, TestError> {
+    listed_in_repository(work_body, write_item)
+}
+
+fn listed_in_repository(
+    work_body: &str,
+    populate: fn(&Path) -> Result<(), TestError>,
+) -> Result<std::process::Output, TestError> {
     let dir = tempfile::Builder::new()
         .prefix("work-cli-list-")
         .tempdir()?;
@@ -115,7 +122,7 @@ fn listed_under(work_body: &str) -> Result<std::process::Output, TestError> {
         dir.path().join(".accelerator/config.md"),
         format!("---\nwork:\n{work_body}---\n"),
     )?;
-    write_item(dir.path())?;
+    populate(dir.path())?;
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
     command
         .arg("list")
@@ -139,6 +146,24 @@ fn write_item(root: &Path) -> Result<(), TestError> {
 #[allow(clippy::literal_string_with_formatting_args)]
 fn list_refuses_a_malformed_pattern() -> Result<(), TestError> {
     let output = listed_under("  id_pattern: \"{number:4d}\"\n")?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_refuses_a_malformed_pattern_without_a_work_directory(
+) -> Result<(), TestError> {
+    let output =
+        listed_in_repository("  id_pattern: \"{number:4d}\"\n", |_| Ok(()))?;
 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8(output.stderr)?;

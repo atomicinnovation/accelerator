@@ -225,10 +225,10 @@ pub struct Indexer {
     work_item_cfg: Arc<crate::config::WorkItemConfig>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
-    work_item_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
+    work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Secondary index mapping plan `id:` (filename stem) to plan path.
     /// Used to resolve `target: "plan:<id>"` typed-linkage references per
-    /// ADR-0034. Lock-ordering invariant: acquire after `work_item_by_id`
+    /// ADR-0034. Lock-ordering invariant: acquire after `work_item_by_identity_key`
     /// and before `reviews_by_target`.
     plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
@@ -273,7 +273,7 @@ impl Indexer {
             work_item_cfg,
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
-            work_item_by_id: Arc::new(RwLock::new(HashMap::new())),
+            work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
             plans_by_id: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
@@ -298,7 +298,8 @@ impl Indexer {
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
-        let mut work_item_by_id: HashMap<String, PathBuf> = HashMap::new();
+        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
+            HashMap::new();
         let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
         let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> =
             HashMap::new();
@@ -362,8 +363,8 @@ impl Indexer {
             if let Some(id) = adr_id_from_entry(&entry) {
                 adr_by_id.insert(id, path.clone());
             }
-            if let Some(id) = work_item_id_from_entry(&entry) {
-                work_item_by_id.insert(id, path.clone());
+            if let Some(id) = identity_key_of_entry(&entry) {
+                work_item_by_identity_key.insert(id, path.clone());
             }
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
@@ -392,7 +393,7 @@ impl Indexer {
             if let Some(target_key) = target_path_from_entry(
                 entry,
                 &plans_by_id,
-                &work_item_by_id,
+                &work_item_by_identity_key,
                 &self.work_item_cfg,
                 &self.project_root,
             ) {
@@ -409,13 +410,13 @@ impl Indexer {
         // work_item → plans → reviews_by_target → work_item_refs_by_target.
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
-        let mut work_item_w = self.work_item_by_id.write().await;
+        let mut work_item_w = self.work_item_by_identity_key.write().await;
         let mut plans_w = self.plans_by_id.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
         *entries_w = entries;
         *adr_w = adr_by_id;
-        *work_item_w = work_item_by_id;
+        *work_item_w = work_item_by_identity_key;
         *plans_w = plans_by_id;
         *reviews_w = reviews_by_target;
         *refs_w = work_item_refs_by_target;
@@ -457,8 +458,8 @@ impl Indexer {
                     let mut entries = self.entries.write().await;
                     if let Some(previous) = entries.get(&canonical).cloned() {
                         remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                        remove_from_work_item_by_id(
-                            &self.work_item_by_id,
+                        remove_from_work_item_by_identity_key(
+                            &self.work_item_by_identity_key,
                             &previous,
                         )
                         .await;
@@ -466,11 +467,11 @@ impl Indexer {
                             .await;
                         let plans_snapshot =
                             self.plans_by_id.read().await.clone();
-                        // Snapshot work_item_by_id AFTER the work-item-by-id
+                        // Snapshot work_item_by_identity_key AFTER the work-item-by-identity-key
                         // removal, mirroring plans_snapshot, so the typed
                         // `work-item:` target resolves against a consistent view.
                         let work_item_snapshot =
-                            self.work_item_by_id.read().await.clone();
+                            self.work_item_by_identity_key.read().await.clone();
                         remove_from_reviews_by_target(
                             &self.reviews_by_target,
                             &plans_snapshot,
@@ -507,8 +508,8 @@ impl Indexer {
 
                 update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
                     .await;
-                update_work_item_by_id(
-                    &self.work_item_by_id,
+                update_work_item_by_identity_key(
+                    &self.work_item_by_identity_key,
                     &entry,
                     previous.as_ref(),
                 )
@@ -523,11 +524,11 @@ impl Indexer {
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
                 let plans_snapshot = self.plans_by_id.read().await.clone();
-                // Snapshot work_item_by_id AFTER update_work_item_by_id has
+                // Snapshot work_item_by_identity_key AFTER update_work_item_by_identity_key has
                 // folded the new entry in, mirroring plans_snapshot, so a typed
                 // `work-item:` target resolves against a consistent view.
                 let work_item_snapshot =
-                    self.work_item_by_id.read().await.clone();
+                    self.work_item_by_identity_key.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &plans_snapshot,
@@ -569,15 +570,15 @@ impl Indexer {
 
                 if let Some(previous) = previous {
                     remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                    remove_from_work_item_by_id(
-                        &self.work_item_by_id,
+                    remove_from_work_item_by_identity_key(
+                        &self.work_item_by_identity_key,
                         &previous,
                     )
                     .await;
                     remove_from_plans_by_id(&self.plans_by_id, &previous).await;
                     let plans_snapshot = self.plans_by_id.read().await.clone();
                     let work_item_snapshot =
-                        self.work_item_by_id.read().await.clone();
+                        self.work_item_by_identity_key.read().await.clone();
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
                         &plans_snapshot,
@@ -717,10 +718,12 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
-    /// Returns a cloned snapshot of `work_item_by_id` for callers
+    /// Returns a cloned snapshot of `work_item_by_identity_key` for callers
     /// constructing a `ClusterContext`.
-    pub async fn work_item_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
-        self.work_item_by_id.read().await.clone()
+    pub async fn work_item_by_identity_key_snapshot(
+        &self,
+    ) -> HashMap<String, PathBuf> {
+        self.work_item_by_identity_key.read().await.clone()
     }
 
     /// Returns a cloned snapshot of `plans_by_id` for callers
@@ -798,8 +801,17 @@ impl Indexer {
         self.get(&path).await
     }
 
-    pub async fn work_item_by_id(&self, id: &str) -> Option<IndexEntry> {
-        let path = { self.work_item_by_id.read().await.get(id).cloned()? };
+    pub async fn work_item_by_identity_key(
+        &self,
+        id: &str,
+    ) -> Option<IndexEntry> {
+        let path = {
+            self.work_item_by_identity_key
+                .read()
+                .await
+                .get(id)
+                .cloned()?
+        };
         self.get(&path).await
     }
 
@@ -850,7 +862,7 @@ impl Indexer {
         entry: &IndexEntry,
     ) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
-        let by_id = self.work_item_by_id.read().await;
+        let by_id = self.work_item_by_identity_key.read().await;
         let plans = self.plans_by_id.read().await;
         let mut result: Vec<IndexEntry> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
@@ -937,7 +949,7 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///     the `plans_by_id` index (the plan's `id:` field; usually the
 ///     filename stem).
 ///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via the
-///     `work_item_by_id` index under the raw id's identity key, so any
+///     `work_item_by_identity_key` index under the raw id's identity key, so any
 ///     spelling of the item resolves, as clustering does. Resolving it here
 ///     keeps the path-keyed `reviews_by_target` reverse index populated.
 ///
@@ -946,7 +958,7 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> Option<PathBuf> {
@@ -954,7 +966,7 @@ pub(crate) fn target_path_from_entry(
         entry.r#type,
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
         plans_by_id,
-        work_item_by_id,
+        work_item_by_identity_key,
         work_item_cfg.scheme(),
         project_root,
     )
@@ -1006,13 +1018,13 @@ async fn update_adr_by_id(
     }
 }
 
-async fn update_work_item_by_id(
+async fn update_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
 ) {
-    let prev_id = previous.and_then(work_item_id_from_entry);
-    let next_id = work_item_id_from_entry(new_entry);
+    let prev_id = previous.and_then(identity_key_of_entry);
+    let next_id = identity_key_of_entry(new_entry);
     let mut m = map.write().await;
     if let Some(ref prev_id) = prev_id {
         if Some(prev_id.as_str()) != next_id.as_deref() {
@@ -1045,7 +1057,7 @@ async fn update_plans_by_id(
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     new_entry: &IndexEntry,
@@ -1063,7 +1075,7 @@ async fn update_reviews_by_target(
         target_path_from_entry(
             p,
             plans_by_id,
-            work_item_by_id,
+            work_item_by_identity_key,
             work_item_cfg,
             project_root,
         )
@@ -1071,7 +1083,7 @@ async fn update_reviews_by_target(
     let next_target = target_path_from_entry(
         new_entry,
         plans_by_id,
-        work_item_by_id,
+        work_item_by_identity_key,
         work_item_cfg,
         project_root,
     );
@@ -1098,11 +1110,11 @@ async fn remove_from_adr_by_id(
     }
 }
 
-async fn remove_from_work_item_by_id(
+async fn remove_from_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     previous: &IndexEntry,
 ) {
-    if let Some(id) = work_item_id_from_entry(previous) {
+    if let Some(id) = identity_key_of_entry(previous) {
         map.write().await.remove(&id);
     }
 }
@@ -1119,7 +1131,7 @@ async fn remove_from_plans_by_id(
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     previous: &IndexEntry,
@@ -1127,7 +1139,7 @@ async fn remove_from_reviews_by_target(
     if let Some(target_key) = target_path_from_entry(
         previous,
         plans_by_id,
-        work_item_by_id,
+        work_item_by_identity_key,
         work_item_cfg,
         project_root,
     ) {
@@ -1142,7 +1154,7 @@ async fn remove_from_reviews_by_target(
 }
 
 /// The identity key a raw cross-reference, bare or a typed `work-item:`
-/// reference, joins `work_item_by_id` on, or `None` for a value that names
+/// reference, joins `work_item_by_identity_key` on, or `None` for a value that names
 /// no work item.
 pub fn identity_key_of(
     raw: &str,
@@ -1355,7 +1367,7 @@ fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
     parse_adr_id(&entry.frontmatter, filename)
 }
 
-fn work_item_id_from_entry(entry: &IndexEntry) -> Option<String> {
+fn identity_key_of_entry(entry: &IndexEntry) -> Option<String> {
     entry.identity_key.clone()
 }
 
@@ -1512,7 +1524,7 @@ mod identity_join_tests {
         paths: &[&str],
     ) -> Vec<Option<String>> {
         let snapshot = idx.all().await;
-        let by_id = idx.work_item_by_id_snapshot().await;
+        let by_id = idx.work_item_by_identity_key_snapshot().await;
         let plans = idx.plans_by_id_snapshot().await;
         let ctx = ClusterContext::from_entries(
             &snapshot,
@@ -1570,7 +1582,9 @@ mod identity_join_tests {
 
         assert_eq!(entry.slug.as_deref(), Some("x"));
         assert_eq!(
-            idx.work_item_by_id_snapshot().await.get("PP-0500"),
+            idx.work_item_by_identity_key_snapshot()
+                .await
+                .get("PP-0500"),
             Some(&entry.path)
         );
     }
@@ -1871,13 +1885,19 @@ mod identity_join_tests {
             .unwrap();
         idx.refresh_one(&path).await.unwrap();
 
-        assert!(idx.work_item_by_id_snapshot().await.contains_key("PP-0500"));
+        assert!(idx
+            .work_item_by_identity_key_snapshot()
+            .await
+            .contains_key("PP-0500"));
         assert!(idx.work_item_refs_by_id("PP-0500").await.is_empty());
 
         std::fs::remove_file(&path).unwrap();
         idx.refresh_one(&path).await.unwrap();
 
-        assert!(!idx.work_item_by_id_snapshot().await.contains_key("PP-0500"));
+        assert!(!idx
+            .work_item_by_identity_key_snapshot()
+            .await
+            .contains_key("PP-0500"));
     }
 }
 
@@ -2645,8 +2665,8 @@ mod refresh_tests {
             "entry should be gone from index"
         );
         assert!(
-            idx.work_item_by_id("0001").await.is_none(),
-            "work_item_by_id index must also be cleaned up"
+            idx.work_item_by_identity_key("0001").await.is_none(),
+            "work_item_by_identity_key index must also be cleaned up"
         );
     }
 
@@ -2687,12 +2707,12 @@ mod refresh_tests {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        // Refresh work item #1 — work_item_by_id must still work
+        // Refresh work item #1 — work_item_by_identity_key must still work
         let path1 = work.join("0001-foo.md");
         idx.refresh_one(&path1).await.unwrap();
         assert!(
-            idx.work_item_by_id("0001").await.is_some(),
-            "work_item_by_id(\"0001\") must still resolve after refresh_one"
+            idx.work_item_by_identity_key("0001").await.is_some(),
+            "work_item_by_identity_key(\"0001\") must still resolve after refresh_one"
         );
 
         // Refresh ADR-0001 — adr_by_id must still work
@@ -3316,7 +3336,7 @@ mod reverse_index_tests {
     ) {
         // Story 0070: a migrated work-item-review carries `target:
         // "work-item:NNNN"`. target_path_from_entry now resolves it via
-        // work_item_by_id, so the path-keyed reviews_by_target reverse index
+        // work_item_by_identity_key, so the path-keyed reviews_by_target reverse index
         // is populated on BOTH the full rescan (Indexer::build Pass B) and the
         // incremental refresh_one path.
         let tmp = tempfile::tempdir().unwrap();
@@ -3432,7 +3452,7 @@ mod reverse_index_tests {
             .write()
             .await
             .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
-        idx.work_item_by_id.write().await.insert(
+        idx.work_item_by_identity_key.write().await.insert(
             "99".to_string(),
             PathBuf::from("/nonexistent/9999-work-item.md"),
         );
@@ -3444,7 +3464,7 @@ mod reverse_index_tests {
         idx.rescan().await.unwrap();
 
         let adr_map = idx.adr_by_id.read().await;
-        let work_item_map = idx.work_item_by_id.read().await;
+        let work_item_map = idx.work_item_by_identity_key.read().await;
         let reviews_map = idx.reviews_by_target.read().await;
         assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
         assert!(
@@ -4265,24 +4285,24 @@ mod target_path_resolution_tests {
     }
 
     #[test]
-    fn typed_work_item_target_resolves_via_work_item_by_id() {
+    fn typed_work_item_target_resolves_via_work_item_by_identity_key() {
         // Story 0070 types work-item-review targets to `work-item:NNNN`;
-        // target_path_from_entry now resolves them through work_item_by_id
+        // target_path_from_entry now resolves them through work_item_by_identity_key
         // (canonicalising the raw id first), so the path-keyed
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry =
             entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
-        let mut work_item_by_id = HashMap::new();
-        work_item_by_id.insert(
+        let mut work_item_by_identity_key = HashMap::new();
+        work_item_by_identity_key.insert(
             "0042".to_string(),
             PathBuf::from("/repo/meta/work/0042-foo.md"),
         );
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo"),
         );

@@ -10,6 +10,11 @@
 |--------|-----------|-----------|-------|
 | Pass Rate | 100% (n=75) | 62% (n=52) | +0.37 |
 
+The Old Skill runs come from earlier sessions recorded under
+claude-sonnet-4-6, while every With Skill run was re-run on
+claude-opus-5-5, so the delta compares across models as well as skill
+versions.
+
 ## Per-Eval Results
 
 ### with_skill

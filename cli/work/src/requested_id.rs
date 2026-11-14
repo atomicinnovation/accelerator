@@ -31,6 +31,17 @@ pub enum Proposal {
     Corrected { id: RequestedId, key_differs: bool },
 }
 
+impl Proposal {
+    #[must_use]
+    pub const fn id(&self) -> &RequestedId {
+        match self {
+            Self::Exact(id)
+            | Self::OtherKey(id)
+            | Self::Corrected { id, .. } => id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestedIdRefusal {
     WithProject {
@@ -734,6 +745,22 @@ mod tests {
         match RequestedId::propose(requested, under) {
             Err(refusal) => refusal,
             Ok(_) => unreachable!("{requested} has a proposal"),
+        }
+    }
+
+    #[test]
+    fn every_proposal_names_the_id_it_proposes() {
+        for (requested, proposed_id) in [
+            ("PP-0400", "PP-0400"),
+            ("XY-0400", "XY-0400"),
+            ("PP-400", "PP-0400"),
+        ] {
+            let proposal = RequestedId::propose(requested, &keyed());
+            assert_eq!(
+                proposal.as_ref().map(|proposal| proposal.id().as_str()),
+                Ok(proposed_id),
+                "{requested}"
+            );
         }
     }
 

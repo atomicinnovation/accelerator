@@ -165,3 +165,27 @@ fn canonicalise_keeps_its_error_codes_for_a_malformed_pattern(
     );
     Ok(())
 }
+
+#[test]
+fn a_number_too_long_for_the_pattern_does_not_match() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "99999999999999999999")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "E_PATTERN: input does not match the pattern"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pattern_with_a_forbidden_literal_is_refused() -> Result<(), TestError> {
+    let repo = scratch_repo("x/{number:04d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "E_PATTERN: literal '/' is forbidden in patterns (rule 2)"
+    );
+    Ok(())
+}

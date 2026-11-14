@@ -44,8 +44,21 @@ through `accelerator work create-batch` after one push offer, linking each
 child to its parent's key or draft.
 
 Pass `--id` to `create-work-item` to choose an item's ID yourself, for
-example when other branches have unmerged items; the skill checks the ID
-before drafting.
+example when other branches have unmerged items:
+
+```
+/create-work-item --id PP-0400 Add a retry budget to sync
+```
+
+The ID must be in the exact shape `work.id_pattern` renders — `PP-0400`
+under `{key}-{number:04d}`, `0400` under the default `{number:04d}` — with
+a number of at least 1, no `draft-` prefix and no other item holding it.
+The skill checks it with `accelerator work id check` before drafting: an
+exact ID is used as given, and one that needs padding or names a key
+other than `work.key` is proposed in full for you to confirm. `--id` is
+refused under `{tracker}`, where the tracker owns every ID, and beside
+`--project`. Run `accelerator work id check <ID>` yourself to see what an
+ID would become without creating anything.
 
 ## Sharpening before planning
 

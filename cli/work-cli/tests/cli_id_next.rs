@@ -131,7 +131,7 @@ fn overflow_prints_the_partial_ids_that_fit_then_exits_one(
 }
 
 #[test]
-fn a_hostile_project_is_refused_with_the_rule_five_reason(
+fn a_hostile_project_is_refused_with_the_key_shape_reason(
 ) -> Result<(), TestError> {
     let repo = scratch_repo_with_work_config(
         "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",

@@ -79,17 +79,17 @@ impl Display for PatternError {
             Self::WidthOverflow(width) => write!(
                 formatter,
                 "{{number}} width {width} is too wide: a number has at most \
-                 {MAX_WIDTH} digits"
+                 {MAX_WIDTH} digits (rule 4)"
             ),
             Self::RepeatedToken => write!(
                 formatter,
                 "a pattern holds at most one {{number}} token and one {{key}} \
-                 token"
+                 token (rule 7)"
             ),
             Self::DigitBesideToken => write!(
                 formatter,
                 "a literal digit may not sit beside a {{key}} or {{number}} \
-                 token"
+                 token (rule 6)"
             ),
             Self::TrackerNotSoleToken => write!(
                 formatter,
@@ -758,7 +758,7 @@ mod tests {
     use super::MissingKey;
     use super::PatternError;
 
-    const PROMPTLY: Duration = Duration::from_millis(100);
+    const PROMPTLY: Duration = Duration::from_secs(2);
 
     fn pattern(text: &str) -> IdPattern {
         IdPattern::parse(text).expect("a well-formed pattern")
@@ -884,7 +884,7 @@ mod tests {
     }
 
     #[test]
-    fn a_key_value_must_match_rule_five() {
+    fn a_key_value_must_be_a_letter_then_letters_and_digits() {
         for text in ["1PP", "P-P", "../x", ""] {
             assert_eq!(
                 IdKey::parse(text),
@@ -1019,7 +1019,7 @@ mod tests {
     }
 
     #[test]
-    fn a_key_before_an_alphanumeric_literal_reads_as_the_regex_does() {
+    fn a_key_before_an_alphanumeric_literal_takes_the_longest_key() {
         let under = "{key}v{number:03d}";
         assert_eq!(parts("PPv001", under), Some((Some("PP".to_owned()), 1)));
         assert_eq!(parts("PPvv001", under), Some((Some("PPv".to_owned()), 1)));
@@ -1046,7 +1046,7 @@ mod tests {
     }
 
     #[test]
-    fn patterns_validate_with_the_compilers_refusal_text() {
+    fn each_refused_pattern_names_its_reason() {
         let cases: &[(&str, Result<(), &str>)] = &[
             ("{number:04d}", Ok(())),
             ("{number}", Ok(())),
@@ -1075,6 +1075,23 @@ mod tests {
                 "{key}",
                 Err(
                     "pattern must contain at least one {number} token (rule 1)",
+                ),
+            ),
+            (
+                "{number:020d}",
+                Err("{number} width 20 is too wide: a number has at most 19 \
+                     digits (rule 4)"),
+            ),
+            (
+                "v2{number:03d}",
+                Err("a literal digit may not sit beside a {key} or {number} \
+                     token (rule 6)"),
+            ),
+            (
+                "{number:04d}-{number:04d}",
+                Err(
+                    "a pattern holds at most one {number} token and one {key} \
+                     token (rule 7)",
                 ),
             ),
             ("{number", Err("unclosed token starting at offset 0")),

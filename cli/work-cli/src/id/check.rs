@@ -49,12 +49,7 @@ pub fn run(
         Ok(proposal) => proposal,
         Err(refusal) => return RunOutcome::Failed(refusal.to_string()),
     };
-    let id = match &proposal {
-        Proposal::Exact(id)
-        | Proposal::OtherKey(id)
-        | Proposal::Corrected { id, .. } => id,
-    };
-    match refuse_if_requested_id_taken(id, &location) {
+    match refuse_if_requested_id_taken(proposal.id(), &location) {
         Ok(()) => RunOutcome::Checked(verdict(&proposal, &location.scheme)),
         Err(refusal) => RunOutcome::Failed(refusal),
     }

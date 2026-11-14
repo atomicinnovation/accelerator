@@ -1,12 +1,16 @@
 //! The ID convention `slug` and `cluster` read work-item IDs through.
 
-/// How a corpus spells the IDs of its work items. Every operation gives the
-/// same [`Self::identity_key`] for one item, so a filename, a `work-item:`
+/// How a corpus spells the IDs of its work items.
+///
+/// [`Self::slug_start`], [`Self::identity_key`] and [`Self::id_in_filename`]
+/// read one item to the same identity key, so a filename, a `work-item:`
 /// reference and a frontmatter `id` naming it all join.
 pub trait IdConvention {
     /// The byte offset just past the ID prefix and its separator.
     fn slug_start(&self, stem: &str) -> Option<usize>;
 
+    /// Whether `token` is an ID in the exact shape the convention writes,
+    /// which an item the other operations read may not be.
     fn is_id(&self, token: &str) -> bool;
 
     fn identity_key(&self, reference: &str) -> Option<String>;

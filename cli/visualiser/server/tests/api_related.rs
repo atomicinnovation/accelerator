@@ -395,7 +395,7 @@ async fn related_endpoint_recovers_after_target_creation() {
     state.indexer.rescan().await.unwrap();
     {
         let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
         let ctx = ClusterContext::from_entries(
             &snapshot,
@@ -813,5 +813,31 @@ async fn an_item_naming_itself_in_another_spelling_is_not_its_own_referrer() {
     assert!(
         !inbound.contains(&"meta/work/pp-0500-x.md".to_owned()),
         "{inbound:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_related_work_item_reference_is_an_inbound_link() {
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("meta/work");
+    let plans = tmp.path().join("meta/plans");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&plans).unwrap();
+    std::fs::write(work.join("PP-0500-x.md"), "---\nid: PP-0500\n---\n")
+        .unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-a.md"),
+        "---\ntitle: A\nrelated: [\"work-item:pp-500\"]\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("plans".into(), plans);
+    let mut cfg = cfg_with_only(tmp.path(), paths);
+    cfg.work_item = Some(pp_scheme());
+
+    assert_eq!(
+        inbound_rel_paths(cfg, "meta/work/PP-0500-x.md").await,
+        vec!["meta/plans/2026-01-01-a.md"]
     );
 }

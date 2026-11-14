@@ -91,7 +91,7 @@ pub struct LifecycleCluster {
 /// Snapshots and conventions the cluster-key resolver needs, threaded from the
 /// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
-    pub work_item_by_id: &'a HashMap<String, PathBuf>,
+    pub work_item_by_identity_key: &'a HashMap<String, PathBuf>,
     pub plans_by_id: &'a HashMap<String, PathBuf>,
     pub project_root: &'a Path,
     pub work_item_cfg: &'a WorkItemConfig,
@@ -100,13 +100,13 @@ pub struct ClusterContext<'a> {
 impl<'a> ClusterContext<'a> {
     pub fn from_entries(
         _entries: &'a [IndexEntry],
-        work_item_by_id: &'a HashMap<String, PathBuf>,
+        work_item_by_identity_key: &'a HashMap<String, PathBuf>,
         plans_by_id: &'a HashMap<String, PathBuf>,
         project_root: &'a Path,
         work_item_cfg: &'a WorkItemConfig,
     ) -> Self {
         Self {
-            work_item_by_id,
+            work_item_by_identity_key,
             plans_by_id,
             project_root,
             work_item_cfg,
@@ -144,7 +144,7 @@ impl EmptyClusterFixture {
     }
     pub fn ctx(&self) -> ClusterContext<'_> {
         ClusterContext {
-            work_item_by_id: &self.wi,
+            work_item_by_identity_key: &self.wi,
             plans_by_id: &self.pl,
             project_root: &self.root,
             work_item_cfg: &self.cfg,
@@ -183,7 +183,7 @@ pub fn compute_clusters_with_backfill(
     let identity = ctx.work_item_cfg.scheme();
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
-        ctx.work_item_by_id,
+        ctx.work_item_by_identity_key,
         ctx.plans_by_id,
         ctx.project_root,
         identity,
@@ -260,7 +260,7 @@ mod tests {
     }
 
     /// Run clustering with snapshot maps derived from the entries
-    /// themselves — `work_item_by_id` from `WorkItems` entries, `plans_by_id`
+    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `plans_by_id`
     /// from Plans entries (by file stem).
     fn run_clusters(
         entries: &[IndexEntry],
@@ -270,7 +270,7 @@ mod tests {
         HashMap<PathBuf, Completeness>,
         HashMap<PathBuf, Option<String>>,
     ) {
-        let work_item_by_id: HashMap<String, PathBuf> = entries
+        let work_item_by_identity_key: HashMap<String, PathBuf> = entries
             .iter()
             .filter(|e| e.r#type == DocTypeKey::WorkItems)
             .filter_map(|e| {
@@ -289,7 +289,7 @@ mod tests {
         let project_root = PathBuf::from("/repo");
         let ctx = ClusterContext::from_entries(
             entries,
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &plans_by_id,
             &project_root,
             cfg,

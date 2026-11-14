@@ -165,7 +165,9 @@ pub fn allocate(
         .collect();
     let (highest, highest_file) = held
         .iter()
-        .max_by_key(|(number, _)| *number)
+        .max_by_key(|(number, filename)| {
+            (*number, std::cmp::Reverse(*filename))
+        })
         .map_or((0, None), |(number, filename)| {
             (*number, Some((*filename).clone()))
         });
@@ -356,6 +358,26 @@ mod tests {
                 numbers_held: 1,
             })
         );
+    }
+
+    #[test]
+    fn overflow_names_the_first_holder_of_the_cap_in_filename_order() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        for filenames in [
+            ["pp-9999-b.md", "PP-9999-a.md"],
+            ["PP-9999-a.md", "pp-9999-b.md"],
+        ] {
+            let result =
+                allocate(&keyed, Some(&key("PP")), 1, &names(&filenames));
+            assert!(
+                matches!(
+                    &result,
+                    Err(AllocationError::Overflow { highest_file, .. })
+                        if highest_file.as_deref() == Some("PP-9999-a.md")
+                ),
+                "{filenames:?}: {result:?}"
+            );
+        }
     }
 
     #[test]

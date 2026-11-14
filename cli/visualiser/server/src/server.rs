@@ -98,11 +98,12 @@ impl AppState {
             .await,
         ));
         let snapshot = indexer.all().await;
-        let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+        let work_item_by_identity_key =
+            indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = indexer.plans_by_id_snapshot().await;
         let cluster_ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &plans_by_id,
             indexer.project_root(),
             indexer.work_item_cfg(),

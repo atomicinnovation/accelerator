@@ -737,11 +737,13 @@ consumed):
 2. Literal text is ASCII letters, digits, `.`, `_` and `-` only, so an
    ID is safe in a filename and in any shell quoting. Filesystem-hostile
    characters (`/`, `\`, `:`, `*`, `?`, `<`, `>`, `|`, `"`), spaces,
-   quotes and braces are all rejected.
+   quotes and braces are all rejected. Escaped braces (`{{`, `}}`) are no
+   longer supported.
 3. Adjacent dynamic tokens must have at least one literal char between
    them (`{key}{number}` is rejected; `{key}-{number}` is accepted).
-4. The `{number}` format spec must be `0Nd`. Non-padded specs (`%d`)
-   are rejected so the overflow guard cap is well-defined.
+4. The `{number}` format spec must be `0Nd`, at most 19 digits wide.
+   Non-padded specs (`%d`) are rejected so the overflow guard cap is
+   well-defined.
 5. Key values must match `[A-Za-z][A-Za-z0-9]*`. This covers
    Jira/Linear-style alphanumeric keys (`PROJ`, `ENG`, `ENG2`).
    Keys with internal hyphens or underscores (`PROJ-FE`,
@@ -796,9 +798,8 @@ internally and does not link out to an external tracker. Pick
 #### Width changes vs structural changes
 
 Changing the width spec (`{number:04d}` → `{number:05d}`) is
-**absorbed transparently**: legacy files remain visible because the
-scan regex is width-agnostic. New files are generated at the new
-width.
+**absorbed transparently**: legacy files remain visible because IDs
+are read at any width. New files are generated at the new width.
 
 Changing the structural shape (default → `{project}-{number:04d}`,
 or vice versa) leaves legacy files coexisting with their original IDs.
@@ -807,7 +808,10 @@ which renames legacy `NNNN-*.md` files to the configured pattern with
 your `default_project_code`. The migration stays pending until both
 the pattern includes `{project}` and `default_project_code` is set; if
 neither applies, you can opt out via `accelerator migrate --skip
-0002-rename-work-items-with-project-prefix`.
+0002-rename-work-items-with-project-prefix`. A skipped repository keeps
+its legacy `NNNN-*.md` files, and allocation counts each one in
+`work.key`'s sequence, so beside `PP-0005` and `0400-x.md` the next ID
+is `PP-0401`, not `PP-0006`.
 
 #### Recognised keys
 

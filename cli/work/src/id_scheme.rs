@@ -119,15 +119,12 @@ fn legacy_prefix(filename: &str) -> Option<(&str, usize)> {
 }
 
 fn draft_prefix(filename: &str) -> Option<(DraftId, usize)> {
-    let draft_length = DraftId::PREFIX.len() + DRAFT_SUFFIX_LENGTH;
-    let candidate = filename.get(..draft_length)?;
-    let followed_by_slug = filename[draft_length..].starts_with('-');
+    let candidate = filename.get(..DraftId::LENGTH)?;
+    let followed_by_slug = filename[DraftId::LENGTH..].starts_with('-');
     DraftId::parse(candidate)
         .filter(|_| followed_by_slug)
-        .map(|draft| (draft, draft_length + 1))
+        .map(|draft| (draft, DraftId::LENGTH + 1))
 }
-
-const DRAFT_SUFFIX_LENGTH: usize = 6;
 
 /// The identity scheme a workspace configures for its work items.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -604,7 +601,7 @@ mod tests {
     }
 
     #[test]
-    fn any_key_tokens_take_every_rule_five_key() {
+    fn any_key_tokens_take_every_well_formed_key() {
         let scheme = keyed("PP");
         assert!(scheme.is_any_key_id_token("PP-0400"));
         assert!(scheme.is_any_key_id_token("xy-0400"));
@@ -644,6 +641,10 @@ mod tests {
             );
         }
         assert_eq!(canonical(&numeric, ""), Err(CanonicaliseError::EmptyInput));
+        assert_eq!(
+            canonical(&numeric, "99999999999999999999"),
+            Err(CanonicaliseError::NoMatch)
+        );
 
         let proj = project("PROJ");
         assert_eq!(canonical(&proj, "40").as_deref(), Ok("PROJ-0040"));
