@@ -36,6 +36,15 @@ often raises several questions, and each gets its own diagram.
 | How are the bits or bytes of this format laid out? | `byte-field-diagram` | `draw-byte-field-diagram` |
 | What does this grammar, command line or pattern accept? | `railroad-diagram` | `draw-railroad-diagram` |
 
+## When nothing above fits
+
+| The question | Kind | Skill |
+|---|---|---|
+| How do these few things connect, in a way no notation above was made for? | `block-diagram` | `draw-block-diagram` |
+
+A block diagram has no rules, so the kit can check little about it and
+the reader learns only what the labels say. Reach for it last.
+
 ## Telling neighbours apart
 
 **Sequence, activity, flowchart or state machine.** A sequence diagram is
@@ -86,6 +95,12 @@ a security review. A sequence diagram shows the order of one exchange.
 a database stores: tables, keys and how many at each end. A class diagram
 for the same data as types in memory. A byte-field diagram when the layout
 is fixed bit by bit or byte by byte.
+
+**Block diagram or anything else.** If the arrows all mean "depends on",
+it is a dependency graph; "then", a flowchart or activity diagram; "calls",
+a sequence diagram; "sends data to", a data flow diagram. A block diagram
+is for what is left: a derivation, a pipeline of transformations, a
+handful of parts whose links are each different.
 
 **Railroad or state machine.** A railroad diagram shows what input is
 accepted. A state machine shows what a parser does as it reads.
