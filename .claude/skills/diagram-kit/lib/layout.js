@@ -28,17 +28,21 @@
     }
   }
 
-  function layoutNodeOf(node) {
+  // elkjs applies a holder's minimum size along its own flow, so for a scene
+  // flowing downwards the minimum width has to be given as the height.
+  const minimumWidth = (width, direction) => (direction === 'DOWN' ? `(0,${width})` : `(${width},0)`);
+
+  function layoutNodeOf(node, direction) {
     const shape = shapeOf(node);
     if (!shape.holdsOthers) return { id: node.id, ...shape.sizeOf(node) };
-    const { padding, minimum } = shape.frameOf(node);
+    const { padding, minimumWidth: width } = shape.frameOf(node);
     return {
       id: node.id,
-      children: (node.children || []).map(layoutNodeOf),
+      children: (node.children || []).map(child => layoutNodeOf(child, direction)),
       layoutOptions: {
         'elk.padding': `[top=${padding.top},left=${padding.left},bottom=${padding.bottom},right=${padding.right}]`,
         'elk.nodeSize.constraints': 'MINIMUM_SIZE',
-        'elk.nodeSize.minimum': `(${minimum.width},${minimum.height})`,
+        'elk.nodeSize.minimum': minimumWidth(width, direction),
       },
     };
   }
@@ -55,17 +59,18 @@
   function layoutGraphOf(scene) {
     const known = new Set();
     everyNode(scene.nodes, node => known.add(node.id));
+    const direction = DIRECTIONS[scene.direction || 'down'];
     return {
       id: 'root',
       layoutOptions: {
         'elk.algorithm': 'layered',
-        'elk.direction': DIRECTIONS[scene.direction || 'down'],
+        'elk.direction': direction,
         'elk.edgeRouting': 'ORTHOGONAL',
         'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
         'elk.layered.edgeLabels.sideSelection': 'ALWAYS_UP',
         ...SPACING,
       },
-      children: (scene.nodes || []).map(layoutNodeOf),
+      children: (scene.nodes || []).map(node => layoutNodeOf(node, direction)),
       edges: (scene.edges || []).map(edge => layoutEdgeOf(edge, known)),
     };
   }

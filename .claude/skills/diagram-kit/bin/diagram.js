@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+// usage: diagram.js check SPEC.json
+//        diagram.js layout SPEC.json [--out SCENE.json]
+//        diagram.js render SPEC.json --out FILE.html|FILE.svg
+//
+// SPEC.json is one diagram, or a list of them. `check` reports every problem
+// and exits 1 if there is one. `layout` writes where every node and edge
+// goes. `render` writes a page that opens offline, or one drawing as SVG.
+// `--notations DIR` reads the draw-* skills under DIR instead of the ones
+// beside this kit.
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { kitWith, svgOf, standalonePage, standaloneSvg } = require('../lib/index.js');
+
+const USAGE = 'usage: diagram.js check|layout|render SPEC.json [--out FILE] [--notations DIR]';
+
+function parsed(argv) {
+  const options = { positional: [] };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--out') options.out = argv[++i];
+    else if (argv[i] === '--notations') options.notations = argv[++i];
+    else options.positional.push(argv[i]);
+  }
+  return options;
+}
+
+class Refused extends Error {}
+
+function diagramsIn(file) {
+  let value;
+  try { value = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (error) {
+    throw new Refused(`${path.basename(file)}: ${error instanceof SyntaxError ? `not valid JSON: ${error.message}` : error.message}`);
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+function refuseProblems(kit, diagrams) {
+  const problems = diagrams.flatMap(diagram => kit.problemsIn(diagram));
+  if (problems.length) throw new Refused(problems.join('\n'));
+}
+
+async function main(argv) {
+  const { positional: [command, file], out, notations } = parsed(argv);
+  if (!['check', 'layout', 'render'].includes(command) || !file) { console.error(USAGE); return 2; }
+  const kit = kitWith(notations ? path.resolve(notations) : undefined);
+  const diagrams = diagramsIn(file);
+  refuseProblems(kit, diagrams);
+  if (command === 'check') return 0;
+  const scenes = [];
+  for (const diagram of diagrams) scenes.push(await kit.laidOut(diagram));
+  if (command === 'layout') {
+    const text = `${JSON.stringify(diagrams.length === 1 ? scenes[0] : scenes, null, 1)}\n`;
+    if (out) fs.writeFileSync(out, text); else process.stdout.write(text);
+    return 0;
+  }
+  if (!out || !/\.(html|svg)$/.test(out)) { console.error(USAGE); return 2; }
+  if (out.endsWith('.svg')) {
+    if (diagrams.length !== 1) throw new Refused('an .svg holds one diagram; render a list to .html');
+    fs.writeFileSync(out, standaloneSvg(svgOf(scenes[0], { uid: diagrams[0].id, title: diagrams[0].title })));
+  } else {
+    fs.writeFileSync(out, standalonePage(diagrams[0].title, diagrams.map((diagram, i) => kit.figureOf(diagram, scenes[i]))));
+  }
+  console.log(`wrote ${out}`);
+  return 0;
+}
+
+main(process.argv.slice(2)).then(
+  status => { process.exitCode = status; },
+  error => {
+    if (!(error instanceof Refused) && !/^diagram /.test(error.message)) throw error;
+    for (const line of error.message.split('\n')) console.error(`warning: ${line}`);
+    process.exitCode = 1;
+  },
+);

@@ -54,7 +54,6 @@ test('a group takes its size from what it holds, with room for its title', () =>
   assert.equal(launch.width, undefined);
   assert.deepEqual(launch.children.map(each => each.id), ['start_up', 'retention']);
   assert.match(launch.layoutOptions['elk.padding'], /top=3\d/);
-  assert.match(launch.layoutOptions['elk.nodeSize.minimum'], /^\(\d+(\.\d+)?,\d+\)$/);
 });
 
 test('an edge joins its ends and reserves room for its label', () => {
@@ -151,3 +150,13 @@ test('an edge to a node the scene does not have is refused before layout', async
   const broken = { nodes: [{ id: 'a', shape: 'box', label: 'a' }], edges: [{ id: 'x', from: 'a', to: 'nowhere' }] };
   await assert.rejects(laidOut(broken), /edge x: no node "nowhere"/);
 });
+
+for (const direction of ['down', 'right']) {
+  test(`a group laid out ${direction}wards is wide enough for its title and no taller than what it holds`, async () => {
+    const titled = { direction, nodes: [{ id: 'g', shape: 'group', label: 'a group with a long title to fit', children: [{ id: 'a', shape: 'box', label: 'a' }] }, { id: 'b', shape: 'box', label: 'b' }], edges: [{ id: 'a->b', from: 'a', to: 'b' }] };
+    const scene = await laidOut(titled);
+    const group = scene.nodes.find(each => each.id === 'g'), held = scene.nodes.find(each => each.id === 'a');
+    assert.ok(group.width >= widthOf('A GROUP WITH A LONG TITLE TO FIT', 'heading') + 28, `only ${group.width} wide`);
+    assert.equal(group.height, 34 + held.height + 14);
+  });
+}

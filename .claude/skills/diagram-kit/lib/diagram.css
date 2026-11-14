@@ -1,0 +1,63 @@
+.dk-figure { margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.dk-figure > * { min-width: 0; }
+.dk-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.3; color: var(--ink); }
+.dk-caption { margin: 0; color: var(--ink-2); font-family: var(--f-body); font-size: 13px; }
+.dk-scroll { overflow-x: auto; min-width: 0; }
+.dk-scroll svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.dk-legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--f-body); font-size: 12px; color: var(--ink-3); }
+.dk-key { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
+.dk-key.s-new { border-color: var(--accent); } .dk-key.s-changed { border-color: var(--warn); } .dk-key.s-existing { border-color: var(--ink-3); }
+.dk-key.s-removed { border-color: var(--bad); border-style: dashed; }
+.dk-key.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); } .dk-key.t-ok { border-color: var(--ok); }
+.dk-key.trace-out { background: var(--accent); border-color: var(--accent); } .dk-key.trace-in { background: var(--warn); border-color: var(--warn); }
+.dk-remarks { margin: 0; padding: 0; list-style: none; font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); display: grid; gap: 2px; }
+.dk-remarks li::before { content: "▸ "; color: var(--bad); }
+
+.dk text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
+.dk .title { font-weight: 600; }
+.dk .detail, .dk .edge-text, .dk .heading { font-family: var(--f-body); }
+.dk .detail { font-size: 11px; fill: var(--ink-3); }
+.dk .heading { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
+.dk .node.group .heading { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 55%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
+.dk .node .body { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.dk .node.group .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
+.dk .s-new > .body { stroke: var(--accent); stroke-width: 1.9; }
+.dk .s-changed > .body { stroke: var(--warn); stroke-width: 1.9; }
+.dk .s-existing > .body { stroke: var(--ink-3); stroke-width: 1.6; }
+.dk .s-removed > .body { stroke: var(--bad); stroke-dasharray: 4 3; }
+.dk .node.s-removed text { text-decoration: line-through; fill: var(--ink-3); }
+.dk .t-ok > .body { stroke: var(--ok); stroke-width: 1.9; }
+.dk .node.box.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.group.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+
+.dk .edge { color: var(--ink-3); }
+.dk .edge .line { stroke: currentColor; stroke-width: 1.4; fill: none; }
+.dk .edge.dashed .line { stroke-dasharray: 5 4; }
+.dk .edge .head { stroke: currentColor; stroke-width: 1.4; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.dk .edge .head.filled { fill: currentColor; }
+.dk .edge.s-new { color: var(--accent); }
+.dk .edge.s-changed { color: var(--warn); }
+.dk .edge.s-removed, .dk .edge.t-risk { color: var(--bad); }
+.dk .edge.t-ok { color: var(--ok); }
+.dk .edge rect { fill: var(--panel); stroke: var(--rule); }
+.dk .edge-text { font-size: 11px; fill: var(--ink-2); }
+
+.dk [data-node] { cursor: pointer; outline: none; }
+.dk [data-node]:focus-visible > .body { stroke: var(--accent); stroke-width: 2.4; }
+.dk .node-link { outline: none; }
+.dk .node-link .hit { fill: transparent; stroke: none; }
+.dk .node-link .divider { stroke: var(--rule); stroke-width: 1; }
+.dk .node-link .glyph { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dk .node-link:hover .hit, .dk .node-link:focus-visible .hit { fill: var(--accent-soft); }
+.dk .node-link:hover .glyph, .dk .node-link:focus-visible .glyph { stroke: var(--accent); }
+.dk .edge, .dk [data-node] { transition: opacity .12s; }
+.dk.tracing .edge { opacity: .12; }
+.dk.tracing [data-node] { opacity: .3; }
+.dk.tracing .node.group { opacity: 1; }
+.dk.tracing .traced, .dk.tracing .traced-neighbour, .dk.tracing .traced-out, .dk.tracing .traced-in { opacity: 1; }
+.dk.tracing .edge.traced-out { color: var(--accent); }
+.dk.tracing .edge.traced-in { color: var(--warn); }
+.dk.tracing .edge.traced-out .line, .dk.tracing .edge.traced-in .line { stroke-width: 2.6; }
+.dk.tracing .edge.traced-out rect, .dk.tracing .edge.traced-in rect { stroke: currentColor; }
+.dk.tracing .traced > .body { stroke-width: 2.4; }
+@media (prefers-reduced-motion: reduce) { .dk .edge, .dk [data-node] { transition: none; } }

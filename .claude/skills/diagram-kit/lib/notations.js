@@ -47,11 +47,16 @@
       return laidOut(byKind.get(spec.kind).sceneOf(spec));
     }
 
+    function remarksMarkup(spec) {
+      const remarks = (byKind.get(spec.kind).remarksOn || (() => []))(spec);
+      return remarks.length ? `<ul class="dk-remarks">${remarks.map(remark => `<li>${escaped(remark)}</li>`).join('')}</ul>` : '';
+    }
+
     function figureOf(spec, scene, { resolveLink } = {}) {
       const drawing = svgOf(scene, { uid: spec.id, title: spec.title, ...(resolveLink ? { resolveLink } : {}) });
       return `<figure class="dk-figure" id="diagram-${escaped(spec.id)}"><figcaption class="dk-title">${escaped(spec.title)}</figcaption>`
         + `<div class="dk-scroll">${drawing}</div>${legendOf(scene)}${scene.edges.length ? TRACE_HINT : ''}`
-        + `${spec.caption ? `<p class="dk-caption">${escaped(spec.caption)}</p>` : ''}</figure>`;
+        + `${remarksMarkup(spec)}${spec.caption ? `<p class="dk-caption">${escaped(spec.caption)}</p>` : ''}</figure>`;
     }
 
     return { kinds: () => [...byKind.keys()], problemsIn, laidOut: laidOutSpec, figureOf };

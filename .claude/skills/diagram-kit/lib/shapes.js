@@ -22,7 +22,7 @@
     holdsOthers: true,
     frameOf: node => ({
       padding: { top: 34, left: 14, bottom: 14, right: 14 },
-      minimum: { width: Math.ceil(widthOf(String(node.label ?? node.id).toUpperCase(), 'heading')) + 28 + linkRoom(node), height: 48 },
+      minimumWidth: Math.ceil(widthOf(String(node.label ?? node.id).toUpperCase(), 'heading')) + 28 + linkRoom(node),
     }),
   };
 
