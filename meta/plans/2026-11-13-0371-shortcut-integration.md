@@ -1114,25 +1114,39 @@ cannot produce the condition, as `linear-client/tests/contract.rs` does. Run
 `tests/evidence/`. Assert that the record count matches the properties each
 subject runs, so an empty run fails.
 
+#### Implementation notes
+
+- The projection reads Shortcut's single-entity answer directly, with the
+  pointers `/entity/name`, `/entity/description` and `/entity/updated_at`.
+  A story and an epic share that envelope, so the client projects the raw
+  bytes with no unwrapping or epic normalisation step.
+- `ShortcutClient::from_config` lands here, as Phase 2 recorded.
+- On a 403, the client reads whoami once for the token's scopes, so the
+  message can say a read-only token cannot write.
+- The port tests were written after `client.rs`, not before it. To show they
+  catch real faults, three mutations were each caught: a story create resent
+  on a 5xx, `fetch_all` without `include_archived`, and `search` without the
+  team-uuid filter.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Projection tests pass: `cargo nextest run -p remote-projection`
-- [ ] Public API check passes: `mise run public-api:check`
-- [ ] Contract harness tests pass: `cargo nextest run -p tracker-test-support`
-- [ ] Jira and Linear offline contracts still pass: `cargo nextest run -p jira-client -p linear-client`
-- [ ] Client and offline contract tests pass: `cargo nextest run -p shortcut-client`
-- [ ] Config catalogue tests pass: `cargo nextest run -p config`
-- [ ] Full run passes: `mise run`
+- [x] Projection tests pass: `cargo nextest run -p remote-projection`
+- [x] Public API check passes: `mise run public-api:check`
+- [x] Contract harness tests pass: `cargo nextest run -p tracker-test-support`
+- [x] Jira and Linear offline contracts still pass: `cargo nextest run -p jira-client -p linear-client`
+- [x] Client and offline contract tests pass: `cargo nextest run -p shortcut-client`
+- [x] Config catalogue tests pass: `cargo nextest run -p config`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
-- [ ] The live contract suite passes against a scratch workspace:
+- [x] The live contract suite passes against a scratch workspace:
       `mise run test:integration:tracker-contract` with the Shortcut
       credentials set.
-- [ ] The evidence file holds a record for each property each subject runs.
-- [ ] Every story and epic the live suite creates is archived after the run.
+- [x] The evidence file holds a record for each property each subject runs.
+- [x] Every story and epic the live suite creates is archived after the run.
 
 ---
 
