@@ -40,8 +40,8 @@ test('a label is centred in the room its link control leaves', () => {
 });
 
 test('status and tone are classes on the node', () => {
-  assert.match(element('prune'), /class="node box s-new t-risk"/);
-  assert.match(element('cli'), /class="node box"/);
+  assert.match(element('prune'), /class="node box leaf s-new t-risk"/);
+  assert.match(element('cli'), /class="node box leaf"/);
   assert.match(element('launch'), /class="node group s-changed"/);
 });
 

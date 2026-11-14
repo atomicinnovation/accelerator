@@ -57,7 +57,7 @@ test('a fragment divides its operands with a dashed line and the next guard', ()
 
 test('an actor is a figure standing over its name', () => {
   const actor = groupHolding(svg, 'data-node="user"');
-  assert.match(actor, /^<g class="node actor" data-node="user"/);
+  assert.match(actor, /^<g class="node actor leaf" data-node="user"/);
   assert.match(actor, /<rect class="body" x="250" y="4" width="70" height="56"\/>/);
   assert.match(actor, /<circle class="figure" cx="285" cy="12" r="6"\/>/);
   assert.match(actor, /<path class="figure" d="M285 18 V34 M273 24 H297 M285 34 L276 44 M285 34 L294 44"\/>/);

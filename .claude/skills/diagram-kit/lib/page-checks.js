@@ -10,7 +10,7 @@ const DRAWING_CHECKS = `(async () => {
   const beyond = (inner, outer) => Math.ceil(Math.max(outer.left - inner.left, inner.right - outer.right, outer.top - inner.top, inner.bottom - outer.bottom, 0));
   const diagrams = [...document.querySelectorAll('svg.dk')].map(svg => {
     const problems = [];
-    const boxes = [...svg.querySelectorAll('.node.box')].map(node => ({ id: node.getAttribute('data-node'), node, body: boxOf(node.querySelector('.body')) }));
+    const boxes = [...svg.querySelectorAll('.node.leaf')].map(node => ({ id: node.getAttribute('data-node'), node, body: boxOf(node.querySelector('.body')) }));
     for (const node of svg.querySelectorAll('.node')) {
       const body = boxOf(node.querySelector('.body'));
       for (const text of node.querySelectorAll('text')) {

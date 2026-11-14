@@ -68,6 +68,8 @@
         'elk.edgeRouting': 'ORTHOGONAL',
         'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
         'elk.layered.edgeLabels.sideSelection': 'ALWAYS_UP',
+        'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+        'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
         ...SPACING,
       },
       children: (scene.nodes || []).map(node => layoutNodeOf(node, direction)),
@@ -76,6 +78,18 @@
   }
 
   const settled = number => Math.round(number * 100) / 100;
+
+  function onOutline(node, point) {
+    const outline = SHAPES[node.shape].outline;
+    if (!outline) return point;
+    const cx = node.x + node.width / 2, cy = node.y + node.height / 2, halfWide = node.width / 2, halfTall = node.height / 2;
+    const fromAboveOrBelow = Math.abs(Math.abs(point[1] - cy) - halfTall) < 0.5;
+    const across = fromAboveOrBelow ? point[0] - cx : point[1] - cy, reach = fromAboveOrBelow ? halfWide : halfTall, depth = fromAboveOrBelow ? halfTall : halfWide;
+    if (Math.abs(across) >= reach) return point;
+    const inward = outline === 'disc' ? Math.sqrt(reach * reach - across * across) * depth / reach : depth * (1 - Math.abs(across) / reach);
+    const side = Math.sign((fromAboveOrBelow ? point[1] - cy : point[0] - cx)) || 1;
+    return fromAboveOrBelow ? [point[0], settled(cy + side * inward)] : [settled(cx + side * inward), point[1]];
+  }
 
   function positionedFrom(laid, scene) {
     const said = new Map(), origins = new Map([[laid.id, [0, 0]]]), nodes = [], edges = [];
@@ -91,6 +105,7 @@
       }
     };
     place(laid, 0, 0);
+    const placedById = new Map(nodes.map(node => [node.id, node]));
     const route = laidNode => {
       for (const each of laidNode.edges || []) {
         const [left, top] = origins.get(each.container) || [0, 0];
@@ -98,7 +113,12 @@
           .map(point => [settled(left + point.x), settled(top + point.y)]);
         const [label] = each.labels || [];
         const labelBox = label ? { x: settled(left + label.x), y: settled(top + label.y), width: label.width, height: label.height } : null;
-        edges.push({ ...(scene.edges || []).find(edge => edge.id === each.id), points, labelBox });
+        const said = (scene.edges || []).find(edge => edge.id === each.id);
+        if (points.length) {
+          points[0] = onOutline(placedById.get(said.from), points[0]);
+          points[points.length - 1] = onOutline(placedById.get(said.to), points[points.length - 1]);
+        }
+        edges.push({ ...said, points, labelBox });
       }
       (laidNode.children || []).forEach(route);
     };

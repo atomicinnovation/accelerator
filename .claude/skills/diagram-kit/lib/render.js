@@ -2,7 +2,7 @@
   'use strict';
   const inNode = typeof module === 'object' && module.exports;
   const { blockOf, ROLES } = inNode ? require('./text.js') : root.DiagramKit;
-  const { SHAPES, LINK_CONTROL_WIDTH } = inNode ? require('./shapes.js') : root.DiagramKit;
+  const { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE } = inNode ? require('./shapes.js') : root.DiagramKit;
 
   const MARGIN = 8;
   const HEAD_LENGTH = 9, HEAD_HALF_WIDTH = 4.5;
@@ -42,7 +42,30 @@
   const rectOf = node => `x="${tidy(node.x)}" y="${tidy(node.y)}" width="${tidy(node.width)}" height="${tidy(node.height)}"`;
   const plainText = (text, role, x, baseline) => textOf(blockOf(text, role), role, x, baseline, 'start');
 
+  const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice' };
+
   const DRAWN = {
+    state(node, target) {
+      const centre = node.x + (node.width - (target ? LINK_CONTROL_WIDTH : 0)) / 2, activities = node.activities || [];
+      const listed = activities.map((activity, i) => plainText(activity, 'detail', node.x + 12, node.y + 48 + i * ACTIVITY_LINE)).join('');
+      return bodyOf(node, 12) + textOf(blockOf(node.label ?? node.id, 'name'), 'name', centre, node.y + 20, 'middle')
+        + (activities.length ? `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 32)}" x2="${tidy(node.x + node.width)}" y2="${tidy(node.y + 32)}"/>${listed}` : '')
+        + (target ? linkControl({ ...node, height: 32 }, target) : '') + untold(node, target);
+    },
+    composite(node, target) {
+      const name = plainText(node.label ?? node.id, 'name', node.x + 14, node.y + 20);
+      return bodyOf(node, 12) + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name)
+        + `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 30)}" x2="${tidy(node.x + node.width)}" y2="${tidy(node.y + 30)}"/>` + untold(node, target);
+    },
+    initial: node => `<circle class="body" cx="${tidy(node.x + node.width / 2)}" cy="${tidy(node.y + node.height / 2)}" r="${tidy(node.width / 2)}"/>`,
+    final(node) {
+      const cx = tidy(node.x + node.width / 2), cy = tidy(node.y + node.height / 2);
+      return `<circle class="body" cx="${cx}" cy="${cy}" r="${tidy(node.width / 2)}"/><circle class="core" cx="${cx}" cy="${cy}" r="${tidy(node.width / 2 - 4.5)}"/>`;
+    },
+    choice(node) {
+      const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
+      return `<path class="body" d="M${tidy(cx)} ${tidy(node.y)} L${tidy(node.x + node.width)} ${tidy(cy)} L${tidy(cx)} ${tidy(node.y + node.height)} L${tidy(node.x)} ${tidy(cy)} Z"/>`;
+    },
     lifeline: node => `<line class="body" x1="${tidy(node.x)}" y1="${tidy(node.y)}" x2="${tidy(node.x)}" y2="${tidy(node.y + node.height)}"/>`,
     activation: node => `<rect class="body" ${rectOf(node)}/>`,
     destroy(node) {
@@ -87,9 +110,10 @@
 
   function nodeMarkup(node, resolveLink) {
     const target = node.link ? resolveLink(node.link) : null;
-    const name = escaped(node.label ?? node.id);
+    const name = escaped(node.label ?? UNNAMED[node.shape] ?? node.id);
+    const leaf = node.inert || SHAPES[node.shape].holdsOthers ? '' : ' leaf';
     const told = node.inert ? `data-part="${escaped(node.id)}"` : `data-node="${escaped(node.id)}" tabindex="0" role="button" aria-label="Trace the arrows of ${name}"`;
-    return `<g class="node ${node.shape}${marks(node)}" ${told}>${DRAWN[node.shape](node, target)}</g>`;
+    return `<g class="node ${node.shape}${leaf}${marks(node)}" ${told}>${DRAWN[node.shape](node, target)}</g>`;
   }
 
   function roundedPath(points, radius = CORNER) {

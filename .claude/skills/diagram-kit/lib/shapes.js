@@ -44,9 +44,32 @@
     headWidthOf: node => fragment.tabWidthOf(node) + (node.guard ? Math.ceil(widthOf(`[${node.guard}]`, 'guard')) + 16 : 0),
   };
 
+  const ACTIVITY_LINE = 14;
+  const state = {
+    holdsOthers: false,
+    sizeOf(node) {
+      const activities = node.activities || [];
+      const widest = Math.max(widthOf(node.label ?? node.id, 'name') + 28, ...activities.map(activity => widthOf(activity, 'detail') + 24));
+      return { width: Math.ceil(Math.max(96, widest)) + linkRoom(node), height: 32 + (activities.length ? 8 + activities.length * ACTIVITY_LINE + 4 : 0) };
+    },
+  };
+
+  const composite = {
+    holdsOthers: true,
+    frameOf: node => ({
+      padding: { top: 40, left: 14, bottom: 14, right: 14 },
+      minimumWidth: Math.ceil(widthOf(node.label ?? node.id, 'name')) + 28 + linkRoom(node),
+    }),
+  };
+
+  const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
+
   const supporting = { holdsOthers: false };
-  const SHAPES = { box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting };
-  const api = { SHAPES, LINK_CONTROL_WIDTH };
+  const SHAPES = {
+    box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting,
+    state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+  };
+  const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);
