@@ -82,12 +82,21 @@
     },
   };
 
+  const boundary = {
+    holdsOthers: true,
+    nameOffsetOf: node => (node.stereotype ? Math.ceil(widthOf(`«${node.stereotype}»`, 'stereotype')) + 6 : 0),
+    frameOf: node => ({
+      padding: { top: 36, left: 14, bottom: 14, right: 14 },
+      minimumWidth: boundary.nameOffsetOf(node) + Math.ceil(widthOf(node.label ?? node.id, 'title')) + 28 + linkRoom(node),
+    }),
+  };
+
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, boundary, state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
   const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;

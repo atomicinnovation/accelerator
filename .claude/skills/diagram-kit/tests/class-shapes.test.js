@@ -106,3 +106,18 @@ test('reversing a route keeps the bend that gave its head room at the head', () 
     edges: [{ id: 'sub->super', container: 'root', sections: [{ startPoint: { x: 30, y: 32 }, bendPoints: [{ x: 30, y: 38 }, { x: 60, y: 38 }], endPoint: { x: 60, y: 150 } }] }] };
   assert.deepEqual(positionedFrom(laid, SCENE).edges[0].points, [[60, 150], [60, 48], [30, 48], [30, 32]]);
 });
+
+test('a boundary holds others, with room for what it is and what it is called', () => {
+  assert.equal(SHAPES.boundary.holdsOthers, true);
+  const frame = SHAPES.boundary.frameOf({ stereotype: 'aggregate', label: 'VersionClaims' });
+  assert.equal(frame.padding.top, 36);
+  assert.ok(frame.minimumWidth >= widthOf('«aggregate»', 'stereotype') + widthOf('VersionClaims', 'title') + 34);
+});
+
+test('a boundary is a dashed frame that says what it is, then its name', () => {
+  const drawn = svgOf({ width: 300, height: 200, nodes: [{ id: 'agg', shape: 'boundary', stereotype: 'aggregate', label: 'Order', status: 'new', x: 10, y: 20, width: 280, height: 160 }], edges: [] }, { uid: 'b' });
+  const boundary = groupHolding(drawn, 'data-node="agg"');
+  assert.match(boundary, /^<g class="node boundary s-new"/);
+  assert.match(boundary, /<rect class="body" x="10" y="20" width="280" height="160" rx="10"\/>/);
+  assert.match(boundary, /<text class="stereotype" x="24" y="40" text-anchor="start">«aggregate»<\/text><text class="title" x="[\d.]+" y="40" text-anchor="start">Order<\/text>/);
+});

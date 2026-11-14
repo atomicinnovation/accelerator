@@ -63,6 +63,11 @@
         + (node.abstract ? centred('{abstract}', 'stereotype', 'stereotype', nameAt + 14) : '')
         + listed + (target ? linkControl({ ...node, height: head }, target) : '') + untold(node, target);
     },
+    boundary(node, target) {
+      const name = plainText(node.label ?? node.id, 'title', node.x + 14 + SHAPES.boundary.nameOffsetOf(node), node.y + 20);
+      return bodyOf(node, 10) + (node.stereotype ? plainText(`«${node.stereotype}»`, 'stereotype', node.x + 14, node.y + 20) : '')
+        + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+    },
     state(node, target) {
       const centre = node.x + (node.width - (target ? LINK_CONTROL_WIDTH : 0)) / 2, activities = node.activities || [];
       const listed = activities.map((activity, i) => plainText(activity, 'detail', node.x + 12, node.y + 48 + i * ACTIVITY_LINE)).join('');
