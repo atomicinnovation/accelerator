@@ -2,11 +2,11 @@ import json
 
 DIFF = {"src/a.rs": {"status": "added", "add": 1, "del": 0, "hunks": []}}
 FIGURE = {
-    "id": "f-flow",
-    "kind": "flow",
+    "id": "f-tree",
+    "kind": "tree",
     "title": "Shape",
-    "nodes": [{"id": "a", "label": "A"}],
-    "edges": [],
+    "root": "src/",
+    "items": [{"path": "a.rs", "state": "added"}],
 }
 ABSTRACTION = {
     "id": "a-store",
@@ -98,7 +98,14 @@ def test_the_design_is_part_of_the_content_model(tmp_path, script):
 
 
 def test_design_figures_are_checked_like_any_other(tmp_path, script):
-    broken = dict(FIGURE, id="f-arch", edges=[{"from": "a", "to": "zz"}])
+    broken = {
+        "id": "f-arch",
+        "kind": "matrix",
+        "title": "Shape",
+        "rows": ["r1", "r2"],
+        "cols": ["c1"],
+        "cells": [["a"]],
+    }
 
     _, warnings = assemble(
         tmp_path,
@@ -107,7 +114,7 @@ def test_design_figures_are_checked_like_any_other(tmp_path, script):
         design={"summary": "s", "figures": [broken]},
     )
 
-    assert any("f-arch" in w and "zz" in w for w in warnings)
+    assert any("f-arch" in w and "rows of cells" in w for w in warnings)
 
 
 def test_a_design_item_naming_a_missing_chapter_is_reported(tmp_path, script):

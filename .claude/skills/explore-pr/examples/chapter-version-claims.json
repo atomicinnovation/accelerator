@@ -361,33 +361,34 @@
       "findings": [],
       "figure": {
         "id": "claims-s2-f",
-        "kind": "flow",
+        "kind": "block-diagram",
         "title": "One claim per install, not per version",
-        "nodes": [
+        "direction": "right",
+        "blocks": [
           {
             "id": "exe",
-            "label": "current_exe()",
-            "sub": "the launcher's own path"
+            "name": "current_exe()",
+            "detail": "the launcher's own path"
           },
           {
             "id": "sha",
-            "label": "SHA-256",
-            "sub": "first 8 bytes"
+            "name": "SHA-256",
+            "detail": "first 8 bytes"
           },
           {
             "id": "id",
-            "label": "c0ffee00c0ffee00",
-            "sub": "launcher id",
-            "tone": "new"
+            "name": "c0ffee00c0ffee00",
+            "detail": "launcher id",
+            "status": "new"
           },
           {
             "id": "claim",
-            "label": "1.26.0.c0ffee00c0ffee00",
-            "sub": "claim file name",
-            "tone": "new"
+            "name": "1.26.0.c0ffee00c0ffee00",
+            "detail": "claim file name",
+            "status": "new"
           }
         ],
-        "edges": [
+        "arrows": [
           {
             "from": "exe",
             "to": "sha"

@@ -370,54 +370,11 @@ details[open] > summary { margin-bottom: 8px; }
 .fig-scroll svg { display: block; margin: 0 auto; height: auto; }
 .fsvg svg { max-width: 100%; height: auto; color: var(--ink); }
 .fd text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
-.fd .fs, .fd .lay, .fd .tl, .fd .ml, .fd .sl, .fd .elabel text { font-family: var(--f-body); }
+.fd .fs, .fd .tl, .fd .ml, .fd .sl { font-family: var(--f-body); }
 .fd .fs { font-size: 11px; fill: var(--ink-3); }
-.fd .lay { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
-.fd .band { fill: var(--panel-2); opacity: .6; }
-.fd .fnode rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
-.fd .t-new rect { stroke: var(--accent); stroke-width: 1.9; }
-.fd .t-changed rect { stroke: var(--warn); stroke-width: 1.9; }
-.fd .t-ok rect { stroke: var(--ok); stroke-width: 1.9; }
-.fd .t-existing rect { stroke: var(--ink-3); stroke-width: 1.6; }
-.fd .t-removed rect { stroke: var(--bad); stroke-dasharray: 4 3; }
-.fd .t-removed text { text-decoration: line-through; fill: var(--ink-3); }
-.fd .t-risk rect { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
-.fd .link { cursor: pointer; }
-.fd .link:hover rect { stroke: var(--accent); stroke-width: 2.2; }
-.fd .edge { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
-.fd .edge.t-new { stroke: var(--accent); }
-.fd .edge.t-risk, .fd .edge.t-removed { stroke: var(--bad); }
-.fd .edge.t-changed { stroke: var(--warn); }
-.fd .edge.t-ok { stroke: var(--ok); }
-.fd .dashed { stroke-dasharray: 5 4; }
-.fd .arrow { fill: var(--ink-3); }
-svg[data-graph] { --edge-out: var(--accent); --edge-in: var(--warn); }
-svg[data-graph] .arrow-out { fill: var(--edge-out); }
 .lg.trace-out { background: var(--accent); border-color: var(--accent); }
-svg[data-graph] .arrow-in { fill: var(--edge-in); }
 .lg.trace-in { background: var(--warn); border-color: var(--warn); }
 .trace-hint { color: var(--ink-3); }
-svg[data-graph] [data-node] { cursor: pointer; outline: none; }
-svg[data-graph] [data-node]:focus-visible > rect { stroke: var(--accent); stroke-width: 2.4; }
-svg[data-graph] .node-link .hit { fill: transparent; stroke: none; }
-svg[data-graph] [data-node] > rect.frame { fill: none; pointer-events: none; }
-svg[data-graph] .node-link .divider { stroke: var(--rule); }
-svg[data-graph] .node-link .glyph { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-svg[data-graph] .node-link:hover .hit, svg[data-graph] .node-link:focus-visible .hit { fill: var(--accent-soft); }
-svg[data-graph] .node-link:hover .glyph, svg[data-graph] .node-link:focus-visible .glyph { stroke: var(--accent); }
-svg[data-graph] .node-link { outline: none; }
-svg[data-graph] .edge, svg[data-graph] .elabel, svg[data-graph] [data-node] { transition: opacity .12s; }
-svg[data-graph].tracing .edge, svg[data-graph].tracing .elabel { opacity: .12; }
-svg[data-graph].tracing [data-node] { opacity: .3; }
-svg[data-graph].tracing .traced, svg[data-graph].tracing .traced-neighbour, svg[data-graph].tracing .traced-out, svg[data-graph].tracing .traced-in { opacity: 1; }
-svg[data-graph].tracing .edge.traced-out { stroke: var(--edge-out); stroke-width: 2.6; marker-end: var(--ah-out); }
-svg[data-graph].tracing .edge.traced-in { stroke: var(--edge-in); stroke-width: 2.6; marker-end: var(--ah-in); }
-svg[data-graph].tracing .elabel.traced-out rect { stroke: var(--edge-out); }
-svg[data-graph].tracing .elabel.traced-in rect { stroke: var(--edge-in); }
-svg[data-graph].tracing .traced rect { stroke-width: 2.4; }
-@media (prefers-reduced-motion: reduce) { svg[data-graph] .edge, svg[data-graph] .elabel, svg[data-graph] [data-node] { transition: none; } }
-.fd .elabel rect { fill: var(--panel); stroke: var(--rule); }
-.fd .elabel text { font-size: 11px; fill: var(--ink-2); }
 .fd .axis { stroke: var(--ink-3); stroke-width: 1.2; }
 .fd .tick { stroke: var(--ink-3); }
 .fd .tl { font-size: 10.5px; fill: var(--ink-3); }
@@ -1176,107 +1133,10 @@ function openAttrs(item) {
   const w = item && item.where ? parseWhere(item.where) : null;
   return w ? { cls: ' link', attrs: ` data-open="${esc(w.path)}" data-line="${w.line}"`, title: `<title>${esc(item.where)}</title>` } : { cls: '', attrs: '', title: '' };
 }
-const { ARROWHEAD } = GraphRoutes;
-const arrowheads = id => ['', '-out', '-in'].map(trace => `<marker id="${id}${trace}" viewBox="0 0 10 10" preserveAspectRatio="none" refX="0" refY="5" markerUnits="userSpaceOnUse" markerWidth="${ARROWHEAD}" markerHeight="${trace ? ARROWHEAD + 3 : ARROWHEAD}" orient="auto"><path class="arrow${trace}" d="M0 0 L10 5 L0 10 z"/></marker>`).join('');
-const routeBox = (id, rank, box, link) => ({ id, rank, x: box.x, y: box.y, w: box.w, h: box.h, portLeft: box.x + 10, portRight: box.x + box.w - link - 10 });
-const traceStyle = id => `--ah-out:url(#${id}-out);--ah-in:url(#${id}-in);`;
-function svgFrame(width, height, body, label, uid, graph = false) {
-  return `<div class="fig-scroll"><svg class="fd"${graph ? ` data-graph="${uid}"` : ''} width="${Math.ceil(width)}" height="${Math.ceil(height)}" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" style="${traceStyle(`ah-${uid}`)}width:${Math.ceil(width)}px;max-width:100%;min-width:${Math.min(Math.ceil(width), Math.round(width * 0.62))}px" role="img" aria-label="${esc(plain(label))}">
-    <defs>${arrowheads(`ah-${uid}`)}</defs>${body}</svg></div>`;
-}
-function edgeLabel(x, y, text, ends = '') {
-  if (!text) return '';
-  const w = textWidth(plain(text), SANS_SMALL) + 12;
-  return `<g class="elabel"${ends}><rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="9"/><text x="${x}" y="${y + 4}" text-anchor="middle">${esc(plain(text))}</text></g>`;
+function svgFrame(width, height, body, label) {
+  return `<div class="fig-scroll"><svg class="fd" width="${Math.ceil(width)}" height="${Math.ceil(height)}" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" style="width:${Math.ceil(width)}px;max-width:100%;min-width:${Math.min(Math.ceil(width), Math.round(width * 0.62))}px" role="img" aria-label="${esc(plain(label))}">${body}</svg></div>`;
 }
 const traceHint = '<div class="fig-legend trace-hint">Press boxes to trace their arrows (Esc clears): <span><span class="lg trace-out"></span>out</span><span><span class="lg trace-in"></span>in</span><span>↗ opens it</span></div>';
-const NODE_LINK_W = 24, DIVIDER_WIDTH = 1;
-function linkTarget(item) {
-  if (item.chapter) return { attrs: `href="#tour-${esc(item.chapter)}"`, label: 'Open its chapter' };
-  const w = item.where ? parseWhere(item.where) : null;
-  return w ? { attrs: `href="#files" data-open="${esc(w.path)}" data-line="${w.line}"`, label: `Open ${item.where}` } : null;
-}
-function nodeLink(item, x, y, h) {
-  const target = linkTarget(item);
-  if (!target) return '';
-  const left = x - NODE_LINK_W, cx = left + NODE_LINK_W / 2, cy = y + h / 2;
-  const right = x, r = 7, bottom = y + h, dividerLeft = left - DIVIDER_WIDTH / 2;
-  const hit = `M${dividerLeft} ${y} H${right - r} Q${right} ${y} ${right} ${y + r} V${bottom - r} Q${right} ${bottom} ${right - r} ${bottom} H${dividerLeft} Z`;
-  return `<a class="node-link" ${target.attrs} aria-label="${esc(target.label)}"><title>${esc(target.label)}</title><path class="hit" d="${hit}"/><line class="divider" stroke-width="${DIVIDER_WIDTH}" x1="${left}" y1="${y + 6}" x2="${left}" y2="${y + h - 6}"/><path class="glyph" d="M${cx - 4} ${cy + 4} L${cx + 4} ${cy - 4} M${cx - 2} ${cy - 4} L${cx + 4} ${cy - 4} L${cx + 4} ${cy + 2}"/></a>`;
-}
-const nodeFrame = (item, box, cls = '') => (linkTarget(item) ? `<rect class="frame${cls}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="7"/>` : '');
-const labelCentre = n => n.x + (n.w - n.link) / 2;
-const nodeAttrs = (id, label) => `data-node="${esc(id)}" tabindex="0" role="button" aria-label="Trace the arrows of ${esc(plain(label))}"`;
-function legend(tones) {
-  const names = { new: 'new in this PR', changed: 'changed', removed: 'removed', existing: 'unchanged', risk: 'risk', ok: 'safe' };
-  const used = [...new Set(tones.filter(t => names[t]))];
-  return used.length ? `<div class="fig-legend">${used.map(t => `<span><span class="lg t-${t}"></span>${names[t]}</span>`).join('')}</div>` : '';
-}
-
-function figFlow(f, uid) {
-  const nodes = (f.nodes || []).map(n => ({ ...n }));
-  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
-  const edges = (f.edges || []).filter(e => byId[e.from] && byId[e.to]);
-  const layerIds = (f.layers || []).map(l => l.id);
-  if (layerIds.length) nodes.forEach(n => { n.rank = Math.max(0, layerIds.indexOf(n.layer)); });
-  else {
-    const rank = {}, visiting = new Set();
-    const rankOf = id => {
-      if (id in rank) return rank[id];
-      visiting.add(id);
-      const preds = edges.filter(e => e.to === id && !visiting.has(e.from)).map(e => e.from);
-      const r = preds.length ? Math.max(...preds.map(rankOf)) + 1 : 0;
-      visiting.delete(id);
-      return (rank[id] = r);
-    };
-    nodes.forEach(n => { n.rank = rankOf(n.id); });
-  }
-  const rows = [];
-  nodes.forEach(n => {
-    (rows[n.rank] = rows[n.rank] || []).push(n);
-    n.link = linkTarget(n) ? NODE_LINK_W : 0;
-    n.w = Math.max(96, Math.min(250, Math.max(textWidth(plain(n.label)), n.sub ? textWidth(plain(n.sub), SANS_SMALL) : 0) + 28)) + n.link;
-    n.h = n.sub ? 46 : 32;
-  });
-  const labelCol = layerIds.length ? 128 : 0, gap = 22;
-  const rowW = rows.map(r => (r || []).reduce((s, n) => s + n.w, 0) + Math.max(0, (r || []).length - 1) * gap);
-  const rowH = rows.map(r => Math.max(32, ...(r || []).map(n => n.h)));
-  const inner = Math.max(220, ...rowW);
-  const backLanes = edges.filter(e => byId[e.to].rank < byId[e.from].rank).length;
-  const indent = labelCol + 40 + Math.max(0, backLanes * 10 - 18);
-  rows.forEach((r, i) => {
-    let x = indent + (inner - rowW[i]) / 2;
-    (r || []).forEach(n => { n.x = x; x += n.w + gap; });
-  });
-  const width = indent + inner + 40;
-  const boxes = Object.fromEntries(nodes.map(n => [n.id, routeBox(n.id, n.rank, n, n.link)]));
-  const plan = GraphRoutes.plan(Object.values(boxes), edges);
-  const gapAt = g => (plan.gaps[g] ? GraphRoutes.gapHeight(plan.gaps[g]) : g < 0 || g >= rows.length - 1 ? 0 : GraphRoutes.gapHeight({}));
-  const rowY = [];
-  let y = 18 + gapAt(-1);
-  rows.forEach((r, i) => {
-    rowY[i] = y;
-    (r || []).forEach(n => { n.y = y + (rowH[i] - n.h) / 2; boxes[n.id].y = n.y; boxes[n.id].h = n.h; });
-    y += rowH[i] + gapAt(i);
-  });
-  const height = y + 30;
-  let svg = '';
-  if (layerIds.length) (f.layers || []).forEach((l, i) => {
-    if (rowY[i] == null) return;
-    svg += `<rect class="band" x="0" y="${rowY[i] - 9}" width="${width}" height="${rowH[i] + 18}" rx="8"/>${svgLines(12, rowY[i] + rowH[i] / 2 + 4, [fit(plain(l.label).toUpperCase(), labelCol - 18, SANS_SMALL)], 'lay', 'start')}`;
-  });
-  const gapTop = g => (g < 0 ? 18 : rowY[g] + rowH[g]);
-  const routes = GraphRoutes.draw(plan, Object.values(boxes), { gapTop, gapBottom: g => gapTop(g) + gapAt(g) });
-  const ends = e => ` data-from="${esc(e.from)}" data-to="${esc(e.to)}"`;
-  edges.forEach((e, i) => { svg += `<path class="edge${toneOf(e.tone)}${e.dashed ? ' dashed' : ''}"${ends(e)} d="${routes[i].d}" marker-end="url(#ah-${uid})"/>`; });
-  edges.forEach((e, i) => { svg += edgeLabel(routes[i].labelAt[0], routes[i].labelAt[1], e.label, ends(e)); });
-  nodes.forEach(n => {
-    const textW = n.w - n.link, mid = labelCentre(n);
-    svg += `<g class="fnode${toneOf(n.tone)}" ${nodeAttrs(n.id, n.label)}><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="7"/>${svgLines(mid, n.y + (n.sub ? 19 : 20), [fit(plain(n.label), textW - 16)], 'fl')}${n.sub ? svgLines(mid, n.y + 35, [fit(plain(n.sub), textW - 16, SANS_SMALL)], 'fs') : ''}${nodeLink(n, n.x + n.w, n.y, n.h)}${nodeFrame(n, n)}</g>`;
-  });
-  return svgFrame(width, height, svg, f.title, uid, edges.length > 0) + legend(nodes.map(n => n.tone).concat(edges.map(e => e.tone)));
-}
-
 function figTree(f) {
   const root = { children: new Map() };
   for (const item of f.items || []) {
@@ -1364,7 +1224,7 @@ function figCompare(f) {
   return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
 }
 
-const FIGURES = { flow: figFlow, tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
+const FIGURES = { tree: figTree, matrix: figMatrix, timeline: figTimeline, svg: figSvg, compare: figCompare };
 let figureSeq = 0;
 function diagramLink(link) {
   if (link.startsWith('chapter:')) return { href: '#tour-' + link.slice('chapter:'.length), label: 'Open its chapter' };

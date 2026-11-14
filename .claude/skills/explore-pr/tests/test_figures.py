@@ -2,12 +2,19 @@ import json
 
 DIFF = {"src/a.rs": {"status": "added", "add": 1, "del": 0, "hunks": []}}
 
-FLOW = {
-    "id": "f-flow",
-    "kind": "flow",
-    "title": "Who calls whom",
-    "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
-    "edges": [{"from": "a", "to": "b"}],
+TREE = {
+    "id": "f-tree",
+    "kind": "tree",
+    "title": "What is left behind",
+    "root": "src/",
+    "items": [{"path": "a.rs", "state": "added"}],
+}
+MISFIT = {
+    "kind": "matrix",
+    "title": "Decisions",
+    "rows": ["r1", "r2"],
+    "cols": ["c1"],
+    "cells": [["a"]],
 }
 
 
@@ -24,7 +31,7 @@ def workspace(root, chapters, overview=None):
             json.dumps(chapter)
         )
     (root / "content/overview.json").write_text(
-        json.dumps(overview or {"figures": [dict(FLOW, id="f-over")]})
+        json.dumps(overview or {"figures": [dict(TREE, id="f-over")]})
     )
     return root
 
@@ -48,7 +55,7 @@ def test_an_overview_without_a_figure_is_reported(tmp_path, script):
     warnings = warnings_for(
         tmp_path,
         script,
-        [{"id": "c", "title": "C", "figures": [FLOW]}],
+        [{"id": "c", "title": "C", "figures": [TREE]}],
         overview={"lede": "words only"},
     )
 
@@ -57,7 +64,7 @@ def test_an_overview_without_a_figure_is_reported(tmp_path, script):
 
 def test_a_well_formed_figure_raises_no_figure_warning(tmp_path, script):
     warnings = warnings_for(
-        tmp_path, script, [{"id": "c", "title": "C", "figures": [FLOW]}]
+        tmp_path, script, [{"id": "c", "title": "C", "figures": [TREE]}]
     )
 
     assert not [w for w in warnings if "figure" in w]
@@ -71,16 +78,6 @@ def test_an_unknown_figure_kind_is_reported(tmp_path, script):
     )
 
     assert any("f-odd" in w and "hologram" in w for w in warnings)
-
-
-def test_a_flow_edge_to_a_missing_node_is_reported(tmp_path, script):
-    broken = dict(FLOW, edges=[{"from": "a", "to": "ghost"}])
-
-    warnings = warnings_for(
-        tmp_path, script, [{"id": "c", "title": "C", "figures": [broken]}]
-    )
-
-    assert any("f-flow" in w and "ghost" in w for w in warnings)
 
 
 def test_a_matrix_whose_cells_do_not_fit_its_axes_is_reported(tmp_path, script):
@@ -103,12 +100,12 @@ def test_a_matrix_whose_cells_do_not_fit_its_axes_is_reported(tmp_path, script):
 def test_figures_inside_a_comparison_and_on_a_stop_are_checked(
     tmp_path, script
 ):
-    broken = dict(FLOW, id="f-after", edges=[{"from": "a", "to": "nowhere"}])
+    broken = dict(MISFIT, id="f-after")
     compare = {
         "id": "f-cmp",
         "kind": "compare",
         "title": "Before and after",
-        "before": dict(FLOW, id="f-before"),
+        "before": dict(TREE, id="f-before"),
         "after": broken,
     }
     stop = {
@@ -116,22 +113,43 @@ def test_figures_inside_a_comparison_and_on_a_stop_are_checked(
         "file": "src/a.rs",
         "start": 1,
         "end": 1,
-        "figure": dict(FLOW, id="f-stop", kind="cloud"),
+        "figure": dict(TREE, id="f-stop", kind="cloud"),
     }
     chapter = {"id": "c", "title": "C", "figures": [compare], "stops": [stop]}
 
     warnings = warnings_for(tmp_path, script, [chapter])
 
-    assert any("f-after" in w and "nowhere" in w for w in warnings)
+    assert any("f-after" in w and "rows of cells" in w for w in warnings)
     assert any("f-stop" in w and "cloud" in w for w in warnings)
 
 
 def test_a_figure_id_used_twice_is_reported(tmp_path, script):
     chapters = [
-        {"id": "c1", "title": "C1", "figures": [FLOW]},
-        {"id": "c2", "title": "C2", "figures": [FLOW]},
+        {"id": "c1", "title": "C1", "figures": [TREE]},
+        {"id": "c2", "title": "C2", "figures": [TREE]},
     ]
 
     warnings = warnings_for(tmp_path, script, chapters)
 
-    assert any("duplicate figure id f-flow" in w for w in warnings)
+    assert any("duplicate figure id f-tree" in w for w in warnings)
+
+
+def test_a_flow_is_reported_as_a_kind_the_page_no_longer_draws(
+    tmp_path, script
+):
+    flow = {
+        "id": "f-flow",
+        "kind": "flow",
+        "title": "Who calls whom",
+        "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+        "edges": [{"from": "a", "to": "b"}],
+    }
+
+    warnings = warnings_for(
+        tmp_path, script, [{"id": "c", "title": "C", "figures": [flow]}]
+    )
+
+    [warning] = [w for w in warnings if "f-flow" in w]
+    assert "flow is no longer drawn" in warning
+    assert "block-diagram" in warning
+    assert "draw-diagram/reference/choosing.md" in warning

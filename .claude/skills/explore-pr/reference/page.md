@@ -26,9 +26,8 @@ rebuilding them. Paths are relative to the skill directory.
 
 | Path | Purpose |
 |---|---|
-| `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
+| `assets/page.html` | The page shell: every core view including Design, figure renderers (tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
-| `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
 | `../diagram-kit/` | The diagram kit, a skill beside this one: it checks and lays out every diagram of a kind a `draw-*` skill draws when the page is built, and its renderer, stylesheet and tracing are inlined into every build. Tracing follows a graph's arrows, outbound and inbound, from every box the reviewer has pressed; pressing a box again drops it and Esc clears them all |
 | `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
@@ -39,7 +38,7 @@ rebuilding them. Paths are relative to the skill directory.
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
+| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, every kit diagram put through the kit's own checks (text inside its box, nothing overlapping, tracing, a box's ↗ control following its link), a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
 

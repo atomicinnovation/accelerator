@@ -123,8 +123,7 @@ the content, and leaves out what it cannot:
   ledger row has `id`, `file` and `line`; a file summary has `path`; a
   finding, a finding check and an accepted risk have an `id`. Line numbers
   are whole numbers, not text;
-- a flow's nodes and layers each have an `id`, and a
-  collaborator given as an object has a `name`;
+- a collaborator given as an object has a `name`;
 - a field holds the kind of value shown here: text for an `id`, `file`,
   `where` or `anchor`, a whole number for a line, a list of ids for
   `findings`, `refs` and `pinnedBy`. A field of the wrong kind is reported
@@ -224,7 +223,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 {
   "title": "How the change is designed",       // optional heading
   "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions.",
-  "figures": [ /* the architecture: a layered flow, a before/after compare */ ],
+  "figures": [ /* the architecture, chosen by the guide; a before/after compare */ ],
   "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's */ ],
   "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it */ ],
   "principles": [{                              // the existing architecture's rules, from CLAUDE.md, ADRs and the code
@@ -344,26 +343,22 @@ Four kinds are this page's own, and the guide does not cover them:
   change adds, removes or leaves behind.
 - `timeline`: windows, ages and thresholds on one scale.
 
-`flow` remains for boxes and arrows that no kit diagram fits. Prefer a kit
-diagram wherever one does.
+`flow`, the page's old boxes and arrows, is no longer drawn, and the build
+warns about one. What it showed is a `block-diagram`, or better the kind
+the guide names for it.
 
 ### How the page draws them
 
-Pressing boxes in a flow (or the module map) traces their arrows, those they
-send in one colour and those they receive in another, and dims the rest;
-pressing a box again drops it from the trace, and Esc clears it. A box with a
-`where` or `chapter` opens it from its own ↗ control, not from the box. Arrows
-are routed as horizontal and vertical runs with rounded corners, around boxes
-rather than behind them; a flow keeps the left-to-right order its nodes are
-given in, so order each row's nodes to keep arrows from crossing. Tracing keeps
-a busy flow legible; a flow that cannot be read without it should still be
-split.
+Pressing boxes in a diagram that has arrows traces them, those a box sends
+in one colour and those it receives in another, and dims the rest; pressing
+a box again drops it from the trace, and Esc clears it. A box with a `link`
+opens it from its own ↗ control, not from the box.
 
 Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|railroad-diagram|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|railroad-diagram|block-diagram|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -388,7 +383,7 @@ Every figure has:
 | `decision-tree` | Which conditions lead to which outcome: every case of one decision | Questions, the answers branching from each, and the outcome every path ends in; drawn by the diagram kit |
 | `byte-field-diagram` | How a binary format, a wire frame or a register is laid out | Fields side by side on a scale of bits or bytes, wrapped into rows, with a broken row for a field of no fixed size; drawn by the diagram kit |
 | `railroad-diagram` | What a grammar, a command line or a pattern accepts | One track per rule: terminals and references to rules joined by rail, with branches for choices, bypasses for optional parts and loops for repeats; drawn by the diagram kit |
-| `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
+| `block-diagram` | How a few things connect when no kind above fits: a derivation, a pipeline of transformations | Named boxes, optionally grouped, joined by labelled arrows; it has no rules of its own, so reach for it last; drawn by the diagram kit |
 | `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
 | `matrix` | Decision tables, permission and configuration matrices, gates | Rows by columns, each cell a short outcome with a tone |
@@ -397,13 +392,6 @@ Every figure has:
 | `svg` | The rare picture none of the above can draw | Inline SVG you write; use `currentColor` and `var(--ink)`, `var(--accent)`, `var(--bad)`, `var(--ok)` so it works in both themes |
 
 ```jsonc
-// flow
-{ "kind": "flow",
-  "layers": [{ "id": "entry", "label": "Entry" }],                 // optional rows, top to bottom
-  "nodes": [{ "id": "a", "label": "start_up", "sub": "identify, claim", "layer": "entry",
-              "tone": "new|changed|removed|risk|ok", "where": "path:line", "chapter": "identity" }],
-  "edges": [{ "from": "a", "to": "b", "label": "Try", "tone": "risk", "dashed": true }] }
-
 // tree
 { "kind": "tree", "root": "<root>/claims/",
   "items": [{ "path": "sub/dir/name", "state": "added|removed|changed|kept", "note": "md", "where": "path:line" }] }
@@ -431,9 +419,7 @@ Every figure has:
 A figure whose `kind` is a notation one of the `draw-*` skills draws is
 written in that notation's own terms, checked and laid out by the diagram
 kit when the page is built, and drawn by the kit's renderer. Today those
-are the kinds in the table above that say "drawn by the diagram kit"; each
-further notation replaces a use of `flow`, so prefer a kit diagram wherever
-one fits.
+are the kinds in the table above that say "drawn by the diagram kit".
 
 - Write it as the notation's reference says. Each kind has a skill beside
   this one, named `draw-<kind>` (`draw-state-machine` for `state-machine`,

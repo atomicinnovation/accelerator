@@ -140,16 +140,16 @@ def test_a_where_suffix_matching_several_files_is_reported(tmp_path, script):
 def test_a_where_on_a_figure_inside_a_comparison_is_checked(tmp_path, script):
     after = {
         "id": "f-after",
-        "kind": "flow",
-        "nodes": [{"id": "a", "label": "A", "where": "src/core.rs:99"}],
-        "edges": [],
+        "kind": "tree",
+        "root": "src/",
+        "items": [{"path": "core.rs", "where": "src/core.rs:99"}],
     }
     figure = {"id": "f-cmp", "kind": "compare", "after": after}
 
     warnings = warnings_for(tmp_path, script, overview={"figures": [figure]})
 
     assert about(
-        warnings, "overview", "figures[f-cmp].after.nodes[a]", "outside 1-3"
+        warnings, "overview", "figures[f-cmp].after.items[0]", "outside 1-3"
     )
 
 
@@ -251,19 +251,6 @@ def test_a_file_assigned_to_a_chapter_that_exists_raises_nothing(
     warnings = warnings_for(tmp_path, script, [chapter()], files=files)
 
     assert about(warnings, "missing chapter") == []
-
-
-def test_a_figure_box_linked_to_a_missing_chapter_is_reported(tmp_path, script):
-    figure = {
-        "id": "f1",
-        "kind": "flow",
-        "nodes": [{"id": "a", "label": "A", "chapter": "nope"}],
-        "edges": [],
-    }
-
-    warnings = warnings_for(tmp_path, script, [chapter(figures=[figure])])
-
-    assert about(warnings, "figures[f1].nodes[a]", "missing chapter nope")
 
 
 def test_a_module_map_box_linked_to_a_missing_chapter_is_reported(

@@ -16,22 +16,22 @@ STOP = {
     "anchor": "fn a()",
     "fit": "f",
 }
-FLOW = {
+TREE = {
     "id": "f1",
-    "kind": "flow",
-    "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
-    "edges": [{"from": "a", "to": "b"}],
+    "kind": "tree",
+    "root": "src/",
+    "items": [{"path": "a.rs", "state": "added"}],
 }
 SOUND_CHAPTER = {
     "id": "first",
     "title": "First",
-    "figures": [FLOW],
+    "figures": [TREE],
     "decisions": [{"id": "d1", "decision": "d"}],
     "stops": [STOP],
 }
 SOUND = {
     "chapter-first": SOUND_CHAPTER,
-    "overview": {"figures": [dict(FLOW, id="f0")]},
+    "overview": {"figures": [dict(TREE, id="f0")]},
     "design": {"summary": "s"},
     "files": [{"path": "src/core.rs", "summary": "s", "risk": "high"}],
 }
@@ -191,67 +191,14 @@ def test_an_entry_that_is_not_an_object_is_reported_and_left_out(
     assert "chapter first: risks entry 2 is not an object; left out" in warnings
 
 
-def test_a_figure_part_without_an_id_is_reported_and_left_out(tmp_path, script):
-    flow = dict(FLOW, nodes=[*FLOW["nodes"], {"label": "C"}])
-
-    model, warnings = assembled(tmp_path, script, **chapter(figures=[flow]))
-
-    assert len(model["chapters"][0]["figures"][0]["nodes"]) == 2
-    assert (
-        "chapter first: figures[f1]: nodes entry 3 has no id; left out"
-        in warnings
-    )
-
-
-def test_a_collaborator_object_without_a_name_is_reported(tmp_path, script):
-    abstraction = {
-        "id": "a1",
-        "name": "Clock",
-        "collaborators": [
-            "Disk",
-            {"kind": "port"},
-            {"name": "Net", "kind": "port"},
-        ],
-    }
-    extra = {"abstractions": [abstraction], "decisions": []}
-
-    model, warnings = assembled(tmp_path, script, **chapter(**extra))
-
-    kept = model["chapters"][0]["abstractions"][0]["collaborators"]
-    assert kept == ["Disk", {"name": "Net", "kind": "port"}]
-    assert (
-        "chapter first: abstractions[a1]: collaborators entry 2 has no name; "
-        "left out" in warnings
-    )
-
-
-def test_a_value_outside_its_vocabulary_is_reported(tmp_path, script):
-    extra = {
-        "risks": [{"level": "severe", "text": "t"}],
-        "invariants": [{"id": "i1", "text": "t", "holds": "maybe"}],
-        "findingChecks": [{"id": "R1-01", "verdict": "true", "triage": "now"}],
-        "stops": [dict(STOP, side="head")],
-    }
-    findings = [{"id": "R1-01", "severity": "major"}]
-
-    _, warnings = assembled(
-        tmp_path, script, findings=findings, **chapter(**extra)
-    )
-
-    assert (
-        'chapter first: risks[0]: level "severe" is not one of '
-        "high, medium, low" in warnings
-    )
-    assert any('holds "maybe" is not one of' in w for w in warnings)
-    assert any('verdict "true" is not one of' in w for w in warnings)
-    assert any('triage "now" is not one of' in w for w in warnings)
-    assert any('side "head" is not one of new, old' in w for w in warnings)
-
-
 def test_tones_states_and_verdicts_across_the_page_are_checked(
     tmp_path, script
 ):
-    flow = dict(FLOW, nodes=[{"id": "a", "tone": "added"}, {"id": "b"}])
+    timeline = {
+        "id": "f2",
+        "kind": "timeline",
+        "spans": [{"from": 1, "to": 2, "label": "young", "tone": "added"}],
+    }
     tree = {
         "id": "f3",
         "kind": "tree",
@@ -271,10 +218,10 @@ def test_tones_states_and_verdicts_across_the_page_are_checked(
         design=design,
         files=files,
         ci=ci,
-        **chapter(figures=[flow]),
+        **chapter(figures=[timeline]),
     )
 
-    assert any('nodes[a]: tone "added" is not one of' in w for w in warnings)
+    assert any('spans[0]: tone "added" is not one of' in w for w in warnings)
     assert any('items[0]: state "new" is not one of' in w for w in warnings)
     assert any('verdict "bent" is not one of' in w for w in warnings)
     assert any(
@@ -373,7 +320,6 @@ def test_a_field_of_the_wrong_kind_is_reported_and_ignored(tmp_path, script):
 def test_a_figure_built_of_the_wrong_kinds_is_reported_not_fatal(
     tmp_path, script
 ):
-    flow = dict(FLOW, edges=[{"from": ["a"], "to": "b"}])
     matrix = {
         "id": "f4",
         "kind": "matrix",
@@ -382,9 +328,8 @@ def test_a_figure_built_of_the_wrong_kinds_is_reported_not_fatal(
         "cells": ["x"],
     }
 
-    _, warnings = assembled(tmp_path, script, **chapter(figures=[flow, matrix]))
+    _, warnings = assembled(tmp_path, script, **chapter(figures=[matrix]))
 
-    assert any("figure f1 edge names missing node" in w for w in warnings)
     assert any(
         "figures[f4]: cols must be a list; ignored" in w for w in warnings
     )

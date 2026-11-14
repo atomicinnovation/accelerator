@@ -45,7 +45,6 @@ KIT_FONT_FAMILIES = {
     "jetbrains-mono": "JetBrains Mono",
 }
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
-GRAPH_ROUTES_MODEL = ASSETS / "graph-routes.js"
 PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
@@ -165,11 +164,6 @@ OBJECT_LISTS = {
         "extension",
     ),
     "overview": ("figures", "paths"),
-}
-FIGURE_PARTS = {
-    "nodes": "id",
-    "layers": "id",
-    "edges": None,
 }
 
 
@@ -586,7 +580,7 @@ def kit_figures(model: dict) -> list[tuple[str, dict]]:
         (where, figure)
         for where, top in placed_figures(model)
         for figure in flattened(top)
-        if figure.get("kind") not in FIGURE_KINDS
+        if figure.get("kind") not in FIGURE_KINDS | set(NO_LONGER_DRAWN)
     ]
     generated = [
         ("design", model["design"].get("relations")),
@@ -934,9 +928,11 @@ def finding_references(model: dict) -> list[tuple[str, str]]:
     return references
 
 
-FIGURE_KINDS = frozenset(
-    {"flow", "tree", "matrix", "timeline", "compare", "svg"}
-)
+FIGURE_KINDS = frozenset({"tree", "matrix", "timeline", "compare", "svg"})
+NO_LONGER_DRAWN = {
+    "flow": "write it as a block-diagram, or as the kind "
+    "draw-diagram/reference/choosing.md names for what it shows",
+}
 
 
 def placed_figures(model: dict) -> list[tuple[str, dict]]:
@@ -963,24 +959,6 @@ def flattened(figure: dict) -> list[dict]:
     return [figure, *nested]
 
 
-def flow_problems(figure: dict) -> list[str]:
-    nodes = {node["id"] for node in figure.get("nodes", [])}
-    layers = {layer["id"] for layer in figure.get("layers", [])}
-    problems = [
-        f"edge names missing node {end}"
-        for edge in figure.get("edges", [])
-        for end in (edge.get("from"), edge.get("to"))
-        if not isinstance(end, str) or end not in nodes
-    ]
-    if layers:
-        problems += [
-            f"node {node['id']} names missing layer {node['layer']}"
-            for node in figure.get("nodes", [])
-            if node.get("layer") and node["layer"] not in layers
-        ]
-    return problems
-
-
 def matrix_problems(figure: dict) -> list[str]:
     labels, columns = figure.get("rows", []), len(figure.get("cols", []))
     cells = figure.get("cells", [])
@@ -996,7 +974,6 @@ def matrix_problems(figure: dict) -> list[str]:
 
 
 KIND_PROBLEMS = {
-    "flow": flow_problems,
     "matrix": matrix_problems,
 }
 
@@ -1009,6 +986,11 @@ def figure_warnings(model: dict) -> list[str]:
         for figure in flattened(placed):
             name, kind = figure.get("id", "?"), figure.get("kind")
             ids.append(name)
+            if kind in NO_LONGER_DRAWN:
+                warnings.append(
+                    f"{where}: figure {name}: {kind} is no longer drawn; "
+                    f"{NO_LONGER_DRAWN[kind]}"
+                )
             if kind not in FIGURE_KINDS:
                 continue
             problems = KIND_PROBLEMS.get(kind, lambda _: [])(figure)
@@ -1271,12 +1253,6 @@ def malformed_parts(model: dict) -> list[str]:
             if not isinstance(item, dict):
                 continue
             where = at(source, trail)
-            if item.get("kind") == "flow":
-                for part, name in FIGURE_PARTS.items():
-                    if part in item:
-                        item[part] = entries_with(
-                            name, item[part], f"{where}: {part}", faults
-                        )
             if "collaborators" in item:
                 item["collaborators"] = entries_with(
                     "name",
@@ -1593,7 +1569,6 @@ def with_page_models(page: str) -> str:
     models = (
         *(KIT / module for module in KIT_MODULES),
         COVERAGE_MODEL,
-        GRAPH_ROUTES_MODEL,
         PROSE_REFERENCES_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
