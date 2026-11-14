@@ -77,7 +77,8 @@ first and written second:
   comparison of the part of the system the PR changes. The build warns if it
   is missing.
 - **A stop whose point is structural carries a figure**: a call order, a
-  layout on disk, a branch in a decision.
+  layout on disk, a branch in a decision. A drawing too wide for the
+  column beside the code is shown across the row, above the code.
 - **Prose says what the figure cannot**: why the design is this way, what
   could go wrong, and what to check. If a paragraph describes boxes and
   arrows, draw the boxes and arrows and delete the paragraph.
@@ -358,7 +359,7 @@ a box again drops it from the trace, and Esc clears it. A box with a `link`
 opens it from its own ↗ control, not from the box.
 
 Under every figure the kit draws is a legend, closed until the reviewer
-opens it: what each symbol of that notation means, drawn as it appears in
+opens it, headed by the kind of diagram it is: what each symbol of that notation means, drawn as it appears in
 the figure, with the symbols the figure does not use behind a switch, and
 how to trace and open things. The build writes it. So a caption never
 needs to explain the notation: it says what to notice.

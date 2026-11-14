@@ -196,3 +196,38 @@ def test_a_drawing_wider_than_its_row_shrinks_to_fit_within_a_limit():
         "max-width: 100%" in shell[shell.index(".fig-scroll svg.dk {") :][:200]
     )
     assert "min-width: calc(var(--natural-width) * .6)" in shell
+
+
+def test_a_comparison_names_each_side_once():
+    side = renderer("figCompare")
+
+    assert "withoutItsSide(sub.title, label)" in side
+    stripped = renderer("withoutItsSide")
+    assert "[:\u2014\u2013-]" in stripped
+
+
+def test_views_use_the_width_of_the_screen_and_prose_keeps_a_readable_measure():
+    shell = SHELL.read_text()
+    view = shell[shell.index("\n.view {") :].split("\n")[1]
+
+    assert "max-width" not in view
+    assert ".md > :is(p, ul, ol, blockquote" in shell
+    assert (
+        "max-width: 72ch" in shell[shell.index(".md > :is(p, ul, ol") :][:160]
+    )
+
+
+def test_a_stop_with_a_wide_figure_shows_it_across_the_row_above_its_code():
+    stop = chapter_layout_of_stops()
+
+    assert "spansTheRow(s.figure)" in stop
+    assert '<div class="stop-figure">' in stop
+    assert stop.index('class="stop-figure"') < stop.index("codeSlice(")
+    shell = SHELL.read_text()
+    assert ".stop-figure, .stop-head { grid-column: 1 / -1; }" in shell
+
+
+def chapter_layout_of_stops():
+    shell = SHELL.read_text()
+    start = shell.index("const stops = (ch.stops")
+    return shell[start : shell.index("const ba = ", start)]

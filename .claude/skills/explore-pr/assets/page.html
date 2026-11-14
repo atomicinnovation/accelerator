@@ -96,6 +96,7 @@ p { margin: 0; }
 .prose pre code, .md pre code { background: none; padding: 0; font-size: inherit; }
 .md { display: grid; gap: .55em; min-width: 0; align-content: start; }
 .md > * { margin: 0; }
+.md > :is(p, ul, ol, blockquote, h1, h2, h3, h4) { max-width: 72ch; }
 .md ul, .md ol { padding-left: 1.2em; display: grid; gap: .25em; }
 .eyebrow { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .muted { color: var(--ink-3); }
@@ -130,7 +131,7 @@ button { font: inherit; color: inherit; }
 .rail a.sub { padding-left: 22px; font-size: 13.5px; }
 .rail-path { font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); padding: 0 10px 10px; overflow-wrap: anywhere; }
 main { min-width: 0; padding-block: 28px 80px; padding-left: max(16px, 3vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 3vw); }
-.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; max-width: 1280px; }
+.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 .view > *, .section > *, .stack > *, .grid-2 > *, .grid-3 > * { min-width: 0; }
 .view-head { display: grid; gap: 8px; }
 .lede { font-size: 16.5px; color: var(--ink-2); max-width: 70ch; }
@@ -256,6 +257,7 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .stop { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; padding-block: 18px; border-top: 1px solid var(--rule); }
 .stop-note { display: grid; gap: 10px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); min-width: 0; }
 .fit { display: grid; gap: 4px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; }
+.stop-figure, .stop-head { grid-column: 1 / -1; }
 .stop-num { font-family: var(--f-mono); font-size: 12px; color: var(--accent); font-weight: 600; }
 .check { border-left: 3px solid var(--warn); padding: 2px 0 2px 10px; font-size: 14px; }
 .check .eyebrow { color: var(--warn); }
@@ -1073,8 +1075,14 @@ function figSvg(f) {
   return `<div class="fig-scroll fsvg">${safe}</div>`;
 }
 
+function withoutItsSide(title, label) {
+  const rest = String(title || '').replace(new RegExp('^\\s*`?' + label + '`?\\s*[:—–-]\\s*', 'i'), '').trim();
+  if (!rest || plain(rest).toLowerCase() === label.toLowerCase()) return '';
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
 function figCompare(f) {
-  const side = (label, sub) => `<div class="fside"><div class="eyebrow">${label}${sub && sub.title && plain(sub.title).toLowerCase() !== label.toLowerCase() ? ' · ' + md(sub.title, true) : ''}</div>${sub ? figureBody(sub) : '<div class="muted small">Nothing.</div>'}${sub && sub.caption ? `<div class="fig-caption md small">${md(sub.caption)}</div>` : ''}</div>`;
+  const said = (sub, label) => (sub && withoutItsSide(sub.title, label) ? ' · ' + md(withoutItsSide(sub.title, label), true) : '');
+  const side = (label, sub) => `<div class="fside"><div class="eyebrow">${label}${said(sub, label)}</div>${sub ? figureBody(sub) : '<div class="muted small">Nothing.</div>'}${sub && sub.caption ? `<div class="fig-caption md small">${md(sub.caption)}</div>` : ''}</div>`;
   return `<div class="fcompare">${side('Before', f.before)}${side('After', f.after)}</div>`;
 }
 
@@ -1390,9 +1398,10 @@ function vChapter(ch) {
   const prev = C.chapters[i - 1], next = C.chapters[i + 1];
   const stops = (ch.stops || []).map((s, j) => `
     <div class="stop" id="stop-${esc(s.id)}">
+      ${s.figure && spansTheRow(s.figure) ? `<div class="row stop-head"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div><div class="stop-figure">${figureHtml(s.figure)}</div>` : ''}
       <div class="stop-note">
-        <div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>
-        ${s.figure ? figureHtml(s.figure, { compact: true }) : ''}
+        ${s.figure && spansTheRow(s.figure) ? '' : `<div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>`}
+        ${s.figure && !spansTheRow(s.figure) ? figureHtml(s.figure, { compact: true }) : ''}
         ${s.fit ? `<div class="fit"><div class="eyebrow">In the bigger picture</div><div class="md">${md(s.fit)}</div></div>` : ''}
         <div class="md">${md(s.note)}</div>
         ${s.check ? `<div class="check"><div class="eyebrow">Check</div><div class="md">${md(s.check)}</div></div>` : ''}
