@@ -93,12 +93,30 @@
 
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
+  const STEP_TEXT_LIMIT = 220, QUESTION_LIMIT = 130;
+  const worded = (padding, limit = STEP_TEXT_LIMIT) => ({
+    holdsOthers: false,
+    textOf: node => blockOf(node.label ?? node.id, 'message', limit),
+    sizeOf(node) {
+      const text = this.textOf(node);
+      return { width: Math.ceil(Math.max(96, text.width + padding)) + linkRoom(node), height: text.height + 21 };
+    },
+  });
+  const decision = {
+    holdsOthers: false, outline: 'diamond',
+    textOf: node => blockOf(node.label ?? node.id, 'message', QUESTION_LIMIT),
+    sizeOf(node) {
+      const text = decision.textOf(node);
+      return { width: Math.ceil(2 * text.width) + 16, height: 2 * text.height + 18 };
+    },
+  };
+
   const bar = { holdsOthers: false, sizeOf: node => (node.upright ? { width: 6, height: 84 } : { width: 84, height: 6 }) };
 
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, boundary, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, boundary, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
   const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;

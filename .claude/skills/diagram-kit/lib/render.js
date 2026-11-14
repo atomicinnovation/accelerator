@@ -44,6 +44,12 @@
   const rectOf = node => `x="${tidy(node.x)}" y="${tidy(node.y)}" width="${tidy(node.width)}" height="${tidy(node.height)}"`;
   const plainText = (text, role, x, baseline) => textOf(blockOf(text, role), role, x, baseline, 'start');
 
+  function wordsIn(node, target) {
+    const block = SHAPES[node.shape].textOf(node);
+    const words = textOf(block, 'message', node.x + node.width / 2, node.y + (node.height - block.height) / 2 + 11, 'middle');
+    return (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${words}</a>` : words) + untold(node, target);
+  }
+
   const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice', bar: 'the bar', flowfinal: 'the end of this flow' };
 
   const DRAWN = {
@@ -79,6 +85,18 @@
       const name = plainText(node.label ?? node.id, 'name', node.x + 14, node.y + 20);
       return bodyOf(node, 12) + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name)
         + `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 30)}" x2="${tidy(node.x + node.width)}" y2="${tidy(node.y + 30)}"/>` + untold(node, target);
+    },
+    process: (node, target) => bodyOf(node, 2) + wordsIn(node, target),
+    terminator: (node, target) => bodyOf(node, tidy(node.height / 2)) + wordsIn(node, target),
+    subprocess: (node, target) => bodyOf(node, 2)
+      + `<path class="rule" d="M${tidy(node.x + 8)} ${tidy(node.y)} V${tidy(node.y + node.height)} M${tidy(node.x + node.width - 8)} ${tidy(node.y)} V${tidy(node.y + node.height)}"/>` + wordsIn(node, target),
+    io(node, target) {
+      const lean = 12, right = node.x + node.width, bottom = node.y + node.height;
+      return `<path class="body" d="M${tidy(node.x + lean)} ${tidy(node.y)} H${tidy(right)} L${tidy(right - lean)} ${tidy(bottom)} H${tidy(node.x)} Z"/>` + wordsIn(node, target);
+    },
+    decision(node, target) {
+      const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
+      return `<path class="body" d="M${tidy(cx)} ${tidy(node.y)} L${tidy(node.x + node.width)} ${tidy(cy)} L${tidy(cx)} ${tidy(node.y + node.height)} L${tidy(node.x)} ${tidy(cy)} Z"/>` + wordsIn(node, target);
     },
     bar: node => `<rect class="body" ${rectOf(node)} rx="2"/>`,
     flowfinal(node) {

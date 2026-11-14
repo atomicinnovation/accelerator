@@ -3,8 +3,10 @@
 // as the kit runs on its own pages.
 
 const DRAWING_CHECKS = `(async () => {
+  const faces = ['12px "JetBrains Mono"', '11px "IBM Plex Sans"'];
+  await Promise.all(faces.map(face => document.fonts.load(face)));
   await document.fonts.ready;
-  const fontsLoaded = document.fonts.check('12px "JetBrains Mono"') && document.fonts.check('11px "IBM Plex Sans"');
+  const fontsLoaded = faces.every(face => document.fonts.check(face));
   const boxOf = element => { const b = element.getBBox(); return { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height }; };
   const overlap = (a, b, slack = 1) => a.left < b.right - slack && b.left < a.right - slack && a.top < b.bottom - slack && b.top < a.bottom - slack;
   const beyond = (inner, outer) => Math.ceil(Math.max(outer.left - inner.left, inner.right - outer.right, outer.top - inner.top, inner.bottom - outer.bottom, 0));

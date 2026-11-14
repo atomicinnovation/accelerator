@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "class-diagram|object-diagram|domain-model|dependency-graph|sequence-diagram|state-machine|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|dependency-graph|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -348,6 +348,9 @@ Every figure has:
 | `domain-model` | The domain a change models and its boundaries | Aggregates as boundaries around their root, entities and value objects, with services, repositories and events beside them; the kit remarks on a broken aggregate rule |
 | `dependency-graph` | What depends on what: modules, crates, packages, layers | Nested boxes joined by UML dependencies, with every cycle marked; drawn by the diagram kit (see "Diagrams the kit draws") |
 | `state-machine` | A lifecycle: the states one thing can be in and what moves it between them | A UML state machine: states with `entry`, `do` and `exit`, transitions labelled `event [guard] / action`, initial and final states, choices, composite states; drawn by the diagram kit |
+| `activity-diagram` | What is done, in what order, and by whom; what runs in parallel | A UML activity diagram: actions, decisions and merges, forks and joins, in swimlanes when it has partitions; drawn by the diagram kit |
+| `flowchart` | A procedure step by step, with its loops and where paths rejoin | Terminators, processes, decisions with the question inside, inputs and outputs, subprocesses; drawn by the diagram kit |
+| `decision-tree` | Which conditions lead to which outcome: every case of one decision | Questions, the answers branching from each, and the outcome every path ends in; drawn by the diagram kit |
 | `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
 | `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |
@@ -392,17 +395,17 @@ A figure whose `kind` is a notation one of the `draw-*` skills draws is
 written in that notation's own terms, checked and laid out by the diagram
 kit when the page is built, and drawn by the kit's renderer. Today those
 are `class-diagram`, `object-diagram`, `domain-model`, `dependency-graph`,
-`sequence-diagram` and `state-machine`; each further notation replaces a
-use of `flow`, so prefer a kit diagram wherever one fits.
+`sequence-diagram`, `state-machine`, `activity-diagram`, `flowchart` and
+`decision-tree`; each further notation replaces a use of `flow`, so prefer
+a kit diagram wherever one fits.
 
-- Write it as the notation's reference says, in the skill beside this one
-  that is named for the kind: `../draw-class-diagram/reference/notation.md`,
-  `../draw-object-diagram/reference/notation.md`,
-  `../draw-domain-model/reference/notation.md`,
-  `../draw-dependency-graph/reference/notation.md`,
-  `../draw-sequence-diagram/reference/notation.md` or
-  `../draw-state-machine/reference/notation.md`. It takes the same `id`,
-  `title`, `caption` and `wide` as any figure.
+- Write it as the notation's reference says. Each kind has a skill beside
+  this one, named `draw-<kind>` (`draw-state-machine` for `state-machine`,
+  `draw-flowchart` for `flowchart`, and so on). Its notation reference is
+  the spec, and beside it is an example at the standard expected: for a
+  class diagram, `../draw-class-diagram/reference/notation.md`. A kit
+  diagram takes the same `id`, `title`, `caption` and `wide` as any
+  figure.
 - A sequence diagram is one scenario written as a call tree: a call holds,
   as its `steps`, what its receiver does before answering, and its `reply`
   if what comes back matters.
@@ -418,11 +421,14 @@ use of `flow`, so prefer a kit diagram wherever one fits.
 - A class diagram makes one point about a design with the types that
   point needs; an object diagram shows one case at one moment; a domain
   model shows aggregates and what crosses their boundaries.
+- An activity diagram with `partitions`, or a flowchart with `lanes`, is
+  drawn in swimlanes down the page. A decision tree is written nested, as
+  it is drawn.
 - What the kit remarks on under a figure (a state that cannot be reached,
-  a choice with nothing to choose by, a reference into an aggregate past
-  its root, a part with two owners) is either a mistake in the figure or a
-  finding about the code: settle which against the code, and raise a
-  finding in `ownNotes` if it is true.
+  a decision with nothing to decide by, a question whose answers all lead
+  to one outcome, a reference into an aggregate past its root) is either a
+  mistake in the figure or a finding about the code: settle which against
+  the code, and raise a finding in `ownNotes` if it is true.
 
 The Design view's diagram of how the abstractions work together and the
 module map are dependency graphs the build writes for you, from the

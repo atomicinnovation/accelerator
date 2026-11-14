@@ -103,6 +103,9 @@ a home in the code. Choose the figure by the question it answers:
 | What depends on what? | `dependency-graph` |
 | What happens, in what order, between whom? | `sequence-diagram` |
 | What states can this be in, and what moves it? | `state-machine` |
+| What is done, in what order, by whom, and what in parallel? | `activity-diagram` |
+| What are the steps, with their loops and rejoining paths? | `flowchart` |
+| Which conditions lead to which outcome? | `decision-tree` |
 
 Each is described in the contract's "Diagrams the kit draws" and in its
 notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`
