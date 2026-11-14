@@ -542,11 +542,12 @@ const base = p => (p || '').split('/').pop();
 
 function md(s, inline) {
   if (!s) return '';
+  const linked = html => (window.ProseReferences && C ? ProseReferences.link(html, C.chapters) : html);
   if (window.marked) {
-    try { return inline ? marked.parseInline(String(s)) : marked.parse(String(s)); } catch (e) { /* fall through */ }
+    try { return linked(inline ? marked.parseInline(String(s)) : marked.parse(String(s))); } catch (e) { /* fall through */ }
   }
   const t = esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-  return inline ? t : t.split(/\n{2,}/).map(p => `<p>${p}</p>`).join('');
+  return linked(inline ? t : t.split(/\n{2,}/).map(p => `<p>${p}</p>`).join(''));
 }
 
 /* ---------- Review state ---------- */

@@ -101,8 +101,34 @@ first and written second:
   names them. Define each in its chapter's `domain`. The page shows the
   chapter's terms straight after its figures, before any of its prose, so
   each meaning must stand on its own.
+- Refer to a stop by its id (`claims-s3`) and to a chapter as chapter
+  `claims` or the `claims` chapter, in backticks. The page replaces each with
+  a link named by the stop's number and title or the chapter's title, so
+  never write a stop number or a chapter title out by hand. The build warns
+  about a stop or chapter named this way that does not exist.
 - State only what was verified by reading the code. Mark the rest unverified,
   or make it a `question`.
+
+## References the build checks
+
+Every citation must open something. `scripts/build.py` warns about:
+
+- a `where` (or a breaking change's `changelog`) that is not `path:line` or
+  `path:start-end`, that names a file the PR does not change, that matches
+  more than one changed file, or whose lines fall outside the file. A path
+  may be a suffix (`store.rs:212`) only while it matches one changed file;
+- a test in `pinnedBy`, a ledger row's `tests` or a chapter's `tests` whose
+  file the PR does not change, whose name does not appear in that file at
+  head, or whose `line` falls outside it. Write tests as `path::name`; only
+  the last `::` segment is looked for;
+- a `chapter` on a file summary, a figure box, a module-map box, an
+  abstraction or a decision that names no chapter;
+- prose that names a stop or chapter that does not exist.
+
+The workspace holds only the files the PR changes, so a citation into an
+unchanged file cannot be checked or opened: the page shows it as plain text
+and the build reports it as *not a changed file; unverified*. Keep one only
+when the point cannot be made from a changed file, and verify it by hand.
 
 ## `explore.json`
 

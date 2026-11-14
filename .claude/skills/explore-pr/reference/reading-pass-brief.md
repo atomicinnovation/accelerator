@@ -106,6 +106,14 @@ code. Write captions that say what to notice.
 reusing the code's own names: {domain terms already established}. Record
 anything you could not verify as unverified rather than guessing.
 
+**Citations**: every `where`, `pinnedBy` and `tests` entry must name a
+changed file by its full repository path, and a test by the name it is
+declared with. Refer to another stop by its id in backticks and to another
+chapter as chapter `<id>`: the page turns both into links, and the build
+reports any that do not resolve. Stops other passes write are named
+`<chapter id>-s<n>`; name one only if you were told it exists, and otherwise
+name its chapter.
+
 **Before you finish**, run `python3 -m json.tool <file> > /dev/null` on every
 JSON file you wrote. Check at least five `start`/`end` and ledger `line`,
 `start` and `end` values, and three figure `where` values, against the `head/` copies, and

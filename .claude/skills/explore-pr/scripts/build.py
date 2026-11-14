@@ -17,6 +17,7 @@ import html
 import json
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
@@ -26,6 +27,7 @@ MODELS_MARKER = "<!-- explore-pr:models -->"
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
 GRAPH_FOCUS_MODEL = ASSETS / "graph-focus.js"
 GRAPH_ROUTES_MODEL = ASSETS / "graph-routes.js"
+PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -504,19 +506,215 @@ def design_warnings(model: dict) -> list[str]:
         for name in entry["item"]["collaborators"]
         if name.replace("`", "").strip() not in known
     ]
-    chapters = {chapter["id"] for chapter in model["chapters"]}
-    items = design_items(model)
-    warnings += [
-        f"{where}: {item.get('id', '?')} names missing chapter "
-        f"{item['chapter']}"
-        for where, item in items
-        if item.get("chapter") and item["chapter"] not in chapters
-    ]
-    ids = [item["id"] for _, item in items if item.get("id")]
+    ids = [item["id"] for _, item in design_items(model) if item.get("id")]
     warnings += [
         f"duplicate design id {name}"
         for name in sorted(set(ids))
         if ids.count(name) > 1
+    ]
+    return warnings
+
+
+LOCATION = re.compile(r"^([^:\s]+):(\d+)(?:-(\d+))?")
+LOCATION_KEYS = ("where", "changelog")
+CHAPTER_RUN = re.compile(
+    r"\bchapters?\s+((?:`[^`]+`(?:\s*,\s*|\s*,?\s+(?:and|or|to|through)\s+)?)+)",
+    re.IGNORECASE,
+)
+CHAPTER_NAMED = re.compile(r"`([^`]+)`\s+chapters?\b", re.IGNORECASE)
+REFERENCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
+
+def sources(model: dict) -> list[tuple[str, object]]:
+    return [
+        ("overview", model["overview"]),
+        ("design", model["design"]),
+        *((f"chapter {c['id']}", c) for c in model["chapters"]),
+        ("ledger", model["ledger"]),
+        ("breaking", model["breaking"]),
+        ("accepted risks", model["acceptedRisks"]),
+        ("module map", model["moduleMap"] or {}),
+    ]
+
+
+def located(value: object, trail: str = "") -> Iterator[tuple[str, object]]:
+    """Yield every dict and string under a value, with the path to it."""
+    if isinstance(value, dict):
+        yield trail, value
+        for key, child in value.items():
+            yield from located(child, within(trail, key))
+    elif isinstance(value, list):
+        for position, child in enumerate(value):
+            name = (
+                child.get("id", position)
+                if isinstance(child, dict)
+                else position
+            )
+            yield from located(child, f"{trail}[{name}]")
+    elif isinstance(value, str):
+        yield trail, value
+
+
+def changed_files_named(path: str, diff: dict) -> list[str]:
+    if path in diff:
+        return [path]
+    return [changed for changed in diff if changed.endswith(f"/{path}")]
+
+
+def length_of(entry: dict) -> int:
+    return last_line(entry, "new") or last_line(entry, "old")
+
+
+def unresolved_file(reference: str, path: str, diff: dict) -> str | None:
+    named = changed_files_named(path, diff)
+    if not named:
+        return f"{reference} is in {path}, not a changed file; unverified"
+    if len(named) > 1:
+        return f"{reference} matches more than one changed file: " + ", ".join(
+            named
+        )
+    return None
+
+
+def location_problem(key: str, value: str, diff: dict) -> str | None:
+    reference = f"{key} {value}"
+    located_at = LOCATION.match(value)
+    if not located_at:
+        return f"{reference} is not path:line"
+    path, start = located_at[1], int(located_at[2])
+    end = int(located_at[3] or start)
+    unresolved = unresolved_file(reference, path, diff)
+    if unresolved:
+        return unresolved
+    (changed,) = changed_files_named(path, diff)
+    last = length_of(diff[changed])
+    if not 1 <= start <= end <= last:
+        return f"{reference} is outside 1-{last} of {changed}"
+    return None
+
+
+def head_text(entry: dict) -> str:
+    return "\n".join(
+        line[1:]
+        for hunk in entry.get("hunks", [])
+        for line in hunk["l"]
+        if line[0] != "-"
+    )
+
+
+def test_problem(test: str | dict, diff: dict) -> str | None:
+    if isinstance(test, dict):
+        path, name, line = (
+            test.get("file", ""),
+            test.get("name"),
+            test.get("line"),
+        )
+    else:
+        path, _, qualified = test.partition("::")
+        name, line = qualified.rpartition("::")[2], None
+    reference = f"test {name or path}"
+    unresolved = unresolved_file(reference, path, diff)
+    if unresolved:
+        return unresolved
+    (changed,) = changed_files_named(path, diff)
+    if name and name not in head_text(diff[changed]):
+        return f"{reference} not found in {changed}"
+    last = length_of(diff[changed])
+    if line is not None and not 1 <= line <= last:
+        return f"{reference} line {line} is outside 1-{last} of {changed}"
+    return None
+
+
+def within(trail: str, part: str) -> str:
+    return f"{trail}.{part}" if trail else part
+
+
+def at(trail: str, problem: str) -> str:
+    return f"{trail}: {problem}" if trail else problem
+
+
+def tests_named_by(trail: str, item: dict) -> list[tuple[str, str | dict]]:
+    named = [(trail, test) for test in item.get("pinnedBy", [])]
+    tests = item.get("tests", [])
+    for position, test in enumerate(tests if isinstance(tests, list) else []):
+        if isinstance(test, str):
+            named.append((trail, test))
+        elif "file" in test:
+            named.append((within(trail, f"tests[{position}]"), test))
+    return named
+
+
+def chapters_named_in(prose: str) -> list[str]:
+    named = CHAPTER_NAMED.findall(prose)
+    for run in CHAPTER_RUN.findall(prose):
+        named += re.findall(r"`([^`]+)`", run)
+    return [name for name in named if REFERENCE_ID.fullmatch(name)]
+
+
+def stops_named_in(prose: str, chapters: set[str]) -> list[str]:
+    if not chapters:
+        return []
+    stop_shaped = re.compile(
+        rf"(?<![\w-])(?:{'|'.join(map(re.escape, chapters))})-s\d+(?![\w-])"
+    )
+    return stop_shaped.findall(prose)
+
+
+def prose_problems(
+    prose: str, chapters: set[str], stops: set[str]
+) -> list[str]:
+    unknown_stops = [
+        f"names unknown stop {stop}"
+        for stop in stops_named_in(prose, chapters)
+        if stop not in stops
+    ]
+    unknown_chapters = [
+        f"names unknown chapter {name}"
+        for name in chapters_named_in(prose)
+        if name not in chapters
+    ]
+    return list(dict.fromkeys(unknown_stops + unknown_chapters))
+
+
+def item_problems(
+    trail: str, item: dict, diff: dict, chapters: set[str]
+) -> list[str]:
+    problems = [
+        (trail, location_problem(key, item[key], diff))
+        for key in LOCATION_KEYS
+        if isinstance(item.get(key), str)
+    ]
+    problems += [
+        (where, test_problem(test, diff))
+        for where, test in tests_named_by(trail, item)
+    ]
+    named = item.get("chapter")
+    if isinstance(named, str) and named not in chapters:
+        problems.append((trail, f"names missing chapter {named}"))
+    return [at(where, problem) for where, problem in problems if problem]
+
+
+def reference_warnings(model: dict, diff: dict) -> list[str]:
+    """Return a warning for every citation the page could not open."""
+    chapters = {chapter["id"] for chapter in model["chapters"]}
+    stops = {
+        stop["id"] for c in model["chapters"] for stop in c.get("stops", [])
+    }
+    warnings = []
+    for source, content in sources(model):
+        for trail, value in located(content):
+            if isinstance(value, dict):
+                problems = item_problems(trail, value, diff, chapters)
+            else:
+                problems = [
+                    at(trail, problem)
+                    for problem in prose_problems(value, chapters, stops)
+                ]
+            warnings += [f"{source}: {problem}" for problem in problems]
+    warnings += [
+        f"file {file['path']}: names missing chapter {file['chapter']}"
+        for file in model["files"]
+        if file.get("chapter") and file["chapter"] not in chapters
     ]
     return warnings
 
@@ -536,6 +734,7 @@ def check(model: dict, diff: dict) -> list[str]:
         warnings += ledger_warnings(row, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
+    warnings += reference_warnings(model, diff)
     stop_ids = [s["id"] for c in model["chapters"] for s in c.get("stops", [])]
     ledger_ids = [row["id"] for row in model["ledger"]]
     for ids, kind in ((stop_ids, "stop"), (ledger_ids, "ledger row")):
@@ -563,7 +762,12 @@ def with_views(page: str, views: list[str]) -> str:
 
 
 def with_page_models(page: str) -> str:
-    models = (COVERAGE_MODEL, GRAPH_FOCUS_MODEL, GRAPH_ROUTES_MODEL)
+    models = (
+        COVERAGE_MODEL,
+        GRAPH_FOCUS_MODEL,
+        GRAPH_ROUTES_MODEL,
+        PROSE_REFERENCES_MODEL,
+    )
     scripts = "".join(inline_script(model.read_text()) for model in models)
     return page.replace(MODELS_MARKER, scripts)
 

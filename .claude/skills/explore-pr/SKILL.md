@@ -143,6 +143,7 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, sequence, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, inlined into every build |
 | `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
+| `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
 | `assets/graph-focus.js` | Traces a graph's arrows, outbound and inbound, from every box the reviewer has pressed (touch, mouse or keyboard); pressing a box again drops it and Esc clears them all, inlined into every build |
 | `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
 | `scripts/export_trees.py` | Base and head copies of every changed file, through the GitHub API |
@@ -152,7 +153,7 @@ Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, screenshots |
+| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
 
@@ -354,7 +355,12 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   without a figure, or a figure naming a node or actor that does not exist
   is a defect to fix, not a warning to note. A stop or ledger line outside
   its file, or a ledger range that misses its call, is a content error; a
-  file without a summary renders as skim.
+  file without a summary renders as skim. So is any citation that does not
+  resolve: a `where` or test reference outside its file, matching several
+  files or not found, a `chapter` that does not exist, or prose naming a
+  stop or chapter that does not exist. Fix each against the code; never
+  delete a citation to silence its warning. A citation reported as *not a
+  changed file; unverified* may stand once you have checked it yourself.
 - The smoke check must report `"ok": true`. It needs Chrome or Chromium and
   Node 22; if neither is available, say the page was not rendered.
 - Read the **Design** screenshot as the reviewer will: could someone who

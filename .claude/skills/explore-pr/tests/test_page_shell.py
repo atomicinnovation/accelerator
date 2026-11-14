@@ -101,6 +101,15 @@ def test_the_page_starts_tracing_graphs_once_it_loads():
     assert "GraphFocus.attach(document)" in SHELL.read_text()
 
 
+def test_rendered_markdown_links_its_chapter_and_stop_references():
+    shell = SHELL.read_text()
+    start = shell.index("function md(s, inline) {")
+    markdown = shell[start : shell.index("\n}\n", start)]
+
+    assert "ProseReferences.link(" in markdown
+    assert markdown.count("return ") == markdown.count("return linked(") + 1
+
+
 def test_only_the_page_built_abstraction_diagram_rearranges_its_rows():
     assert "arrange: true" in renderer("relationsFigure")
     assert "f.arrange" in renderer("figFlow")

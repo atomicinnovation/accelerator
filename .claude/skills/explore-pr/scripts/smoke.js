@@ -9,8 +9,10 @@
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
 // unread lines and that the n key jumps to the next unread line. Needs Node
-// 22+ (global WebSocket). Last, it unfolds a run of unchanged lines in a file
-// opened by link and in one picked from the file list.
+// 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
+// opened by link and in one picked from the file list. Last, it renders prose
+// naming a stop and its chapter, and checks both become links and that the
+// stop's link opens its chapter at that stop.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -284,6 +286,26 @@ const GRAPH_PROBE = `(async () => {
   return { node: node.getAttribute('data-node'), hoverLeavesAlone, traced, highlighted: outward !== getComputedStyle(edge).stroke, released, labelsOnTop, bordersOverLinks };
 })()`;
 
+const REFERENCES_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const chapters = api.content.chapters || [];
+  const last = [...chapters].reverse().find(chapter => (chapter.stops || []).length);
+  if (!last) return { skipped: 'no chapter with a stop' };
+  const stop = last.stops[last.stops.length - 1];
+  location.hash = 'overview'; await settle();
+  const holder = document.createElement('p');
+  holder.innerHTML = api.md('See \`' + stop.id + '\` in chapter \`' + last.id + '\`.', true);
+  document.querySelector('#main .view').prepend(holder);
+  const [toStop, toChapter] = holder.querySelectorAll('a.ref');
+  const named = !!toStop && !!toChapter && !holder.querySelector('code') && toStop.textContent.includes(stop.title || stop.id) && toChapter.textContent === (last.title || last.id);
+  if (!named) return { named, html: holder.innerHTML };
+  toStop.click(); await settle();
+  const target = document.getElementById('stop-' + stop.id);
+  const top = target ? target.getBoundingClientRect().top : null;
+  return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -335,6 +357,7 @@ async function main() {
     report.graph = await cdp.evaluate(GRAPH_PROBE);
     report.arrows = await cdp.evaluate(ARROWS_PROBE);
     report.press = await cdp.evaluate(PRESS_PROBE);
+    report.references = await cdp.evaluate(REFERENCES_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -364,7 +387,9 @@ async function main() {
   const arrowsHold = !!(arrows.straightAtBothEnds && arrows.rightAngled && arrows.clearOfBoxes && arrows.noSharedRuns);
   const press = report.press || {};
   const pressHolds = !!press.skipped || !!(press.touch && press.mouse && press.additive && press.pressAwayKeeps && press.untoggleOne && press.escapeClears && press.linkNavigates && press.linkLeavesTraceAlone);
-  report.ok = pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const references = report.references || {};
+  const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
+  report.ok = referencesHold && pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
