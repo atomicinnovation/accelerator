@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { chromePath } = require('../lib/browser.js');
 
 const KIT = path.resolve(__dirname, '..');
 const FACES = {
@@ -17,20 +18,6 @@ const FACES = {
   'mono-400': ['Kit Mono', 400, 'jetbrains-mono-latin-400-normal.woff2'],
   'mono-600': ['Kit Mono', 600, 'jetbrains-mono-latin-600-normal.woff2'],
 };
-const CHROME_CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser',
-];
-
-function findChrome(preferred) {
-  for (const candidate of [preferred, ...CHROME_CANDIDATES].filter(Boolean)) {
-    if (candidate.includes('/')) { if (fs.existsSync(candidate)) return candidate; continue; }
-    try { return execFileSync('which', [candidate], { encoding: 'utf8' }).trim(); } catch { /* not on PATH */ }
-  }
-  throw new Error('Chrome or Chromium is needed to measure the fonts; pass --chrome PATH');
-}
-
 function measuringPage() {
   const faces = Object.values(FACES).map(([family, weight, file]) => {
     const data = fs.readFileSync(path.join(KIT, 'vendor/fonts', file)).toString('base64');
@@ -65,7 +52,8 @@ function compact(widths) {
 }
 
 function main(argv) {
-  const chrome = findChrome(argv.includes('--chrome') ? argv[argv.indexOf('--chrome') + 1] : process.env.CHROME);
+  const chrome = chromePath(argv.includes('--chrome') ? argv[argv.indexOf('--chrome') + 1] : undefined);
+  if (!chrome) throw new Error('Chrome or Chromium is needed to measure the fonts; pass --chrome PATH');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diagram-kit-fonts-'));
   const page = path.join(dir, 'measure.html');
   fs.writeFileSync(page, measuringPage());

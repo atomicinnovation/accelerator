@@ -129,3 +129,18 @@ test('marks outside their vocabulary are reported where they are', () => {
     'dependency a->b: tone "scary" is not one of risk, ok',
   ]);
 });
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { kitWith } = require('../../diagram-kit/lib/index.js');
+
+const EXAMPLES = path.join(__dirname, '..', 'examples');
+
+for (const file of fs.readdirSync(EXAMPLES).filter(name => name.endsWith('.json'))) {
+  test(`the example ${file} is sound and lays out`, async () => {
+    const kit = kitWith(), example = JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8'));
+    assert.deepEqual(kit.problemsIn(example), []);
+    const scene = await kit.laidOut(example);
+    assert.equal(scene.edges.every(edge => edge.points.length >= 2), true);
+  });
+}
