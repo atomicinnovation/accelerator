@@ -1624,13 +1624,24 @@ items are recorded.
 
 #### Automated Verification
 
-- [ ] Docs build and link check pass: `mise run docs:check`
-- [ ] Full run passes: `mise run`
+- [x] Docs build and link check pass: `mise run docs:check`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
 - [ ] The issue-trackers page renders the Shortcut tab on desktop and phone
       widths.
+
+#### Implementation notes
+
+- The follow-up work items are 0372 (file upload), 0373 (parent/child sync,
+  under 0291), 0374 (epics in discovery, blocked by 0290), 0375 (status and
+  priority mapping, related to 0290), 0376 (one tracker registry) and 0377
+  (client-crate duplication). 0378 records the two read-skill evals Phase 5
+  left out.
+- The sync guide and the cookbook say that `{tracker}` IDs do not support
+  Shortcut keys yet, because `supports_tracker_owned_ids` stays false for
+  Shortcut.
 
 ---
 
