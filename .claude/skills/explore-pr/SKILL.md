@@ -67,9 +67,11 @@ pass reads first, and both are enforced by the build.
 - **Design before lines.** The reviewer approves, maintains and extends a
   design, so the page explains the design and uses lines as its evidence.
   The Design view comes second; every chapter says what it adds to the
-  design before any code; every stop says how it fits the change before
-  what it does; design decisions and design-level findings are triaged
-  first.
+  design before any code; every stop names the decisions, abstractions,
+  invariants and risks it is evidence for; design decisions and
+  design-level findings are triaged first. A stop's text says what its
+  code cannot (the role it plays, why it is shaped this way, what breaks
+  if it is wrong and how to check) and never what the lines do.
 - **Pictures first.** Every part of the page is drawn first and written
   second. The overview and every chapter open with figures, a structural
   stop carries one, and prose is kept for what a picture cannot say: why,
@@ -302,7 +304,9 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   that wrap. Then look at each custom view, and at the overview at phone
   width. Fix what is visibly wrong once, then stop.
 - Spot-check five stops and three ledger rows against the code yourself.
-  Fix them, and say what you checked.
+  Fix them, and say what you checked. At each stop, cover the text and
+  read the code, then read the text: anything you had already learnt from
+  the lines should not be there ("What a stop says" in the content model).
 
 ### 10. Deliver
 

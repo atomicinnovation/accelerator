@@ -216,6 +216,16 @@ def test_both_layouts_carry_the_prose_references_model(tmp_path, script):
         assert html.index("ProseReferences") < html.index("window.APP")
 
 
+def test_both_layouts_carry_the_stop_evidence_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert html.index("StopEvidence") < html.index("window.APP")
+
+
 def test_the_standalone_page_is_a_complete_document(script):
     build = script("build")
 

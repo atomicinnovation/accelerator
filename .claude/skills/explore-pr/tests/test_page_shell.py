@@ -31,12 +31,63 @@ def test_a_chapter_defines_its_terms_before_the_prose_that_uses_them():
         assert glossary < layout.index(prose), prose
 
 
-def test_a_stop_places_itself_in_the_change_before_explaining_its_code():
+def stop_layout():
     shell = SHELL.read_text()
-    stop = shell[shell.index("const stops = (ch.stops") :]
+    start = shell.index("const stops = (ch.stops")
+    return shell[start : shell.index("const ba = ", start)]
 
-    assert "s.fit" in stop
-    assert stop.index("s.fit") < stop.index("md(s.note)")
+
+def test_a_stop_says_what_it_is_evidence_for_before_anything_else():
+    stop = stop_layout()
+
+    assert "EVIDENCE.carriedBy(s)" in stop
+    assert stop.index("carriedLink") < stop.index("s.fit")
+
+
+def test_a_stop_gives_its_role_then_why_then_the_risk_then_the_checks():
+    stop = stop_layout()
+
+    order = [
+        stop.index(part)
+        for part in ("md(s.fit)", "md(s.why)", "md(s.risk)", "stopChecks(s)")
+    ]
+    assert order == sorted(order)
+
+
+def test_a_stop_no_longer_narrates_its_code():
+    shell = SHELL.read_text()
+
+    assert "md(s.note)" not in shell
+    assert "s.check ?" not in shell
+
+
+def test_a_check_asks_a_question_and_says_what_a_problem_looks_like():
+    checks = renderer("stopChecks")
+
+    assert "md(c.question)" in checks
+    assert "whereBtn(c.where)" in checks
+    assert "md(c.problem, true)" in checks
+
+
+def test_a_stop_marks_the_lines_to_focus_on_in_its_code():
+    assert "focus: s.focus" in stop_layout()
+    slice_of_code = renderer("codeSlice")
+
+    assert "focusRow(" in slice_of_code
+    assert "JSON.stringify([path, start, end, side, opts])" in slice_of_code
+
+
+def test_a_decision_and_an_abstraction_list_the_stops_that_show_them():
+    assert "shownAt(d)" in renderer("decisionCard")
+    assert "shownAt(a)" in renderer("abstractionCard")
+
+
+def test_what_a_stop_carries_can_be_reached_from_it():
+    shell = SHELL.read_text()
+
+    for target in ('id="dec-', 'id="abs-', 'id="inv-', 'id="risk-'):
+        assert target in shell, target
+    assert "dataset.scrollTo" in shell
 
 
 def test_by_commit_sits_with_the_reference_views_after_all_files():
