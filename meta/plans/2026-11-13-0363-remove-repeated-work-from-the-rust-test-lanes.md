@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T16:40:00+00:00"
+last_updated: "2026-11-14T17:12:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -51,8 +51,8 @@ As of 2026-11-14:
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
 - **Phase 3: implemented, not yet merged.** It was added after Phase 2, at
-  the user's request. Every local criterion is met except the lane timing,
-  which a busy host kept just above 180 s. CI has not run it yet. Two
+  the user's request. Every local criterion is met. CI has not run it yet.
+  Two
   findings, each settled with the user, widened it beyond the plan: the
   sweep recovers the hash of each binary cargo reports only by its uplifted
   copy, and it also sweeps `incremental`. The outcome notes in Phase 3
@@ -1107,16 +1107,17 @@ causes.
 
 On engywook:
 
-- [ ] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
+- [x] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
       180 s (median of three), and its sweep step costs no more than 5 s,
       timed on its own after a lane run.
-      - Recorded 2026-11-14, not met on a busy host (1-minute load averages
-        of 26 to 66): three steady-state runs took 196.59 s, 184.05 s and
-        185.85 s, median 185.85 s, with nextest alone at 181.81 s, 172.05 s
-        and 174.92 s. The sweep step, timed on its own three times, took
-        2.81 s, 2.34 s and 2.26 s (before the `incremental` sweep, which
-        adds one directory listing), so it is not what keeps the lane
-        above 180 s. Rerun on a quiet host.
+      - Recorded 2026-11-14 on a quieter host, after stopping a Chrome
+        renderer that held about five cores (1-minute load averages of 8.8
+        to 12.8 at each start): 150.58 s, 159.36 s and 156.48 s, median
+        156.48 s, each compiling nothing and sweeping 0. An earlier set on
+        a busy host (load 26 to 66) had a median of 185.85 s. The sweep
+        step, timed on its own three times, took 2.81 s, 2.34 s and 2.26 s
+        (before the `incremental` sweep, which adds one directory
+        listing).
 - [x] The first lane run sweeps the superseded entries a probe finds just
       before it. A re-probe on 2026-11-14 still found 2.28 GB after
       `cargo llvm-cov clean --workspace` and a lane run, because a full
@@ -1382,7 +1383,8 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 - The coverage lane was expected to drop from about 247 s to about 160 s
   warm, with a target of under 180 s. Measured on a busy engywook, it went
-  from 268.63 s to 174.39 s (median of three).
+  from 268.63 s to 174.39 s (median of three). With the Phase 3 sweep, on a
+  quieter host, it took 156.48 s.
 - `log::tests` was expected to drop from about 42 sys-CPU-s per lib pass to
   under 2 CPU-s. Measured, it went from 30.59 to 0.14 CPU-s under
   `cargo test`, and from 35.86 to 0.39 under `cargo nextest run`. It runs twice in `test:unit:visualiser`. libtest runs the
