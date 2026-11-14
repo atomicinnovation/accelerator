@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
 revision: "ad58463b332b7d22d8e54fb3f1c60a51f308d6d7"
 repository: "accelerator"
-last_updated: "2026-11-14T10:51:26+00:00"
+last_updated: "2026-11-14T11:51:40+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -28,7 +28,7 @@ phases, each of which can be merged on its own:
 1. The visualiser's `log::tests` rotation tests reach the 5 MiB cap in a few
    large writes instead of millions of 2-byte writes.
 2. `test:unit:cli` replaces cargo-llvm-cov's full clean with a profraw-only
-   clean, runs nextest with `--no-clean --no-report`, then reports the totals
+   clean, runs nextest with `--no-report`, then reports the totals
    as a single line.
 3. `test:unit:cli` fails when any total falls below a coverage floor. This
    goes beyond 0363's scope, at the user's request, and reverses the
@@ -110,7 +110,7 @@ segment.
   `MAX_BYTES`, or setting `MAX_FILES` to 2 or 4, fails at least one test.
 - With coverage on, `test:unit:cli` runs exactly these commands in order:
   `cargo llvm-cov clean --profraw-only`,
-  `cargo llvm-cov nextest … --no-clean --no-report`, then
+  `cargo llvm-cov nextest … --no-report`, then
   `cargo llvm-cov report … --json --summary-only` (captured). It prints one
   line, `coverage: lines NN.NN%, functions NN.NN%, regions NN.NN%`, and no
   per-file rows or JSON.
@@ -118,9 +118,9 @@ segment.
   fails the task. A total below its floor fails the task with a message that
   names each shortfall, where the floor is set, and the
   `cargo llvm-cov clean --workspace` remedy.
-- The nextest and report commands share one manifest-path and one
-  feature-selection fragment, and a guard test fails if any workspace member
-  depends on `accelerator-visualiser`.
+- The clean, nextest and report commands share one manifest-path
+  fragment, and a guard test fails if any workspace member depends on
+  `accelerator-visualiser`.
 - With `ACCELERATOR_COVERAGE=off`, the task runs only `cargo nextest run`.
 - The docstring names `cargo llvm-cov clean --workspace` as the remedy for
   suspected stale instrumented binaries.
@@ -379,14 +379,34 @@ changes since), with no other task running:
 `time mise run --skip-deps test:unit:cli`. Record the median of three runs
 and the number of tests nextest reports.
 
+Outcome, 2026-11-14: 264.26 s, 310.08 s and 268.63 s, median 268.63 s,
+with 7,401 tests run, all passing, and 2 skipped. The host was otherwise
+busy: 1-minute load averages of 19 to 48.
+
 #### 2. Coverage totals parser (tests first)
 
 **File**: `tests/unit/tasks/fixtures/coverage/llvm-cov-summary.json` (new)
 **Changes**: Capture a real export once, after a lane run, with
-`cargo llvm-cov report --manifest-path cli/Cargo.toml --all-features --json --summary-only`.
+`cargo llvm-cov report --manifest-path cli/Cargo.toml --json --summary-only`.
 Trim `data[0].files` to two entries and leave everything else, including
 `totals`, as captured. This pins the real 0.8.7 shape, not a hand-built
 guess at it.
+
+Outcome: `report` rejects `--all-features` (and every feature flag) with
+"invalid option '--all-features' for subcommand 'report'", although its
+`--help` lists them. It reads the objects already in `llvm-cov-target`
+rather than resolving a build, so it needs no feature selection: the
+featureless report of the old lane's last run gave exactly that run's
+totals (lines 94.19%, functions 93.57%, regions 92.88%) and no visualiser
+files. The report command carries no feature flags, and the sequence test
+pins that. The fixture's checkout prefix is replaced with `/workspace` so
+no machine path is committed.
+
+Outcome: the first lane run failed with "--no-report may not be used
+together with --no-clean". In 0.8.7 `--no-report` alone already skips the
+full clean: the lane's nextest command with only `--no-report` recompiled
+no workspace crate and ran all 7,401 tests. The nextest step passes
+`--no-report` alone, and the sequence test forbids `--no-clean` there.
 
 **File**: `tests/unit/tasks/test_coverage.py` (new)
 **Changes**: Pure tests of the parser and formatter.
@@ -483,10 +503,10 @@ the other classes.
 - `test_clears_profile_data_then_tests_then_reports`: with coverage on, the
   commands are exactly three, in order. The first starts with
   `cargo llvm-cov clean` and contains `--profraw-only`. The second starts
-  with `cargo llvm-cov nextest` and contains `--no-clean`, `--no-report`,
+  with `cargo llvm-cov nextest`, contains `--no-report` but not `--no-clean`,
   `--exclude accelerator-visualiser` and `--all-features`. The third starts
-  with `cargo llvm-cov report` and contains `--all-features`, `--json` and
-  `--summary-only`. All three contain
+  with `cargo llvm-cov report`, contains `--json` and `--summary-only`, and
+  carries no feature flag. All three contain
   `--manifest-path {CLI_WORKSPACE_CARGO_TOML}`.
 - `test_only_the_report_output_is_captured`: only the report call passes
   `hide="out"`.
@@ -537,8 +557,8 @@ dicts for the branch cases.
 
 **File**: `tasks/test/cli.py`
 
-The manifest path and feature selection become named fragments shared by
-`_MANIFEST` and the report command. `_MANIFEST`'s value is unchanged, and
+The manifest path becomes a named fragment shared by `_MANIFEST` and the
+clean and report commands. `_MANIFEST`'s value is unchanged, and
 `tasks/test/integration.py` keeps importing it. The existing comment that
 explains why the visualiser is excluded (its own lanes, its own features and
 environment) stays, unchanged, above these fragments. The guard test's
@@ -548,8 +568,9 @@ comment does not grow.
 ```python
 _VISUALISER = "accelerator-visualiser"
 _WORKSPACE = f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}"
-_FEATURES = "--all-features"
-_MANIFEST = f"{_WORKSPACE} --workspace --exclude {_VISUALISER} {_FEATURES}"
+_MANIFEST = (
+    f"{_WORKSPACE} --workspace --exclude {_VISUALISER} --all-features"
+)
 
 
 @task
@@ -576,9 +597,7 @@ def run(context: Context) -> None:
 
 def _run_instrumented(context: Context) -> None:
     _clear_previous_profile_data(context)
-    _run_tests(
-        context, f"cargo llvm-cov nextest {_MANIFEST} --no-clean --no-report"
-    )
+    _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
     print(_report_totals(context).summary_line())
 
 
@@ -600,8 +619,7 @@ def _run_tests(context: Context, command: str) -> None:
 
 def _report_totals(context: Context) -> CoverageTotals:
     result = context.run(
-        f"cargo llvm-cov report {_WORKSPACE} {_FEATURES} "
-        "--json --summary-only",
+        f"cargo llvm-cov report {_WORKSPACE} --json --summary-only",
         warn=True,
         hide="out",
         pty=False,
@@ -615,10 +633,9 @@ def _report_totals(context: Context) -> CoverageTotals:
 ```
 
 `_announce_skipped_permission_tests` is the current permission-skip banner,
-extracted as is. `report` takes `_FEATURES` so it resolves the same build the
-tests ran. The sequence test pins this, and the totals-equality check under
-Manual Verification confirms it. The docstring must not contain the
-substring `--profile`.
+extracted as is. `report` takes no feature flags, which 0.8.7 rejects; the
+totals-equality check under Manual Verification confirms it reads the build
+the tests ran. The docstring must not contain the substring `--profile`.
 
 #### 4. Descriptions
 
@@ -629,7 +646,7 @@ description = "Run cli/ workspace tests via nextest with coverage (clears old pr
 ```
 
 **File**: `tasks/README.md:778`: describe `on` as "profraw-only clean, then
-`cargo llvm-cov nextest --no-clean`, then a totals line", keeping the
+`cargo llvm-cov nextest --no-report`, then a totals line", keeping the
 off-path wording.
 
 **File**: `tasks/shared/rust.py:44` (`coverage_enabled` docstring): replace
@@ -645,24 +662,34 @@ correct the Technical Note on the export shape. The totals sit at
 
 #### Automated Verification:
 
-- [ ] The parser and task tests pass:
+- [x] The parser and task tests pass:
       `uv run pytest tests/unit/tasks/test_coverage.py tests/unit/tasks/test_rust.py tests/unit/tasks/test_cli_permission_skip.py tests/unit/tasks/test_nextest_filter.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification:
 
 On engywook:
 
-- [ ] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
+- [x] Warm and alone, `time mise run --skip-deps test:unit:cli` takes under
       180 s (median of three) and reports the same number of tests run, all
       passing, as the before run.
-- [ ] After a full lane run, the clean, nextest and report commands are each
+      - Recorded 2026-11-14 with 1-minute load averages of 12 to 54:
+        166.68 s, 186.62 s and 174.39 s, median 174.39 s (before: 268.63 s),
+        with 7,401 tests run, all passing, and 2 skipped.
+- [x] After a full lane run, the clean, nextest and report commands are each
       timed on their own. The figures are recorded in the PR description,
       with the profraw-only clean's cost measured against a full run's
       leftover profiles.
-- [ ] Its totals line equals the line from the same lane run straight after
+      - Recorded 2026-11-14: the profraw-only clean took 1.30 s over 10,286
+        leftover profiles, nextest 169.45 s and the report 4.53 s. The
+        report's stderr had no mismatched-data or missing-object warnings.
+- [x] Its totals line equals the line from the same lane run straight after
       `cargo llvm-cov clean --workspace`.
+      - Both read `coverage: lines 94.19%, functions 93.57%, regions
+        92.88%`, as did the old lane's text table. One of the three timed
+        runs read regions 92.89%, so the totals can move by 0.01 between
+        identical runs.
 - [ ] Stale binaries: after a full lane run, bump one dependency of a
       workspace member in `cli/Cargo.lock` (`cargo update -p <crate>
       --precise <adjacent version>`) so that member's test binaries get new
@@ -679,21 +706,22 @@ On engywook:
       ```sh
       cargo llvm-cov clean --profraw-only --manifest-path cli/Cargo.toml
       cargo llvm-cov nextest --manifest-path cli/Cargo.toml -p kernel \
-        --all-features --no-clean --no-report
+        --all-features --no-report
       cargo llvm-cov report --manifest-path cli/Cargo.toml -p kernel \
-        --all-features --json --summary-only
+        --json --summary-only
       ```
 
       The `kernel` totals equal those of the same commands run straight
       after `cargo llvm-cov clean --workspace`. Control: after a fresh full
       run, running the restricted nextest and report with bare `--no-clean`
       and no profraw clean gives different `kernel` totals.
-- [ ] After two consecutive lane runs, `cli/target/llvm-cov-target` holds at
+- [x] After two consecutive lane runs, `cli/target/llvm-cov-target` holds at
       least one `*.profraw` file, and every one has a modification time
       later than the second run's start.
-- [ ] `ACCELERATOR_COVERAGE=off mise run --skip-deps test:unit:cli` runs no
+      - 10,287 profiles, none older than the second run's start.
+- [x] `ACCELERATOR_COVERAGE=off mise run --skip-deps test:unit:cli` runs no
       `cargo llvm-cov` command and passes the same number of tests.
-- [ ] A full `mise run` prints one `coverage:` line, with no per-file rows
+- [x] A full `mise run` prints one `coverage:` line, with no per-file rows
       and no JSON.
 - [ ] In CI, the `test-unit` job on both `ubuntu-latest` and `macos-latest`
       runs the three `cargo llvm-cov` steps and prints the totals line. The
@@ -817,9 +845,7 @@ task. The production value is checked without a test of its own.
 ```python
 def _run_instrumented(context: Context) -> None:
     _clear_previous_profile_data(context)
-    _run_tests(
-        context, f"cargo llvm-cov nextest {_MANIFEST} --no-clean --no-report"
-    )
+    _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
     totals = _report_totals(context)
     print(totals.summary_line())
     _enforce_floor(totals)
@@ -930,7 +956,7 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
   saving.
 - The profraw-only clean deletes about 9,200 profile files left by the
   previous run. Its cost is timed on its own in Phase 2.
-- `--no-clean` keeps instrumented binaries across runs. Phase 2's
+- Skipping the full clean keeps instrumented binaries across runs. Phase 2's
   dependency-bump check confirms that superseded binaries neither change the
   totals nor slow the report.
 - The report step adds a JSON export of a few MB that is captured in memory.
