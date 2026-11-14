@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from tasks.shared.instrumented_build import (
     live_units,
     parse_build_environment,
     superseded_entries,
+    superseded_incremental,
 )
 
 UNITS = (
@@ -38,6 +40,14 @@ class TestUnitListing:
 
     def test_keeps_the_artefacts_cargo_reports_without_a_hash(self):
         assert UnitListing.parse(UNITS).uplifted == {UPLIFTED_VERIFY}
+
+    def test_counts_the_units_of_each_crate(self):
+        assert UnitListing.parse(UNITS).crates == {
+            "smallvec": 1,
+            "kernel": 1,
+            "accelerator_verify": 1,
+            "build_script_build": 1,
+        }
 
     def test_a_fresh_listing_rebuilt_nothing(self):
         assert UnitListing.parse(UNITS).rebuilt == 0
@@ -76,7 +86,7 @@ class TestLiveUnits:
         return tmp_path / "debug"
 
     def _listing(self, *uplifted: Path) -> UnitListing:
-        return UnitListing(frozenset({SMALLVEC}), frozenset(uplifted), 0)
+        return UnitListing(frozenset({SMALLVEC}), frozenset(uplifted), {}, 0)
 
     def test_hashed_artefacts_are_live(self):
         assert live_units(self._listing()) == {SMALLVEC}
@@ -185,6 +195,54 @@ class TestSupersededEntries:
 
         with pytest.raises(ValueError, match="no live units"):
             superseded_entries(build_dir, frozenset())
+
+
+def _session(build_dir: Path, name: str, modified: int) -> Path:
+    path = _directory(build_dir, f"incremental/{name}")
+    os.utime(path, (modified, modified))
+    return path
+
+
+class TestSupersededIncremental:
+    @pytest.fixture
+    def build_dir(self, tmp_path: Path) -> Path:
+        return tmp_path / "debug"
+
+    def test_keeps_the_newest_directory_for_each_unit_of_a_crate(
+        self, build_dir: Path
+    ):
+        stale = _session(build_dir, "kernel-0older", 100)
+        _session(build_dir, "kernel-1newer", 300)
+        _session(build_dir, "kernel-2newest", 200)
+
+        assert superseded_incremental(build_dir, {"kernel": 2}) == [stale]
+
+    def test_sweeps_every_directory_of_a_crate_with_no_units(
+        self, build_dir: Path
+    ):
+        _session(build_dir, "kernel-1newer", 300)
+        stale = _session(build_dir, "retired-0older", 100)
+
+        assert superseded_incremental(build_dir, {"kernel": 1}) == [stale]
+
+    def test_reads_the_crate_name_before_the_last_hyphen(self, build_dir: Path):
+        stale = _session(build_dir, "build_script_build-0older", 100)
+        _session(build_dir, "build_script_build-1newer", 300)
+
+        assert superseded_incremental(build_dir, {"build_script_build": 1}) == [
+            stale
+        ]
+
+    def test_a_build_dir_without_incremental_has_nothing_superseded(
+        self, build_dir: Path
+    ):
+        assert superseded_incremental(build_dir, {"kernel": 1}) == []
+
+    def test_refuses_to_judge_without_units(self, build_dir: Path):
+        _session(build_dir, "kernel-1newer", 300)
+
+        with pytest.raises(ValueError, match="no live units"):
+            superseded_incremental(build_dir, {})
 
 
 class TestSweep:

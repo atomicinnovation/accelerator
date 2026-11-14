@@ -16,6 +16,7 @@ from tasks.shared.instrumented_build import (
     live_units,
     parse_build_environment,
     superseded_entries,
+    superseded_incremental,
 )
 from tasks.shared.paths import (
     CLI_INSTRUMENTED_BUILD_DIR,
@@ -132,7 +133,9 @@ def _sweep_superseded_artefacts(context: Context) -> None:
         raise Exit(
             f"cargo llvm-cov: {error}, so nothing was swept", code=1
         ) from error
-    swept = superseded_entries(_INSTRUMENTED_BUILD, live)
+    swept = superseded_entries(
+        _INSTRUMENTED_BUILD, live
+    ) + superseded_incremental(_INSTRUMENTED_BUILD, listing.crates)
     freed = sum(map(_remove, swept))
     print(Sweep(entries=len(swept), freed_bytes=freed).summary_line())
 
