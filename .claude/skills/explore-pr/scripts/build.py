@@ -756,6 +756,16 @@ def anchor_problem(item: dict, anchorage: dict, diff: dict) -> str | None:
     if item["file"] not in diff:
         return None
     lines = side_lines(diff[item["file"]], anchorage["side"])
+    carried_whole = diff[item["file"]].get("full", True)
+    if not carried_whole and any(
+        n not in lines for n in range(first, last + 1)
+    ):
+        place = f"line {first}" if first == last else f"lines {first}-{last}"
+        return (
+            f"{place} of {item['file']} are not in the page: the file is too "
+            "long to carry whole and these are far from any change; cite "
+            "lines the diff holds"
+        )
     found = lines_holding(anchor, lines)
     if line in found:
         return None
@@ -1397,6 +1407,11 @@ def test_problem(test: str | dict, diff: dict) -> str | None:
         return unresolved
     (changed,) = changed_files_named(path, diff)
     if name and name not in head_text(diff[changed]):
+        if not diff[changed].get("full", True):
+            return Note(
+                f"{reference} is not among the lines of {changed} the page "
+                "holds: the file is too long to carry whole; unverified"
+            )
         return f"{reference} not found in {changed}"
     last = length_of(diff[changed])
     if line is not None and not 1 <= line <= last:

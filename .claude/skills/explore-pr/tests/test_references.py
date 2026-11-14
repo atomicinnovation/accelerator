@@ -313,3 +313,36 @@ def test_code_after_the_word_chapter_that_is_no_reference_is_left_alone(
     warnings = warnings_for(tmp_path, script, [chapter()], overview=overview)
 
     assert about(warnings, "unknown chapter") == []
+
+
+def test_a_test_a_long_file_may_hold_out_of_sight_is_noted_not_refused(
+    tmp_path, script
+):
+    build = script("build")
+    (tmp_path / "content").mkdir(parents=True)
+    (tmp_path / "data").mkdir()
+    partly_carried = {
+        "tests/long.rs": {
+            "status": "modified",
+            "full": False,
+            "add": 1,
+            "del": 0,
+            "hunks": [{"o": 99, "n": 99, "l": ["+fn seen_here() {}"]}],
+        }
+    }
+    (tmp_path / "data/diff.json").write_text(json.dumps(partly_carried))
+    (tmp_path / "explore.json").write_text(json.dumps({"pr": {"number": 1}}))
+    cited = chapter(
+        tests=[
+            {"file": "tests/long.rs", "name": "seen_here"},
+            {"file": "tests/long.rs", "name": "far"},
+        ]
+    )
+    (tmp_path / "content/chapter-claims.json").write_text(json.dumps(cited))
+
+    _, warnings = build.assemble(tmp_path)
+
+    (noted,) = [w for w in warnings if "far" in w]
+    assert isinstance(noted, build.Note)
+    assert "too long to carry whole; unverified" in noted
+    assert not [w for w in warnings if "seen_here" in w]

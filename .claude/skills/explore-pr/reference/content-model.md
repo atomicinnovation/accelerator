@@ -152,6 +152,12 @@ Every citation must open something. `scripts/build.py` warns about:
 The workspace holds only the files the PR changes, so a citation into an
 unchanged file cannot be checked or opened: the page shows it as plain text
 and the build reports it in a note as *not a changed file; unverified*.
+
+A changed file is carried whole, so any line of it can be cited and shown,
+with two exceptions: a lockfile or generated file, and a file of more than
+20,000 lines. Of those the page holds only the five lines either side of
+each change. A stop or ledger row on other lines is a warning, since the
+page cannot show them, and a test named there is noted as unverified.
 Keep one only when the point cannot be made from a changed file, and verify
 it by hand.
 

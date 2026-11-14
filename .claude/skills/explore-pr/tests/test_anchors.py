@@ -220,3 +220,45 @@ def test_the_command_line_reanchors_before_it_builds(tmp_path, script, capsys):
     assert "reanchored stop s1: moved +3 to lines 5-7" in streams.out
     assert "anchor" not in streams.err
     assert stops_of(root)[0]["start"] == 5
+
+
+PARTLY_CARRIED = {
+    "tests/long.rs": {
+        "status": "modified",
+        "full": False,
+        "add": 1,
+        "del": 0,
+        "hunks": [
+            {"o": 99, "n": 99, "l": [" fn near() {", "+    claim();", " }"]}
+        ],
+    }
+}
+
+
+def partly_carried(root, script, stops):
+    workspace(root, stops=stops)
+    (root / "data/diff.json").write_text(json.dumps(PARTLY_CARRIED))
+    _, warnings = script("build").assemble(root)
+    return [w for w in warnings if "anchor" in w or "not in the page" in w]
+
+
+def test_a_stop_on_lines_a_long_file_does_not_carry_says_they_cannot_be_shown(
+    tmp_path, script
+):
+    far = stop(file="tests/long.rs", start=20, end=24, anchor="fn far()")
+
+    warnings = partly_carried(tmp_path, script, [far])
+
+    assert warnings == [
+        "stop s1: lines 20-24 of tests/long.rs are not in the page: the file "
+        "is too long to carry whole and these are far from any change; "
+        "cite lines the diff holds"
+    ]
+
+
+def test_a_stop_on_lines_a_long_file_does_carry_is_anchored_as_usual(
+    tmp_path, script
+):
+    near = stop(file="tests/long.rs", start=99, end=101, anchor="fn near()")
+
+    assert partly_carried(tmp_path, script, [near]) == []
