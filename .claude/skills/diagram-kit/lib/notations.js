@@ -45,7 +45,7 @@
       const problems = problemsIn(spec);
       if (problems.length) throw new Error(problems.join('\n'));
       const notation = byKind.get(spec.kind);
-      return notation.placedSceneOf ? notation.placedSceneOf(spec) : laidOut(notation.sceneOf(spec));
+      return (notation.placedSceneOf && notation.placedSceneOf(spec)) || laidOut(notation.sceneOf(spec));
     }
 
     const remarksOn = spec => (byKind.get(spec.kind).remarksOn || (() => []))(spec);

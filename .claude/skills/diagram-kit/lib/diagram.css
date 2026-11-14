@@ -33,6 +33,10 @@
 .dk .node.boundary > .body { fill: color-mix(in srgb, var(--panel-2) 45%, transparent); stroke-dasharray: 7 4; }
 .dk .node.boundary .title, .dk .node.boundary .stereotype { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
 .dk .node.boundary.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.lane .body { fill: color-mix(in srgb, var(--panel-2) 35%, transparent); stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.lane .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.lane.s-new .body, .dk .node.lane.s-new .rule { stroke: var(--accent); }
+.dk .node.lane.s-changed .body, .dk .node.lane.s-changed .rule { stroke: var(--warn); }
 .dk .title, .dk .member { font-family: var(--f-mono); }
 .dk .stereotype, .dk .end { font-family: var(--f-body); font-size: 11px; fill: var(--ink-3); }
 .dk .end { fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
@@ -48,6 +52,9 @@
 .dk .node.state.s-new .rule, .dk .node.composite.s-new .rule { stroke: var(--accent); }
 .dk .node.composite .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
 .dk .node.composite.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
+.dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
+.dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }
 .dk .node.initial .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.final .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.final .core { fill: var(--ink-2); }

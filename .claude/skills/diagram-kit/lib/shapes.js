@@ -93,10 +93,12 @@
 
   const fixed = (side, outline) => ({ holdsOthers: false, outline, sizeOf: () => ({ width: side, height: side }) });
 
+  const bar = { holdsOthers: false, sizeOf: node => (node.upright ? { width: 6, height: 84 } : { width: 84, height: 6 }) };
+
   const supporting = { holdsOthers: false };
   const SHAPES = {
-    box, group, actor, note, fragment, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, boundary, state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
+    classifier, boundary, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
   const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;

@@ -44,7 +44,7 @@
   const rectOf = node => `x="${tidy(node.x)}" y="${tidy(node.y)}" width="${tidy(node.width)}" height="${tidy(node.height)}"`;
   const plainText = (text, role, x, baseline) => textOf(blockOf(text, role), role, x, baseline, 'start');
 
-  const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice' };
+  const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice', bar: 'the bar', flowfinal: 'the end of this flow' };
 
   const DRAWN = {
     classifier(node, target) {
@@ -80,6 +80,12 @@
       return bodyOf(node, 12) + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name)
         + `<line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 30)}" x2="${tidy(node.x + node.width)}" y2="${tidy(node.y + 30)}"/>` + untold(node, target);
     },
+    bar: node => `<rect class="body" ${rectOf(node)} rx="2"/>`,
+    flowfinal(node) {
+      const cx = node.x + node.width / 2, cy = node.y + node.height / 2, radius = node.width / 2, arm = radius * 0.7;
+      return `<circle class="body" cx="${tidy(cx)}" cy="${tidy(cy)}" r="${tidy(radius)}"/>`
+        + `<path class="cross" d="M${tidy(cx - arm)} ${tidy(cy - arm)} L${tidy(cx + arm)} ${tidy(cy + arm)} M${tidy(cx + arm)} ${tidy(cy - arm)} L${tidy(cx - arm)} ${tidy(cy + arm)}"/>`;
+    },
     initial: node => `<circle class="body" cx="${tidy(node.x + node.width / 2)}" cy="${tidy(node.y + node.height / 2)}" r="${tidy(node.width / 2)}"/>`,
     final(node) {
       const cx = tidy(node.x + node.width / 2), cy = tidy(node.y + node.height / 2);
@@ -88,6 +94,11 @@
     choice(node) {
       const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
       return `<path class="body" d="M${tidy(cx)} ${tidy(node.y)} L${tidy(node.x + node.width)} ${tidy(cy)} L${tidy(cx)} ${tidy(node.y + node.height)} L${tidy(node.x)} ${tidy(cy)} Z"/>`;
+    },
+    lane(node) {
+      const right = node.x + node.width;
+      return `<rect class="body" ${rectOf(node)}/><line class="rule" x1="${tidy(node.x)}" y1="${tidy(node.y + 28)}" x2="${tidy(right)}" y2="${tidy(node.y + 28)}"/>`
+        + textOf(blockOf(String(node.label ?? node.id).toUpperCase(), 'heading'), 'heading', node.x + node.width / 2, node.y + 19, 'middle');
     },
     lifeline: node => `<line class="body" x1="${tidy(node.x)}" y1="${tidy(node.y)}" x2="${tidy(node.x)}" y2="${tidy(node.y + node.height)}"/>`,
     activation: node => `<rect class="body" ${rectOf(node)}/>`,

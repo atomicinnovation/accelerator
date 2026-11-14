@@ -1,0 +1,37 @@
+{
+  "id": "cold-start",
+  "kind": "activity-diagram",
+  "title": "A cold start fetches a version, then prunes while it records the fetch",
+  "caption": "The launcher decides whether the version is cached; only a cold start crosses into the store. Pruning runs alongside recording the fetch, so a slow prune cannot delay the record, and both finish before the sub-binary runs.",
+  "partitions": [
+    { "id": "launcher", "label": "Launcher" },
+    { "id": "store", "label": "Store", "status": "changed" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "initial", "partition": "launcher" },
+    { "id": "claim", "label": "Claim the version", "partition": "launcher", "status": "new" },
+    { "id": "cached", "kind": "decision", "partition": "launcher" },
+    { "id": "fetch", "label": "Fetch, verify and extract", "partition": "store" },
+    { "id": "split", "kind": "fork", "partition": "store" },
+    { "id": "prune", "label": "Prune stale trees", "partition": "store", "status": "new", "tone": "risk" },
+    { "id": "record", "label": "Record the fetch", "partition": "store" },
+    { "id": "gather", "kind": "join", "partition": "store" },
+    { "id": "ready", "kind": "merge", "partition": "launcher" },
+    { "id": "exec", "label": "Run the sub-binary", "partition": "launcher" },
+    { "id": "end", "kind": "final", "partition": "launcher" }
+  ],
+  "flows": [
+    { "from": "start", "to": "claim" },
+    { "from": "claim", "to": "cached" },
+    { "from": "cached", "to": "ready", "guard": "cached" },
+    { "from": "cached", "to": "fetch", "guard": "else" },
+    { "from": "fetch", "to": "split" },
+    { "from": "split", "to": "prune", "status": "new" },
+    { "from": "split", "to": "record" },
+    { "from": "prune", "to": "gather", "status": "new" },
+    { "from": "record", "to": "gather" },
+    { "from": "gather", "to": "ready" },
+    { "from": "ready", "to": "exec" },
+    { "from": "exec", "to": "end" }
+  ]
+}

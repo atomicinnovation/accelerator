@@ -173,7 +173,7 @@
     return positionedFrom(await layoutEngine().layout(graph), scene);
   }
 
-  const api = { layoutGraphOf, positionedFrom, laidOut };
+  const api = { layoutGraphOf, positionedFrom, laidOut, onOutline };
   if (inNode) module.exports = api;
   else root.DiagramKit = Object.assign(root.DiagramKit || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);
