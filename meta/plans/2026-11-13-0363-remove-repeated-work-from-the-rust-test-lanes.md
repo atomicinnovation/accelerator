@@ -56,7 +56,7 @@ As of 2026-11-14:
   `0363-remove-repeated-rust-test-work`). The PR's one red check, the
   Ubuntu E2E job, fails in `deps:install:playwright` on the Ubuntu 26.04
   runner image. That is outside this plan.
-- **Phase 4: implemented, awaiting the full local run and CI.** The floors
+- **Phase 4: implemented; the full local run passes, CI is outstanding.** The floors
   are lines 92, functions 92 and regions 91, from the four runs recorded in
   Phase 4. The root run needed `--no-fail-fast`, because 28 tests that seal
   paths by hand fail as root; Phase 4's outcome notes record this and the
@@ -1459,7 +1459,14 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 - [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_coverage.py tests/unit/tasks/test_rust.py -v`
 - [x] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The full local run passes: `mise run`
+      - Recorded 2026-11-14: `coverage: lines 94.19%, functions 93.57%,
+        regions 92.89%`. The first attempt failed on
+        `design-adapters::spawn_properties
+        the_child_s_streams_are_redirected_to_the_bootstrap_log`, which read
+        the bootstrap log before the child's stderr line reached it. That
+        race is outside this plan; the test passed five times in isolation
+        and in the rerun.
 - [ ] Both CI `test-unit` legs pass with the floor in force.
 
 #### Manual Verification:
