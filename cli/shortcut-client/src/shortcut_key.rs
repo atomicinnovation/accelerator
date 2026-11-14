@@ -131,7 +131,7 @@ impl ShortcutKey {
     }
 }
 
-fn canonical_number(digits: &str) -> Option<u64> {
+pub(crate) fn canonical_number(digits: &str) -> Option<u64> {
     let well_formed = !digits.is_empty()
         && digits.bytes().all(|byte| byte.is_ascii_digit())
         && !digits.starts_with('0');
