@@ -1552,10 +1552,10 @@ first for each subcommand:
 
 #### Automated Verification
 
-- [ ] Client tests pass: `cargo nextest run -p shortcut-client`
-- [ ] Binary tests pass: `cargo nextest run -p shortcut-cli`
-- [ ] Skill lints, including the write gate, pass: `mise run lint:integration-skills:check` and `mise run lint:skill-permissions:check`
-- [ ] Full run passes: `mise run`
+- [x] Client tests pass: `cargo nextest run -p shortcut-client`
+- [x] Binary tests pass: `cargo nextest run -p shortcut-cli`
+- [x] Skill lints, including the write gate, pass: `mise run lint:integration-skills:check` and `mise run lint:skill-permissions:check`
+- [x] Full run passes: `mise run`
 
 #### Manual Verification
 
@@ -1568,6 +1568,23 @@ first for each subcommand:
 - [ ] `/accelerator:attach-shortcut-story sc-<id> --url https://example.com`
       adds the link.
 - [ ] `/accelerator:comment-shortcut-story` adds a comment.
+
+#### Implementation notes
+
+- `attach` takes no `--title`. v4's `external_links_add` takes bare URL
+  strings, so there is no field to carry a title.
+- The binary writes `external_id` back to the work item, as this plan says.
+  Linear's binary leaves that write to its skill.
+- No flow test covers "a create that times out is not resent". A flow test
+  cannot shorten the transport timeout. The port tests cover it: the client
+  sends a create with `OnlyWhenThrottled`.
+- A failed write exits by what a retry would repeat: 140 when nothing
+  landed, 141 when it may have landed, and 142 when Shortcut refused it.
+  A refusal made before any request has its own code: 115 and 116 for an
+  owner, 122 to 124 for a state, and 134 for a non-https link. A
+  story-only flag or subcommand on an epic exits 2.
+- `/members` answers a page whose entries carry `mention_name` directly, as
+  the live fixture shows. The owner lookup pages it.
 
 ---
 
