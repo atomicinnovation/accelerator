@@ -64,6 +64,12 @@
       + (described ? textOf(described, 'detail', centre, top + 27 + (node.type ? 14 : 0) + 6 + 10, 'middle') : '') + untold(node, target);
   }
 
+  const RAIL_CORNER = 10;
+  function symbolOf(node, target, radius) {
+    const name = textOf(blockOf(node.label ?? node.id, 'name'), 'name', node.x + node.width / 2, node.y + node.height / 2 + 4, 'middle');
+    return bodyOf(node, tidy(radius)) + (target ? `<a href="${escaped(target.href)}"${attributesOf(target)} aria-label="${escaped(target.label)}">${name}</a>` : name) + untold(node, target);
+  }
+
   const UNNAMED = { initial: 'the start', final: 'the end', choice: 'the choice', bar: 'the bar', flowfinal: 'the end of this flow' };
 
   const DRAWN = {
@@ -171,6 +177,10 @@
         + (node.detail ? textOf(blockOf(node.detail, 'detail'), 'detail', centre, middle + 11.5, 'middle') : '')
         + (node.broken ? `<path class="break" d="${zigzag(node.x)} ${zigzag(right)}"/>` : '') + untold(node, target);
     },
+    token: (node, target) => symbolOf(node, target, node.height / 2),
+    ruleref: (node, target) => symbolOf(node, target, 0),
+    rails: node => `<path class="body" d="${node.lines.map(line => roundedPath(line, RAIL_CORNER)).join(' ')}"/>`,
+    rulename: node => `<rect class="body" ${rectOf(node)}/>` + plainText(node.label, 'title', node.x, node.y + 12),
     scale: node => `<rect class="body" ${rectOf(node)}/>`
       + textOf(blockOf(node.label, 'key'), 'key', node.align === 'end' ? node.x + node.width : node.x + node.width / 2, node.y + node.height / 2 + 3.5, node.align === 'end' ? 'end' : 'middle'),
     bar: node => `<rect class="body" ${rectOf(node)} rx="2"/>`,

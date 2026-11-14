@@ -335,7 +335,7 @@ Every figure has:
 
 ```jsonc
 { "id": "claims-f1",                          // unique across the page
-  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|flow|tree|matrix|timeline|compare|svg",
+  "kind": "class-diagram|object-diagram|domain-model|context-map|component-diagram|package-diagram|deployment-diagram|c4-diagram|entity-relationship-diagram|dependency-graph|data-flow-diagram|sequence-diagram|state-machine|activity-diagram|flowchart|decision-tree|byte-field-diagram|railroad-diagram|flow|tree|matrix|timeline|compare|svg",
   "title": "≤ 8 words: the point, not the topic ('Start-up claims before any lookup')",
   "caption": "md, 1–2 sentences: what to notice",
   "wide": false }                             // optional: span the full row
@@ -359,6 +359,7 @@ Every figure has:
 | `flowchart` | A procedure step by step, with its loops and where paths rejoin | Terminators, processes, decisions with the question inside, inputs and outputs, subprocesses; drawn by the diagram kit |
 | `decision-tree` | Which conditions lead to which outcome: every case of one decision | Questions, the answers branching from each, and the outcome every path ends in; drawn by the diagram kit |
 | `byte-field-diagram` | How a binary format, a wire frame or a register is laid out | Fields side by side on a scale of bits or bytes, wrapped into rows, with a broken row for a field of no fixed size; drawn by the diagram kit |
+| `railroad-diagram` | What a grammar, a command line or a pattern accepts | One track per rule: terminals and references to rules joined by rail, with branches for choices, bypasses for optional parts and loops for repeats; drawn by the diagram kit |
 | `flow` | Architecture, call graphs, data flow | Boxes in rows with arrows; layered by `layers`, or by edge depth when absent |
 | `sequence-diagram` | Protocols, start-up order, lock ordering, races, retries: one scenario, in time order | A UML sequence diagram: lifelines, numbered messages with replies, activation bars, `alt`, `opt`, `loop`, `par` and `break` frames, notes; drawn by the diagram kit |
 | `tree` | Layouts on disk, config trees, module trees, what a run leaves behind | An indented tree with added, removed, changed and kept states |

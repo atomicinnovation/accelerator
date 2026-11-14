@@ -46,3 +46,32 @@ test('a scale mark is a number with nothing drawn round it, centred or against i
   assert.match(centred, /<rect class="body" x="10" y="0" width="22" height="14"\/><text class="key" x="21" y="10.5" text-anchor="middle">7<\/text>/);
   assert.match(ended, /<text class="key" x="30" y="42.5" text-anchor="end">32<\/text>/);
 });
+
+const { SHAPES } = require('../lib/shapes.js');
+const { widthOf } = require('../lib/text.js');
+
+test('a token and a reference to a rule are as wide as their words and one height', () => {
+  assert.deepEqual(SHAPES.token.sizeOf({ label: 'v' }), { width: Math.ceil(widthOf('v', 'name')) + 20, height: 26 });
+  assert.deepEqual(SHAPES.ruleref.sizeOf({ label: 'number' }), { width: Math.ceil(widthOf('number', 'name')) + 20, height: 26 });
+});
+
+test('a token is a pill and a reference to a rule a rectangle, each with its words in the middle', () => {
+  const token = drawn({ id: 't', shape: 'token', inert: true, label: 'v', tone: 'risk', x: 10, y: 20, width: 28, height: 26 });
+  const reference = drawn({ id: 'r', shape: 'ruleref', inert: true, label: 'number', link: 'https://example.test/number', x: 10, y: 20, width: 64, height: 26 });
+
+  assert.match(token, /^<g class="node token t-risk" data-part="t">/);
+  assert.match(token, /<rect class="body" x="10" y="20" width="28" height="26" rx="13"\/><text class="name" x="24" y="37" text-anchor="middle">v<\/text>/);
+  assert.match(reference, /<rect class="body" x="10" y="20" width="64" height="26" rx="0"\/><a href="https:\/\/example.test\/number"[^>]*><text class="name" x="42" y="37" text-anchor="middle">number<\/text><\/a>/);
+});
+
+test('rails are drawn as one path of lines that turn in rounded corners', () => {
+  const rails = drawn({ id: 'rails', shape: 'rails', inert: true, behind: true, lines: [[[0, 10], [20, 10]], [[20, 10], [30, 10], [30, 40], [40, 40]]], x: 0, y: 0, width: 40, height: 40 });
+
+  assert.match(rails, /<path class="body" d="M0 10 L20 10 M20 10 L25 10 Q30 10 30 15 L30 35 Q30 40 35 40 L40 40"\/>/);
+});
+
+test('the name of a rule is written from its left edge', () => {
+  const name = drawn({ id: 'version', shape: 'rulename', inert: true, label: 'version', x: 0, y: 4, width: 60, height: 16 });
+
+  assert.match(name, /<rect class="body" x="0" y="4" width="60" height="16"\/><text class="title" x="0" y="16" text-anchor="start">version<\/text>/);
+});

@@ -188,8 +188,9 @@
   const bar = { holdsOthers: false, sizeOf: node => (node.upright ? { width: 6, height: 84 } : { width: 84, height: 6 }) };
 
   const supporting = { holdsOthers: false };
+  const symbol = { holdsOthers: false, sizeOf: node => ({ width: Math.ceil(widthOf(node.label ?? node.id, 'name')) + 20, height: 26 }) };
   const SHAPES = {
-    box, group, actor, note, fragment, lane: supporting, lifeline: supporting, field: supporting, scale: supporting, activation: supporting, destroy: supporting,
+    box, group, actor, note, fragment, lane: supporting, lifeline: supporting, field: supporting, scale: supporting, token: symbol, ruleref: symbol, rails: supporting, rulename: supporting, activation: supporting, destroy: supporting,
     classifier, entity, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bubble, store: worded(28), external: worded(28), bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
   const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM, ROW_LINE };
