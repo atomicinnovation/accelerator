@@ -230,10 +230,10 @@ impl RequestedId {
 
     fn filename_holding(&self, path: &Path) -> Option<(Holding, String)> {
         let filename = path.file_name()?.to_string_lossy();
-        let (parts, slug_start) = self.scheme.read_held_prefix(&filename)?;
-        parts
+        let held = self.scheme.read_held_prefix(&filename)?;
+        held.parts()
             .same_id(&self.parts)
-            .then(|| (Holding::Filename, filename[..slug_start - 1].to_owned()))
+            .then(|| (Holding::Filename, filename[..held.id_end()].to_owned()))
     }
 }
 

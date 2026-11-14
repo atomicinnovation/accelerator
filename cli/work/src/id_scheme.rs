@@ -6,6 +6,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use crate::draft_id::DraftId;
+use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
@@ -96,34 +97,29 @@ fn is_digits(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-/// A `<key>-<digits>` value whose key is a letter then letters and digits.
-fn keyed_digits(value: &str) -> Option<(&str, &str)> {
-    let (key, digits) = value.split_once('-')?;
-    (IdKey::parse(key).is_ok() && is_digits(digits)).then_some((key, digits))
-}
-
 /// The tracker key leading `filename`, followed by the `-` that starts the
-/// slug, with where the slug starts.
+/// slug, with where the key ends.
 fn tracker_key_prefix(filename: &str) -> Option<(&str, &str, usize)> {
     let (key, rest) = filename.split_once('-')?;
     let digit_count = rest.bytes().take_while(u8::is_ascii_digit).count();
     let (digits, after) = rest.split_at(digit_count);
     let token = &filename[..=key.len() + digit_count];
-    (tracker::is_tracker_key(token) && after.starts_with('-'))
-        .then(|| (key, digits, token.len() + 1))
+    (tracker::is_tracker_key(token) && after.starts_with('-')).then_some((
+        key,
+        digits,
+        token.len(),
+    ))
 }
 
-fn legacy_prefix(filename: &str) -> Option<(&str, usize)> {
+fn legacy_prefix(filename: &str) -> Option<&str> {
     let (digits, _) = filename.split_once('-')?;
-    is_digits(digits).then(|| (digits, digits.len() + 1))
+    is_digits(digits).then_some(digits)
 }
 
-fn draft_prefix(filename: &str) -> Option<(DraftId, usize)> {
+fn draft_prefix(filename: &str) -> Option<DraftId> {
     let candidate = filename.get(..DraftId::LENGTH)?;
     let followed_by_slug = filename[DraftId::LENGTH..].starts_with('-');
-    DraftId::parse(candidate)
-        .filter(|_| followed_by_slug)
-        .map(|draft| (draft, DraftId::LENGTH + 1))
+    DraftId::parse(candidate).filter(|_| followed_by_slug)
 }
 
 /// The identity scheme a workspace configures for its work items.
@@ -204,11 +200,11 @@ impl IdScheme {
         self.pattern.read_exact(token).is_some()
     }
 
-    /// A work-item ID from any source, as written: a `<key>-<digits>` value
-    /// verbatim, bare digits under `work.key`, and under `{tracker}` a
-    /// tracker key or a draft ID.
+    /// A work-item ID as it is shown: as written when the pattern reads it,
+    /// and a bare number as the pattern renders it under `work.key`; under
+    /// `{tracker}`, a tracker key as written or a draft ID in lower case.
     #[must_use]
-    pub fn normalise_id(&self, raw: &str) -> Option<String> {
+    pub fn displayed_id(&self, raw: &str) -> Option<String> {
         let trimmed = raw.trim();
         if self.ownership() == IdOwnership::Tracker {
             return DraftId::parse(trimmed)
@@ -217,16 +213,11 @@ impl IdScheme {
                     tracker::is_tracker_key(trimmed).then(|| trimmed.to_owned())
                 });
         }
-        if trimmed.contains('-') {
-            return keyed_digits(trimmed).map(|_| trimmed.to_owned());
+        if IdParts::parse(&self.pattern, trimmed).is_some() {
+            return Some(trimmed.to_owned());
         }
-        if !is_digits(trimmed) {
-            return None;
-        }
-        Some(self.key.as_ref().map_or_else(
-            || trimmed.to_owned(),
-            |key| format!("{}-{trimmed}", key.as_str()),
-        ))
+        let key = self.key.as_ref().filter(|_| is_digits(trimmed))?;
+        self.pattern.render(Some(key), trimmed.parse().ok()?).ok()
     }
 
     /// `input`, a full ID or a bare number, rendered through the pattern; a
@@ -349,23 +340,26 @@ impl IdScheme {
         }
     }
 
-    /// The ID leading `filename`, read as [`Self::read_held`] reads a value,
-    /// with where the slug starts; under `{tracker}`, a bare legacy number
-    /// too.
+    /// The ID leading `filename`, read as [`Self::read_held`] reads a value;
+    /// under `{tracker}`, a bare legacy number too.
     #[must_use]
-    pub fn read_held_prefix(&self, filename: &str) -> Option<(IdParts, usize)> {
+    pub fn read_held_prefix(&self, filename: &str) -> Option<HeldPrefix> {
         if self.pattern.is_tracker_owned() {
-            if let Some((key, digits, slug_start)) =
-                tracker_key_prefix(filename)
-            {
-                return Some((IdParts::of(Some(key), digits)?, slug_start));
+            if let Some((key, digits, id_end)) = tracker_key_prefix(filename) {
+                return Some(HeldPrefix::new(
+                    IdParts::of(Some(key), digits)?,
+                    id_end,
+                ));
             }
-            let (digits, slug_start) = legacy_prefix(filename)?;
-            return Some((IdParts::of(None, digits)?, slug_start));
+            let digits = legacy_prefix(filename)?;
+            return Some(HeldPrefix::new(
+                IdParts::of(None, digits)?,
+                digits.len(),
+            ));
         }
         IdParts::parse_prefix(&self.pattern, filename).or_else(|| {
-            let (digits, slug_start) = legacy_prefix(filename)?;
-            Some((self.bare_number(digits)?, slug_start))
+            let digits = legacy_prefix(filename)?;
+            Some(HeldPrefix::new(self.bare_number(digits)?, digits.len()))
         })
     }
 
@@ -405,12 +399,12 @@ impl IdScheme {
 
     fn filename_reading(&self, filename: &str) -> Option<(String, usize)> {
         if self.pattern.is_tracker_owned() {
-            if let Some((draft, slug_start)) = draft_prefix(filename) {
-                return Some((draft.as_str().to_owned(), slug_start));
+            if let Some(draft) = draft_prefix(filename) {
+                return Some((draft.as_str().to_owned(), DraftId::LENGTH + 1));
             }
         }
-        let (parts, slug_start) = self.read_held_prefix(filename)?;
-        Some((self.joined(&parts)?, slug_start))
+        let held = self.read_held_prefix(filename)?;
+        Some((self.joined(held.parts())?, held.slug_start()))
     }
 }
 
@@ -543,20 +537,20 @@ mod tests {
         let tracker = tracker();
 
         assert_eq!(
-            tracker.normalise_id("MY_PROJ-7").as_deref(),
+            tracker.displayed_id("MY_PROJ-7").as_deref(),
             Some("MY_PROJ-7")
         );
         assert_eq!(
-            tracker.normalise_id(" ABC2-15 ").as_deref(),
+            tracker.displayed_id(" ABC2-15 ").as_deref(),
             Some("ABC2-15")
         );
         assert_eq!(
-            tracker.normalise_id("Draft-K7MQ3X").as_deref(),
+            tracker.displayed_id("Draft-K7MQ3X").as_deref(),
             Some("draft-k7mq3x")
         );
-        assert_eq!(tracker.normalise_id("0042"), None);
-        assert_eq!(IdScheme::numeric().normalise_id("MY_PROJ-7"), None);
-        assert_eq!(IdScheme::numeric().normalise_id("draft-k7mq3x"), None);
+        assert_eq!(tracker.displayed_id("0042"), None);
+        assert_eq!(IdScheme::numeric().displayed_id("MY_PROJ-7"), None);
+        assert_eq!(IdScheme::numeric().displayed_id("draft-k7mq3x"), None);
     }
 
     #[test]
@@ -609,25 +603,54 @@ mod tests {
         assert!(scheme.is_any_key_id_token("PP-0400"));
         assert!(scheme.is_any_key_id_token("xy-0400"));
         assert!(scheme.is_any_key_id_token("X1-0400"));
-        assert_eq!(scheme.normalise_id("X1-0400").as_deref(), Some("X1-0400"));
+        assert_eq!(scheme.displayed_id("X1-0400").as_deref(), Some("X1-0400"));
     }
 
     #[test]
-    fn normalise_id_handles_prefixed_and_bare_forms() {
+    fn an_id_the_pattern_reads_is_displayed_as_written() {
         let numeric = IdScheme::numeric();
-        assert_eq!(
-            numeric.normalise_id("ENG-0042").as_deref(),
-            Some("ENG-0042")
-        );
-        assert_eq!(numeric.normalise_id("X1-0400").as_deref(), Some("X1-0400"));
-        assert_eq!(numeric.normalise_id("0042").as_deref(), Some("0042"));
-        assert_eq!(numeric.normalise_id("ENG0042"), None);
-        assert_eq!(numeric.normalise_id("PROJ-1.2"), None);
-        assert_eq!(numeric.normalise_id("  0042  ").as_deref(), Some("0042"));
+        assert_eq!(numeric.displayed_id("0042").as_deref(), Some("0042"));
+        assert_eq!(numeric.displayed_id("42").as_deref(), Some("42"));
+        assert_eq!(numeric.displayed_id("  0042  ").as_deref(), Some("0042"));
+        for off_pattern in ["ENG-0042", "X1-0400", "ENG0042", "PROJ-1.2", ""] {
+            assert_eq!(
+                numeric.displayed_id(off_pattern),
+                None,
+                "{off_pattern}"
+            );
+        }
 
         let eng = project("ENG");
-        assert_eq!(eng.normalise_id("42").as_deref(), Some("ENG-42"));
-        assert_eq!(eng.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+        assert_eq!(eng.displayed_id("OPS-7").as_deref(), Some("OPS-7"));
+        assert_eq!(eng.displayed_id("eng-0042").as_deref(), Some("eng-0042"));
+
+        let underscored = scheme("{key}_{number:04d}", Some("PP"));
+        assert_eq!(
+            underscored.displayed_id("PP_0042").as_deref(),
+            Some("PP_0042")
+        );
+        assert_eq!(underscored.displayed_id("PP-0042"), None);
+        assert_eq!(
+            scheme("v{number:03d}", None)
+                .displayed_id("v001")
+                .as_deref(),
+            Some("v001")
+        );
+    }
+
+    #[test]
+    fn a_bare_number_is_displayed_as_the_pattern_renders_it_under_work_key() {
+        assert_eq!(
+            project("ENG").displayed_id("42").as_deref(),
+            Some("ENG-0042")
+        );
+        assert_eq!(
+            scheme("{key}_{number:04d}", Some("PP"))
+                .displayed_id("7")
+                .as_deref(),
+            Some("PP_0007")
+        );
+        assert_eq!(scheme("{key}-{number:04d}", None).displayed_id("7"), None);
     }
 
     #[test]
@@ -740,7 +763,7 @@ mod tests {
         assert_eq!(
             versioned
                 .read_held_prefix("0001-x.md")
-                .map(|(parts, _)| parts.number()),
+                .map(|held| held.parts().number()),
             Some(1)
         );
         let v001 = versioned.read_held("v001").unwrap();

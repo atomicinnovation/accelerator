@@ -44,8 +44,8 @@ fn slug_and_id_conventions_are_pinned() {
         Some("0042")
     );
     assert_eq!(cfg.scheme().id_in_filename("no-id.md"), None);
-    assert_eq!(cfg.normalise_id("  42  ").as_deref(), Some("42"));
-    assert_eq!(cfg.normalise_id("ENG-7").as_deref(), Some("ENG-7"));
+    assert_eq!(cfg.displayed_id("  42  ").as_deref(), Some("42"));
+    assert_eq!(cfg.displayed_id("ENG-7"), None);
     assert!(cfg.is_canonical_id_token("0042"));
     assert!(!cfg.is_canonical_id_token("42"));
 }

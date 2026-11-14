@@ -496,10 +496,7 @@ impl IdPattern {
         text: &'a str,
         walk: Walk,
     ) -> Option<Reading<'a>> {
-        if text.len() > MAX_ID_BYTES {
-            return None;
-        }
-        walk_from(&self.segments, text, walk, &str::is_empty, None, None)
+        walk_whole(&self.segments, text, walk)
     }
 
     /// `text` in exactly the shape the pattern renders: literals as
@@ -521,11 +518,8 @@ impl IdPattern {
             literals: LiteralCase::Exact,
             digits: DigitWidth::AtMost,
         };
-        if text.len() > MAX_ID_BYTES {
-            return None;
-        }
         let read = |segments: &[Segment]| {
-            walk_from(segments, text, walk, &str::is_empty, None, None)
+            walk_whole(segments, text, walk)
                 .and_then(|reading| IdParts::from_reading(&reading))
         };
         read(&self.segments).or_else(|| {
@@ -660,6 +654,55 @@ pub struct IdParts {
     number: u64,
 }
 
+/// The ID leading a filename, ending where the `-` before its slug starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldPrefix {
+    parts: IdParts,
+    id_end: usize,
+}
+
+impl HeldPrefix {
+    #[must_use]
+    pub(crate) const fn new(parts: IdParts, id_end: usize) -> Self {
+        Self { parts, id_end }
+    }
+
+    #[must_use]
+    pub const fn parts(&self) -> &IdParts {
+        &self.parts
+    }
+
+    #[must_use]
+    pub fn into_parts(self) -> IdParts {
+        self.parts
+    }
+
+    /// The byte offset just past the ID.
+    #[must_use]
+    pub const fn id_end(&self) -> usize {
+        self.id_end
+    }
+
+    /// The byte offset just past the `-` after the ID.
+    #[must_use]
+    pub const fn slug_start(&self) -> usize {
+        self.id_end + 1
+    }
+}
+
+/// The whole of `text`, no longer than an ID may be, walked over
+/// `segments`.
+fn walk_whole<'a>(
+    segments: &[Segment],
+    text: &'a str,
+    walk: Walk,
+) -> Option<Reading<'a>> {
+    if text.len() > MAX_ID_BYTES {
+        return None;
+    }
+    walk_from(segments, text, walk, &str::is_empty, None, None)
+}
+
 impl IdParts {
     pub(crate) fn of(key: Option<&str>, digits: &str) -> Option<Self> {
         Some(Self {
@@ -670,11 +713,7 @@ impl IdParts {
     }
 
     fn from_reading(reading: &Reading<'_>) -> Option<Self> {
-        Some(Self {
-            key: reading.key.map(str::to_owned),
-            digits: reading.digits.to_owned(),
-            number: reading.digits.parse().ok()?,
-        })
+        Self::of(reading.key, reading.digits)
     }
 
     /// `text` read leniently: literals ignoring ASCII case, and a number of
@@ -689,12 +728,12 @@ impl IdParts {
     }
 
     /// The ID leading `filename`, read as [`Self::parse`] reads a value and
-    /// followed by the `-` that starts the slug, with where the slug starts.
+    /// followed by the `-` that starts the slug.
     #[must_use]
     pub fn parse_prefix(
         pattern: &IdPattern,
         filename: &str,
-    ) -> Option<(Self, usize)> {
+    ) -> Option<HeldPrefix> {
         let ascii_length = filename
             .bytes()
             .take(MAX_ID_BYTES)
@@ -713,8 +752,8 @@ impl IdParts {
             None,
             None,
         )?;
-        let slug_start = head.len() - reading.rest.len() + 1;
-        Some((Self::from_reading(&reading)?, slug_start))
+        let id_end = head.len() - reading.rest.len();
+        Some(HeldPrefix::new(Self::from_reading(&reading)?, id_end))
     }
 
     #[must_use]
@@ -775,7 +814,7 @@ mod tests {
 
     fn prefix_number(filename: &str, under: &str) -> Option<u64> {
         IdParts::parse_prefix(&pattern(under), filename)
-            .map(|(parts, _)| parts.number())
+            .map(|held| held.parts().number())
     }
 
     #[test]
@@ -974,12 +1013,10 @@ mod tests {
 
     #[test]
     fn a_filename_prefix_needs_the_slug_delimiter() {
-        assert_eq!(
-            IdParts::parse_prefix(&pattern("{number:04d}"), "0400-x.md").map(
-                |(parts, slug_start)| (parts.digits().to_owned(), slug_start)
-            ),
-            Some(("0400".to_owned(), 5))
-        );
+        let held = IdParts::parse_prefix(&pattern("{number:04d}"), "0400-x.md")
+            .unwrap_or_else(|| unreachable!("a prefixed filename"));
+        assert_eq!(held.parts().digits(), "0400");
+        assert_eq!((held.id_end(), held.slug_start()), (4, 5));
         assert_eq!(prefix_number("0400.md", "{number:04d}"), None);
         assert_eq!(prefix_number("0400x-y.md", "{number:04d}"), None);
     }
@@ -1299,11 +1336,13 @@ mod tests {
     fn a_filename_reads_its_prefix_under_any_letter_case() {
         for (text, filename, expected) in FILENAME_READINGS {
             let read = IdParts::parse_prefix(&pattern(text), filename)
-                .filter(|(parts, _)| {
-                    parts.key().is_none_or(|key| key.eq_ignore_ascii_case("PP"))
+                .filter(|held| {
+                    held.parts()
+                        .key()
+                        .is_none_or(|key| key.eq_ignore_ascii_case("PP"))
                 })
-                .map(|(parts, slug_start)| {
-                    (parts.digits().to_owned(), slug_start)
+                .map(|held| {
+                    (held.parts().digits().to_owned(), held.slug_start())
                 });
             assert_eq!(
                 read.as_ref().map(|(digits, end)| (digits.as_str(), *end)),

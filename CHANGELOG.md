@@ -199,6 +199,13 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **The visualiser shows an ID through the configured pattern.** An `id`
+  the pattern reads is shown as written, so `PP_0042` under
+  `{key}_{number:04d}` and `v001` under `v{number:03d}` now show; a bare
+  number under a `{key}` pattern shows as the pattern renders it, `ENG-0042`
+  for `42` where it showed `ENG-42`; and an `id` in no shape the pattern
+  reads shows no ID. Consumers of the visualiser API's `workItemId` need
+  updating.
 - **A work item whose IDs cannot be read is refused.** The commands that
   refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
   (exit 4), a file whose name does not start with its `id` and a slug, such

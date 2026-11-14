@@ -1283,7 +1283,7 @@ fn build_entry(
             }
             _ => None,
         };
-        let shown = raw_id.and_then(|raw| work_item_cfg.normalise_id(raw));
+        let shown = raw_id.and_then(|raw| work_item_cfg.displayed_id(raw));
         let identity =
             raw_id.and_then(|raw| work_item_cfg.identity_key(raw.trim()));
         if let Some(raw) = raw_id.filter(|raw| !raw.trim().is_empty()) {
@@ -3780,7 +3780,11 @@ mod reverse_index_tests {
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
@@ -3803,7 +3807,7 @@ mod reverse_index_tests {
     #[test]
     fn work_item_identity_resolves_via_unified_id_key() {
         // `id:` is primary and wins over the filename (9999), routed through
-        // normalise_id — no legacy `work_item_id:` present.
+        // displayed_id — no legacy `work_item_id:` present.
         let cfg = crate::config::WorkItemConfig::default_numeric();
         let entry = build_entry(
             DocTypeKey::WorkItems,
@@ -3841,7 +3845,7 @@ mod reverse_index_tests {
             .get(&work_dir.join("0001-foo.md"))
             .await
             .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-42"));
+        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
     }
 
     #[tokio::test]

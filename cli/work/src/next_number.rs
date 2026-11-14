@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use crate::id_pattern::escaped;
+use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
@@ -216,7 +217,7 @@ fn held_numbers(
             .map(|name| name.to_string_lossy())
             .filter(|name| is_md_filename(name))
             .and_then(|name| scheme.read_held_prefix(&name))
-            .map(|(parts, _)| parts);
+            .map(HeldPrefix::into_parts);
         let fields = file.and_then(identity_of).map_or_else(Vec::new, |item| {
             std::iter::once(item.id)
                 .chain(item.aliases)

@@ -212,6 +212,20 @@ pub fn work::id_pattern::PatternError::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::fmt::Display for work::id_pattern::PatternError
 pub fn work::id_pattern::PatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::id_pattern::PatternError
+pub struct work::id_pattern::HeldPrefix
+impl work::id_pattern::HeldPrefix
+pub const fn work::id_pattern::HeldPrefix::id_end(&self) -> usize
+pub fn work::id_pattern::HeldPrefix::into_parts(self) -> work::id_pattern::IdParts
+pub const fn work::id_pattern::HeldPrefix::parts(&self) -> &work::id_pattern::IdParts
+pub const fn work::id_pattern::HeldPrefix::slug_start(&self) -> usize
+impl core::clone::Clone for work::id_pattern::HeldPrefix
+pub fn work::id_pattern::HeldPrefix::clone(&self) -> work::id_pattern::HeldPrefix
+impl core::cmp::Eq for work::id_pattern::HeldPrefix
+impl core::cmp::PartialEq for work::id_pattern::HeldPrefix
+pub fn work::id_pattern::HeldPrefix::eq(&self, other: &work::id_pattern::HeldPrefix) -> bool
+impl core::fmt::Debug for work::id_pattern::HeldPrefix
+pub fn work::id_pattern::HeldPrefix::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_pattern::HeldPrefix
 pub struct work::id_pattern::IdKey(_)
 impl work::id_pattern::IdKey
 pub fn work::id_pattern::IdKey::as_str(&self) -> &str
@@ -230,7 +244,7 @@ pub fn work::id_pattern::IdParts::digits(&self) -> &str
 pub fn work::id_pattern::IdParts::key(&self) -> core::option::Option<&str>
 pub const fn work::id_pattern::IdParts::number(&self) -> u64
 pub fn work::id_pattern::IdParts::parse(pattern: &work::id_pattern::IdPattern, text: &str) -> core::option::Option<Self>
-pub fn work::id_pattern::IdParts::parse_prefix(pattern: &work::id_pattern::IdPattern, filename: &str) -> core::option::Option<(Self, usize)>
+pub fn work::id_pattern::IdParts::parse_prefix(pattern: &work::id_pattern::IdPattern, filename: &str) -> core::option::Option<work::id_pattern::HeldPrefix>
 pub fn work::id_pattern::IdParts::same_id(&self, other: &Self) -> bool
 impl core::clone::Clone for work::id_pattern::IdParts
 pub fn work::id_pattern::IdParts::clone(&self) -> work::id_pattern::IdParts
@@ -325,6 +339,7 @@ impl core::marker::StructuralPartialEq for work::id_scheme::TrackerIntegrationEr
 pub struct work::id_scheme::IdScheme
 impl work::id_scheme::IdScheme
 pub fn work::id_scheme::IdScheme::canonicalise(&self, input: &str) -> core::result::Result<alloc::string::String, work::id_scheme::CanonicaliseError>
+pub fn work::id_scheme::IdScheme::displayed_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn work::id_scheme::IdScheme::holds(&self, held: &str, id: &work::id_pattern::IdParts) -> bool
 pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
 pub fn work::id_scheme::IdScheme::is_any_key_id_token(&self, token: &str) -> bool
@@ -332,13 +347,12 @@ pub fn work::id_scheme::IdScheme::is_canonical_id_token(&self, token: &str) -> b
 pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
 pub const fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
 pub fn work::id_scheme::IdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
-pub fn work::id_scheme::IdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn work::id_scheme::IdScheme::numeric() -> Self
 pub fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
 pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
 pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
-pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<(work::id_pattern::IdParts, usize)>
+pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<work::id_pattern::HeldPrefix>
 impl core::clone::Clone for work::id_scheme::IdScheme
 pub fn work::id_scheme::IdScheme::clone(&self) -> work::id_scheme::IdScheme
 impl core::cmp::Eq for work::id_scheme::IdScheme
