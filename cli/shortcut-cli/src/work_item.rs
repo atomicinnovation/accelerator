@@ -1,8 +1,15 @@
-//! A minimal work-item reader and linker for `create`'s file mode: the title,
-//! kind and body from the file, and the `external_id` written back after a
-//! create lands.
+//! The work item behind `create`'s file mode: its title, kind and body, and
+//! the `external_id` written back after a create lands.
 
 use std::path::Path;
+
+use corpus_adapters::FileCorpusStore;
+use corpus_adapters::LockdirLock;
+use document::Mapping;
+use document::Scalar;
+use document::Yaml;
+use tracker::ExternalId;
+use work_adapters::work_item_link;
 
 pub struct WorkItem {
     pub title: String,
@@ -11,86 +18,53 @@ pub struct WorkItem {
     pub already_synced: bool,
 }
 
-struct Split<'a> {
-    frontmatter: &'a str,
-    body: &'a str,
-}
-
-fn split(content: &str) -> Result<Split<'_>, String> {
-    let rest = content
-        .strip_prefix("---\n")
-        .ok_or_else(|| "the file has no `---` frontmatter".to_owned())?;
-    let (frontmatter, body) = rest
-        .split_once("\n---\n")
-        .ok_or_else(|| "the frontmatter is not closed with `---`".to_owned())?;
-    Ok(Split { frontmatter, body })
-}
-
-fn field<'a>(frontmatter: &'a str, name: &str) -> Option<&'a str> {
-    frontmatter.lines().find_map(|line| {
-        line.strip_prefix(name)
-            .and_then(|rest| rest.strip_prefix(':'))
-            .map(|value| unquote(value.trim()))
-    })
-}
-
-fn unquote(value: &str) -> &str {
-    value
-        .strip_prefix('"')
-        .and_then(|value| value.strip_suffix('"'))
-        .unwrap_or(value)
+fn text<'a>(frontmatter: &'a Mapping, name: &str) -> Option<&'a str> {
+    match frontmatter.get(name) {
+        Some(Yaml::Scalar(Scalar::String(value))) => Some(value),
+        _ => None,
+    }
 }
 
 /// # Errors
 ///
-/// A message when the file is unreadable, has no frontmatter, or names no
-/// title.
+/// A message when the file is unreadable, its frontmatter is not a YAML
+/// mapping, or it names no title.
 pub fn read(path: &Path) -> Result<WorkItem, String> {
     let content = std::fs::read_to_string(path).map_err(|error| {
         format!("could not read {}: {error}", path.display())
     })?;
-    let parts = split(&content)?;
-    let title = field(parts.frontmatter, "title")
+    let Yaml::Mapping(frontmatter) =
+        document::parse(&content).map_err(|error| error.to_string())?
+    else {
+        return Err("the frontmatter is not a mapping".to_owned());
+    };
+    let title = text(&frontmatter, "title")
         .ok_or_else(|| "the frontmatter names no title".to_owned())?;
+    let body = document::split(&content)
+        .map_err(|error| error.to_string())?
+        .body;
     Ok(WorkItem {
         title: title.to_owned(),
-        kind: field(parts.frontmatter, "kind")
-            .unwrap_or("story")
-            .to_owned(),
-        body: parts.body.trim_start_matches('\n').to_owned(),
-        already_synced: field(parts.frontmatter, "external_id")
+        kind: text(&frontmatter, "kind").unwrap_or("story").to_owned(),
+        body: body.trim_start_matches('\n').to_owned(),
+        already_synced: text(&frontmatter, "external_id")
             .is_some_and(|value| !value.is_empty()),
     })
 }
 
-/// Sets `external_id` in the file's frontmatter, replacing an empty one.
+/// Sets `external_id` in the file's frontmatter, under the file's lock.
 ///
 /// # Errors
 ///
-/// A message when the file cannot be read, parsed or written.
+/// A message when the lock cannot be taken, or the file cannot be read,
+/// parsed or written.
 pub fn link(path: &Path, external_id: &str) -> Result<(), String> {
-    let content = std::fs::read_to_string(path).map_err(|error| {
-        format!("could not read {}: {error}", path.display())
-    })?;
-    let parts = split(&content)?;
-    let line = format!("external_id: \"{external_id}\"");
-    let mut replaced = false;
-    let mut lines: Vec<String> = parts
-        .frontmatter
-        .lines()
-        .map(|existing| {
-            if existing.starts_with("external_id:") {
-                replaced = true;
-                line.clone()
-            } else {
-                existing.to_owned()
-            }
-        })
-        .collect();
-    if !replaced {
-        lines.push(line);
-    }
-    let linked = format!("---\n{}\n---\n{}", lines.join("\n"), parts.body);
-    std::fs::write(path, linked)
-        .map_err(|error| format!("could not write {}: {error}", path.display()))
+    let work_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    work_item_link::set_external_id(
+        &LockdirLock::new(work_dir),
+        &FileCorpusStore::new(work_dir),
+        path,
+        &ExternalId::new(external_id.to_owned()),
+    )
+    .map_err(|error| kernel::Error::from(error).to_string())
 }

@@ -136,3 +136,50 @@ fn a_work_item_file_with_a_title_flag_is_refused_unsent() {
     assert_eq!(server.hits(&RequestKey::post(STORIES)), 0);
     assert_eq!(std::fs::read_to_string(&item).expect("read"), linked);
 }
+
+#[test]
+fn a_work_item_with_template_comments_is_created_and_linked() {
+    let server = support::serving(&["epic-create-201"]);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+    let item = dir.path().join("0044.md");
+    std::fs::write(
+        &item,
+        "---\ntitle: \"Commented\"\nkind: \"epic\"   # story | epic | bug\n\
+         external_id: \"\"   # remote tracker identifier\n---\n\nThe body.\n",
+    )
+    .expect("write");
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", item.to_str().expect("utf-8")],
+    );
+
+    assert!(output.status.success(), "{}", support::stderr(&output));
+    assert_eq!(server.hits(&RequestKey::post(EPICS)), 1);
+    let linked = std::fs::read_to_string(item).expect("read");
+    assert!(linked.contains("external_id: \"epic-"), "{linked}");
+}
+
+#[test]
+fn linking_adds_a_missing_external_id_and_keeps_the_body() {
+    let server = support::serving(&["story-create-201"]);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+    let item = dir.path().join("0045.md");
+    let body = "\n# Unlinked\n\nFirst paragraph.\n\n---\n\nAfter a rule.\n";
+    std::fs::write(&item, format!("---\ntitle: \"Unlinked\"\n---\n{body}"))
+        .expect("write");
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", item.to_str().expect("utf-8")],
+    );
+
+    assert!(output.status.success(), "{}", support::stderr(&output));
+    let linked = std::fs::read_to_string(item).expect("read");
+    assert!(linked.contains("external_id: \"sc-14\""), "{linked}");
+    assert!(linked.ends_with(body), "{linked}");
+}

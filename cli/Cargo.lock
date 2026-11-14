@@ -4626,13 +4626,17 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
+ "corpus-adapters",
+ "document",
  "http-test-support",
+ "kernel",
  "serde_json",
  "shortcut-client",
  "tempfile",
  "tracker",
  "tracker-support",
  "vcs-adapters",
+ "work-adapters",
 ]
 
 [[package]]
