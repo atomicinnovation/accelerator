@@ -31,13 +31,33 @@ or `uses`): the page draws them as a class diagram. Then choose stops as evidenc
 for that design: where a responsibility lives, where a decision is enforced,
 where a boundary is crossed. Do not walk every hunk.
 
-**Place every stop in the change.** Each stop's `fit` says, before anything
-about the lines themselves, how this code fits the change as a whole: which of
-the chapter's abstractions or decisions it carries, what calls or feeds it and
-what it hands on to, and which other chapter or stop it connects to. The
-`note` then explains what the code does. Write the `fit` lines of a chapter
-together, in order, and read them back: they should tell the chapter's story
-on their own. A `fit` that only restates the `note` has missed the point.
+**Write what the code cannot say** (contract, "What a stop says"). The
+reviewer sees a stop's lines beside your text, so never tell them what those
+lines do. Write the chapter's decisions, invariants and risks first, then
+for each stop:
+
+- `carries`: the ids of the decisions, abstractions, invariants and risks it
+  is evidence for. Every decision and every high risk needs a stop that
+  carries it; give a high risk an `id` so one can.
+- `fit`: the role the code plays in the design, not who calls it. Write the
+  `fit` lines of a chapter together, in order, and read them back: they
+  should tell the chapter's story on their own.
+- `why`: the constraint that forced this shape, the alternative rejected
+  here, and what the slice cannot show: how the base copy behaved, what
+  callers assume, what is deliberately absent, which test pins it.
+- `risk`: what breaks if it is wrong, how far it spreads, and whether it
+  fails loudly or silently.
+- `checks`: for every risk, a question with a falsifiable answer, where to
+  look, and the answer that would be a problem. "Confirm that X does Y" is
+  not a check.
+- `focus`: the one or two lines that matter, each with a few words. Use it
+  wherever you were about to walk through the block.
+
+Apply the deletion test to every sentence: could the reviewer have written
+it from the lines shown? Then delete it. Take each why from a source (the PR
+description, commit messages, ADRs, the plan, prior findings, the base
+copy), and where none gives one, ask it as a `question` in `ownNotes` rather
+than inferring a reason.
 
 **Draw first, write second** (contract, "Pictures first"). For each chapter,
 decide the figures before you write any prose, choosing from the contract's
@@ -137,8 +157,10 @@ that has a list (`risk`, `level`, `verdict`, `triage`, `tone` and the
 rest): the build rejects any other. Check at least five `start`/`end` and ledger `line`,
 `start` and `end` values, and three figure `where` values, against the
 `head/` copies. Confirm that every stop and ledger row has an anchor that
-appears on its line, and that every chapter you wrote has a figure and at
-least one abstraction or decision.
+appears on its line, that every chapter you wrote has a figure and at
+least one abstraction or decision, and that every `focus` line is the line
+you meant in the `head/` copy. Read each stop's text once more against its
+lines and delete whatever only repeats them.
 
 **Your final message** (at most 150 words): the files you wrote, the
 design each chapter describes in one sentence, the figures in each, anything

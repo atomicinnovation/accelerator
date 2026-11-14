@@ -50,6 +50,7 @@ KIT_FONT_FAMILIES = {
 }
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
 PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
+STOP_EVIDENCE_MODEL = ASSETS / "stop-evidence.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -140,7 +141,10 @@ REQUIRED = {
     "finding": {"id": str},
     "finding check": {"id": str},
     "accepted risk": {"id": str},
+    "check": {"question": str, "problem": str},
+    "focus": {"line": int},
 }
+STOP_PARTS = (("checks", "check"), ("focus", "focus"))
 OPTIONAL = {
     "stop": {"anchorLine": int, "figure": dict},
     "ledger row": {"start": int, "end": int},
@@ -248,7 +252,19 @@ def well_formed_chapter(chapter: dict, faults: list[str]) -> dict:
     for field, kind in (("stops", "stop"), ("findingChecks", "finding check")):
         if field in chapter:
             chapter[field] = well_formed(kind, chapter[field], where, faults)
+    for stop in chapter.get("stops", []):
+        well_formed_stop_parts(stop, faults)
     return chapter
+
+
+def well_formed_stop_parts(stop: dict, faults: list[str]) -> None:
+    where = f"stop {stop['id']}"
+    for field, kind in STOP_PARTS:
+        if field in stop:
+            entries = entries_with(
+                None, stop[field], f"{where}: {field}", faults
+            )
+            stop[field] = well_formed(kind, entries, where, faults)
 
 
 def layer_of(path: str, layers: list[dict]) -> str:
@@ -796,6 +812,17 @@ def anchor_warnings(model: dict, diff: dict) -> list[str]:
     return [f"{name}: {problem}" for name, problem in problems if problem]
 
 
+def lines_in_focus(item: dict) -> list[dict]:
+    focus = item.get("focus")
+    if not isinstance(focus, list):
+        return []
+    return [
+        entry
+        for entry in focus
+        if isinstance(entry, dict) and is_a(entry.get("line"), int)
+    ]
+
+
 def moved_with_its_anchor(
     item: dict, anchorage: dict, diff: dict
 ) -> str | None:
@@ -807,6 +834,8 @@ def moved_with_its_anchor(
     for key in anchorage["moves"]:
         if key in item:
             item[key] += shift
+    for focus in lines_in_focus(item):
+        focus["line"] += shift
     first, last = (item[key] for key in anchorage["span"])
     place = f"line {first}" if first == last else f"lines {first}-{last}"
     return f"{anchorage['name']}: moved {shift:+d} to {place}"
@@ -1128,7 +1157,7 @@ def design_warnings(model: dict) -> list[str]:
         if not any(chapter.get(key) for key in DESIGN_KEYS)
     ]
     warnings += [
-        f"stop {stop['id']}: no fit; say where it sits in the bigger picture"
+        f"stop {stop['id']}: no fit; say what role it plays in the design"
         for chapter in model["chapters"]
         for stop in chapter.get("stops", [])
         if not stop.get("fit")
@@ -1149,6 +1178,141 @@ def design_warnings(model: dict) -> list[str]:
         for name in sorted(set(ids))
         if ids.count(name) > 1
     ]
+    return warnings
+
+
+EVIDENCED_KEYS = (*DESIGN_KEYS, "invariants", "risks")
+RETIRED_STOP_FIELDS = {
+    "note": "say why in why and what could go wrong in risk",
+    "check": "ask each question in checks",
+}
+CODE_SPAN = re.compile(r"`([^`]+)`")
+MOST_OF_ITS_OWN_LINES_NAMED = 3
+
+
+def declared_ids(model: dict, keys: tuple[str, ...]) -> set[str]:
+    holders = [model["design"], *model["chapters"]]
+    return {
+        item["id"]
+        for holder in holders
+        for key in keys
+        for item in holder.get(key, [])
+        if item.get("id")
+    }
+
+
+def carried_ids(chapters: list[dict]) -> set[str]:
+    return {
+        carried
+        for chapter in chapters
+        for stop in chapter.get("stops", [])
+        for carried in stop.get("carries", [])
+    }
+
+
+def own_lines(stop: dict, diff: dict) -> str:
+    lines = side_lines(diff.get(stop["file"], {}), stop.get("side", "new"))
+    return "\n".join(
+        text
+        for number, text in lines.items()
+        if stop["start"] <= number <= stop["end"]
+    )
+
+
+def restated(stop: dict, diff: dict) -> list[str]:
+    """Return what a stop's why names that its own lines already show."""
+    shown = own_lines(stop, diff)
+    named = dict.fromkeys(CODE_SPAN.findall(stop.get("why") or ""))
+    return [name for name in named if name in shown]
+
+
+def stop_evidence_problems(
+    stop: dict, declared: set[str], risks: set[str], diff: dict
+) -> list[str]:
+    carries = stop.get("carries", [])
+    problems = []
+    if not stop.get("why"):
+        problems.append("no why; say why the code is shaped this way")
+    problems += [
+        f"{field} is no longer shown; {instead}"
+        for field, instead in RETIRED_STOP_FIELDS.items()
+        if stop.get(field)
+    ]
+    if not carries:
+        problems.append(
+            "carries nothing; name the decision, abstraction, invariant "
+            "or risk it is evidence for"
+        )
+    problems += [
+        f"carries unknown {carried}"
+        for carried in carries
+        if carried not in declared
+    ]
+    at_risk = stop.get("risk") or risks.intersection(carries)
+    if at_risk and not stop.get("checks"):
+        problems.append("no checks; say how to tell whether its risk is real")
+    problems += [
+        f"focus line {focus['line']} outside its lines "
+        f"{stop['start']}-{stop['end']}"
+        for focus in stop.get("focus", [])
+        if not stop["start"] <= focus["line"] <= stop["end"]
+    ]
+    named = restated(stop, diff)
+    if len(named) > MOST_OF_ITS_OWN_LINES_NAMED:
+        shown = ", ".join(f"`{name}`" for name in named)
+        problems.append(
+            Note(
+                f"why restates its own lines ({shown}); say what they "
+                "cannot show, and point at a line with focus"
+            )
+        )
+    return problems
+
+
+def unevidenced(chapter: dict, carried: set[str]) -> list[str]:
+    """Return the decisions and high risks no stop was chosen to show."""
+    if not chapter.get("stops"):
+        return []
+    problems = [
+        f"decision {decision['id']}: no stop carries it; "
+        "show where it is enforced"
+        for decision in chapter.get("decisions", [])
+        if decision.get("id") and decision["id"] not in carried
+    ]
+    for position, risk in enumerate(chapter.get("risks", []), 1):
+        if risk.get("level") != "high":
+            continue
+        if not risk.get("id"):
+            problems.append(
+                f"high risk {position} has no id; "
+                "give it one so a stop can carry it"
+            )
+        elif risk["id"] not in carried:
+            problems.append(
+                f"risk {risk['id']} is high but no stop carries it; "
+                "show where it could go wrong"
+            )
+    return problems
+
+
+def evidence_warnings(model: dict, diff: dict) -> list[str]:
+    """Return warnings for stops that narrate code instead of explaining it."""
+    declared = declared_ids(model, EVIDENCED_KEYS)
+    risks = declared_ids(model, ("risks",))
+    carried = carried_ids(model["chapters"])
+    warnings: list[str] = []
+    for chapter in model["chapters"]:
+        for stop in chapter.get("stops", []):
+            warnings += [
+                type(problem)(f"stop {stop['id']}: {problem}")
+                for problem in stop_evidence_problems(
+                    stop, declared, risks, diff
+                )
+            ]
+        warnings += [
+            f"chapter {chapter['id']}: {problem}"
+            for problem in unevidenced(chapter, carried)
+        ]
     return warnings
 
 
@@ -1210,7 +1374,7 @@ TEXT_FIELDS = (
     "kind",
 )
 WHOLE_NUMBER_FIELDS = ("line", "start", "end", "anchorLine")
-TEXT_LIST_FIELDS = ("findings", "refs", "pinnedBy", "over")
+TEXT_LIST_FIELDS = ("findings", "refs", "pinnedBy", "over", "carries")
 LIST_FIELDS = ("rows", "cols", "cells", "tests", "items")
 
 
@@ -1541,6 +1705,7 @@ def check(model: dict, diff: dict) -> list[str]:
     warnings += anchor_warnings(model, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
+    warnings += evidence_warnings(model, diff)
     warnings += reference_warnings(model, diff)
     warnings += vocabulary_warnings(model)
     stop_ids = [s["id"] for c in model["chapters"] for s in c.get("stops", [])]
@@ -1596,6 +1761,7 @@ def with_page_models(page: str, views: list[str]) -> str:
         *(KIT / module for module in KIT_MODULES),
         COVERAGE_MODEL,
         PROSE_REFERENCES_MODEL,
+        STOP_EVIDENCE_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)

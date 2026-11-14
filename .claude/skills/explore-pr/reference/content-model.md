@@ -53,13 +53,64 @@ level:
   declares it.
 - **Stops are evidence for the design**, chosen to show where a responsibility
   lives or how a decision is enforced, not to walk every hunk. Every stop
-  says first how its code fits the bigger picture (`fit`), then what the code
-  does (`note`): a reviewer who reads only the `fit` lines of a chapter should
-  be able to trace how the change hangs together. The build warns about a
-  stop without one.
+  names what it is evidence for (`carries`) and the role its code plays in
+  the design (`fit`): a reviewer who reads only the `fit` lines of a chapter
+  should be able to trace how the change hangs together. The build warns
+  about a stop without either, and about a decision or a high risk that no
+  stop carries.
+- **A stop says what its code cannot.** The code is shown beside the text,
+  so a sentence that says what the lines do is wasted on a reader who can
+  see them. See "What a stop says".
 - **Findings carry a level**: `design` (shape, boundaries, responsibilities,
   dependencies, decisions) or `implementation` (a line that is wrong). Design
   findings are the expensive ones to change later, so they come first.
+
+## What a stop says
+
+The reviewer reads the code at a stop for themselves. The text beside it
+is there for what they cannot get from those lines:
+
+- **`carries`**: the decisions, abstractions, invariants and risks this
+  code is evidence for, by id. The page names each one above the stop and
+  links to it, so the stop inherits a decision's alternatives and cost
+  instead of repeating them, and each decision and abstraction lists the
+  stops that show it.
+- **`fit`**: the role the code plays in the design: the responsibility
+  that lives here or the decision enforced here, and what in the change
+  depends on it. Not who calls it; the chapter's figures draw that.
+- **`why`**: why the code is shaped this way: the constraint that forced
+  it, the alternative rejected at this spot, and what the slice cannot
+  show (how the base behaved, what callers assume, what is deliberately
+  absent, which test pins it).
+- **`risk`**: what breaks if this code is wrong, how far it spreads, and
+  whether it fails loudly or silently. Leave it out where nothing is at
+  stake.
+- **`checks`**: questions with a falsifiable answer. Each says what to
+  look at (`question`), where (`where`, when it is one place) and what
+  answer would be a problem (`problem`). "Confirm that X does Y" is not a
+  check: it restates the code and has no failing answer.
+- **`focus`**: the one or two lines that matter, each with a few words on
+  why. The page marks them in the code. Use it where a narrated walk
+  through the block would otherwise go: "`<`, not `<=`, deliberately" is a
+  pointer, not a paragraph.
+
+**The deletion test.** Before keeping a sentence in `fit`, `why` or
+`risk`, ask whether the reviewer could have written it from the lines
+shown. If so, delete it, or turn it into a `focus` on the line it is
+about.
+
+**Where the why comes from.** The PR description, commit messages, ADRs,
+the plan or work item, prior review findings, and the base copy of the
+file. A why that none of them states and the code does not make evident
+is not known: write it as a `question` in `ownNotes`, never as a reason
+you inferred.
+
+The build warns about a stop with no `why`, one that carries nothing or
+carries an id nothing declares, one that states or carries a risk but has
+no `checks`, a `focus` line outside the stop's range, and a stop that
+still has the `note` or `check` these fields replaced. It leaves a `note:`
+on a `why` that names four or more identifiers from its own lines: read
+that stop again with the deletion test.
 
 ## Pictures first
 
@@ -96,8 +147,8 @@ first and written second:
   severity as chips). Diagrams go in figures, not in ASCII art.
 - Keep `purpose` to 2–3 sentences and `mechanism` to about 120 words when a
   figure carries the mechanism, which it should.
-- Lead with the point; 2–5 sentences per note. Quantify. Name specifics
-  (`store.rs:212`, not "the relevant code").
+- Lead with the point; 1–3 sentences per field of a stop. Quantify. Name
+  specifics (`store.rs:212`, not "the relevant code").
 - Use the PR's own domain terms, one term per concept, exactly as the code
   names them. Define each in its chapter's `domain`. The page shows the
   chapter's terms straight after its figures, before any of its prose, so
@@ -179,15 +230,16 @@ The build compares each anchor with the code and warns when:
 - there is none: every stop and ledger row needs one;
 - it is on one other line of the file: the code moved, and the warning gives
   the shift. `build.py --reanchor` applies every such move, shifting
-  `start`, `end`, `anchorLine` and `line` together and rewriting the content
-  files;
+  `start`, `end`, `anchorLine`, `line` and a stop's `focus` lines together
+  and rewriting the content files;
 - it is on several lines: choose a line only that code has;
 - it is nowhere in the file: the code changed, so read it again and rewrite
   the stop or row.
 
 Re-anchoring restores the position, not the prose. A stop that moved cleanly
 may still describe lines that were edited, so after a head move check each
-moved stop's range against the new diff before trusting its note.
+moved stop's range and `focus` lines against the new diff before trusting
+what it says.
 
 ## `explore.json`
 
@@ -294,15 +346,26 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "pinnedBy": ["path/to/test.rs::test_name"],
     "holds": "yes|partly|unsure", "why": "md, only when partly or unsure"
   }],
-  "risks": [{ "level": "high|medium|low", "text": "md", "where": "path:line", "refs": ["R1-06"] }],
+  "risks": [{ "id": "claims-r1",              // needed on a high risk, so a stop can carry it
+    "level": "high|medium|low", "text": "md", "where": "path:line", "refs": ["R1-06"] }],
   "stops": [{                                 // the tour, in reading order; 6–12
     "id": "claims-s1", "file": "path", "side": "new", "start": 120, "end": 160,
     "anchor": "fn claim_version(",            // code copied from the anchor line; see Anchors
     "anchorLine": 124,                        // optional: the line it is on; defaults to start
     "title": "≤ 8 words",
-    "fit": "md, 1–3 sentences: where this code sits in the change as a whole: the abstraction or decision it carries, what reaches it and what it hands on to, and which other chapter or stop it connects to; shown before the note",
-    "note": "md, 2–5 sentences: what it does, why it is shaped this way, what could go wrong",
-    "check": "md, optional: the one thing to verify here",
+    "carries": ["d-claim-heartbeat", "claims-i1"],
+                                              // ids of the decisions, abstractions, invariants and
+                                              // risks this code is evidence for; at least one
+    "fit": "md, 1–2 sentences: the role this code plays in the design: the responsibility that lives here or the decision enforced here, and what depends on it. Not who calls it",
+    "why": "md, 1–3 sentences: why it is shaped this way: the constraint, the alternative rejected here, what these lines cannot show",
+    "risk": "md, optional, 1–2 sentences: what breaks if this is wrong, how far it spreads, loudly or silently",
+    "checks": [{                              // needed when the stop states or carries a risk
+      "question": "md: something with a falsifiable answer",
+      "where": "path:line, optional: where to look",
+      "problem": "md: the answer that would be a problem"
+    }],
+    "focus": [{ "line": 131, "why": "md, ≤ 20 words: why this line matters" }],
+                                              // optional: lines inside start–end, marked in the code
     "figure": { /* optional, one figure shown beside the code; see Figures */ },
     "findings": ["R1-06"]
   }],
@@ -321,7 +384,10 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 `examples/chapter-version-claims.json` is a real chapter at the expected
 standard: three chapter figures (a timeline, a sequence diagram and a tree), three
 abstractions, two decisions with their alternatives and costs, a figure on a
-stop, an anchor on every stop, and a level on each finding check. Stops should cover what a reviewer must read to own the chapter, not
+stop, an anchor on every stop, and a level on each finding check. Each of
+its stops says what it carries, why its code is shaped as it is, what is at
+risk and how to check it, with the lines that matter marked, and none says
+what the code does. Stops should cover what a reviewer must read to own the chapter, not
 every hunk; ranges of 10–60 lines read best. A stop may sit on unchanged lines
 of a changed file when the change cannot be understood without them.
 

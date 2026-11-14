@@ -14,7 +14,9 @@ STOP = {
     "start": 1,
     "end": 3,
     "anchor": "fn a()",
+    "carries": ["d1"],
     "fit": "f",
+    "why": "w",
 }
 DRAWING = {"id": "f1", "kind": "svg", "svg": "<svg viewBox='0 0 1 1'/>"}
 SOUND_CHAPTER = {

@@ -186,6 +186,26 @@
           "text": "does not draw the schema as a generic flow of boxes and arrows"
         }
       ]
+    },
+    {
+      "id": 10,
+      "prompt": "The tour stops on the explore-pr page for #412 just repeat what the code next to them already says. Can you make them useful?",
+      "expected_output": "Treats stop text that paraphrases its code as a defect in the content, not the wording: for each stop names the decisions, abstractions, invariants and risks it is evidence for, replaces the narration with why the code is shaped this way (taken from the PR description, commits, ADRs or the base copy, and asked as a question where no source gives a reason), what breaks if it is wrong, and checks that each have a falsifiable answer, moves line-level remarks onto focus lines, and rebuilds until the build reports no stop without a why, without something it carries, or with a risk and no check.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "removes sentences that describe what the shown lines do rather than rewording them"
+        },
+        {
+          "text": "gives every stop a why and the ids of what it carries, and a check with a question and a problem wherever a risk is stated"
+        },
+        {
+          "text": "does not invent a rationale: a why no source states becomes a question"
+        },
+        {
+          "text": "rebuilds and confirms the build exits 0 with no stop warnings"
+        }
+      ]
     }
   ]
 }

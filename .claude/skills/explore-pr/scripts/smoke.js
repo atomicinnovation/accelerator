@@ -12,7 +12,9 @@
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
 // opened by link and in one picked from the file list. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
-// stop's link opens its chapter at that stop. It also records a file verdict,
+// stop's link opens its chapter at that stop. It checks that a stop names
+// everything it carries, that each name opens what it names, and that every
+// line a stop says to focus on is marked in its code. It also records a file verdict,
 // pretends it was given at an earlier head, and checks that rewritten lines are
 // unread again and announced, that untouched ones stay read, and that only a
 // new verdict, not a note, moves the record to this head. Every diagram the
@@ -178,6 +180,30 @@ const REFERENCES_PROBE = `(async () => {
   return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
 })()`;
 
+const EVIDENCE_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const chapters = api.content.chapters || [];
+  const evidence = window.StopEvidence.index(api.content);
+  const chapter = chapters.find(each => (each.stops || []).some(stop => evidence.carriedBy(stop).length));
+  if (!chapter) return { skipped: 'no stop carries anything the page declares' };
+  const stop = chapter.stops.find(each => evidence.carriedBy(each).length);
+  location.hash = 'tour-' + chapter.id; await settle();
+  const shown = document.getElementById('stop-' + stop.id);
+  const links = shown ? [...shown.querySelectorAll('a.carried')] : [];
+  const named = links.length === evidence.carriedBy(stop).length;
+  const pointed = chapters.flatMap(each => each.stops || []).filter(each => (each.focus || []).some(focus => focus.why));
+  const focusMarked = pointed.every(each => {
+    const there = document.getElementById('stop-' + each.id);
+    return !there || !there.querySelector('.code table') || !!there.querySelector('tr.focus + tr.point');
+  });
+  if (!named) return { named, focusMarked };
+  links[0].click(); await settle();
+  const target = document.getElementById(links[0].dataset.scrollTo);
+  const top = target ? target.getBoundingClientRect().top : null;
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight };
+})()`;
+
 const HEADS_PROBE = `(async () => {
   const api = window.ExplorePR.api, store = api.store, content = api.content;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -295,6 +321,7 @@ async function main() {
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
+    report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
@@ -322,12 +349,14 @@ async function main() {
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
   const references = report.references || {};
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
+  const evidence = report.evidence || {};
+  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries);
   const heads = report.heads || {};
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && headsHold && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = diagramsHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
