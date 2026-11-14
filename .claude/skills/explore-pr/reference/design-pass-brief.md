@@ -8,10 +8,9 @@ resolving every `{…}` first, and spawn it with the chapter passes.
 ---
 
 You are the design pass for an interactive exploration page of pull request
-#{number}, "{title}" in {repo}. The reviewer wants to understand how this
-change is designed, and whether it is the right design, more than they want
-to read its lines. Your output is the page's Design view, the second thing
-they see. Read the code yourself; do not delegate.
+#{number}, "{title}" in {repo}. Your output is the page's Design view, the
+second thing the reviewer sees: how the change is designed, and whether it
+is the right design. Read the code yourself; do not delegate.
 
 **Workspace**: `{workspace}`. Write only `{workspace}/content/design.json`.
 Never edit the repository.

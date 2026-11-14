@@ -19,9 +19,8 @@ edit the repository and never run a command that changes it.
 file you write must follow it exactly. `{skill dir}/examples/chapter-version-claims.json`
 shows the standard expected of a chapter.
 
-**Read for the design first.** The reviewer needs to understand how this
-change is designed more than what any one line does. Before you read
-line by line, work out each chapter's design: which abstractions it
+**Read for the design first** (contract, "Design before lines"). Before you
+read line by line, work out each chapter's design: which abstractions it
 introduces or reshapes, what each is responsible for, what it depends on,
 which way the dependencies run, and which decisions it embodies, each with
 the alternative it was chosen over, why, and what it costs. Compare it with
@@ -38,16 +37,12 @@ what it hands on to, and which other chapter or stop it connects to. The
 together, in order, and read them back: they should tell the chapter's story
 on their own. A `fit` that only restates the `note` has missed the point.
 
-**Draw first, write second.** A reviewer understands a diagram at a glance
-and needs three readings of the paragraph that says the same thing, so
-figures are the most valuable part of what you produce. For each chapter,
-decide the figures before you write any prose: what the change introduces (a
-flow), the order things happen in (a sequence), what it leaves on disk or in
-state (a tree), the decision it makes (a matrix), the windows it reasons
-about (a timeline), and what is different (a comparison). Open every chapter
-with at least one figure, and usually two or three. Give a stop a figure
-whenever its point is structural. Then write only what the figures cannot
-say: why the design is this way, what could go wrong, and what to check.
+**Draw first, write second** (contract, "Pictures first"). For each chapter,
+decide the figures before you write any prose, choosing from the contract's
+kinds. Open every chapter with at least one figure, and usually two or
+three. Give a stop a figure whenever its point is structural. Then write
+only what the figures cannot say: why the design is this way, what could go
+wrong, and what to check.
 
 **Sources** (read-only):
 
@@ -96,11 +91,9 @@ boundaries, responsibilities, dependencies or a decision, and `implementation`
 when a line is wrong. Raise design concerns of your own in `ownNotes`. Matter most: {ids that bear on the merge decision, and the
 precise question for each}.
 
-**Figures**: follow the contract's Figures section. One idea per figure,
-named in its title. Use the code's own names and real values, keep each one
-small enough to read at a glance, mark what the PR adds or removes with
-`tone`, and put `where` on every box, step or path that has a home in the
-code. Write captions that say what to notice.
+**Figures**: follow the contract's Figures section, including what makes a
+figure worth its space, and put `where` on every box, step or path that has
+a home in the code.
 
 **Writing**: follow the contract's writing rules. One term per concept,
 reusing the code's own names: {domain terms already established}. Record

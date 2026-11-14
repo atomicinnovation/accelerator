@@ -59,107 +59,32 @@ directory}`, `{plans directory}`, `{work directory}` or `{skill dir}` appears
 below, substitute the resolved path shown above. When briefing a subagent,
 resolve every placeholder first: subagents cannot see these definitions.
 
-## Design before lines
+## Two principles
 
-What a reviewer most needs from this page is an understanding of how the
-change is designed: its abstractions, how it divides responsibility, which
-way its dependencies run, the decisions that shaped it and what they cost,
-and how it fits the architecture around it. That is what they approve, and
-what they will maintain and extend. The lines matter as **evidence** for the
-design and as the place a defect hides, but a reviewer who has read every line
-without grasping the design has not reviewed the change.
+Both are set out in `{skill dir}/reference/content-model.md`, which every
+pass reads first, and both are enforced by the build.
 
-- The **Design** view comes second, straight after the overview. It shows
-  the design in a paragraph and a picture, the key abstractions and a
-  diagram of how they collaborate, every design decision with what it was
-  chosen over and why, the fit with the existing architecture's principles,
-  and where the next change would go. A dedicated design pass writes it.
-- Every chapter opens with **what it adds to the design** (its abstractions
-  and decisions) before any line of code. Its stops are chosen as evidence
-  for that design, not as a walk through every hunk, and each stop says how
-  its code fits the bigger picture of the change before it says what the
-  code does.
-- Each design decision has its own control: agree, question or disagree. A
-  design disagreement is the most expensive finding to act on later, so it
-  is the first thing the notes report.
-- Findings carry a level, **design** or **implementation**, so design-level
-  concerns can be triaged first.
+- **Design before lines.** The reviewer approves, maintains and extends a
+  design, so the page explains the design and uses lines as its evidence.
+  The Design view comes second; every chapter says what it adds to the
+  design before any code; every stop says how it fits the change before
+  what it does; design decisions and design-level findings are triaged
+  first.
+- **Pictures first.** Every part of the page is drawn first and written
+  second. The overview and every chapter open with figures, a structural
+  stop carries one, and prose is kept for what a picture cannot say: why,
+  what could go wrong, and what to check.
 
-The build warns about a chapter that names no abstraction or decision, about
-a stop that does not say how it fits the change, and about a page with no
-design summary. Treat those warnings as defects.
+## What you build
 
-## Pictures first
-
-A picture is worth a thousand words, and on this page it is worth more than
-any paragraph. A reviewer takes in a five-step sequence diagram at a glance;
-the paragraph describing the same five steps needs reading three times and
-still leaves them to draw the picture in their head. So every part of the
-page is **drawn first and written second**, and prose is kept for what a
-picture cannot say: why the design is this way, what could go wrong, and
-what to check.
-
-- The overview opens with the change at a glance, usually a before/after
-  comparison of the part of the system the PR reshapes, and the Design view
-  with the architecture as a layered diagram.
-- Every chapter opens with figures, usually two or three: what the change
-  introduces (flow), the order things happen in (sequence), what it leaves
-  behind on disk or in state (tree), the decisions it makes (matrix), the
-  windows and ages it reasons about (timeline), what is different (compare).
-- A stop whose point is structural carries a figure beside its code.
-- A mechanism the reviewer would want to vary and watch gets an interactive
-  view: a simulator, a stepper, a state machine.
-- The **In pictures** view gathers every figure in reading order, so a
-  reviewer can understand the change from pictures alone before reading a
-  word of the tour.
-
-The page draws all of these from data (`{skill dir}/reference/content-model.md`,
-"Figures"), so drawing costs no more than writing. The build warns about any
-chapter, or an overview, without a figure. Treat those warnings as defects.
-
-## What you build, and what is bundled
-
-The page, built by `{skill dir}/scripts/build.py` from a workspace of JSON
-content (the contract is `{skill dir}/reference/content-model.md`):
-
-| View | Gives the reviewer |
-|---|---|
-| Overview | The change at a glance as a figure, the design in brief, a verdict control, what stands in the way of merging, what changes, breaking changes before and after, accepted risks, CI |
-| Design | The design summary and architecture figures; key abstractions with an automatic diagram of how they collaborate; design decisions (chosen over what, why, at what cost) with agree, question or disagree controls; fit with the existing architecture's principles; where the next change goes |
-| In pictures | Every figure on the page in reading order: the change, understood visually before it is read |
-| Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
-| Guided tour | Chapters by design concept in reading order, each opening with its figures, then the terms it uses, then what it adds to the design; code at every stop as the evidence, each placed in the change before it is explained; invariants with the tests that pin them; a sign-off question per chapter |
-| Ledger | Every call site of the PR's riskiest class of operation: what guards it, what is held, what races it, what pins it |
-| By commit | Each commit in order with its message and hunks, stepped through with Previous/Next or `j`/`k`; lines marked one at a time, by block or by a commit verdict, shared with All files and the tour; lines a later commit superseded shown but not counted |
-| Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
-| Findings | Each prior finding with an independent verdict against the code, its level (design or implementation), and a triage control |
-| Criteria → tests | Acceptance criteria resolved to the tests that pin them |
-| All files, Domain terms, Your notes | Annotated diffs showing which changed lines are read and which are still to read, marked one at a time, by block or from the tour, the ledger, a commit or a file verdict, with the commits that changed each file; the change's vocabulary; and everything recorded, copyable as Markdown |
-
-Bundled under `{skill dir}`, so quality does not depend on rebuilding them:
-
-| Path | Purpose |
-|---|---|
-| `assets/page.html` | The page shell: every core view including Design, figure renderers (flow, sequence, tree, matrix, timeline, compare, SVG) laid out and themed from data, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
-| `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
-| `assets/graph-routes.js` | Routes a graph's arrows as horizontal and vertical runs with rounded corners: ports spread along each box, a track per run between rows, around boxes rather than behind them, fewest crossings it can find, inlined into every build |
-| `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
-| `assets/graph-focus.js` | Traces a graph's arrows, outbound and inbound, from every box the reviewer has pressed (touch, mouse or keyboard); pressing a box again drops it and Esc clears them all, inlined into every build |
-| `assets/vendor/` | marked 12.0.2 and highlight.js 11.9.0, inlined by the standalone build |
-| `scripts/export_trees.py` | Base and head copies of every changed file, through the GitHub API |
-| `scripts/extract_diff.py` | `data/diff.json` from those trees |
-| `scripts/export_commits.py` | Every file each commit leaves behind, through the GitHub API |
-| `scripts/extract_commits.py` | `data/commits.json`: each commit's hunks, every changed line traced onto the whole diff |
-| `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
-| `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
-| `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, a graph tracing the arrows of every box pressed and not of one merely pointed at, labels above every arrow, a box's ↗ control following its link, arrows right-angled, clear of every box and never sharing a run, a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
-| `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
-| `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
-
-The shell is a starting point. Copy `assets/page.html` to the workspace and
-change it when the PR calls for something the shell cannot do; the build uses
-the workspace copy.
+One page, built by `{skill dir}/scripts/build.py` from a workspace of JSON
+content: an overview, the Design view, every figure gathered In pictures, an
+attention map, a guided tour by design concept, a ledger of the riskiest
+operations, the change commit by commit, prior findings re-checked,
+criteria mapped to tests, annotated files, and the reviewer's notes, plus
+any view built for this PR alone. `{skill dir}/reference/page.md` lists what
+each view gives the reviewer and every bundled script and asset; read it
+when you need more than the steps below name.
 
 ## Initial response
 
@@ -218,11 +143,9 @@ Do this yourself; it is cheap and shapes everything after it.
   (deletions, migrations, writes to shared state, authorisation decisions,
   external side effects). These become the chapters, the design pass's
   agenda, the custom-view candidates and the ledger's subject.
-- **The pictures**: for each concept, sketch the figure that would explain it
-  fastest. What does the system look like before and after? What happens in
-  what order? What does it leave behind? Which decision does it make, on
-  which inputs? Those sketches become the overview's opening figure and the
-  figures each chapter's brief asks for.
+- **The pictures**: for each concept, sketch the figure that explains it
+  fastest: before and after, the order of events, what is left behind, the
+  decision made. These become the overview's figure and each brief's.
 
 Tell the user what you found, briefly: the design of the change in two
 sentences, scale by layer, CI state, whether a prior review exists, and
@@ -257,14 +180,11 @@ python3 {skill dir}/scripts/parse_review.py {review file} {workspace}/data/chang
 python3 {skill dir}/scripts/criteria_map.py {plan file} {workspace}/head {workspace}/content/criteria.json
 ```
 
-The trees come from the merge base and head, so the diff matches GitHub's,
-and a renamed file's diff shows what changed. The commit export fetches each
-file every commit touches, so it makes a few API calls per commit; the
-extraction traces every line a commit changes onto the whole diff, so the
-By commit view shares one record of what has been read with All files and the
-tour. Skip the last two commands when
-there is no review or no criterion map; the criteria map resolves tests in the
-head tree, so a test the PR does not touch stays unresolved.
+The trees come from the merge base and head, so the diff matches GitHub's.
+The commit export makes a few API calls per commit. Skip the last two
+commands when there is no review or no criterion map; the criteria map
+resolves tests in the head tree, so a test the PR does not touch stays
+unresolved.
 
 Write `{workspace}/explore.json` now, following the content model: the PR, a
 page title (a name of two to four words), layers if the defaults do not fit
@@ -350,28 +270,11 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
 ```
 
 - The build must exit 0. It writes the page either way, but exits 1 while a
-  `warning:` remains, and ends by counting what is left. A `note:` may
-  stand and does not fail it: a citation into a file the PR does not change
-  (check it yourself), and a changed file with no summary (shown as skim).
-  Content the page cannot use — a file that is not valid JSON, an item
-  missing its `id`, `file` or line numbers, a value outside its field's
-  vocabulary — is reported and left out, so fix it at its source and
-  rebuild. A missing design
-  summary, a chapter with no abstraction or decision, a stop with no `fit`,
-  a chapter or overview
-  without a figure, or a figure naming a node or actor that does not exist
-  is a defect to fix, not a warning to note. A stop or ledger line outside
-  its file, or a ledger range that misses its call, is a content error; a
-  file without a summary renders as skim. So is a stop or ledger row with no
-  anchor, or whose anchor is not on its line: the range points at other code
-  than its note describes, so correct it against the code (`--reanchor`
-  applies an unambiguous move). So is any citation that does not
-  resolve: a `where` or test reference outside its file, matching several
-  files or not found, a `chapter` that does not exist, or prose naming a
-  stop or chapter that does not exist. Fix each against the code; never
-  delete a citation to silence its warning. A citation reported as *not a
-  changed file; unverified* is a note, and may stand once you have checked
-  it yourself.
+  `warning:` remains. Every warning is a defect in the content: fix it at
+  its source, against the code, and rebuild. Never delete a citation or an
+  anchor to silence one. A `note:` may stand once you have checked it
+  yourself. The content model lists what is checked ("What the build
+  requires", "References the build checks", "Anchors").
 - The smoke check must report `"ok": true`. It needs Chrome or Chromium and
   Node 22; if neither is available, say the page was not rendered.
 - Read the **Design** screenshot as the reviewer will: could someone who
@@ -414,33 +317,10 @@ follow-up work items for findings triaged *follow-up*.
 
 ## Re-running
 
-The workspace is reused, and must be: `data/heads/` holds the diff at every
-head the page was built for, which is what lets the reviewer's verdicts
-survive a moved head (content model, "When the head moves"). If the PR's
-head moved since `explore.json` was written, export and extract again, set
-`pr.head` (and `pr.base`, if the merge base moved) in `explore.json` to the
-new commits, then run
-`python3 {skill dir}/scripts/build.py {workspace} --reanchor`. Every stop
-and ledger row quotes the code it stands on (content model, "Anchors"), so
-this moves each one whose code merely shifted and warns about each whose
-code is gone or ambiguous. Then decide what to re-read from what it reports
-and from the files that changed (`files*.json` maps each file to its
-chapter):
-
-- a chapter none of whose files changed needs nothing;
-- a chapter whose stops and rows all held or moved, and whose changed hunks
-  fall outside every stop and row, needs only its new hunks checked for
-  something a stop should now cover;
-- a chapter with an anchor that was not found, or a changed hunk inside a
-  stop or row, needs its pass re-run.
-
-Then refresh the design and the overview if the shape of the change moved.
-Publish the hosted page to the same artifact, never a new one: the
-reviewer's records live with it. Tell the reviewer what they will see: lines
-changed since their review are unread again, and each verdict whose code
-changed says which head it was recorded at.
-
-An unchanged head needs only the steps the user asks for.
+Never delete or replace an existing workspace: it holds what lets the
+reviewer's verdicts survive a moved head. An unchanged head needs only the
+steps the user asks for. If the PR's head moved since `explore.json` was
+written, follow `{skill dir}/reference/re-running.md`.
 
 ## Report
 
