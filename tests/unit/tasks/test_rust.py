@@ -117,7 +117,10 @@ BUILD_ENVIRONMENT = (
     "LLVM_PROFILE_FILE='/workspace/cli/target/cli-%p-%16m.profraw'\n"
     "RUSTC_WRAPPER=/opt/bin/cargo-llvm-cov\n"
 )
+CAPTURED_BUILD_DIR = "/workspace/cli/target/llvm-cov-target/debug"
 LIVE_ARTEFACT = "deps/libsmallvec-0e524c8a43f44c11.rlib"
+UPLIFTED_BINARY = "accelerator-verify"
+BINARY_TWIN = "deps/accelerator_verify-bccc7b6827f71b41"
 SUPERSEDED_ARTEFACT = "deps/libsmallvec-3d4b3aa50bf88d80.rlib"
 
 REPORT = "cargo llvm-cov report"
@@ -156,10 +159,20 @@ class TestTestUnitCli:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> Path:
         build_dir = tmp_path / "llvm-cov-target" / "debug"
-        for artefact in (LIVE_ARTEFACT, SUPERSEDED_ARTEFACT):
+        for artefact in (
+            LIVE_ARTEFACT,
+            SUPERSEDED_ARTEFACT,
+            UPLIFTED_BINARY,
+            BINARY_TWIN,
+        ):
             (build_dir / artefact).parent.mkdir(parents=True, exist_ok=True)
             (build_dir / artefact).write_bytes(b"x" * 1_500)
         monkeypatch.setattr(test_cli, "_INSTRUMENTED_BUILD", build_dir)
+        monkeypatch.setitem(
+            _OUTPUTS,
+            UNIT_LISTING,
+            UNITS.replace(CAPTURED_BUILD_DIR, str(build_dir)),
+        )
         return build_dir
 
     @pytest.fixture
@@ -252,6 +265,7 @@ class TestTestUnitCli:
         test_cli.run(lane)
 
         assert (build_dir / LIVE_ARTEFACT).exists()
+        assert (build_dir / BINARY_TWIN).exists()
         assert not (build_dir / SUPERSEDED_ARTEFACT).exists()
         assert "swept 1 superseded artefacts (1.50 kB)" in (
             capsys.readouterr().out
@@ -347,6 +361,15 @@ class TestTestUnitCli:
         with pytest.raises(Exit) as exc_info:
             test_cli.run(lane)
         assert "no units" in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_binary_without_a_twin_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        (build_dir / BINARY_TWIN).write_bytes(b"an older build")
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert UPLIFTED_BINARY in str(exc_info.value)
         assert self._swept_nothing(build_dir)
 
     def test_docstring_names_the_stale_binary_remedy(self):

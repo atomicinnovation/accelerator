@@ -12,6 +12,8 @@ from tasks.shared.coverage import (
 from tasks.shared.instrumented_build import (
     Sweep,
     UnitListing,
+    UnmatchedUpliftError,
+    live_units,
     parse_build_environment,
     superseded_entries,
 )
@@ -124,7 +126,13 @@ def _sweep_superseded_artefacts(context: Context) -> None:
             "was swept",
             code=1,
         )
-    swept = superseded_entries(_INSTRUMENTED_BUILD, listing.live_hashes)
+    try:
+        live = live_units(listing)
+    except UnmatchedUpliftError as error:
+        raise Exit(
+            f"cargo llvm-cov: {error}, so nothing was swept", code=1
+        ) from error
+    swept = superseded_entries(_INSTRUMENTED_BUILD, live)
     freed = sum(map(_remove, swept))
     print(Sweep(entries=len(swept), freed_bytes=freed).summary_line())
 

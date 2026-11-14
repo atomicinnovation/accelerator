@@ -5,6 +5,8 @@ import pytest
 from tasks.shared.instrumented_build import (
     Sweep,
     UnitListing,
+    UnmatchedUpliftError,
+    live_units,
     parse_build_environment,
     superseded_entries,
 )
@@ -18,6 +20,9 @@ KERNEL_TESTS = "418d5fa629a38632"
 PROC_MACRO2_BUILD_SCRIPT = "4b24466e4387f5e4"
 PROC_MACRO2_BUILD_OUTPUT = "5ce08310c6c494bc"
 SUPERSEDED = "3d4b3aa50bf88d80"
+UPLIFTED_VERIFY = Path(
+    "/workspace/cli/target/llvm-cov-target/debug/accelerator-verify"
+)
 
 
 class TestUnitListing:
@@ -31,13 +36,16 @@ class TestUnitListing:
             PROC_MACRO2_BUILD_OUTPUT,
         }
 
+    def test_keeps_the_artefacts_cargo_reports_without_a_hash(self):
+        assert UnitListing.parse(UNITS).uplifted == {UPLIFTED_VERIFY}
+
     def test_a_fresh_listing_rebuilt_nothing(self):
         assert UnitListing.parse(UNITS).rebuilt == 0
 
     def test_counts_each_unit_that_was_not_fresh(self):
-        messages = UNITS.replace('"fresh":true', '"fresh":false', 2)
+        messages = UNITS.replace('"fresh":true', '"fresh":false', 3)
 
-        assert UnitListing.parse(messages).rebuilt == 2
+        assert UnitListing.parse(messages).rebuilt == 3
 
     def test_a_listing_with_no_messages_has_no_live_units(self):
         assert UnitListing.parse("").live_hashes == frozenset()
@@ -54,6 +62,56 @@ def _directory(build_dir: Path, relative: str) -> Path:
     path = build_dir / relative
     path.mkdir(parents=True)
     return path
+
+
+def _file(build_dir: Path, relative: str, content: bytes) -> Path:
+    path = _entry(build_dir, relative)
+    path.write_bytes(content)
+    return path
+
+
+class TestLiveUnits:
+    @pytest.fixture
+    def build_dir(self, tmp_path: Path) -> Path:
+        return tmp_path / "debug"
+
+    def _listing(self, *uplifted: Path) -> UnitListing:
+        return UnitListing(frozenset({SMALLVEC}), frozenset(uplifted), 0)
+
+    def test_hashed_artefacts_are_live(self):
+        assert live_units(self._listing()) == {SMALLVEC}
+
+    def test_an_uplifted_binary_lives_through_its_identical_twin(
+        self, build_dir: Path
+    ):
+        uplifted = _file(build_dir, "accelerator-verify", b"current")
+        _file(build_dir, f"deps/accelerator_verify-{KERNEL_TESTS}", b"current")
+
+        assert live_units(self._listing(uplifted)) == {SMALLVEC, KERNEL_TESTS}
+
+    @pytest.mark.parametrize(
+        ("crate", "content"),
+        [
+            ("accelerator_verify", b"older"),
+            ("accelerator_verify", b"an older build"),
+            ("accelerator_vcs", b"current"),
+        ],
+    )
+    def test_only_an_identical_build_of_the_same_crate_is_its_twin(
+        self, build_dir: Path, crate: str, content: bytes
+    ):
+        uplifted = _file(build_dir, "accelerator-verify", b"current")
+        _file(build_dir, f"deps/accelerator_verify-{KERNEL_TESTS}", b"current")
+        _file(build_dir, f"deps/{crate}-{SUPERSEDED}", content)
+
+        assert SUPERSEDED not in live_units(self._listing(uplifted))
+
+    def test_refuses_an_uplifted_binary_without_a_twin(self, build_dir: Path):
+        uplifted = _file(build_dir, "accelerator-verify", b"current")
+        _file(build_dir, f"deps/accelerator_verify-{SUPERSEDED}", b"older")
+
+        with pytest.raises(UnmatchedUpliftError, match="accelerator-verify"):
+            live_units(self._listing(uplifted))
 
 
 class TestSupersededEntries:
