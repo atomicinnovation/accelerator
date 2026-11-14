@@ -29,6 +29,14 @@ const figure = DiagramKit.svgOf(scene, { uid: spec.id, title: spec.title, resolv
 DiagramKit.attachTracing(document);         // once per page
 ```
 
+A figure whose notation draws itself (a matrix, a tree, a timeline) has no
+scene. Inline `lib/html.js` and that notation's `notation.js` after the
+modules above, and draw it from its spec:
+
+```js
+const markup = DiagramKit.NOTATIONS[spec.kind].htmlOf(spec, { resolveLink });
+```
+
 The page supplies the colours: `lib/diagram.css` uses the custom properties
 that `lib/tokens.css` defines (`--panel`, `--ink`, `--rule`, `--accent`,
 `--ok`, `--warn`, `--bad` and the three font stacks). A page with its own

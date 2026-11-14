@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { chromePath, headlessPage } = require('../lib/browser.js');
-const { DRAWING_CHECKS, TRACING_CHECK } = require('../lib/page-checks.js');
+const { DRAWING_CHECKS, SELF_DRAWN_CHECKS, TRACING_CHECK } = require('../lib/page-checks.js');
 
 const USAGE = 'usage: node tools/check-page.js PAGE.html [--shots DIR] [--chrome PATH]';
 
@@ -29,13 +29,14 @@ async function main(argv) {
   try {
     await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     await browser.send('Page.navigate', { url: pathToFileURL(path.resolve(options.page)).href });
-    for (let i = 0; i < 50 && !(await browser.evaluate('document.readyState === "complete" && !!document.querySelector("svg.dk")')); i++) await browser.pause(100);
+    for (let i = 0; i < 50 && !(await browser.evaluate('document.readyState === "complete" && !!document.querySelector("svg.dk, .dk-drawn")')); i++) await browser.pause(100);
     report = await browser.evaluate(DRAWING_CHECKS) || { fontsLoaded: false, diagrams: [] };
+    report.diagrams.push(...await browser.evaluate(SELF_DRAWN_CHECKS));
     report.tracing = await browser.evaluate(TRACING_CHECK);
     if (options.shots) {
       fs.mkdirSync(options.shots, { recursive: true });
       for (const { id } of report.diagrams) {
-        const clip = await browser.evaluate(`(() => { const figure = document.querySelector('svg.dk[data-graph="${id}"]').closest('figure') || document.querySelector('svg.dk[data-graph="${id}"]'); figure.scrollIntoView(); const r = figure.getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height, scale: 2 }; })()`);
+        const clip = await browser.evaluate(`(() => { const drawing = document.querySelector('svg.dk[data-graph="${id}"]'); const figure = document.getElementById('diagram-${id}') || drawing.closest('figure') || drawing; figure.scrollIntoView(); const r = figure.getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height, scale: 2 }; })()`);
         const shot = await browser.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: true });
         fs.writeFileSync(path.join(options.shots, `${id}.png`), Buffer.from(shot.result.data, 'base64'));
       }

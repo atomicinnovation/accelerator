@@ -3,6 +3,7 @@
   const inNode = typeof module === 'object' && module.exports;
   const { laidOut } = inNode ? require('./layout.js') : root.DiagramKit;
   const { svgOf, legendOf } = inNode ? require('./render.js') : root.DiagramKit;
+  const { addressOnly, inlineOf } = inNode ? require('./html.js') : root.DiagramKit;
 
   const STATUSES = ['new', 'changed', 'removed', 'existing'];
   const TONES = ['risk', 'ok'];
@@ -45,8 +46,11 @@
       const problems = problemsIn(spec);
       if (problems.length) throw new Error(problems.join('\n'));
       const notation = byKind.get(spec.kind);
+      if (notation.htmlOf) return null;
       return (notation.placedSceneOf && notation.placedSceneOf(spec)) || laidOut(notation.sceneOf(spec));
     }
+
+    const drawsItself = spec => Boolean(spec && byKind.get(spec.kind) && byKind.get(spec.kind).htmlOf);
 
     const remarksOn = spec => (byKind.get(spec.kind).remarksOn || (() => []))(spec);
 
@@ -55,14 +59,18 @@
       return remarks.length ? `<ul class="dk-remarks">${remarks.map(remark => `<li>${escaped(remark)}</li>`).join('')}</ul>` : '';
     }
 
-    function figureOf(spec, scene, { resolveLink } = {}) {
+    function drawnOf(spec, scene, resolveLink) {
+      if (drawsItself(spec)) return `<div class="dk-drawn">${byKind.get(spec.kind).htmlOf(spec, { resolveLink: resolveLink || addressOnly })}</div>`;
       const drawing = svgOf(scene, { uid: spec.id, title: spec.title, ...(resolveLink ? { resolveLink } : {}) });
-      return `<figure class="dk-figure" id="diagram-${escaped(spec.id)}"><figcaption class="dk-title">${escaped(spec.title)}</figcaption>`
-        + `<div class="dk-scroll">${drawing}</div>${legendOf(scene)}${scene.edges.length ? TRACE_HINT : ''}`
-        + `${remarksMarkup(spec)}${spec.caption ? `<p class="dk-caption">${escaped(spec.caption)}</p>` : ''}</figure>`;
+      return `<div class="dk-scroll">${drawing}</div>${legendOf(scene)}${scene.edges.length ? TRACE_HINT : ''}`;
     }
 
-    return { kinds: () => [...byKind.keys()], faultsIn, problemsIn, remarksOn, laidOut: laidOutSpec, figureOf };
+    function figureOf(spec, scene, { resolveLink } = {}) {
+      return `<figure class="dk-figure" id="diagram-${escaped(spec.id)}"><figcaption class="dk-title">${escaped(spec.title)}</figcaption>`
+        + `${drawnOf(spec, scene, resolveLink)}${remarksMarkup(spec)}${spec.caption ? `<p class="dk-caption">${inlineOf(spec.caption)}</p>` : ''}</figure>`;
+    }
+
+    return { kinds: () => [...byKind.keys()], faultsIn, problemsIn, remarksOn, laidOut: laidOutSpec, drawsItself, figureOf };
   }
 
   const api = { notations, markProblems, STATUSES, TONES };

@@ -4,7 +4,7 @@ description: Choose the kind of diagram that answers a question and draw it
   — class, object, component, package, deployment, sequence, state, activity,
   entity-relationship, data flow, C4, domain model, context map, dependency
   graph, flowchart, decision tree, byte-field, railroad or plain block
-  diagram — as an interactive
+  diagram, or a matrix, tree or timeline — as an interactive
   page or SVG. Use when the user asks for a diagram, a picture or a
   visualisation of some code or design without naming its kind, is unsure
   which diagram fits, wants several views of one subject, or when another

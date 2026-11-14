@@ -95,7 +95,7 @@ test('preparing a list of diagrams lays out the sound ones and reports the rest,
   const result = run(dir, 'prepare', 'spec.json');
   assert.equal(result.status, 0, result.stderr);
   const prepared = JSON.parse(result.stdout);
-  assert.deepEqual(prepared.kinds, ['boxes']);
+  assert.deepEqual(prepared.kinds, ['boxes', 'words']);
   assert.deepEqual(prepared.diagrams.map(each => each.id), ['d1', 'd2', 'd3', 'd4']);
   const [sound, untitled, unknown, remarked] = prepared.diagrams;
   assert.deepEqual(sound.problems, []);
@@ -109,7 +109,7 @@ test('preparing a list of diagrams lays out the sound ones and reports the rest,
 
 test('preparing an empty list says which kinds can be drawn', () => {
   const result = run(workdir([]), 'prepare', 'spec.json');
-  assert.deepEqual(JSON.parse(result.stdout), { kinds: ['boxes'], diagrams: [] });
+  assert.deepEqual(JSON.parse(result.stdout), { kinds: ['boxes', 'words'], diagrams: [] });
 });
 
 test('rendering a file with no diagrams in it is refused, not a crash', () => {

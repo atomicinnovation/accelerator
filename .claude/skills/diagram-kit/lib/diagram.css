@@ -162,3 +162,50 @@
 .dk.tracing .edge.traced-out rect, .dk.tracing .edge.traced-in rect { stroke: currentColor; }
 .dk.tracing .traced > .body { stroke-width: 2.4; }
 @media (prefers-reduced-motion: reduce) { .dk .edge, .dk [data-node] { transition: none; } }
+
+.dk-drawn { min-width: 0; font-family: var(--f-body); color: var(--ink); }
+.dk-drawn code { font-family: var(--f-mono); font-size: .92em; }
+.dk-drawn a { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+.dk-drawn a:hover { text-decoration-style: solid; }
+
+.dk-table { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+.dk-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dk-table th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--ink-2); padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+.dk-table th[scope="row"] { color: var(--ink); font-size: 13px; }
+.dk-table td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.dk-table tbody tr:last-child td, .dk-table tbody tr:last-child th { border-bottom: 0; }
+.dk-table .dk-by { color: var(--ink-3); }
+.dk-table td.t-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.dk-table td.t-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
+.dk-table td.t-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
+.dk-table td.t-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
+.dk-table td.t-none { color: var(--ink-3); }
+
+.dk-tree { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; font-variant-ligatures: none; }
+.dk-tree .dk-row { display: flex; align-items: baseline; white-space: pre; }
+.dk-tree .dk-guide { color: var(--ink-3); }
+.dk-tree .dk-dir { font-weight: 600; }
+.dk-tree .s-added .dk-name, .dk-tree .s-added .dk-name a { color: var(--ok); }
+.dk-tree .s-removed .dk-name, .dk-tree .s-removed .dk-name a { color: var(--bad); text-decoration: line-through; }
+.dk-tree .s-changed .dk-name, .dk-tree .s-changed .dk-name a { color: var(--warn); }
+.dk-tree .dk-note { font-family: var(--f-body); color: var(--ink-2); margin-left: 14px; white-space: normal; }
+
+.dk-timeline { display: block; margin: 0 auto; max-width: 100%; min-width: 470px; height: auto; }
+.dk-timeline text { font-family: var(--f-body); font-size: 11px; fill: var(--ink); }
+.dk-timeline .axis { stroke: var(--ink-3); stroke-width: 1.2; }
+.dk-timeline .tick line { stroke: var(--ink-3); }
+.dk-timeline .tick-label { font-size: 10.5px; fill: var(--ink-3); }
+.dk-timeline .mark-label { font-weight: 600; fill: var(--ink-2); }
+.dk-timeline .mark line { stroke: var(--ink-3); stroke-width: 1; }
+.dk-timeline .mark circle { fill: var(--ink-2); }
+.dk-timeline .mark.t-ok circle, .dk-timeline .mark.t-ok .mark-label { fill: var(--ok); }
+.dk-timeline .mark.t-bad circle, .dk-timeline .mark.t-bad .mark-label { fill: var(--bad); }
+.dk-timeline .mark.t-warn circle, .dk-timeline .mark.t-warn .mark-label { fill: var(--warn); }
+.dk-timeline .mark.t-info circle, .dk-timeline .mark.t-info .mark-label { fill: var(--info); }
+.dk-timeline .span rect { fill: color-mix(in srgb, var(--info) 22%, var(--panel)); }
+.dk-timeline .span.t-ok rect { fill: color-mix(in srgb, var(--ok) 26%, var(--panel)); }
+.dk-timeline .span.t-warn rect { fill: color-mix(in srgb, var(--warn) 26%, var(--panel)); }
+.dk-timeline .span.t-bad rect { fill: color-mix(in srgb, var(--bad) 22%, var(--panel)); }
+.dk-timeline .span.t-none rect { fill: var(--panel-2); }
+.dk-timeline a text { fill: var(--accent); }
+.dk-caption code { font-family: var(--f-mono); font-size: .92em; }

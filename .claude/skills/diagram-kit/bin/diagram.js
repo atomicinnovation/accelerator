@@ -49,9 +49,10 @@ function refuseProblems(kit, diagrams) {
 async function prepared(kit, diagram) {
   const id = diagram && typeof diagram.id === 'string' ? diagram.id : null;
   const problems = kit.faultsIn(diagram);
-  if (problems.length) return { id, problems, scene: null, legend: '', remarks: [] };
+  const selfDrawn = kit.drawsItself(diagram) ? { selfDrawn: true } : {};
+  if (problems.length) return { id, problems, scene: null, legend: '', remarks: [], ...selfDrawn };
   const scene = await kit.laidOut(diagram);
-  return { id, problems, scene, legend: legendOf(scene), remarks: kit.remarksOn(diagram) };
+  return { id, problems, scene, legend: scene ? legendOf(scene) : '', remarks: kit.remarksOn(diagram), ...selfDrawn };
 }
 
 async function main(argv) {
@@ -68,6 +69,9 @@ async function main(argv) {
   if (!diagrams.length) throw new Refused(`${path.basename(file)}: no diagrams in it`);
   refuseProblems(kit, diagrams);
   if (command === 'check') return 0;
+  const onPageOnly = diagrams.find(diagram => kit.drawsItself(diagram));
+  if (onPageOnly && command === 'layout') throw new Refused(`diagram ${onPageOnly.id}: a ${onPageOnly.kind} draws itself, so it has no scene`);
+  if (onPageOnly && out && out.endsWith('.svg')) throw new Refused(`diagram ${onPageOnly.id}: a ${onPageOnly.kind} draws itself; render it to .html`);
   const scenes = [];
   for (const diagram of diagrams) scenes.push(await kit.laidOut(diagram));
   if (command === 'layout') {

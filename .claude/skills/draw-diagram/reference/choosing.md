@@ -36,6 +36,17 @@ often raises several questions, and each gets its own diagram.
 | How are the bits or bytes of this format laid out? | `byte-field-diagram` | `draw-byte-field-diagram` |
 | What does this grammar, command line or pattern accept? | `railroad-diagram` | `draw-railroad-diagram` |
 
+## What applies where, and when?
+
+| The question | Kind | Skill |
+|---|---|---|
+| Which case gets which outcome, across two dimensions? | `matrix` | `draw-matrix` |
+| What is on disk, in a config or in a module tree, and what did the change do to it? | `tree` | `draw-tree` |
+| How do these ages, windows, timeouts or thresholds sit against one another? | `timeline` | `draw-timeline` |
+
+These three are drawn as a table, a listing and a scaled axis, not as
+boxes and arrows.
+
 ## When nothing above fits
 
 | The question | Kind | Skill |
@@ -102,6 +113,11 @@ a sequence diagram; "sends data to", a data flow diagram. A block diagram
 is for what is left: a derivation, a pipeline of transformations, a
 handful of parts whose links are each different.
 
+**Matrix or decision tree.** A matrix when two inputs are looked at
+together and every combination has an outcome. A decision tree when the
+conditions are asked one after another and later ones depend on earlier
+answers.
+
 **Railroad or state machine.** A railroad diagram shows what input is
 accepted. A state machine shows what a parser does as it reads.
 
@@ -122,8 +138,8 @@ structural view and a view of what happens:
 
 ## When not to draw
 
-- Values across two dimensions (which case gets which outcome) read better
-  as a table.
+- Values across two dimensions (which case gets which outcome) are a
+  `matrix`, not boxes and arrows.
 - Why a design is the way it is belongs in prose.
 - A diagram with more than about a dozen elements has more than one
   point: split it by question.

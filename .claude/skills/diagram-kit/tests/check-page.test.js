@@ -66,3 +66,39 @@ test('one piece of a node\'s text written over another fails the check', needsCh
   assert.equal(status, 1);
   assert.ok(report.diagrams[0].problems.includes('node a: two pieces of its text overlap'), JSON.stringify(report.diagrams[0].problems));
 });
+
+const WORDS = { id: 'w1', kind: 'words', title: 'Two words', words: ['one', 'two'] };
+function selfDrawnPage(change = html => html) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diagram-kit-check-'));
+  fs.writeFileSync(path.join(dir, 'spec.json'), JSON.stringify(WORDS));
+  const built = spawnSync('node', [CLI, 'render', 'spec.json', '--out', 'out.html', '--notations', NOTATIONS], { cwd: dir, encoding: 'utf8' });
+  assert.equal(built.status, 0, built.stderr);
+  const file = path.join(dir, 'out.html');
+  fs.writeFileSync(file, change(fs.readFileSync(file, 'utf8')));
+  return file;
+}
+const overlapping = html => html.replace('<p class="words">', '<svg class="dk-timeline" width="200" height="40" viewBox="0 0 200 40"><text x="10" y="20">first label</text><text x="14" y="22">second label</text></svg><p class="words">');
+const overwide = html => html.replace('<p class="words">', '<p class="words" style="width: 3000px">');
+
+test('a figure a notation drew itself is checked and photographed too', needsChrome, () => {
+  const shots = fs.mkdtempSync(path.join(os.tmpdir(), 'diagram-kit-shots-'));
+  const { status, report, stderr } = checked(selfDrawnPage(), '--shots', shots);
+
+  assert.equal(status, 0, stderr + JSON.stringify(report));
+  assert.deepEqual(report.diagrams, [{ id: 'w1', selfDrawn: true, problems: [] }]);
+  assert.ok(fs.statSync(path.join(shots, 'w1.png')).size > 0);
+});
+
+test('labels that lie on one another in a self-drawn drawing fail the check', needsChrome, () => {
+  const { status, report } = checked(selfDrawnPage(overlapping));
+
+  assert.equal(status, 1);
+  assert.deepEqual(report.diagrams[0].problems, ['two of its labels overlap']);
+});
+
+test('a self-drawn figure wider than the page, with nothing to scroll it in, fails the check', needsChrome, () => {
+  const { status, report } = checked(selfDrawnPage(overwide));
+
+  assert.equal(status, 1);
+  assert.deepEqual(report.diagrams[0].problems, ['it runs wider than the page']);
+});

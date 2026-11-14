@@ -28,6 +28,27 @@ module.exports = {
 - **`remarksOn`** is for what a reviewer should not have to find by eye: a
   cycle, an unreachable state, a relationship that breaks a rule.
 
+## A notation that draws itself
+
+A notation whose figure is better as HTML than as a laid-out drawing (a
+table that should reflow, a listing of text) exports `htmlOf` in place of
+`sceneOf`:
+
+```js
+htmlOf(spec, { resolveLink }) { return '<div class="dk-table">…</div>'; }
+```
+
+- The kit gives it no scene and no layout: it returns the figure's markup,
+  styled from the kit's tokens in `lib/diagram.css`.
+- `resolveLink(link)` returns `{ href, label, attributes }` or nothing;
+  wrap what opens the link with `linked` from `lib/html.js`, and make text
+  safe with `escaped` or `inlineOf`.
+- Write it to run in a browser as well as in Node, as `draw-matrix` does,
+  so a page can draw one from data it computes. In a browser it adds
+  itself to `DiagramKit.NOTATIONS`.
+- `bin/diagram.js layout` and rendering to `.svg` refuse it; rendering to
+  `.html` and `prepare` take it.
+
 ## The scene
 
 ```jsonc
