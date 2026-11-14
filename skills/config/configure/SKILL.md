@@ -33,13 +33,14 @@ the team file.
 
 A consent key holds a value only you may supply, because the repository must
 not choose what runs on your machine or where your credentials go. There are
-six:
+seven:
 
 | Key                    | Kind            | Environment override               |
 |------------------------|-----------------|------------------------------------|
 | `jira.allowed_sites`   | hostname list   | `ACCELERATOR_JIRA_ALLOWED_SITES`   |
 | `jira.token_cmd`       | command         | `ACCELERATOR_JIRA_TOKEN_CMD`       |
 | `linear.token_cmd`     | command         | `ACCELERATOR_LINEAR_TOKEN_CMD`     |
+| `shortcut.token_cmd`   | command         | `ACCELERATOR_SHORTCUT_TOKEN_CMD`   |
 | `openalex.api_key_cmd` | command         | `ACCELERATOR_OPENALEX_API_KEY_CMD` |
 | `github.token_cmd`     | command         | (none)                             |
 | `design.browser_path`  | executable path | `ACCELERATOR_DESIGN_BROWSER_PATH`  |
@@ -642,7 +643,7 @@ Configure work-item identifiers and the active remote tracker. Four keys are rec
 
 | Key                          | Default          | Description                                |
 |------------------------------|------------------|--------------------------------------------|
-| `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `trello`, `github-issues`. When set, integration skills auto-scope to the tracker scope key (`jira.project_key` / `linear.team_key`). Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
+| `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `shortcut`, `trello`, `github-issues`. When set, integration skills auto-scope to the tracker scope key (`jira.project_key` / `linear.team_key` / `shortcut.team_key`). Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
 | `id_pattern`                 | `{number:04d}`   | DSL controlling work-item ID shape         |
 | `key`                        | (empty)          | Local ID prefix substituted into `{key}`. Required when `id_pattern` references `{key}`; unused under `{tracker}`. Work-owned and fully independent of the tracker scope key — it never derives from it. |
 | `default_project_code`       | (empty)          | **Deprecated** (removed in 1.25.0). A read-time alias resolving into `work.key` (tracker-less) or the tracker scope key (tracker-backed). Run `/accelerator:migrate` to materialise the replacement keys. |
@@ -1038,8 +1039,8 @@ alphabetical. Its sequence groups categories by lifecycle:
 vcs → external trackers (github, integrations/jira) → planning → execution (work) → review → meta (config)
 ```
 
-Future integrations (Linear, Trello) land in the `integrations/` group,
-immediately after `./skills/integrations/jira/`. Do not sort the array
+Integrations land in the `integrations/` group, in the order Jira, Linear,
+Shortcut. A future one (Trello) goes after `./skills/integrations/shortcut/`. Do not sort the array
 alphabetically.
 
 #### Recognised keys
@@ -1156,6 +1157,59 @@ for Jira.
 Only `linear.team_id`, `linear.team_key`, `linear.token` and
 `linear.token_cmd` are recognised.
 Other `linear.*` keys are not consumed by any plugin script.
+
+### shortcut
+
+Configure access to Shortcut. A Shortcut API token belongs to one workspace
+and one member, so there is no site key: the client learns the workspace from
+the token.
+
+One key belongs in team-shared `config.md`:
+
+| Key        | Default | Description |
+|------------|---------|-------------|
+| `team_key` | (empty) | The base team: the team stories are created in and discovery searches. Give the team's mention name, or its display name when it has none. `/accelerator:init-shortcut` writes it. |
+
+`/accelerator:init-shortcut` also writes `catalogue.json`, which holds every
+team and workflow. It is committed, so a teammate pulls it rather than
+re-running init.
+
+#### Pull filters
+
+`shortcut.pull` takes the same shape as Linear's block:
+
+- `additional_teams` lists more team keys to discover, by mention name or
+  display name.
+- `all_teams: true` discovers every team the token can see. It cannot be set
+  beside `additional_teams`.
+- `filters` narrows discovery by `state`, `label`, `owner` and `type`, each a
+  list of values. Values for one key are OR'd, keys are AND'd, and a `~`
+  value is excluded. `owner` takes a member's mention name. `type` takes
+  `feature`, `bug` or `chore`, or a local kind.
+
+A value holding `"` or `\` is refused, because a Shortcut search cannot quote
+it.
+
+#### Personal settings (do not commit)
+
+Both token keys are personal and **must live exclusively in
+`config.local.md`**, which is gitignored:
+
+| Key         | Default | Description                                            |
+|-------------|---------|--------------------------------------------------------|
+| `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
+| `token_cmd` | (empty) | Shell command whose stdout is the token                |
+
+Authentication follows the same chain as Linear's, with
+`ACCELERATOR_SHORTCUT_TOKEN` and `ACCELERATOR_SHORTCUT_TOKEN_CMD` as the
+environment overrides. `shortcut.token_cmd` is a [consent key](#consent-keys).
+Store the token without a `Bearer` prefix. Create one at
+<https://app.shortcut.com/settings/account/api-tokens>.
+
+#### Recognised keys
+
+Only `shortcut.team_key`, `shortcut.token`, `shortcut.token_cmd`,
+`shortcut.pull` and `shortcut.push` are recognised.
 
 ### openalex
 

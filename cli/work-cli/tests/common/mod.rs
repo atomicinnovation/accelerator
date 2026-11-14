@@ -19,6 +19,7 @@ pub fn provider_env_vars() -> Vec<String> {
     for keys in [
         jira_client::auth::token_keys().expect("jira token keys parse"),
         linear_client::auth::token_keys().expect("linear token keys parse"),
+        shortcut_client::auth::token_keys().expect("shortcut token keys parse"),
     ] {
         for key in [keys.plaintext, keys.command.descriptor()] {
             vars.extend(key.overrides.iter().map(|name| (*name).to_owned()));

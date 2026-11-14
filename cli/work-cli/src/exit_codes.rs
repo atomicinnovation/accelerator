@@ -76,14 +76,15 @@
 //! before anything was sent:
 //!
 //! - `72` `NOT_AVAILABLE` — the configured tracker is recognised but has no
-//!   client wired yet (`shortcut`/`trello`/`github-issues`).
+//!   client wired yet (`trello`/`github-issues`).
 //! - `73` `UNRECOGNISED` — `work.integration` is unset or names a tracker
 //!   outside `{linear, jira, shortcut, trello, github-issues}`. Fail closed.
 //! - `74` `UNCONFIGURED` — the tracker is wired but a run cannot proceed on its
-//!   configuration: its credentials are missing or refused, or a non-push-only
-//!   run's discovery scope names no valid target (an unset or unresolvable
-//!   key, or a configured `additional_*`/`all_*` entity the credential cannot
-//!   see), or a configured work, integrations or state root it refuses: a
+//!   configuration: its credentials are missing or refused, Shortcut has no
+//!   committed `catalogue.json` (run `/accelerator:init-shortcut`), or a
+//!   non-push-only run's discovery scope names no valid target (an unset or
+//!   unresolvable key, or a configured `additional_*`/`all_*` entity the
+//!   credential cannot see), or a configured work, integrations or state root it refuses: a
 //!   symlink out of the repository, an outside root not set in an untracked
 //!   `config.local.md`, or overlapping roots. A run-level refusal is
 //!   pre-flight, before the apply/push phase, so **no write was made**. A
