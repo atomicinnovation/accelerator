@@ -214,8 +214,10 @@ timings on a quieter host (8.8 to 12.8).
       warnings:
       - macOS: 7,401 tests, `swept 2195 superseded artefacts (4.34 GB)`.
       - Ubuntu: 7,400 tests, `swept 1981 superseded artefacts (5.48 GB)`.
-- [ ] CI with the floor in force: both `test-unit` legs pass. The run was
-      still pending when this description was written.
+- [x] CI with the floor in force: both `test-unit` legs pass, twice, at
+      `a5cfcfa0`. macOS reads regions 92.89% then 92.88%; Ubuntu reads
+      `coverage: lines 94.18%, functions 93.57%, regions 92.87%` both
+      times.
 
 ## Notes for Reviewers
 
@@ -249,6 +251,13 @@ timings on a quieter host (8.8 to 12.8).
   a full `mise run`. It reads the bootstrap log as soon as it is non-empty,
   before the child's stderr line has always arrived. It passed five times
   alone and in the rerun.
+- **Two CI flakes outside this PR.** macOS's `test:unit:frontend` can pass
+  every test and still fail on `[vitest-worker]: Timeout calling
+  "onTaskUpdate"`; its duration here (185 to 347 s) matches `main`'s (240
+  to 321 s). The Ubuntu integration lane's bootstrap test
+  `test_concurrent_cold_cache_slow_downloader_all_succeed` once saw 8
+  downloads where the lock should allow 2. Both passed on this PR's
+  earlier runs, and neither touches its code.
 - **The coverage fixtures' paths are neutralised.** Both fixtures under
   `tests/unit/tasks/fixtures/coverage/` use `/workspace` in place of the
   checkout path, so no machine path is committed.
