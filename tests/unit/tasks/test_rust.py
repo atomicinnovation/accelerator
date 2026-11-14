@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -6,7 +7,13 @@ from invoke import Context, Exit
 
 from tasks import public_api, pup
 from tasks.shared import rust
-from tasks.shared.paths import CLI_DIR, cli_member_manifests
+from tasks.shared.cargo_metadata import Package, workspace_packages
+from tasks.shared.coverage import parse_totals
+from tasks.shared.paths import (
+    CLI_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+    cli_member_manifests,
+)
 from tasks.shared.rust import RUST_NIGHTLY
 from tasks.test import cli as test_cli
 
@@ -101,42 +108,283 @@ class TestPupCheck:
 # ── test:unit:cli leaf branches ───────────────────────────────────────
 
 
-class TestTestUnitCli:
-    def _command(self, ctx: MagicMock) -> str:
-        return ctx.run.call_args.args[0]
+EXPORT = (
+    Path(__file__).parent / "fixtures/coverage/llvm-cov-summary.json"
+).read_text()
+UNITS = (
+    Path(__file__).parent / "fixtures/coverage/cargo-units.jsonl"
+).read_text()
+BUILD_ENVIRONMENT = (
+    "LLVM_PROFILE_FILE='/workspace/cli/target/cli-%p-%16m.profraw'\n"
+    "RUSTC_WRAPPER=/opt/bin/cargo-llvm-cov\n"
+)
+CAPTURED_BUILD_DIR = "/workspace/cli/target/llvm-cov-target/debug"
+LIVE_ARTEFACT = "deps/libsmallvec-0e524c8a43f44c11.rlib"
+UPLIFTED_BINARY = "accelerator-verify"
+BINARY_TWIN = "deps/accelerator_verify-bccc7b6827f71b41"
+LIVE_SESSION = "incremental/kernel-1newer"
+SUPERSEDED_SESSION = "incremental/kernel-0older"
+SUPERSEDED_ARTEFACT = "deps/libsmallvec-3d4b3aa50bf88d80.rlib"
 
-    def test_instrumented_by_default(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ):
+REPORT = "cargo llvm-cov report"
+SHOW_ENV = "cargo llvm-cov show-env"
+UNIT_LISTING = "cargo test"
+_OUTPUTS = {REPORT: EXPORT, SHOW_ENV: BUILD_ENVIRONMENT, UNIT_LISTING: UNITS}
+
+
+def _passed(stdout: str = "") -> MagicMock:
+    return MagicMock(exited=0, stdout=stdout)
+
+
+def _failed() -> MagicMock:
+    return MagicMock(exited=1, stdout="")
+
+
+def _responding(override: tuple[str, MagicMock] | None = None):
+    def respond(command: str, **_kwargs) -> MagicMock:
+        if override and command.startswith(override[0]):
+            return override[1]
+        for prefix, stdout in _OUTPUTS.items():
+            if command.startswith(prefix):
+                return _passed(stdout)
+        return _passed()
+
+    return respond
+
+
+def _failing_at(prefix: str, result: MagicMock | None = None):
+    return _responding((prefix, result or _failed()))
+
+
+class TestTestUnitCli:
+    @pytest.fixture
+    def build_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> Path:
+        build_dir = tmp_path / "llvm-cov-target" / "debug"
+        for artefact in (
+            LIVE_ARTEFACT,
+            SUPERSEDED_ARTEFACT,
+            UPLIFTED_BINARY,
+            BINARY_TWIN,
+        ):
+            (build_dir / artefact).parent.mkdir(parents=True, exist_ok=True)
+            (build_dir / artefact).write_bytes(b"x" * 1_500)
+        for modified, session in enumerate((SUPERSEDED_SESSION, LIVE_SESSION)):
+            (build_dir / session).mkdir(parents=True)
+            os.utime(build_dir / session, (modified, modified))
+        monkeypatch.setattr(test_cli, "_INSTRUMENTED_BUILD", build_dir)
+        monkeypatch.setitem(
+            _OUTPUTS,
+            UNIT_LISTING,
+            UNITS.replace(CAPTURED_BUILD_DIR, str(build_dir)),
+        )
+        return build_dir
+
+    @pytest.fixture
+    def lane(
+        self, monkeypatch: pytest.MonkeyPatch, build_dir: Path
+    ) -> MagicMock:
         monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        test_cli.run(ctx)
-        command = self._command(ctx)
-        assert command.startswith("cargo llvm-cov nextest")
-        assert "--summary-only" in command
+        m = MagicMock(spec=Context)
+        m.run.side_effect = _responding()
+        return m
+
+    def _commands(self, lane: MagicMock) -> list[str]:
+        return [call.args[0] for call in lane.run.call_args_list]
+
+    def _swept_nothing(self, build_dir: Path) -> bool:
+        return all(
+            (build_dir / superseded).exists()
+            for superseded in (SUPERSEDED_ARTEFACT, SUPERSEDED_SESSION)
+        )
+
+    def test_clears_profile_data_then_tests_reports_and_sweeps(
+        self, lane: MagicMock
+    ):
+        test_cli.run(lane)
+
+        clean, tests, report, show_env, listing = self._commands(lane)
+        assert clean.startswith("cargo llvm-cov clean")
+        assert "--profraw-only" in clean
+        assert tests.startswith("cargo llvm-cov nextest")
+        for flag in (
+            "--no-report",
+            "--exclude accelerator-visualiser",
+            "--all-features",
+        ):
+            assert flag in tests
+        assert "--no-clean" not in tests, (
+            "cargo llvm-cov 0.8.7 rejects --no-clean beside --no-report, "
+            "which already skips the full clean"
+        )
+        assert report.startswith(REPORT)
+        for flag in ("--json", "--summary-only"):
+            assert flag in report
+        assert "features" not in report, (
+            "cargo llvm-cov 0.8.7 rejects feature flags on `report`"
+        )
+        assert show_env == f"cargo llvm-cov show-env {test_cli._WORKSPACE}"
+        assert listing == (
+            f"cargo test {test_cli._MANIFEST} --no-run --message-format=json"
+        )
+        for command in (clean, tests, report, show_env, listing):
+            assert f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}" in command
+
+    def test_the_unit_listing_runs_in_the_instrumented_environment(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        test_cli.run(lane)
+
+        listing = lane.run.call_args_list[4]
+        assert listing.kwargs["env"] == {
+            "LLVM_PROFILE_FILE": "/workspace/cli/target/cli-%p-%16m.profraw",
+            "RUSTC_WRAPPER": "/opt/bin/cargo-llvm-cov",
+            "CARGO_TARGET_DIR": str(build_dir.parent),
+        }
+
+    def test_only_the_report_and_listing_output_is_captured(
+        self, lane: MagicMock
+    ):
+        test_cli.run(lane)
+
+        captured = [
+            call.args[0].split(" --")[0]
+            for call in lane.run.call_args_list
+            if call.kwargs.get("hide") == "out"
+        ]
+        assert captured == [REPORT, SHOW_ENV, UNIT_LISTING]
+
+    def test_prints_the_totals_line(
+        self, lane: MagicMock, capsys: pytest.CaptureFixture[str]
+    ):
+        test_cli.run(lane)
+
+        out = capsys.readouterr().out
+        assert parse_totals(EXPORT).summary_line() in out
+        assert '"files"' not in out
+        assert "{" not in out
+
+    def test_sweeps_superseded_entries_and_keeps_live_ones(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        test_cli.run(lane)
+
+        assert (build_dir / LIVE_ARTEFACT).exists()
+        assert (build_dir / BINARY_TWIN).exists()
+        assert (build_dir / LIVE_SESSION).exists()
+        assert not (build_dir / SUPERSEDED_ARTEFACT).exists()
+        assert not (build_dir / SUPERSEDED_SESSION).exists()
+        assert "swept 2 superseded artefacts (1.50 kB)" in (
+            capsys.readouterr().out
+        )
+
+    def test_the_sweep_runs_after_the_totals_line(
+        self, lane: MagicMock, capsys: pytest.CaptureFixture[str]
+    ):
+        test_cli.run(lane)
+
+        out = capsys.readouterr().out
+        assert out.index("coverage:") < out.index("swept")
 
     def test_plain_nextest_when_coverage_off(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
-        test_cli.run(ctx)
-        command = self._command(ctx)
+        test_cli.run(lane)
+
+        [command] = self._commands(lane)
         assert command.startswith("cargo nextest run")
         assert "llvm-cov" not in command
+        assert self._swept_nothing(build_dir)
 
-    def test_carries_no_coverage_threshold(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        test_cli.run(ctx)
-        assert "--fail-under" not in self._command(ctx)
+    def test_carries_no_coverage_threshold(self, lane: MagicMock):
+        test_cli.run(lane)
 
-    def test_raises_when_inner_tests_fail(
-        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+        assert not any("--fail-under" in c for c in self._commands(lane))
+
+    def test_failing_plain_nextest_fails_the_task(
+        self, lane: MagicMock, monkeypatch: pytest.MonkeyPatch
     ):
-        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
-        ctx.run.return_value = MagicMock(exited=1)
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        lane.run.side_effect = _failing_at("cargo nextest run")
         with pytest.raises(Exit):
-            test_cli.run(ctx)
+            test_cli.run(lane)
+
+    def test_failing_profile_clean_stops_before_the_tests(
+        self, lane: MagicMock
+    ):
+        lane.run.side_effect = _failing_at("cargo llvm-cov clean")
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 1
+
+    def test_failing_tests_stop_before_the_report(self, lane: MagicMock):
+        lane.run.side_effect = _failing_at("cargo llvm-cov nextest")
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 2
+
+    def test_failing_report_stops_before_the_sweep(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = _failing_at(REPORT)
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert lane.run.call_count == 3
+        assert self._swept_nothing(build_dir)
+
+    def test_unreadable_report_fails_the_task(self, lane: MagicMock):
+        lane.run.side_effect = _failing_at(REPORT, _passed("not json"))
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+
+    @pytest.mark.parametrize("failing", [SHOW_ENV, UNIT_LISTING])
+    def test_a_failing_unit_listing_step_fails_the_task(
+        self, lane: MagicMock, build_dir: Path, failing: str
+    ):
+        lane.run.side_effect = _failing_at(failing)
+        with pytest.raises(Exit):
+            test_cli.run(lane)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_listing_that_rebuilt_units_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        rebuilt = UNITS.replace('"fresh":true', '"fresh":false', 2)
+        lane.run.side_effect = _failing_at(UNIT_LISTING, _passed(rebuilt))
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert "rebuilt 2" in str(exc_info.value)
+        assert "no longer matches the instrumented build" in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_listing_with_no_units_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = _failing_at(UNIT_LISTING, _passed(""))
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert "no units" in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
+
+    def test_a_binary_without_a_twin_sweeps_nothing(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        (build_dir / BINARY_TWIN).write_bytes(b"an older build")
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+        assert UPLIFTED_BINARY in str(exc_info.value)
+        assert self._swept_nothing(build_dir)
+
+    def test_docstring_names_the_stale_binary_remedy(self):
+        assert "cargo llvm-cov clean --workspace" in test_cli.run.body.__doc__
 
 
 # ── The surface-pin coverage guard ────────────────────────────────────
@@ -215,6 +463,42 @@ class TestPinnedCrateCoverage:
             f"pinned with no committed snapshot: {sorted(missing)} — "
             "regenerate with `mise run public-api:update`"
         )
+
+
+# ── The report-scope guard ────────────────────────────────────────────
+
+
+def _dependents_of(crate: str, packages: list[Package]) -> set[str]:
+    return {
+        package["name"]
+        for package in packages
+        if any(dep["name"] == crate for dep in package["dependencies"])
+    }
+
+
+def _package(name: str, *dependencies: dict) -> Package:
+    return {"name": name, "dependencies": list(dependencies)}
+
+
+class TestVisualiserHasNoDependents:
+    def test_no_workspace_member_depends_on_the_visualiser(self):
+        dependents = _dependents_of(test_cli._VISUALISER, workspace_packages())
+        assert not dependents, (
+            f"{sorted(dependents)} depend on {test_cli._VISUALISER}; "
+            "`cargo llvm-cov report` cannot exclude a package, so a dependent "
+            "would pull the visualiser into test:unit:cli's coverage totals"
+        )
+
+    @pytest.mark.parametrize("kind", [None, "dev", "build"])
+    def test_the_guard_finds_a_dependent(self, kind: str | None):
+        packages = [
+            _package("widget", {"name": test_cli._VISUALISER, "kind": kind})
+        ]
+        assert _dependents_of(test_cli._VISUALISER, packages) == {"widget"}
+
+    def test_the_guard_ignores_other_dependencies(self):
+        packages = [_package("widget", {"name": "kernel", "kind": None})]
+        assert _dependents_of(test_cli._VISUALISER, packages) == set()
 
 
 # ── public_api.check() / public_api.update() leaf branches ────────────

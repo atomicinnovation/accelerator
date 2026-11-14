@@ -331,7 +331,7 @@ depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/vcs -v"
 
 [tasks."test:unit:cli"]
-description = "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)"
+description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
 run = "invoke test.cli.run"
 
